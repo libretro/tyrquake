@@ -593,6 +593,7 @@ R_AliasSetupSkin(void)
     r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
     r_affinetridesc.skinheight = pmdl->skinheight;
 
+#ifdef QW_HACK
     if (currententity->scoreboard) {
 	byte *base;
 
@@ -605,6 +606,7 @@ R_AliasSetupSkin(void)
 	    r_affinetridesc.skinheight = 200;
 	}
     }
+#endif
 }
 
 /*

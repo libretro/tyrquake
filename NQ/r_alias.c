@@ -593,7 +593,20 @@ R_AliasSetupSkin(void)
     r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
     r_affinetridesc.skinheight = pmdl->skinheight;
 
-    // FIXME - QW Scoreboard code here?
+#ifdef QW_HACK
+    if (currententity->scoreboard) {
+	byte *base;
+
+	if (!currententity->scoreboard->skin)
+	    Skin_Find(currententity->scoreboard);
+	base = Skin_Cache(currententity->scoreboard->skin);
+	if (base) {
+	    r_affinetridesc.pskin = base;
+	    r_affinetridesc.skinwidth = 320;
+	    r_affinetridesc.skinheight = 200;
+	}
+    }
+#endif
 }
 
 /*
