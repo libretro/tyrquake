@@ -152,6 +152,7 @@ char *va(char *format, ...);
 extern int com_filesize;
 struct cache_user_s;
 
+extern char com_basedir[MAX_OSPATH];
 extern char com_gamedir[MAX_OSPATH];
 
 void COM_WriteFile(const char *filename, const void *data, int len);

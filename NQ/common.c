@@ -1103,6 +1103,7 @@ typedef struct {
 
 char com_cachedir[MAX_OSPATH];
 char com_gamedir[MAX_OSPATH];
+char com_basedir[MAX_OSPATH];
 
 typedef struct searchpath_s {
     char filename[MAX_OSPATH];
@@ -1596,7 +1597,6 @@ static void
 COM_InitFilesystem(void)
 {
     int i, j;
-    char basedir[MAX_OSPATH];
     searchpath_t *search;
 
 //
@@ -1605,15 +1605,15 @@ COM_InitFilesystem(void)
 //
     i = COM_CheckParm("-basedir");
     if (i && i < com_argc - 1)
-	strcpy(basedir, com_argv[i + 1]);
+	strcpy(com_basedir, com_argv[i + 1]);
     else
-	strcpy(basedir, host_parms.basedir);
+	strcpy(com_basedir, host_parms.basedir);
 
-    j = strlen(basedir);
+    j = strlen(com_basedir);
 
     if (j > 0) {
-	if ((basedir[j - 1] == '\\') || (basedir[j - 1] == '/'))
-	    basedir[j - 1] = 0;
+	if ((com_basedir[j - 1] == '\\') || (com_basedir[j - 1] == '/'))
+	    com_basedir[j - 1] = 0;
     }
 //
 // -cachedir <path>
@@ -1634,12 +1634,12 @@ COM_InitFilesystem(void)
 //
 // start up with GAMENAME by default (id1)
 //
-    COM_AddGameDirectory(va("%s/" GAMENAME, basedir));
+    COM_AddGameDirectory(va("%s/" GAMENAME, com_basedir));
 
     if (COM_CheckParm("-rogue"))
-	COM_AddGameDirectory(va("%s/rogue", basedir));
+	COM_AddGameDirectory(va("%s/rogue", com_basedir));
     if (COM_CheckParm("-hipnotic"))
-	COM_AddGameDirectory(va("%s/hipnotic", basedir));
+	COM_AddGameDirectory(va("%s/hipnotic", com_basedir));
 
 //
 // -game <gamedir>
@@ -1648,7 +1648,7 @@ COM_InitFilesystem(void)
     i = COM_CheckParm("-game");
     if (i && i < com_argc - 1) {
 	com_modified = true;
-	COM_AddGameDirectory(va("%s/%s", basedir, com_argv[i + 1]));
+	COM_AddGameDirectory(va("%s/%s", com_basedir, com_argv[i + 1]));
     }
 //
 // -path <dir or packfile> [<dir or packfile>] ...
