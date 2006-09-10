@@ -48,7 +48,7 @@ typedef struct {
     float die;			// stop lighting after this time
     float decay;		// drop this each second
     float minlight;		// don't add when contributing less
-    float color[4];
+    const float *color;
 } dlight_t;
 
 typedef struct {
@@ -275,6 +275,16 @@ extern beam_t cl_beams[MAX_BEAMS];
 // cl_main
 //
 dlight_t *CL_AllocDlight(int key);
+
+/* The standard dynamic light colors */
+enum {
+    DLIGHT_FLASH = 0,
+    DLIGHT_BLUE = 1,
+    DLIGHT_RED = 2,
+    DLIGHT_PURPLE = 3
+};
+const float dl_colors[4][4]; /* Use enums to reference the colors */
+
 void CL_DecayLights(void);
 
 void CL_Init(void);

@@ -335,6 +335,13 @@ SetPal(int i)
 #endif
 }
 
+const float dl_colors[4][4] = {
+    { 0.2, 0.1, 0.05, 0.7 },	/* FLASH */
+    { 0.05, 0.05, 0.3, 0.7 },	/* BLUE */
+    { 0.5, 0.05, 0.05, 0.7 },	/* RED */
+    { 0.5, 0.05, 0.4, 0.7 }	/* PURPLE */
+};
+
 /*
 ===============
 CL_AllocDlight
@@ -353,6 +360,7 @@ CL_AllocDlight(int key)
 	for (i = 0; i < MAX_DLIGHTS; i++, dl++) {
 	    if (dl->key == key) {
 		memset(dl, 0, sizeof(*dl));
+		dl->color = dl_colors[DLIGHT_FLASH];
 		dl->key = key;
 		return dl;
 	    }
@@ -363,6 +371,7 @@ CL_AllocDlight(int key)
     for (i = 0; i < MAX_DLIGHTS; i++, dl++) {
 	if (dl->die < cl.time) {
 	    memset(dl, 0, sizeof(*dl));
+	    dl->color = dl_colors[DLIGHT_FLASH];
 	    dl->key = key;
 	    return dl;
 	}
@@ -370,6 +379,7 @@ CL_AllocDlight(int key)
 
     dl = &cl_dlights[0];
     memset(dl, 0, sizeof(*dl));
+    dl->color = dl_colors[DLIGHT_FLASH];
     dl->key = key;
     return dl;
 }
@@ -555,10 +565,7 @@ CL_RelinkEntities(void)
 	    dl->radius = 200 + (rand() & 31);
 	    dl->minlight = 32;
 	    dl->die = cl.time + 0.1;
-	    dl->color[0] = 0.2;
-	    dl->color[1] = 0.1;
-	    dl->color[2] = 0.05;
-	    dl->color[3] = 0.7;
+	    dl->color = dl_colors[DLIGHT_FLASH];
 	}
 	if (ent->effects & EF_BRIGHTLIGHT) {
 	    dl = CL_AllocDlight(i);
@@ -566,48 +573,33 @@ CL_RelinkEntities(void)
 	    dl->origin[2] += 16;
 	    dl->radius = 400 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
-	    dl->color[0] = 0.2;
-	    dl->color[1] = 0.1;
-	    dl->color[2] = 0.05;
-	    dl->color[3] = 0.7;
+	    dl->color = dl_colors[DLIGHT_FLASH];
 	}
 	if (ent->effects & EF_DIMLIGHT) {
 	    dl = CL_AllocDlight(i);
 	    VectorCopy(ent->origin, dl->origin);
 	    dl->radius = 200 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
-	    dl->color[0] = 0.2;
-	    dl->color[1] = 0.1;
-	    dl->color[2] = 0.05;
-	    dl->color[3] = 0.7;
+	    dl->color = dl_colors[DLIGHT_FLASH];
 	}
 	if ((ent->effects & (EF_RED | EF_BLUE)) == (EF_RED | EF_BLUE)) {
 	    dl = CL_AllocDlight(i);
 	    VectorCopy(ent->origin, dl->origin);
 	    dl->radius = 200 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
-	    dl->color[0] = 0.5;
-	    dl->color[1] = 0.05;
-	    dl->color[2] = 0.4;
-	    dl->color[3] = 0.7;
+	    dl->color = dl_colors[DLIGHT_PURPLE];
 	} else if (ent->effects & EF_BLUE) {
 	    dl = CL_AllocDlight(i);
 	    VectorCopy(ent->origin, dl->origin);
 	    dl->radius = 200 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
-	    dl->color[0] = 0.05;
-	    dl->color[1] = 0.05;
-	    dl->color[2] = 0.3;
-	    dl->color[3] = 0.7;
+	    dl->color = dl_colors[DLIGHT_BLUE];
 	} else if (ent->effects & EF_RED) {
 	    dl = CL_AllocDlight(i);
 	    VectorCopy(ent->origin, dl->origin);
 	    dl->radius = 200 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
-	    dl->color[0] = 0.5;
-	    dl->color[1] = 0.05;
-	    dl->color[2] = 0.05;
-	    dl->color[3] = 0.7;
+	    dl->color = dl_colors[DLIGHT_RED];
 	}
 
 	if (ent->model->flags & EF_GIB)

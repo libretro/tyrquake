@@ -1103,10 +1103,7 @@ CL_MuzzleFlash(void)
     dl->radius = 200 + (rand() & 31);
     dl->minlight = 32;
     dl->die = cl.time + 0.1;
-    dl->color[0] = 0.2;
-    dl->color[1] = 0.1;
-    dl->color[2] = 0.05;
-    dl->color[3] = 0.7;
+    dl->color = dl_colors[DLIGHT_FLASH];
 }
 
 

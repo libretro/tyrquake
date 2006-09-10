@@ -124,8 +124,7 @@ R_RenderDlight(dlight_t *light)
     }
 
     glBegin(GL_TRIANGLE_FAN);
-    glColor4f(light->color[0], light->color[1], light->color[2],
-	      light->color[3]);
+    glColor4fv(light->color);
 
     for (i = 0; i < 3; i++)
 	v[i] = light->origin[i] - vpn[i] * rad;

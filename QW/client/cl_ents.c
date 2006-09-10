@@ -45,6 +45,13 @@ static struct predicted_player {
 
 //============================================================
 
+const float dl_colors[4][4] = {
+    { 0.2, 0.1, 0.05, 0.7 },	/* FLASH */
+    { 0.05, 0.05, 0.3, 0.7 },	/* BLUE */
+    { 0.5, 0.05, 0.05, 0.7 },	/* RED */
+    { 0.5, 0.05, 0.4, 0.7 }	/* PURPLE */
+};
+
 /*
 ===============
 CL_AllocDlight
@@ -62,6 +69,7 @@ CL_AllocDlight(int key)
 	for (i = 0; i < MAX_DLIGHTS; i++, dl++) {
 	    if (dl->key == key) {
 		memset(dl, 0, sizeof(*dl));
+		dl->color = dl_colors[DLIGHT_FLASH];
 		dl->key = key;
 		return dl;
 	    }
@@ -72,6 +80,7 @@ CL_AllocDlight(int key)
     for (i = 0; i < MAX_DLIGHTS; i++, dl++) {
 	if (dl->die < cl.time) {
 	    memset(dl, 0, sizeof(*dl));
+	    dl->color = dl_colors[DLIGHT_FLASH];
 	    dl->key = key;
 	    return dl;
 	}
@@ -79,6 +88,7 @@ CL_AllocDlight(int key)
 
     dl = &cl_dlights[0];
     memset(dl, 0, sizeof(*dl));
+    dl->color = dl_colors[DLIGHT_FLASH];
     dl->key = key;
     return dl;
 }
@@ -90,7 +100,7 @@ CL_NewDlight
 */
 static void
 CL_NewDlight(int key, float x, float y, float z, float radius, float time,
-	     int type)
+	     int color)
 {
     dlight_t *dl;
 
@@ -100,27 +110,7 @@ CL_NewDlight(int key, float x, float y, float z, float radius, float time,
     dl->origin[2] = z;
     dl->radius = radius;
     dl->die = cl.time + time;
-    if (type == 0) {
-	dl->color[0] = 0.2;
-	dl->color[1] = 0.1;
-	dl->color[2] = 0.05;
-	dl->color[3] = 0.7;
-    } else if (type == 1) {
-	dl->color[0] = 0.05;
-	dl->color[1] = 0.05;
-	dl->color[2] = 0.3;
-	dl->color[3] = 0.7;
-    } else if (type == 2) {
-	dl->color[0] = 0.5;
-	dl->color[1] = 0.05;
-	dl->color[2] = 0.05;
-	dl->color[3] = 0.7;
-    } else if (type == 3) {
-	dl->color[0] = 0.5;
-	dl->color[1] = 0.05;
-	dl->color[2] = 0.4;
-	dl->color[3] = 0.7;
-    }
+    dl->color = dl_colors[color];
 }
 
 
@@ -430,19 +420,19 @@ CL_LinkPacketEntities(void)
 	// spawn light flashes, even ones coming from invisible objects
 	if ((s1->effects & (EF_BLUE | EF_RED)) == (EF_BLUE | EF_RED))
 	    CL_NewDlight(s1->number, s1->origin[0], s1->origin[1],
-			 s1->origin[2], 200 + (rand() & 31), 0.1, 3);
+			 s1->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_PURPLE);
 	else if (s1->effects & EF_BLUE)
 	    CL_NewDlight(s1->number, s1->origin[0], s1->origin[1],
-			 s1->origin[2], 200 + (rand() & 31), 0.1, 1);
+			 s1->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_BLUE);
 	else if (s1->effects & EF_RED)
 	    CL_NewDlight(s1->number, s1->origin[0], s1->origin[1],
-			 s1->origin[2], 200 + (rand() & 31), 0.1, 2);
+			 s1->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_RED);
 	else if (s1->effects & EF_BRIGHTLIGHT)
 	    CL_NewDlight(s1->number, s1->origin[0], s1->origin[1],
-			 s1->origin[2] + 16, 400 + (rand() & 31), 0.1, 0);
+			 s1->origin[2] + 16, 400 + (rand() & 31), 0.1, DLIGHT_FLASH);
 	else if (s1->effects & EF_DIMLIGHT)
 	    CL_NewDlight(s1->number, s1->origin[0], s1->origin[1],
-			 s1->origin[2], 200 + (rand() & 31), 0.1, 0);
+			 s1->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_FLASH);
 
 	// if set to invisible, skip
 	if (!s1->modelindex)
@@ -817,20 +807,20 @@ CL_LinkPlayers(void)
 #endif
 	    if ((state->effects & (EF_BLUE | EF_RED)) == (EF_BLUE | EF_RED))
 		CL_NewDlight(j, state->origin[0], state->origin[1],
-			     state->origin[2], 200 + (rand() & 31), 0.1, 3);
+			     state->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_PURPLE);
 	    else if (state->effects & EF_BLUE)
 		CL_NewDlight(j, state->origin[0], state->origin[1],
-			     state->origin[2], 200 + (rand() & 31), 0.1, 1);
+			     state->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_BLUE);
 	    else if (state->effects & EF_RED)
 		CL_NewDlight(j, state->origin[0], state->origin[1],
-			     state->origin[2], 200 + (rand() & 31), 0.1, 2);
+			     state->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_RED);
 	    else if (state->effects & EF_BRIGHTLIGHT)
 		CL_NewDlight(j, state->origin[0], state->origin[1],
 			     state->origin[2] + 16, 400 + (rand() & 31),
-			     0.1, 0);
+			     0.1, DLIGHT_FLASH);
 	    else if (state->effects & EF_DIMLIGHT)
 		CL_NewDlight(j, state->origin[0], state->origin[1],
-			     state->origin[2], 200 + (rand() & 31), 0.1, 0);
+			     state->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_FLASH);
 #ifdef GLQUAKE
 	}
 #endif
