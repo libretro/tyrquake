@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2006-02-12
-Version: 	0.49
+Date:		2006-02-18
+Version: 	0.50
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -28,6 +28,11 @@ something else...
 
 
 Version History:
+
+v0.50
+=====
+- Added command argument completion infrastructure
+- Added argument completion for map, playdemo and timedemo commands
 
 v0.49
 =====
