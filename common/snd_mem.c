@@ -217,7 +217,7 @@ FindNextChunk(char *name)
 #endif
 	data_p -= 8;
 	last_chunk = data_p + 8 + ((iff_chunk_len + 1) & ~1);
-	if (!strncmp(data_p, name, 4))
+	if (!strncmp((char *)data_p, name, 4))
 	    return;
     }
 }
@@ -270,7 +270,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
 
 // find "RIFF" chunk
     FindChunk("RIFF");
-    if (!(data_p && !strncmp(data_p + 8, "WAVE", 4))) {
+    if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4))) {
 	Con_Printf("Missing RIFF/WAVE chunks\n");
 	return info;
     }
@@ -305,7 +305,8 @@ GetWavinfo(char *name, byte *wav, int wavlength)
 	// if the next chunk is a LIST chunk, look for a cue length marker
 	FindNextChunk("LIST");
 	if (data_p) {
-	    if (!strncmp(data_p + 28, "mark", 4)) {	// this is not a proper parse, but it works with cooledit...
+	    /* this is not a proper parse, but it works with cooledit... */
+	    if (!strncmp((char *)data_p + 28, "mark", 4)) {
 		data_p += 24;
 		i = GetLittleLong();	// samples in loop
 		info.samples = info.loopstart + i;

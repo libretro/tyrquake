@@ -387,7 +387,7 @@ CL_Record_f(void)
     int c;
     char name[MAX_OSPATH];
     sizebuf_t buf;
-    char buf_data[MAX_MSGLEN];
+    byte buf_data[MAX_MSGLEN];
     int n, i, j;
     char *s;
     entity_t *ent;
