@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2005-02-04
-Version: 	0.47
+Date:		2005-12-31
+Version: 	0.48
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -28,6 +28,15 @@ something else...
 
 
 Version History:
+
+v0.48
+=====
+- Save mlook state to config.cfg
+- Make mousewheel work in Linux
+- Make CD volume control work in Linux
+- Make gamma controls work in Linux/Windows GLQuake
+- Thanks to Stephen A for supplying the patches used as a basis for the above
+  (and Ozkan for some of the original work)
 
 v0.47
 =====
