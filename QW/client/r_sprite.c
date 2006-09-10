@@ -19,10 +19,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // r_sprite.c
 
+#include "console.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "sys.h"
-#include "console.h"
 
 static int clip_current;
 static vec5_t clip_verts[2][MAXWORKINGVERTS];
@@ -215,7 +215,7 @@ R_SetupAndDrawSprite()
 	scale = yscale * pout->zi;
 	pout->v = (ycenter - scale * transformed[1]);
 
-	pv += sizeof(vec5_t) / sizeof(pv);
+	pv += sizeof(vec5_t) / sizeof(*pv);
     }
 
 // draw it
