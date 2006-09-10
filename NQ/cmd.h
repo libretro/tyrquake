@@ -108,7 +108,7 @@ struct stree_root *Cmd_ArgCompletions(const char *name, const char *buf);
 // The cmd_name is referenced later, so it should not be in temp memory
 
 qboolean Cmd_Exists(char *cmd_name);
-
+qboolean Cmd_Alias_Exists(char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
 int Cmd_Argc(void);

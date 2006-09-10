@@ -606,6 +606,11 @@ Cmd_Exists(char *cmd_name)
     return Cmd_FindCommand(cmd_name) != NULL;
 }
 
+qboolean
+Cmd_Alias_Exists(char *cmd_name)
+{
+    return Cmd_Alias_Find(cmd_name) != NULL;
+}
 
 
 /*

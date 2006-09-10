@@ -148,17 +148,14 @@ extern const char** completions_list;
 void insert_alias_completion(const char *str);
 unsigned find_alias_completions(const char *str);
 char *find_alias_completion(const char *str);
-int alias_exists(const char *str);
 
 void insert_command_completion(const char *str);
 unsigned find_command_completions(const char *str);
 char *find_command_completion(const char *str);
-int command_exists(const char *str);
 
 void insert_cvar_completion(const char *str);
 unsigned find_cvar_completions(const char *str);
 char *find_cvar_completion(const char *str);
-int cvar_exists(const char *str);
 
 /* Search all three completion caches combined */
 unsigned find_completions(const char *str);

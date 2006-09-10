@@ -202,7 +202,7 @@ CheckForCommand(void)
 	    cmd[i] = s[i];
     cmd[i] = 0;
 
-    return command_exists(cmd) || cvar_exists(cmd) || alias_exists(cmd);
+    return Cmd_Exists(cmd) || Cvar_FindVar(cmd) || Cmd_Alias_Exists(cmd);
 }
 
 
@@ -240,7 +240,7 @@ CompleteCommand(void)
 	    strncpy(cmd, s, len);
 	    cmd[len] = 0;
 
-	    if (command_exists(cmd)) {
+	    if (Cmd_Exists(cmd)) {
 		s += len;
 		while (*s == ' ')
 		    s++;
@@ -282,7 +282,7 @@ ShowCompletions(void)
 	    strncpy(cmd, s, len);
 	    cmd[len] = 0;
 
-	    if (command_exists(cmd)) {
+	    if (Cmd_Exists(cmd)) {
 		struct stree_root *root;
 
 		s += len;

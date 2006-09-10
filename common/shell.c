@@ -470,55 +470,6 @@ static int num_completions = 0;
 static struct rb_root completions = RB_ROOT;
 
 /*
- * FIXME: document assumptions about args; see caller below
- */
-static struct completion *
-rb_find_exact_r(struct rb_node *n, const char *str, unsigned long type)
-{
-    if (n) {
-	struct completion *c, *ret = NULL; /* FIXME - null right here? */
-
-	c = completion_entry(n);
-	if (!strcasecmp(str, c->string)) {
-	    ret = rb_find_exact_r(n->rb_left, str, type);
-	    if (!ret && (c->cmd_type & type))
-		ret = c;
-	    if (!ret)
-		ret = rb_find_exact_r(n->rb_right, str, type);
-	}
-	return ret;
-    }
-    return NULL;
-}
-
-
-/*
- * Find exact string
- */
-static int
-rb_find_exact(const char *str, unsigned long type, struct rb_root *root)
-{
-    struct rb_node *n = root->rb_node;
-    struct completion *c;
-    int cmp;
-
-    /* Do the first part iteratively */
-    while (n) {
-	c = completion_entry(n);
-	cmp = strcasecmp(str, c->string);
-	if (cmp < 0)
-	    n = n->rb_left;
-	else if (cmp > 0)
-	    n = n->rb_right;
-	else
-	    break;
-    }
-    /* now take care of the type matching */
-    return (rb_find_exact_r(n, str, type) != NULL);
-}
-
-
-/*
  * str, type - the insertion key (only use one type 'flag' here)
  * root - root of the tree being inserted into
  * node - the node being inserted
@@ -723,12 +674,6 @@ find_command_completion(const char *str)
     return rb_find_completion(str, CMD_COMMAND, &completions);
 }
 
-int
-command_exists(const char *str)
-{
-    return rb_find_exact(str, CMD_COMMAND, &completions);
-}
-
 /* Alias completions */
 
 void
@@ -749,13 +694,6 @@ find_alias_completion(const char *str)
     return rb_find_completion(str, CMD_ALIAS, &completions);
 }
 
-int
-alias_exists(const char *str)
-{
-    return rb_find_exact(str, CMD_ALIAS, &completions);
-}
-
-
 /* Cvar completions */
 
 void
@@ -774,12 +712,6 @@ char *
 find_cvar_completion(const char *str)
 {
     return rb_find_completion(str, CMD_CVAR, &completions);
-}
-
-int
-cvar_exists(const char *str)
-{
-    return Cvar_FindVar(str) != NULL;
 }
 
 /* ------------------------------------------------------------------------ */

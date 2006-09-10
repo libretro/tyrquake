@@ -98,7 +98,7 @@ struct stree_root *Cmd_ArgCompletions(const char *name, const char *buf);
 // as a clc_stringcmd instead of executed locally
 
 qboolean Cmd_Exists(char *cmd_name);
-
+qboolean Cmd_Alias_Exists(char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
 int Cmd_Argc(void);
