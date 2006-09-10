@@ -13,40 +13,29 @@ TYR_VERSION_BUILD =
 TYR_VERSION = $(TYR_VERSION_MAJOR).$(TYR_VERSION_MINOR)$(TYR_VERSION_BUILD)
 
 # ============================================================================
-# Choose the target here: (Yes, I know it sucks).
+# User configurable options here:
 # ============================================================================
-
-TARGET_APP = NQ
-#TARGET_APP = QW
-#TARGET_APP = QWSV
-
-#TARGET_RENDER = SW
-TARGET_RENDER = GL
-
-#TARGET_OS = WIN32
-TARGET_OS = LINUX
 
 #DEBUG=y 	# Compile with debug info
 #NO_X86_ASM=y	# Compile with no x86 asm
 
 # ============================================================================
 
-# EXPORT ALL VARIABLES
-export
+BUILD_DIR = build
 
-.PHONY:	default clean \
-	nq-w32-sw-objs nq-w32-gl-objs qw-w32-sw-objs qw-w32-gl-objs \
-	qwsv-w32-objs \
-	nq-linux-sw-objs nq-linux-gl-objs qw-linux-sw-objs qw-linux-gl-objs \
-	qwsv-linux-objs
+.PHONY:	default clean
 
 # ============================================================================
 
 # FIXME - how to detect build env reliably...?
 ifeq ($(OSTYPE),msys)
+TARGET_OS = WIN32
 TOPDIR := $(shell pwd -W)
+EXT = .exe
 else
+TARGET_OS = LINUX
 TOPDIR := $(shell pwd)
+EXT =
 endif
 
 # ============================================================================
@@ -61,152 +50,11 @@ cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
 
 GCC_VERSION := $(call cc-version)
 
-# ----------------------------
-# The two project directories
-# ----------------------------
-
-NQ_DIR = NQ
-QW_DIR = QW
-
-# ----------------------------
-# Include dirs compiler flags
-# ----------------------------
+# ---------------------
+# Special include dirs
+# ---------------------
 DX_INC    = $(TOPDIR)/dxsdk/sdk/inc
 ST_INC    = $(TOPDIR)/scitech/include
-
-WIN32_SW_INC = $(DX_INC) $(ST_INC)
-WIN32_GL_INC = $(DX_INC)
-
-QWSV_INC  = $(TOPDIR)/$(QW_DIR)/server $(TOPDIR)/$(QW_DIR)/client
-
-WIN32_SW_IFLAGS := -idirafter $(DX_INC)
-WIN32_SW_IFLAGS += -idirafter $(ST_INC)
-WIN32_SW_IFLAGS += -I$(TOPDIR)/include
-
-WIN32_GL_IFLAGS := -idirafter $(DX_INC)
-WIN32_GL_IFLAGS += -I$(TOPDIR)/include
-
-QWSV_WIN32_IFLAGS  = $(patsubst %,-idirafter %,$(QWSV_INC)) -I$(TOPDIR)/include
-QWSV_LINUX_IFLAGS  = $(patsubst %,-idirafter %,$(QWSV_INC)) -I$(TOPDIR)/include
-
-# ------------------------------
-# define flags
-# ------------------------------
-DFLAGS := -DTYR_VERSION=$(TYR_VERSION)
-
-# App specific hacks
-ifeq ($(TARGET_APP),NQ)
-DFLAGS += -DNQ_HACK
-endif
-ifeq ($(TARGET_APP),QW)
-DFLAGS += -DQW_HACK
-endif
-ifeq ($(TARGET_APP),QWSV)
-DFLAGS += -DQW_HACK -DSERVERONLY
-endif
-
-ifeq ($(TARGET_RENDER),GL)
-DFLAGS += -DGLQUAKE
-endif
-
-ifeq ($(TARGET_OS),WIN32)
-DFLAGS += -DWIN32 -D_WIN32
-endif
-
-ifdef DEBUG
-DFLAGS += -DDEBUG
-else
-DFLAGS += -DNDEBUG
-endif
-
-ifdef NO_X86_ASM
-DFLAGS += -U__i386__
-endif
-
-NQ_LINUX_SW_DFLAGS = $(DFLAGS) -DX11 -DELF -I$(TOPDIR)/include
-QW_LINUX_SW_DFLAGS = $(DFLAGS) -DX11 -DELF -I$(TOPDIR)/include
-NQ_LINUX_GL_DFLAGS = $(DFLAGS) -DX11 -DELF -I$(TOPDIR)/include
-QW_LINUX_GL_DFLAGS = $(DFLAGS) -DX11 -DELF -DGL_EXT_SHARED -I$(TOPDIR)/include
-
-# -------------------------
-# Set up the various FLAGS
-# -------------------------
-
-# NQ - Normal Quake
-ifeq ($(TARGET_APP),NQ)
-ifeq ($(TARGET_RENDER),SW)
-ifeq ($(TARGET_OS),WIN32)
-CPPFLAGS = $(DFLAGS) $(WIN32_SW_IFLAGS) -I$(TOPDIR)/NQ
-endif
-ifeq ($(TARGET_OS),LINUX)
-CPPFLAGS = $(NQ_LINUX_SW_DFLAGS) -I$(TOPDIR)/NQ
-endif
-endif
-ifeq ($(TARGET_RENDER),GL)
-ifeq ($(TARGET_OS),WIN32)
-CPPFLAGS = $(DFLAGS) $(WIN32_GL_IFLAGS) -I$(TOPDIR)/NQ
-endif
-ifeq ($(TARGET_OS),LINUX)
-CPPFLAGS = $(NQ_LINUX_GL_DFLAGS) $(NQ_LINUX_GL_IFLAGS) -I$(TOPDIR)/NQ
-endif
-endif
-endif
-
-# QW - QuakeWorld Client
-ifeq ($(TARGET_APP),QW)
-ifeq ($(TARGET_RENDER),SW)
-ifeq ($(TARGET_OS),WIN32)
-CPPFLAGS = $(DFLAGS) $(WIN32_SW_IFLAGS) -I$(TOPDIR)/$(QW_DIR)/client -I$(TOPDIR)/$(QW_DIR)/common
-endif
-ifeq ($(TARGET_OS),LINUX)
-CPPFLAGS = $(QW_LINUX_SW_DFLAGS) -I$(TOPDIR)/$(QW_DIR)/client -I$(TOPDIR)/$(QW_DIR)/common
-endif
-endif
-ifeq ($(TARGET_RENDER),GL)
-ifeq ($(TARGET_OS),WIN32)
-CPPFLAGS = $(DFLAGS) $(WIN32_GL_IFLAGS) -I$(TOPDIR)/$(QW_DIR)/client -I$(TOPDIR)/$(QW_DIR)/common
-endif
-ifeq ($(TARGET_OS),LINUX)
-CPPFLAGS = $(QW_LINUX_GL_DFLAGS) $(QW_LINUX_GL_IFLAGS) -I$(TOPDIR)/$(QW_DIR)/client -I$(TOPDIR)/$(QW_DIR)/common
-endif
-endif
-endif
-
-# QWSV - QuakeWorld Server
-ifeq ($(TARGET_APP),QWSV)
-ifeq ($(TARGET_OS),WIN32)
-CPPFLAGS = $(DFLAGS) $(QWSV_WIN32_IFLAGS)
-endif
-ifeq ($(TARGET_OS),LINUX)
-CPPFLAGS = $(DFLAGS) $(QWSV_LINUX_IFLAGS)
-endif
-endif
-
-# ------------------------------------------------------
-# Define the default target based on TARGET_* variables
-# ------------------------------------------------------
-DT_PREFIX =tyr-
-ifeq ($(TARGET_RENDER),GL)
-  DT_RENDER =gl
-else
-  DT_RENDER =
-endif
-ifeq ($(TARGET_APP),NQ)
-  DT_APP =quake
-endif
-ifeq ($(TARGET_APP),QW)
-  DT_APP =qwcl
-endif
-ifeq ($(TARGET_APP),QWSV)
-  DT_APP =qwsv
-endif
-ifeq ($(TARGET_OS),WIN32)
-  DT_EXT =.exe
-else
-  DT_EXT =
-endif
-
-DEFAULT_TARGET = $(DT_PREFIX)$(DT_RENDER)$(DT_APP)$(DT_EXT)
 
 # --------------
 # Library stuff
@@ -241,7 +89,7 @@ CFLAGS := -Wall -Wno-trigraphs
 
 ifdef DEBUG
 CFLAGS += -g
-STRIP_CMD = @echo "** Debug build - not stripping"
+cmd_strip = @echo "** Debug build - not stripping"
 else
 CFLAGS += -O2
 # -funit-at-a-time is buggy for MinGW GCC > 3.2
@@ -251,24 +99,125 @@ CFLAGS += $(shell if [ $(GCC_VERSION) -lt 0400 ] ;\
 CFLAGS += $(call cc-option,-fweb,)
 CFLAGS += $(call cc-option,-frename-registers,)
 CFLAGS += $(call cc-option,-mtune=i686,-mcpu=i686)
-STRIP_CMD = strip
+cmd_strip = strip
 endif
 
-# -------------------------------------
-# Got to build something by default...
-# -------------------------------------
+# ---------------------------------------------------------
+#  WIP: Getting rid of recursive make, separate build dirs
+# ---------------------------------------------------------
 
-default:	$(DEFAULT_TARGET)
+# (sw = software renderer, gl = OpenGL renderer, sv = server)
+NQSWDIR	= $(BUILD_DIR)/nqsw
+NQGLDIR	= $(BUILD_DIR)/nqgl
+QWSWDIR	= $(BUILD_DIR)/qwsw
+QWGLDIR	= $(BUILD_DIR)/qwgl
+QWSVDIR	= $(BUILD_DIR)/qwsv
 
-# ---------------------------
-# Tweak the implicit ruleset
-# ---------------------------
+BUILD_DIRS = $(NQSWDIR) $(NQGLDIR) $(QWSWDIR) $(QWGLDIR) $(QWSVDIR)
+APPS =	tyr-quake$(EXT) tyr-glquake$(EXT) \
+	tyr-qwcl$(EXT) tyr-glqwcl$(EXT) \
+	tyr-qwsv$(EXT)
 
-%.o:	%.S
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
+default:	all
 
-%.o:	%.c
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
+all:	prepare $(APPS)
+
+.PHONY:	prepare
+prepare:	$(BUILD_DIRS)
+
+COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION)
+ifdef DEBUG
+COMMON_CPPFLAGS += -DDEBUG
+else
+COMMON_CPPFLAGS += -DNDEBUG
+endif
+
+ifdef NO_X86_ASM
+COMMON_CPPFLAGS += -U__i386__
+endif
+
+NQSW_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DNQ_HACK
+NQGL_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DNQ_HACK -DGLQUAKE
+QWSW_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQW_HACK
+QWGL_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQW_HACK -DGLQUAKE
+QWSV_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQW_HACK -DSERVERONLY
+
+NQSW_CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/NQ
+NQGL_CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/NQ
+QWSW_CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/QW/client
+QWGL_CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/QW/client
+QWSV_CPPFLAGS += -I$(TOPDIR)/include -I$(TOPDIR)/QW/server -I$(TOPDIR)/QW/client
+
+ifeq ($(TARGET_OS),WIN32)
+NQSW_CPPFLAGS += -idirafter $(DX_INC) -idirafter $(ST_INC)
+NQGL_CPPFLAGS += -idirafter $(DX_INC)
+QWSW_CPPFLAGS += -idirafter $(DX_INC) -idirafter $(ST_INC)
+QWGL_CPPFLAGS += -idirafter $(DX_INC)
+endif
+
+ifeq ($(TARGET_OS),LINUX)
+NQSW_CPPFLAGS += -DELF -DX11
+NQGL_CPPFLAGS += -DELF -DX11
+QWSW_CPPFLAGS += -DELF -DX11
+QWGL_CPPFLAGS += -DELF -DX11 -DGL_EXT_SHARED
+QWSV_CPPFLAGS += -DELF
+endif
+
+cmd_nqsw_cc = $(CC) -c $(NQSW_CPPFLAGS) $(CFLAGS) -o $@ $<
+cmd_nqgl_cc = $(CC) -c $(NQGL_CPPFLAGS) $(CFLAGS) -o $@ $<
+cmd_qwsw_cc = $(CC) -c $(QWSW_CPPFLAGS) $(CFLAGS) -o $@ $<
+cmd_qwgl_cc = $(CC) -c $(QWGL_CPPFLAGS) $(CFLAGS) -o $@ $<
+cmd_qwsv_cc = $(CC) -c $(QWSV_CPPFLAGS) $(CFLAGS) -o $@ $<
+
+cmd_nq_windres = windres -I NQ -i $< -O coff -o $@
+cmd_qw_windres = windres -I QW/client -i $< -O coff -o $@
+
+cmd_mkdir = @if [ ! -d $@ ]; then echo mkdir -p $@; mkdir -p $@; fi
+
+$(NQSWDIR):	; $(cmd_mkdir)
+$(NQGLDIR):	; $(cmd_mkdir)
+$(QWSWDIR):	; $(cmd_mkdir)
+$(QWGLDIR):	; $(cmd_mkdir)
+$(QWSVDIR):	; $(cmd_mkdir)
+
+$(BUILD_DIR)/nqsw/%.o:		common/%.S	; $(cmd_nqsw_cc)
+$(BUILD_DIR)/nqsw/%.o:		NQ/%.S		; $(cmd_nqsw_cc)
+$(BUILD_DIR)/nqsw/%.o:		common/%.c	; $(cmd_nqsw_cc)
+$(BUILD_DIR)/nqsw/%.o:		NQ/%.c		; $(cmd_nqsw_cc)
+$(BUILD_DIR)/nqsw/%.res:	common/%.rc	; $(cmd_nq_windres)
+$(BUILD_DIR)/nqsw/%.res:	NQ/%.rc		; $(cmd_nq_windres)
+
+$(BUILD_DIR)/nqgl/%.o:		common/%.S	; $(cmd_nqgl_cc)
+$(BUILD_DIR)/nqgl/%.o:		NQ/%.S		; $(cmd_nqgl_cc)
+$(BUILD_DIR)/nqgl/%.o:		common/%.c	; $(cmd_nqgl_cc)
+$(BUILD_DIR)/nqgl/%.o:		NQ/%.c		; $(cmd_nqgl_cc)
+$(BUILD_DIR)/nqgl/%.res:	common/%.rc	; $(cmd_nq_windres)
+$(BUILD_DIR)/nqgl/%.res:	NQ/%.rc		; $(cmd_nq_windres)
+
+$(BUILD_DIR)/qwsw/%.o:		common/%.S	; $(cmd_qwsw_cc)
+$(BUILD_DIR)/qwsw/%.o:		QW/client/%.S	; $(cmd_qwsw_cc)
+$(BUILD_DIR)/qwsw/%.o:		QW/common/%.S	; $(cmd_qwsw_cc)
+$(BUILD_DIR)/qwsw/%.o:		common/%.c	; $(cmd_qwsw_cc)
+$(BUILD_DIR)/qwsw/%.o:		QW/client/%.c	; $(cmd_qwsw_cc)
+$(BUILD_DIR)/qwsw/%.o:		QW/common/%.c	; $(cmd_qwsw_cc)
+$(BUILD_DIR)/qwsw/%.res:	common/%.rc	; $(cmd_qw_windres)
+$(BUILD_DIR)/qwsw/%.res:	QW/client/%.rc	; $(cmd_qw_windres)
+
+$(BUILD_DIR)/qwgl/%.o:		common/%.S	; $(cmd_qwgl_cc)
+$(BUILD_DIR)/qwgl/%.o:		QW/client/%.S	; $(cmd_qwgl_cc)
+$(BUILD_DIR)/qwgl/%.o:		QW/common/%.S	; $(cmd_qwgl_cc)
+$(BUILD_DIR)/qwgl/%.o:		common/%.c	; $(cmd_qwgl_cc)
+$(BUILD_DIR)/qwgl/%.o:		QW/client/%.c	; $(cmd_qwgl_cc)
+$(BUILD_DIR)/qwgl/%.o:		QW/common/%.c	; $(cmd_qwgl_cc)
+$(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(cmd_qw_windres)
+$(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(cmd_qw_windres)
+
+$(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(cmd_qwsv_cc)
+$(BUILD_DIR)/qwsv/%.o:		QW/server/%.S	; $(cmd_qwsv_cc)
+$(BUILD_DIR)/qwsv/%.o:		QW/common/%.S	; $(cmd_qwsv_cc)
+$(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(cmd_qwsv_cc)
+$(BUILD_DIR)/qwsv/%.o:		QW/server/%.c	; $(cmd_qwsv_cc)
+$(BUILD_DIR)/qwsv/%.o:		QW/common/%.c	; $(cmd_qwsv_cc)
 
 # ----------------------------------------------------------------------------
 # Normal Quake (NQ)
@@ -506,34 +455,22 @@ endif
 # ------------------------
 
 # Win32
-nq-w32-sw-objs:
-	$(MAKE) -C $(NQ_DIR) quake-sw-win32
+tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
+	$(cmd_strip) $@
 
-nq-w32-gl-objs:
-	$(MAKE) -C $(NQ_DIR) quake-gl-win32
-
-tyr-quake.exe:	nq-w32-sw-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $(patsubst %,$(NQ_DIR)/%,$(NQ_W32_SW_OBJS)) -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
-	$(STRIP_CMD) $@
-
-tyr-glquake.exe:	nq-w32-gl-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $(patsubst %,$(NQ_DIR)/%,$(NQ_W32_GL_OBJS)) -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
-	$(STRIP_CMD) $@
+tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
+	$(cmd_strip) $@
 
 # Linux
-nq-linux-sw-objs:
-	$(MAKE) -C $(NQ_DIR) quake-sw-linux
+tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_LINUX_SW_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_SW_LFLAGS)
+	$(cmd_strip) $@
 
-nq-linux-gl-objs:
-	$(MAKE) -C $(NQ_DIR) quake-gl-linux
-
-tyr-quake:	nq-linux-sw-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-quake $(patsubst %,$(NQ_DIR)/%,$(NQ_LINUX_SW_OBJS)) -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_SW_LFLAGS)
-	$(STRIP_CMD) $@
-
-tyr-glquake:	nq-linux-gl-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-glquake $(patsubst %,$(NQ_DIR)/%,$(NQ_LINUX_GL_OBJS)) -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_GL_LFLAGS)
-	$(STRIP_CMD) $@
+tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_LINUX_GL_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_GL_LFLAGS)
+	$(cmd_strip) $@
 
 
 # ----------------------------------------------------------------------------
@@ -761,34 +698,22 @@ QW_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS) $(QW_LINUX_GL_LIBS
 # --------------------
 
 # Win32
-qw-w32-sw-objs:
-	$(MAKE) -C $(QW_DIR)/client qwcl-sw-win32
+tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
+	$(cmd_strip) $@
 
-qw-w32-gl-objs:
-	$(MAKE) -C $(QW_DIR)/client qwcl-gl-win32
-
-tyr-qwcl.exe:	qw-w32-sw-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-qwcl.exe $(patsubst %,$(QW_DIR)/client/%,$(QW_W32_SW_OBJS)) -L$(WIN_LIBDIR) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
-	$(STRIP_CMD) $@
-
-tyr-glqwcl.exe:	qw-w32-gl-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-glqwcl.exe $(patsubst %,$(QW_DIR)/client/%,$(QW_W32_GL_OBJS)) -L$(WIN_LIBDIR) $(QW_W32_GL_LFLAGS)
-	$(STRIP_CMD) $@
+tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QW_W32_GL_LFLAGS)
+	$(cmd_strip) $@
 
 # Linux
-qw-linux-sw-objs:
-	$(MAKE) -C $(QW_DIR)/client qwcl-sw-linux
+tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_LINUX_SW_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_SW_LFLAGS)
+	$(cmd_strip) $@
 
-qw-linux-gl-objs:
-	$(MAKE) -C $(QW_DIR)/client qwcl-gl-linux
-
-tyr-qwcl:	qw-linux-sw-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-qwcl $(patsubst %,$(QW_DIR)/client/%,$(QW_LINUX_SW_OBJS)) -L$(LINUX_X11_LIBDIR) $(QW_LINUX_SW_LFLAGS)
-	$(STRIP_CMD) $@
-
-tyr-glqwcl:	qw-linux-gl-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-glqwcl $(patsubst %,$(QW_DIR)/client/%,$(QW_LINUX_GL_OBJS)) -L$(LINUX_X11_LIBDIR) $(QW_LINUX_GL_LFLAGS)
-	$(STRIP_CMD) $@
+tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_LINUX_GL_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_GL_LFLAGS)
+	$(cmd_strip) $@
 
 UNUSED_OBJS	= cd_audio.o
 
@@ -863,20 +788,14 @@ QWSV_LINUX_LFLAGS = $(patsubst %,-l%,$(QWSV_LINUX_LIBS))
 # -------------
 
 # Win32
-qwsv-w32-objs:
-	$(MAKE) -C $(QW_DIR)/server qwsv-win32
-
-tyr-qwsv.exe:	qwsv-w32-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-qwsv.exe $(patsubst %,$(QW_DIR)/server/%,$(QWSV_W32_OBJS)) -L$(WIN_LIBDIR) $(QWSV_W32_LFLAGS)
-	$(STRIP_CMD) $@
+tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QWSV_W32_LFLAGS)
+	$(cmd_strip) $@
 
 # Linux
-qwsv-linux-objs:
-	$(MAKE) -C $(QW_DIR)/server qwsv-linux
-
-tyr-qwsv:	qwsv-linux-objs
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o tyr-qwsv $(patsubst %,$(QW_DIR)/server/%,$(QWSV_LINUX_OBJS)) $(QWSV_LINUX_LFLAGS)
-	$(STRIP_CMD) $@
+tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_LINUX_OBJS))
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ $(QWSV_LINUX_LFLAGS)
+	$(cmd_strip) $@
 
 # ----------------------------------------------------------------------------
 # Very basic clean target (can't use xargs on MSYS)
@@ -887,3 +806,4 @@ clean:
 	@rm -f $(shell find . \( \
 		-name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' \
 	\) -print)
+	@rm -rf build
