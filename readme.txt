@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2005-12-31
-Version: 	0.48
+Date:		2006-02-12
+Version: 	0.49
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -28,6 +28,13 @@ something else...
 
 
 Version History:
+
+v0.49
+=====
+- Better fix for glXGetProcAddress ABI issues on Linux
+- Add "maplist" command - lists maps in the current path(s)
+- Enable command completion after ';' on a line
+- Fix problem with really long GL extension strings (e.g. NVidia/Linux)
 
 v0.48
 =====
