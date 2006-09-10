@@ -31,13 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern vrect_t scr_vrect;
 
 /*
-
-The view is allowed to move slightly from it's true position for bobbing,
-but if it exceeds 8 pixels linear distance (spherical, not box), the list of
-entities sent from the server may not include everything in the pvs, especially
-when crossing a water boudnary.
-
-*/
+ * The view is allowed to move slightly from it's true position for bobbing,
+ * but if it exceeds 8 pixels linear distance (spherical, not box), the list
+ * of entities sent from the server may not include everything in the pvs,
+ * especially when crossing a water boudnary.
+ */
 
 cvar_t lcd_x = { "lcd_x", "0" };	// FIXME: make this work sometime...
 
@@ -212,9 +210,8 @@ V_DriftPitch(void)
     }
 // don't count small mouse motion
     if (cl.nodrift) {
-	if (fabs
-	    (cl.frames[(cls.netchan.outgoing_sequence - 1) & UPDATE_MASK].cmd.
-	     forwardmove) < 200)
+	const int seq = cls.netchan.outgoing_sequence - 1;
+	if (fabs(cl.frames[seq & UPDATE_MASK].cmd.forwardmove) < 200)
 	    cl.driftmove = 0;
 	else
 	    cl.driftmove += host_frametime;
@@ -226,7 +223,6 @@ V_DriftPitch(void)
     }
 
     delta = 0 - cl.viewangles[PITCH];
-
     if (!delta) {
 	cl.pitchvel = 0;
 	return;
@@ -234,8 +230,6 @@ V_DriftPitch(void)
 
     move = host_frametime * cl.pitchvel;
     cl.pitchvel += host_frametime * v_centerspeed.value;
-
-//Con_Printf ("move: %f (%f)\n", move, host_frametime);
 
     if (delta > 0) {
 	if (move > delta) {

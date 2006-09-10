@@ -31,13 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.h"
 
 /*
-
-The view is allowed to move slightly from it's true position for bobbing,
-but if it exceeds 8 pixels linear distance (spherical, not box), the list of
-entities sent from the server may not include everything in the pvs, especially
-when crossing a water boudnary.
-
-*/
+ * The view is allowed to move slightly from it's true position for bobbing,
+ * but if it exceeds 8 pixels linear distance (spherical, not box), the list
+ * of entities sent from the server may not include everything in the pvs,
+ * especially when crossing a water boudnary.
+ */
 
 cvar_t lcd_x = { "lcd_x", "0" };
 cvar_t lcd_yaw = { "lcd_yaw", "0" };
