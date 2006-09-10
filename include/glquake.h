@@ -68,6 +68,10 @@ extern TEXSUBIMAGEPTR TexSubImage2DFunc;
 
 #endif /* _WIN32 */
 
+#ifndef GL_VERSION_1_3
+#define GL_MAX_TEXTURE_UNITS GL_MAX_TEXTURE_UNITS_ARB
+#endif
+
 extern int texture_extension_number;
 extern int texture_mode;
 
