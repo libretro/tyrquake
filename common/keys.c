@@ -263,7 +263,8 @@ ShowCompletions(void)
 
     root = Cmd_CommandCompletions(s);
     if (root && root->entries) {
-	Con_Printf("%u possible completions:\n", root->entries);
+	Con_Printf("%s\n", key_lines[edit_line]);
+	//Con_Printf("%u possible completions:\n", root->entries);
 	Con_ShowTree(root);
 	Z_Free(root);
     } else {
@@ -283,6 +284,7 @@ ShowCompletions(void)
 
 		root = Cmd_ArgCompletions(cmd, s);
 		if (root && root->entries) {
+		    Con_Printf("%s\n", key_lines[edit_line]);
 		    Con_ShowTree(root);
 		    Z_Free(root);
 		}

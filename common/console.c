@@ -677,12 +677,12 @@ Con_ShowList(const char **list, int cnt, int maxlen)
     /* Lay them out in columns */
     line = Z_Malloc(Con_GetWidth() + 1);
     cols = Con_GetWidth() / (maxlen + 2);
-    rows = cnt / cols + 1;
+    rows = cnt / cols + ((cnt % cols) ? 1 : 0);
 
     /* Looks better if we have a few rows before spreading out */
     if (rows < 5) {
-	cols = cnt / 5 + 1;
-	rows = cnt / cols + 1;
+	cols = cnt / 5 + ((cnt % 5) ? 1 : 0);
+	rows = cnt / cols + ((cnt % cols) ? 1 : 0);
     }
 
     for (i = 0; i < rows; ++i) {
