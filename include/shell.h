@@ -115,35 +115,4 @@ void STree_ForEach_Cleanup__(struct stree_root *root);
 #define STree_ForEach_break(root__) \
 	({ STree_ForEach_Cleanup__(root__); break; })
 
-/*
- * Set up some basic completion helpers
- * FIXME - document the API
- */
-
-/* An rb-tree of completion strings */
-struct completion {
-    const char *string;			/* command name */
-    unsigned long cmd_type;		/* flags for command type */
-    struct rb_node rb_cmd_cache;
-};
-
-/* completion_entry - Gets the completion ptr from the internal rb_node ptr */
-#define completion_entry(ptr) \
-	container_of(ptr, struct completion, rb_cmd_cache)
-
-/*
- * Command types
- *
- * There is a priority here to be compatible with id's original work. Command
- * names and cvar names are unique, but aliases can overlap. In that case and
- * alias can override a cvar, but not commands.
- */
-#define CMD_COMMAND	(1UL << 0)
-#define CMD_ALIAS	(1UL << 1)
-#define CMD_CVAR	(1UL << 2)
-
-void insert_alias_completion(const char *str);
-void insert_command_completion(const char *str);
-void insert_cvar_completion(const char *str);
-
 #endif /* SHELL_H */

@@ -394,7 +394,6 @@ Cmd_Alias_f(void)
 	strcpy(a->name, s);
 	a->stree.string = a->name;
 	STree_Insert(&cmdalias_tree, &a->stree);
-	insert_alias_completion(a->name);
     }
 
 // copy the rest of the command line
@@ -590,8 +589,6 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
     cmd->completion = NULL;
     cmd->stree.string = cmd->name;
     STree_Insert(&cmd_tree, &cmd->stree);
-
-    insert_command_completion(cmd_name);
 }
 
 void

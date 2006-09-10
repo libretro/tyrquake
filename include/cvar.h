@@ -89,16 +89,11 @@ typedef struct cvar_s {
     float value;
     cvar_callback callback;
     unsigned flags;
-
-    struct completion index; /* for searching through vars and commands */
     struct stree_node stree; /* string tree for cvar names */
 } cvar_t;
 
 #define CVAR_DEVELOPER (1U << 0) /* can't set during normal play */
 #define CVAR_OBSOLETE  (1U << 1) /* cvar has no effect; basically removed */
-
-/* Get a pointer to the cvar from the completion pointer */
-#define cvar_for_completion(ptr) container_of(ptr, struct cvar_s, index)
 
 /*
  * register a cvar that already has the name, string, and optionally the

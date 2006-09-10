@@ -251,19 +251,15 @@ Cvar_RegisterVariable(cvar_t *variable)
     value[511] = '\0';
     variable->string = Z_Malloc(1);
 
+    /*
+     * FIXME (BARF) - readonly cvars need to be initialised
+     *                developer 1 allows set
+     */
     /* set it through the function to be consistant */
-    /* FIXME (BARF) - readonly cvars need to be initialised; developer 1 allows set */
     old_developer = developer.value;
     developer.value = 1;
     Cvar_Set(variable->name, value);
     developer.value = old_developer;
-
-    /* Add the name to the completion cache */
-    insert_cvar_completion(variable->name);
-
-    /* Insert into own completion cache */
-    //variable->index.string = variable->name;
-    //rb_insert_completion(&cvar_completions, &variable->index);
 }
 
 /*
