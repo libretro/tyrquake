@@ -818,14 +818,33 @@ VID_SetPalette(unsigned char *palette)
     }
 }
 
-//static BOOL gammaworks;
+void (*VID_SetGammaRamp)(unsigned short ramp[3][256]);
+static unsigned short saved_gamma_ramp[3][256];
+
+static void
+VID_SetWinGammaRamp(unsigned short ramp[3][256])
+{
+    BOOL result;
+
+    result = SetDeviceGammaRamp(maindc, ramp);
+}
+
+void
+Gamma_Init(void)
+{
+    BOOL result = GetDeviceGammaRamp(maindc, saved_gamma_ramp);
+
+    if (result)
+	result = SetDeviceGammaRamp(maindc, saved_gamma_ramp);
+    if (result)
+	VID_SetGammaRamp = VID_SetWinGammaRamp;
+    else
+	VID_SetGammaRamp = NULL;
+}
 
 void
 VID_ShiftPalette(unsigned char *palette)
 {
-    // FIXME - header hacks
-    //extern byte ramps[3][256]; // commented out in VID_ShiftPalette
-
     //VID_SetPalette (palette);
     //gammaworks = SetDeviceGammaRamp (maindc, ramps);
 }
@@ -1805,6 +1824,7 @@ VID_Init(unsigned char *palette)
     VID_SetPalette(palette);
 
     VID_SetMode(vid_default, palette);
+    Gamma_Init();
 
     maindc = GetDC(mainwindow);
     bSetupPixelFormat(maindc);
@@ -1941,4 +1961,10 @@ VID_MenuKey(int key)
     default:
 	break;
     }
+}
+
+qboolean
+VID_IsFullScreen()
+{
+    return VID_GetModePtr(vid_modenum)->fullscreen;
 }
