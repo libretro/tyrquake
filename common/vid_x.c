@@ -192,7 +192,7 @@ xlib_rgb24(int r, int g, int b)
 }
 
 static void
-st2_fixup(XImage * framebuf, int x, int y, int width, int height)
+st2_fixup(XImage *framebuf, int x, int y, int width, int height)
 {
     int yi;
     unsigned char *src;

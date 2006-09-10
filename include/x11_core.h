@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <X11/Xlib.h>
 
 extern Display *x_disp;
-extern Visual *x_vis;
 extern Window x_win;
 
 #define X_CORE_MASK (VisibilityChangeMask | StructureNotifyMask | ExposureMask)

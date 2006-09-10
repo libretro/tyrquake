@@ -23,5 +23,4 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <X11/Xlib.h>
 
 Display *x_disp = NULL;
-Visual *x_vis = NULL;
 Window x_win = None;

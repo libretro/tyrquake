@@ -1153,20 +1153,6 @@ GL_Upload32(const unsigned *data, int width, int height, qboolean mipmap,
 
     samples = alpha ? gl_alpha_format : gl_solid_format;
 
-#if 0
-    if (mipmap)
-	gluBuild2DMipmaps(GL_TEXTURE_2D, samples, width, height, GL_RGBA,
-			  GL_UNSIGNED_BYTE, trans);
-    else if (scaled_width == width && scaled_height == height)
-	glTexImage2D(GL_TEXTURE_2D, 0, samples, width, height, 0, GL_RGBA,
-		     GL_UNSIGNED_BYTE, trans);
-    else {
-	gluScaleImage(GL_RGBA, width, height, GL_UNSIGNED_BYTE, trans,
-		      scaled_width, scaled_height, GL_UNSIGNED_BYTE, scaled);
-	glTexImage2D(GL_TEXTURE_2D, 0, samples, scaled_width, scaled_height,
-		     0, GL_RGBA, GL_UNSIGNED_BYTE, scaled);
-    }
-#else
     texels += scaled_width * scaled_height;
 
     if (scaled_width == width && scaled_height == height) {
@@ -1200,9 +1186,8 @@ GL_Upload32(const unsigned *data, int width, int height, qboolean mipmap,
 			 scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, scaled);
 	}
     }
-  done:
-#endif
 
+  done:
     if (mipmap) {
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
