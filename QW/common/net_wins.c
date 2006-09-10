@@ -190,12 +190,19 @@ NET_GetPacket(void)
 
 	if (err == WSAEWOULDBLOCK)
 	    return false;
+	if (err == WSAECONNRESET) {
+	    /* This has happened to me a few times, but I don't know how to
+	       reproduce it yet... */
+	    Con_DPrintf("Warning: Connection reset by peer %s in %s\n",
+			NET_AdrToString(net_from), __func__);
+	    return false;
+	}
 	if (err == WSAEMSGSIZE) {
 	    Con_Printf("Warning:  Oversize packet from %s\n",
 		       NET_AdrToString(net_from));
 	    return false;
 	}
-	Sys_Error("%s: %s", __func__, strerror(err));
+	Sys_Error("%s: WSAGetLastError == %i", __func__, err);
     }
 
     net_message.cursize = ret;
