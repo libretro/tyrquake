@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * This whole setup is butt-ugly. Proceed with caution.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -227,20 +228,18 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
 struct stree_node *
 STree_Find(struct stree_root *root, const char *s)
 {
-    struct rb_node **p = &root->root.rb_node;
-    struct rb_node *parent = NULL;
+    struct rb_node *p = root->root.rb_node;
     struct stree_node *ret = NULL;
     struct stree_node *node;
     int cmp;
 
-    while (*p) {
-	parent = *p;
-	node = stree_entry(parent);
+    while (p) {
+	node = stree_entry(p);
 	cmp = strcasecmp(s, node->string);
 	if (cmp < 0)
-	    p = &(*p)->rb_left;
+	    p = p->rb_left;
 	else if (cmp > 0)
-	    p = &(*p)->rb_right;
+	    p = p->rb_right;
 	else {
 	    ret = node;
 	    break;
