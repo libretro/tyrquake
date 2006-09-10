@@ -73,6 +73,15 @@ void STree_Remove(struct stree_root *root, struct stree_node *node);
 char *STree_MaxMatch(struct stree_root *root, const char *pfx);
 struct stree_node *STree_Find(struct stree_root *root, const char *s);
 
+/*
+ * Scan the source tree for completions and add them into the into the
+ * destination tree. Caller provides the root, added nodes are
+ * allocated on the temp hunk, so STree_AllocInit needs to be done by
+ * the caller.
+ */
+void STree_Completions(struct stree_root *out, struct stree_root *in,
+		       const char *s);
+
 /* Private helper functions for the STree_ForEach macro */
 void STree_ForEach_Init__(struct stree_root *root, struct stree_node **n);
 void STree_ForEach_After__(struct stree_root *root, struct stree_node **n,

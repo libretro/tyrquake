@@ -259,10 +259,9 @@ STree_MaxDepth(struct stree_root *root)
     return 2 * Q_log2(root->entries + 1);
 }
 
-void
-STree_ForEach_Init__(struct stree_root *root, struct stree_node **n)
+static void
+STree_StackInit(struct stree_root *root)
 {
-    /* Allocate the stack */
     root->stack = Z_Malloc(sizeof(struct stree_stack));
     if (root->stack) {
 	struct stree_stack *s = root->stack;
@@ -278,6 +277,13 @@ STree_ForEach_Init__(struct stree_root *root, struct stree_node **n)
     if (!root->stack)
 	Sys_Error("%s: not enough mem for stack! (%i)", __func__,
 		  STree_MaxDepth(root));
+}
+
+void
+STree_ForEach_Init__(struct stree_root *root, struct stree_node **n)
+{
+    /* Allocate the stack */
+    STree_StackInit(root);
 
     /* Point to the first node */
     if (root->root.rb_node)
@@ -408,6 +414,54 @@ STree_ForEach_After__(struct stree_root *root, struct stree_node **n,
 	/* Didn't find str. Don't walk the tree at all! */
 	root->stack->depth = 0;
     }
+}
+
+void
+STree_Completions(struct stree_root *out, struct stree_root *in, const char *s)
+{
+    struct stree_node *n;
+    struct rb_node *rb = NULL;
+    int cmp, len;
+
+    len = strlen(s);
+    rb = in->root.rb_node;
+
+    /* Work our way down to the subtree required */
+    while (rb) {
+	n = stree_entry(rb);
+	cmp = strncasecmp(s, n->string, len);
+	if (cmp < 0)
+	    rb = rb->rb_left;
+	if (cmp > 0)
+	    rb = rb->rb_right;
+	else
+	    break;
+    }
+
+    STree_StackInit(in);
+
+    while (rb) {
+	n = stree_entry(rb);
+	cmp = strncasecmp(s, n->string, len);
+	if (!cmp) {
+	    STree_InsertAlloc(out, n->string, false);
+	    if (rb->rb_left) {
+		if (rb->rb_right)
+		    STree_StackPush(in, rb->rb_right);
+	        rb = rb->rb_left;
+	    } else {
+		rb = rb->rb_right;
+	    }
+	} else if (cmp < 0) {
+	    rb = rb->rb_left;
+	} else {
+	    rb = rb->rb_right;
+	}
+	if (!rb && in->stack->depth > 0)
+	    rb = STree_StackPop(in);
+    }
+
+    STree_ForEach_Cleanup__(in);
 }
 
 const char **completions_list = NULL;
