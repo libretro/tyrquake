@@ -396,6 +396,7 @@ typedef struct cmd_function_s {
     struct cmd_function_s *next;
     const char *name;
     xcommand_t function;
+    cmd_arg_f completion;
 } cmd_function_t;
 
 
@@ -550,10 +551,25 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
     cmd = Hunk_Alloc(sizeof(cmd_function_t));
     cmd->name = cmd_name;
     cmd->function = function;
+    cmd->completion = NULL;
     cmd->next = cmd_functions;
     cmd_functions = cmd;
 
     insert_command_completion(cmd_name);
+}
+
+void
+Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion)
+{
+    cmd_function_t *cmd;
+
+    for (cmd = cmd_functions; cmd; cmd = cmd->next)
+	if (!strcmp(cmd_name, cmd->name)) {
+	    cmd->completion = completion;
+	    break;
+	}
+    if (!cmd)
+	Sys_Error("%s: no such command - %s", __func__, cmd_name);
 }
 
 /*
@@ -646,6 +662,46 @@ Cmd_ExecuteString(char *text, cmd_source_t src)
 // check cvars
     if (!Cvar_Command())
 	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
+}
+
+/*
+ * Return a string tree with all possible argument completions of the given
+ * buffer for the given command.
+ */
+struct rb_string_root *
+Cmd_ArgCompletions(const char *name, const char *buf)
+{
+    cmd_function_t *cmd;
+    struct rb_string_root *root = NULL;
+
+    for (cmd = cmd_functions; cmd; cmd = cmd->next) {
+	if (!strcasecmp(name, cmd->name) && cmd->completion) {
+	    /* FIXME - ST_AllocInit? */
+	    root = cmd->completion(buf);
+	    break;
+	}
+    }
+
+    return root;
+}
+
+/*
+ * Call the argument completion function for cmd "name".
+ * Returned result should be Z_Free'd after use.
+ */
+char *
+Cmd_ArgComplete(const char *name, const char *buf)
+{
+    char *result = NULL;
+    struct rb_string_root *root;
+
+    root = Cmd_ArgCompletions(name, buf);
+    if (root) {
+	result = ST_MaxMatch(root, buf);
+	Z_Free(root);
+    }
+
+    return result;
 }
 
 

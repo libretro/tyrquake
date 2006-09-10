@@ -74,9 +74,20 @@ then searches for a command or variable that matches the first token.
 /* Command function */
 typedef void (*xcommand_t)(void);
 
+/*
+ * Command argument completion function.
+ * Pass in the argument string
+ * Returns a string tree of possible completions
+ * Requires ST_Alloc_Init() prior to calling
+ */
+typedef struct rb_string_root *(*cmd_arg_f)(const char *);
+
 void Cmd_Init(void);
 
 void Cmd_AddCommand(const char *cmd_name, xcommand_t function);
+void Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion);
+char *Cmd_ArgComplete(const char *name, const char *buf);
+struct rb_string_root *Cmd_ArgCompletions(const char *name, const char *buf);
 
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.

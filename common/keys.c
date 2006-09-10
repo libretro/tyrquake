@@ -211,6 +211,8 @@ CompleteCommand(void)
 {
     char *cmd;
     char *s;
+    char *completion;
+    int len;
 
     s = GetCommandPos(key_lines[edit_line] + 1);
     cmd = find_completion(s);
@@ -229,6 +231,29 @@ CompleteCommand(void)
 
 	key_lines[edit_line][key_linepos] = 0;
 	Z_Free(cmd);
+    } else {
+	/* Try argument completion? */
+	cmd = strchr(s, ' ');
+	if (cmd) {
+	    len = cmd - s;
+	    cmd = Z_Malloc(len + 1);
+	    strncpy(cmd, s, len);
+	    cmd[len] = 0;
+
+	    if (command_exists(cmd)) {
+		s += len;
+		while (*s == ' ')
+		    s++;
+		completion = Cmd_ArgComplete(cmd, s);
+		if (completion) {
+		    key_linepos = s - key_lines[edit_line];
+		    strcpy(s, completion);
+		    key_linepos += strlen(completion);
+		    Z_Free(completion);
+		}
+	    }
+	    Z_Free(cmd);
+	}
     }
 }
 
@@ -249,6 +274,29 @@ ShowCompletions(void)
 		maxlen = len;
 	}
 	Con_ShowList(completions_list, cnt, maxlen);
+    } else {
+	char *cmd = strchr(s, ' ');
+	if (cmd) {
+	    len = cmd - s;
+	    cmd = Z_Malloc(len + 1);
+	    strncpy(cmd, s, len);
+	    cmd[len] = 0;
+
+	    if (command_exists(cmd)) {
+		struct rb_string_root *root;
+
+		s += len;
+		while (*s == ' ')
+		    s++;
+
+		root = Cmd_ArgCompletions(cmd, s);
+		if (root && root->entries) {
+		    Con_ShowTree(root);
+		    Z_Free(root);
+		}
+	    }
+	    Z_Free(cmd);
+	}
     }
 }
 
