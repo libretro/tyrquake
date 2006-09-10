@@ -40,10 +40,13 @@ typedef struct cmdalias_s {
     struct cmdalias_s *next;
     char name[MAX_ALIAS_NAME];
     char *value;
+    struct stree_node stree;
 } cmdalias_t;
 
-cmdalias_t *cmd_alias;
+#define cmdalias_entry(ptr) container_of(ptr, struct cmdalias_s, stree)
+static DECLARE_STREE_ROOT(cmdalias_tree);
 
+cmdalias_t *cmd_alias;
 qboolean cmd_wait;
 
 cvar_t cl_warncmd = { "cl_warncmd", "0" };
@@ -345,6 +348,19 @@ CopyString(char *in)
     return out;
 }
 
+static struct cmdalias_s *
+Cmd_Alias_Find(const char *name)
+{
+    struct cmdalias_s *ret = NULL;
+    struct stree_node *n;
+
+    n = STree_Find(&cmdalias_tree, name);
+    if (n)
+	ret = cmdalias_entry(n);
+
+    return ret;
+}
+
 void
 Cmd_Alias_f(void)
 {
@@ -365,19 +381,19 @@ Cmd_Alias_f(void)
 	Con_Printf("Alias name is too long\n");
 	return;
     }
+
     // if the alias already exists, reuse it
-    for (a = cmd_alias; a; a = a->next) {
-	if (!strcmp(s, a->name)) {
-	    Z_Free(a->value);
-	    break;
-	}
-    }
+    a = Cmd_Alias_Find(s);
+    if (a)
+	Z_Free(a->value);
 
     if (!a) {
 	a = Z_Malloc(sizeof(cmdalias_t));
 	a->next = cmd_alias;
 	cmd_alias = a;
 	strcpy(a->name, s);
+	a->stree.string = a->name;
+	STree_Insert(&cmdalias_tree, &a->stree);
 	insert_alias_completion(a->name);
     }
 
@@ -691,11 +707,10 @@ Cmd_ExecuteString(char *text)
     }
 
 // check alias
-    for (a = cmd_alias; a; a = a->next) {
-	if (!strcasecmp(cmd_argv[0], a->name)) {
-	    Cbuf_InsertText(a->value);
-	    return;
-	}
+    a = Cmd_Alias_Find(cmd_argv[0]);
+    if (a) {
+	Cbuf_InsertText(a->value);
+	return;
     }
 
 // check cvars
