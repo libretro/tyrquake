@@ -689,7 +689,7 @@ Cmd_ArgCompletions(const char *name, const char *buf)
     struct stree_root *root = NULL;
 
     cmd = Cmd_FindCommand(name);
-    if (cmd)
+    if (cmd && cmd->completion)
 	root = cmd->completion(buf);
 
     return root;
