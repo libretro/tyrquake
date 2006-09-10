@@ -215,6 +215,40 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
     return result;
 }
 
+struct stree_node *
+STree_Find(struct stree_root *root, const char *s)
+{
+    struct rb_node **p = &root->root.rb_node;
+    struct rb_node *parent = NULL;
+    struct stree_node *ret = NULL;
+    struct stree_node *node;
+    int cmp;
+
+    while (*p) {
+	parent = *p;
+	node = stree_entry(parent);
+	cmp = strcasecmp(s, node->string);
+	if (cmp < 0)
+	    p = &(*p)->rb_left;
+	else if (cmp > 0)
+	    p = &(*p)->rb_right;
+	else {
+	    ret = node;
+	    break;
+	}
+    }
+
+    return ret;
+}
+
+/* An R-B Tree with n entries has a maximum height of 2log(n +1) */
+int
+STree_MaxDepth(struct stree_root *root)
+{
+    return 2 * Q_log2(root->entries + 1);
+}
+
+
 const char **completions_list = NULL;
 static int num_completions = 0;
 
