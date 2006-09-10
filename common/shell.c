@@ -157,6 +157,12 @@ STree_InsertAlloc(struct stree_root *root, const char *s,
     return ret;
 }
 
+void
+STree_Remove(struct stree_root *root, struct stree_node *node)
+{
+    rb_erase(&node->node, &root->root);
+}
+
 /* STree_MaxMatch helper */
 static int
 ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
