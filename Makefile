@@ -172,7 +172,7 @@ QWSV_CPPFLAGS += -DELF
 endif
 
 define cmd_cc__
-$(CC) -MM -MT $@ $($(1)) -o $(2)/.$(@F).d $<
+$(CC) -MM -MT $@ $($(1)) -o $(@D)/.$(@F).d $<
 $(CC) -c $($(1)) $(CFLAGS) -o $@ $<
 endef
 
@@ -187,21 +187,21 @@ ifneq ($(DEPFILES),)
 -include $(DEPFILES)
 endif
 
-cmd_nqsw_cc = $(call cmd_cc__,NQSW_CPPFLAGS,$(BUILD_DIR)/nqsw)
-cmd_nqgl_cc = $(call cmd_cc__,NQGL_CPPFLAGS,$(BUILD_DIR)/nqgl)
-cmd_qwsw_cc = $(call cmd_cc__,QWSW_CPPFLAGS,$(BUILD_DIR)/qwsw)
-cmd_qwgl_cc = $(call cmd_cc__,QWGL_CPPFLAGS,$(BUILD_DIR)/qwgl)
-cmd_qwsv_cc = $(call cmd_cc__,QWSV_CPPFLAGS,$(BUILD_DIR)/qwsv)
+cmd_nqsw_cc = $(call cmd_cc__,NQSW_CPPFLAGS)
+cmd_nqgl_cc = $(call cmd_cc__,NQGL_CPPFLAGS)
+cmd_qwsw_cc = $(call cmd_cc__,QWSW_CPPFLAGS)
+cmd_qwgl_cc = $(call cmd_cc__,QWGL_CPPFLAGS)
+cmd_qwsv_cc = $(call cmd_cc__,QWSV_CPPFLAGS)
 
 define cmd_windres__
-$(CC) -x c-header -MM -MT $@ $($(1)) -o $(2)/.$(@F).d $<
+$(CC) -x c-header -MM -MT $@ $($(1)) -o $(@D)/.$(@F).d $<
 windres -I $(<D) -i $< -O coff -o $@
 endef
 
-cmd_nqsw_windres = $(call cmd_windres__,NQSW_CPPFLAGS,$(BUILD_DIR)/nqsw)
-cmd_nqgl_windres = $(call cmd_windres__,NQGL_CPPFLAGS,$(BUILD_DIR)/nqgl)
-cmd_qwsw_windres = $(call cmd_windres__,QWSW_CPPFLAGS,$(BUILD_DIR)/qwsw)
-cmd_qwgl_windres = $(call cmd_windres__,QWGL_CPPFLAGS,$(BUILD_DIR)/qwgl)
+cmd_nqsw_windres = $(call cmd_windres__,NQSW_CPPFLAGS)
+cmd_nqgl_windres = $(call cmd_windres__,NQGL_CPPFLAGS)
+cmd_qwsw_windres = $(call cmd_windres__,QWSW_CPPFLAGS)
+cmd_qwgl_windres = $(call cmd_windres__,QWGL_CPPFLAGS)
 
 cmd_mkdir = @if [ ! -d $@ ]; then echo mkdir -p $@; mkdir -p $@; fi
 
