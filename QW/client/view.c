@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "pmove.h"
 #include "quakedef.h"
 #include "screen.h"
+#include "view.h"
 
 // FIXME - header hacks
 extern vrect_t scr_vrect;
@@ -538,8 +539,6 @@ V_UpdatePalette(void)
 {
     int i, j;
     qboolean new;
-    byte *basepal, *newpal;
-    byte pal[768];
     float r, g, b, a;
     int ir, ig, ib;
     qboolean force;
@@ -560,12 +559,12 @@ V_UpdatePalette(void)
 	    }
     }
 
-// drop the damage value
+    /* drop the damage value */
     cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime * 150;
     if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
 	cl.cshifts[CSHIFT_DAMAGE].percent = 0;
 
-// drop the bonus value
+    /* drop the bonus value */
     cl.cshifts[CSHIFT_BONUS].percent -= host_frametime * 100;
     if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
 	cl.cshifts[CSHIFT_BONUS].percent = 0;
@@ -575,8 +574,6 @@ V_UpdatePalette(void)
 	return;
 
     V_CalcBlend();
-
-//Con_Printf("b: %4.2f %4.2f %4.2f %4.6f\n", v_blend[0],        v_blend[1],     v_blend[2],     v_blend[3]);
 
     a = v_blend[3];
     r = 255 * v_blend[0] * a;
@@ -600,22 +597,7 @@ V_UpdatePalette(void)
 	ramps[2][i] = gammatable[ib];
     }
 
-    basepal = host_basepal;
-    newpal = pal;
-
-    for (i = 0; i < 256; i++) {
-	ir = basepal[0];
-	ig = basepal[1];
-	ib = basepal[2];
-	basepal += 3;
-
-	newpal[0] = ramps[0][ir];
-	newpal[1] = ramps[1][ig];
-	newpal[2] = ramps[2][ib];
-	newpal += 3;
-    }
-
-    VID_ShiftPalette(pal);
+    VID_ShiftPalette(NULL);
 }
 #else // !GLQUAKE
 /*
