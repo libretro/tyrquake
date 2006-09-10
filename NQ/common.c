@@ -1062,18 +1062,6 @@ va(char *format, ...)
 }
 
 
-/// just for debugging
-int
-memsearch(byte *start, int count, int search)
-{
-    int i;
-
-    for (i = 0; i < count; i++)
-	if (start[i] == search)
-	    return i;
-    return -1;
-}
-
 /*
 =============================================================================
 
@@ -1127,7 +1115,7 @@ typedef struct searchpath_s {
     struct searchpath_s *next;
 } searchpath_t;
 
-searchpath_t *com_searchpaths;
+static searchpath_t *com_searchpaths;
 
 /*
 ============
