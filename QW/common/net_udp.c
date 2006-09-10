@@ -185,7 +185,7 @@ NET_GetPacket(void)
 {
     int ret;
     struct sockaddr_in from;
-    int fromlen;
+    socklen_t fromlen;
 
     fromlen = sizeof(from);
     ret =
@@ -264,7 +264,7 @@ NET_GetLocalAddress(void)
 {
     char buff[MAXHOSTNAMELEN];
     struct sockaddr_in address;
-    int namelen;
+    socklen_t namelen;
 
     gethostname(buff, MAXHOSTNAMELEN);
     buff[MAXHOSTNAMELEN - 1] = 0;
