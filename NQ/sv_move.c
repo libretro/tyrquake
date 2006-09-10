@@ -19,10 +19,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_move.c -- monster movement
 
-#include "quakedef.h"
+#ifdef NQ_HACK
 #include "progs.h"
-#include "world.h"
+#endif
+
+#ifdef QW_HACK
+#include "bspfile.h"
+#include "qwsvdef.h"
+#endif
+
 #include "server.h"
+#include "world.h"
 
 #define	STEPSIZE	18
 

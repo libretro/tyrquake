@@ -19,8 +19,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_move.c -- monster movement
 
+#ifdef NQ_HACK
+#include "progs.h"
+#endif
+
+#ifdef QW_HACK
 #include "bspfile.h"
 #include "qwsvdef.h"
+#endif
+
 #include "server.h"
 #include "world.h"
 
