@@ -278,6 +278,10 @@ Host_WriteConfiguration(void)
 	Key_WriteBindings(f);
 	Cvar_WriteVariables(f);
 
+	/* Save the mlook state (rarely used as an actual key binding) */
+	if (in_mlook.state & 1)
+	    fprintf(f, "+mlook\n");
+
 	fclose(f);
     }
 }
