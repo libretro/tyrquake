@@ -158,7 +158,7 @@ const char *COM_SkipPath(const char *pathname);
 void COM_StripExtension(const char *in, char *out);
 void COM_FileBase(const char *in, char *out);
 void COM_DefaultExtension(char *path, const char *extension);
-int COM_CheckExtension(char *path, char *extn);
+int COM_CheckExtension(const char *path, const char *extn);
 
 char *va(char *format, ...);
 

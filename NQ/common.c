@@ -783,7 +783,7 @@ COM_DefaultExtension(char *path, char *extension)
 }
 
 int
-COM_CheckExtension(char *path, char *extn)
+COM_CheckExtension(const char *path, const char *extn)
 {
     char *pos;
     int ret = 0;
