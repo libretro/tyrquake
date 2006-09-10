@@ -945,20 +945,9 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 
 	// find the search start location
 	prevCvarName = MSG_ReadString();
-	if (*prevCvarName) {
-	    var = Cvar_FindVar(prevCvarName);
-	    if (!var)
-		return NULL;
-	    var = var->next;
-	} else
-	    var = cvar_vars;
-
-	// search for the next server cvar
-	while (var) {
-	    if (var->server)
-		break;
-	    var = var->next;
-	}
+	var = Cvar_NextServerVar(prevCvarName);
+	if (!var)
+	    return NULL;
 
 	// send the response
 

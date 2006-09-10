@@ -43,7 +43,6 @@ void SV_SendServerInfoChange(char *key, char *value);	// FIXME
 #endif
 #endif
 
-cvar_t *cvar_vars;
 static char *cvar_null_string = "";
 
 #define cvar_entry(ptr) container_of(ptr, struct cvar_s, stree)
@@ -66,6 +65,32 @@ Cvar_FindVar(const char *var_name)
 
     return ret;
 }
+
+#ifdef NQ_HACK
+/*
+ * For NQ/net_dgrm.c, command == CCREQ_RULE_INFO case
+ */
+cvar_t *
+Cvar_NextServerVar(const char *var_name)
+{
+    cvar_t *ret = NULL;
+    cvar_t *var;
+    struct stree_node *n;
+
+    if (var_name[0] == '\0')
+	var_name = NULL;
+
+    STree_ForEach_After(&cvar_tree, n, var_name) {
+	var = cvar_entry(n);
+	if (var->server) {
+	    ret = var;
+	    STree_ForEach_break(&cvar_tree);
+	}
+    }
+
+    return ret;
+}
+#endif
 
 /*
 ============
@@ -217,9 +242,6 @@ Cvar_RegisterVariable(cvar_t *variable)
 		   variable->name);
 	return;
     }
-    /* link the variable in */
-    variable->next = cvar_vars;
-    cvar_vars = variable;
 
     variable->stree.string = variable->name;
     STree_Insert(&cvar_tree, &variable->stree);
@@ -287,8 +309,11 @@ void
 Cvar_WriteVariables(FILE *f)
 {
     cvar_t *var;
+    struct stree_node *n;
 
-    for (var = cvar_vars; var; var = var->next)
+    STree_ForEach(&cvar_tree, n) {
+	var = cvar_entry(n);
 	if (var->archive)
 	    fprintf(f, "%s \"%s\"\n", var->name, var->string);
+    }
 }

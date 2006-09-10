@@ -87,8 +87,6 @@ typedef struct cvar_s {
 #endif
 
     float value;
-    struct cvar_s *next; // Old way to chain them together...
-
     cvar_callback callback;
     unsigned flags;
 
@@ -136,6 +134,8 @@ void Cvar_WriteVariables(FILE *f);
 /* */
 cvar_t *Cvar_FindVar(const char *var_name);
 
-extern cvar_t *cvar_vars;
+# ifdef NQ_HACK
+cvar_t *Cvar_NextServerVar(const char *var_name);
+#endif
 
 #endif /* CVAR_H */
