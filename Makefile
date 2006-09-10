@@ -68,7 +68,6 @@ ST_INC    = $(TOPDIR)/scitech/include
 # --------------
 # Library stuff
 # --------------
-WIN_LIBDIR = C:/mingw-1.1/lib
 NQ_ST_LIBDIR = scitech/lib/win32/vc
 QW_ST_LIBDIR = scitech/lib/win32/vc
 
@@ -488,11 +487,11 @@ endif
 
 # Win32
 tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
 	$(cmd_strip) $@
 
 tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
 	$(cmd_strip) $@
 
 # Linux
@@ -731,11 +730,11 @@ QW_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS) $(QW_LINUX_GL_LIBS
 
 # Win32
 tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
 	$(cmd_strip) $@
 
 tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QW_W32_GL_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(QW_W32_GL_LFLAGS)
 	$(cmd_strip) $@
 
 # Linux
@@ -821,7 +820,7 @@ QWSV_LINUX_LFLAGS = $(patsubst %,-l%,$(QWSV_LINUX_LIBS))
 
 # Win32
 tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QWSV_W32_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(QWSV_W32_LFLAGS)
 	$(cmd_strip) $@
 
 # Linux
