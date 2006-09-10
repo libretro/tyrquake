@@ -100,8 +100,7 @@ typedef struct cvar_s {
 #define CVAR_OBSOLETE  (1U << 1) /* cvar has no effect; basically removed */
 
 /* Get a pointer to the cvar from the completion pointer */
-#define cvar_for_completion(ptr) \
-    ((cvar *)((char *)(ptr)-(unsigned long)(&((cvar *)0)->index)))
+#define cvar_for_completion(ptr) container_of(ptr, struct cvar_s, index)
 
 /*
  * register a cvar that already has the name, string, and optionally the

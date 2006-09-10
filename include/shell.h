@@ -46,6 +46,9 @@ struct stree_node {
     struct rb_node node;
 };
 
+/* stree_entry - Gets the stree_node ptr from the internal rb_node ptr */
+#define stree_entry(ptr) container_of(ptr, struct stree_node, node)
+
 void STree_AllocInit(void);
 qboolean STree_Insert(struct stree_root *root, struct stree_node *node);
 qboolean STree_InsertAlloc(struct stree_root *root, const char *s,
@@ -63,6 +66,10 @@ struct completion {
     unsigned long cmd_type;		/* flags for command type */
     struct rb_node rb_cmd_cache;
 };
+
+/* completion_entry - Gets the completion ptr from the internal rb_node ptr */
+#define completion_entry(ptr) \
+	container_of(ptr, struct completion, rb_cmd_cache)
 
 /*
  * Command types

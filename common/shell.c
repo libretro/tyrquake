@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 #include "console.h"
+#include "cvar.h"
+#include "mathlib.h"
 #include "rb_tree.h"
 #include "shell.h"
 #include "sys.h"
@@ -107,14 +109,12 @@ STree_Insert(struct stree_root *root, struct stree_node *node)
 {
     struct rb_node **p = &root->root.rb_node;
     struct rb_node *parent = NULL;
-    struct stree_node *sn;
     unsigned int len;
     int cmp;
 
     while (*p) {
 	parent = *p;
-	sn = rb_entry(parent, struct stree_node, node);
-	cmp = strcasecmp(node->string, sn->string);
+	cmp = strcasecmp(node->string, stree_entry(parent)->string);
 	if (cmp < 0)
 	    p = &(*p)->rb_left;
 	else if (cmp > 0)
@@ -161,19 +161,15 @@ STree_InsertAlloc(struct stree_root *root, const char *s,
 static int
 ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
 {
-    struct stree_node *sn;
-
     if (n) {
 	max_match = ST_node_match(n->rb_left, str, min_match, max_match);
 
 	/* How much does this node match */
-	sn = rb_entry(n, struct stree_node, node);
 	while (max_match > min_match) {
-	    if (!strncasecmp(str, sn->string, max_match))
+	    if (!strncasecmp(str, stree_entry(n)->string, max_match))
 		break;
 	    max_match--;
 	}
-
 	max_match = ST_node_match(n->rb_right, str, min_match, max_match);
     }
 
@@ -197,7 +193,7 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
     min_match = strlen(pfx);
 
     n = root->root.rb_node;
-    sn = rb_entry(n, struct stree_node, node);
+    sn = stree_entry(n);
 
     if (root->entries == 1) {
 	match = strlen(sn->string);
@@ -233,7 +229,7 @@ rb_find_exact_r(struct rb_node *n, const char *str, unsigned long type)
     if (n) {
 	struct completion *c, *ret = NULL; /* FIXME - null right here? */
 
-	c = rb_entry(n, struct completion, rb_cmd_cache);
+	c = completion_entry(n);
 	if (!strcasecmp(str, c->string)) {
 	    ret = rb_find_exact_r(n->rb_left, str, type);
 	    if (!ret && (c->cmd_type & type))
@@ -259,7 +255,7 @@ rb_find_exact(const char *str, unsigned long type, struct rb_root *root)
 
     /* Do the first part iteratively */
     while (n) {
-	c = rb_entry(n, struct completion, rb_cmd_cache);
+	c = completion_entry(n);
 	cmp = strcasecmp(str, c->string);
 	if (cmp < 0)
 	    n = n->rb_left;
@@ -289,8 +285,7 @@ rb_insert_completion__(const char *str, unsigned long type,
 
     while (*p) {
 	parent = *p;
-	c = rb_entry(parent, struct completion, rb_cmd_cache);
-
+	c = completion_entry(parent);
 	cmp = strcasecmp(str, c->string);
 	if (cmp < 0)
 	    p = &(*p)->rb_left;
@@ -337,7 +332,7 @@ rb_count_completions_r(struct rb_node *n, const char *str, unsigned long type)
     unsigned cnt = 0;
 
     if (n) {
-	struct completion *c = rb_entry(n, struct completion, rb_cmd_cache);
+	struct completion *c = completion_entry(n);
 	int cmp = strncasecmp(str, c->string, strlen(str));
 	if (cmp <= 0)
 	    cnt += rb_count_completions_r(n->rb_left, str, type);
@@ -354,7 +349,7 @@ rb_count_completions(struct rb_node *n, const char *str, unsigned long type)
 {
     /* do the first part iteratively */
     while (n) {
-	struct completion *c = rb_entry(n, struct completion, rb_cmd_cache);
+	struct completion *c = completion_entry(n);
 	int cmp = strncasecmp(str, c->string, strlen(str));
 	if (cmp < 0)
 	    n = n->rb_left;
@@ -370,7 +365,7 @@ static void
 rb_find_completions_r(struct rb_node *n, const char *str, unsigned long type)
 {
     if (n) {
-	struct completion *c = rb_entry(n, struct completion, rb_cmd_cache);
+	struct completion *c = completion_entry(n);
 	int cmp = strncasecmp(str, c->string, strlen(str));
 	if (cmp <= 0)
 	    rb_find_completions_r(n->rb_left, str, type);
@@ -535,7 +530,7 @@ find_cvar_completion(const char *str)
 int
 cvar_exists(const char *str)
 {
-    return rb_find_exact(str, CMD_CVAR, &completions);
+    return Cvar_FindVar(str) != NULL;
 }
 
 /* ------------------------------------------------------------------------ */

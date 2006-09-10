@@ -714,13 +714,8 @@ static void
 Con_ShowTree_Populate(struct rb_node *n)
 {
     if (n) {
-	struct stree_node *sn;
-
 	Con_ShowTree_Populate(n->rb_left);
-
-	sn = rb_entry(n, struct stree_node, node);
-	showtree_list[showtree_idx++] = sn->string;
-
+	showtree_list[showtree_idx++] = stree_entry(n)->string;
 	Con_ShowTree_Populate(n->rb_right);
     }
 }
