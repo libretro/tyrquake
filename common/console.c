@@ -696,3 +696,50 @@ Con_SafePrintf(char *fmt, ...)
     Con_Printf("%s", msg);
     scr_disabled_for_loading = temp;
 }
+
+void
+Con_ShowList(const char **list, int cnt)
+{
+    const char *s;
+    unsigned i, j, max_len, len, cols, rows;
+    char *line;
+
+    /* Lay them out in columns */
+    max_len = 0;
+    for (i = 0; i < cnt; ++i) {
+	len = strlen(list[i]);
+	if (len > max_len)
+	    max_len = len;
+    }
+
+    line = Z_Malloc(Con_GetWidth() + 1);
+    cols = Con_GetWidth() / (max_len + 2);
+    rows = cnt / cols + 1;
+
+    /* Looks better if we have a few rows before spreading out */
+    if (rows < 5) {
+	cols = cnt / 5 + 1;
+	rows = cnt / cols + 1;
+    }
+
+    for (i = 0; i < rows; ++i) {
+	line[0] = '\0';
+	for (j = 0; j < cols; ++j) {
+	    if (j * rows + i >= cnt)
+		break;
+	    s = list[j * rows + i];
+	    len = strlen(s);
+
+	    strcat(line, s);
+	    if (j < cols - 1) {
+		while (len < max_len) {
+		    strcat(line, " ");
+		    len++;
+		}
+		strcat(line, "  ");
+	    }
+	}
+	Con_Printf("%s\n", line);
+    }
+    Z_Free(line);
+}

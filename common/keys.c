@@ -208,11 +208,11 @@ CompleteCommand(void)
     }
 }
 
-void ShowCompletions(void)
+static void
+ShowCompletions(void)
 {
     const char *s;
-    unsigned cnt, i, j, max_len, len, cols, rows;
-    char *line;
+    unsigned cnt;
 
     s = key_lines[edit_line] + 1;
     if (*s == '\\' || *s == '/')
@@ -221,45 +221,7 @@ void ShowCompletions(void)
     cnt = find_completions(s);
     if (cnt) {
 	Con_Printf("%u possible completions:\n", cnt);
-
-	/* Lay them out in columns */
-	max_len = 0;
-	for (i = 0; i < cnt; ++i) {
-	    len = strlen(completions_list[i]);
-	    if (len > max_len)
-		max_len = len;
-	}
-
-	line = Z_Malloc(Con_GetWidth() + 1);
-	cols = Con_GetWidth() / (max_len + 2);
-	rows = cnt / cols + 1;
-
-	/* Looks better if we have a few rows before spreading out */
-	if (rows < 5) {
-	    cols = cnt / 5 + 1;
-	    rows = cnt / cols + 1;
-	}
-
-	for (i = 0; i < rows; ++i) {
-	    line[0] = '\0';
-	    for (j = 0; j < cols; ++j) {
-		if (j * rows + i >= cnt)
-		    break;
-		s = completions_list[j * rows + i];
-		len = strlen(s);
-
-		strcat(line, s);
-		if (j < cols - 1) {
-		    while (len < max_len) {
-			strcat(line, " ");
-			len++;
-		    }
-		    strcat(line, "  ");
-		}
-	    }
-	    Con_Printf("%s\n", line);
-	}
-	Z_Free(line);
+	Con_ShowList(completions_list, cnt);
     }
 }
 
