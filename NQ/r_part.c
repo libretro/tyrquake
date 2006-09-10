@@ -610,6 +610,8 @@ R_DrawParticles(void)
     GL_Bind(particletexture);
     glEnable(GL_BLEND);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glDepthMask(GL_FALSE);
+
     glBegin(GL_TRIANGLES);
 
     VectorScale(vup, 1.5, up);
@@ -734,6 +736,7 @@ R_DrawParticles(void)
 
 #ifdef GLQUAKE
     glEnd();
+    glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 #else
