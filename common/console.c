@@ -725,7 +725,8 @@ Con_ShowTree_Populate(struct rb_node *n)
     }
 }
 
-void Con_ShowTree(struct rb_string_root *root)
+void
+Con_ShowTree(struct rb_string_root *root)
 {
     /* FIXME - cheating with malloc */
     showtree_list = malloc(root->entries * sizeof(char *));

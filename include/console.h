@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CONSOLE_H
 
 #include "qtypes.h"
+#include "shell.h"
 
 //
 // console
@@ -55,6 +56,7 @@ void Con_DrawNotify(void);
 void Con_ClearNotify(void);
 void Con_ToggleConsole_f(void);
 void Con_ShowList(const char **list, int cnt, int maxlen);
+void Con_ShowTree(struct rb_string_root *root);
 
 // during startup for sound / cd warnings
 void Con_NotifyBox(char *text);

@@ -1,3 +1,4 @@
+
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
 
@@ -468,6 +469,10 @@ InitSig(void)
     signal(SIGTERM, signal_handler);
 }
 
+/*
+ * VID_ShiftPalette
+ * - Updates hardware gamma
+ */
 void
 VID_ShiftPalette(unsigned char *p)
 {
@@ -497,15 +502,11 @@ VID_SetPalette(unsigned char *palette)
 	b = pal[2];
 	pal += 3;
 
-	// FIXME - endian issuse? (Carmack/Zoid left this here...)
-	//v = (255<<24) + (r<<16) + (g<<8) + (b<<0);
-	//v = (255<<0) + (r<<8) + (g<<16) + (b<<24);
 	v = (255 << 24) + (r << 0) + (g << 8) + (b << 16);
 	*table++ = v;
     }
     d_8to24table[255] &= 0xffffff;	// 255 is transparent
 
-    // FIXME - cache to disk like old QW client?
     for (i = 0; i < (1 << 15); i++) {
 	/*
 	 * Maps
@@ -535,7 +536,7 @@ VID_SetPalette(unsigned char *palette)
 void
 CheckMultiTextureExtensions(void)
 {
-    // FIXME - space at end of string? Check properly...
+    // FIXME - no space at end of string? Check properly...
     gl_mtexable = false;
     if (!COM_CheckParm("-nomtex")
 	&& strstr(gl_extensions, "GL_ARB_multitexture ")) {
@@ -606,11 +607,8 @@ GL_Init(void)
     gl_extensions = glGetString(GL_EXTENSIONS);
     Con_Printf("GL_EXTENSIONS: %s\n", gl_extensions);
 
-//      Con_Printf ("%s %s\n", gl_renderer, gl_version);
-
     CheckMultiTextureExtensions();
 
-    //glClearColor (1, 0, 0, 0);
     glClearColor(0.5, 0.5, 0.5, 0);
     glCullFace(GL_FRONT);
     glEnable(GL_TEXTURE_2D);
@@ -643,10 +641,6 @@ GL_BeginRendering(int *x, int *y, int *width, int *height)
     *x = *y = 0;
     *width = scr_width;
     *height = scr_height;
-
-    // FIXME?
-    //    if (!wglMakeCurrent( maindc, baseRC ))
-    //        Sys_Error ("wglMakeCurrent failed");
 }
 
 
@@ -714,7 +708,8 @@ VID_Init8bitPalette(void)
     }
 }
 
-/* FIXME - re-enable?
+#if 0
+/* FIXME - re-enable? */
 static void
 Check_Gamma (unsigned char *pal)
 {
@@ -746,7 +741,7 @@ Check_Gamma (unsigned char *pal)
 
     memcpy(pal, palette, sizeof(palette));
 }
-*/
+#endif
 
 static void
 VID_InitCvars(void)

@@ -162,7 +162,7 @@ Cbuf_Execute(void)
     int quotes;
 
     while (cmd_text.cursize) {
-// find a \n or ; line break
+	/* find a \n or ; line break */
 	text = (char *)cmd_text.data;
 
 	quotes = 0;
@@ -170,16 +170,18 @@ Cbuf_Execute(void)
 	    if (text[i] == '"')
 		quotes++;
 	    if (!(quotes & 1) && text[i] == ';')
-		break;		// don't break if inside a quoted string
+		break;		/* don't break if inside a quoted string */
 	    if (text[i] == '\n')
 		break;
 	}
 	memcpy(line, text, i);
 	line[i] = 0;
 
-// delete the text from the command buffer and move remaining commands down
-// this is necessary because commands (exec, alias) can insert data at the
-// beginning of the text buffer
+	/*
+	 * delete the text from the command buffer and move remaining commands
+	 * down this is necessary because commands (exec, alias) can insert
+	 * data at the beginning of the text buffer
+	 */
 
 	if (i == cmd_text.cursize)
 	    cmd_text.cursize = 0;
@@ -189,11 +191,14 @@ Cbuf_Execute(void)
 	    memcpy(text, text + i, cmd_text.cursize);
 	}
 
-// execute the command line
+	/* execute the command line */
 	Cmd_ExecuteString(line);
 
-	if (cmd_wait) {		// skip out while text still remains in buffer, leaving it
-	    // for next frame
+	if (cmd_wait) {
+	    /*
+	     * skip out while text still remains in buffer, leaving it for
+	     * next frame
+	     */
 	    cmd_wait = false;
 	    break;
 	}
@@ -203,7 +208,7 @@ Cbuf_Execute(void)
 /*
 ==============================================================================
 
-						SCRIPT COMMANDS
+				SCRIPT COMMANDS
 
 ==============================================================================
 */

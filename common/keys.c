@@ -164,7 +164,8 @@ keyname_t keynames[] = {
 
 /*
  * Given a command buffer, return a pointer to the start of the current
- * command string (i.e. search backwards for a command delimiter)
+ * command string. Only simple for now (i.e. search backwards for a command
+ * delimiter), but proper parsing of quotation, etc needed later...
  */
 static char *
 GetCommandPos(char *buf)
@@ -192,7 +193,6 @@ CheckForCommand(void)
     char *s;
     int i;
 
-    Con_DPrintf("CheckForCommand: --%s--\n", key_lines[edit_line]);
     s = key_lines[edit_line] + 1;	// skip the ]
 
     for (i = 0; i < 127; i++)

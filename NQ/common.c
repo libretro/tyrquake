@@ -670,11 +670,10 @@ SZ_Print(sizebuf_t *buf, const char *data)
 
     len = strlen(data) + 1;
 
-// byte * cast to keep VC++ happy
     if (buf->data[buf->cursize - 1])
-	memcpy((byte *)SZ_GetSpace(buf, len), data, len);	// no trailing 0
+	memcpy(SZ_GetSpace(buf, len), data, len);	// no trailing 0
     else
-	memcpy((byte *)SZ_GetSpace(buf, len - 1) - 1, data, len);	// write over trailing 0
+	memcpy(SZ_GetSpace(buf, len - 1) - 1, data, len);	// write over trailing 0
 }
 
 
@@ -777,13 +776,11 @@ COM_DefaultExtension(char *path, const char *extension)
 // (extension should include the .)
 //
     src = path + strlen(path) - 1;
-
     while (*src != '/' && src != path) {
 	if (*src == '.')
 	    return;		// it has an extension
 	src--;
     }
-
     strcat(path, extension);
 }
 
@@ -1107,7 +1104,7 @@ typedef struct {
     int dirlen;
 } dpackheader_t;
 
-#define MAX_FILES_IN_PACK       2048
+#define MAX_FILES_IN_PACK 2048
 
 char com_cachedir[MAX_OSPATH];
 char com_gamedir[MAX_OSPATH];
@@ -1473,7 +1470,7 @@ COM_LoadFile
 
 Filename are reletive to the quake directory.
 Optionally return length; set null if you don't want it.
-Allways appends a 0 byte.
+Always appends a 0 byte to the loaded data.
 ============
 */
 cache_user_t *loadcache;

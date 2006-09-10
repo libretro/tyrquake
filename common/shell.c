@@ -87,7 +87,6 @@ ST_AllocString(unsigned int length)
 	 * Cache_FreeHigh, so maybe only do it if wasting more than that
 	 * (32/64/?).
 	 */
-	Con_DPrintf("%s: %i bytes wasted\n", __func__, st_string_space);
 	st_string_next = Hunk_TempAllocExtend(ST_STRING_CHUNK);
 	st_string_space = st_string_next ? ST_STRING_CHUNK : 0;
     }
