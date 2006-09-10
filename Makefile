@@ -41,12 +41,6 @@ export
 	qwsv-linux-objs
 
 # ============================================================================
-# Helper functions
-# ============================================================================
-
-check_gcc = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
-
-# ============================================================================
 
 # FIXME - how to detect build env reliably...?
 ifeq ($(OSTYPE),msys)
@@ -54,6 +48,18 @@ TOPDIR := $(shell pwd -W)
 else
 TOPDIR := $(shell pwd)
 endif
+
+# ============================================================================
+# Helper functions
+# ============================================================================
+
+cc-version = $(shell sh $(TOPDIR)/scripts/gcc-version \
+              $(if $(1), $(1), $(CC)))
+
+cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
+             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
+
+GCC_VERSION := $(call cc-version)
 
 # ----------------------------
 # The two project directories
@@ -237,12 +243,14 @@ ifdef DEBUG
 CFLAGS += -g
 STRIP_CMD = @echo "** Debug build - not stripping"
 else
-# Note that "-fomit-frame-pointer" seems to screw some things up
-# (at least on MinGW)
 CFLAGS += -O2
-CFLAGS += $(call check_gcc,-fweb,)
-CFLAGS += $(call check_gcc,-frename-registers,)
-CFLAGS += $(call check_gcc,-mtune=i686,-mcpu=i686)
+# -funit-at-a-time is buggy for MinGW GCC > 3.2
+# I'm assuming it's fixed for MinGW GCC >= 4.0 when that comes about
+CFLAGS += $(shell if [ $(GCC_VERSION) -lt 0400 ] ;\
+		then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
+CFLAGS += $(call cc-option,-fweb,)
+CFLAGS += $(call cc-option,-frename-registers,)
+CFLAGS += $(call cc-option,-mtune=i686,-mcpu=i686)
 STRIP_CMD = strip
 endif
 
