@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2006-02-18
-Version: 	0.50
+Date:		2006-02-25
+Version: 	0.51
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -28,6 +28,14 @@ something else...
 
 
 Version History:
+
+v0.51
+=====
+- Work around problems with MinGW upgrade
+- Merge sv_move, r_alias and r_sprite into common
+- STree api additions and cleanups
+- Replace old completion framework completely with strees
+- Other minor fixes and source formatting changes
 
 v0.50
 =====
