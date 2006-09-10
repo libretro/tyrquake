@@ -289,7 +289,7 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr)
     int i, j;
     int *cmds;
     trivertx_t *verts;
-    char cache[MAX_QPATH], fullpath[MAX_OSPATH];
+    char cache[MAX_QPATH];
     FILE *f;
 
     aliasmodel = m;
@@ -298,12 +298,11 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr)
     //
     // look for a cached version
     //
-    strcpy(cache, "glquake/");
-    COM_StripExtension(m->name + strlen("progs/"),
-		       cache + strlen("glquake/"));
+    sprintf(cache, "%s/glquake/", com_gamedir);
+    COM_StripExtension(m->name + strlen("progs/"), cache + strlen(cache));
     strcat(cache, ".ms2");
 
-    COM_FOpenFile(cache, &f);
+    f = fopen(cache, "rb");
     if (f) {
 	fread(&numcommands, 4, 1, f);
 	fread(&numorder, 4, 1, f);
@@ -314,22 +313,21 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr)
 	//
 	// build it from scratch
 	//
-	Con_Printf("meshing %s...\n", m->name);
+	Con_DPrintf("meshing %s...\n", m->name);
 
 	BuildTris();		// trifans or lists
 
 	//
 	// save out the cached version
 	//
-	sprintf(fullpath, "%s/%s", com_gamedir, cache);
-	f = fopen(fullpath, "wb");
+	f = fopen(cache, "wb");
 	if (!f) {
 	    // Maybe the directory wasn't present, try again
 	    char gldir[MAX_OSPATH];
 
 	    sprintf(gldir, "%s/glquake", com_gamedir);
 	    Sys_mkdir(gldir);
-	    f = fopen(fullpath, "wb");
+	    f = fopen(cache, "wb");
 	}
 
 	if (f) {
