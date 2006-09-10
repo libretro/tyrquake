@@ -37,7 +37,6 @@ static void Cmd_ForwardToServer_f(void);
 #define	MAX_ALIAS_NAME	32
 
 typedef struct cmdalias_s {
-    struct cmdalias_s *next;
     char name[MAX_ALIAS_NAME];
     char *value;
     struct stree_node stree;
@@ -46,7 +45,6 @@ typedef struct cmdalias_s {
 #define cmdalias_entry(ptr) container_of(ptr, struct cmdalias_s, stree)
 static DECLARE_STREE_ROOT(cmdalias_tree);
 
-cmdalias_t *cmd_alias;
 qboolean cmd_wait;
 
 cvar_t cl_warncmd = { "cl_warncmd", "0" };
@@ -368,11 +366,14 @@ Cmd_Alias_f(void)
     char cmd[1024];
     int i, c;
     char *s;
+    struct stree_node *node;
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("Current alias commands:\n");
-	for (a = cmd_alias; a; a = a->next)
+	STree_ForEach(&cmdalias_tree, node) {
+	    a = cmdalias_entry(node);
 	    Con_Printf("%s : %s\n", a->name, a->value);
+	}
 	return;
     }
 
@@ -389,8 +390,6 @@ Cmd_Alias_f(void)
 
     if (!a) {
 	a = Z_Malloc(sizeof(cmdalias_t));
-	a->next = cmd_alias;
-	cmd_alias = a;
 	strcpy(a->name, s);
 	a->stree.string = a->name;
 	STree_Insert(&cmdalias_tree, &a->stree);
