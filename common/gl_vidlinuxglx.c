@@ -394,6 +394,10 @@ HandleEvents(void)
 		Key_Event(K_MOUSE3, true);
 	    else if (event.xbutton.button == 3)
 		Key_Event(K_MOUSE2, true);
+	    else if (event.xbutton.button == 4)
+		Key_Event(K_MWHEELUP, true);
+	    else if (event.xbutton.button == 5)
+		Key_Event(K_MWHEELDOWN, true);
 	    break;
 
 	case ButtonRelease:
@@ -403,6 +407,10 @@ HandleEvents(void)
 		Key_Event(K_MOUSE3, false);
 	    else if (event.xbutton.button == 3)
 		Key_Event(K_MOUSE2, false);
+	    else if (event.xbutton.button == 4)
+		Key_Event(K_MWHEELUP, false);
+	    else if (event.xbutton.button == 5)
+		Key_Event(K_MWHEELDOWN, false);
 	    break;
 
 	case CreateNotify:
