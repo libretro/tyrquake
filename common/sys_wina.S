@@ -37,7 +37,7 @@ fpenv:
 .globl C(MaskExceptions)
 C(MaskExceptions):
 	fnstenv	fpenv
-	orl		$0x3F,fpenv
+	orl	$0x3F,fpenv
 	fldenv	fpenv
 
 	ret
@@ -46,7 +46,7 @@ C(MaskExceptions):
 .globl C(unmaskexceptions)
 C(unmaskexceptions):
 	fnstenv	fpenv
-	andl		$0xFFFFFFE0,fpenv
+	andl	$0xFFFFFFE0,fpenv
 	fldenv	fpenv
 
 	ret
@@ -59,7 +59,7 @@ C(unmaskexceptions):
 ceil_cw:	.long	0
 single_cw:	.long	0
 full_cw:	.long	0
-cw:			.long	0
+cw:		.long	0
 pushed_cw:	.long	0
 
 	.text
@@ -93,23 +93,22 @@ C(Sys_PopFPCW):
 C(Sys_SetFPCW):
 	fnstcw	cw
 	movl	cw,%eax
-#if	id386
+#ifdef USE_X86_ASM
 	andb	$0xF0,%ah
-	orb		$0x03,%ah	// round mode, 64-bit precision
+	orb	$0x03,%ah	// round mode, 64-bit precision
 #endif
 	movl	%eax,full_cw
 
-#if	id386
+#ifdef USE_X86_ASM
 	andb	$0xF0,%ah
-	orb		$0x0C,%ah	// chop mode, single precision
+	orb	$0x0C,%ah	// chop mode, single precision
 #endif
 	movl	%eax,single_cw
 
-#if	id386
+#ifdef USE_X86_ASM
 	andb	$0xF0,%ah
-	orb		$0x08,%ah	// ceil mode, single precision
+	orb	$0x08,%ah	// ceil mode, single precision
 #endif
 	movl	%eax,ceil_cw
 
 	ret
-

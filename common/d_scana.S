@@ -27,8 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if id386
-
 	.data
 
 	.text
@@ -84,6 +82,3 @@ Llp:
 	popl	%esi
 	popl	%ebp				// restore caller's stack frame pointer
 	ret
-
-#endif	// id386
-

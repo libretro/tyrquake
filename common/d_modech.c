@@ -38,7 +38,7 @@ D_Patch
 void
 D_Patch(void)
 {
-#if id386
+#ifdef USE_X86_ASM
 
     static qboolean protectset8 = false;
 
@@ -48,7 +48,7 @@ D_Patch(void)
 			      (int)D_PolysetAff8Start);
 	protectset8 = true;
     }
-#endif // id386
+#endif /* USE_X86_ASM */
 }
 
 

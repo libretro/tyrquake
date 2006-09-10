@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define DWORD	unsigned long
 #endif
 
-#define	PAINTBUFFER_SIZE	512
+#define PAINTBUFFER_SIZE 512
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
 int snd_scaletable[32][256];
 int *snd_p, snd_linear_count, snd_vol;
@@ -38,7 +38,7 @@ short *snd_out;
 
 void Snd_WriteLinearBlastStereo16(void);
 
-#if	!id386
+#ifndef USE_X86_ASM
 void
 Snd_WriteLinearBlastStereo16(void)
 {
@@ -332,7 +332,7 @@ SND_InitScaletable(void)
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 void
 SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
@@ -360,7 +360,7 @@ SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
     ch->pos += count;
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
 void

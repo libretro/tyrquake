@@ -152,7 +152,7 @@ R_BeginEdgeFrame(void)
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 ==============
@@ -196,10 +196,10 @@ R_InsertNewEdges(edge_t *edgestoadd, edge_t *edgelist)
     } while ((edgestoadd = next_edge) != NULL);
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 ==============
@@ -216,10 +216,10 @@ R_RemoveEdges(edge_t *pedge)
     } while ((pedge = pedge->nextremove) != NULL);
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 ==============
@@ -285,7 +285,7 @@ R_StepActiveU(edge_t *pedge)
     }
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
 /*
@@ -434,7 +434,7 @@ R_TrailingEdge(surf_t *surf, edge_t *edge)
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 ==============
@@ -587,7 +587,7 @@ R_GenerateSpans(void)
     R_CleanupSpan();
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
 /*

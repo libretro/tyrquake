@@ -89,7 +89,7 @@ R_Alias_clip_z(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 void
 R_Alias_clip_left(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)

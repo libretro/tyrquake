@@ -27,8 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if	id386
-
 //----------------------------------------------------------------------
 // 8-bpp horizontal span drawing code for polygons, with no transparency.
 //
@@ -1033,5 +1031,3 @@ LFDone:
 	popl	%edi
 	popl	%ebp		// restore the caller's stack frame
 	ret
-
-#endif	// id386

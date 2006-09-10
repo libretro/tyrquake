@@ -27,8 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if id386
-
 	.data
 Ltemp0:	.long	0
 Ltemp1:	.long	0
@@ -210,7 +208,3 @@ C(R_Alias_clip_left):
 
 	movl	C(r_refdef)+rd_aliasvrect+0,%eax
 	jmp		LRightLeftEntry
-
-
-#endif	// id386
-

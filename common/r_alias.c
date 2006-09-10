@@ -435,7 +435,7 @@ R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 ================
@@ -730,7 +730,7 @@ R_AliasDrawModel(alight_t *plighting)
     if (r_affinetridesc.drawtype) {
 	D_PolysetUpdateTables();	// FIXME: precalc...
     } else {
-#if id386
+#ifdef USE_X86_ASM
 	D_Aff8Patch(currententity->colormap);
 #endif
     }

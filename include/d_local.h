@@ -85,7 +85,7 @@ void R_ShowSubDiv(void);
 void (*prealspandrawer) (void);
 surfcache_t *D_CacheSurface(msurface_t *surface, int miplevel);
 
-#if id386
+#ifdef USE_X86_ASM
 extern void D_PolysetAff8Start(void);
 extern void D_PolysetAff8End(void);
 #endif

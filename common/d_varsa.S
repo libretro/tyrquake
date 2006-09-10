@@ -26,8 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if	id386
-
 	.data
 
 //-------------------------------------------------------
@@ -205,5 +203,3 @@ entryvec_table:
 spr8entryvec_table:
 	.long	0, Spr8Entry2_8, Spr8Entry3_8, Spr8Entry4_8
 	.long	Spr8Entry5_8, Spr8Entry6_8, Spr8Entry7_8, Spr8Entry8_8
-
-#endif	// id386

@@ -27,8 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if	id386
-
 // !!! if this is changed, it must be changed in d_polyse.c too !!!
 #define DPS_MAXSPANS	(MAXHEIGHT+1)
 			// 1 extra for spanpackage that marks end
@@ -1735,6 +1733,3 @@ LNextTri:
 	addl	$(SPAN_SIZE),%esp
 
 	ret
-
-
-#endif	// id386

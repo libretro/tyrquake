@@ -19,7 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // r_vars.c: global refresh variables
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 #include "mathlib.h"
 #include "quakedef.h"
@@ -48,4 +48,4 @@ short *d_pzbuffer;
 unsigned int d_zrowbytes;
 unsigned int d_zwidth;
 
-#endif // !id386
+#endif /* USE_X86_ASM */

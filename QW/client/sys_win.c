@@ -684,7 +684,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     return TRUE;
 }
 
-#if !id386
+#ifndef USE_X86_ASM
 void
 Sys_HighFPPrecision(void)
 {

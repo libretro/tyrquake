@@ -25,8 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_i386.h"
 #include "quakeasm.h"
 
-#if id386
-
 	.data
 
 Ltemp:	.long	0
@@ -127,7 +125,7 @@ Lsub:
 	andl	%ecx,%eax
 	orl	%esi,%eax
 
-	cmpl	$0x0000FFF0,%eax
+	cmpl	$0xFFF0,%eax
 	jb	Lhloop
 
 // Re-interpret sign bit and extend
@@ -144,6 +142,3 @@ Lhquickout:
 	popl	%edi
 
 	ret
-
-#endif	// id386
-

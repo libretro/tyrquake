@@ -97,7 +97,7 @@ D_WarpScreen(void)
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 =============
@@ -122,7 +122,7 @@ D_DrawTurbulent8Span(void)
     } while (--r_turb_spancount > 0);
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
 /*
@@ -255,7 +255,7 @@ Turbulent8(espan_t *pspan)
 }
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 =============
@@ -387,7 +387,7 @@ D_DrawSpans8(espan_t *pspan)
 #endif
 
 
-#if	!id386
+#ifndef USE_X86_ASM
 
 /*
 =============

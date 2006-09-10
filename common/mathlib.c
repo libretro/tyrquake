@@ -25,9 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 
 #ifdef SERVERONLY
-#include "qwsvdef.h"		// id386
+#include "qwsvdef.h"
 #else
-#include "quakedef.h"		// id386
+#include "quakedef.h"
 #endif
 
 #ifdef GLQUAKE
@@ -184,7 +184,7 @@ BOPS_Error(void)
     Sys_Error("%s:  Bad signbits", __func__);
 }
 
-#if !id386
+#ifndef USE_X86_ASM
 
 /*
 ==================
@@ -319,7 +319,7 @@ BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
 
     return sides;
 }
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
 void
@@ -603,7 +603,7 @@ GreatestCommonDivisor(int i1, int i2)
 }
 
 
-#if !id386
+#ifndef USE_X86_ASM
 
 // TODO: move to nonintel.c
 
@@ -625,4 +625,4 @@ Invert24To16(fixed16_t val)
 	(((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */

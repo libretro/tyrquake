@@ -27,11 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if	id386
-
 // !!! if these are changed, they must be changed in r_draw.c too !!!
 #define FULLY_CLIPPED_CACHED	0x80000000
-#define FRAMECOUNT_MASK			0x7FFFFFFF
+#define FRAMECOUNT_MASK		0x7FFFFFFF
 
 	.data
 
@@ -833,6 +831,3 @@ LClampP2:
 	flds	C(r_refdef)+rd_fvrectbottom_adj
 LClampP3:
 	ret
-
-#endif	// id386
-

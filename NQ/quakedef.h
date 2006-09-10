@@ -37,14 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	GAMENAME	"id1"	// directory to look in by default
 
-#if defined(__i386__)
-#define id386	1
-#else
-#define id386	0
-#endif
-
 /* UNALIGNED_OK - undef if unaligned accesses are not supported */
-#if id386
+#ifdef USE_X86_ASM
 #define UNALIGNED_OK
 #else
 #undef UNALIGNED_OK

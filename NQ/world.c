@@ -468,7 +468,7 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
 ===============================================================================
 */
 
-#if !id386
+#ifndef USE_X86_ASM
 
 /*
 ==================
@@ -507,7 +507,7 @@ SV_HullPointContents(hull_t *hull, int num, vec3_t p)
     return num - 0x10000;
 }
 
-#endif // !id386
+#endif /* USE_X86_ASM */
 
 
 /*

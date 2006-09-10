@@ -27,8 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_draw.h"
 #include "d_ifacea.h"
 
-#if id386
-
 	.data
 
 Lfloat_1:	.single	1.0
@@ -232,6 +230,3 @@ Lp1:
 Lsavelight:
 	fstp	%st(0)
 	jmp		Lp1
-
-#endif	// id386
-

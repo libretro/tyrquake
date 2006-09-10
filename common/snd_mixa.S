@@ -25,16 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "asm_i386.h"
 #include "quakeasm.h"
 
-#if	id386
-
 	.text
 
 //----------------------------------------------------------------------
 // 8-bit sound-mixing code
 //----------------------------------------------------------------------
 
-#define ch		4+16
-#define sc		8+16
+#define ch	4+16
+#define sc	8+16
 #define count	12+16
 
 .globl C(SND_PaintChannelFrom8)
@@ -47,7 +45,7 @@ C(SND_PaintChannelFrom8):
 //	int 	data;
 //	short	*lscale, *rscale;
 //	unsigned char *sfx;
-//	int		i;
+//	int	i;
 
 	movl	ch(%esp),%ebx
 	movl	sc(%esp),%esi
@@ -59,11 +57,11 @@ C(SND_PaintChannelFrom8):
 	movl	ch_leftvol(%ebx),%eax
 	movl	ch_rightvol(%ebx),%edx
 	cmpl	$255,%eax
-	jna		LLeftSet
+	jna	LLeftSet
 	movl	$255,%eax
 LLeftSet:
 	cmpl	$255,%edx
-	jna		LRightSet
+	jna	LRightSet
 	movl	$255,%edx
 LRightSet:
 
@@ -87,7 +85,7 @@ LRightSet:
 	movb	-1(%esi,%ecx,1),%bl
 
 	testl	$1,%ecx
-	jz		LMix8Loop
+	jz	LMix8Loop
 
 	movl	(%eax,%ebx,4),%edi
 	movl	(%edx,%ebx,4),%ebp
@@ -98,7 +96,7 @@ LRightSet:
 	movb	-2(%esi,%ecx,1),%bl
 
 	decl	%ecx
-	jz		LDone
+	jz	LDone
 
 //	for (i=0 ; i<count ; i++)
 //	{
@@ -125,7 +123,7 @@ LMix8Loop:
 
 //	}
 	subl	$2,%ecx
-	jnz		LMix8Loop
+	jnz	LMix8Loop
 
 LDone:
 	popl	%ebp
@@ -146,8 +144,8 @@ C(Snd_WriteLinearBlastStereo16):
 	pushl	%edi
 	pushl	%ebx
 
-//	int		i;
-//	int		val;
+//	int	i;
+//	int	val;
 	movl	C(snd_linear_count),%ecx
 	movl	C(snd_p),%ebx
 	movl	C(snd_vol),%esi
@@ -168,11 +166,11 @@ LWLBLoopTop:
 	imull	%esi,%eax
 	sarl	$8,%eax
 	cmpl	$0x7FFF,%eax
-	jg		LClampHigh
+	jg	LClampHigh
 	cmpl	$0xFFFF8000,%eax
-	jnl		LClampDone
+	jnl	LClampDone
 	movl	$0xFFFF8000,%eax
-	jmp		LClampDone
+	jmp	LClampDone
 LClampHigh:
 	movl	$0x7FFF,%eax
 LClampDone:
@@ -188,22 +186,22 @@ LClampDone:
 	imull	%esi,%edx
 	sarl	$8,%edx
 	cmpl	$0x7FFF,%edx
-	jg		LClampHigh2
+	jg	LClampHigh2
 	cmpl	$0xFFFF8000,%edx
-	jnl		LClampDone2
+	jnl	LClampDone2
 	movl	$0xFFFF8000,%edx
-	jmp		LClampDone2
+	jmp	LClampDone2
 LClampHigh2:
 	movl	$0x7FFF,%edx
 LClampDone2:
 	shll	$16,%edx
 	andl	$0xFFFF,%eax
-	orl		%eax,%edx
+	orl	%eax,%edx
 	movl	%edx,-4(%edi,%ecx,2)
 
 //	}
 	subl	$2,%ecx
-	jnz		LWLBLoopTop
+	jnz	LWLBLoopTop
 
 //	snd_p += snd_linear_count;
 
@@ -212,7 +210,3 @@ LClampDone2:
 	popl	%esi
 
 	ret
-
-
-#endif	// id386
-

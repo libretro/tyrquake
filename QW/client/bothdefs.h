@@ -23,18 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // defs common to client and server
 
-#if defined(__i386__) && !defined(id386)
-#define id386	1
-#else
-#define id386	0
-#endif
-
 #ifdef SERVERONLY		// no asm in dedicated server
-#undef id386
+#undef USE_X86_ASM
 #endif
 
 /* UNALIGNED_OK - undef if unaligned accesses are not supported */
-#if id386
+#ifdef USE_X86_ASM
 #define UNALIGNED_OK
 #else
 #undef UNALIGNED_OK

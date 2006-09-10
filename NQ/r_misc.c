@@ -295,7 +295,7 @@ R_TransformFrustum(void)
     }
 }
 
-#if !id386
+#ifndef USE_X86_ASM
 
 /*
 ================
