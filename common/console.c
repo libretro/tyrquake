@@ -206,38 +206,6 @@ Con_CheckResize(void)
     Con_Resize(&con_main);
 }
 
-
-/*
-================
-Con_Init
-================
-*/
-void
-Con_Init(void)
-{
-    debuglog = COM_CheckParm("-condebug");
-
-    con_main.text = Hunk_AllocName(CON_TEXTSIZE, "conmain");
-
-    con = &con_main;
-    con_linewidth = -1;
-    Con_CheckResize();
-
-    Con_Printf("Console initialized.\n");
-
-//
-// register our commands
-//
-    Cvar_RegisterVariable(&con_notifytime);
-
-    Cmd_AddCommand("toggleconsole", Con_ToggleConsole_f);
-    Cmd_AddCommand("messagemode", Con_MessageMode_f);
-    Cmd_AddCommand("messagemode2", Con_MessageMode2_f);
-    Cmd_AddCommand("clear", Con_Clear_f);
-    con_initialized = true;
-}
-
-
 /*
 ===============
 Con_Linefeed
@@ -767,4 +735,50 @@ void Con_ShowTree(struct rb_string_root *root)
 	Con_ShowList(showtree_list, root->entries, root->maxlen);
 	free(showtree_list);
     }
+}
+
+
+void
+Con_Maplist_f()
+{
+    struct rb_string_root st_root = RB_STRING_ROOT;
+    char *pfx = NULL;
+
+    if (Cmd_Argc() == 2)
+	pfx = Cmd_Argv(1);
+
+    ST_AllocInit();
+    COM_ScanDir(&st_root, "maps", pfx, ".bsp", true);
+    Con_ShowTree(&st_root);
+}
+
+
+/*
+================
+Con_Init
+================
+*/
+void
+Con_Init(void)
+{
+    debuglog = COM_CheckParm("-condebug");
+
+    con_main.text = Hunk_AllocName(CON_TEXTSIZE, "conmain");
+
+    con = &con_main;
+    con_linewidth = -1;
+    Con_CheckResize();
+
+    Con_Printf("Console initialized.\n");
+
+    /* register our commands */
+    Cvar_RegisterVariable(&con_notifytime);
+
+    Cmd_AddCommand("toggleconsole", Con_ToggleConsole_f);
+    Cmd_AddCommand("messagemode", Con_MessageMode_f);
+    Cmd_AddCommand("messagemode2", Con_MessageMode2_f);
+    Cmd_AddCommand("clear", Con_Clear_f);
+    Cmd_AddCommand("maplist", Con_Maplist_f);
+
+    con_initialized = true;
 }
