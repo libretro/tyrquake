@@ -50,6 +50,7 @@ void ST_AllocInit(void);
 qboolean ST_Insert(struct rb_string_root *root, struct rb_string_node *node);
 qboolean ST_InsertAlloc(struct rb_string_root *root, const char *s,
 			struct rb_string_node *n);
+char *ST_MaxMatch(struct rb_string_root *root, const char *pfx);
 
 /*
  * Set up some basic completion helpers

@@ -157,6 +157,68 @@ ST_InsertAlloc(struct rb_string_root *root, const char *s,
     return ret;
 }
 
+/* ST_MaxMatch helper */
+static int
+ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
+{
+    struct rb_string_node *sn;
+
+    if (n) {
+	max_match = ST_node_match(n->rb_left, str, min_match, max_match);
+
+	/* How much does this node match */
+	sn = rb_entry(n, struct rb_string_node, node);
+	while (max_match > min_match) {
+	    if (!strncasecmp(str, sn->string, max_match))
+		break;
+	    max_match--;
+	}
+
+	max_match = ST_node_match(n->rb_right, str, min_match, max_match);
+    }
+
+    return max_match;
+}
+
+/*
+ * Given a prefix, return the maximum common prefix of all other strings in
+ * the tree which match the given prefix.
+ */
+char *
+ST_MaxMatch(struct rb_string_root *root, const char *pfx)
+{
+    int max_match, min_match, match;
+    struct rb_node *n;
+    struct rb_string_node *sn;
+    char *result = NULL;
+
+    /* Can't be more than the shortest string */
+    max_match = root->minlen;
+    min_match = strlen(pfx);
+
+    n = root->root.rb_node;
+    sn = rb_entry(n, struct rb_string_node, node);
+
+    if (root->entries == 1) {
+	match = strlen(sn->string);
+	result = Z_Malloc(match + 2);
+	if (result) {
+	    strncpy(result, sn->string, match);
+	    result[match] = ' ';
+	    result[match + 1] = 0;
+	}
+    } else if (root->entries > 1) {
+	match = ST_node_match(n, sn->string, min_match, max_match);
+	result = Z_Malloc(match + 1);
+	if (result) {
+	    strncpy(result, sn->string, match);
+	    result[match] = 0;
+	}
+    }
+
+    return result;
+}
+
 const char **completions_list = NULL;
 static int num_completions = 0;
 
