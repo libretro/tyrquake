@@ -1,9 +1,18 @@
 #
-# A Makefile to run under MinGW on Win32
+# TyrQuake Makefile (tested under Linux and MinGW/Msys)
 #
-# Pretty crappy, but you can build all the targets if you clean in
-# between. It's needed because various -DXXX flags change the object files and
-# I'm still working on doing it properly... but slowly.
+# By default, all executables will be built. If you want to just build one,
+# just type e.g. "make tyr-quake". If the build dirs haven't been created yet,
+# you might need to type "make prepare" first.
+# 
+# Options:
+# --------
+# To build an executable with debugging symbols, un-comment the DEBUG=Y option
+# below. You should "make clean" when switching this option on or off.
+#
+# To build an executable without using any of the hand written x86 assembler,
+# un-comment the NO_X86_ASM option below. You should "make clean" when
+# switching this option on or off.
 #
 
 TYR_VERSION_MAJOR = 0
@@ -163,14 +172,37 @@ QWGL_CPPFLAGS += -DELF -DX11 -DGL_EXT_SHARED
 QWSV_CPPFLAGS += -DELF
 endif
 
-cmd_nqsw_cc = $(CC) -c $(NQSW_CPPFLAGS) $(CFLAGS) -o $@ $<
-cmd_nqgl_cc = $(CC) -c $(NQGL_CPPFLAGS) $(CFLAGS) -o $@ $<
-cmd_qwsw_cc = $(CC) -c $(QWSW_CPPFLAGS) $(CFLAGS) -o $@ $<
-cmd_qwgl_cc = $(CC) -c $(QWGL_CPPFLAGS) $(CFLAGS) -o $@ $<
-cmd_qwsv_cc = $(CC) -c $(QWSV_CPPFLAGS) $(CFLAGS) -o $@ $<
+define cmd_cc__
+$(CC) -MM -MT $@ $($(1)) -o $(2)/.$(@F).d $<
+$(CC) -c $($(1)) $(CFLAGS) -o $@ $<
+endef
 
-cmd_nq_windres = windres -I NQ -i $< -O coff -o $@
-cmd_qw_windres = windres -I QW/client -i $< -O coff -o $@
+DEPFILES = \
+	$(wildcard $(BUILD_DIR)/nqsw/.*.d) \
+	$(wildcard $(BUILD_DIR)/nqgl/.*.d) \
+	$(wildcard $(BUILD_DIR)/qwsw/.*.d) \
+	$(wildcard $(BUILD_DIR)/qwgl/.*.d) \
+	$(wildcard $(BUILD_DIR)/qwsv/.*.d)
+
+ifneq ($(DEPFILES),)
+-include $(DEPFILES)
+endif
+
+cmd_nqsw_cc = $(call cmd_cc__,NQSW_CPPFLAGS,$(BUILD_DIR)/nqsw)
+cmd_nqgl_cc = $(call cmd_cc__,NQGL_CPPFLAGS,$(BUILD_DIR)/nqgl)
+cmd_qwsw_cc = $(call cmd_cc__,QWSW_CPPFLAGS,$(BUILD_DIR)/qwsw)
+cmd_qwgl_cc = $(call cmd_cc__,QWGL_CPPFLAGS,$(BUILD_DIR)/qwgl)
+cmd_qwsv_cc = $(call cmd_cc__,QWSV_CPPFLAGS,$(BUILD_DIR)/qwsv)
+
+define cmd_windres__
+$(CC) -x c-header -MM -MT $@ $($(1)) -o $(2)/.$(@F).d $<
+windres -I $(<D) -i $< -O coff -o $@
+endef
+
+cmd_nqsw_windres = $(call cmd_windres__,NQSW_CPPFLAGS,$(BUILD_DIR)/nqsw)
+cmd_nqgl_windres = $(call cmd_windres__,NQGL_CPPFLAGS,$(BUILD_DIR)/nqgl)
+cmd_qwsw_windres = $(call cmd_windres__,QWSW_CPPFLAGS,$(BUILD_DIR)/qwsw)
+cmd_qwgl_windres = $(call cmd_windres__,QWGL_CPPFLAGS,$(BUILD_DIR)/qwgl)
 
 cmd_mkdir = @if [ ! -d $@ ]; then echo mkdir -p $@; mkdir -p $@; fi
 
@@ -184,15 +216,15 @@ $(BUILD_DIR)/nqsw/%.o:		common/%.S	; $(cmd_nqsw_cc)
 $(BUILD_DIR)/nqsw/%.o:		NQ/%.S		; $(cmd_nqsw_cc)
 $(BUILD_DIR)/nqsw/%.o:		common/%.c	; $(cmd_nqsw_cc)
 $(BUILD_DIR)/nqsw/%.o:		NQ/%.c		; $(cmd_nqsw_cc)
-$(BUILD_DIR)/nqsw/%.res:	common/%.rc	; $(cmd_nq_windres)
-$(BUILD_DIR)/nqsw/%.res:	NQ/%.rc		; $(cmd_nq_windres)
+$(BUILD_DIR)/nqsw/%.res:	common/%.rc	; $(cmd_nqsw_windres)
+$(BUILD_DIR)/nqsw/%.res:	NQ/%.rc		; $(cmd_nqsw_windres)
 
 $(BUILD_DIR)/nqgl/%.o:		common/%.S	; $(cmd_nqgl_cc)
 $(BUILD_DIR)/nqgl/%.o:		NQ/%.S		; $(cmd_nqgl_cc)
 $(BUILD_DIR)/nqgl/%.o:		common/%.c	; $(cmd_nqgl_cc)
 $(BUILD_DIR)/nqgl/%.o:		NQ/%.c		; $(cmd_nqgl_cc)
-$(BUILD_DIR)/nqgl/%.res:	common/%.rc	; $(cmd_nq_windres)
-$(BUILD_DIR)/nqgl/%.res:	NQ/%.rc		; $(cmd_nq_windres)
+$(BUILD_DIR)/nqgl/%.res:	common/%.rc	; $(cmd_nqgl_windres)
+$(BUILD_DIR)/nqgl/%.res:	NQ/%.rc		; $(cmd_nqgl_windres)
 
 $(BUILD_DIR)/qwsw/%.o:		common/%.S	; $(cmd_qwsw_cc)
 $(BUILD_DIR)/qwsw/%.o:		QW/client/%.S	; $(cmd_qwsw_cc)
@@ -200,8 +232,8 @@ $(BUILD_DIR)/qwsw/%.o:		QW/common/%.S	; $(cmd_qwsw_cc)
 $(BUILD_DIR)/qwsw/%.o:		common/%.c	; $(cmd_qwsw_cc)
 $(BUILD_DIR)/qwsw/%.o:		QW/client/%.c	; $(cmd_qwsw_cc)
 $(BUILD_DIR)/qwsw/%.o:		QW/common/%.c	; $(cmd_qwsw_cc)
-$(BUILD_DIR)/qwsw/%.res:	common/%.rc	; $(cmd_qw_windres)
-$(BUILD_DIR)/qwsw/%.res:	QW/client/%.rc	; $(cmd_qw_windres)
+$(BUILD_DIR)/qwsw/%.res:	common/%.rc	; $(cmd_qwsw_windres)
+$(BUILD_DIR)/qwsw/%.res:	QW/client/%.rc	; $(cmd_qwsw_windres)
 
 $(BUILD_DIR)/qwgl/%.o:		common/%.S	; $(cmd_qwgl_cc)
 $(BUILD_DIR)/qwgl/%.o:		QW/client/%.S	; $(cmd_qwgl_cc)
@@ -209,8 +241,8 @@ $(BUILD_DIR)/qwgl/%.o:		QW/common/%.S	; $(cmd_qwgl_cc)
 $(BUILD_DIR)/qwgl/%.o:		common/%.c	; $(cmd_qwgl_cc)
 $(BUILD_DIR)/qwgl/%.o:		QW/client/%.c	; $(cmd_qwgl_cc)
 $(BUILD_DIR)/qwgl/%.o:		QW/common/%.c	; $(cmd_qwgl_cc)
-$(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(cmd_qw_windres)
-$(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(cmd_qw_windres)
+$(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(cmd_qwgl_windres)
+$(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(cmd_qwgl_windres)
 
 $(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(cmd_qwsv_cc)
 $(BUILD_DIR)/qwsv/%.o:		QW/server/%.S	; $(cmd_qwsv_cc)
