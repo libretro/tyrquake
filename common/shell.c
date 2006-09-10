@@ -136,26 +136,29 @@ STree_Insert(struct stree_root *root, struct stree_node *node)
 }
 
 /*
- * Insert string into rb tree, allocating the string dynamically. If n
- * is NULL, the node structure is also allocated for the caller.
+ * Insert string into rb tree, allocating the node dynamically.
+ * If alloc_str != 0, allocate and copy the string as well.
  * NOTE: These allocations are only on the Temp hunk.
  */
 qboolean
-STree_InsertAlloc(struct stree_root *root, const char *s,
-		  struct stree_node *n)
+STree_InsertAlloc(struct stree_root *root, const char *s, qboolean alloc_str)
 {
     qboolean ret = false;
+    struct stree_node *n;
     char *tmp;
 
-    if (!n)
-	n = STree_AllocNode();
+    n = STree_AllocNode();
     if (n) {
-	tmp = STree_AllocString(strlen(s) + 1);
-	if (tmp) {
-	    strcpy(tmp, s);
-	    n->string = tmp;
-	    ret = STree_Insert(root, n);
+	if (alloc_str) {
+	    tmp = STree_AllocString(strlen(s) + 1);
+	    if (tmp) {
+		strcpy(tmp, s);
+		n->string = tmp;
+	    }
+	} else {
+	    n->string = s;
 	}
+	ret = STree_Insert(root, n);
     }
 
     return ret;

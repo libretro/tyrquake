@@ -68,7 +68,7 @@ struct stree_root {
 void STree_AllocInit(void);
 qboolean STree_Insert(struct stree_root *root, struct stree_node *node);
 qboolean STree_InsertAlloc(struct stree_root *root, const char *s,
-			   struct stree_node *n);
+			   qboolean alloc_str);
 void STree_Remove(struct stree_root *root, struct stree_node *node);
 char *STree_MaxMatch(struct stree_root *root, const char *pfx);
 struct stree_node *STree_Find(struct stree_root *root, const char *s);

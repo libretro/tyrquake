@@ -1338,7 +1338,7 @@ COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	    if (fname) {
 		strncpy(fname, d->d_name, len);
 		fname[len] = '\0';
-		STree_InsertAlloc(root, fname, NULL);
+		STree_InsertAlloc(root, fname, true);
 		Z_Free(fname);
 	    }
 	}
@@ -1371,7 +1371,7 @@ COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *pfx,
 	    if (fname) {
 		strncpy(fname, pak_f, len);
 		fname[len] = '\0';
-		STree_InsertAlloc(root, fname, NULL);
+		STree_InsertAlloc(root, fname, true);
 		Z_Free(fname);
 	    }
 	}
