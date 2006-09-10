@@ -31,10 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 struct rb_string_root {
     unsigned int entries;
     unsigned int maxlen;
+    unsigned int minlen;
     struct rb_root root;
 };
 
-#define RB_STRING_ROOT (struct rb_string_root) { 0, 0, RB_ROOT }
+#define RB_STRING_ROOT (struct rb_string_root) { 0, 0, -1, RB_ROOT }
 
 /*
  * String node is simply an rb_tree node using the string as the index (and

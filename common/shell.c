@@ -126,6 +126,8 @@ ST_Insert(struct rb_string_root *root, struct rb_string_node *node)
     len = strlen(node->string);
     if (len > root->maxlen)
 	root->maxlen = len;
+    if (len < root->minlen)
+	root->minlen = len;
     rb_link_node(&node->node, parent, p);
     rb_insert_color(&node->node, &root->root);
 
