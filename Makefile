@@ -224,10 +224,14 @@ endef
 quiet_cmd_strip = '  STRIP   $(1)'
       cmd_strip = $(STRIP) $(1)
 
+ifndef DEBUG
 define do_strip
 	@echo $(call $(quiet)cmd_strip,$(1));
 	@$(call cmd_strip,$(1));
 endef
+else
+do_strip=
+endif
 
 DEPFILES = \
 	$(wildcard $(BUILD_DIR)/nqsw/.*.d) \
