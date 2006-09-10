@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2006-03-09
-Version: 	0.52
+Date:		2006-05-13
+Version: 	0.53
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -19,15 +19,27 @@ want to completely overhaul the engine.
 
 Building:
 ---------
-The build process is a little ugly, but pretty straight forward. Just open up
-the Makefile in the tyrquake directory and set the TARGET_APP, TARGET_RENDERER
-and TARGET_OS variables. Then type "make". It works for me under Linux and
-Windows (using MinGW with MSYS - http://www.mingw.org). I only have x86
-machines to test on, but I'd like to hear if anyone gets it working on
-something else...
+The build process was cleaned up a bit in version 0.53, so now all you should
+need to do it type 'make'. This should build all five targets. For my Windows
+builds, I'm using MinGW with Msys.
+
+If you're in a hurry and only want to build one target, you can type 'make
+prepare' (this sets up the build directories) followed by 'make <target>' -
+where <target> is the name of the executable you want to build.
+
+To build a debug version or one without the intel assembly, there are options
+you can select by editing the Makefile.
 
 
 Version History:
+
+v0.53
+=====
+- Add command argument completion for changelevel
+- Re-organised the build system, proper auto dependency generation
+- Fixed sound issue when compiling with GCC 4.1 (compiler bug)
+- Fix QW option menu, "use mouse" option now usable.
+- Fix "particle's look like triangles" GL renderer bug
 
 v0.52
 =====
