@@ -107,6 +107,7 @@ int Hunk_HighMark(void);
 void Hunk_FreeToHighMark(int mark);
 
 void *Hunk_TempAlloc(int size);
+void *Hunk_TempAllocExtend(int size);
 
 void Hunk_Check(void);
 

@@ -565,6 +565,45 @@ Hunk_TempAlloc(int size)
 }
 
 /*
+ * =====================
+ * Hunk_TempAllocExtend
+ *
+ * Extend the existing temp hunk allocation.
+ * Size is the number of extra bytes required
+ * =====================
+ */
+void *
+Hunk_TempAllocExtend(int size)
+{
+    hunk_t *old, *new;
+
+    if (!hunk_tempactive)
+	Sys_Error("%s: temp hunk not active");
+
+    old = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
+
+    if (old->sentinal != HUNK_SENTINAL)
+	Sys_Error("%s: old sentinal trashed\n", __func__);
+    if (strncmp(old->name, "temp", 8))
+	Sys_Error("%s: old hunk name trashed\n", __func__);
+
+    size = (size + 15) & ~15;
+    if (hunk_size - hunk_low_used - hunk_high_used < size) {
+	Con_Printf("%s: failed on %i bytes\n", __func__, size);
+	return NULL;
+    }
+
+    hunk_high_used += size;
+    Cache_FreeHigh(hunk_high_used);
+
+    new = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
+    memmove(new, old, sizeof(hunk_t));
+    new->size += size;
+
+    return (void *)(new + 1);
+}
+
+/*
  * ===========================================================================
  *
  * CACHE MEMORY
