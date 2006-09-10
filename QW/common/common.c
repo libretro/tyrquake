@@ -1426,7 +1426,7 @@ COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	    if (fname) {
 		strncpy(fname, d->d_name, len);
 		fname[len] = '\0';
-		ST_InsertAlloc(root, fname, NULL);
+		STree_InsertAlloc(root, fname, NULL);
 		Z_Free(fname);
 	    }
 	}
@@ -1459,7 +1459,7 @@ COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *pfx,
 	    if (fname) {
 		strncpy(fname, pak_f, len);
 		fname[len] = '\0';
-		ST_InsertAlloc(root, fname, NULL);
+		STree_InsertAlloc(root, fname, NULL);
 		Z_Free(fname);
 	    }
 	}
@@ -1472,7 +1472,7 @@ COM_ScanDir
 
 Scan the contents of a the given directory. Any filenames that match
 both the given prefix and extension are added to the string tree.
-Caller MUST have already called ST_AllocInit()
+Caller MUST have already called STree_AllocInit()
 ============
 */
 void

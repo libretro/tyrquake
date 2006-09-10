@@ -47,7 +47,7 @@ static int st_string_space;
 #define ST_STRING_CHUNK	4096 /* 4k of strings together */
 
 void
-ST_AllocInit(void)
+STree_AllocInit(void)
 {
     /* Init the temp hunk */
     st_node_next = Hunk_TempAlloc(ST_NODE_CHUNK);
@@ -57,8 +57,8 @@ ST_AllocInit(void)
     st_string_space = 0;
 }
 
-struct stree_node *
-ST_AllocNode(void)
+static struct stree_node *
+STree_AllocNode(void)
 {
     struct stree_node *ret = NULL;
 
@@ -74,8 +74,8 @@ ST_AllocNode(void)
     return ret;
 }
 
-void *
-ST_AllocString(unsigned int length)
+static void *
+STree_AllocString(unsigned int length)
 {
     char *ret = NULL;
 
@@ -103,7 +103,7 @@ ST_AllocString(unsigned int length)
  * Insert string node "node" into rb_tree rooted at "root"
  */
 qboolean
-ST_Insert(struct stree_root *root, struct stree_node *node)
+STree_Insert(struct stree_root *root, struct stree_node *node)
 {
     struct rb_node **p = &root->root.rb_node;
     struct rb_node *parent = NULL;
@@ -140,24 +140,24 @@ ST_Insert(struct stree_root *root, struct stree_node *node)
  * NOTE: These allocations are only on the Temp hunk.
  */
 qboolean
-ST_InsertAlloc(struct stree_root *root, const char *s,
-	       struct stree_node *n)
+STree_InsertAlloc(struct stree_root *root, const char *s,
+		  struct stree_node *n)
 {
     qboolean ret = false;
 
     if (!n)
-	n = ST_AllocNode();
+	n = STree_AllocNode();
     if (n)
-	n->string = ST_AllocString(strlen(s) + 1);
+	n->string = STree_AllocString(strlen(s) + 1);
     if (n && n->string) {
 	strcpy(n->string, s);
-	ret = ST_Insert(root, n);
+	ret = STree_Insert(root, n);
     }
 
     return ret;
 }
 
-/* ST_MaxMatch helper */
+/* STree_MaxMatch helper */
 static int
 ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
 {
@@ -185,7 +185,7 @@ ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
  * the tree which match the given prefix.
  */
 char *
-ST_MaxMatch(struct stree_root *root, const char *pfx)
+STree_MaxMatch(struct stree_root *root, const char *pfx)
 {
     int max_match, min_match, match;
     struct rb_node *n;

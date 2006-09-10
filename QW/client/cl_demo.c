@@ -759,7 +759,7 @@ CL_Demo_Arg_f(const char *arg)
     root = Z_Malloc(sizeof(struct stree_root));
     if (root) {
 	*root = STREE_ROOT;
-	ST_AllocInit();
+	STree_AllocInit();
 	COM_ScanDir(root, "", arg, ".qwd", true);
     }
 

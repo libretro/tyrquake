@@ -46,11 +46,11 @@ struct stree_node {
     struct rb_node node;
 };
 
-void ST_AllocInit(void);
-qboolean ST_Insert(struct stree_root *root, struct stree_node *node);
-qboolean ST_InsertAlloc(struct stree_root *root, const char *s,
-			struct stree_node *n);
-char *ST_MaxMatch(struct stree_root *root, const char *pfx);
+void STree_AllocInit(void);
+qboolean STree_Insert(struct stree_root *root, struct stree_node *node);
+qboolean STree_InsertAlloc(struct stree_root *root, const char *s,
+			   struct stree_node *n);
+char *STree_MaxMatch(struct stree_root *root, const char *pfx);
 
 /*
  * Set up some basic completion helpers

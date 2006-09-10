@@ -748,7 +748,7 @@ Con_Maplist_f()
     if (Cmd_Argc() == 2)
 	pfx = Cmd_Argv(1);
 
-    ST_AllocInit();
+    STree_AllocInit();
     COM_ScanDir(&st_root, "maps", pfx, ".bsp", true);
     Con_ShowTree(&st_root);
 }

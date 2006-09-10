@@ -348,7 +348,7 @@ SV_Map_Arg_f(const char *arg)
     if (root) {
 	*root = STREE_ROOT;
 
-	ST_AllocInit();
+	STree_AllocInit();
 	COM_ScanDir(root, "maps", arg, ".bsp", true);
     }
     return root;

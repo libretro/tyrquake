@@ -78,7 +78,7 @@ typedef void (*xcommand_t)(void);
  * Command argument completion function.
  * Pass in the argument string
  * Returns a string tree of possible completions
- * Requires ST_Alloc_Init() prior to calling
+ * Requires STree_AllocInit() prior to calling
  */
 typedef struct stree_root *(*cmd_arg_f)(const char *);
 

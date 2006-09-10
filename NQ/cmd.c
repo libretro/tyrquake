@@ -676,7 +676,7 @@ Cmd_ArgCompletions(const char *name, const char *buf)
 
     for (cmd = cmd_functions; cmd; cmd = cmd->next) {
 	if (!strcasecmp(name, cmd->name) && cmd->completion) {
-	    /* FIXME - ST_AllocInit? */
+	    /* FIXME - STree_AllocInit? */
 	    root = cmd->completion(buf);
 	    break;
 	}
@@ -697,7 +697,7 @@ Cmd_ArgComplete(const char *name, const char *buf)
 
     root = Cmd_ArgCompletions(name, buf);
     if (root) {
-	result = ST_MaxMatch(root, buf);
+	result = STree_MaxMatch(root, buf);
 	Z_Free(root);
     }
 
