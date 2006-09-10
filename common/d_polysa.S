@@ -36,21 +36,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //#define SPAN_SIZE	(((DPS_MAXSPANS + 1 + ((CACHE_SIZE - 1) / spanpackage_t_size)) + 1) * spanpackage_t_size)
 #define SPAN_SIZE ((1024+1+1+1)*32)
 
-
 	.data
-
 	.align	4
-p10_minus_p20:	.single		0
-p01_minus_p21:	.single		0
+
+p10_minus_p20:		.single		0
+p01_minus_p21:		.single		0
 temp0:			.single		0
 temp1:			.single		0
 Ltemp:			.single		0
 
 aff8entryvec_table:	.long	LDraw8, LDraw7, LDraw6, LDraw5
-				.long	LDraw4, LDraw3, LDraw2, LDraw1
+			.long	LDraw4, LDraw3, LDraw2, LDraw1
 
 lzistepx:		.long	0
-
 
 	.text
 
@@ -76,39 +74,39 @@ C(D_PolysetCalcGradients):
 //
 //	ystepdenominv = -xstepdenominv;
 
-	fildl	C(r_p0)+0		// r_p0[0]
-	fildl	C(r_p2)+0		// r_p2[0] | r_p0[0]
-	fildl	C(r_p0)+4		// r_p0[1] | r_p2[0] | r_p0[0]
-	fildl	C(r_p2)+4		// r_p2[1] | r_p0[1] | r_p2[0] | r_p0[0]
-	fildl	C(r_p1)+0		// r_p1[0] | r_p2[1] | r_p0[1] | r_p2[0] | r_p0[0]
-	fildl	C(r_p1)+4		// r_p1[1] | r_p1[0] | r_p2[1] | r_p0[1] |
-							//  r_p2[0] | r_p0[0]
-	fxch	%st(3)			// r_p0[1] | r_p1[0] | r_p2[1] | r_p1[1] |
-							//  r_p2[0] | r_p0[0]
+	fildl	C(r_p0)+0	// r_p0[0]
+	fildl	C(r_p2)+0	// r_p2[0] | r_p0[0]
+	fildl	C(r_p0)+4	// r_p0[1] | r_p2[0] | r_p0[0]
+	fildl	C(r_p2)+4	// r_p2[1] | r_p0[1] | r_p2[0] | r_p0[0]
+	fildl	C(r_p1)+0	// r_p1[0] | r_p2[1] | r_p0[1] | r_p2[0] | r_p0[0]
+	fildl	C(r_p1)+4	// r_p1[1] | r_p1[0] | r_p2[1] | r_p0[1] |
+				//  r_p2[0] | r_p0[0]
+	fxch	%st(3)		// r_p0[1] | r_p1[0] | r_p2[1] | r_p1[1] |
+				//  r_p2[0] | r_p0[0]
 	fsub	%st(2),%st(0)	// p01_minus_p21 | r_p1[0] | r_p2[1] | r_p1[1] |
-							//  r_p2[0] | r_p0[0]
-	fxch	%st(1)			// r_p1[0] | p01_minus_p21 | r_p2[1] | r_p1[1] |
-							//  r_p2[0] | r_p0[0]
+				//  r_p2[0] | r_p0[0]
+	fxch	%st(1)		// r_p1[0] | p01_minus_p21 | r_p2[1] | r_p1[1] |
+				//  r_p2[0] | r_p0[0]
 	fsub	%st(4),%st(0)	// p10_minus_p20 | p01_minus_p21 | r_p2[1] |
-							//  r_p1[1] | r_p2[0] | r_p0[0]
-	fxch	%st(5)			// r_p0[0] | p01_minus_p21 | r_p2[1] |
-							//  r_p1[1] | r_p2[0] | p10_minus_p20
+				//  r_p1[1] | r_p2[0] | r_p0[0]
+	fxch	%st(5)		// r_p0[0] | p01_minus_p21 | r_p2[1] |
+				//  r_p1[1] | r_p2[0] | p10_minus_p20
 	fsubp	%st(0),%st(4)	// p01_minus_p21 | r_p2[1] | r_p1[1] |
-							//  p00_minus_p20 | p10_minus_p20
-	fxch	%st(2)			// r_p1[1] | r_p2[1] | p01_minus_p21 |
-							//  p00_minus_p20 | p10_minus_p20
+				//  p00_minus_p20 | p10_minus_p20
+	fxch	%st(2)		// r_p1[1] | r_p2[1] | p01_minus_p21 |
+				//  p00_minus_p20 | p10_minus_p20
 	fsubp	%st(0),%st(1)	// p11_minus_p21 | p01_minus_p21 |
-							//  p00_minus_p20 | p10_minus_p20
-	fxch	%st(1)			// p01_minus_p21 | p11_minus_p21 |
-							//  p00_minus_p20 | p10_minus_p20
-	flds	C(d_xdenom)		// d_xdenom | p01_minus_p21 | p11_minus_p21 |
-							//  p00_minus_p20 | p10_minus_p20
-	fxch	%st(4)			// p10_minus_p20 | p01_minus_p21 | p11_minus_p21 |
-							//  p00_minus_p20 | d_xdenom
+				//  p00_minus_p20 | p10_minus_p20
+	fxch	%st(1)		// p01_minus_p21 | p11_minus_p21 |
+				//  p00_minus_p20 | p10_minus_p20
+	flds	C(d_xdenom)	// d_xdenom | p01_minus_p21 | p11_minus_p21 |
+				//  p00_minus_p20 | p10_minus_p20
+	fxch	%st(4)		// p10_minus_p20 | p01_minus_p21 | p11_minus_p21 |
+				//  p00_minus_p20 | d_xdenom
 	fstps	p10_minus_p20	// p01_minus_p21 | p11_minus_p21 |
-							//  p00_minus_p20 | d_xdenom
+				//  p00_minus_p20 | d_xdenom
 	fstps	p01_minus_p21	// p11_minus_p21 | p00_minus_p20 | xstepdenominv
-	fxch	%st(2)			// xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// xstepdenominv | p00_minus_p20 | p11_minus_p21
 
 //// ceil () for light so positive steps are exaggerated, negative steps
 //// diminished,  pushing us away from underflow toward overflow. Underflow is
@@ -116,331 +114,331 @@ C(D_PolysetCalcGradients):
 //	t0 = r_p0[4] - r_p2[4];
 //	t1 = r_p1[4] - r_p2[4];
 
-	fildl	C(r_p2)+16		// r_p2[4] | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fildl	C(r_p0)+16		// r_p0[4] | r_p2[4] | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p1)+16		// r_p1[4] | r_p0[4] | r_p2[4] | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// r_p2[4] | r_p0[4] | r_p1[4] | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// r_p2[4] | r_p2[4] | r_p0[4] | r_p1[4] |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p2)+16	// r_p2[4] | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fildl	C(r_p0)+16	// r_p0[4] | r_p2[4] | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p1)+16	// r_p1[4] | r_p0[4] | r_p2[4] | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// r_p2[4] | r_p0[4] | r_p1[4] | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// r_p2[4] | r_p2[4] | r_p0[4] | r_p1[4] |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fsubrp	%st(0),%st(2)	// r_p2[4] | t0 | r_p1[4] | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+				//  p00_minus_p20 | p11_minus_p21
 	fsubrp	%st(0),%st(2)	// t0 | t1 | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  p11_minus_p21
 
 //	r_lstepx = (int)
 //			ceil((t1 * p01_minus_p21 - t0 * p11_minus_p21) * xstepdenominv);
 //	r_lstepy = (int)
 //			ceil((t1 * p00_minus_p20 - t0 * p10_minus_p20) * ystepdenominv);
 
-	fld		%st(0)			// t0 | t0 | t1 | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+	fld	%st(0)		// t0 | t0 | t1 | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmul	%st(5),%st(0)	// t0*p11_minus_p21 | t0 | t1 | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// t1 | t0 | t0*p11_minus_p21 | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// t1 | t1 | t0 | t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// t1 | t0 | t0*p11_minus_p21 | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// t1 | t1 | t0 | t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmuls	p01_minus_p21	// t1*p01_minus_p21 | t1 | t0 | t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// t0 | t1 | t1*p01_minus_p21 | t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// t0 | t1 | t1*p01_minus_p21 | t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmuls	p10_minus_p20	// t0*p10_minus_p20 | t1 | t1*p01_minus_p21 |
-							//  t0*p11_minus_p21 | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fxch	%st(1)			// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
-							//  t0*p11_minus_p21 | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+				//  t0*p11_minus_p21 | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fxch	%st(1)		// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
+				//  t0*p11_minus_p21 | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
 	fmul	%st(5),%st(0)	// t1*p00_minus_p20 | t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 | t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// t1*p01_minus_p21 | t0*p10_minus_p20 |
-							//  t1*p00_minus_p20 | t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  t1*p01_minus_p21 | t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// t1*p01_minus_p21 | t0*p10_minus_p20 |
+				//  t1*p00_minus_p20 | t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fsubp	%st(0),%st(3)	// t0*p10_minus_p20 | t1*p00_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fsubrp	%st(0),%st(1)	// t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fld		%st(2)			// xstepdenominv |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fld	%st(2)		// xstepdenominv |
+				//  t1*p00_minus_p20 - t0*p10_minus_p20 |
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmuls	float_minus_1	// ystepdenominv |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p00_minus_p20 - t0*p10_minus_p20 |
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  t1*p00_minus_p20 - t0*p10_minus_p20 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmul	%st(3),%st(0)	// (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//   xstepdenominv |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//   | ystepdenominv | xstepdenominv |
-							//   p00_minus_p20 | p11_minus_p21
-	fxch	%st(1)			// t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//   xstepdenominv | ystepdenominv |
-							//   xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//   xstepdenominv |
+				//  t1*p00_minus_p20 - t0*p10_minus_p20 |
+				//   | ystepdenominv | xstepdenominv |
+				//   p00_minus_p20 | p11_minus_p21
+	fxch	%st(1)		// t1*p00_minus_p20 - t0*p10_minus_p20 |
+				//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
+				//   xstepdenominv | ystepdenominv |
+				//   xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmul	%st(2),%st(0)	// (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//  ystepdenominv |
-							//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//  xstepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  ystepdenominv |
+				//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
+				//  xstepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fldcw	ceil_cw
-	fistpl	C(r_lstepy)		// r_lstepx | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fistpl	C(r_lstepx)		// ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+	fistpl	C(r_lstepy)	// r_lstepx | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fistpl	C(r_lstepx)	// ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fldcw	single_cw
 
 //	t0 = r_p0[2] - r_p2[2];
 //	t1 = r_p1[2] - r_p2[2];
 
-	fildl	C(r_p2)+8		// r_p2[2] | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p0)+8		// r_p0[2] | r_p2[2] | ystepdenominv |
-							//   xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p1)+8		// r_p1[2] | r_p0[2] | r_p2[2] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// r_p2[2] | r_p0[2] | r_p1[2] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// r_p2[2] | r_p2[2] | r_p0[2] | r_p1[2] |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+	fildl	C(r_p2)+8	// r_p2[2] | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p0)+8	// r_p0[2] | r_p2[2] | ystepdenominv |
+				//   xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p1)+8	// r_p1[2] | r_p0[2] | r_p2[2] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// r_p2[2] | r_p0[2] | r_p1[2] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// r_p2[2] | r_p2[2] | r_p0[2] | r_p1[2] |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubrp	%st(0),%st(2)	// r_p2[2] | t0 | r_p1[2] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fsubrp	%st(0),%st(2)	// t0 | t1 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+				//  p00_minus_p20 | p11_minus_p21
 
 //	r_sstepx = (int)((t1 * p01_minus_p21 - t0 * p11_minus_p21) *
 //			xstepdenominv);
 //	r_sstepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
 //			ystepdenominv);
 
-	fld		%st(0)			// t0 | t0 | t1 | ystepdenominv | xstepdenominv
+	fld	%st(0)		// t0 | t0 | t1 | ystepdenominv | xstepdenominv
 	fmul	%st(6),%st(0)	// t0*p11_minus_p21 | t0 | t1 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// t1 | t0 | t0*p11_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// t1 | t1 | t0 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// t1 | t0 | t0*p11_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// t1 | t1 | t0 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmuls	p01_minus_p21	// t1*p01_minus_p21 | t1 | t0 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fxch	%st(2)			// t0 | t1 | t1*p01_minus_p21 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fxch	%st(2)		// t0 | t1 | t1*p01_minus_p21 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmuls	p10_minus_p20	// t0*p10_minus_p20 | t1 | t1*p01_minus_p21 |
-							//  t0*p11_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(1)			// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
-							//  t0*p11_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  t0*p11_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(1)		// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
+				//  t0*p11_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmul	%st(6),%st(0)	// t1*p00_minus_p20 | t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fxch	%st(2)			// t1*p01_minus_p21 | t0*p10_minus_p20 |
-							//  t1*p00_minus_p20 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p01_minus_p21 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fxch	%st(2)		// t1*p01_minus_p21 | t0*p10_minus_p20 |
+				//  t1*p00_minus_p20 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubp	%st(0),%st(3)	// t0*p10_minus_p20 | t1*p00_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubrp	%st(0),%st(1)	// t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmul	%st(2),%st(0)	// (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//   ystepdenominv |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fxch	%st(1)			// t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//   ystepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//   ystepdenominv |
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fxch	%st(1)		// t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
+				//   ystepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmul	%st(3),%st(0)	// (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//  xstepdenominv |
-							//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//  ystepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(1)			// (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//  ystepdenominv |
-							//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//  xstepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fistpl	C(r_sstepy)		// r_sstepx | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fistpl	C(r_sstepx)		// ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  xstepdenominv |
+				//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
+				//  ystepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(1)		// (t1*p00_minus_p20 - t0*p10_minus_p20)*
+				//  ystepdenominv |
+				//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
+				//  xstepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fistpl	C(r_sstepy)	// r_sstepx | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fistpl	C(r_sstepx)	// ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 
 //	t0 = r_p0[3] - r_p2[3];
 //	t1 = r_p1[3] - r_p2[3];
 
-	fildl	C(r_p2)+12		// r_p2[3] | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p0)+12		// r_p0[3] | r_p2[3] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p1)+12		// r_p1[3] | r_p0[3] | r_p2[3] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// r_p2[3] | r_p0[3] | r_p1[3] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// r_p2[3] | r_p2[3] | r_p0[3] | r_p1[3] |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+	fildl	C(r_p2)+12	// r_p2[3] | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p0)+12	// r_p0[3] | r_p2[3] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p1)+12	// r_p1[3] | r_p0[3] | r_p2[3] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// r_p2[3] | r_p0[3] | r_p1[3] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// r_p2[3] | r_p2[3] | r_p0[3] | r_p1[3] |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubrp	%st(0),%st(2)	// r_p2[3] | t0 | r_p1[3] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fsubrp	%st(0),%st(2)	// t0 | t1 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+				//  p00_minus_p20 | p11_minus_p21
 
 //	r_tstepx = (int)((t1 * p01_minus_p21 - t0 * p11_minus_p21) *
 //			xstepdenominv);
 //	r_tstepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
 //			ystepdenominv);
 
-	fld		%st(0)			// t0 | t0 | t1 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// t0 | t0 | t1 | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
 	fmul	%st(6),%st(0)	// t0*p11_minus_p21 | t0 | t1 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// t1 | t0 | t0*p11_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// t1 | t1 | t0 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// t1 | t0 | t0*p11_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// t1 | t1 | t0 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmuls	p01_minus_p21	// t1*p01_minus_p21 | t1 | t0 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fxch	%st(2)			// t0 | t1 | t1*p01_minus_p21 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fxch	%st(2)		// t0 | t1 | t1*p01_minus_p21 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmuls	p10_minus_p20	// t0*p10_minus_p20 | t1 | t1*p01_minus_p21 |
-							//  t0*p11_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(1)			// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
-							//  t0*p11_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  t0*p11_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(1)		// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
+				//  t0*p11_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmul	%st(6),%st(0)	// t1*p00_minus_p20 | t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fxch	%st(2)			// t1*p01_minus_p21 | t0*p10_minus_p20 |
-							//  t1*p00_minus_p20 | t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p01_minus_p21 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fxch	%st(2)		// t1*p01_minus_p21 | t0*p10_minus_p20 |
+				//  t1*p00_minus_p20 | t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubp	%st(0),%st(3)	// t0*p10_minus_p20 | t1*p00_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubrp	%st(0),%st(1)	// t1*p00_minus_p20 - t0*p10_minus_p20 |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fmul	%st(2),%st(0)	// (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//   ystepdenominv |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
-	fxch	%st(1)			// t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//  ystepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//   ystepdenominv |
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
+	fxch	%st(1)		// t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
+				//  ystepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fmul	%st(3),%st(0)	// (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//  xstepdenominv |
-							//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//  ystepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(1)			// (t1*p00_minus_p20 - t0*p10_minus_p20)*
-							//  ystepdenominv |
-							//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
-							//  xstepdenominv | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fistpl	C(r_tstepy)		// r_tstepx | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fistpl	C(r_tstepx)		// ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+				//  xstepdenominv |
+				//  (t1*p00_minus_p20 - t0*p10_minus_p20)*
+				//  ystepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(1)		// (t1*p00_minus_p20 - t0*p10_minus_p20)*
+				//  ystepdenominv |
+				//  (t1*p01_minus_p21 - t0*p11_minus_p21)*
+				//  xstepdenominv | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fistpl	C(r_tstepy)	// r_tstepx | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fistpl	C(r_tstepx)	// ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 
 //	t0 = r_p0[5] - r_p2[5];
 //	t1 = r_p1[5] - r_p2[5];
 
-	fildl	C(r_p2)+20		// r_p2[5] | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p0)+20		// r_p0[5] | r_p2[5] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fildl	C(r_p1)+20		// r_p1[5] | r_p0[5] | r_p2[5] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fxch	%st(2)			// r_p2[5] | r_p0[5] | r_p1[5] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
-	fld		%st(0)			// r_p2[5] | r_p2[5] | r_p0[5] | r_p1[5] |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  p11_minus_p21
+	fildl	C(r_p2)+20	// r_p2[5] | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p0)+20	// r_p0[5] | r_p2[5] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fildl	C(r_p1)+20	// r_p1[5] | r_p0[5] | r_p2[5] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fxch	%st(2)		// r_p2[5] | r_p0[5] | r_p1[5] | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// r_p2[5] | r_p2[5] | r_p0[5] | r_p1[5] |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  p11_minus_p21
 	fsubrp	%st(0),%st(2)	// r_p2[5] | t0 | r_p1[5] | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 | p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 | p11_minus_p21
 	fsubrp	%st(0),%st(2)	// t0 | t1 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+				//  p00_minus_p20 | p11_minus_p21
 
 //	r_zistepx = (int)((t1 * p01_minus_p21 - t0 * p11_minus_p21) *
 //			xstepdenominv);
 //	r_zistepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
 //			ystepdenominv);
 
-	fld		%st(0)			// t0 | t0 | t1 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | p11_minus_p21
+	fld	%st(0)		// t0 | t0 | t1 | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | p11_minus_p21
 	fmulp	%st(0),%st(6)	// t0 | t1 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | t0*p11_minus_p21
-	fxch	%st(1)			// t1 | t0 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | t0*p11_minus_p21
-	fld		%st(0)			// t1 | t1 | t0 | ystepdenominv | xstepdenominv |
-							//  p00_minus_p20 | t0*p11_minus_p21
+				//  p00_minus_p20 | t0*p11_minus_p21
+	fxch	%st(1)		// t1 | t0 | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | t0*p11_minus_p21
+	fld	%st(0)		// t1 | t1 | t0 | ystepdenominv | xstepdenominv |
+				//  p00_minus_p20 | t0*p11_minus_p21
 	fmuls	p01_minus_p21	// t1*p01_minus_p21 | t1 | t0 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 |
-							//  t0*p11_minus_p21
-	fxch	%st(2)			// t0 | t1 | t1*p01_minus_p21 | ystepdenominv |
-							//  xstepdenominv | p00_minus_p20 |
-							//  t0*p11_minus_p21
+				//  xstepdenominv | p00_minus_p20 |
+				//  t0*p11_minus_p21
+	fxch	%st(2)		// t0 | t1 | t1*p01_minus_p21 | ystepdenominv |
+				//  xstepdenominv | p00_minus_p20 |
+				//  t0*p11_minus_p21
 	fmuls	p10_minus_p20	// t0*p10_minus_p20 | t1 | t1*p01_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  t0*p11_minus_p21
-	fxch	%st(1)			// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
-							//  ystepdenominv | xstepdenominv | p00_minus_p20 |
-							//  t0*p11_minus_p21
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  t0*p11_minus_p21
+	fxch	%st(1)		// t1 | t0*p10_minus_p20 | t1*p01_minus_p21 |
+				//  ystepdenominv | xstepdenominv | p00_minus_p20 |
+				//  t0*p11_minus_p21
 	fmulp	%st(0),%st(5)	// t0*p10_minus_p20 | t1*p01_minus_p21 |
-							//  ystepdenominv | xstepdenominv |
-							//  t1*p00_minus_p20 | t0*p11_minus_p21
-	fxch	%st(5)			// t0*p11_minus_p21 | t1*p01_minus_p21 |
-							//  ystepdenominv | xstepdenominv |
-							//  t1*p00_minus_p20 | t0*p10_minus_p20
+				//  ystepdenominv | xstepdenominv |
+				//  t1*p00_minus_p20 | t0*p11_minus_p21
+	fxch	%st(5)		// t0*p11_minus_p21 | t1*p01_minus_p21 |
+				//  ystepdenominv | xstepdenominv |
+				//  t1*p00_minus_p20 | t0*p10_minus_p20
 	fsubrp	%st(0),%st(1)	// t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  ystepdenominv | xstepdenominv |
-							//  t1*p00_minus_p20 | t0*p10_minus_p20
-	fxch	%st(3)			// t1*p00_minus_p20 | ystepdenominv |
-							//  xstepdenominv |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  t0*p10_minus_p20
+				//  ystepdenominv | xstepdenominv |
+				//  t1*p00_minus_p20 | t0*p10_minus_p20
+	fxch	%st(3)		// t1*p00_minus_p20 | ystepdenominv |
+				//  xstepdenominv |
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  t0*p10_minus_p20
 	fsubp	%st(0),%st(4)	// ystepdenominv | xstepdenominv |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20
-	fxch	%st(1)			// xstepdenominv | ystepdenominv |
-							//  t1*p01_minus_p21 - t0*p11_minus_p21 |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  t1*p00_minus_p20 - t0*p10_minus_p20
+	fxch	%st(1)		// xstepdenominv | ystepdenominv |
+				//  t1*p01_minus_p21 - t0*p11_minus_p21 |
+				//  t1*p00_minus_p20 - t0*p10_minus_p20
 	fmulp	%st(0),%st(2)	// ystepdenominv |
-							//  (t1*p01_minus_p21 - t0*p11_minus_p21) *
-							//  xstepdenominv |
-							//  t1*p00_minus_p20 - t0*p10_minus_p20
+				//  (t1*p01_minus_p21 - t0*p11_minus_p21) *
+				//  xstepdenominv |
+				//  t1*p00_minus_p20 - t0*p10_minus_p20
 	fmulp	%st(0),%st(2)	// (t1*p01_minus_p21 - t0*p11_minus_p21) *
-							//  xstepdenominv |
-							//  (t1*p00_minus_p20 - t0*p10_minus_p20) *
-							//  ystepdenominv
+				//  xstepdenominv |
+				//  (t1*p00_minus_p20 - t0*p10_minus_p20) *
+				//  ystepdenominv
 	fistpl	C(r_zistepx)	// (t1*p00_minus_p20 - t0*p10_minus_p20) *
-							//  ystepdenominv
+				//  ystepdenominv
 	fistpl	C(r_zistepy)
 
 //	a_sstepxfrac = r_sstepx << 16;
@@ -479,16 +477,16 @@ C(D_PolysetCalcGradients):
 
 .globl C(D_PolysetRecursiveTriangle)
 C(D_PolysetRecursiveTriangle):
-	pushl	%ebp				// preserve caller stack frame pointer
-	pushl	%esi				// preserve register variables
+	pushl	%ebp			// preserve caller stack frame pointer
+	pushl	%esi			// preserve register variables
 	pushl	%edi
 	pushl	%ebx
 
-//	int		*temp;
-//	int		d;
-//	int		new[6];
-//	int		i;
-//	int		z;
+//	int	*temp;
+//	int	d;
+//	int	new[6];
+//	int	i;
+//	int	z;
 //	short	*zbuf;
 	movl	lp2(%esp),%esi
 	movl	lp1(%esp),%ebx
@@ -509,7 +507,7 @@ C(D_PolysetRecursiveTriangle):
 	incl	%eax
 
 	cmpl	$2,%eax
-	ja		LSplit
+	ja	LSplit
 
 //	d = lp2[1] - lp1[1];
 //	if (d < -1 || d > 1)
@@ -518,7 +516,7 @@ C(D_PolysetRecursiveTriangle):
 	incl	%ebp
 
 	cmpl	$2,%ebp
-	ja		LSplit
+	ja	LSplit
 
 //	d = lp3[0] - lp2[0];
 //	if (d < -1 || d > 1)
@@ -533,7 +531,7 @@ C(D_PolysetRecursiveTriangle):
 	incl	%eax
 
 	cmpl	$2,%eax
-	ja		LSplit2
+	ja	LSplit2
 
 //	d = lp3[1] - lp2[1];
 //	if (d < -1 || d > 1)
@@ -542,7 +540,7 @@ C(D_PolysetRecursiveTriangle):
 	incl	%ebp
 
 	cmpl	$2,%ebp
-	ja		LSplit2
+	ja	LSplit2
 
 //	d = lp1[0] - lp3[0];
 //	if (d < -1 || d > 1)
@@ -560,7 +558,7 @@ C(D_PolysetRecursiveTriangle):
 	movl	%ebx,%edx
 
 	cmpl	$2,%eax
-	ja		LSplit3
+	ja	LSplit3
 
 //	d = lp1[1] - lp3[1];
 //	if (d < -1 || d > 1)
@@ -576,13 +574,13 @@ C(D_PolysetRecursiveTriangle):
 //	return;			// entire tri is filled
 //
 	cmpl	$2,%ebp
-	jna		LDone
+	jna	LDone
 
 LSplit3:
 	movl	%edi,%ebx
 	movl	%esi,%edi
 	movl	%edx,%esi
-	jmp		LSplit
+	jmp	LSplit
 
 //split2:
 LSplit2:
@@ -649,15 +647,15 @@ LSplit:
 //	if (lp2[1] > lp1[1])
 //		goto nodraw;
 	cmpl	%eax,4(%esi)
-	jg		LNoDraw
+	jg	LNoDraw
 
 //	if ((lp2[1] == lp1[1]) && (lp2[0] < lp1[0]))
 //		goto nodraw;
 	movl	0(%esi),%edx
-	jnz		LDraw
+	jnz	LDraw
 
 	cmpl	%ecx,%edx
-	jl		LNoDraw
+	jl	LNoDraw
 
 LDraw:
 
@@ -730,7 +728,7 @@ LDone:
 	popl	%edi
 	popl	%esi
 	popl	%ebp				// restore caller stack frame pointer
-	ret		$12
+	ret	$12
 
 
 //----------------------------------------------------------------------
@@ -745,16 +743,16 @@ C(D_PolysetAff8Start):
 
 .globl C(D_PolysetDrawSpans8)
 C(D_PolysetDrawSpans8):
-	pushl	%esi				// preserve register variables
+	pushl	%esi			// preserve register variables
 	pushl	%ebx
 
 	movl	pspans(%esp),%esi	// point to the first span descriptor
 	movl	C(r_zistepx),%ecx
 
-	pushl	%ebp				// preserve caller's stack frame
+	pushl	%ebp			// preserve caller's stack frame
 	pushl	%edi
 
-	rorl	$16,%ecx			// put high 16 bits of 1/z step in low word
+	rorl	$16,%ecx		// put high 16 bits of 1/z step in low word
 	movl	spanpackage_t_count(%esi),%edx
 
 	movl	%ecx,lzistepx
@@ -779,7 +777,7 @@ LSpanLoop:
 	movl	C(erroradjustup),%edx
 	movl	C(errorterm),%ebx
 	addl	%edx,%ebx
-	js		LNoTurnover
+	js	LNoTurnover
 
 	movl	C(erroradjustdown),%edx
 	movl	C(d_countextrastep),%edi
@@ -788,7 +786,7 @@ LSpanLoop:
 	movl	%ebx,C(errorterm)
 	addl	%edi,%ebp
 	movl	%ebp,C(d_aspancount)
-	jmp		LRightEdgeStepped
+	jmp	LRightEdgeStepped
 
 LNoTurnover:
 	movl	C(d_aspancount),%edi
@@ -800,8 +798,8 @@ LNoTurnover:
 LRightEdgeStepped:
 	cmpl	$1,%eax
 
-	jl		LNextSpan
-	jz		LExactlyOneLong
+	jl	LNextSpan
+	jz	LExactlyOneLong
 
 //
 // set up advancetable
@@ -845,7 +843,7 @@ LRightEdgeStepped:
 	pushl	%esi
 
 	movl	spanpackage_t_ptex(%esi),%esi
-	jmp		aff8entryvec_table(,%eax,4)
+	jmp	aff8entryvec_table(,%eax,4)
 
 // %bx = count of full and partial loops
 // %ebx high word = sfrac
@@ -867,7 +865,7 @@ LDrawLoop:
 
 LDraw8:
 	cmpw	(%ecx),%bp
-	jl		Lp1
+	jl	Lp1
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -885,7 +883,7 @@ Lp1:
 
 LDraw7:
 	cmpw	2(%ecx),%bp
-	jl		Lp2
+	jl	Lp2
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -903,7 +901,7 @@ Lp2:
 
 LDraw6:
 	cmpw	4(%ecx),%bp
-	jl		Lp3
+	jl	Lp3
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -921,7 +919,7 @@ Lp3:
 
 LDraw5:
 	cmpw	6(%ecx),%bp
-	jl		Lp4
+	jl	Lp4
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -939,7 +937,7 @@ Lp4:
 
 LDraw4:
 	cmpw	8(%ecx),%bp
-	jl		Lp5
+	jl	Lp5
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -957,7 +955,7 @@ Lp5:
 
 LDraw3:
 	cmpw	10(%ecx),%bp
-	jl		Lp6
+	jl	Lp6
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -975,7 +973,7 @@ Lp6:
 
 LDraw2:
 	cmpw	12(%ecx),%bp
-	jl		Lp7
+	jl	Lp7
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -993,7 +991,7 @@ Lp7:
 
 LDraw1:
 	cmpw	14(%ecx),%bp
-	jl		Lp8
+	jl	Lp8
 	xorl	%eax,%eax
 	movb	%dh,%ah
 	movb	(%esi),%al
@@ -1013,15 +1011,15 @@ Lp8:
 	addl	$16,%ecx
 
 	decw	%bx
-	jnz		LDrawLoop
+	jnz	LDrawLoop
 
 	popl	%esi				// restore spans pointer
 LNextSpan:
 	addl	$(spanpackage_t_size),%esi	// point to next span
 LNextSpanESISet:
 	movl	spanpackage_t_count(%esi),%edx
-	cmpl	$-999999,%edx		// any more spans?
-	jnz		LSpanLoop			// yes
+	cmpl	$-999999,%edx			// any more spans?
+	jnz	LSpanLoop			// yes
 
 	popl	%edi
 	popl	%ebp				// restore the caller's stack frame
@@ -1041,7 +1039,7 @@ LExactlyOneLong:
 	movl	spanpackage_t_ptex(%esi),%ebx
 
 	cmpw	(%ecx),%bp
-	jl		LNextSpan
+	jl	LNextSpan
 	xorl	%eax,%eax
 	movl	spanpackage_t_pdest(%esi),%edi
 	movb	spanpackage_t_light+1(%esi),%ah
@@ -1052,7 +1050,7 @@ LExactlyOneLong:
 LPatch9:
 	movb	%al,(%edi)
 
-	jmp		LNextSpanESISet
+	jmp	LNextSpanESISet
 
 .globl C(D_PolysetAff8End)
 C(D_PolysetAff8End):
@@ -1102,7 +1100,7 @@ C(D_PolysetDraw):
 //		D_DrawNonSubdiv ();
 	movl	C(r_affinetridesc)+atd_drawtype,%eax
 	testl	%eax,%eax
-	jz		C(D_DrawNonSubdiv)
+	jz	C(D_DrawNonSubdiv)
 
 	pushl	%ebp				// preserve caller stack frame pointer
 
@@ -1161,15 +1159,15 @@ Llooptop:
 	fildl	fv_v+4(%esi)	// i1v1 | i0v1
 	fildl	fv_v+0(%ecx)	// i0v0 | i1v1 | i0v1
 	fildl	fv_v+0(%edx)	// i2v0 | i0v0 | i1v1 | i0v1
-	fxch	%st(2)			// i1v1 | i0v0 | i2v0 | i0v1
+	fxch	%st(2)		// i1v1 | i0v0 | i2v0 | i0v1
 	fsubr	%st(3),%st(0)	// i0v1-i1v1 | i0v0 | i2v0 | i0v1
 	fildl	fv_v+0(%esi)	// i1v0 | i0v1-i1v1 | i0v0 | i2v0 | i0v1
-	fxch	%st(2)			// i0v0 | i0v1-i1v1 | i1v0 | i2v0 | i0v1
+	fxch	%st(2)		// i0v0 | i0v1-i1v1 | i1v0 | i2v0 | i0v1
 	fsub	%st(0),%st(3)	// i0v0 | i0v1-i1v1 | i1v0 | i0v0-i2v0 | i0v1
 	fildl	fv_v+4(%edx)	// i2v1 | i0v0 | i0v1-i1v1 | i1v0 | i0v0-i2v0| i0v1
-	fxch	%st(1)			// i0v0 | i2v1 | i0v1-i1v1 | i1v0 | i0v0-i2v0| i0v1
+	fxch	%st(1)		// i0v0 | i2v1 | i0v1-i1v1 | i1v0 | i0v0-i2v0| i0v1
 	fsubp	%st(0),%st(3)	// i2v1 | i0v1-i1v1 | i0v0-i1v0 | i0v0-i2v0 | i0v1
-	fxch	%st(1)			// i0v1-i1v1 | i2v1 | i0v0-i1v0 | i0v0-i2v0 | i0v1
+	fxch	%st(1)		// i0v1-i1v1 | i2v1 | i0v0-i1v0 | i0v0-i2v0 | i0v1
 	fmulp	%st(0),%st(3)	// i2v1 | i0v0-i1v0 | i0v1-i1v1*i0v0-i2v0 | i0v1
 	fsubrp	%st(0),%st(3)	// i0v0-i1v0 | i0v1-i1v1*i0v0-i2v0 | i0v1-i2v1
 	movl	fv_v+16(%ecx),%eax
@@ -1181,14 +1179,14 @@ Llooptop:
 	fstps	Ltemp
 	movl	Ltemp,%eax
 	subl	$0x80000001,%eax
-	jc		Lskip
+	jc	Lskip
 
 //		if (ptri[i].facesfront)
 //		{
 //			D_PolysetRecursiveTriangle(index0->v, index1->v, index2->v);
 	movl	mtri_facesfront-16(%ebx,%ebp,),%eax
 	testl	%eax,%eax
-	jz		Lfacesback
+	jz	Lfacesback
 
 	pushl	%edx
 	pushl	%esi
@@ -1196,8 +1194,8 @@ Llooptop:
 	call	C(D_PolysetRecursiveTriangle)
 
 	subl	$16,%ebp
-	jnz		Llooptop
-	jmp		Ldone2
+	jnz	Llooptop
+	jmp	Ldone2
 
 //		}
 //		else
@@ -1220,21 +1218,21 @@ Lfacesback:
 //				index0->v[2] += r_affinetridesc.seamfixupX16;
 	movl	C(r_affinetridesc)+atd_seamfixupX16,%eax
 	testl	$(ALIAS_ONSEAM),fv_flags(%ecx)
-	jz		Lp11
+	jz	Lp11
 	addl	%eax,fv_v+8(%ecx)
 Lp11:
 
 //			if (index1->flags & ALIAS_ONSEAM)
 //				index1->v[2] += r_affinetridesc.seamfixupX16;
 	testl	$(ALIAS_ONSEAM),fv_flags(%esi)
-	jz		Lp12
+	jz	Lp12
 	addl	%eax,fv_v+8(%esi)
 Lp12:
 
 //			if (index2->flags & ALIAS_ONSEAM)
 //				index2->v[2] += r_affinetridesc.seamfixupX16;
 	testl	$(ALIAS_ONSEAM),fv_flags(%edx)
-	jz		Lp13
+	jz	Lp13
 	addl	%eax,fv_v+8(%edx)
 Lp13:
 
@@ -1260,7 +1258,7 @@ Lp13:
 //	}
 Lskip:
 	subl	$16,%ebp
-	jnz		Llooptop
+	jnz	Llooptop
 
 Ldone2:
 	popl	%edi				// restore the caller's stack frame
@@ -1290,7 +1288,7 @@ C(D_PolysetScanLeftEdge):
 	movl	C(d_sfrac),%ecx
 	andl	$0xFFFF,%eax
 	movl	C(d_ptex),%ebx
-	orl		%eax,%ecx
+	orl	%eax,%ecx
 	movl	C(d_pedgespanpackage),%esi
 	movl	C(d_tfrac),%edx
 	movl	C(d_light),%edi
@@ -1344,7 +1342,7 @@ LScanLoop:
 
 //		if (errorterm >= 0)
 //		{
-	js		LNoLeftEdgeTurnover
+	js	LNoLeftEdgeTurnover
 
 //			errorterm -= erroradjustdown;
 //			d_pdest += d_pdestextrastep;
@@ -1373,7 +1371,7 @@ LScanLoop:
 
 //			if (d_tfrac & 0x10000)
 //			{
-	jnc		LSkip1
+	jnc	LSkip1
 
 //				d_ptex += r_affinetridesc.skinwidth;
 //				d_tfrac &= 0xFFFF;
@@ -1392,7 +1390,7 @@ LSkip1:
 	movl	C(d_pedgespanpackage),%esi
 	decl	%ecx
 	testl	$0xFFFF,%ecx
-	jnz		LScanLoop
+	jnz	LScanLoop
 
 	popl	%ebx
 	popl	%edi
@@ -1431,7 +1429,7 @@ LNoLeftEdgeTurnover:
 
 //			if (d_tfrac & 0x10000)
 //			{
-	jnc		LSkip2
+	jnc	LSkip2
 
 //				d_ptex += r_affinetridesc.skinwidth;
 //				d_tfrac &= 0xFFFF;
@@ -1451,7 +1449,7 @@ LSkip2:
 	movl	C(d_pedgespanpackage),%esi
 	decl	%ecx
 	testl	$0xFFFF,%ecx
-	jnz		LScanLoop
+	jnz	LScanLoop
 
 	popl	%ebx
 	popl	%edi
@@ -1493,11 +1491,11 @@ LFVLoop:
 	movl	fv_v+0(%ebx),%eax
 	movl	C(r_refdef)+rd_vrectright,%edx
 	cmpl	%edx,%eax
-	jge		LNextVert
+	jge	LNextVert
 	movl	fv_v+4(%ebx),%esi
 	movl	C(r_refdef)+rd_vrectbottom,%edx
 	cmpl	%edx,%esi
-	jge		LNextVert
+	jge	LNextVert
 
 //			zbuf = zspantable[fv->v[1]] + fv->v[0];
 	movl	C(zspantable)(,%esi,4),%edi
@@ -1510,7 +1508,7 @@ LFVLoop:
 //			{
 //				int		pix;
 	cmpw	(%edi,%eax,2),%dx
-	jl		LNextVert
+	jl	LNextVert
 
 //				*zbuf = z;
 	movw	%dx,(%edi,%eax,2)
@@ -1543,7 +1541,7 @@ LFVLoop:
 LNextVert:
 	addl	$(fv_size),%ebx
 	decl	%ecx
-	jnz		LFVLoop
+	jnz	LFVLoop
 
 	popl	%edi
 	popl	%esi
@@ -1560,18 +1558,18 @@ LNextVert:
 
 .globl C(D_DrawNonSubdiv)
 C(D_DrawNonSubdiv):
-	pushl	%ebp				// preserve caller stack frame pointer
+	pushl	%ebp			// preserve caller stack frame pointer
 	movl	C(r_affinetridesc)+atd_numtriangles,%ebp
 	pushl	%ebx
 	shll	$(mtri_shift),%ebp
-	pushl	%esi				// preserve register variables
+	pushl	%esi			// preserve register variables
 	movl	C(r_affinetridesc)+atd_ptriangles,%esi
 	pushl	%edi
 
-//	mtriangle_t		*ptri;
-//	finalvert_t		*pfv, *index0, *index1, *index2;
-//	int				i;
-//	int				lnumtriangles;
+//	mtriangle_t	*ptri;
+//	finalvert_t	*pfv, *index0, *index1, *index2;
+//	int		i;
+//	int		lnumtriangles;
 
 //	pfv = r_affinetridesc.pfinalverts;
 //	ptri = r_affinetridesc.ptriangles;
@@ -1596,8 +1594,9 @@ LNDLoop:
 	addl	%edi,%ebx
 
 //		d_xdenom = (index0->v[1]-index1->v[1]) *
-//				(index0->v[0]-index2->v[0]) -
-//				(index0->v[0]-index1->v[0])*(index0->v[1]-index2->v[1]);
+//			(index0->v[0]-index2->v[0]) -
+//			(index0->v[0]-index1->v[0]) *
+//			(index0->v[1]-index2->v[1]);
 	movl	fv_v+4(%ecx),%eax
 	movl	fv_v+0(%ecx),%esi
 	subl	fv_v+4(%edx),%eax
@@ -1613,7 +1612,7 @@ LNDLoop:
 //		if (d_xdenom >= 0)
 //		{
 //			continue;
-	jns		LNextTri
+	jns	LNextTri
 
 //		}
 
@@ -1684,7 +1683,7 @@ LNDLoop:
 //		if (!ptri->facesfront)
 //		{
 	testl	%eax,%eax
-	jnz		LFacesFront
+	jnz	LFacesFront
 
 //			if (index0->flags & ALIAS_ONSEAM)
 //				r_p0[2] += r_affinetridesc.seamfixupX16;
@@ -1693,21 +1692,21 @@ LNDLoop:
 	movl	fv_flags(%ebx),%edi
 	testl	$(ALIAS_ONSEAM),%eax
 	movl	C(r_affinetridesc)+atd_seamfixupX16,%eax
-	jz		LOnseamDone0
+	jz	LOnseamDone0
 	addl	%eax,C(r_p0)+8
 LOnseamDone0:
 
 //			if (index1->flags & ALIAS_ONSEAM)
 // 				r_p1[2] += r_affinetridesc.seamfixupX16;
 	testl	$(ALIAS_ONSEAM),%esi
-	jz		LOnseamDone1
+	jz	LOnseamDone1
 	addl	%eax,C(r_p1)+8
 LOnseamDone1:
 
 //			if (index2->flags & ALIAS_ONSEAM)
 //				r_p2[2] += r_affinetridesc.seamfixupX16;
 	testl	$(ALIAS_ONSEAM),%edi
-	jz		LOnseamDone2
+	jz	LOnseamDone2
 	addl	%eax,C(r_p2)+8
 LOnseamDone2:
 
@@ -1719,13 +1718,13 @@ LFacesFront:
 
 //		D_PolysetSetEdgeTable ();
 //		D_RasterizeAliasPolySmooth ();
-		call	C(D_PolysetSetEdgeTable)
-		call	C(D_RasterizeAliasPolySmooth)
+	call	C(D_PolysetSetEdgeTable)
+	call	C(D_RasterizeAliasPolySmooth)
 
 LNextTri:
-		movl	C(r_affinetridesc)+atd_ptriangles,%esi
-		subl	$16,%ebp
-		jnz		LNDLoop
+	movl	C(r_affinetridesc)+atd_ptriangles,%esi
+	subl	$16,%ebp
+	jnz	LNDLoop
 //	}
 
 	popl	%edi
@@ -1739,4 +1738,3 @@ LNextTri:
 
 
 #endif	// id386
-
