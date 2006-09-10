@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdio.h>
 #include <signal.h>
 
+#define GLX_GLEXT_PROTOTYPES
 #include <GL/glx.h>
 
 #include <X11/keysym.h>
@@ -48,9 +49,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "x11_core.h"
 #include "in_x11.h"
 
-#if !defined(GLX_VERSION_1_4) && !defined(glXGetProcAddress)
-#define glXGetProcAddress glXGetProcAddressARB
+/*
+ * glXGetProcAddress - This function is defined in GLX version 1.4, but this
+ * is not common enough yet to rely on it being present in any old libGL.so
+ * (e.g. Nvidia's proprietary drivers). glXGetProcAddressARB has been around
+ * longer and actually forms part of the current Linux OpenGL ABI
+ * - http://oss.sgi.com/projects/ogl-sample/ABI/
+ */
+#ifndef GLX_ARB_get_proc_address
+#error "glXGetProcAddressARB is REQUIRED"
 #endif
+#define glXGetProcAddress glXGetProcAddressARB
 
 #define WARP_WIDTH              320
 #define WARP_HEIGHT             200
