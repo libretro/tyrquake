@@ -267,7 +267,7 @@ cvar_t v_gamma = { "gamma", "1", true };
 byte gammatable[256];		// palette is sent through this
 
 #ifdef	GLQUAKE
-static byte ramps[3][256];
+static unsigned short ramps[3][256];
 float v_blend[4];		// rgba 0.0 - 1.0
 #endif
 
@@ -482,27 +482,20 @@ V_CalcBlend(void)
     float r, g, b, a, a2;
     int j;
 
-    r = 0;
-    g = 0;
-    b = 0;
-    a = 0;
+    r = g = b = a = 0;
 
-    for (j = 0; j < NUM_CSHIFTS; j++) {
-	if (!gl_cshiftpercent.value)
-	    continue;
-
-	a2 = ((cl.cshifts[j].percent * gl_cshiftpercent.value) / 100.0) /
-	    255.0;
-
-//              a2 = cl.cshifts[j].percent/255.0;
-	if (!a2)
-	    continue;
-	a = a + a2 * (1 - a);
-//Con_Printf ("j:%i a:%f\n", j, a);
-	a2 = a2 / a;
-	r = r * (1 - a2) + cl.cshifts[j].destcolor[0] * a2;
-	g = g * (1 - a2) + cl.cshifts[j].destcolor[1] * a2;
-	b = b * (1 - a2) + cl.cshifts[j].destcolor[2] * a2;
+    if (gl_cshiftpercent.value) {
+	for (j = 0; j < NUM_CSHIFTS; j++) {
+	    a2 = ((cl.cshifts[j].percent * gl_cshiftpercent.value) / 100.0) /
+		255.0;
+	    if (!a2)
+		continue;
+	    a = a + a2 * (1 - a);
+	    a2 = a2 / a;
+	    r = r * (1 - a2) + cl.cshifts[j].destcolor[0] * a2;
+	    g = g * (1 - a2) + cl.cshifts[j].destcolor[1] * a2;
+	    b = b * (1 - a2) + cl.cshifts[j].destcolor[2] * a2;
+	}
     }
 
     v_blend[0] = r / 255.0;
@@ -526,66 +519,30 @@ void
 V_UpdatePalette(void)
 {
     int i, j;
-    qboolean new;
-    float r, g, b, a;
-    int ir, ig, ib;
     qboolean force;
 
     V_CalcPowerupCshift();
 
-    new = false;
-
-    for (i = 0; i < NUM_CSHIFTS; i++) {
-	if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent) {
-	    new = true;
-	    cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
-	}
-	for (j = 0; j < 3; j++)
-	    if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j]) {
-		new = true;
-		cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
-	    }
-    }
-
     /* drop the damage value */
     cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime * 150;
-    if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
+    if (cl.cshifts[CSHIFT_DAMAGE].percent < 0)
 	cl.cshifts[CSHIFT_DAMAGE].percent = 0;
 
     /* drop the bonus value */
     cl.cshifts[CSHIFT_BONUS].percent -= host_frametime * 100;
-    if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
+    if (cl.cshifts[CSHIFT_BONUS].percent < 0)
 	cl.cshifts[CSHIFT_BONUS].percent = 0;
 
     force = V_CheckGamma();
-    if (!new && !force)
-	return;
 
-    V_CalcBlend();
-
-    a = v_blend[3];
-    r = 255 * v_blend[0] * a;
-    g = 255 * v_blend[1] * a;
-    b = 255 * v_blend[2] * a;
-
-    a = 1 - a;
-    for (i = 0; i < 256; i++) {
-	ir = i * a + r;
-	ig = i * a + g;
-	ib = i * a + b;
-	if (ir > 255)
-	    ir = 255;
-	if (ig > 255)
-	    ig = 255;
-	if (ib > 255)
-	    ib = 255;
-
-	ramps[0][i] = gammatable[ir];
-	ramps[1][i] = gammatable[ig];
-	ramps[2][i] = gammatable[ib];
+    if (force) {
+	for (i = 0; i < 256; i++) {
+	    ramps[0][i] = gammatable[i] << 8;
+	    ramps[1][i] = gammatable[i] << 8;
+	    ramps[2][i] = gammatable[i] << 8;
+	}
+	VID_ShiftPalette(NULL);
     }
-
-    VID_ShiftPalette(NULL);
 }
 #else // !GLQUAKE
 void
