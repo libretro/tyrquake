@@ -220,7 +220,7 @@ LTestDone:
 	cmpl	$4,%eax
 	ja	LDefault
 
-	jmp	DP_EntryTable-4(,%eax,4)
+	jmp	*DP_EntryTable-4(,%eax,4)
 
 // 1x1
 .globl	DP_1x1

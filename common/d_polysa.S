@@ -843,7 +843,7 @@ LRightEdgeStepped:
 	pushl	%esi
 
 	movl	spanpackage_t_ptex(%esi),%esi
-	jmp	aff8entryvec_table(,%eax,4)
+	jmp	*aff8entryvec_table(,%eax,4)
 
 // %bx = count of full and partial loops
 // %ebx high word = sfrac
