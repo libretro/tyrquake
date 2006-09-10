@@ -252,6 +252,26 @@ ShowCompletions(void)
     }
 }
 
+static void
+EnterCommand(const char *buf)
+{
+    /*
+     * Slash text are always commands.
+     * Without the slash, we test for a valid command/alias/cvar.
+     * If the check fails, we send the text as a chat message.
+     */
+    if (buf[0] == '\\' || buf[0] == '/')
+	Cbuf_AddText(buf + 1);
+    else if (CheckForCommand())
+	Cbuf_AddText(buf);
+    else {
+	/* doesn't look like a command, convert to a chat message */
+	if (cls.state >= ca_connected)
+	    Cbuf_AddText("say ");
+	Cbuf_AddText(buf);
+    }
+    Cbuf_AddText("\n");
+}
 /*
 ====================
 Key_Console
@@ -274,18 +294,9 @@ Key_Console(int key)
     if (key != K_TAB)
 	tab_once = false;
 
-    if (key == K_ENTER) {	// slash text are commands, else chat
-	if (key_lines[edit_line][1] == '\\' || key_lines[edit_line][1] == '/')
-	    Cbuf_AddText(key_lines[edit_line] + 2);	// skip the ]
-	else if (CheckForCommand())
-	    Cbuf_AddText(key_lines[edit_line] + 1);	// valid command
-	else {			// convert to a chat message
-	    if (cls.state >= ca_connected)
-		Cbuf_AddText("say ");
-	    Cbuf_AddText(key_lines[edit_line] + 1);	// skip the ]
-	}
+    if (key == K_ENTER) {
+	EnterCommand(key_lines[edit_line] + 1);
 
-	Cbuf_AddText("\n");
 	Con_Printf("%s\n", key_lines[edit_line]);
 	edit_line = (edit_line + 1) & 31;
 	history_line = edit_line;
