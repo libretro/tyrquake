@@ -519,10 +519,8 @@ CheckMultiTextureExtensions(void)
 	&& strstr(gl_extensions, "GL_ARB_multitexture ")) {
 	Con_Printf("ARB multitexture extensions found.\n");
 
-	qglMultiTexCoord2fARB =
-	    (void *)glXGetProcAddress("glMultiTexCoord2fARB");
-	qglActiveTextureARB =
-	    (void *)glXGetProcAddress("glActiveTextureARB");
+	qglMultiTexCoord2fARB = glXGetProcAddress("glMultiTexCoord2fARB");
+	qglActiveTextureARB = glXGetProcAddress("glActiveTextureARB");
 
 	/* Check how many texture units there actually are */
 	glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_num_texture_units);
@@ -628,8 +626,7 @@ VID_Init8bitPalette(void)
     int i;
 
     if (strstr(gl_extensions, "GL_EXT_shared_texture_palette") &&
-	(qglColorTableEXT =
-	 (void *)glXGetProcAddress("glColorTableEXT")) != NULL) {
+	(qglColorTableEXT = glXGetProcAddress("glColorTableEXT")) != NULL) {
 	char thePalette[256 * 3];
 	char *oldPalette, *newPalette;
 
@@ -646,25 +643,25 @@ VID_Init8bitPalette(void)
 	qglColorTableEXT(GL_SHARED_TEXTURE_PALETTE_EXT, GL_RGB, 256, GL_RGB,
 			 GL_UNSIGNED_BYTE, (void *)thePalette);
 	is8bit = true;
-    } else if (strstr(gl_extensions, "3DFX_set_global_palette") &&
-	       (qgl3DfxSetPaletteEXT =
-		(void *)glXGetProcAddress("gl3DfxSetPaletteEXT")) !=
-	       NULL) {
-	GLubyte table[256][4];
-	char *oldpal;
+    } else if (strstr(gl_extensions, "3DFX_set_global_palette")) {
+	qgl3DfxSetPaletteEXT = glXGetProcAddress("gl3DfxSetPaletteEXT");
+	if (qgl3DfxSetPaletteEXT) {
+	    GLubyte table[256][4];
+	    char *oldpal;
 
-	Con_SafePrintf("8-bit GL extensions (3dfx) enabled.\n");
-	oldpal = (char *)d_8to24table;	//d_8to24table3dfx;
-	for (i = 0; i < 256; i++) {
-	    table[i][2] = *oldpal++;
-	    table[i][1] = *oldpal++;
-	    table[i][0] = *oldpal++;
-	    table[i][3] = 255;
-	    oldpal++;
+	    Con_SafePrintf("8-bit GL extensions (3dfx) enabled.\n");
+	    oldpal = (char *)d_8to24table;	//d_8to24table3dfx;
+	    for (i = 0; i < 256; i++) {
+		table[i][2] = *oldpal++;
+		table[i][1] = *oldpal++;
+		table[i][0] = *oldpal++;
+		table[i][3] = 255;
+		oldpal++;
+	    }
+	    glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
+	    qgl3DfxSetPaletteEXT((GLuint *)table);
+	    is8bit = true;
 	}
-	glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
-	qgl3DfxSetPaletteEXT((GLuint *)table);
-	is8bit = true;
     }
 }
 
@@ -676,20 +673,20 @@ Check_Gamma (unsigned char *pal)
     unsigned char palette[768];
     int         i;
 
-    if ((i = COM_CheckParm ("-gamma")) == 0) {
-	if ((gl_renderer && strstr (gl_renderer, "Voodoo")) ||
-	    (gl_vendor && strstr (gl_vendor, "3Dfx"))) {
+    if ((i = COM_CheckParm("-gamma")) == 0) {
+	if ((gl_renderer && strstr(gl_renderer, "Voodoo")) ||
+	    (gl_vendor && strstr(gl_vendor, "3Dfx"))) {
 	    vid_gamma = 1;
 	} else {
 	    //vid_gamma = 0.7;	// default to 0.7 on non-3dfx hardware
 	    vid_gamma = 1.0;	// Be like the original...
 	}
     } else {
-	vid_gamma = Q_atof (com_argv[i + 1]);
+	vid_gamma = Q_atof(com_argv[i + 1]);
     }
 
     for (i = 0; i < 768; i++) {
-	f = pow ((pal[i] + 1) / 256.0, vid_gamma);
+	f = pow((pal[i] + 1) / 256.0, vid_gamma);
 	inf = f * 255 + 0.5;
 	if (inf < 0)
 	    inf = 0;
@@ -698,7 +695,7 @@ Check_Gamma (unsigned char *pal)
 	palette[i] = inf;
     }
 
-    memcpy (pal, palette, sizeof(palette));
+    memcpy(pal, palette, sizeof(palette));
 }
 */
 
