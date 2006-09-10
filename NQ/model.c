@@ -972,7 +972,7 @@ Mod_LoadClipnodes(lump_t *l)
 =================
 Mod_MakeHull0
 
-Deplicate the drawing hull structure as a clipping hull
+Duplicate the drawing hull structure as a clipping hull
 =================
 */
 void
