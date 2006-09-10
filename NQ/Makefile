@@ -18,6 +18,11 @@
 %.o:	../common/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
 
+# A special rule for the glx file due to compatibility problems
+# with the Nvidia's libGL.so
+#gl_vidlinuxglx.o:	../common/gl_vidlinuxglx.c
+#	$(CC) -c $(CPPFLAGS) $(CFLAGS) -DglXGetProcAddress=glXGetProcAddressARB -o $@ $^
+
 # Rule to make the resource file
 %.res:	%.rc
 	windres -i $^ -O coff -o $@

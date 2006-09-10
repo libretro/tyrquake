@@ -27,11 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <GL/glx.h>
 
-/* Compatibility with older GLX headers */
-#ifndef GLX_VERSION_1_4
-#define glXGetProcAddress glXGetProcAddressARB
-#endif
-
 #include <X11/keysym.h>
 #include <X11/cursorfont.h>
 #include <X11/extensions/xf86vmode.h>
@@ -52,6 +47,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - complete the refactoring of core X stuff into here
 #include "x11_core.h"
 #include "in_x11.h"
+
+#if !defined(GLX_VERSION_1_4) && !defined(glXGetProcAddress)
+#define glXGetProcAddress glXGetProcAddressARB
+#endif
 
 #define WARP_WIDTH              320
 #define WARP_HEIGHT             200
