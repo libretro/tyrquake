@@ -101,15 +101,12 @@ Adds command text at the end of the buffer
 void
 Cbuf_AddText(const char *text)
 {
-    int l;
+    int l = strlen(text);
 
-    l = strlen(text);
-
-    if (cmd_text.cursize + l >= cmd_text.maxsize) {
+    if (cmd_text.cursize + l < cmd_text.maxsize)
+	SZ_Write(&cmd_text, text, strlen(text));
+    else
 	Con_Printf("Cbuf_AddText: overflow\n");
-	return;
-    }
-    SZ_Write(&cmd_text, text, strlen(text));
 }
 
 
