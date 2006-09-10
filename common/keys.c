@@ -162,6 +162,29 @@ keyname_t keynames[] = {
 ==============================================================================
 */
 
+/*
+ * Given a command buffer, return a pointer to the start of the current
+ * command string (i.e. search backwards for a command delimiter)
+ */
+static char *
+GetCommandPos(char *buf)
+{
+    char *pos;
+
+    pos = strrchr(buf, ';');
+    if (pos) {
+	pos++;
+	while (*pos == ' ')
+	    pos++;
+    } else {
+	pos = buf;
+	if (*pos == '\\' || *pos == '/')
+	    pos++;
+    }
+
+    return pos;
+}
+
 static qboolean
 CheckForCommand(void)
 {
@@ -187,17 +210,18 @@ void
 CompleteCommand(void)
 {
     char *cmd;
-    const char *s;
+    char *s;
 
-    s = key_lines[edit_line] + 1;
-    if (*s == '\\' || *s == '/')
-	s++;
-
+    s = GetCommandPos(key_lines[edit_line] + 1);
     cmd = find_completion(s);
     if (cmd) {
-	key_lines[edit_line][1] = '/';
-	strcpy(key_lines[edit_line] + 2, cmd);
-	key_linepos = strlen(cmd) + 2;
+	key_linepos = s - key_lines[edit_line];
+	if (s == key_lines[edit_line] + 1) {
+	    *s++ = '/';
+	    key_linepos++;
+	}
+	strcpy(s, cmd);
+	key_linepos += strlen(cmd);
 
 	/* Inefficient, but it'll do for now */
 	if (find_completions(cmd) == 1)
@@ -214,10 +238,7 @@ ShowCompletions(void)
     const char *s;
     unsigned int cnt, i, len, maxlen;
 
-    s = key_lines[edit_line] + 1;
-    if (*s == '\\' || *s == '/')
-	s++;
-
+    s = GetCommandPos(key_lines[edit_line] + 1);
     cnt = find_completions(s);
     if (cnt) {
 	Con_Printf("%u possible completions:\n", cnt);
