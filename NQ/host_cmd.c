@@ -1606,12 +1606,12 @@ Host_InitCommands(void)
     Cmd_AddCommand("god", Host_God_f);
     Cmd_AddCommand("notarget", Host_Notarget_f);
     Cmd_AddCommand("fly", Host_Fly_f);
+    Cmd_AddCommand("restart", Host_Restart_f);
 
     Cmd_AddCommand("map", Host_Map_f);
-    Cmd_SetCompletion("map", Host_Map_Arg_f);
-
-    Cmd_AddCommand("restart", Host_Restart_f);
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
+    Cmd_SetCompletion("map", Host_Map_Arg_f);
+    Cmd_SetCompletion("changelevel", Host_Map_Arg_f);
 
     Cmd_AddCommand("connect", Host_Connect_f);
     Cmd_AddCommand("reconnect", Host_Reconnect_f);
