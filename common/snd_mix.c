@@ -232,13 +232,8 @@ S_TransferPaintBuffer(int endtime)
 	int ir = endtime - paintedtime;
 
 	ir += il;
-
 	pDSBuf->lpVtbl->Unlock(pDSBuf, pbuf, dwSize, NULL, 0);
-
 	pDSBuf->lpVtbl->GetCurrentPosition(pDSBuf, &dwNewpos, &dwWrite);
-
-//              if ((dwNewpos >= il) && (dwNewpos <= ir))
-//                      Con_Printf("%d-%d p %d c\n", il, ir, dwNewpos);
     }
 #endif
 }
@@ -312,7 +307,6 @@ S_PaintChannels(int endtime)
 		    }
 		}
 	    }
-
 	}
 
 	// transfer out according to DMA format
