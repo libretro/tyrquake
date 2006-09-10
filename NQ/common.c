@@ -45,7 +45,6 @@ static cvar_t cmdline = { "cmdline", "0", false, true };
 
 static qboolean com_modified;		// set true if using non-id files
 static int static_registered = 1;	// only for startup check, then set
-static qboolean proghack;
 
 qboolean msg_suppress_1 = 0;
 
@@ -1246,13 +1245,7 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
 //
 // search through the path, one element at a time
 //
-    search = com_searchpaths;
-    if (proghack) {		// gross hack to use quake 1 progs with quake 2 maps
-	if (!strcmp(filename, "progs.dat"))
-	    search = search->next;
-    }
-
-    for (; search; search = search->next) {
+    for (search = com_searchpaths; search; search = search->next) {
 	// is the element a pak file?
 	if (search->pack) {
 	    // look through all the pak file elements
@@ -1678,7 +1671,4 @@ COM_InitFilesystem(void)
 	    com_searchpaths = search;
 	}
     }
-
-    if (COM_CheckParm("-proghack"))
-	proghack = true;
 }
