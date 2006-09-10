@@ -283,7 +283,7 @@ ShowCompletions(void)
 	    cmd[len] = 0;
 
 	    if (command_exists(cmd)) {
-		struct rb_string_root *root;
+		struct stree_root *root;
 
 		s += len;
 		while (*s == ' ')
@@ -320,6 +320,7 @@ EnterCommand(const char *buf)
     }
     Cbuf_AddText("\n");
 }
+
 /*
 ====================
 Key_Console

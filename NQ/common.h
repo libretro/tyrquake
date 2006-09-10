@@ -161,7 +161,7 @@ void COM_WriteFile(const char *filename, const void *data, int len);
 int COM_OpenFile(const char *filename, int *hndl);
 int COM_FOpenFile(const char *filename, FILE **file);
 void COM_CloseFile(int h);
-void COM_ScanDir(struct rb_string_root *root, const char *path,
+void COM_ScanDir(struct stree_root *root, const char *path,
 		 const char *pfx, const char *ext, qboolean stripext);
 
 byte *COM_LoadStackFile(const char *path, void *buffer, int bufsize,

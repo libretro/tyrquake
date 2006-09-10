@@ -299,14 +299,14 @@ Host_Map_f(void)
     }
 }
 
-static struct rb_string_root *
+static struct stree_root *
 Host_Map_Arg_f(const char *arg)
 {
-    struct rb_string_root *root;
+    struct stree_root *root;
 
-    root = Z_Malloc(sizeof(struct rb_string_root));
+    root = Z_Malloc(sizeof(struct stree_root));
     if (root) {
-	*root = RB_STRING_ROOT;
+	*root = STREE_ROOT;
 
 	ST_AllocInit();
 	COM_ScanDir(root, "maps", arg, ".bsp", true);

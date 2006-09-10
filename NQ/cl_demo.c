@@ -314,14 +314,14 @@ CL_PlayDemo_f(void)
 //      fscanf (cls.demofile, "%i\n", &cls.forcetrack);
 }
 
-struct rb_string_root *
+struct stree_root *
 CL_Demo_Arg_f(const char *arg)
 {
-    struct rb_string_root *root;
+    struct stree_root *root;
 
-    root = Z_Malloc(sizeof(struct rb_string_root));
+    root = Z_Malloc(sizeof(struct stree_root));
     if (root) {
-	*root = RB_STRING_ROOT;
+	*root = STREE_ROOT;
 	ST_AllocInit();
 	COM_ScanDir(root, "", arg, ".dem", true);
     }

@@ -28,29 +28,29 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * We keep track of the number of entries in the tree as well as the longest
  * entry in the tree. This info is used for displaying lists on the console.
  */
-struct rb_string_root {
+struct stree_root {
     unsigned int entries;
     unsigned int maxlen;
     unsigned int minlen;
     struct rb_root root;
 };
 
-#define RB_STRING_ROOT (struct rb_string_root) { 0, 0, -1, RB_ROOT }
+#define STREE_ROOT (struct stree_root) { 0, 0, -1, RB_ROOT }
 
 /*
  * String node is simply an rb_tree node using the string as the index (and
  * the only data as well).
  */
-struct rb_string_node {
+struct stree_node {
     char *string;
     struct rb_node node;
 };
 
 void ST_AllocInit(void);
-qboolean ST_Insert(struct rb_string_root *root, struct rb_string_node *node);
-qboolean ST_InsertAlloc(struct rb_string_root *root, const char *s,
-			struct rb_string_node *n);
-char *ST_MaxMatch(struct rb_string_root *root, const char *pfx);
+qboolean ST_Insert(struct stree_root *root, struct stree_node *node);
+qboolean ST_InsertAlloc(struct stree_root *root, const char *s,
+			struct stree_node *n);
+char *ST_MaxMatch(struct stree_root *root, const char *pfx);
 
 /*
  * Set up some basic completion helpers

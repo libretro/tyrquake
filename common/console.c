@@ -714,11 +714,11 @@ static void
 Con_ShowTree_Populate(struct rb_node *n)
 {
     if (n) {
-	struct rb_string_node *sn;
+	struct stree_node *sn;
 
 	Con_ShowTree_Populate(n->rb_left);
 
-	sn = rb_entry(n, struct rb_string_node, node);
+	sn = rb_entry(n, struct stree_node, node);
 	showtree_list[showtree_idx++] = sn->string;
 
 	Con_ShowTree_Populate(n->rb_right);
@@ -726,7 +726,7 @@ Con_ShowTree_Populate(struct rb_node *n)
 }
 
 void
-Con_ShowTree(struct rb_string_root *root)
+Con_ShowTree(struct stree_root *root)
 {
     /* FIXME - cheating with malloc */
     showtree_list = malloc(root->entries * sizeof(char *));
@@ -742,7 +742,7 @@ Con_ShowTree(struct rb_string_root *root)
 void
 Con_Maplist_f()
 {
-    struct rb_string_root st_root = RB_STRING_ROOT;
+    struct stree_root st_root = STREE_ROOT;
     char *pfx = NULL;
 
     if (Cmd_Argc() == 2)

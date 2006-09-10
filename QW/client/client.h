@@ -435,7 +435,7 @@ void CL_ReRecord_f(void);
 
 void CL_PlayDemo_f(void);
 void CL_TimeDemo_f(void);
-struct rb_string_root *CL_Demo_Arg_f(const char *arg);
+struct stree_root *CL_Demo_Arg_f(const char *arg);
 
 //
 // cl_parse.c

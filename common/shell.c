@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * hunk space by keeping the tree nodes together in blocks and allocating
  * strings right next to each other.
  */
-static struct rb_string_node *st_node_next;
+static struct stree_node *st_node_next;
 static int st_node_space;
 static char *st_string_next;
 static int st_string_space;
@@ -57,18 +57,18 @@ ST_AllocInit(void)
     st_string_space = 0;
 }
 
-struct rb_string_node *
+struct stree_node *
 ST_AllocNode(void)
 {
-    struct rb_string_node *ret = NULL;
+    struct stree_node *ret = NULL;
 
-    if (st_node_space < sizeof(struct rb_string_node)) {
+    if (st_node_space < sizeof(struct stree_node)) {
 	st_node_next = Hunk_TempAllocExtend(ST_NODE_CHUNK);
 	st_node_space = st_node_next ? ST_NODE_CHUNK : 0;
     }
-    if (st_node_space >= sizeof(struct rb_string_node)) {
+    if (st_node_space >= sizeof(struct stree_node)) {
 	ret = st_node_next++;
-	st_node_space -= sizeof(struct rb_string_node);
+	st_node_space -= sizeof(struct stree_node);
     }
 
     return ret;
@@ -103,17 +103,17 @@ ST_AllocString(unsigned int length)
  * Insert string node "node" into rb_tree rooted at "root"
  */
 qboolean
-ST_Insert(struct rb_string_root *root, struct rb_string_node *node)
+ST_Insert(struct stree_root *root, struct stree_node *node)
 {
     struct rb_node **p = &root->root.rb_node;
     struct rb_node *parent = NULL;
-    struct rb_string_node *sn;
+    struct stree_node *sn;
     unsigned int len;
     int cmp;
 
     while (*p) {
 	parent = *p;
-	sn = rb_entry(parent, struct rb_string_node, node);
+	sn = rb_entry(parent, struct stree_node, node);
 	cmp = strcasecmp(node->string, sn->string);
 	if (cmp < 0)
 	    p = &(*p)->rb_left;
@@ -140,8 +140,8 @@ ST_Insert(struct rb_string_root *root, struct rb_string_node *node)
  * NOTE: These allocations are only on the Temp hunk.
  */
 qboolean
-ST_InsertAlloc(struct rb_string_root *root, const char *s,
-	       struct rb_string_node *n)
+ST_InsertAlloc(struct stree_root *root, const char *s,
+	       struct stree_node *n)
 {
     qboolean ret = false;
 
@@ -161,13 +161,13 @@ ST_InsertAlloc(struct rb_string_root *root, const char *s,
 static int
 ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
 {
-    struct rb_string_node *sn;
+    struct stree_node *sn;
 
     if (n) {
 	max_match = ST_node_match(n->rb_left, str, min_match, max_match);
 
 	/* How much does this node match */
-	sn = rb_entry(n, struct rb_string_node, node);
+	sn = rb_entry(n, struct stree_node, node);
 	while (max_match > min_match) {
 	    if (!strncasecmp(str, sn->string, max_match))
 		break;
@@ -185,11 +185,11 @@ ST_node_match(struct rb_node *n, const char *str, int min_match, int max_match)
  * the tree which match the given prefix.
  */
 char *
-ST_MaxMatch(struct rb_string_root *root, const char *pfx)
+ST_MaxMatch(struct stree_root *root, const char *pfx)
 {
     int max_match, min_match, match;
     struct rb_node *n;
-    struct rb_string_node *sn;
+    struct stree_node *sn;
     char *result = NULL;
 
     /* Can't be more than the shortest string */
@@ -197,7 +197,7 @@ ST_MaxMatch(struct rb_string_root *root, const char *pfx)
     min_match = strlen(pfx);
 
     n = root->root.rb_node;
-    sn = rb_entry(n, struct rb_string_node, node);
+    sn = rb_entry(n, struct stree_node, node);
 
     if (root->entries == 1) {
 	match = strlen(sn->string);

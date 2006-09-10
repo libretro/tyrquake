@@ -668,11 +668,11 @@ Cmd_ExecuteString(char *text, cmd_source_t src)
  * Return a string tree with all possible argument completions of the given
  * buffer for the given command.
  */
-struct rb_string_root *
+struct stree_root *
 Cmd_ArgCompletions(const char *name, const char *buf)
 {
     cmd_function_t *cmd;
-    struct rb_string_root *root = NULL;
+    struct stree_root *root = NULL;
 
     for (cmd = cmd_functions; cmd; cmd = cmd->next) {
 	if (!strcasecmp(name, cmd->name) && cmd->completion) {
@@ -693,7 +693,7 @@ char *
 Cmd_ArgComplete(const char *name, const char *buf)
 {
     char *result = NULL;
-    struct rb_string_root *root;
+    struct stree_root *root;
 
     root = Cmd_ArgCompletions(name, buf);
     if (root) {

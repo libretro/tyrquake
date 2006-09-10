@@ -1318,7 +1318,7 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
 }
 
 static void
-COM_ScanDirDir(struct rb_string_root *root, DIR *dir, const char *pfx,
+COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	       const char *ext, qboolean stripext)
 {
     int pfx_len, ext_len;
@@ -1346,7 +1346,7 @@ COM_ScanDirDir(struct rb_string_root *root, DIR *dir, const char *pfx,
 }
 
 static void
-COM_ScanDirPak(struct rb_string_root *root, pack_t *pak, const char *pfx,
+COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *pfx,
 	       const char *ext, qboolean stripext)
 {
     int i, pfx_len, ext_len;
@@ -1388,7 +1388,7 @@ Caller MUST have already called ST_AllocInit()
 ============
 */
 void
-COM_ScanDir(struct rb_string_root *root, const char *path, const char *pfx,
+COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 	    const char *ext, qboolean stripext)
 {
     searchpath_t *search;
