@@ -31,6 +31,131 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+/*
+ * When we want to build up temporary trees of strings for completions, file
+ * listings, etc. we can use the "temp" hunk since we don't want to keep them
+ * around. These allocator functions attempt to make more efficient use of the
+ * hunk space by keeping the tree nodes together in blocks and allocating
+ * strings right next to each other.
+ */
+static struct rb_string_node *st_node_next;
+static int st_node_space;
+static char *st_string_next;
+static int st_string_space;
+
+#define ST_NODE_CHUNK	2048 /* 2kB / 16B => 128 nodes */
+#define ST_STRING_CHUNK	4096 /* 4k of strings together */
+
+void
+ST_AllocInit(void)
+{
+    /* Init the temp hunk */
+    st_node_next = Hunk_TempAlloc(ST_NODE_CHUNK);
+    st_node_space = ST_NODE_CHUNK;
+
+    /* Allocate string space on demand */
+    st_string_space = 0;
+}
+
+struct rb_string_node *
+ST_AllocNode(void)
+{
+    struct rb_string_node *ret = NULL;
+
+    if (st_node_space < sizeof(struct rb_string_node)) {
+	st_node_next = Hunk_TempAllocExtend(ST_NODE_CHUNK);
+	st_node_space = st_node_next ? ST_NODE_CHUNK : 0;
+    }
+    if (st_node_space >= sizeof(struct rb_string_node)) {
+	ret = st_node_next++;
+	st_node_space -= sizeof(struct rb_string_node);
+    }
+
+    return ret;
+}
+
+void *
+ST_AllocString(unsigned int length)
+{
+    char *ret = NULL;
+
+    if (st_string_space < length) {
+	/*
+	 * Note: might want to consider different allocation scheme here if we
+	 * end up wasting a lot of space. E.g. if space wasted > 16, may as
+	 * well use another chunk. This may cause excessive calls to
+	 * Cache_FreeHigh, so maybe only do it if wasting more than that
+	 * (32/64/?).
+	 */
+	Con_DPrintf("%s: %i bytes wasted\n", __func__, st_string_space);
+	st_string_next = Hunk_TempAllocExtend(ST_STRING_CHUNK);
+	st_string_space = st_string_next ? ST_STRING_CHUNK : 0;
+    }
+    if (st_string_space >= length) {
+	ret = st_string_next;
+	st_string_next += length;
+	st_string_space -= length;
+    }
+
+    return ret;
+}
+
+/*
+ * Insert string node "node" into rb_tree rooted at "root"
+ */
+qboolean
+ST_Insert(struct rb_string_root *root, struct rb_string_node *node)
+{
+    struct rb_node **p = &root->root.rb_node;
+    struct rb_node *parent = NULL;
+    struct rb_string_node *sn;
+    unsigned int len;
+    int cmp;
+
+    while (*p) {
+	parent = *p;
+	sn = rb_entry(parent, struct rb_string_node, node);
+	cmp = strcasecmp(node->string, sn->string);
+	if (cmp < 0)
+	    p = &(*p)->rb_left;
+	else if (cmp > 0)
+	    p = &(*p)->rb_right;
+	else
+	    return false; /* string already present */
+    }
+    root->entries++;
+    len = strlen(node->string);
+    if (len > root->maxlen)
+	root->maxlen = len;
+    rb_link_node(&node->node, parent, p);
+    rb_insert_color(&node->node, &root->root);
+
+    return true;
+}
+
+/*
+ * Insert string into rb tree, allocating the string dynamically. If n
+ * is NULL, the node structure is also allocated for the caller.
+ * NOTE: These allocations are only on the Temp hunk.
+ */
+qboolean
+ST_InsertAlloc(struct rb_string_root *root, const char *s,
+	       struct rb_string_node *n)
+{
+    qboolean ret = false;
+
+    if (!n)
+	n = ST_AllocNode();
+    if (n)
+	n->string = ST_AllocString(strlen(s) + 1);
+    if (n && n->string) {
+	strcpy(n->string, s);
+	ret = ST_Insert(root, n);
+    }
+
+    return ret;
+}
+
 const char **completions_list = NULL;
 static int num_completions = 0;
 

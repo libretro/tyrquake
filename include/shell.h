@@ -21,7 +21,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SHELL_H
 #define SHELL_H
 
+#include "qtypes.h"
 #include "rb_tree.h"
+
+/*
+ * We keep track of the number of entries in the tree as well as the longest
+ * entry in the tree. This info is used for displaying lists on the console.
+ */
+struct rb_string_root {
+    unsigned int entries;
+    unsigned int maxlen;
+    struct rb_root root;
+};
+
+#define RB_STRING_ROOT (struct rb_string_root) { 0, 0, RB_ROOT }
+
+/*
+ * String node is simply an rb_tree node using the string as the index (and
+ * the only data as well).
+ */
+struct rb_string_node {
+    char *string;
+    struct rb_node node;
+};
+
+void ST_AllocInit(void);
+qboolean ST_Insert(struct rb_string_root *root, struct rb_string_node *node);
+qboolean ST_InsertAlloc(struct rb_string_root *root, const char *s,
+			struct rb_string_node *n);
+
 /*
  * Set up some basic completion helpers
  * FIXME - document the API
