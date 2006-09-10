@@ -736,6 +736,21 @@ R_DrawViewModel(void)
     glDepthRange(gldepthmin, gldepthmax);
 }
 
+/*
+ * GL_DrawBlendPoly
+ * - Render a polygon covering the whole screen
+ * - Used for full-screen color blending and approximated gamma correction
+ */
+static void
+GL_DrawBlendPoly(void)
+{
+    glBegin(GL_QUADS);
+    glVertex3f(10, 100, 100);
+    glVertex3f(10, -100, 100);
+    glVertex3f(10, -100, -100);
+    glVertex3f(10, 100, -100);
+    glEnd();
+}
 
 /*
 ============
@@ -745,36 +760,42 @@ R_PolyBlend
 static void
 R_PolyBlend(void)
 {
-    if (!gl_polyblend.value)
-	return;
-    if (!v_blend[3])
-	return;
+    float gamma = v_gamma.value * v_gamma.value;
 
-    GL_DisableMultitexture();
+    if (gamma < 0.25)
+	gamma = 0.25;
+    else if (gamma > 1.0)
+	gamma = 1.0;
 
-    glDisable(GL_ALPHA_TEST);
-    glEnable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_TEXTURE_2D);
+    if ((gl_polyblend.value && v_blend[3]) || gamma < 1.0) {
+	GL_DisableMultitexture();
 
-    glLoadIdentity();
+	glDisable(GL_ALPHA_TEST);
+	glEnable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_TEXTURE_2D);
 
-    glRotatef(-90, 1, 0, 0);	// put Z going up
-    glRotatef(90, 0, 0, 1);	// put Z going up
+	glLoadIdentity();
+	glRotatef(-90, 1, 0, 0);	// put Z going up
+	glRotatef(90, 0, 0, 1);		// put Z going up
 
-    glColor4fv(v_blend);
+	if (gl_polyblend.value && v_blend[3]) {
+	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	    glColor4fv(v_blend);
+	    GL_DrawBlendPoly();
+	}
+	if (gamma < 1.0) {
+	    glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+	    glColor4f(1, 1, 1, gamma);
+	    GL_DrawBlendPoly();
+	}
 
-    glBegin(GL_QUADS);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glVertex3f(10, 100, 100);
-    glVertex3f(10, -100, 100);
-    glVertex3f(10, -100, -100);
-    glVertex3f(10, 100, -100);
-    glEnd();
-
-    glDisable(GL_BLEND);
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_ALPHA_TEST);
+	glDisable(GL_BLEND);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_ALPHA_TEST);
+    }
 }
 
 
