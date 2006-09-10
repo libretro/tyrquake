@@ -88,6 +88,8 @@ NQ_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(NQ_LINUX_COMMON_LIBS) $(NQ_LINUX_GL_LIBS
 # Define some build variables
 # ---------------------------------------
 
+STRIP ?= strip
+
 CFLAGS := -Wall -Wno-trigraphs
 
 # Enable this if you're getting pedantic again...
@@ -97,7 +99,6 @@ CFLAGS := -Wall -Wno-trigraphs
 
 ifdef DEBUG
 CFLAGS += -g
-cmd_strip = @echo "** Debug build - not stripping"
 else
 CFLAGS += -O2
 # -funit-at-a-time is buggy for MinGW GCC > 3.2
@@ -107,7 +108,6 @@ CFLAGS += $(shell if [ $(GCC_VERSION) -lt 0400 ] ;\
 CFLAGS += $(call cc-option,-fweb,)
 CFLAGS += $(call cc-option,-frename-registers,)
 CFLAGS += $(call cc-option,-mtune=i686,-mcpu=i686)
-cmd_strip = strip
 endif
 
 # ---------------------------------------------------------
@@ -177,9 +177,56 @@ $(BUILD_DIR)/qwsw/%.o:	CPPFLAGS = $(QWSW_CPPFLAGS)
 $(BUILD_DIR)/qwgl/%.o:	CPPFLAGS = $(QWGL_CPPFLAGS)
 $(BUILD_DIR)/qwsv/%.o:	CPPFLAGS = $(QWSV_CPPFLAGS)
 
-define cmd_o_cc
-	$(CC) -MM -MT $@ $(CPPFLAGS) -o $(@D)/.$(@F).d $<
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+# To make warnings more obvious, be less verbose as default
+# Use 'make V=1' to see the full commands
+ifdef V
+  quiet =
+else
+  quiet = quiet_
+endif
+
+quiet_cmd_mkdir = '  MKDIR   $@'
+      cmd_mkdir = if [ ! -d $@ ]; then mkdir -p $@; fi
+
+define do_mkdir
+	@echo $($(quiet)cmd_mkdir);
+	@$(cmd_mkdir);
+endef
+
+cmd_cc_dep_c = $(CC) -MM -MT $@ $(CPPFLAGS) -o $(@D)/.$(@F).d $<
+quiet_cmd_cc_o_c = '  CC      $@'
+      cmd_cc_o_c = $(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
+
+define do_cc_o_c
+	@$(cmd_cc_dep_c);
+	@echo $($(quiet)cmd_cc_o_c);
+	@$(cmd_cc_o_c);
+endef
+
+cmd_cc_dep_rc = $(CC) -x c-header -MM -MT $@ $(CPPFLAGS) -o $(@D)/.$(@F).d $<
+quiet_cmd_windres_res_rc = '  WINDRES $@'
+      cmd_windres_res_rc = windres -I $(<D) -i $< -O coff -o $@
+
+define do_windres_res_rc
+	@$(cmd_cc_dep_rc);
+	@echo $($(quiet)cmd_windres_res_rc);
+	@$(cmd_windres_res_rc);
+endef
+
+quiet_cmd_cc_link = '  LINK    $@'
+      cmd_cc_link = $(CC) -o $@ $^ $(1)
+
+define do_cc_link
+	@echo $($(quiet)cmd_cc_link);
+	@$(call cmd_cc_link,$(1))
+endef
+
+quiet_cmd_strip = '  STRIP   $(1)'
+      cmd_strip = $(STRIP) $(1)
+
+define do_strip
+	@echo $(call $(quiet)cmd_strip,$(1));
+	@$(call cmd_strip,$(1));
 endef
 
 DEPFILES = \
@@ -193,57 +240,50 @@ ifneq ($(DEPFILES),)
 -include $(DEPFILES)
 endif
 
-define cmd_res_rc
-	$(CC) -x c-header -MM -MT $@ $(CPPFLAGS) -o $(@D)/.$(@F).d $<
-	windres -I $(<D) -i $< -O coff -o $@
-endef
+$(NQSWDIR):	; $(do_mkdir)
+$(NQGLDIR):	; $(do_mkdir)
+$(QWSWDIR):	; $(do_mkdir)
+$(QWGLDIR):	; $(do_mkdir)
+$(QWSVDIR):	; $(do_mkdir)
 
-cmd_mkdir = @if [ ! -d $@ ]; then echo mkdir -p $@; mkdir -p $@; fi
+$(BUILD_DIR)/nqsw/%.o:		common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/nqsw/%.o:		NQ/%.S		; $(do_cc_o_c)
+$(BUILD_DIR)/nqsw/%.o:		common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/nqsw/%.o:		NQ/%.c		; $(do_cc_o_c)
+$(BUILD_DIR)/nqsw/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(BUILD_DIR)/nqsw/%.res:	NQ/%.rc		; $(do_windres_res_rc)
 
-$(NQSWDIR):	; $(cmd_mkdir)
-$(NQGLDIR):	; $(cmd_mkdir)
-$(QWSWDIR):	; $(cmd_mkdir)
-$(QWGLDIR):	; $(cmd_mkdir)
-$(QWSVDIR):	; $(cmd_mkdir)
+$(BUILD_DIR)/nqgl/%.o:		common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/nqgl/%.o:		NQ/%.S		; $(do_cc_o_c)
+$(BUILD_DIR)/nqgl/%.o:		common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/nqgl/%.o:		NQ/%.c		; $(do_cc_o_c)
+$(BUILD_DIR)/nqgl/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(BUILD_DIR)/nqgl/%.res:	NQ/%.rc		; $(do_windres_res_rc)
 
-$(BUILD_DIR)/nqsw/%.o:		common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/nqsw/%.o:		NQ/%.S		; $(cmd_o_cc)
-$(BUILD_DIR)/nqsw/%.o:		common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/nqsw/%.o:		NQ/%.c		; $(cmd_o_cc)
-$(BUILD_DIR)/nqsw/%.res:	common/%.rc	; $(cmd_res_rc)
-$(BUILD_DIR)/nqsw/%.res:	NQ/%.rc		; $(cmd_res_rc)
+$(BUILD_DIR)/qwsw/%.o:		common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsw/%.o:		QW/client/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsw/%.o:		QW/common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsw/%.o:		common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsw/%.o:		QW/client/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsw/%.o:		QW/common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsw/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(BUILD_DIR)/qwsw/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
 
-$(BUILD_DIR)/nqgl/%.o:		common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/nqgl/%.o:		NQ/%.S		; $(cmd_o_cc)
-$(BUILD_DIR)/nqgl/%.o:		common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/nqgl/%.o:		NQ/%.c		; $(cmd_o_cc)
-$(BUILD_DIR)/nqgl/%.res:	common/%.rc	; $(cmd_res_rc)
-$(BUILD_DIR)/nqgl/%.res:	NQ/%.rc		; $(cmd_res_rc)
+$(BUILD_DIR)/qwgl/%.o:		common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwgl/%.o:		QW/client/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwgl/%.o:		QW/common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwgl/%.o:		common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwgl/%.o:		QW/client/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwgl/%.o:		QW/common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
 
-$(BUILD_DIR)/qwsw/%.o:		common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsw/%.o:		QW/client/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsw/%.o:		QW/common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsw/%.o:		common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsw/%.o:		QW/client/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsw/%.o:		QW/common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsw/%.res:	common/%.rc	; $(cmd_res_rc)
-$(BUILD_DIR)/qwsw/%.res:	QW/client/%.rc	; $(cmd_res_rc)
-
-$(BUILD_DIR)/qwgl/%.o:		common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwgl/%.o:		QW/client/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwgl/%.o:		QW/common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwgl/%.o:		common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwgl/%.o:		QW/client/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwgl/%.o:		QW/common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(cmd_res_rc)
-$(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(cmd_res_rc)
-
-$(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsv/%.o:		QW/server/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsv/%.o:		QW/common/%.S	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsv/%.o:		QW/server/%.c	; $(cmd_o_cc)
-$(BUILD_DIR)/qwsv/%.o:		QW/common/%.c	; $(cmd_o_cc)
+$(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		QW/server/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		QW/common/%.S	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		QW/server/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		QW/common/%.c	; $(do_cc_o_c)
 
 # ----------------------------------------------------------------------------
 # Normal Quake (NQ)
@@ -482,21 +522,21 @@ endif
 
 # Win32
 tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
+	$(call do_strip,$@)
 
 tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
+	$(call do_strip,$@)
 
 # Linux
 tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_LINUX_SW_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_SW_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(LINUX_X11_LIBDIR) $(NQ_LINUX_SW_LFLAGS))
+	$(call do_strip,$@)
 
 tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_LINUX_GL_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_GL_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(LINUX_X11_LIBDIR) $(NQ_LINUX_GL_LFLAGS))
+	$(call do_strip,$@)
 
 
 # ----------------------------------------------------------------------------
@@ -725,21 +765,21 @@ QW_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS) $(QW_LINUX_GL_LIBS
 
 # Win32
 tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
+	$(call do_strip,$@)
 
 tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ $(QW_W32_GL_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,$(QW_W32_GL_LFLAGS))
+	$(call do_strip,$@)
 
 # Linux
 tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_LINUX_SW_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_SW_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(LINUX_X11_LIBDIR) $(QW_LINUX_SW_LFLAGS))
+	$(call do_strip,$@)
 
 tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_LINUX_GL_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_GL_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,-L$(LINUX_X11_LIBDIR) $(QW_LINUX_GL_LFLAGS))
+	$(call do_strip,$@)
 
 UNUSED_OBJS	= cd_audio.o
 
@@ -815,13 +855,13 @@ QWSV_LINUX_LFLAGS = $(patsubst %,-l%,$(QWSV_LINUX_LIBS))
 
 # Win32
 tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ $(QWSV_W32_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,$(QWSV_W32_LFLAGS))
+	$(call do_strip,$@)
 
 # Linux
 tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_LINUX_OBJS))
-	$(CC) $(CFLAGS) -o $@ $^ $(QWSV_LINUX_LFLAGS)
-	$(cmd_strip) $@
+	$(call do_cc_link,$(QWSV_LINUX_LFLAGS))
+	$(call do_strip,$@)
 
 # ----------------------------------------------------------------------------
 # Very basic clean target (can't use xargs on MSYS)
