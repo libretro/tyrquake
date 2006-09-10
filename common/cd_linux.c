@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <errno.h>
 
 #include <linux/cdrom.h>
+#include <paths.h>
 
 #include "cdaudio.h"
 #include "cmd.h"
@@ -50,13 +51,14 @@ static qboolean wasPlaying = false;
 static qboolean initialized = false;
 static qboolean enabled = true;
 static qboolean playLooping = false;
-static float cdvolume;
 static byte remap[100];
 static byte playTrack;
 static byte maxTrack;
 
 static int cdfile = -1;
-static char cd_dev[64] = "/dev/cdrom";
+static char cd_dev[64] = _PATH_DEV "cdrom";
+static struct cdrom_volctrl drv_vol_saved;
+static struct cdrom_volctrl drv_vol;
 
 static void
 CDAudio_Eject(void)
@@ -158,9 +160,6 @@ CDAudio_Play(byte track, qboolean looping)
     playLooping = looping;
     playTrack = track;
     playing = true;
-
-    if (cdvolume == 0.0)
-	CDAudio_Pause();
 }
 
 
@@ -315,7 +314,7 @@ CD_f(void)
 	else if (wasPlaying)
 	    Con_Printf("Paused %s track %u\n",
 		       playLooping ? "looping" : "playing", playTrack);
-	Con_Printf("Volume is %f\n", cdvolume);
+	Con_Printf("Volume is %f\n", bgmvolume.value);
 	return;
     }
 }
@@ -329,16 +328,16 @@ CDAudio_Update(void)
     if (!enabled)
 	return;
 
-    if (bgmvolume.value != cdvolume) {
-	if (cdvolume) {
-	    Cvar_SetValue("bgmvolume", 0.0);
-	    cdvolume = bgmvolume.value;
-	    CDAudio_Pause();
-	} else {
-	    Cvar_SetValue("bgmvolume", 1.0);
-	    cdvolume = bgmvolume.value;
-	    CDAudio_Resume();
-	}
+    if ((int)(255.0 * bgmvolume.value) != (int)drv_vol.channel0) {
+	if (bgmvolume.value > 1.0f)
+	    Cvar_SetValue ("bgmvolume", 1.0f);
+	if (bgmvolume.value < 0.0f)
+	    Cvar_SetValue ("bgmvolume", 0.0f);
+
+	drv_vol.channel0 = drv_vol.channel2 =
+	    drv_vol.channel1 = drv_vol.channel3 = bgmvolume.value * 255.0;
+	if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol) == -1 )
+	    Con_DPrintf("ioctl CDROMVOLCTRL failed\n");
     }
 
     if (playing && lastchk < time(NULL)) {
@@ -377,7 +376,7 @@ CDAudio_Init(void)
 	cd_dev[sizeof(cd_dev) - 1] = 0;
     }
 
-    if ((cdfile = open(cd_dev, O_RDONLY)) == -1) {
+    if ((cdfile = open(cd_dev, O_RDONLY | O_NONBLOCK)) == -1) {
 	Con_Printf("CDAudio_Init: open of \"%s\" failed (%i)\n", cd_dev,
 		   errno);
 	cdfile = -1;
@@ -389,6 +388,8 @@ CDAudio_Init(void)
     initialized = true;
     enabled = true;
 
+    Con_Printf("CD Audio Initialized\n");
+
     if (CDAudio_GetAudioDiskInfo()) {
 	Con_Printf("CDAudio_Init: No CD in player.\n");
 	cdValid = false;
@@ -396,7 +397,17 @@ CDAudio_Init(void)
 
     Cmd_AddCommand("cd", CD_f);
 
-    Con_Printf("CD Audio Initialized\n");
+    /* get drive's current volume */
+    if (ioctl(cdfile, CDROMVOLREAD, &drv_vol_saved) == -1) {
+	Con_DPrintf("ioctl CDROMVOLREAD failed\n");
+	drv_vol_saved.channel0 = drv_vol_saved.channel2 =
+	    drv_vol_saved.channel1 = drv_vol_saved.channel3 = 255.0;
+    }
+    /* set our own volume */
+    drv_vol.channel0 = drv_vol.channel2 =
+	drv_vol.channel1 = drv_vol.channel3 = bgmvolume.value * 255.0;
+    if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol) == -1)
+	Con_Printf("ioctl CDROMVOLCTRL failed\n");
 
     return 0;
 }
@@ -408,6 +419,11 @@ CDAudio_Shutdown(void)
     if (!initialized)
 	return;
     CDAudio_Stop();
+
+    /* Restore the saved volume setting */
+    if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol_saved) == -1)
+	Con_DPrintf("ioctl CDROMVOLCTRL failed\n");
+
     close(cdfile);
     cdfile = -1;
 }
