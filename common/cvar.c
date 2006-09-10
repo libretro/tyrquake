@@ -46,6 +46,7 @@ void SV_SendServerInfoChange(char *key, char *value);	// FIXME
 cvar_t *cvar_vars;
 static char *cvar_null_string = "";
 
+#define cvar_entry(ptr) container_of(ptr, struct cvar_s, stree)
 static DECLARE_STREE_ROOT(cvar_tree);
 
 /*
@@ -61,7 +62,7 @@ Cvar_FindVar(const char *var_name)
 
     n = STree_Find(&cvar_tree, var_name);
     if (n)
-	ret = container_of(n, struct cvar_s, stree);
+	ret = cvar_entry(n);
 
     return ret;
 }
