@@ -339,6 +339,20 @@ SV_Map_f(void)
     SV_BroadcastCommand("reconnect\n");
 }
 
+static struct rb_string_root *
+SV_Map_Arg_f(const char *arg)
+{
+    struct rb_string_root *root;
+
+    root = Z_Malloc(sizeof(struct rb_string_root));
+    if (root) {
+	*root = RB_STRING_ROOT;
+
+	ST_AllocInit();
+	COM_ScanDir(root, "maps", arg, ".bsp", true);
+    }
+    return root;
+}
 
 /*
 ==================
@@ -877,6 +891,8 @@ SV_InitOperatorCommands(void)
     Cmd_AddCommand("status", SV_Status_f);
 
     Cmd_AddCommand("map", SV_Map_f);
+    Cmd_SetCompletion("map", SV_Map_Arg_f);
+
     Cmd_AddCommand("setmaster", SV_SetMaster_f);
 
     Cmd_AddCommand("say", SV_ConSay_f);

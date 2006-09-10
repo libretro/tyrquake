@@ -299,6 +299,21 @@ Host_Map_f(void)
     }
 }
 
+static struct rb_string_root *
+Host_Map_Arg_f(const char *arg)
+{
+    struct rb_string_root *root;
+
+    root = Z_Malloc(sizeof(struct rb_string_root));
+    if (root) {
+	*root = RB_STRING_ROOT;
+
+	ST_AllocInit();
+	COM_ScanDir(root, "maps", arg, ".bsp", true);
+    }
+    return root;
+}
+
 /*
 ==================
 Host_Changelevel_f
@@ -1591,7 +1606,10 @@ Host_InitCommands(void)
     Cmd_AddCommand("god", Host_God_f);
     Cmd_AddCommand("notarget", Host_Notarget_f);
     Cmd_AddCommand("fly", Host_Fly_f);
+
     Cmd_AddCommand("map", Host_Map_f);
+    Cmd_SetCompletion("map", Host_Map_Arg_f);
+
     Cmd_AddCommand("restart", Host_Restart_f);
     Cmd_AddCommand("changelevel", Host_Changelevel_f);
 
