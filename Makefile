@@ -456,20 +456,20 @@ endif
 
 # Win32
 tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS)
 	$(cmd_strip) $@
 
 tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS)
 	$(cmd_strip) $@
 
 # Linux
 tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_LINUX_SW_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_SW_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_SW_LFLAGS)
 	$(cmd_strip) $@
 
 tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_LINUX_GL_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_GL_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(NQ_LINUX_GL_LFLAGS)
 	$(cmd_strip) $@
 
 
@@ -699,20 +699,20 @@ QW_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS) $(QW_LINUX_GL_LIBS
 
 # Win32
 tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS)
 	$(cmd_strip) $@
 
 tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QW_W32_GL_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QW_W32_GL_LFLAGS)
 	$(cmd_strip) $@
 
 # Linux
 tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_LINUX_SW_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_SW_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_SW_LFLAGS)
 	$(cmd_strip) $@
 
 tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_LINUX_GL_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_GL_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(LINUX_X11_LIBDIR) $(QW_LINUX_GL_LFLAGS)
 	$(cmd_strip) $@
 
 UNUSED_OBJS	= cd_audio.o
@@ -789,12 +789,12 @@ QWSV_LINUX_LFLAGS = $(patsubst %,-l%,$(QWSV_LINUX_LIBS))
 
 # Win32
 tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QWSV_W32_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ -L$(WIN_LIBDIR) $(QWSV_W32_LFLAGS)
 	$(cmd_strip) $@
 
 # Linux
 tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_LINUX_OBJS))
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $^ $(QWSV_LINUX_LFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(QWSV_LINUX_LFLAGS)
 	$(cmd_strip) $@
 
 # ----------------------------------------------------------------------------
