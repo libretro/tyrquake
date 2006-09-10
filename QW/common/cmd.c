@@ -419,21 +419,20 @@ Cmd_Alias_f(void)
 */
 
 typedef struct cmd_function_s {
-    struct cmd_function_s *next;
     const char *name;
     xcommand_t function;
     cmd_arg_f completion;
+    struct stree_node stree;
 } cmd_function_t;
 
+#define cmd_entry(ptr) container_of(ptr, struct cmd_function_s, stree)
+static DECLARE_STREE_ROOT(cmd_tree);
 
 #define	MAX_ARGS		80
-
 static int cmd_argc;
 static char *cmd_argv[MAX_ARGS];
 static char *cmd_null_string = "";
 static char *cmd_args = NULL;
-
-static cmd_function_t *cmd_functions;	// possible commands to execute
 
 
 /*
@@ -547,6 +546,18 @@ Cmd_TokenizeString(char *text)
 
 }
 
+static struct cmd_function_s *
+Cmd_FindCommand(const char *name)
+{
+    struct cmd_function_s *ret = NULL;
+    struct stree_node *n;
+
+    n = STree_Find(&cmd_tree, name);
+    if (n)
+	ret = cmd_entry(n);
+
+    return ret;
+}
 
 /*
 ============
@@ -567,19 +578,18 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
 	return;
     }
 // fail if the command already exists
-    for (cmd = cmd_functions; cmd; cmd = cmd->next) {
-	if (!strcmp(cmd_name, cmd->name)) {
-	    Con_Printf("%s: %s already defined\n", __func__, cmd_name);
-	    return;
-	}
+    cmd = Cmd_FindCommand(cmd_name);
+    if (cmd) {
+	Con_Printf("%s: %s already defined\n", __func__, cmd_name);
+	return;
     }
 
     cmd = Hunk_Alloc(sizeof(cmd_function_t));
     cmd->name = cmd_name;
     cmd->function = function;
     cmd->completion = NULL;
-    cmd->next = cmd_functions;
-    cmd_functions = cmd;
+    cmd->stree.string = cmd->name;
+    STree_Insert(&cmd_tree, &cmd->stree);
 
     insert_command_completion(cmd_name);
 }
@@ -589,12 +599,10 @@ Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion)
 {
     cmd_function_t *cmd;
 
-    for (cmd = cmd_functions; cmd; cmd = cmd->next)
-	if (!strcmp(cmd_name, cmd->name)) {
-	    cmd->completion = completion;
-	    break;
-	}
-    if (!cmd)
+    cmd = Cmd_FindCommand(cmd_name);
+    if (cmd)
+	cmd->completion = completion;
+    else
 	Sys_Error("%s: no such command - %s", __func__, cmd_name);
 }
 
@@ -606,14 +614,7 @@ Cmd_Exists
 qboolean
 Cmd_Exists(char *cmd_name)
 {
-    cmd_function_t *cmd;
-
-    for (cmd = cmd_functions; cmd; cmd = cmd->next) {
-	if (!strcmp(cmd_name, cmd->name))
-	    return true;
-    }
-
-    return false;
+    return Cmd_FindCommand(cmd_name) != NULL;
 }
 
 
@@ -696,14 +697,13 @@ Cmd_ExecuteString(char *text)
 	return;			// no tokens
 
 // check functions
-    for (cmd = cmd_functions; cmd; cmd = cmd->next) {
-	if (!strcasecmp(cmd_argv[0], cmd->name)) {
-	    if (!cmd->function)
-		Cmd_ForwardToServer();
-	    else
-		cmd->function();
-	    return;
-	}
+    cmd = Cmd_FindCommand(cmd_argv[0]);
+    if (cmd) {
+	if (!cmd->function)
+	    Cmd_ForwardToServer();
+	else
+	    cmd->function();
+	return;
     }
 
 // check alias
@@ -729,13 +729,9 @@ Cmd_ArgCompletions(const char *name, const char *buf)
     cmd_function_t *cmd;
     struct stree_root *root = NULL;
 
-    for (cmd = cmd_functions; cmd; cmd = cmd->next) {
-	if (!strcasecmp(name, cmd->name) && cmd->completion) {
-	    /* FIXME - STree_AllocInit? */
-	    root = cmd->completion(buf);
-	    break;
-	}
-    }
+    cmd = Cmd_FindCommand(name);
+    if (cmd)
+	root = cmd->completion(buf);
 
     return root;
 }

@@ -49,7 +49,7 @@ struct stree_root {
  * the only data as well).
  */
 struct stree_node {
-    char *string;
+    const char *string;
     struct rb_node node;
 };
 

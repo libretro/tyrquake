@@ -144,14 +144,17 @@ STree_InsertAlloc(struct stree_root *root, const char *s,
 		  struct stree_node *n)
 {
     qboolean ret = false;
+    char *tmp;
 
     if (!n)
 	n = STree_AllocNode();
-    if (n)
-	n->string = STree_AllocString(strlen(s) + 1);
-    if (n && n->string) {
-	strcpy(n->string, s);
-	ret = STree_Insert(root, n);
+    if (n) {
+	tmp = STree_AllocString(strlen(s) + 1);
+	if (tmp) {
+	    strcpy(tmp, s);
+	    n->string = tmp;
+	    ret = STree_Insert(root, n);
+	}
     }
 
     return ret;
