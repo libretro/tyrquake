@@ -177,11 +177,11 @@ GetCommandPos(char *buf)
 	pos++;
 	while (*pos == ' ')
 	    pos++;
-    } else {
+    } else
 	pos = buf;
-	if (*pos == '\\' || *pos == '/')
-	    pos++;
-    }
+
+    if (*pos == '\\' || *pos == '/')
+	pos++;
 
     return pos;
 }
