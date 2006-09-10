@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "render.h"
 #include "screen.h"
 #include "sys.h"
+#include "vid.h"
 #include "view.h"
 
 #ifdef _WIN32
@@ -553,8 +554,7 @@ M_Options_Key(int k)
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	options_cursor++;
-	if (options_cursor >= OPTIONS_ITEMS)
-	    options_cursor = 0;
+	options_cursor %= OPTIONS_ITEMS;
 	break;
 
     case K_LEFTARROW:
@@ -566,22 +566,24 @@ M_Options_Key(int k)
 	break;
     }
 
-    if (options_cursor == 14 && vid_menudrawfn == NULL) {
+    if (options_cursor == 14 && !vid_menudrawfn) {
 	if (k == K_UPARROW)
-	    options_cursor = 13;
-	else
-	    options_cursor = 0;
+	    options_cursor--;
+	else {
+	    options_cursor++;
+	    options_cursor %= OPTIONS_ITEMS;
+	}
     }
 
-    if ((options_cursor == 15)
-#ifdef _WIN32
-	&& (modestate != MS_WINDOWED)
-#endif
-	) {
-	if (k == K_UPARROW)
-	    options_cursor = 14;
-	else
-	    options_cursor = 0;
+    if (options_cursor == 15 && VID_IsFullScreen()) {
+	if (k == K_UPARROW) {
+	    options_cursor--;
+	    if (!vid_menudrawfn)
+		options_cursor--;
+	} else {
+	    options_cursor++;
+	    options_cursor %= OPTIONS_ITEMS;
+	}
     }
 }
 

@@ -3195,3 +3195,9 @@ VID_MenuKey(int key)
 	break;
     }
 }
+
+qboolean
+VID_IsFullScreen()
+{
+    return VID_GetModePtr(vid_modenum)->fullscreen;
+}
