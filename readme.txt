@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2006-02-25
-Version: 	0.51
+Date:		2006-03-09
+Version: 	0.52
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -28,6 +28,11 @@ something else...
 
 
 Version History:
+
+v0.52
+=====
+- move cmd.[ch] into common directories
+- increase clipnode limit to 65520 (was 32767)
 
 v0.51
 =====
