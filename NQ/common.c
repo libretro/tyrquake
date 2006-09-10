@@ -19,6 +19,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // common.c -- misc functions used in client and server
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <string.h>
+
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
@@ -27,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 #include "net.h"
 #include "quakedef.h"
+#include "shell.h"
 #include "sys.h"
 #include "zone.h"
 
@@ -1321,6 +1326,97 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
     return -1;
 }
 
+static void
+COM_ScanDirDir(struct rb_string_root *root, DIR *dir, const char *pfx,
+	       const char *ext, qboolean stripext)
+{
+    int pfx_len, ext_len;
+    struct dirent *d;
+    char *fname;
+
+    pfx_len = pfx ? strlen(pfx) : 0;
+    ext_len = ext ? strlen(ext) : 0;
+
+    while ((d = readdir(dir))) {
+	if ((!pfx || !strncasecmp(d->d_name, pfx, pfx_len)) &&
+	    (!ext || COM_CheckExtension(d->d_name, ext))) {
+	    int len = strlen(d->d_name);
+	    if (ext && stripext)
+		len -= ext_len;
+	    fname = Z_Malloc(len + 1);
+	    if (fname) {
+		strncpy(fname, d->d_name, len);
+		fname[len] = '\0';
+		ST_InsertAlloc(root, fname, NULL);
+		Z_Free(fname);
+	    }
+	}
+    }
+}
+
+static void
+COM_ScanDirPak(struct rb_string_root *root, pack_t *pak, const char *pfx,
+	       const char *ext, qboolean stripext)
+{
+    int i, pfx_len, ext_len;
+    char *pak_f, *fname;
+
+    pfx_len = pfx ? strlen(pfx) : 0;
+    ext_len = ext ? strlen(ext) : 0;
+
+    for (i = 0; i < pak->numfiles; i++) {
+	pak_f = strrchr(pak->files[i].name, '/');
+	if (pak_f)
+	    pak_f++;
+	else
+	    pak_f = pak->files[i].name;
+
+	if ((!pfx || !strncasecmp(pak_f, pfx, pfx_len)) &&
+	    (!ext || COM_CheckExtension(pak_f, ext))) {
+	    int len = strlen(pak_f);
+	    if (ext && stripext)
+		len -= ext_len;
+	    fname = Z_Malloc(len + 1);
+	    if (fname) {
+		strncpy(fname, pak_f, len);
+		fname[len] = '\0';
+		ST_InsertAlloc(root, fname, NULL);
+		Z_Free(fname);
+	    }
+	}
+    }
+}
+
+/*
+============
+COM_ScanDir
+
+Scan the contents of a the given directory. Any filenames that match
+both the given prefix and extension are added to the string tree.
+Caller MUST have already called ST_AllocInit()
+============
+*/
+void
+COM_ScanDir(struct rb_string_root *root, const char *path, const char *pfx,
+	    const char *ext, qboolean stripext)
+{
+    searchpath_t *search;
+    char fullpath[MAX_OSPATH];
+    DIR *dir;
+
+    for (search = com_searchpaths; search; search = search->next) {
+	if (search->pack) {
+	    COM_ScanDirPak(root, search->pack, pfx, ext, stripext);
+	} else {
+	    sprintf(fullpath, "%s/%s", search->filename, path);
+	    dir = opendir(fullpath);
+	    if (dir) {
+		COM_ScanDirDir(root, dir, pfx, ext, stripext);
+		closedir(dir);
+	    }
+	}
+    }
+}
 
 /*
 ===========

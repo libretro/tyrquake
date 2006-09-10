@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qtypes.h"
 #include "bothdefs.h"
+#include "shell.h"
 
 #define stringify__(x) #x
 #define stringify(x) stringify__(x)
@@ -175,6 +176,8 @@ extern char com_gamedir[MAX_OSPATH];
 void COM_WriteFile(const char *filename, const void *data, int len);
 int COM_FOpenFile(const char *filename, FILE **file);
 void COM_CloseFile(FILE *h);
+void COM_ScanDir(struct rb_string_root *root, const char *path,
+		 const char *pfx, const char *ext, qboolean stripext);
 
 byte *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 			unsigned long *length);
