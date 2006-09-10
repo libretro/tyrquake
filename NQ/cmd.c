@@ -24,14 +24,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.h"
 #include "console.h"
 #include "cvar.h"
-#include "host.h"
-#include "protocol.h"
 #include "quakedef.h"
 #include "shell.h"
 #include "sys.h"
 #include "zone.h"
 
+#ifdef NQ_HACK
+#include "host.h"
+#include "protocol.h"
+#endif
+
 void Cmd_ForwardToServer(void);
+#if defined(QW_HACK) && !defined(SERVERONLY)
+static void Cmd_ForwardToServer_f(void);
+#endif
 
 #define	MAX_ALIAS_NAME	32
 
@@ -45,6 +51,8 @@ typedef struct cmdalias_s {
 static DECLARE_STREE_ROOT(cmdalias_tree);
 
 qboolean cmd_wait;
+
+cvar_t cl_warncmd = { "cl_warncmd", "0" };
 
 //=============================================================================
 
@@ -72,6 +80,9 @@ Cmd_Wait_f(void)
 */
 
 static sizebuf_t cmd_text;
+#ifdef QW_HACK
+static byte cmd_text_buf[8192];
+#endif
 
 /*
 ============
@@ -81,7 +92,14 @@ Cbuf_Init
 void
 Cbuf_Init(void)
 {
-    SZ_Alloc(&cmd_text, 8192);	// space for commands and script files
+#ifdef NQ_HACK
+    SZ_Alloc(&cmd_text, 8192);
+#endif
+#ifdef QW_HACK
+    cmd_text.data = cmd_text_buf;
+    cmd_text.maxsize = sizeof(cmd_text_buf);
+    cmd_text.cursize = 0;
+#endif
 }
 
 
@@ -182,7 +200,12 @@ Cbuf_Execute(void)
 	}
 
 	/* execute the command line */
+#ifdef NQ_HACK
 	Cmd_ExecuteString(line, src_command);
+#endif
+#ifdef QW_HACK
+	Cmd_ExecuteString(line);
+#endif
 
 	if (cmd_wait) {
 	    /*
@@ -295,7 +318,8 @@ Cmd_Exec_f(void)
 	Con_Printf("couldn't exec %s\n", Cmd_Argv(1));
 	return;
     }
-    Con_Printf("execing %s\n", Cmd_Argv(1));
+    if (cl_warncmd.value || developer.value)
+	Con_Printf("execing %s\n", Cmd_Argv(1));
 
     Cbuf_InsertText(f);
     Hunk_FreeToLowMark(mark);
@@ -423,8 +447,9 @@ static char *cmd_argv[MAX_ARGS];
 static char *cmd_null_string = "";
 static char *cmd_args = NULL;
 
+#ifdef NQ_HACK
 cmd_source_t cmd_source;
-
+#endif
 
 /*
 ============
@@ -441,8 +466,12 @@ Cmd_Init(void)
     Cmd_AddCommand("exec", Cmd_Exec_f);
     Cmd_AddCommand("echo", Cmd_Echo_f);
     Cmd_AddCommand("alias", Cmd_Alias_f);
-    Cmd_AddCommand("cmd", Cmd_ForwardToServer);
     Cmd_AddCommand("wait", Cmd_Wait_f);
+#ifdef NQ_HACK
+    Cmd_AddCommand("cmd", Cmd_ForwardToServer);
+#elif defined(QW_HACK) && !defined(SERVERONLY)
+    Cmd_AddCommand("cmd", Cmd_ForwardToServer_f);
+#endif
 }
 
 /*
@@ -611,6 +640,7 @@ Cmd_Alias_Exists(char *cmd_name)
 }
 
 
+#ifdef NQ_HACK
 /*
 ===================
 Cmd_ForwardToServer
@@ -639,7 +669,66 @@ Cmd_ForwardToServer(void)
     else
 	SZ_Print(&cls.message, "\n");
 }
+#endif
+#ifdef QW_HACK
+#ifndef SERVERONLY
+/*
+===================
+Cmd_ForwardToServer
 
+adds the current command line as a clc_stringcmd to the client message.
+things like godmode, noclip, etc, are commands directed to the server,
+so when they are typed in at the console, they will need to be forwarded.
+===================
+*/
+void
+Cmd_ForwardToServer(void)
+{
+    if (cls.state == ca_disconnected) {
+	Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
+	return;
+    }
+
+    if (cls.demoplayback)
+	return;			// not really connected
+
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Print(&cls.netchan.message, Cmd_Argv(0));
+    if (Cmd_Argc() > 1) {
+	SZ_Print(&cls.netchan.message, " ");
+	SZ_Print(&cls.netchan.message, Cmd_Args());
+    }
+}
+
+// don't forward the first argument
+static void
+Cmd_ForwardToServer_f(void)
+{
+    if (cls.state == ca_disconnected) {
+	Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
+	return;
+    }
+
+    if (strcasecmp(Cmd_Argv(1), "snap") == 0) {
+	Cbuf_InsertText("snap\n");
+	return;
+    }
+
+    if (cls.demoplayback)
+	return;			// not really connected
+
+    if (Cmd_Argc() > 1) {
+	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+	SZ_Print(&cls.netchan.message, Cmd_Args());
+    }
+}
+#else
+void
+Cmd_ForwardToServer(void)
+{
+}
+#endif /* SERVERONLY */
+#endif /* QW_HACK */
 
 /*
 ============
@@ -650,12 +739,19 @@ FIXME: lookupnoadd the token to speed search?
 ============
 */
 void
+#ifdef NQ_HACK
 Cmd_ExecuteString(char *text, cmd_source_t src)
+#endif
+#ifdef QW_HACK
+Cmd_ExecuteString(char *text)
+#endif
 {
     cmd_function_t *cmd;
     cmdalias_t *a;
 
+#ifdef NQ_HACK
     cmd_source = src;
+#endif
     Cmd_TokenizeString(text);
 
 // execute the command line
@@ -665,7 +761,12 @@ Cmd_ExecuteString(char *text, cmd_source_t src)
 // check functions
     cmd = Cmd_FindCommand(cmd_argv[0]);
     if (cmd) {
-	cmd->function();
+	if (cmd->function)
+	    cmd->function();
+#ifdef QW_HACK
+	else
+	    Cmd_ForwardToServer();
+#endif
 	return;
     }
 
@@ -677,7 +778,7 @@ Cmd_ExecuteString(char *text, cmd_source_t src)
     }
 
 // check cvars
-    if (!Cvar_Command())
+    if (!Cvar_Command() && (cl_warncmd.value || developer.value))
 	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
 }
 

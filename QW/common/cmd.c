@@ -29,9 +29,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-void Cmd_ForwardToServer(void);
+#ifdef NQ_HACK
+#include "host.h"
+#include "protocol.h"
+#endif
 
-#ifndef SERVERONLY
+void Cmd_ForwardToServer(void);
+#if defined(QW_HACK) && !defined(SERVERONLY)
 static void Cmd_ForwardToServer_f(void);
 #endif
 
@@ -76,7 +80,9 @@ Cmd_Wait_f(void)
 */
 
 static sizebuf_t cmd_text;
+#ifdef QW_HACK
 static byte cmd_text_buf[8192];
+#endif
 
 /*
 ============
@@ -86,10 +92,14 @@ Cbuf_Init
 void
 Cbuf_Init(void)
 {
-    //SZ_Alloc(&cmd_text, 8192); // space for commands and script files
+#ifdef NQ_HACK
+    SZ_Alloc(&cmd_text, 8192);
+#endif
+#ifdef QW_HACK
     cmd_text.data = cmd_text_buf;
     cmd_text.maxsize = sizeof(cmd_text_buf);
     cmd_text.cursize = 0;
+#endif
 }
 
 
@@ -106,7 +116,7 @@ Cbuf_AddText(const char *text)
     int l = strlen(text);
 
     if (cmd_text.cursize + l < cmd_text.maxsize)
-	SZ_Write(&cmd_text, text, strlen(text));
+	SZ_Write(&cmd_text, text, l);
     else
 	Con_Printf("Cbuf_AddText: overflow\n");
 }
@@ -181,7 +191,6 @@ Cbuf_Execute(void)
 	 * down this is necessary because commands (exec, alias) can insert
 	 * data at the beginning of the text buffer
 	 */
-
 	if (i == cmd_text.cursize)
 	    cmd_text.cursize = 0;
 	else {
@@ -191,7 +200,12 @@ Cbuf_Execute(void)
 	}
 
 	/* execute the command line */
+#ifdef NQ_HACK
+	Cmd_ExecuteString(line, src_command);
+#endif
+#ifdef QW_HACK
 	Cmd_ExecuteString(line);
+#endif
 
 	if (cmd_wait) {
 	    /*
@@ -304,7 +318,7 @@ Cmd_Exec_f(void)
 	Con_Printf("couldn't exec %s\n", Cmd_Argv(1));
 	return;
     }
-    if (!Cvar_Command() && (cl_warncmd.value || developer.value))
+    if (cl_warncmd.value || developer.value)
 	Con_Printf("execing %s\n", Cmd_Argv(1));
 
     Cbuf_InsertText(f);
@@ -433,6 +447,9 @@ static char *cmd_argv[MAX_ARGS];
 static char *cmd_null_string = "";
 static char *cmd_args = NULL;
 
+#ifdef NQ_HACK
+cmd_source_t cmd_source;
+#endif
 
 /*
 ============
@@ -450,7 +467,9 @@ Cmd_Init(void)
     Cmd_AddCommand("echo", Cmd_Echo_f);
     Cmd_AddCommand("alias", Cmd_Alias_f);
     Cmd_AddCommand("wait", Cmd_Wait_f);
-#ifndef SERVERONLY
+#ifdef NQ_HACK
+    Cmd_AddCommand("cmd", Cmd_ForwardToServer);
+#elif defined(QW_HACK) && !defined(SERVERONLY)
     Cmd_AddCommand("cmd", Cmd_ForwardToServer_f);
 #endif
 }
@@ -621,7 +640,38 @@ Cmd_Alias_Exists(char *cmd_name)
 }
 
 
-#ifndef SERVERONLY		// FIXME
+#ifdef NQ_HACK
+/*
+===================
+Cmd_ForwardToServer
+
+Sends the entire command line over to the server
+===================
+*/
+void
+Cmd_ForwardToServer(void)
+{
+    if (cls.state < ca_connected) {
+	Con_Printf("Can't \"%s\", not connected\n", Cmd_Argv(0));
+	return;
+    }
+
+    if (cls.demoplayback)
+	return;			// not really connected
+
+    MSG_WriteByte(&cls.message, clc_stringcmd);
+    if (strcasecmp(Cmd_Argv(0), "cmd") != 0) {
+	SZ_Print(&cls.message, Cmd_Argv(0));
+	SZ_Print(&cls.message, " ");
+    }
+    if (Cmd_Argc() > 1)
+	SZ_Print(&cls.message, Cmd_Args());
+    else
+	SZ_Print(&cls.message, "\n");
+}
+#endif
+#ifdef QW_HACK
+#ifndef SERVERONLY
 /*
 ===================
 Cmd_ForwardToServer
@@ -677,7 +727,8 @@ void
 Cmd_ForwardToServer(void)
 {
 }
-#endif
+#endif /* SERVERONLY */
+#endif /* QW_HACK */
 
 /*
 ============
@@ -688,11 +739,19 @@ FIXME: lookupnoadd the token to speed search?
 ============
 */
 void
+#ifdef NQ_HACK
+Cmd_ExecuteString(char *text, cmd_source_t src)
+#endif
+#ifdef QW_HACK
 Cmd_ExecuteString(char *text)
+#endif
 {
     cmd_function_t *cmd;
     cmdalias_t *a;
 
+#ifdef NQ_HACK
+    cmd_source = src;
+#endif
     Cmd_TokenizeString(text);
 
 // execute the command line
@@ -702,10 +761,12 @@ Cmd_ExecuteString(char *text)
 // check functions
     cmd = Cmd_FindCommand(cmd_argv[0]);
     if (cmd) {
-	if (!cmd->function)
-	    Cmd_ForwardToServer();
-	else
+	if (cmd->function)
 	    cmd->function();
+#ifdef QW_HACK
+	else
+	    Cmd_ForwardToServer();
+#endif
 	return;
     }
 
@@ -719,7 +780,6 @@ Cmd_ExecuteString(char *text)
 // check cvars
     if (!Cvar_Command() && (cl_warncmd.value || developer.value))
 	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
-
 }
 
 /*
