@@ -536,6 +536,11 @@ CL_RelinkEntities(void)
 	if (ent->model->flags & EF_ROTATE)
 	    ent->angles[1] = bobjrotate;
 
+	/*
+	 * FIXME - Some of these entity effects may be mutually exclusive?
+	 * work out which bits can be done better (e.g. I've already done the
+	 * RED|BLUE bit a little better...)
+	 */
 	if (ent->effects & EF_BRIGHTFIELD)
 	    R_EntityParticles(ent);
 	if (ent->effects & EF_MUZZLEFLASH) {
@@ -550,6 +555,10 @@ CL_RelinkEntities(void)
 	    dl->radius = 200 + (rand() & 31);
 	    dl->minlight = 32;
 	    dl->die = cl.time + 0.1;
+	    dl->color[0] = 0.2;
+	    dl->color[1] = 0.1;
+	    dl->color[2] = 0.05;
+	    dl->color[3] = 0.7;
 	}
 	if (ent->effects & EF_BRIGHTLIGHT) {
 	    dl = CL_AllocDlight(i);
@@ -557,12 +566,48 @@ CL_RelinkEntities(void)
 	    dl->origin[2] += 16;
 	    dl->radius = 400 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
+	    dl->color[0] = 0.2;
+	    dl->color[1] = 0.1;
+	    dl->color[2] = 0.05;
+	    dl->color[3] = 0.7;
 	}
 	if (ent->effects & EF_DIMLIGHT) {
 	    dl = CL_AllocDlight(i);
 	    VectorCopy(ent->origin, dl->origin);
 	    dl->radius = 200 + (rand() & 31);
 	    dl->die = cl.time + 0.001;
+	    dl->color[0] = 0.2;
+	    dl->color[1] = 0.1;
+	    dl->color[2] = 0.05;
+	    dl->color[3] = 0.7;
+	}
+	if ((ent->effects & (EF_RED | EF_BLUE)) == (EF_RED | EF_BLUE)) {
+	    dl = CL_AllocDlight(i);
+	    VectorCopy(ent->origin, dl->origin);
+	    dl->radius = 200 + (rand() & 31);
+	    dl->die = cl.time + 0.001;
+	    dl->color[0] = 0.5;
+	    dl->color[1] = 0.05;
+	    dl->color[2] = 0.4;
+	    dl->color[3] = 0.7;
+	} else if (ent->effects & EF_BLUE) {
+	    dl = CL_AllocDlight(i);
+	    VectorCopy(ent->origin, dl->origin);
+	    dl->radius = 200 + (rand() & 31);
+	    dl->die = cl.time + 0.001;
+	    dl->color[0] = 0.05;
+	    dl->color[1] = 0.05;
+	    dl->color[2] = 0.3;
+	    dl->color[3] = 0.7;
+	} else if (ent->effects & EF_RED) {
+	    dl = CL_AllocDlight(i);
+	    VectorCopy(ent->origin, dl->origin);
+	    dl->radius = 200 + (rand() & 31);
+	    dl->die = cl.time + 0.001;
+	    dl->color[0] = 0.5;
+	    dl->color[1] = 0.05;
+	    dl->color[2] = 0.05;
+	    dl->color[3] = 0.7;
 	}
 
 	if (ent->model->flags & EF_GIB)

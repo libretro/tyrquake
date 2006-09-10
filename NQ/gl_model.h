@@ -41,6 +41,9 @@ m*_t structures are in-memory
 #define	EF_BRIGHTLIGHT 	4
 #define	EF_DIMLIGHT 	8
 
+#define EF_BLUE		64
+#define EF_RED		128
+
 /*
 ==============================================================================
 

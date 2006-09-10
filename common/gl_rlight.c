@@ -124,14 +124,9 @@ R_RenderDlight(dlight_t *light)
     }
 
     glBegin(GL_TRIANGLE_FAN);
-#ifdef NQ_HACK
-    glColor3f(0.2, 0.1, 0.0);
-#endif
-    //glColor3f(0.2, 0.1, 0.05); // changed dimlight effect
-#ifdef QW_HACK
     glColor4f(light->color[0], light->color[1], light->color[2],
 	      light->color[3]);
-#endif
+
     for (i = 0; i < 3; i++)
 	v[i] = light->origin[i] - vpn[i] * rad;
     glVertex3fv(v);
