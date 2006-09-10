@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "pmove.h"
 #include "quakedef.h"
 #include "sys.h"
+#include "zone.h"
 
 static void CL_FinishTimeDemo(void);
 
@@ -748,6 +749,21 @@ CL_PlayDemo_f(void)
     cls.state = ca_demostart;
     Netchan_Setup(&cls.netchan, net_from, 0);
     realtime = 0;
+}
+
+struct rb_string_root *
+CL_Demo_Arg_f(const char *arg)
+{
+    struct rb_string_root *root;
+
+    root = Z_Malloc(sizeof(struct rb_string_root));
+    if (root) {
+	*root = RB_STRING_ROOT;
+	ST_AllocInit();
+	COM_ScanDir(root, "", arg, ".qwd", true);
+    }
+
+    return root;
 }
 
 /*

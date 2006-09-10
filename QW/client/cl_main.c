@@ -1154,7 +1154,9 @@ CL_Init(void)
     Cmd_AddCommand("rerecord", CL_ReRecord_f);
     Cmd_AddCommand("stop", CL_Stop_f);
     Cmd_AddCommand("playdemo", CL_PlayDemo_f);
+    Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
     Cmd_AddCommand("timedemo", CL_TimeDemo_f);
+    Cmd_SetCompletion("timedemo", CL_Demo_Arg_f);
 
     Cmd_AddCommand("skins", Skin_Skins_f);
     Cmd_AddCommand("allskins", Skin_AllSkins_f);
