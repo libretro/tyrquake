@@ -99,7 +99,7 @@ Adds command text at the end of the buffer
 ============
 */
 void
-Cbuf_AddText(char *text)
+Cbuf_AddText(const char *text)
 {
     int l;
 
@@ -402,7 +402,7 @@ Cmd_Alias_f(void)
 
 typedef struct cmd_function_s {
     struct cmd_function_s *next;
-    char *name;
+    const char *name;
     xcommand_t function;
 } cmd_function_t;
 
@@ -535,7 +535,7 @@ Cmd_AddCommand
 ============
 */
 void
-Cmd_AddCommand(char *cmd_name, xcommand_t function)
+Cmd_AddCommand(const char *cmd_name, xcommand_t function)
 {
     cmd_function_t *cmd;
 

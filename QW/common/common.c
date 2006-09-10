@@ -167,7 +167,7 @@ InsertLinkAfter(link_t *l, link_t *after)
 */
 
 int
-Q_atoi(char *str)
+Q_atoi(const char *str)
 {
     int val;
     int sign;
@@ -219,7 +219,7 @@ Q_atoi(char *str)
 
 
 float
-Q_atof(char *str)
+Q_atof(const char *str)
 {
     double val;
     int sign;
@@ -767,13 +767,13 @@ SZ_GetSpace(sizebuf_t *buf, int length)
 }
 
 void
-SZ_Write(sizebuf_t *buf, void *data, int length)
+SZ_Write(sizebuf_t *buf, const void *data, int length)
 {
     memcpy(SZ_GetSpace(buf, length), data, length);
 }
 
 void
-SZ_Print(sizebuf_t *buf, char *data)
+SZ_Print(sizebuf_t *buf, const char *data)
 {
     int len;
 

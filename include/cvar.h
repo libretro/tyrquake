@@ -119,7 +119,7 @@ void Cvar_SetValue(char *var_name, float value);
 float Cvar_VariableValue(char *var_name);
 
 /* returns an empty string if not defined */
-char *Cvar_VariableString(char *var_name);
+char *Cvar_VariableString(const char *var_name);
 
 /*
  * attempts to match a partial variable name for command line completion
@@ -142,7 +142,7 @@ qboolean Cvar_Command(void);
 void Cvar_WriteVariables(FILE *f);
 
 /* */
-cvar_t *Cvar_FindVar(char *var_name);
+cvar_t *Cvar_FindVar(const char *var_name);
 
 extern cvar_t *cvar_vars;
 

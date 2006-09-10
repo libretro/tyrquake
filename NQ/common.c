@@ -658,13 +658,13 @@ SZ_GetSpace(sizebuf_t *buf, int length)
 }
 
 void
-SZ_Write(sizebuf_t *buf, void *data, int length)
+SZ_Write(sizebuf_t *buf, const void *data, int length)
 {
     memcpy(SZ_GetSpace(buf, length), data, length);
 }
 
 void
-SZ_Print(sizebuf_t *buf, char *data)
+SZ_Print(sizebuf_t *buf, const char *data)
 {
     int len;
 
@@ -686,10 +686,10 @@ SZ_Print(sizebuf_t *buf, char *data)
 COM_SkipPath
 ============
 */
-char *
-COM_SkipPath(char *pathname)
+const char *
+COM_SkipPath(const char *pathname)
 {
-    char *last;
+    const char *last;
 
     last = pathname;
     while (*pathname) {
@@ -706,7 +706,7 @@ COM_StripExtension
 ============
 */
 void
-COM_StripExtension(char *in, char *out)
+COM_StripExtension(const char *in, char *out)
 {
     while (*in && *in != '.')
 	*out++ = *in++;
@@ -768,9 +768,9 @@ COM_DefaultExtension
 ==================
 */
 void
-COM_DefaultExtension(char *path, char *extension)
+COM_DefaultExtension(char *path, const char *extension)
 {
-    char *src;
+    const char *src;
 
 //
 // if path doesn't have a .EXT, append extension

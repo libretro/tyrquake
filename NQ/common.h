@@ -46,8 +46,8 @@ void SZ_Alloc(sizebuf_t *buf, int startsize);
 void SZ_Free(sizebuf_t *buf);
 void SZ_Clear(sizebuf_t *buf);
 void *SZ_GetSpace(sizebuf_t *buf, int length);
-void SZ_Write(sizebuf_t *buf, void *data, int length);
-void SZ_Print(sizebuf_t *buf, char *data);	// strcats onto the sizebuf
+void SZ_Write(sizebuf_t *buf, const void *data, int length);
+void SZ_Print(sizebuf_t *buf, const char *data); // strcats onto the sizebuf
 
 //============================================================================
 
@@ -139,10 +139,10 @@ unsigned COM_CheckParm(char *parm);
 void COM_Init(char *path);
 void COM_InitArgv(int argc, char **argv);
 
-char *COM_SkipPath(char *pathname);
-void COM_StripExtension(char *in, char *out);
+const char *COM_SkipPath(const char *pathname);
+void COM_StripExtension(const char *in, char *out);
 void COM_FileBase(const char *in, char *out);
-void COM_DefaultExtension(char *path, char *extension);
+void COM_DefaultExtension(char *path, const char *extension);
 int COM_CheckExtension(const char *path, const char *extn);
 
 char *va(char *format, ...);

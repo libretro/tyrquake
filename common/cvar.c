@@ -52,7 +52,7 @@ Cvar_FindVar
 ============
 */
 cvar_t *
-Cvar_FindVar(char *var_name)
+Cvar_FindVar(const char *var_name)
 {
     cvar_t *var;
 
@@ -86,7 +86,7 @@ Cvar_VariableString
 ============
 */
 char *
-Cvar_VariableString(char *var_name)
+Cvar_VariableString(const char *var_name)
 {
     cvar_t *var;
 
