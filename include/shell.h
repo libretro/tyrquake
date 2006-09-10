@@ -25,26 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "rb_tree.h"
 
 /*
- * We keep track of the number of entries in the tree as well as the longest
- * entry in the tree. This info is used for displaying lists on the console.
- */
-struct stree_root {
-    unsigned int entries;
-    unsigned int maxlen;
-    unsigned int minlen;
-    struct rb_root root;
-};
-
-#define STREE_ROOT (struct stree_root) { 0, 0, -1, RB_ROOT }
-#define DECLARE_STREE_ROOT(_x) \
-	struct stree_root _x = { \
-		.entries = 0,    \
-		.maxlen = 0,     \
-		.minlen = -1,    \
-      		.root = RB_ROOT  \
-	}
-
-/*
  * String node is simply an rb_tree node using the string as the index (and
  * the only data as well).
  */
@@ -56,6 +36,35 @@ struct stree_node {
 /* stree_entry - Gets the stree_node ptr from the internal rb_node ptr */
 #define stree_entry(ptr) container_of(ptr, struct stree_node, node)
 
+/* For iterative tree walking */
+struct stree_stack {
+    struct rb_node **stack;
+    int depth;
+    int max_depth;
+};
+
+/*
+ * We keep track of the number of entries in the tree as well as the longest
+ * entry in the tree. This info is used for displaying lists on the console.
+ */
+struct stree_root {
+    unsigned int entries;
+    unsigned int maxlen;
+    unsigned int minlen;
+    struct rb_root root;
+    struct stree_stack *stack; /* used in STree_ForEach() */
+};
+
+#define STREE_ROOT (struct stree_root) { 0, 0, -1, RB_ROOT, NULL }
+#define DECLARE_STREE_ROOT(_x) \
+	struct stree_root _x = { \
+		.entries = 0,    \
+		.maxlen = 0,     \
+		.minlen = -1,    \
+      		.root = RB_ROOT, \
+		.stack = NULL    \
+	}
+
 void STree_AllocInit(void);
 qboolean STree_Insert(struct stree_root *root, struct stree_node *node);
 qboolean STree_InsertAlloc(struct stree_root *root, const char *s,
@@ -63,7 +72,39 @@ qboolean STree_InsertAlloc(struct stree_root *root, const char *s,
 void STree_Remove(struct stree_root *root, struct stree_node *node);
 char *STree_MaxMatch(struct stree_root *root, const char *pfx);
 struct stree_node *STree_Find(struct stree_root *root, const char *s);
-int STree_MaxDepth(struct stree_root *root);
+
+/* Private helper functions for the STree_ForEach macro */
+void STree_ForEach_Init__(struct stree_root *root, struct stree_node **n);
+void STree_ForEach_After__(struct stree_root *root, struct stree_node **n,
+			   const char *s);
+qboolean STree_WalkLeft__(struct stree_root *root, struct stree_node **n);
+void STree_WalkRight__(struct stree_node **n);
+void STree_ForEach_Cleanup__(struct stree_root *root);
+
+/*
+ * Walk an STree root__ in order (LNR), using node__ as the iterator
+ * - struct stree_root *root__
+ * - struct stree_node *node__
+ *
+ * Note that we need to allocate a stack to walk the tree (on the zone). If
+ * this fails, the program will exit with an error. This is only of size
+ * 2*log(n+1), so if that allocation fails, we're in a bad situation anyway...
+ *
+ * STree_ForEach_After will start walking the tree from the entry _after_ the
+ * one matching str__.
+ *
+ * NOTE - don't use a regular 'break' inside this loop, or you'll leak the
+ *        allocated stack memory. Use STree_ForEach_break(root).
+ */
+#define STree_ForEach_After(root__, node__, str__) for (		      \
+	STree_ForEach_Init__((root__), &(node__)),			      \
+	({ if (str__) STree_ForEach_After__((root__), &(node__), (str__));}); \
+	STree_WalkLeft__((root__), &(node__)) ;				      \
+	STree_WalkRight__(&(node__)) )
+#define STree_ForEach(root__, node__) \
+	STree_ForEach_After(root__, node__, NULL)
+#define STree_ForEach_break(root__) \
+	({ STree_ForEach_Cleanup__(root__); break; })
 
 /*
  * Set up some basic completion helpers

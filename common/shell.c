@@ -250,12 +250,162 @@ STree_Find(struct stree_root *root, const char *s)
 }
 
 /* An R-B Tree with n entries has a maximum height of 2log(n +1) */
-int
+static int
 STree_MaxDepth(struct stree_root *root)
 {
     return 2 * Q_log2(root->entries + 1);
 }
 
+void
+STree_ForEach_Init__(struct stree_root *root, struct stree_node **n)
+{
+    /* Allocate the stack */
+    root->stack = Z_Malloc(sizeof(struct stree_stack));
+    if (root->stack) {
+	struct stree_stack *s = root->stack;
+	s->depth = 0;
+	s->max_depth = STree_MaxDepth(root);
+	s->stack = Z_Malloc(s->max_depth * sizeof(struct rb_node *));
+	if (!s->stack) {
+	    Z_Free(s);
+	    root->stack = NULL;
+	}
+    }
+    /* Possibly this harsh failure is not suitable in all cases? */
+    if (!root->stack)
+	Sys_Error("%s: not enough mem for stack! (%i)", __func__,
+		  STree_MaxDepth(root));
+
+    /* Point to the first node */
+    if (root->root.rb_node)
+	*n = stree_entry(root->root.rb_node);
+    else
+	*n = NULL;
+}
+
+void
+STree_ForEach_Cleanup__(struct stree_root *root)
+{
+    if (root->stack) {
+	Z_Free(root->stack->stack);
+	Z_Free(root->stack);
+	root->stack = NULL;
+    }
+}
+
+static void
+STree_StackPush(struct stree_root *root, struct rb_node *n)
+{
+    struct stree_stack *s = root->stack;
+    assert(s->depth < s->max_depth);
+    s->stack[s->depth++] = n;
+}
+
+static struct rb_node *
+STree_StackPop(struct stree_root *root)
+{
+    struct stree_stack *s = root->stack;
+    assert(s->depth > 0);
+    return s->stack[--s->depth];
+}
+
+/*
+ * STree_WalkLeft - Helper for STree_ForEach
+ *
+ * Explanation of implied semantics:
+ * 1. If *n is not null, we haven't looked at it at all yet
+ *    - Check the left child.
+ *    - If child is non-null, push *n onto the stack, *n = (*n)->left; Goto 1.
+ *    - If left child is null, keep this *n and exit (true)
+ * 2. If *n is null, we need to grab the node from the top of the stack
+ *    - If the stack is empty, we're finished
+ *      - Free the stack and exit (false)
+ *    - Otherwise, *n = <pop the top of the stack> and exit (true)
+ */
+qboolean
+STree_WalkLeft__(struct stree_root *root, struct stree_node **n)
+{
+    struct rb_node *rb;
+
+    if (*n) {
+	rb = &(*n)->node;
+	while (rb->rb_left) {
+	    STree_StackPush(root, rb);
+	    rb = rb->rb_left;
+	}
+	*n = stree_entry(rb);
+    } else {
+	/* Null signifies that we need to pop from the stack */
+	if (root->stack->depth > 0) {
+	    rb = STree_StackPop(root);
+	    *n = stree_entry(rb);
+	} else
+	    STree_ForEach_Cleanup__(root);
+    }
+
+    return *n != NULL;
+}
+
+/*
+ * STree_WalkRight__ - Helper for STree_ForEach
+ *
+ * Called at the end of a loop iteration. So, *n has been processed.
+ * - If *n has a right child, *n = right child. Exit.
+ * - Otherwise, *n = NULL (tells WalkLeft to grab parent next). Exit.
+ */
+void
+STree_WalkRight__(struct stree_node **n)
+{
+    struct rb_node *rb;
+
+    rb = &(*n)->node;
+    if (rb->rb_right)
+	*n = stree_entry(rb->rb_right);
+    else
+	*n = NULL;
+}
+
+/*
+ * Skip through the tree to a specified entry, without iterating
+ * through everything. This is basically STree_Find, but with stack
+ * pushes so the iteration can be continued. We then move n to the
+ * next node.
+ */
+void
+STree_ForEach_After__(struct stree_root *root, struct stree_node **n,
+		      const char *s)
+{
+    struct rb_node *p;
+    struct stree_node *node;
+    int cmp;
+
+    *n = NULL;
+    p = root->root.rb_node;
+    while (p) {
+	node = stree_entry(p);
+	cmp = strcasecmp(s, node->string);
+	if (cmp < 0) {
+	    STree_StackPush(root, p);
+	    p = p->rb_left;
+	} else if (cmp > 0) {
+	    p = p->rb_right;
+	} else {
+	    *n = node;
+	    break;
+	}
+    }
+
+    if (*n) {
+	/* found the exact node; skip on to the next one */
+	if (p->rb_right)
+	    *n = stree_entry(p->rb_right);
+	else
+	    *n = NULL;
+    } else {
+	/* Didn't find str. Don't walk the tree at all! */
+	root->stack->depth = 0;
+    }
+}
 
 const char **completions_list = NULL;
 static int num_completions = 0;
