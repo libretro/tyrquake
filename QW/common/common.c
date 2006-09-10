@@ -1279,8 +1279,6 @@ COM_WriteFile(const char *filename, const void *data, int len)
 	if (!f)
 	    Sys_Error("Error opening %s", filename);
     }
-
-    Sys_Printf("%s: %s\n", __func__, name);
     fwrite(data, 1, len, f);
     fclose(f);
 }
@@ -1374,8 +1372,6 @@ COM_FOpenFile(const char *filename, FILE **file)
 	    pak = search->pack;
 	    for (i = 0; i < pak->numfiles; i++)
 		if (!strcmp(pak->files[i].name, filename)) {	// found it!
-		    Sys_Printf("PackFile: %s : %s\n", pak->filename,
-			       filename);
 		    // open a new file on the pakfile
 		    *file = fopen(pak->filename, "rb");
 		    if (!*file)
@@ -1391,21 +1387,17 @@ COM_FOpenFile(const char *filename, FILE **file)
 		if (strchr(filename, '/') || strchr(filename, '\\'))
 		    continue;
 	    }
-
 	    sprintf(netpath, "%s/%s", search->filename, filename);
 
 	    findtime = Sys_FileTime(netpath);
 	    if (findtime == -1)
 		continue;
 
-	    Sys_Printf("FindFile: %s\n", netpath);
-
 	    *file = fopen(netpath, "rb");
 	    return COM_filelength(*file);
 	}
 
     }
-
     Sys_Printf("FindFile: can't find %s\n", filename);
 
     *file = NULL;
