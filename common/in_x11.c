@@ -90,10 +90,10 @@ in_dgamouse_f(struct cvar_s *var)
 }
 
 cvar_t in_mouse = { "in_mouse", "1", false };
-cvar_t in_dgamouse = { "in_dgamouse", "1", false, false, 0, NULL,
+cvar_t in_dgamouse = { "in_dgamouse", "1", false, false, 0,
     in_dgamouse_f
 };
-cvar_t _windowed_mouse = { "_windowed_mouse", "0", true, false, 0, NULL,
+cvar_t _windowed_mouse = { "_windowed_mouse", "0", true, false, 0,
     windowed_mouse_f
 };
 cvar_t m_filter = { "m_filter", "0" };
