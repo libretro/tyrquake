@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // console.c
 
+#include <string.h>
+
 #include "client.h"
 #include "cmd.h"
 #include "console.h"
@@ -698,22 +700,15 @@ Con_SafePrintf(char *fmt, ...)
 }
 
 void
-Con_ShowList(const char **list, int cnt)
+Con_ShowList(const char **list, int cnt, int maxlen)
 {
     const char *s;
-    unsigned i, j, max_len, len, cols, rows;
+    unsigned i, j, len, cols, rows;
     char *line;
 
     /* Lay them out in columns */
-    max_len = 0;
-    for (i = 0; i < cnt; ++i) {
-	len = strlen(list[i]);
-	if (len > max_len)
-	    max_len = len;
-    }
-
     line = Z_Malloc(Con_GetWidth() + 1);
-    cols = Con_GetWidth() / (max_len + 2);
+    cols = Con_GetWidth() / (maxlen + 2);
     rows = cnt / cols + 1;
 
     /* Looks better if we have a few rows before spreading out */
@@ -732,7 +727,7 @@ Con_ShowList(const char **list, int cnt)
 
 	    strcat(line, s);
 	    if (j < cols - 1) {
-		while (len < max_len) {
+		while (len < maxlen) {
 		    strcat(line, " ");
 		    len++;
 		}
@@ -742,4 +737,34 @@ Con_ShowList(const char **list, int cnt)
 	Con_Printf("%s\n", line);
     }
     Z_Free(line);
+}
+
+static const char **showtree_list;
+static unsigned showtree_idx;
+
+static void
+Con_ShowTree_Populate(struct rb_node *n)
+{
+    if (n) {
+	struct rb_string_node *sn;
+
+	Con_ShowTree_Populate(n->rb_left);
+
+	sn = rb_entry(n, struct rb_string_node, node);
+	showtree_list[showtree_idx++] = sn->string;
+
+	Con_ShowTree_Populate(n->rb_right);
+    }
+}
+
+void Con_ShowTree(struct rb_string_root *root)
+{
+    /* FIXME - cheating with malloc */
+    showtree_list = malloc(root->entries * sizeof(char *));
+    if (showtree_list) {
+	showtree_idx = 0;
+	Con_ShowTree_Populate(root->root.rb_node);
+	Con_ShowList(showtree_list, root->entries, root->maxlen);
+	free(showtree_list);
+    }
 }

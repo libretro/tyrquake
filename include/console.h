@@ -54,6 +54,7 @@ void Con_Clear_f(void);
 void Con_DrawNotify(void);
 void Con_ClearNotify(void);
 void Con_ToggleConsole_f(void);
+void Con_ShowList(const char **list, int cnt, int maxlen);
 
 // during startup for sound / cd warnings
 void Con_NotifyBox(char *text);

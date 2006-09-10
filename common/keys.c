@@ -212,7 +212,7 @@ static void
 ShowCompletions(void)
 {
     const char *s;
-    unsigned cnt;
+    unsigned int cnt, i, len, maxlen;
 
     s = key_lines[edit_line] + 1;
     if (*s == '\\' || *s == '/')
@@ -221,7 +221,13 @@ ShowCompletions(void)
     cnt = find_completions(s);
     if (cnt) {
 	Con_Printf("%u possible completions:\n", cnt);
-	Con_ShowList(completions_list, cnt);
+	maxlen = 0;
+	for (i = 0; i < cnt; i++) {
+	    len = strlen(completions_list[i]);
+	    if (len > maxlen)
+		maxlen = len;
+	}
+	Con_ShowList(completions_list, cnt, maxlen);
     }
 }
 
