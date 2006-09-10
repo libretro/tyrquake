@@ -215,7 +215,7 @@ CompleteCommand(void)
     int len;
 
     s = GetCommandPos(key_lines[edit_line] + 1);
-    cmd = find_completion(s);
+    cmd = Cmd_CommandComplete(s);
     if (cmd) {
 	key_linepos = s - key_lines[edit_line];
 	if (s == key_lines[edit_line] + 1) {
@@ -224,11 +224,6 @@ CompleteCommand(void)
 	}
 	strcpy(s, cmd);
 	key_linepos += strlen(cmd);
-
-	/* Inefficient, but it'll do for now */
-	if (find_completions(cmd) == 1)
-	    key_lines[edit_line][key_linepos++] = ' ';
-
 	key_lines[edit_line][key_linepos] = 0;
 	Z_Free(cmd);
     } else {
@@ -261,19 +256,16 @@ static void
 ShowCompletions(void)
 {
     const char *s;
-    unsigned int cnt, i, len, maxlen;
+    struct stree_root *root;
+    unsigned int len;
 
     s = GetCommandPos(key_lines[edit_line] + 1);
-    cnt = find_completions(s);
-    if (cnt) {
-	Con_Printf("%u possible completions:\n", cnt);
-	maxlen = 0;
-	for (i = 0; i < cnt; i++) {
-	    len = strlen(completions_list[i]);
-	    if (len > maxlen)
-		maxlen = len;
-	}
-	Con_ShowList(completions_list, cnt, maxlen);
+
+    root = Cmd_CommandCompletions(s);
+    if (root && root->entries) {
+	Con_Printf("%u possible completions:\n", root->entries);
+	Con_ShowTree(root);
+	Z_Free(root);
     } else {
 	char *cmd = strchr(s, ' ');
 	if (cmd) {
