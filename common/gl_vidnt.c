@@ -276,8 +276,8 @@ VID_SetWindowedMode(int modenum)
 
     // Create the DIB window
     dibwindow = CreateWindowEx(ExWindowStyle,
-			       "Tyr-GLQuake",
-			       "Tyr-GLQuake",
+			       "TyrQuake",
+			       "TyrQuake",
 			       WindowStyle,
 			       rect.left, rect.top,
 			       width,
@@ -363,8 +363,8 @@ VID_SetFullDIBMode(int modenum)
 
     // Create the DIB window
     dibwindow = CreateWindowEx(ExWindowStyle,
-			       "Tyr-GLQuake",
-			       "Tyr-GLQuake",
+			       "TyrQuake",
+			       "TyrQuake",
 			       WindowStyle,
 			       rect.left, rect.top,
 			       width,
@@ -1377,7 +1377,7 @@ VID_InitDIB(HINSTANCE hInstance)
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = NULL;
     wc.lpszMenuName = 0;
-    wc.lpszClassName = "Tyr-GLQuake";
+    wc.lpszClassName = "TyrQuake";
 
     if (!RegisterClass(&wc))
 	Sys_Error("Couldn't register window class");

@@ -345,7 +345,8 @@ main(int c, char **v)
 	fcntl(STDIN_FILENO, F_SETFL,
 	      fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     if (!nostdout)
-	printf("Linux QuakeWorld -- Version %0.3f\n", LINUX_VERSION);
+	printf("Linux QuakeWorld -- Version TyrQuake-%s\n",
+	       stringify(TYR_VERSION));
 
     Sys_Init();
 

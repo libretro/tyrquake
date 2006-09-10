@@ -200,7 +200,7 @@ CL_Version_f
 void
 CL_Version_f(void)
 {
-    Con_Printf("Version %4.2f\n", VERSION);
+    Con_Printf("Version TyrQuake-%s\n", stringify(TYR_VERSION));
     Con_Printf("Exe: " __TIME__ " " __DATE__ "\n");
 }
 
@@ -1080,7 +1080,7 @@ CL_Init(void)
     Info_SetValueForKey(cls.userinfo, "bottomcolor", "0", MAX_INFO_STRING);
     Info_SetValueForKey(cls.userinfo, "rate", "2500", MAX_INFO_STRING);
     Info_SetValueForKey(cls.userinfo, "msg", "1", MAX_INFO_STRING);
-    sprintf(st, "%4.2f-%04d", VERSION, build_number());
+    sprintf(st, "TyrQuake-%s", stringify(TYR_VERSION));
     Info_SetValueForStarKey(cls.userinfo, "*ver", st, MAX_INFO_STRING);
 
     CL_InitInput();
@@ -1531,9 +1531,7 @@ Host_Init(quakeparms_t *parms)
 
     host_initialized = true;
 
-    Con_Printf("\nClient Version %4.2f (Build %04d)\n\n", VERSION,
-	       build_number());
-
+    Con_Printf("\nClient Version TyrQuake-%s\n\n", stringify(TYR_VERSION));
     Con_Printf("ÄÅÅÅÅÅÅ QuakeWorld Initialized ÅÅÅÅÅÅÇ\n");
 }
 

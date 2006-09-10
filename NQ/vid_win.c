@@ -639,7 +639,7 @@ VID_InitMGLDIB(HINSTANCE hInstance)
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = NULL;
     wc.lpszMenuName = 0;
-    wc.lpszClassName = "Tyr-Quake";
+    wc.lpszClassName = "TyrQuake";
 
     if (!RegisterClass(&wc))
 	Sys_Error("Couldn't register window class");
@@ -1275,8 +1275,8 @@ VID_SetWindowedMode(int modenum)
 // for the rest of the session
     if (!vid_mode_set) {
 	mainwindow = CreateWindowEx(ExWindowStyle,
-				    "Tyr-Quake",
-				    "Tyr-Quake",
+				    "TyrQuake",
+				    "TyrQuake",
 				    WindowStyle,
 				    0, 0,
 				    WindowRect.right - WindowRect.left,

@@ -363,7 +363,7 @@ Sys_Init(void)
 
     if ((vinfo.dwMajorVersion < 4) ||
 	(vinfo.dwPlatformId == VER_PLATFORM_WIN32s)) {
-	Sys_Error("Tyr-Quake requires at least Win95 or NT 4.0");
+	Sys_Error("TyrQuake requires at least Win95 or NT 4.0");
     }
 
     if (vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT)

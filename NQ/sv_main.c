@@ -204,7 +204,7 @@ SV_SendServerinfo(client_t *client)
     char message[2048];
 
     MSG_WriteByte(&client->message, svc_print);
-    sprintf(message, "%c\nVERSION %s SERVER (%i CRC)", 2,
+    sprintf(message, "%c\nVERSION TyrQuake-%s SERVER (%i CRC)", 2,
 	    stringify(TYR_VERSION), pr_crc);
     MSG_WriteString(&client->message, message);
 

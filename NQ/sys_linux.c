@@ -380,7 +380,7 @@ main(int c, char **v)
 	fcntl(STDIN_FILENO, F_SETFL,
 	      fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     if (!nostdout)
-	printf("Tyr-Quake -- Version %s\n", stringify(TYR_VERSION));
+	printf("TyrQuake -- Version %s\n", stringify(TYR_VERSION));
 
     oldtime = Sys_DoubleTime() - 0.1;
     while (1) {
