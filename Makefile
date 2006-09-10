@@ -226,23 +226,12 @@ NQ_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(NQ_LINUX_COMMON_LIBS) $(NQ_LINUX_GL_LIBS
 # Define some build variables
 # ---------------------------------------
 
-# Try to use a more recent GCC if available (my Debian system has several)
-ifneq ($(shell which gcc-3.5),)
-CC = gcc-3.5
-else
-ifneq ($(shell which gcc-3.4),)
-CC = gcc-3.4
-else
-CC = gcc
-endif
-endif
-
 CFLAGS := -Wall -Wno-trigraphs
 
-# Library headers on the Windows side give warnings
-ifeq ($(TARGET_OS),LINUX)
-CFLAGS += -Werror
-endif
+# Enable this if you're getting pedantic again...
+#ifeq ($(TARGET_OS),LINUX)
+#CFLAGS += -Werror
+#endif
 
 ifdef DEBUG
 CFLAGS += -g
