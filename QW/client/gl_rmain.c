@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "render.h"
 #include "screen.h"
 #include "sys.h"
+#include "vid.h"
 #include "view.h"
 
 entity_t r_worldentity;
@@ -117,6 +118,7 @@ cvar_t gl_finish = { "gl_finish", "0" };
 
 cvar_t _gl_lightmap_sort = { "_gl_lightmap_sort", "0" };
 cvar_t _gl_sky_mtex = { "_gl_sky_mtex", "1" };
+cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
 
 /*
 =================
@@ -773,12 +775,16 @@ R_PolyBlend
 static void
 R_PolyBlend(void)
 {
-    float gamma = v_gamma.value * v_gamma.value;
+    float gamma = 1.0;
 
-    if (gamma < 0.25)
-	gamma = 0.25;
-    else if (gamma > 1.0)
-	gamma = 1.0;
+    if (!VID_IsFullScreen() || (!VID_SetGammaRamp &&
+				_gl_allowgammafallback.value)) {
+	gamma = v_gamma.value * v_gamma.value;
+	if (gamma < 0.25)
+	    gamma = 0.25;
+	else if (gamma > 1.0)
+	    gamma = 1.0;
+    }
 
     if ((gl_polyblend.value && v_blend[3]) || gamma < 1.0) {
 	GL_DisableMultitexture();

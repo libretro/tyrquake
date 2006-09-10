@@ -70,6 +70,10 @@ void VID_ShiftPalette(unsigned char *palette);
 
 // called for bonus and pain flashes, and for underwater color changes
 
+extern void (*VID_SetGammaRamp)(unsigned short ramp[3][256]);
+
+// called to set hardware gamma (if available - primarily for OpenGL renderer)
+
 void VID_Init(unsigned char *palette);
 
 // Called at startup to set up translation tables, takes 256 8 bit RGB values

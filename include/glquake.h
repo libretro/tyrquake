@@ -217,6 +217,7 @@ extern cvar_t gl_finish;
 
 extern cvar_t _gl_lightmap_sort;
 extern cvar_t _gl_sky_mtex;
+extern cvar_t _gl_allowgammafallback;
 extern cvar_t _gl_drawhull;
 
 #ifdef NQ_HACK

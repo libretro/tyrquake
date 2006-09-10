@@ -429,11 +429,16 @@ HandleEvents(void)
 	IN_CenterMouse();
 }
 
+void (*VID_SetGammaRamp)(unsigned short ramp[3][256]);
+static unsigned short saved_gamma_ramp[3][256];
+
 void
 signal_handler(int sig)
 {
     printf("Received signal %d, exiting...\n", sig);
     XAutoRepeatOn(x_disp);
+    if (VID_SetGammaRamp)
+	VID_SetGammaRamp(saved_gamma_ramp);
     XCloseDisplay(x_disp);
     Sys_Quit();
     exit(0);
@@ -545,6 +550,33 @@ CheckMultiTextureExtensions(void)
 	    gl_mtexable = true;
 	}
     }
+}
+
+static void
+VID_SetXF86GammaRamp(unsigned short ramp[3][256])
+{
+    if (!x_disp)
+	Sys_Error("%s: x_disp == NULL!", __func__);
+
+    XF86VidModeSetGammaRamp(x_disp, scrnum, 256, ramp[0], ramp[1], ramp[2]);
+}
+
+/*
+ * Gamma_Init
+ * - Checks to see if gamma settings are available
+ * - Saves the current gamma settings
+ * - Sets the default gamma ramp function
+ */
+static void
+Gamma_Init()
+{
+    if (XF86VidModeGetGammaRamp(x_disp, scrnum, 256,
+				saved_gamma_ramp[0],
+				saved_gamma_ramp[1],
+				saved_gamma_ramp[2]))
+	VID_SetGammaRamp = VID_SetXF86GammaRamp;
+    else
+	VID_SetGammaRamp = NULL;
 }
 
 /*
@@ -858,6 +890,8 @@ VID_Init(unsigned char *palette)
     if (vidmode_ext && fullscreen)
 	fullscreen = VID_set_vidmode(width, height);
 
+    Gamma_Init();
+
     /* window attributes */
     mask = CWBackPixel | CWColormap | CWEventMask;
     attr.background_pixel = 0;
@@ -931,6 +965,9 @@ VID_Init(unsigned char *palette)
 void
 VID_Shutdown(void)
 {
+    if (VID_SetGammaRamp)
+	VID_SetGammaRamp(saved_gamma_ramp);
+
     if (x_disp != NULL) {
 	if (ctx != NULL)
 	    glXDestroyContext(x_disp, ctx);

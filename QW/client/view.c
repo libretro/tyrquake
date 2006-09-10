@@ -530,7 +530,7 @@ V_UpdatePalette
 void
 V_UpdatePalette(void)
 {
-    int i, j;
+    int i;
     qboolean force;
 
     V_CalcPowerupCshift();
@@ -553,7 +553,9 @@ V_UpdatePalette(void)
 	    ramps[1][i] = gammatable[i] << 8;
 	    ramps[2][i] = gammatable[i] << 8;
 	}
-	VID_ShiftPalette(NULL);
+	if (VID_IsFullScreen() && VID_SetGammaRamp)
+	    VID_SetGammaRamp(ramps);
+	//VID_ShiftPalette(NULL);
     }
 }
 #else // !GLQUAKE
