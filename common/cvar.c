@@ -109,7 +109,8 @@ Cvar_Set(char *var_name, char *value)
     qboolean changed;
 
     var = Cvar_FindVar(var_name);
-    if (!var) {			// there is an error in C code if this happens
+    if (!var) {
+	/* there is an error in C code if this happens */
 	Con_Printf("Cvar_Set: variable %s not found\n", var_name);
 	return;
     }
@@ -119,13 +120,13 @@ Cvar_Set(char *var_name, char *value)
 	return;
     }
 
+    changed = strcmp(var->string, value);
+
     /* Check for developer-only cvar */
-    if ((var->flags & CVAR_DEVELOPER) && !developer.value) {
+    if (changed && (var->flags & CVAR_DEVELOPER) && !developer.value) {
 	Con_Printf("%s is settable only in developer mode.\n", var_name);
 	return;
     }
-
-    changed = strcmp(var->string, value);
 
 #ifdef SERVERONLY
     if (var->info) {
