@@ -57,7 +57,7 @@ void
 Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
-    char text[2048];
+    char text[4096];
     unsigned char *p;
     int cnt;
 

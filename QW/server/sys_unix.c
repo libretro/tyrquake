@@ -135,7 +135,7 @@ void
 Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
-    static char text[2048];
+    static char text[4096];
     unsigned char *p;
 
     va_start(argptr, fmt);

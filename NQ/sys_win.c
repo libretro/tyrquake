@@ -446,7 +446,7 @@ void
 Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
-    char text[1024];
+    char text[4096];
     DWORD dummy;
 
     if (isDedicated) {
