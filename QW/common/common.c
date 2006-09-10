@@ -749,15 +749,14 @@ SZ_GetSpace(sizebuf_t *buf, int length)
 	if (!buf->allowoverflow)
 	    Sys_Error("%s: overflow without allowoverflow set (%d)", __func__,
 		      buf->maxsize);
-
 	if (length > buf->maxsize)
 	    Sys_Error("%s: %i is > full buffer size", __func__, length);
-
-	Sys_Printf("%s: overflow\n", __func__);	// because Con_Printf may be redirected
+	if (developer.value)
+	    /* Con_Printf may be redirected */
+	    Sys_Printf("%s: overflow\n", __func__);
 	SZ_Clear(buf);
 	buf->overflowed = true;
     }
-
     data = buf->data + buf->cursize;
     buf->cursize += length;
 
