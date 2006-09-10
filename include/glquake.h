@@ -34,6 +34,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_model.h"
 #include "client.h"
 
+#ifndef APIENTRY
+#define APIENTRY
+#endif
+
 void GL_BeginRendering(int *x, int *y, int *width, int *height);
 void GL_EndRendering(void);
 
@@ -238,10 +242,6 @@ extern const char *gl_renderer;
 
 void R_TranslatePlayerSkin(int playernum);
 void GL_Bind(int texnum);
-
-#ifndef _WIN32
-#define APIENTRY		/* */
-#endif
 
 // ARB multitexture function pointers...
 // FIXME - Find out what the APIENTRY stuff is (WIN32 obviously)
