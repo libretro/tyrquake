@@ -71,7 +71,7 @@ C(SV_HullPointContents):
 // %edi: hull->clipnodes
 // %ebp: hull->planes
 
-//	while (num >= 0)
+//	while (num < 0xfff0)
 //	{
 
 Lhloop:
@@ -111,8 +111,9 @@ Lnodot:
 	fsubrs	(%edx,%ebx,4)
 
 Lsub:
-	sarl	$16,%eax
-	sarl	$16,%esi
+// Note: treating children as unsigned
+	shrl	$16,%eax
+	shrl	$16,%esi
 
 //		if (d < 0)
 //			num = node->children[1];
@@ -125,7 +126,13 @@ Lsub:
 	xorl	$0xFFFFFFFF,%ecx
 	andl	%ecx,%eax
 	orl	%esi,%eax
-	jns	Lhloop
+
+	cmpl	$0x0000FFF0,%eax
+	jb	Lhloop
+
+// Re-interpret sign bit and extend
+	shll	$16,%eax
+	sarl	$16,%eax
 
 //	return num;
 Lhdone:

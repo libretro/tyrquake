@@ -157,10 +157,29 @@ typedef struct {
     uint16_t numfaces;	// counting both sides
 } dnode_t;
 
+/*
+ * Note that children are interpreted as unsigned values now, so that we can
+ * handle > 32k clipnodes. Values > 0xFFF0 can be assumed to be CONTENTS
+ * values and can be read as the signed value to be compatible with the above
+ * (i.e. simply subtract 65536).
+ *
+ * I should probably change the type here to uint16_t eventaully and fix up
+ * the rest of the code.
+ */
 typedef struct {
     int32_t planenum;
-    int16_t children[2];		// negative numbers are contents
+    int16_t children[2];
 } dclipnode_t;
+
+static inline int
+clipnode_child(dclipnode_t *node, int child)
+{
+    int ret = *(uint16_t *)&node->children[child];
+    if (ret > 0xfff0)
+	ret -= 0x10000;
+
+    return ret;
+}
 
 
 typedef struct texinfo_s {

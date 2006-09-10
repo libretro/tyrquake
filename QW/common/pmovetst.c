@@ -115,7 +115,10 @@ PM_HullPointContents(hull_t *hull, int num, vec3_t p)
     dclipnode_t *node;
     mplane_t *plane;
 
-    while (num >= 0) {
+    if (num < 0)
+	return num;
+
+    while (num < 0xfff0) {
 	if (num < hull->firstclipnode || num > hull->lastclipnode)
 	    Sys_Error("PM_HullPointContents: bad node number");
 
@@ -127,12 +130,13 @@ PM_HullPointContents(hull_t *hull, int num, vec3_t p)
 	else
 	    d = DotProduct(plane->normal, p) - plane->dist;
 	if (d < 0)
-	    num = node->children[1];
+	    num = *(uint16_t *)&node->children[1];
 	else
-	    num = node->children[0];
+	    num = *(uint16_t *)&node->children[0];
     }
 
-    return num;
+    /* Convert back to negative contents */
+    return num - 0x10000;
 }
 
 /*
@@ -151,10 +155,12 @@ PM_PointContents(vec3_t p)
     int num;
 
     hull = &pmove.physents[0].model->hulls[0];
-
     num = hull->firstclipnode;
 
-    while (num >= 0) {
+    if (num < 0)
+	return num;
+
+    while (num < 0xfff0) {
 	if (num < hull->firstclipnode || num > hull->lastclipnode)
 	    Sys_Error("PM_HullPointContents: bad node number");
 
@@ -166,12 +172,13 @@ PM_PointContents(vec3_t p)
 	else
 	    d = DotProduct(plane->normal, p) - plane->dist;
 	if (d < 0)
-	    num = node->children[1];
+	    num = *(uint16_t *)&node->children[1];
 	else
-	    num = node->children[0];
+	    num = *(uint16_t *)&node->children[0];
     }
 
-    return num;
+    /* Convert back to negative contents */
+    return num - 0x10000;
 }
 
 /*
@@ -235,19 +242,23 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     }
 
 #if 1
-    if (t1 >= 0 && t2 >= 0)
-	return PM_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1,
-				     p2, trace);
-    if (t1 < 0 && t2 < 0)
-	return PM_RecursiveHullCheck(hull, node->children[1], p1f, p2f, p1,
-				     p2, trace);
+    if (t1 >= 0 && t2 >= 0) {
+	i = clipnode_child(node, 0);
+	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+    }
+    if (t1 < 0 && t2 < 0) {
+	i = clipnode_child(node, 1);
+	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+    }
 #else
-    if ((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0))
-	return PM_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1,
-				     p2, trace);
-    if ((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0))
-	return PM_RecursiveHullCheck(hull, node->children[1], p1f, p2f, p1,
-				     p2, trace);
+    if ((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0)) {
+	i = clipnode_child(node, 0);
+	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+    }
+    if ((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0)) {
+	i = clipnode_child(node, 1);
+	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+    }
 #endif
 
 // put the crosspoint DIST_EPSILON pixels on the near side
@@ -267,23 +278,21 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     side = (t1 < 0);
 
 // move up to the node
-    if (!PM_RecursiveHullCheck
-	(hull, node->children[side], p1f, midf, p1, mid, trace))
+    i = clipnode_child(node, side);
+    if (!PM_RecursiveHullCheck(hull, i, p1f, midf, p1, mid, trace))
 	return false;
 
 #ifdef PARANOID
-    if (PM_HullPointContents(pm_hullmodel, mid, node->children[side])
-	== CONTENTS_SOLID) {
+    if (PM_HullPointContents(pm_hullmodel, i, mid) == CONTENTS_SOLID) {
 	Con_Printf("mid PointInHullSolid\n");
 	return false;
     }
 #endif
 
-    if (PM_HullPointContents(hull, node->children[side ^ 1], mid)
-	!= CONTENTS_SOLID)
-// go past the node
-	return PM_RecursiveHullCheck(hull, node->children[side ^ 1], midf,
-				     p2f, mid, p2, trace);
+    i = clipnode_child(node, side ^ 1);
+    if (PM_HullPointContents(hull, i, mid) != CONTENTS_SOLID)
+	/* go past the node */
+	return PM_RecursiveHullCheck(hull, i, midf, p2f, mid, p2, trace);
 
     if (trace->allsolid)
 	return false;		// never got out of the solid area
