@@ -79,8 +79,8 @@ LINUX_X11_LIBDIR = /usr/X11R6/lib
 NQ_LINUX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
 NQ_LINUX_GL_LIBS = GL
 
-NQ_W32_SW_LFLAGS = -mwindows $(patsubst %,-l%,$(NQ_W32_SW_LIBS) $(NQ_W32_COMMON_LIBS))
-NQ_W32_GL_LFLAGS = -mwindows $(patsubst %,-l%,$(NQ_W32_GL_LIBS) $(NQ_W32_COMMON_LIBS))
+NQ_W32_SW_LFLAGS = $(patsubst %,-l%,$(NQ_W32_SW_LIBS) $(NQ_W32_COMMON_LIBS))
+NQ_W32_GL_LFLAGS = $(patsubst %,-l%,$(NQ_W32_GL_LIBS) $(NQ_W32_COMMON_LIBS))
 NQ_LINUX_SW_LFLAGS = $(patsubst %,-l%,$(NQ_LINUX_COMMON_LIBS))
 NQ_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(NQ_LINUX_COMMON_LIBS) $(NQ_LINUX_GL_LIBS))
 
@@ -526,11 +526,11 @@ endif
 
 # Win32
 tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
-	$(call do_cc_link,-L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
+	$(call do_cc_link,-mwindows -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
 	$(call do_strip,$@)
 
 tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
-	$(call do_cc_link,-L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
+	$(call do_cc_link,-mwindows -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
 	$(call do_strip,$@)
 
 # Linux
@@ -758,8 +758,8 @@ QW_W32_GL_LIBS = opengl32 comctl32
 QW_LINUX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
 QW_LINUX_GL_LIBS = GL
 
-QW_W32_SW_LFLAGS = -mwindows $(patsubst %,-l%,$(QW_W32_SW_LIBS) $(QW_W32_COMMON_LIBS))
-QW_W32_GL_LFLAGS = -mwindows $(patsubst %,-l%,$(QW_W32_GL_LIBS) $(QW_W32_COMMON_LIBS))
+QW_W32_SW_LFLAGS = $(patsubst %,-l%,$(QW_W32_SW_LIBS) $(QW_W32_COMMON_LIBS))
+QW_W32_GL_LFLAGS = $(patsubst %,-l%,$(QW_W32_GL_LIBS) $(QW_W32_COMMON_LIBS))
 QW_LINUX_SW_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS))
 QW_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS) $(QW_LINUX_GL_LIBS))
 
@@ -769,11 +769,11 @@ QW_LINUX_GL_LFLAGS = $(patsubst %,-l%,$(QW_LINUX_COMMON_LIBS) $(QW_LINUX_GL_LIBS
 
 # Win32
 tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
-	$(call do_cc_link,-L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
+	$(call do_cc_link,-mwindows -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
 	$(call do_strip,$@)
 
 tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
-	$(call do_cc_link,$(QW_W32_GL_LFLAGS))
+	$(call do_cc_link,-mwindows $(QW_W32_GL_LFLAGS))
 	$(call do_strip,$@)
 
 # Linux
