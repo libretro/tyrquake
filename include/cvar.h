@@ -93,7 +93,7 @@ typedef struct cvar_s {
     unsigned flags;
 
     struct completion index; /* for searching through vars and commands */
-
+    struct stree_node stree; /* string tree for cvar names */
 } cvar_t;
 
 #define CVAR_DEVELOPER (1U << 0) /* can't set during normal play */

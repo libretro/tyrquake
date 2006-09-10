@@ -46,6 +46,8 @@ void SV_SendServerInfoChange(char *key, char *value);	// FIXME
 cvar_t *cvar_vars;
 static char *cvar_null_string = "";
 
+static DECLARE_STREE_ROOT(cvar_tree);
+
 /*
 ============
 Cvar_FindVar
@@ -54,13 +56,14 @@ Cvar_FindVar
 cvar_t *
 Cvar_FindVar(const char *var_name)
 {
-    cvar_t *var;
+    struct cvar_s *ret = NULL;
+    struct stree_node *n;
 
-    for (var = cvar_vars; var; var = var->next)
-	if (!strcmp(var_name, var->name))
-	    return var;
+    n = STree_Find(&cvar_tree, var_name);
+    if (n)
+	ret = container_of(n, struct cvar_s, stree);
 
-    return NULL;
+    return ret;
 }
 
 /*
@@ -201,21 +204,24 @@ Cvar_RegisterVariable(cvar_t *variable)
     char value[512];		// FIXME - magic numbers...
     float old_developer;
 
-// first check to see if it has allready been defined
+    /* first check to see if it has allready been defined */
     if (Cvar_FindVar(variable->name)) {
 	Con_Printf("Can't register variable %s, allready defined\n",
 		   variable->name);
 	return;
     }
-// check for overlap with a command
+    /* check for overlap with a command */
     if (Cmd_Exists(variable->name)) {
 	Con_Printf("Cvar_RegisterVariable: %s is a command\n",
 		   variable->name);
 	return;
     }
-// link the variable in
+    /* link the variable in */
     variable->next = cvar_vars;
     cvar_vars = variable;
+
+    variable->stree.string = variable->name;
+    STree_Insert(&cvar_tree, &variable->stree);
 
 // copy the value off, because future sets will Z_Free it
     strncpy(value, variable->string, 511);

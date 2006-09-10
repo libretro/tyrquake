@@ -36,6 +36,13 @@ struct stree_root {
 };
 
 #define STREE_ROOT (struct stree_root) { 0, 0, -1, RB_ROOT }
+#define DECLARE_STREE_ROOT(_x) \
+	struct stree_root _x = { \
+		.entries = 0,    \
+		.maxlen = 0,     \
+		.minlen = -1,    \
+      		.root = RB_ROOT  \
+	}
 
 /*
  * String node is simply an rb_tree node using the string as the index (and
