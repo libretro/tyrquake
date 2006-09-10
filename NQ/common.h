@@ -142,6 +142,7 @@ char *COM_SkipPath(char *pathname);
 void COM_StripExtension(char *in, char *out);
 void COM_FileBase(const char *in, char *out);
 void COM_DefaultExtension(char *path, char *extension);
+int COM_CheckExtension(char *path, char *extn);
 
 char *va(char *format, ...);
 

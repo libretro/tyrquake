@@ -783,6 +783,22 @@ COM_DefaultExtension(char *path, char *extension)
     strcat(path, extension);
 }
 
+int
+COM_CheckExtension(char *path, char *extn)
+{
+    char *pos;
+    int ret = 0;
+
+    pos = strrchr(path, '.');
+    if (pos) {
+	if (extn[0] != '.')
+	    pos++;
+	ret = pos && !strcasecmp(pos, extn);
+    }
+
+    return ret;
+}
+
 //============================================================================
 
 char com_token[1024];
