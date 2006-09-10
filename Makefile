@@ -803,7 +803,7 @@ tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_LINUX_OBJS))
 
 # Main clean function...
 clean:
+	@rm -rf build
 	@rm -f $(shell find . \( \
 		-name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' \
 	\) -print)
-	@rm -rf build
