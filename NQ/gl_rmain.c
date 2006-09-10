@@ -120,7 +120,7 @@ cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
 =================
 R_CullBox
 
-Returns true if the box is completely outside the frustom
+Returns true if the box is completely outside the frustum
 =================
 */
 qboolean
@@ -476,6 +476,7 @@ R_DrawAliasModel(entity_t *e)
 
 	    if (add > 0) {
 		ambientlight += add;
+		/* ZOID: models should be affected by dlights as well */
 		shadelight += add;
 	    }
 	}
@@ -487,7 +488,7 @@ R_DrawAliasModel(entity_t *e)
     if (ambientlight + shadelight > 192)
 	shadelight = 192 - ambientlight;
 
-    // Never allow players to go totally black
+    // ZOID: never allow players to go totally black
     i = currententity - cl_entities;
     if (i >= 1 && i <= cl.maxclients
 	/* && !strcmp (currententity->model->name, "progs/player.mdl") */ ) {
@@ -1048,7 +1049,7 @@ R_Clear(void)
 	gldepthmax = 0.5;
 	glDepthFunc(GL_LEQUAL);
     } else if (gl_ztrick.value) {
-	static unsigned trickframe = 0;
+	static unsigned int trickframe = 0;
 
 	if (gl_clear.value)
 	    glClear(GL_COLOR_BUFFER_BIT);

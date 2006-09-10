@@ -105,6 +105,7 @@ cvar_t gl_reporttjunctions = {
     .flags = CVAR_OBSOLETE
 };
 
+cvar_t gl_finish = { "gl_finish", "0" };
 cvar_t gl_clear = { "gl_clear", "0" };
 cvar_t gl_cull = { "gl_cull", "1" };
 cvar_t gl_texsort = { "gl_texsort", "1" };
@@ -114,7 +115,6 @@ cvar_t gl_polyblend = { "gl_polyblend", "1" };
 cvar_t gl_flashblend = { "gl_flashblend", "1" };
 cvar_t gl_playermip = { "gl_playermip", "0" };
 cvar_t gl_nocolors = { "gl_nocolors", "0" };
-cvar_t gl_finish = { "gl_finish", "0" };
 
 cvar_t _gl_lightmap_sort = { "_gl_lightmap_sort", "0" };
 cvar_t _gl_sky_mtex = { "_gl_sky_mtex", "1" };
@@ -124,7 +124,7 @@ cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
 =================
 R_CullBox
 
-Returns true if the box is completely outside the frustom
+Returns true if the box is completely outside the frustum
 =================
 */
 qboolean
@@ -197,7 +197,6 @@ R_GetSpriteFrame(entity_t *currententity)
 	    if (pintervals[i] > targettime)
 		break;
 	}
-
 	pspriteframe = pspritegroup->frames[i];
     }
 
@@ -237,7 +236,6 @@ R_DrawSpriteModel(entity_t *e)
     glColor3f(1, 1, 1);
 
     GL_DisableMultitexture();
-
     GL_Bind(frame->gl_texturenum);
 
     glEnable(GL_ALPHA_TEST);
@@ -275,7 +273,6 @@ R_DrawSpriteModel(entity_t *e)
 
 =============================================================
 */
-
 
 #define NUMVERTEXNORMALS 162
 
@@ -341,7 +338,6 @@ GL_DrawAliasFrame(aliashdr_t *paliashdr, int posenum)
 	glEnd();
     }
 }
-
 
 /*
 =============
@@ -441,7 +437,6 @@ R_SetupAliasFrame(int frame, aliashdr_t *paliashdr)
 /*
 =================
 R_DrawAliasModel
-
 =================
 */
 static void
@@ -465,14 +460,12 @@ R_DrawAliasModel(entity_t *e)
     if (R_CullBox(mins, maxs))
 	return;
 
-
     VectorCopy(currententity->origin, r_entorigin);
     VectorSubtract(r_origin, r_entorigin, modelorg);
 
     //
     // get lighting information
     //
-
     ambientlight = shadelight = R_LightPoint(currententity->origin);
 
     // allways give the gun some light
@@ -487,7 +480,7 @@ R_DrawAliasModel(entity_t *e)
 
 	    if (add > 0) {
 		ambientlight += add;
-		//ZOID models should be affected by dlights as well
+		/* ZOID: models should be affected by dlights as well */
 		shadelight += add;
 	    }
 	}
@@ -503,7 +496,6 @@ R_DrawAliasModel(entity_t *e)
     if (!strcmp(clmodel->name, "progs/player.mdl")) {
 	if (ambientlight < 8)
 	    ambientlight = shadelight = 8;
-
     } else if (!strcmp(clmodel->name, "progs/flame.mdl")
 	       || !strcmp(clmodel->name, "progs/flame2.mdl")) {
 	// HACK HACK HACK -- no fullbright colors, so make torches full light
@@ -531,9 +523,7 @@ R_DrawAliasModel(entity_t *e)
     //
     // draw all the triangles
     //
-
     GL_DisableMultitexture();
-
     glPushMatrix();
     R_RotateForEntity(e);
 
@@ -594,7 +584,6 @@ R_DrawAliasModel(entity_t *e)
 	glColor4f(1, 1, 1, 1);
 	glPopMatrix();
     }
-
 }
 
 //=============================================================================
@@ -641,9 +630,9 @@ R_MarkLeaves(void)
 }
 
 /*
-=============
+====================
 R_DrawEntitiesOnList
-=============
+====================
 */
 static void
 R_DrawEntitiesOnList(void)
@@ -986,7 +975,7 @@ R_SetupGL(void)
     // FIXME - set depth dynamically for improved depth precision in smaller
     //         spaces
     //MYgluPerspective (r_refdef.fov_y, screenaspect, 4, 4096);
-    MYgluPerspective(r_refdef.fov_y, screenaspect, 4, 8192);
+    MYgluPerspective(r_refdef.fov_y, screenaspect, 4, 6144);
 
     if (mirror) {
 	if (mirror_plane->normal[2])
@@ -1063,7 +1052,7 @@ R_Clear(void)
 	gldepthmax = 0.5;
 	glDepthFunc(GL_LEQUAL);
     } else if (gl_ztrick.value) {
-	static int trickframe;
+	static unsigned int trickframe = 0;
 
 	if (gl_clear.value)
 	    glClear(GL_COLOR_BUFFER_BIT);
@@ -1180,8 +1169,10 @@ R_RenderView(void)
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
-    if (r_speeds.value) {
+    if (gl_finish.value || r_speeds.value)
 	glFinish();
+
+    if (r_speeds.value) {
 	time1 = Sys_DoubleTime();
 	c_brush_polys = 0;
 	c_alias_polys = 0;
@@ -1189,9 +1180,6 @@ R_RenderView(void)
     }
 
     mirror = false;
-
-    if (gl_finish.value)
-	glFinish();
 
     R_Clear();
 
