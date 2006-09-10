@@ -103,6 +103,9 @@ void Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion);
 char *Cmd_ArgComplete(const char *name, const char *buf);
 struct stree_root *Cmd_ArgCompletions(const char *name, const char *buf);
 
+struct stree_root *Cmd_CommandCompletions(const char *buf);
+char *Cmd_CommandComplete(const char *buf);
+
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory

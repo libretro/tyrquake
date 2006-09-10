@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
+#include "cvar.h"
 #include "host.h"
 #include "protocol.h"
 #include "quakedef.h"
@@ -741,4 +742,34 @@ Cmd_CheckParm(char *parm)
 	    return i;
 
     return 0;
+}
+
+struct stree_root *
+Cmd_CommandCompletions(const char *buf)
+{
+    struct stree_root *root;
+
+    root = Z_Malloc(sizeof(struct stree_root));
+    *root = STREE_ROOT;
+
+    STree_AllocInit();
+
+    STree_Completions(root, &cmd_tree, buf);
+    STree_Completions(root, &cmdalias_tree, buf);
+    STree_Completions(root, &cvar_tree, buf);
+
+    return root;
+}
+
+char *
+Cmd_CommandComplete(const char *buf)
+{
+    struct stree_root *root;
+    char *ret;
+
+    root = Cmd_CommandCompletions(buf);
+    ret = STree_MaxMatch(root, buf);
+    Z_Free(root);
+
+    return ret;
 }

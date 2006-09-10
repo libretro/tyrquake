@@ -46,7 +46,7 @@ void SV_SendServerInfoChange(char *key, char *value);	// FIXME
 static char *cvar_null_string = "";
 
 #define cvar_entry(ptr) container_of(ptr, struct cvar_s, stree)
-static DECLARE_STREE_ROOT(cvar_tree);
+DECLARE_STREE_ROOT(cvar_tree);
 
 /*
 ============

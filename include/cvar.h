@@ -138,4 +138,6 @@ cvar_t *Cvar_FindVar(const char *var_name);
 cvar_t *Cvar_NextServerVar(const char *var_name);
 #endif
 
+struct stree_root cvar_tree;
+
 #endif /* CVAR_H */
