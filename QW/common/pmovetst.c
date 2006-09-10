@@ -308,8 +308,8 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 	trace->plane.dist = -plane->dist;
     }
 
-    while (PM_HullPointContents(hull, hull->firstclipnode, mid)
-	   == CONTENTS_SOLID) {	// shouldn't really happen, but does occasionally
+    /* shouldn't really happen, but does occasionally */
+    while (PM_HullPointContents(hull, hull->firstclipnode, mid) == CONTENTS_SOLID) {
 	frac -= 0.1;
 	if (frac < 0) {
 	    trace->fraction = midf;

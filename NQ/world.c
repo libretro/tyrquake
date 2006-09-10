@@ -312,7 +312,6 @@ SV_TouchLinks(edict_t *ent, areanode_t *node)
 	pr_global_struct->self = EDICT_TO_PROG(touch);
 	pr_global_struct->other = EDICT_TO_PROG(ent);
 	pr_global_struct->time = sv.time;
-
 	PR_ExecuteProgram(touch->v.touch);
 
 	/* the PR_ExecuteProgram above can alter the linked edicts */
@@ -401,22 +400,24 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
     if (ent->free)
 	return;
 
-    // set the abs box
+    /* set the abs box */
     VectorAdd(ent->v.origin, ent->v.mins, ent->v.absmin);
     VectorAdd(ent->v.origin, ent->v.maxs, ent->v.absmax);
 
-    //
-    // to make items easier to pick up and allow them to be grabbed off
-    // of shelves, the abs sizes are expanded
-    //
+    /*
+     * To make items easier to pick up and allow them to be grabbed off of
+     * shelves, the abs sizes are expanded
+     */
     if ((int)ent->v.flags & FL_ITEM) {
 	ent->v.absmin[0] -= 15;
 	ent->v.absmin[1] -= 15;
 	ent->v.absmax[0] += 15;
 	ent->v.absmax[1] += 15;
     } else {
-	// because movement is clipped an epsilon away from an actual edge,
-	// we must fully check even when bounding boxes don't quite touch
+	/*
+	 * because movement is clipped an epsilon away from an actual edge, we
+	 * must fully check even when bounding boxes don't quite touch
+	 */
 	ent->v.absmin[0] -= 1;
 	ent->v.absmin[1] -= 1;
 	ent->v.absmin[2] -= 1;
@@ -425,7 +426,7 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
 	ent->v.absmax[2] += 1;
     }
 
-    // link to PVS leafs
+    /* link to PVS leafs */
     ent->num_leafs = 0;
     if (ent->v.modelindex)
 	SV_FindTouchedLeafs(ent, sv.worldmodel->nodes);
@@ -433,7 +434,7 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
     if (ent->v.solid == SOLID_NOT)
 	return;
 
-    // find the first node that the ent's box crosses
+    /* find the first node that the ent's box crosses */
     node = sv_areanodes;
     while (1) {
 	if (node->axis == -1)
@@ -446,14 +447,14 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
 	    break;		// crosses the node
     }
 
-    // link it in
+    /* link it in */
     if (ent->v.solid == SOLID_TRIGGER)
 	InsertLinkBefore(&ent->area, &node->trigger_edicts);
     else
 	InsertLinkBefore(&ent->area, &node->solid_edicts);
 
-    // if touch_triggers, touch all entities at this node and decend for more
     if (touch_triggers)
+	/* touch all entities at this node and decend for more */
 	SV_TouchLinks(ent, sv_areanodes);
 }
 
@@ -545,17 +546,15 @@ edict_t *
 SV_TestEntityPosition(edict_t *ent)
 {
     trace_t trace;
+    entvars_t *v = &ent->v;
+    edict_t *ret = NULL;
 
-    trace =
-	SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0,
-		ent);
-
+    trace = SV_Move(v->origin, v->mins, v->maxs, v->origin, 0, ent);
     if (trace.startsolid)
-	return sv.edicts;
+	ret = sv.edicts;
 
-    return NULL;
+    return ret;
 }
-
 
 /*
 ===============================================================================
@@ -684,8 +683,8 @@ SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 	trace->plane.dist = -plane->dist;
     }
 
-    while (SV_HullPointContents(hull, hull->firstclipnode, mid)
-	   == CONTENTS_SOLID) {	// shouldn't really happen, but does occasionally
+    /* shouldn't really happen, but does occasionally */
+    while (SV_HullPointContents(hull, hull->firstclipnode, mid) == CONTENTS_SOLID) {
 	frac -= 0.1;
 	if (frac < 0) {
 	    trace->fraction = midf;
