@@ -163,9 +163,6 @@ extern void R_RotateBmodel(void);
 
 extern int c_faceclip;
 extern int r_polycount;
-
-extern model_t *cl_worldmodel;
-
 extern int *pfrustum_indexes[4];
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
