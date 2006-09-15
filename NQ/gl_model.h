@@ -118,7 +118,7 @@ typedef struct glpoly_s {
     struct glpoly_s *chain;
     int numverts;
     int flags;			// for SURF_UNDERWATER
-    float verts[4][VERTEXSIZE];	// variable sized (xyz s1t1 s2t2)
+    float verts[0][VERTEXSIZE];	// variable sized (xyz s1t1 s2t2)
 } glpoly_t;
 
 typedef struct msurface_s {
@@ -299,7 +299,7 @@ typedef struct {
     int commands;		// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
     int texels[MAX_SKINS];	// only for player skins
-    maliasframedesc_t frames[1];	// variable sized
+    maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
 #define	MAXALIASVERTS	2048

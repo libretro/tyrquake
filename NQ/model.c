@@ -1445,7 +1445,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 // allocate space for a working header, plus all the data except the frames,
 // skin and group info
 //
-    size = sizeof(aliashdr_t) + (LittleLong(pinmodel->numframes) - 1) *
+    size = sizeof(aliashdr_t) + LittleLong(pinmodel->numframes) *
 	sizeof(pheader->frames[0]) +
 	sizeof(mdl_t) +
 	LittleLong(pinmodel->numverts) * sizeof(stvert_t) +

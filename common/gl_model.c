@@ -1606,7 +1606,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 // skin and group info
 //
     size = sizeof(aliashdr_t)
-	+ (LittleLong(pinmodel->numframes) - 1) * sizeof(pheader->frames[0]);
+	+ LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
     pheader = Hunk_AllocName(size, loadname);
 
     mod->flags = LittleLong(pinmodel->flags);
