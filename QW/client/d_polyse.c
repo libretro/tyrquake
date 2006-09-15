@@ -558,13 +558,8 @@ D_PolysetCalcGradients(int skinwidth)
     r_zistepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
 		      ystepdenominv);
 
-#ifdef USE_X86_ASM
-    a_sstepxfrac = r_sstepx << 16;
-    a_tstepxfrac = r_tstepx << 16;
-#else
     a_sstepxfrac = r_sstepx & 0xFFFF;
     a_tstepxfrac = r_tstepx & 0xFFFF;
-#endif
 
     a_ststepxwhole = skinwidth * (r_tstepx >> 16) + (r_sstepx >> 16);
 }
