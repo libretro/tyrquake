@@ -29,6 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 #include "sys.h"
 
+#ifdef QW_HACK
+#include "crc.h"
+#endif
+
 model_t *loadmodel;
 char loadname[32];		// for hunk tags
 
@@ -1119,6 +1123,26 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
     for (i = 0; i < sizeof(dheader_t) / 4; i++)
 	((int *)header)[i] = LittleLong(((int *)header)[i]);
 
+#ifdef QW_HACK
+    mod->checksum = 0;
+    mod->checksum2 = 0;
+
+// checksum all of the map, except for entities
+    for (i = 0; i < HEADER_LUMPS; i++) {
+	if (i == LUMP_ENTITIES)
+	    continue;
+	mod->checksum ^=
+	    Com_BlockChecksum(mod_base + header->lumps[i].fileofs,
+			      header->lumps[i].filelen);
+
+	if (i == LUMP_VISIBILITY || i == LUMP_LEAFS || i == LUMP_NODES)
+	    continue;
+	mod->checksum2 ^=
+	    Com_BlockChecksum(mod_base + header->lumps[i].fileofs,
+			      header->lumps[i].filelen);
+    }
+#endif
+
 // load into heap
 
     Mod_LoadVertexes(&header->lumps[LUMP_VERTEXES]);
@@ -1408,6 +1432,35 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     maliasskindesc_t *pskindesc;
     int skinsize;
     int start, end, total;
+
+#ifdef QW_HACK
+    if (!strcmp(loadmodel->name, "progs/player.mdl") ||
+	!strcmp(loadmodel->name, "progs/eyes.mdl")) {
+	unsigned short crc;
+	byte *p;
+	int len;
+	char st[40];
+
+	CRC_Init(&crc);
+	for (len = com_filesize, p = buffer; len; len--, p++)
+	    CRC_ProcessByte(&crc, *p);
+
+	sprintf(st, "%d", (int)crc);
+	Info_SetValueForKey(cls.userinfo,
+			    !strcmp(loadmodel->name,
+				    "progs/player.mdl") ? pmodel_name :
+			    emodel_name, st, MAX_INFO_STRING);
+
+	if (cls.state >= ca_connected) {
+	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+	    sprintf(st, "setinfo %s %d",
+		    !strcmp(loadmodel->name,
+			    "progs/player.mdl") ? pmodel_name : emodel_name,
+		    (int)crc);
+	    SZ_Print(&cls.netchan.message, st);
+	}
+    }
+#endif
 
     start = Hunk_LowMark();
 

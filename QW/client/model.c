@@ -25,10 +25,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdint.h>
 
 #include "console.h"
-#include "crc.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "sys.h"
+
+#ifdef QW_HACK
+#include "crc.h"
+#endif
 
 model_t *loadmodel;
 char loadname[32];		// for hunk tags
@@ -1120,6 +1123,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
     for (i = 0; i < sizeof(dheader_t) / 4; i++)
 	((int *)header)[i] = LittleLong(((int *)header)[i]);
 
+#ifdef QW_HACK
     mod->checksum = 0;
     mod->checksum2 = 0;
 
@@ -1137,6 +1141,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 	    Com_BlockChecksum(mod_base + header->lumps[i].fileofs,
 			      header->lumps[i].filelen);
     }
+#endif
 
 // load into heap
 
@@ -1428,6 +1433,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     int skinsize;
     int start, end, total;
 
+#ifdef QW_HACK
     if (!strcmp(loadmodel->name, "progs/player.mdl") ||
 	!strcmp(loadmodel->name, "progs/eyes.mdl")) {
 	unsigned short crc;
@@ -1454,6 +1460,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	    SZ_Print(&cls.netchan.message, st);
 	}
     }
+#endif
 
     start = Hunk_LowMark();
 
