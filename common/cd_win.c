@@ -116,29 +116,13 @@ CDAudio_GetAudioDiskInfo(void)
 }
 
 
-void
-CDAudio_Play(byte track, qboolean looping)
+int
+CDDrv_IsAudioTrack(byte track)
 {
+    int ret = 1;
     DWORD dwReturn;
-    MCI_PLAY_PARMS mciPlayParms;
     MCI_STATUS_PARMS mciStatusParms;
 
-    if (!enabled)
-	return;
-
-    if (!cdValid) {
-	CDAudio_GetAudioDiskInfo();
-	if (!cdValid)
-	    return;
-    }
-
-    track = remap[track];
-
-    if (track < 1 || track > maxTrack) {
-	Con_DPrintf("CDAudio: Bad track number %u.\n", track);
-	return;
-    }
-    // don't try to play a non-audio track
     mciStatusParms.dwItem = MCI_CDA_STATUS_TYPE_TRACK;
     mciStatusParms.dwTrack = track;
     dwReturn =
@@ -146,14 +130,21 @@ CDAudio_Play(byte track, qboolean looping)
 		       MCI_STATUS_ITEM | MCI_TRACK | MCI_WAIT,
 		       (DWORD)(LPVOID)&mciStatusParms);
     if (dwReturn) {
+	ret = 0;
 	Con_DPrintf("MCI_STATUS failed (%i)\n", dwReturn);
-	return;
-    }
-    if (mciStatusParms.dwReturn != MCI_CDA_TRACK_AUDIO) {
-	Con_Printf("CDAudio: track %i is not audio\n", track);
-	return;
-    }
-    // get the length of the track to be played
+    } else  if (mciStatusParms.dwReturn != MCI_CDA_TRACK_AUDIO)
+	ret = 0;
+
+    return ret;
+}
+
+int
+CDDrv_PlayTrack(byte track)
+{
+    DWORD dwReturn;
+    MCI_STATUS_PARMS mciStatusParms;
+    MCI_PLAY_PARMS mciPlayParms;
+
     mciStatusParms.dwItem = MCI_STATUS_LENGTH;
     mciStatusParms.dwTrack = track;
     dwReturn =
@@ -162,13 +153,7 @@ CDAudio_Play(byte track, qboolean looping)
 		       (DWORD)(LPVOID)&mciStatusParms);
     if (dwReturn) {
 	Con_DPrintf("MCI_STATUS failed (%i)\n", dwReturn);
-	return;
-    }
-
-    if (playing) {
-	if (playTrack == track)
-	    return;
-	CDAudio_Stop();
+	return 1;
     }
 
     mciPlayParms.dwFrom = MCI_MAKE_TMSF(track, 0, 0, 0);
@@ -179,15 +164,10 @@ CDAudio_Play(byte track, qboolean looping)
 		       (DWORD)(LPVOID)&mciPlayParms);
     if (dwReturn) {
 	Con_DPrintf("CDAudio: MCI_PLAY failed (%i)\n", dwReturn);
-	return;
+	return 1;
     }
 
-    playLooping = looping;
-    playTrack = track;
-    playing = true;
-
-    if (cdvolume == 0.0)
-	CDAudio_Pause();
+    return 0;
 }
 
 

@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 #include "cdaudio.h"
+#include "cdaudio_driver.h"
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
@@ -41,6 +42,50 @@ void CDAudio_Eject(void);
 void CDAudio_CloseDoor(void);
 int CDAudio_GetAudioDiskInfo(void);
 
+void
+CDAudio_Play(byte track, qboolean looping)
+{
+    int err;
+
+    if (!enabled)
+	return;
+
+    if (!cdValid) {
+	CDAudio_GetAudioDiskInfo();
+	if (!cdValid)
+	    return;
+    }
+
+    track = remap[track];
+    if (track < 1 || track > maxTrack) {
+	Con_DPrintf("CDAudio: Bad track number %u.\n", track);
+	return;
+    }
+
+    if (!CDDrv_IsAudioTrack(track)) {
+	Con_Printf("CDAudio: track %i is not audio\n", track);
+	return;
+    }
+
+    if (playing) {
+	if (playTrack == track)
+	    return;
+	CDAudio_Stop();
+    }
+
+    err = CDDrv_PlayTrack(track);
+    if (!err) {
+	playLooping = looping;
+	playTrack = track;
+	playing = true;
+    }
+
+#if 0
+    /* FIXME: was in the windows driver; fix with bgmvolume callback. */
+    if (cdvolume == 0.0)
+	CDAudio_Pause();
+#endif
+}
 
 static void
 CD_f(void)

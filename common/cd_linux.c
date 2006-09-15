@@ -35,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <paths.h>
 
 #include "cdaudio.h"
+#include "cdaudio_driver.h"
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
@@ -108,44 +109,34 @@ CDAudio_GetAudioDiskInfo(void)
 }
 
 
-void
-CDAudio_Play(byte track, qboolean looping)
+int
+CDDrv_IsAudioTrack(byte track)
 {
+    int ret = 1;
     struct cdrom_tocentry entry;
-    struct cdrom_ti ti;
 
-    if (cdfile == -1 || !enabled)
-	return;
+    /* FIXME - !enabled should be enough */
+    if (cdfile == -1)
+	return 0;
 
-    if (!cdValid) {
-	CDAudio_GetAudioDiskInfo();
-	if (!cdValid)
-	    return;
-    }
-
-    track = remap[track];
-
-    if (track < 1 || track > maxTrack) {
-	Con_DPrintf("CDAudio: Bad track number %u.\n", track);
-	return;
-    }
-    // don't try to play a non-audio track
     entry.cdte_track = track;
     entry.cdte_format = CDROM_MSF;
     if (ioctl(cdfile, CDROMREADTOCENTRY, &entry) == -1) {
+	ret = 0;
 	Con_DPrintf("ioctl cdromreadtocentry failed\n");
-	return;
-    }
-    if (entry.cdte_ctrl == CDROM_DATA_TRACK) {
-	Con_Printf("CDAudio: track %i is not audio\n", track);
-	return;
-    }
+    } else if (entry.cdte_ctrl == CDROM_DATA_TRACK)
+	ret = 0;
 
-    if (playing) {
-	if (playTrack == track)
-	    return;
-	CDAudio_Stop();
-    }
+    return ret;
+}
+
+int
+CDDrv_PlayTrack(byte track)
+{
+    struct cdrom_ti ti;
+
+    if (cdfile == -1)
+	return 1;
 
     ti.cdti_trk0 = track;
     ti.cdti_trk1 = track;
@@ -154,15 +145,13 @@ CDAudio_Play(byte track, qboolean looping)
 
     if (ioctl(cdfile, CDROMPLAYTRKIND, &ti) == -1) {
 	Con_DPrintf("ioctl cdromplaytrkind failed\n");
-	return;
+	return 1;
     }
 
     if (ioctl(cdfile, CDROMRESUME) == -1)
 	Con_DPrintf("ioctl cdromresume failed\n");
 
-    playLooping = looping;
-    playTrack = track;
-    playing = true;
+    return 0;
 }
 
 
