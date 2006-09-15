@@ -73,7 +73,11 @@ static edgetable edgetables[12] = {
     {0, 1, r_p0, r_p2, NULL, 1, r_p0, r_p1, NULL},
 };
 
-// FIXME: some of these can become statics
+/*
+ * FIXME: some of these could become statics
+ *        most used in d_polysa.S also, but some only used in one file or the
+ *        other, depending on USE_X86_ASM.
+ */
 int a_sstepxfrac, a_tstepxfrac, r_lstepx, a_ststepxwhole;
 int r_sstepx, r_tstepx, r_lstepy, r_sstepy, r_tstepy;
 int r_zistepx, r_zistepy;
@@ -102,7 +106,7 @@ static adivtab_t adivtab[32 * 32] = {
 };
 
 byte *skintable[MAX_LBM_HEIGHT];
-int skinwidth;
+static int skinwidth;
 static byte *skinstart;
 
 void D_PolysetDrawSpans8(spanpackage_t *pspanpackage);
@@ -470,7 +474,7 @@ D_PolysetScanLeftEdge(int height)
 D_PolysetSetUpForLineScan
 ====================
 */
-void
+static void
 D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
 			  fixed8_t endvertu, fixed8_t endvertv)
 {
