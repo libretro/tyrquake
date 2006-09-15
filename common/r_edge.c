@@ -85,13 +85,7 @@ R_DrawCulledPolys(void)
     surf_t *s;
     msurface_t *pface;
 
-#ifdef NQ_HACK
-    currententity = &cl_entities[0];
-#endif
-#ifdef QW_HACK
     currententity = &r_worldentity;
-#endif
-
     if (r_worldpolysbacktofront) {
 	for (s = surface_p - 1; s > &surfaces[1]; s--) {
 	    if (!s->spans)

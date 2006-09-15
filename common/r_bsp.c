@@ -591,12 +591,7 @@ R_RenderWorld(void)
 
     pbtofpolys = btofpolys;
 
-#ifdef NQ_HACK
-    currententity = &cl_entities[0];
-#endif
-#ifdef QW_HACK
     currententity = &r_worldentity;
-#endif
     VectorCopy(r_origin, modelorg);
     clmodel = currententity->model;
     r_pcurrentvertbase = clmodel->vertexes;

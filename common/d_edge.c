@@ -179,12 +179,7 @@ D_DrawSurfaces(void)
     vec3_t world_transformed_modelorg;
     vec3_t local_modelorg;
 
-#ifdef NQ_HACK
-    currententity = &cl_entities[0];
-#endif
-#ifdef QW_HACK
     currententity = &r_worldentity;
-#endif
     TransformVector(modelorg, transformed_modelorg);
     VectorCopy(transformed_modelorg, world_transformed_modelorg);
 
@@ -264,12 +259,7 @@ D_DrawSurfaces(void)
 		    // FIXME: we don't want to do this every time!
 		    // TODO: speed up
 		    //
-#ifdef NQ_HACK
-		    currententity = &cl_entities[0];
-#endif
-#ifdef QW_HACK
 		    currententity = &r_worldentity;
-#endif
 		    VectorCopy(world_transformed_modelorg,
 			       transformed_modelorg);
 		    VectorCopy(base_vpn, vpn);
@@ -314,9 +304,7 @@ D_DrawSurfaces(void)
 		    // FIXME: we don't want to do this every time!
 		    // TODO: speed up
 		    //
-#ifdef NQ_HACK
-		    currententity = &cl_entities[0];
-#endif
+		    currententity = &r_worldentity;
 		    VectorCopy(world_transformed_modelorg,
 			       transformed_modelorg);
 		    VectorCopy(base_vpn, vpn);
@@ -324,9 +312,6 @@ D_DrawSurfaces(void)
 		    VectorCopy(base_vright, vright);
 		    VectorCopy(base_modelorg, modelorg);
 		    R_TransformFrustum();
-#ifdef QW_HACK
-		    currententity = &r_worldentity;
-#endif
 		}
 	    }
 	}

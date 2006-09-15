@@ -63,6 +63,8 @@ byte *r_warpbuffer;
 static byte *r_stack_start;
 static qboolean r_fov_greater_than_90;
 
+entity_t r_worldentity;
+
 //
 // view origin
 //
@@ -276,6 +278,9 @@ void
 R_NewMap(void)
 {
     int i;
+
+    memset(&r_worldentity, 0, sizeof(r_worldentity));
+    r_worldentity.model = cl.worldmodel;
 
 // clear out efrags in case the level hasn't been reloaded
 // FIXME: is this one short?
@@ -949,7 +954,7 @@ R_RenderView_(void)
     // match what's done in screen.c
     Sys_LowFPPrecision();
 
-    if (!cl_entities[0].model || !cl.worldmodel)
+    if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
     if (!r_dspeeds.value) {
