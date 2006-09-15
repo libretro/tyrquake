@@ -211,7 +211,6 @@ R_Init(void)
     Cvar_RegisterVariable(&gl_texsort);
 
     Cvar_RegisterVariable(&_gl_lightmap_sort);
-    Cvar_RegisterVariable(&_gl_sky_mtex);
     Cvar_RegisterVariable(&_gl_allowgammafallback);
     Cvar_RegisterVariable(&_gl_drawhull);
 

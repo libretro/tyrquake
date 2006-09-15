@@ -346,7 +346,7 @@ R_DrawSkyChain(msurface_t *s)
 {
     msurface_t *fa;
 
-    if (gl_mtexable && _gl_sky_mtex.value) {
+    if (gl_mtexable) {
 	GL_SelectTexture(GL_TEXTURE0_ARB);
 	GL_Bind(solidskytexture);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
