@@ -25,12 +25,14 @@ TYR_VERSION = $(TYR_VERSION_MAJOR).$(TYR_VERSION_MINOR)$(TYR_VERSION_BUILD)
 # User configurable options here:
 # ============================================================================
 
-#DEBUG=y 	# Compile with debug info
-#NO_X86_ASM=y	# Compile with no x86 asm
+BUILD_DIR        ?= build
+
+DEBUG            ?= N# Compile with debug info
+OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
+USE_X86_ASM      ?= Y# Compile with x86 asm
+X11BASE          ?= $(X11BASE_GUESS)
 
 # ============================================================================
-
-BUILD_DIR = build
 
 .PHONY:	default clean
 
@@ -73,6 +75,18 @@ cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
 
 GCC_VERSION := $(call cc-version)
 
+# ----------------------------------------------
+# Try to guess the location of X11 includes/libs
+# ----------------------------------------------
+
+X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6
+X11BASE_GUESS := $(shell \
+	if [ -e /usr/include/X11/Xlib.h ]; then exit 0; fi; \
+	if [ -e /usr/local/include/X11/Xlib.h ]; then exit 0; fi; \
+	for DIR in $(X11DIRS); do \
+            if [ -e $$DIR/include/X11/Xlib.h ]; then echo $$DIR; break; fi; \
+	done )
+
 # ---------------------
 # Special include dirs
 # ---------------------
@@ -89,14 +103,18 @@ NQ_W32_COMMON_LIBS = wsock32 winmm dxguid
 NQ_W32_SW_LIBS = mgllt ddraw
 NQ_W32_GL_LIBS = opengl32 comctl32
 
-UNIX_X11_LIBDIR = /usr/X11R6/lib
 NQ_UNIX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
 NQ_UNIX_GL_LIBS = GL
 
-NQ_W32_SW_LFLAGS = $(patsubst %,-l%,$(NQ_W32_SW_LIBS) $(NQ_W32_COMMON_LIBS))
-NQ_W32_GL_LFLAGS = $(patsubst %,-l%,$(NQ_W32_GL_LIBS) $(NQ_W32_COMMON_LIBS))
-NQ_UNIX_SW_LFLAGS = $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS))
-NQ_UNIX_GL_LFLAGS = $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS) $(NQ_UNIX_GL_LIBS))
+NQ_W32_SW_LFLAGS  := $(patsubst %,-l%,$(NQ_W32_SW_LIBS) $(NQ_W32_COMMON_LIBS))
+NQ_W32_GL_LFLAGS  := $(patsubst %,-l%,$(NQ_W32_GL_LIBS) $(NQ_W32_COMMON_LIBS))
+NQ_UNIX_SW_LFLAGS := $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS))
+NQ_UNIX_GL_LFLAGS := $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS) $(NQ_UNIX_GL_LIBS))
+
+ifneq ($(X11BASE),)
+NQ_UNIX_SW_LFLAGS += -L$(X11BASE)/lib
+NQ_UNIX_GL_LFLAGS += -L$(X11BASE)/lib
+endif
 
 # ---------------------------------------
 # Define some build variables
@@ -104,16 +122,12 @@ NQ_UNIX_GL_LFLAGS = $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS) $(NQ_UNIX_GL_LIBS))
 
 STRIP ?= strip
 
-CFLAGS := -Wall -Wno-trigraphs
+CFLAGS := $(CFLAGS) -Wall -Wno-trigraphs
 
-# Enable this if you're getting pedantic again...
-#ifeq ($(TARGET_OS),UNIX)
-#CFLAGS += -Werror
-#endif
-
-ifdef DEBUG
+ifeq ($(DEBUG),Y)
 CFLAGS += -g
 else
+ifeq ($(OPTIMIZED_CFLAGS),Y)
 CFLAGS += -O2
 # -funit-at-a-time is buggy for MinGW GCC > 3.2
 # I'm assuming it's fixed for MinGW GCC >= 4.0 when that comes about
@@ -122,6 +136,7 @@ CFLAGS += $(shell if [ $(GCC_VERSION) -lt 0400 ] ;\
 CFLAGS += $(call cc-option,-fweb,)
 CFLAGS += $(call cc-option,-frename-registers,)
 CFLAGS += $(call cc-option,-mtune=i686,-mcpu=i686)
+endif
 endif
 
 # ---------------------------------------------------------
@@ -148,16 +163,19 @@ all:	prepare $(APPS)
 prepare:	$(BUILD_DIRS)
 
 COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION)
-ifdef DEBUG
+ifeq ($(DEBUG),Y)
 COMMON_CPPFLAGS += -DDEBUG
 else
 COMMON_CPPFLAGS += -DNDEBUG
 endif
 
-ifndef NO_X86_ASM
+ifeq ($(USE_X86_ASM),Y)
 COMMON_CPPFLAGS += -DUSE_X86_ASM
 endif
 
+ifneq ($(X11BASE),)
+COMMON_CPPFLAGS += -I$(X11BASE)/include
+endif
 COMMON_CPPFLAGS += -I$(TOPDIR)/include
 
 NQSW_CPPFLAGS := $(COMMON_CPPFLAGS) -DNQ_HACK
@@ -507,13 +525,13 @@ NQ_W32_SW_OBJS += $(NQ_SW_C_OBJS)
 NQ_W32_SW_OBJS += $(NQ_W32_C_OBJS)
 NQ_W32_SW_OBJS += $(NQ_W32_SW_C_OBJS)
 NQ_W32_SW_OBJS += winquake.res
-ifdef NO_X86_ASM
-NQ_W32_SW_OBJS += nonintel.o
-else
+ifeq ($(USE_X86_ASM),Y)
 NQ_W32_SW_OBJS += $(NQ_COMMON_ASM_OBJS)
 NQ_W32_SW_OBJS += $(NQ_SW_ASM_OBJS)
 NQ_W32_SW_OBJS += $(NQ_W32_ASM_OBJS)
 NQ_W32_SW_OBJS += $(NQ_W32_SW_ASM_OBJS)
+else
+NQ_W32_SW_OBJS += nonintel.o
 endif
 
 NQ_W32_GL_OBJS := $(NQ_COMMON_C_OBJS)
@@ -521,7 +539,7 @@ NQ_W32_GL_OBJS += $(NQ_GL_C_OBJS)
 NQ_W32_GL_OBJS += $(NQ_W32_C_OBJS)
 NQ_W32_GL_OBJS += $(NQ_W32_GL_C_OBJS)
 NQ_W32_GL_OBJS += winquake.res
-ifndef NO_X86_ASM
+ifeq ($(USE_X86_ASM),Y)
 NQ_W32_GL_OBJS += $(NQ_COMMON_ASM_OBJS)
 NQ_W32_GL_OBJS += $(NQ_GL_ASM_OBJS)
 NQ_W32_GL_OBJS += $(NQ_W32_ASM_OBJS)
@@ -532,20 +550,20 @@ NQ_UNIX_SW_OBJS := $(NQ_COMMON_C_OBJS)
 NQ_UNIX_SW_OBJS += $(NQ_SW_C_OBJS)
 NQ_UNIX_SW_OBJS += $(NQ_UNIX_C_OBJS)
 NQ_UNIX_SW_OBJS += $(NQ_UNIX_SW_C_OBJS)
-ifdef NO_X86_ASM
-NQ_UNIX_SW_OBJS += nonintel.o
-else
+ifeq ($(USE_X86_ASM),Y)
 NQ_UNIX_SW_OBJS += $(NQ_COMMON_ASM_OBJS)
 NQ_UNIX_SW_OBJS += $(NQ_SW_ASM_OBJS)
 NQ_UNIX_SW_OBJS += $(NQ_UNIX_ASM_OBJS)
 NQ_UNIX_SW_OBJS += $(NQ_UNIX_SW_ASM_OBJS)
+else
+NQ_UNIX_SW_OBJS += nonintel.o
 endif
 
 NQ_UNIX_GL_OBJS := $(NQ_COMMON_C_OBJS)
 NQ_UNIX_GL_OBJS += $(NQ_GL_C_OBJS)
 NQ_UNIX_GL_OBJS += $(NQ_UNIX_C_OBJS)
 NQ_UNIX_GL_OBJS += $(NQ_UNIX_GL_C_OBJS)
-ifndef NO_X86_ASM
+ifeq ($(USE_X86_ASM),Y)
 NQ_UNIX_GL_OBJS += $(NQ_COMMON_ASM_OBJS)
 NQ_UNIX_GL_OBJS += $(NQ_GL_ASM_OBJS)
 NQ_UNIX_GL_OBJS += $(NQ_UNIX_ASM_OBJS)
@@ -567,11 +585,11 @@ tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
 
 # Unix
 tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_UNIX_SW_OBJS))
-	$(call do_cc_link,-L$(UNIX_X11_LIBDIR) $(NQ_UNIX_SW_LFLAGS))
+	$(call do_cc_link,$(NQ_UNIX_SW_LFLAGS))
 	$(call do_strip,$@)
 
 tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_UNIX_GL_OBJS))
-	$(call do_cc_link,-L$(UNIX_X11_LIBDIR) $(NQ_UNIX_GL_LFLAGS))
+	$(call do_cc_link,$(NQ_UNIX_GL_LFLAGS))
 	$(call do_strip,$@)
 
 
@@ -736,13 +754,13 @@ QW_W32_SW_OBJS += $(QW_SW_C_OBJS)
 QW_W32_SW_OBJS += $(QW_W32_C_OBJS)
 QW_W32_SW_OBJS += $(QW_W32_SW_C_OBJS)
 QW_W32_SW_OBJS += winquake.res
-ifdef NO_X86_ASM
-QW_W32_SW_OBJS += nonintel.o
-else
+ifeq ($(USE_X86_ASM),Y)
 QW_W32_SW_OBJS += $(QW_COMMON_ASM_OBJS)
 QW_W32_SW_OBJS += $(QW_SW_ASM_OBJS)
 QW_W32_SW_OBJS += $(QW_W32_ASM_OBJS)
 QW_W32_SW_OBJS += $(QW_W32_SW_ASM_OBJS)
+else
+QW_W32_SW_OBJS += nonintel.o
 endif
 
 QW_W32_GL_OBJS := $(QW_COMMON_C_OBJS)
@@ -750,7 +768,7 @@ QW_W32_GL_OBJS += $(QW_GL_C_OBJS)
 QW_W32_GL_OBJS += $(QW_W32_C_OBJS)
 QW_W32_GL_OBJS += $(QW_W32_GL_C_OBJS)
 QW_W32_GL_OBJS += winquake.res
-ifndef NO_X86_ASM
+ifeq ($(USE_X86_ASM),Y)
 QW_W32_GL_OBJS += $(QW_COMMON_ASM_OBJS)
 QW_W32_GL_OBJS += $(QW_GL_ASM_OBJS)
 QW_W32_GL_OBJS += $(QW_W32_ASM_OBJS)
@@ -761,20 +779,20 @@ QW_UNIX_SW_OBJS := $(QW_COMMON_C_OBJS)
 QW_UNIX_SW_OBJS += $(QW_SW_C_OBJS)
 QW_UNIX_SW_OBJS += $(QW_UNIX_C_OBJS)
 QW_UNIX_SW_OBJS += $(QW_UNIX_SW_C_OBJS)
-ifdef NO_X86_ASM
-QW_UNIX_SW_OBJS += nonintel.o
-else
+ifeq ($(USE_X86_ASM),Y)
 QW_UNIX_SW_OBJS += $(QW_COMMON_ASM_OBJS)
 QW_UNIX_SW_OBJS += $(QW_SW_ASM_OBJS)
 QW_UNIX_SW_OBJS += $(QW_UNIX_ASM_OBJS)
 QW_UNIX_SW_OBJS += $(QW_UNIX_SW_ASM_OBJS)
+else
+QW_UNIX_SW_OBJS += nonintel.o
 endif
 
 QW_UNIX_GL_OBJS := $(QW_COMMON_C_OBJS)
 QW_UNIX_GL_OBJS += $(QW_GL_C_OBJS)
 QW_UNIX_GL_OBJS += $(QW_UNIX_C_OBJS)
 QW_UNIX_GL_OBJS += $(QW_UNIX_GL_C_OBJS)
-ifndef NO_X86_ASM
+ifeq ($(USE_X86_ASM),Y)
 QW_UNIX_GL_OBJS += $(QW_COMMON_ASM_OBJS)
 QW_UNIX_GL_OBJS += $(QW_GL_ASM_OBJS)
 QW_UNIX_GL_OBJS += $(QW_UNIX_ASM_OBJS)
@@ -791,10 +809,15 @@ QW_W32_GL_LIBS = opengl32 comctl32
 QW_UNIX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
 QW_UNIX_GL_LIBS = GL
 
-QW_W32_SW_LFLAGS = $(patsubst %,-l%,$(QW_W32_SW_LIBS) $(QW_W32_COMMON_LIBS))
-QW_W32_GL_LFLAGS = $(patsubst %,-l%,$(QW_W32_GL_LIBS) $(QW_W32_COMMON_LIBS))
-QW_UNIX_SW_LFLAGS = $(patsubst %,-l%,$(QW_UNIX_COMMON_LIBS))
-QW_UNIX_GL_LFLAGS = $(patsubst %,-l%,$(QW_UNIX_COMMON_LIBS) $(QW_UNIX_GL_LIBS))
+QW_W32_SW_LFLAGS  := $(patsubst %,-l%,$(QW_W32_SW_LIBS) $(QW_W32_COMMON_LIBS))
+QW_W32_GL_LFLAGS  := $(patsubst %,-l%,$(QW_W32_GL_LIBS) $(QW_W32_COMMON_LIBS))
+QW_UNIX_SW_LFLAGS := $(patsubst %,-l%,$(QW_UNIX_COMMON_LIBS))
+QW_UNIX_GL_LFLAGS := $(patsubst %,-l%,$(QW_UNIX_COMMON_LIBS) $(QW_UNIX_GL_LIBS))
+
+ifneq ($(X11BASE),)
+QW_UNIX_SW_LFLAGS += -L$(X11BASE)/lib
+QW_UNIX_GL_LFLAGS += -L$(X11BASE)/lib
+endif
 
 # ---------------------
 # build rules
@@ -811,11 +834,11 @@ tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
 
 # Unix
 tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_UNIX_SW_OBJS))
-	$(call do_cc_link,-L$(UNIX_X11_LIBDIR) $(QW_UNIX_SW_LFLAGS))
+	$(call do_cc_link,$(QW_UNIX_SW_LFLAGS))
 	$(call do_strip,$@)
 
 tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_UNIX_GL_OBJS))
-	$(call do_cc_link,-L$(UNIX_X11_LIBDIR) $(QW_UNIX_GL_LFLAGS))
+	$(call do_cc_link,$(QW_UNIX_GL_LFLAGS))
 	$(call do_strip,$@)
 
 UNUSED_OBJS	= cd_audio.o
