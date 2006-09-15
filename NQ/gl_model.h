@@ -21,11 +21,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GL_MODEL_H
 #define GL_MODEL_H
 
-#include "modelgen.h"
-#include "spritegn.h"
 #include "bspfile.h"
+#include "modelgen.h"
 #include "render.h"
+#include "spritegn.h"
 #include "zone.h"
+
+#ifdef QW_HACK
+#include "bothdefs.h"
+#endif
 
 /*
 
@@ -36,11 +40,12 @@ m*_t structures are in-memory
 
 // entity effects
 
-#define	EF_BRIGHTFIELD	1
-#define	EF_MUZZLEFLASH 	2
-#define	EF_BRIGHTLIGHT 	4
-#define	EF_DIMLIGHT 	8
-
+#define EF_BRIGHTFIELD	1
+#define EF_MUZZLEFLASH 	2
+#define EF_BRIGHTLIGHT 	4
+#define EF_DIMLIGHT 	8
+#define EF_FLAG1	16
+#define EF_FLAG2	32
 #define EF_BLUE		64
 #define EF_RED		128
 
@@ -237,6 +242,10 @@ typedef struct {
     mspriteframedesc_t frames[1];
 } msprite_t;
 
+#ifdef QW_HACK
+extern byte player_8bit_texels[320 * 200];
+#endif
+
 /*
 ==============================================================================
 
@@ -298,7 +307,9 @@ typedef struct {
     int posedata;		// numposes*poseverts trivert_t
     int commands;		// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
+#ifdef NQ_HACK
     int texels[MAX_SKINS];	// only for player skins
+#endif
     maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
@@ -395,6 +406,11 @@ typedef struct model_s {
     byte *visdata;
     byte *lightdata;
     char *entities;
+
+#ifdef QW_HACK
+    unsigned checksum;
+    unsigned checksum2;
+#endif
 
 //
 // additional model data
