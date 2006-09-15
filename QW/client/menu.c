@@ -72,7 +72,6 @@ static void M_Quit_Key(int key);
 
 static qboolean m_recursiveDraw;
 static qboolean m_entersound;	// play after drawing a frame, so caching
-
 				// won't disrupt the sound
 
 #define StartingGame	(m_multiplayer_cursor == 1)
@@ -119,7 +118,7 @@ M_PrintWhite(int cx, int cy, const char *str)
 }
 
 static void
-M_DrawTransPic(int x, int y, qpic_t *pic)
+M_DrawTransPic(int x, int y, const qpic_t *pic)
 {
     Draw_TransPic(x + ((vid.width - 320) >> 1), y, pic);
 }
@@ -218,10 +217,9 @@ M_ToggleMenu_f(void)
 
 static int m_main_cursor;
 
-#define	MAIN_ITEMS 5
+#define MAIN_ITEMS 5
 
-
-void
+static void
 M_Menu_Main_f(void)
 {
     if (key_dest != key_menu) {
@@ -645,7 +643,7 @@ M_FindKeysForCommand(const char *command, int *twokeys)
 }
 
 static void
-M_UnbindCommand(const char *command)
+M_UnbindCommand(const char *const command)
 {
     int j;
     int l;
@@ -722,7 +720,7 @@ M_Keys_Key(int k)
 	if (k == K_ESCAPE) {
 	    bind_grab = false;
 	} else if (k != '`') {
-	    sprintf(cmd, "bind %s \"%s\"\n", Key_KeynumToString(k),
+	    sprintf(cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString(k),
 		    bindnames[keys_cursor][0]);
 	    Cbuf_InsertText(cmd);
 	}
@@ -796,7 +794,7 @@ M_Video_Key(int key)
 //=============================================================================
 /* HELP MENU */
 
-#define	NUM_HELP_PAGES 6
+#define NUM_HELP_PAGES 6
 
 static int help_page;
 
@@ -809,7 +807,6 @@ M_Menu_Help_f(void)
     m_entersound = true;
     help_page = 0;
 }
-
 
 
 static void
@@ -851,7 +848,7 @@ static int msgNumber;
 static int m_quit_prevstate;
 static qboolean wasInMenus;
 
-static char *quitMessage[] = {
+static const char *const quitMessage[] = {
     "  Are you gonna quit    ",
     "  this game just like   ",
     "   everything else?     ",
@@ -937,6 +934,25 @@ M_Quit_Key(int key)
 
 }
 
+
+static void
+M_Quit_Draw(void)
+{
+    if (wasInMenus) {
+	m_state = m_quit_prevstate;
+	m_recursiveDraw = true;
+	M_Draw();
+	m_state = m_quit;
+    }
+
+    M_DrawTextBox(56, 76, 24, 4);
+    M_Print(64, 84, quitMessage[msgNumber * 4 + 0]);
+    M_Print(64, 92, quitMessage[msgNumber * 4 + 1]);
+    M_Print(64, 100, quitMessage[msgNumber * 4 + 2]);
+    M_Print(64, 108, quitMessage[msgNumber * 4 + 3]);
+}
+
+
 static void
 M_Menu_SinglePlayer_f(void)
 {
@@ -1000,24 +1016,6 @@ M_MultiPlayer_Key(key)
     if (key == K_ESCAPE || key == K_ENTER)
 	m_state = m_main;
 }
-
-static void
-M_Quit_Draw(void)
-{
-    if (wasInMenus) {
-	m_state = m_quit_prevstate;
-	m_recursiveDraw = true;
-	M_Draw();
-	m_state = m_quit;
-    }
-
-    M_DrawTextBox(56, 76, 24, 4);
-    M_Print(64, 84, quitMessage[msgNumber * 4 + 0]);
-    M_Print(64, 92, quitMessage[msgNumber * 4 + 1]);
-    M_Print(64, 100, quitMessage[msgNumber * 4 + 2]);
-    M_Print(64, 108, quitMessage[msgNumber * 4 + 3]);
-}
-
 
 //=============================================================================
 /* Menu Subsystem */

@@ -98,7 +98,6 @@ static void M_ServerList_Key(int key);
 
 static qboolean m_recursiveDraw;
 static qboolean m_entersound;	// play after drawing a frame, so caching
-
 				// won't disrupt the sound
 
 qboolean m_return_onerror;
@@ -147,7 +146,7 @@ M_PrintWhite(int cx, int cy, const char *str)
     }
 }
 
-void
+static void
 M_DrawTransPic(int x, int y, const qpic_t *pic)
 {
     Draw_TransPic(x + ((vid.width - 320) >> 1), y, pic);
@@ -284,7 +283,7 @@ M_ToggleMenu_f(void)
 
 static int m_main_cursor;
 
-#define	MAIN_ITEMS	5
+#define MAIN_ITEMS 5
 
 static void
 M_Menu_Main_f(void)
@@ -1528,9 +1527,9 @@ M_Video_Key(int key)
 //=============================================================================
 /* HELP MENU */
 
-static int help_page;
+#define NUM_HELP_PAGES 6
 
-#define	NUM_HELP_PAGES	6
+static int help_page;
 
 static void
 M_Menu_Help_f(void)
@@ -1577,11 +1576,11 @@ M_Help_Key(int key)
 //=============================================================================
 /* QUIT MENU */
 
-int msgNumber;
-int m_quit_prevstate;
-qboolean wasInMenus;
+static int msgNumber;
+static int m_quit_prevstate;
+static qboolean wasInMenus;
 
-const char *const quitMessage[] = {
+static const char *const quitMessage[] = {
     "  Are you gonna quit    ",
     "  this game just like   ",
     "   everything else?     ",
