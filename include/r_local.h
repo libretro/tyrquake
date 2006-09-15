@@ -116,8 +116,6 @@ void R_DrawPolyList(void);
 // current entity info
 //
 extern qboolean insubmodel;
-extern vec3_t r_worldmodelorg;
-
 
 void R_DrawSprite(void);
 void R_RenderFace(msurface_t *fa, int clipflags);

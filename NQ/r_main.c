@@ -786,9 +786,6 @@ R_DrawBEntitiesOnList(void)
 	    if (clipflags != BMODEL_FULLY_CLIPPED) {
 		VectorCopy(currententity->origin, r_entorigin);
 		VectorSubtract(r_origin, r_entorigin, modelorg);
-		// FIXME: is this needed?
-		VectorCopy(modelorg, r_worldmodelorg);
-
 		r_pcurrentvertbase = clmodel->vertexes;
 
 		// FIXME: stop transforming twice

@@ -38,8 +38,6 @@ vec3_t r_entorigin;	// the currently rendering entity in world coordinates
 
 static float entity_rotation[3][3];
 
-vec3_t r_worldmodelorg;
-
 int r_currentbkey;
 
 typedef enum { touchessolid, drawnode, nodrawnode } solidstate_t;
