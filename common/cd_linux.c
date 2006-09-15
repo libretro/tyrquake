@@ -155,6 +155,19 @@ CDDrv_Resume(void)
 	Con_DPrintf("ioctl cdromresume failed\n");
 }
 
+int
+CDDrv_SetVolume(byte volume)
+{
+    drv_vol.channel0 = drv_vol.channel2 = drv_vol.channel1 =
+	drv_vol.channel3 = volume;
+    if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol) == -1 ) {
+	Con_DPrintf("ioctl CDROMVOLCTRL failed\n");
+	return -1;
+    }
+
+    return volume;
+}
+
 void
 CDAudio_Update(void)
 {
@@ -170,10 +183,7 @@ CDAudio_Update(void)
 	if (bgmvolume.value < 0.0f)
 	    Cvar_SetValue ("bgmvolume", 0.0f);
 
-	drv_vol.channel0 = drv_vol.channel2 =
-	    drv_vol.channel1 = drv_vol.channel3 = bgmvolume.value * 255.0;
-	if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol) == -1 )
-	    Con_DPrintf("ioctl CDROMVOLCTRL failed\n");
+	CDDrv_SetVolume(bgmvolume.value * 255.0);
     }
 
     if (playing && lastchk < time(NULL)) {
@@ -217,10 +227,7 @@ CDDrv_InitDevice(void)
 	    drv_vol_saved.channel1 = drv_vol_saved.channel3 = 255.0;
     }
     /* set our own volume */
-    drv_vol.channel0 = drv_vol.channel2 =
-	drv_vol.channel1 = drv_vol.channel3 = bgmvolume.value * 255.0;
-    if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol) == -1)
-	Con_Printf("ioctl CDROMVOLCTRL failed\n");
+    CDDrv_SetVolume(bgmvolume.value * 255.0);
 
     return 0;
 }

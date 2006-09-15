@@ -239,23 +239,36 @@ CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+int
+CDDrv_SetVolume(byte volume)
+{
+    int ret;
+
+    /* No real volume controls here... */
+    if (volume) {
+	CDAudio_Resume();
+	ret = 255;
+    } else {
+	CDAudio_Pause();
+	ret = 0;
+    }
+
+    return ret;
+}
 
 void
 CDAudio_Update(void)
 {
+    int ret;
+
     if (!enabled)
 	return;
 
     if (bgmvolume.value != cdvolume) {
-	if (cdvolume) {
-	    Cvar_SetValue("bgmvolume", 0.0);
-	    cdvolume = bgmvolume.value;
-	    CDAudio_Pause();
-	} else {
-	    Cvar_SetValue("bgmvolume", 1.0);
-	    cdvolume = bgmvolume.value;
-	    CDAudio_Resume();
-	}
+	ret = CDDrv_SetVolume(bgmvolume.value * 255);
+	if (ret >= 0)
+	    cdvolume = (float)ret / 255.0;
+	Cvar_SetValue("bgmvolume", cdvolume);
     }
 }
 
