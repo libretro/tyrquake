@@ -312,6 +312,7 @@ $(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(do_cc_o_c)
 
 # Objects common to all versions of NQ, sources are c code
 NQ_COMMON_C_OBJS = \
+	cd_common.o	\
 	chase.o		\
 	cl_demo.o	\
 	cl_input.o	\
@@ -580,6 +581,7 @@ QW_SV_SHARED_C_OBJS = \
 
 QW_COMMON_C_OBJS = \
 	$(QW_SV_SHARED_C_OBJS) \
+	cd_common.o	\
 	cl_cam.o	\
 	cl_demo.o	\
 	cl_ents.o	\

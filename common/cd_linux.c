@@ -45,22 +45,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #endif
 
-static qboolean cdValid = false;
-static qboolean playing = false;
-static qboolean wasPlaying = false;
+// FIXME - transitional hacks
+extern int CDAudio_Init_Common(void);
+
+qboolean cdValid = false;
+qboolean playing = false;
+qboolean wasPlaying = false;
 static qboolean initialized = false;
-static qboolean enabled = true;
-static qboolean playLooping = false;
-static byte remap[100];
-static byte playTrack;
-static byte maxTrack;
+qboolean enabled = true;
+qboolean playLooping = false;
+byte remap[100];
+byte playTrack;
+byte maxTrack;
 
 static int cdfile = -1;
 static char cd_dev[64] = _PATH_DEV "cdrom";
 static struct cdrom_volctrl drv_vol_saved;
 static struct cdrom_volctrl drv_vol;
 
-static void
+void
 CDAudio_Eject(void)
 {
     if (cdfile == -1 || !enabled)
@@ -71,7 +74,7 @@ CDAudio_Eject(void)
 }
 
 
-static void
+void
 CDAudio_CloseDoor(void)
 {
     if (cdfile == -1 || !enabled)
@@ -81,7 +84,7 @@ CDAudio_CloseDoor(void)
 	Con_DPrintf("ioctl cdromclosetray failed\n");
 }
 
-static int
+int
 CDAudio_GetAudioDiskInfo(void)
 {
     struct cdrom_tochdr tochdr;
@@ -213,112 +216,6 @@ CDAudio_Resume(void)
     playing = true;
 }
 
-static void
-CD_f(void)
-{
-    char *command;
-    int ret;
-    int n;
-
-    if (Cmd_Argc() < 2)
-	return;
-
-    command = Cmd_Argv(1);
-
-    if (strcasecmp(command, "on") == 0) {
-	enabled = true;
-	return;
-    }
-
-    if (strcasecmp(command, "off") == 0) {
-	if (playing)
-	    CDAudio_Stop();
-	enabled = false;
-	return;
-    }
-
-    if (strcasecmp(command, "reset") == 0) {
-	enabled = true;
-	if (playing)
-	    CDAudio_Stop();
-	for (n = 0; n < 100; n++)
-	    remap[n] = n;
-	CDAudio_GetAudioDiskInfo();
-	return;
-    }
-
-    if (strcasecmp(command, "remap") == 0) {
-	ret = Cmd_Argc() - 2;
-	if (ret <= 0) {
-	    for (n = 1; n < 100; n++)
-		if (remap[n] != n)
-		    Con_Printf("  %u -> %u\n", n, remap[n]);
-	    return;
-	}
-	for (n = 1; n <= ret; n++)
-	    remap[n] = Q_atoi(Cmd_Argv(n + 1));
-	return;
-    }
-
-    if (strcasecmp(command, "close") == 0) {
-	CDAudio_CloseDoor();
-	return;
-    }
-
-    if (!cdValid) {
-	CDAudio_GetAudioDiskInfo();
-	if (!cdValid) {
-	    Con_Printf("No CD in player.\n");
-	    return;
-	}
-    }
-
-    if (strcasecmp(command, "play") == 0) {
-	CDAudio_Play((byte)Q_atoi(Cmd_Argv(2)), false);
-	return;
-    }
-
-    if (strcasecmp(command, "loop") == 0) {
-	CDAudio_Play((byte)Q_atoi(Cmd_Argv(2)), true);
-	return;
-    }
-
-    if (strcasecmp(command, "stop") == 0) {
-	CDAudio_Stop();
-	return;
-    }
-
-    if (strcasecmp(command, "pause") == 0) {
-	CDAudio_Pause();
-	return;
-    }
-
-    if (strcasecmp(command, "resume") == 0) {
-	CDAudio_Resume();
-	return;
-    }
-
-    if (strcasecmp(command, "eject") == 0) {
-	if (playing)
-	    CDAudio_Stop();
-	CDAudio_Eject();
-	cdValid = false;
-	return;
-    }
-
-    if (strcasecmp(command, "info") == 0) {
-	Con_Printf("%u tracks\n", maxTrack);
-	if (playing)
-	    Con_Printf("Currently %s track %u\n",
-		       playLooping ? "looping" : "playing", playTrack);
-	else if (wasPlaying)
-	    Con_Printf("Paused %s track %u\n",
-		       playLooping ? "looping" : "playing", playTrack);
-	Con_Printf("Volume is %f\n", bgmvolume.value);
-	return;
-    }
-}
-
 void
 CDAudio_Update(void)
 {
@@ -395,7 +292,7 @@ CDAudio_Init(void)
 	cdValid = false;
     }
 
-    Cmd_AddCommand("cd", CD_f);
+    CDAudio_Init_Common();
 
     /* get drive's current volume */
     if (ioctl(cdfile, CDROMVOLREAD, &drv_vol_saved) == -1) {
