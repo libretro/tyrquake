@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int CDDrv_IsAudioTrack(byte track);
 int CDDrv_PlayTrack(byte track);
-int CDDrv_IsPlaying(void);
+int CDDrv_IsPlaying(byte track);
 int CDDrv_InitDevice(void);
 void CDDrv_CloseDevice(void);
 void CDDrv_Eject(void);

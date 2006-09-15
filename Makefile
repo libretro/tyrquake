@@ -44,6 +44,12 @@ TARGET_OS = WIN32
 TOPDIR := $(shell pwd -W)
 EXT = .exe
 else
+ifneq (,$(findstring $(SYSNAME),FreeBSD NetBSD OpenBSD))
+TARGET_OS = UNIX
+UNIX = bsd
+TOPDIR := $(shell pwd)
+EXT =
+else
 ifneq (,$(findstring $(SYSNAME),Linux))
 TARGET_OS = UNIX
 UNIX = linux
@@ -51,6 +57,7 @@ TOPDIR := $(shell pwd)
 EXT =
 else
 $(error OS type not detected.)
+endif
 endif
 endif
 

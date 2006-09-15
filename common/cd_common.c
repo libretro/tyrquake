@@ -208,7 +208,7 @@ CDAudio_Update(void)
 
     if (playing && lastchk < time(NULL)) {
 	lastchk = time(NULL) + 2;	//two seconds between chks
-	if (!CDDrv_IsPlaying()) {
+	if (!CDDrv_IsPlaying(playTrack)) {
 	    playing = false;
 	    if (playLooping)
 		CDAudio_Play(playTrack, true);

@@ -219,7 +219,7 @@ CDDrv_SetVolume(byte volume)
 }
 
 int
-CDDrv_IsPlaying(void)
+CDDrv_IsPlaying(byte track)
 {
     return isPlaying;
 }
