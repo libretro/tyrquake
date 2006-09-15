@@ -1345,76 +1345,23 @@ GL_BuildLightmaps(void)
     t1 = Sys_DoubleTime();
     cnt = 0;
 
-    if (_gl_lightmap_sort.value) {
-	/*
-	 * Create texture chains so that lightmaps get allocated in texture
-	 * order. That way, surfaces with the same textures are more likely to
-	 * be allocated in the same lightmap block and hence we will need less
-	 * state changes when rendering
-	 * FIXME - benchmark & pick one when texsort + multitexture is done).
-	 */
-	for (j = 1; j < MAX_MODELS; j++) {
-	    msurface_t *surf;
-	    texture_t *t;
+    for (j = 1; j < MAX_MODELS; j++) {
+	m = cl.model_precache[j];
+	if (!m)
+	    break;
+	if (m->name[0] == '*')
+	    continue;
 
-	    m = cl.model_precache[j];
-	    if (!m)
-		break;
-	    if (m->name[0] == '*')
+	r_pcurrentvertbase = m->vertexes;
+	currentmodel = m;
+	for (i = 0; i < m->numsurfaces; i++) {
+	    cnt++;
+	    GL_CreateSurfaceLightmap(m->surfaces + i);
+	    if (m->surfaces[i].flags & SURF_DRAWTURB)
 		continue;
-
-	    for (i = 0; i < m->numtextures; i++) {
-		t = m->textures[i];
-		if (t)
-		    t->texturechain = NULL;
-	    }
-
-	    for (i = 0; i < m->numsurfaces; i++) {
-		surf = m->surfaces + i;
-		surf->texturechain = surf->texinfo->texture->texturechain;
-		surf->texinfo->texture->texturechain = surf;
-	    }
-
-	    r_pcurrentvertbase = m->vertexes;
-	    currentmodel = m;
-
-	    for (i = 0; i < m->numtextures; i++) {
-		t = m->textures[i];
-		if (!t)
-		    continue;
-
-		for (surf = t->texturechain; surf; surf = surf->texturechain) {
-		    cnt++;
-		    GL_CreateSurfaceLightmap(surf);
-		    if (surf->flags & SURF_DRAWTURB)
-			continue;
-		    if (surf->flags & SURF_DRAWSKY)
-			continue;
-		    BuildSurfaceDisplayList(surf);
-		}
-		t->texturechain = NULL;
-	    }
-	}
-
-    } else {
-	for (j = 1; j < MAX_MODELS; j++) {
-	    m = cl.model_precache[j];
-	    if (!m)
-		break;
-
-	    if (m->name[0] == '*')
+	    if (m->surfaces[i].flags & SURF_DRAWSKY)
 		continue;
-	    r_pcurrentvertbase = m->vertexes;
-	    currentmodel = m;
-	    for (i = 0; i < m->numsurfaces; i++) {
-		cnt++;
-		GL_CreateSurfaceLightmap(m->surfaces + i);
-		if (m->surfaces[i].flags & SURF_DRAWTURB)
-		    continue;
-		if (m->surfaces[i].flags & SURF_DRAWSKY)
-		    continue;
-		BuildSurfaceDisplayList(m->surfaces + i);
-	    }
+	    BuildSurfaceDisplayList(m->surfaces + i);
 	}
     }
 

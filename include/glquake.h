@@ -215,7 +215,6 @@ extern cvar_t gl_flashblend;
 extern cvar_t gl_nocolors;
 extern cvar_t gl_finish;
 
-extern cvar_t _gl_lightmap_sort;
 extern cvar_t _gl_allowgammafallback;
 extern cvar_t _gl_drawhull;
 

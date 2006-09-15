@@ -120,7 +120,6 @@ cvar_t gl_flashblend = { "gl_flashblend", "1" };
 cvar_t gl_playermip = { "gl_playermip", "0" };
 cvar_t gl_nocolors = { "gl_nocolors", "0" };
 
-cvar_t _gl_lightmap_sort = { "_gl_lightmap_sort", "0" };
 cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
 
 /*
