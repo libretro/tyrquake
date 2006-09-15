@@ -19,10 +19,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // common.c -- misc functions used in client and server
 
-#include <sys/types.h>
-#include <dirent.h>
-#include <string.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
 #ifdef SERVERONLY
 #include "qwsvdef.h"
@@ -1300,8 +1301,6 @@ COM_WriteFile(const char *filename, const void *data, int len)
 /*
 ============
 COM_CreatePath
-
-Only used for CopyFile and download
 ============
 */
 void
@@ -1688,8 +1687,8 @@ Sets com_gamedir, adds the directory to the head of the path,
 then loads and adds pak1.pak pak2.pak ...
 ================
 */
-void
-COM_AddGameDirectory(char *dir)
+static void
+COM_AddGameDirectory(char *base, char *dir)
 {
     int i;
     searchpath_t *search;
@@ -1697,17 +1696,18 @@ COM_AddGameDirectory(char *dir)
     char pakfile[MAX_OSPATH];
     char *p;
 
-    if ((p = strrchr(dir, '/')) != NULL)
-	strcpy(gamedirfile, ++p);
-    else
-	strcpy(gamedirfile, p);
-    strcpy(com_gamedir, dir);
+    if (!base)
+	return;
+
+    strcpy(com_gamedir, va("%s/%s", base, dir));
+    p = strrchr(com_gamedir, '/');
+    strcpy(gamedirfile, ++p);
 
 //
 // add the directory to the search path
 //
     search = Hunk_Alloc(sizeof(searchpath_t));
-    strcpy(search->filename, dir);
+    strcpy(search->filename, com_gamedir);
     search->next = com_searchpaths;
     com_searchpaths = search;
 
@@ -1715,7 +1715,7 @@ COM_AddGameDirectory(char *dir)
 // add any pak files in the format pak0.pak pak1.pak, ...
 //
     for (i = 0;; i++) {
-	sprintf(pakfile, "%s/pak%i.pak", dir, i);
+	sprintf(pakfile, "%s/pak%i.pak", com_gamedir, i);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
 	    break;
@@ -1724,7 +1724,6 @@ COM_AddGameDirectory(char *dir)
 	search->next = com_searchpaths;
 	com_searchpaths = search;
     }
-
 }
 
 /*
@@ -1732,6 +1731,8 @@ COM_AddGameDirectory(char *dir)
 COM_Gamedir
 
 Sets the gamedir and path to a different directory.
+
+FIXME - if home dir is available, should we create ~/.tyrquake/gamedir ??
 ================
 */
 void
@@ -1808,6 +1809,9 @@ static void
 COM_InitFilesystem(void)
 {
     int i;
+    char *home;
+
+    home = getenv("HOME");
 
 //
 // -basedir <path>
@@ -1822,8 +1826,16 @@ COM_InitFilesystem(void)
 //
 // start up with id1 by default
 //
-    COM_AddGameDirectory(va("%s/id1", com_basedir));
-    COM_AddGameDirectory(va("%s/qw", com_basedir));
+    COM_AddGameDirectory(com_basedir, "id1");
+    COM_AddGameDirectory(home, ".tyrquake/id1");
+    COM_AddGameDirectory(com_basedir, "qw");
+    COM_AddGameDirectory(home, ".tyrquake/qw");
+
+    /* If home is available, create the game directory */
+    if (home) {
+	COM_CreatePath(com_gamedir);
+	Sys_mkdir(com_gamedir);
+    }
 
     // any set gamedirs will be freed up to here
     com_base_searchpaths = com_searchpaths;

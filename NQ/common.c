@@ -19,9 +19,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // common.c -- misc functions used in client and server
 
-#include <sys/types.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "cmd.h"
 #include "common.h"
@@ -1180,8 +1181,6 @@ COM_WriteFile(const char *filename, const void *data, int len)
 /*
 ============
 COM_CreatePath
-
-Only used for CopyFile
 ============
 */
 void
@@ -1647,21 +1646,24 @@ Sets com_gamedir, adds the directory to the head of the path,
 then loads and adds pak1.pak pak2.pak ...
 ================
 */
-void
-COM_AddGameDirectory(char *dir)
+static void
+COM_AddGameDirectory(char *base, char *dir)
 {
     int i;
     searchpath_t *search;
     pack_t *pak;
     char pakfile[MAX_OSPATH];
 
-    strcpy(com_gamedir, dir);
+    if (!base)
+	return;
+
+    strcpy(com_gamedir, va("%s/%s", base, dir));
 
 //
 // add the directory to the search path
 //
     search = Hunk_Alloc(sizeof(searchpath_t));
-    strcpy(search->filename, dir);
+    strcpy(search->filename, com_gamedir);
     search->next = com_searchpaths;
     com_searchpaths = search;
 
@@ -1669,7 +1671,7 @@ COM_AddGameDirectory(char *dir)
 // add any pak files in the format pak0.pak pak1.pak, ...
 //
     for (i = 0;; i++) {
-	sprintf(pakfile, "%s/pak%i.pak", dir, i);
+	sprintf(pakfile, "%s/pak%i.pak", com_gamedir, i);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
 	    break;
@@ -1682,8 +1684,9 @@ COM_AddGameDirectory(char *dir)
 //
 // add the contents of the parms.txt file to the end of the command line
 //
-
 }
+
+
 
 /*
 ================
@@ -1693,8 +1696,11 @@ COM_InitFilesystem
 static void
 COM_InitFilesystem(void)
 {
+    char *home;
     int i, j;
     searchpath_t *search;
+
+    home = getenv("HOME");
 
 //
 // -basedir <path>
@@ -1731,12 +1737,17 @@ COM_InitFilesystem(void)
 //
 // start up with GAMENAME by default (id1)
 //
-    COM_AddGameDirectory(va("%s/" GAMENAME, com_basedir));
+    COM_AddGameDirectory(com_basedir, GAMENAME);
+    COM_AddGameDirectory(home, ".tyrquake/" GAMENAME);
 
-    if (COM_CheckParm("-rogue"))
-	COM_AddGameDirectory(va("%s/rogue", com_basedir));
-    if (COM_CheckParm("-hipnotic"))
-	COM_AddGameDirectory(va("%s/hipnotic", com_basedir));
+    if (COM_CheckParm("-rogue")) {
+	COM_AddGameDirectory(com_basedir, "rogue");
+	COM_AddGameDirectory(home, ".tyrquake/rogue");
+    }
+    if (COM_CheckParm("-hipnotic")) {
+	COM_AddGameDirectory(com_basedir, "hipnotic");
+	COM_AddGameDirectory(home, ".tyrquake/hipnotic");
+    }
 
 //
 // -game <gamedir>
@@ -1745,8 +1756,16 @@ COM_InitFilesystem(void)
     i = COM_CheckParm("-game");
     if (i && i < com_argc - 1) {
 	com_modified = true;
-	COM_AddGameDirectory(va("%s/%s", com_basedir, com_argv[i + 1]));
+	COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
+	COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
     }
+
+    /* If home is available, create the game directory */
+    if (home) {
+	COM_CreatePath(com_gamedir);
+	Sys_mkdir(com_gamedir);
+    }
+
 //
 // -path <dir or packfile> [<dir or packfile>] ...
 // Fully specifies the exact serach path, overriding the generated one
