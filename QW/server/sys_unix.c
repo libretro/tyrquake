@@ -25,14 +25,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "sys.h"
 
-#ifdef __linux__
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <errno.h>
-#else
-#include <sys/dir.h>
-#endif
 
 // FIXME - header hacks
 extern int net_socket;
