@@ -32,10 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.h"
 #include "view.h"
 
-#ifdef _WIN32
-#include "winquake.h"
-#endif
-
 void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
@@ -499,14 +495,10 @@ M_Options_Draw(void)
     if (vid_menudrawfn)
 	M_Print(16, 144, "         Video Options");
 
-#ifdef _WIN32
-    if (modestate == MS_WINDOWED) {
-#endif
+    if (!VID_IsFullScreen()) {
 	M_Print(16, 152, "             Use Mouse");
 	M_DrawCheckbox(220, 152, _windowed_mouse.value);
-#ifdef _WIN32
     }
-#endif
 
 // cursor
     M_DrawCharacter(200, 32 + options_cursor * 8,
