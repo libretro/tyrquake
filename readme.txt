@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2006-05-13
-Version: 	0.53
+Date:		2006-06-13
+Version: 	0.54
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -32,6 +32,15 @@ you can select by editing the Makefile.
 
 
 Version History:
+
+v0.54
+=====
+- Remove some no longer required rendering code paths (gl_texsort 0,
+  _gl_sky_mtex 0, _gl_lightmap_sort 1)
+- Use API generated OpenGL texture handles, instead of our own. This is my
+  first baby step before looking at some decent texture management.
+- Share a few more files between NQ/QW
+- Improved build dependencies to handle moved files
 
 v0.53
 =====
