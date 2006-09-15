@@ -47,7 +47,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-qboolean cdValid = false;
 qboolean playing = false;
 qboolean enabled = true;
 qboolean playLooping = false;

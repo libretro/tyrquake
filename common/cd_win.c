@@ -35,7 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-qboolean cdValid = false;
 qboolean playing = false;
 qboolean enabled = false;
 qboolean playLooping = false;
@@ -227,7 +226,7 @@ CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case MCI_NOTIFY_FAILURE:
 	Con_DPrintf("MCI_NOTIFY_FAILURE\n");
 	CDAudio_Stop();
-	cdValid = false;
+	CDAudio_InvalidateDisk();
 	break;
 
     default:

@@ -34,7 +34,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-extern qboolean cdValid;
 extern qboolean enabled;
 extern qboolean playing;
 extern qboolean playLooping;
@@ -43,6 +42,7 @@ extern byte playTrack;
 static byte remap[100];
 static qboolean initialized = false;
 static qboolean wasPlaying = false;
+static qboolean cdValid = false;
 static byte maxTrack;
 static float cdvolume;
 
@@ -186,6 +186,12 @@ CDAudio_Play(byte track, qboolean looping)
 
     if (cdvolume == 0.0)
 	CDAudio_Pause();
+}
+
+void
+CDAudio_InvalidateDisk(void)
+{
+    cdValid = false;
 }
 
 static void
