@@ -228,9 +228,6 @@ R_Init(void)
 
     Cvar_RegisterVariable(&gl_doubleeyes);
 
-    if (gl_mtexable)
-	Cvar_SetValue("gl_texsort", 0.0);
-
     R_InitBubble();
 
     R_InitParticles();

@@ -104,11 +104,15 @@ cvar_t gl_reporttjunctions = {
     .string = "0",
     .flags = CVAR_OBSOLETE
 };
+cvar_t gl_texsort = {
+    .name = "gl_texsort",
+    .string = "1",
+    .flags = CVAR_OBSOLETE
+};
 
 cvar_t gl_finish = { "gl_finish", "0" };
 cvar_t gl_clear = { "gl_clear", "0" };
 cvar_t gl_cull = { "gl_cull", "1" };
-cvar_t gl_texsort = { "gl_texsort", "1" };
 cvar_t gl_smoothmodels = { "gl_smoothmodels", "1" };
 cvar_t gl_affinemodels = { "gl_affinemodels", "0" };
 cvar_t gl_polyblend = { "gl_polyblend", "1" };

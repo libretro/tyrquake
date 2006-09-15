@@ -228,9 +228,6 @@ R_Init(void)
 
     Cvar_RegisterVariable(&r_netgraph);
 
-    if (gl_mtexable)
-	Cvar_SetValue("gl_texsort", 0.0);
-
     R_InitBubble();
 
     R_InitParticles();

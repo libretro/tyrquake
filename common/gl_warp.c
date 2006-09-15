@@ -366,7 +366,6 @@ R_DrawSkyChain(msurface_t *s)
     } else {
 	GL_DisableMultitexture();
 
-	// used when gl_texsort is on
 	GL_Bind(solidskytexture);
 	speedscale = realtime * 8;
 	speedscale -= (int)speedscale & ~127;
