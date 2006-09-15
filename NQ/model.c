@@ -168,14 +168,9 @@ Mod_ClearAll(void)
     int i;
     model_t *mod;
 
-    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++) {
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	if (mod->type != mod_alias)
 	    mod->needload = true;
-//FIX FOR CACHE_ALLOC ERRORS:
-//FIXME - should be worked around in sprite loading routines?
-	if (mod->type == mod_sprite)
-	    mod->cache.data = NULL;
-    }
 }
 
 /*
@@ -1438,7 +1433,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 		       (LittleLong(pinmodel->numframes) - 1) *
 		       sizeof(pheader->frames[0]));
 
-//      mod->cache.data = pheader;
     mod->flags = LittleLong(pinmodel->flags);
 
 //
@@ -1738,9 +1732,6 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer)
     size = sizeof(msprite_t) + (numframes - 1) * sizeof(psprite->frames);
 
     psprite = Hunk_AllocName(size, loadname);
-
-    mod->cache.data = psprite;
-
     psprite->type = LittleLong(pin->type);
     psprite->maxwidth = LittleLong(pin->width);
     psprite->maxheight = LittleLong(pin->height);

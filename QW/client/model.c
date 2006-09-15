@@ -1159,6 +1159,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
     Mod_MakeHull0();
 
     mod->numframes = 2;		// regular and alternate animation
+    mod->flags = 0;
 
 //
 // set up the submodels (FIXME: this is confusing)
@@ -1478,7 +1479,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 		       (LittleLong(pinmodel->numframes) - 1) *
 		       sizeof(pheader->frames[0]));
 
-//      mod->cache.data = pheader;
     mod->flags = LittleLong(pinmodel->flags);
 
 //
@@ -1778,9 +1778,6 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer)
     size = sizeof(msprite_t) + (numframes - 1) * sizeof(psprite->frames);
 
     psprite = Hunk_AllocName(size, loadname);
-
-    mod->cache.data = psprite;
-
     psprite->type = LittleLong(pin->type);
     psprite->maxwidth = LittleLong(pin->width);
     psprite->maxheight = LittleLong(pin->height);
@@ -1800,6 +1797,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer)
 	Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
 
     mod->numframes = numframes;
+    mod->flags = 0;
 
     pframetype = (dspriteframetype_t *) (pin + 1);
 
