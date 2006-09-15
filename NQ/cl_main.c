@@ -763,4 +763,6 @@ CL_Init(void)
     Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
     Cmd_AddCommand("timedemo", CL_TimeDemo_f);
     Cmd_SetCompletion("timedemo", CL_Demo_Arg_f);
+
+    Cmd_AddCommand("mcache", Mod_Print);
 }

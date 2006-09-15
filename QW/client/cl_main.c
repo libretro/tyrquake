@@ -1181,6 +1181,8 @@ CL_Init(void)
     Cmd_AddCommand("nextul", CL_NextUpload);
     Cmd_AddCommand("stopul", CL_StopUpload);
 
+    Cmd_AddCommand("mcache", Mod_Print);
+
 //
 // forward to server commands
 //
