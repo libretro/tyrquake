@@ -22,9 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "d_local.h"
 
-// FIXME - header hacks
-extern int d_aflatcolor;
-
 #define NUM_MIPS	4
 
 cvar_t d_subdiv16 = { "d_subdiv16", "1" };
