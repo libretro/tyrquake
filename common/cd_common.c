@@ -85,19 +85,19 @@ static void
 CDAudio_SetVolume_f(struct cvar_s *var)
 {
     int ret;
+    float val;
 
-    if (var->value > 1.0) {
-	var->value = 1.0;
-	Cvar_SetValue("bgmvolume", var->value);
-    } else if (var->value < 0.0) {
-	var->value = 0.0;
-	Cvar_SetValue("bgmvolume", var->value);
-    } else if (cdvolume != var->value) {
+    if (var->value > 1.0)
+	val = 1.0;
+    else if (var->value < 0.0)
+	val = 0.0;
+    else if (cdvolume != var->value) {
 	ret = CDDrv_SetVolume(var->value * 255.0);
 	if (ret >= 0)
 	    cdvolume = (float)ret / 255.0;
-	Cvar_SetValue("bgmvolume", cdvolume);
+	val = cdvolume;
     }
+    Cvar_SetValue("bgmvolume", val);
 }
 
 void
@@ -109,10 +109,8 @@ CDAudio_Stop(void)
 	return;
 
     CDDrv_Stop();
-
     wasPlaying = false;
     playing = false;
-
 }
 
 void
@@ -124,7 +122,6 @@ CDAudio_Pause(void)
 	return;
 
     CDDrv_Pause();
-
     wasPlaying = playing;
     playing = false;
 }
@@ -140,7 +137,6 @@ CDAudio_Resume(void)
 	return;
 
     CDDrv_Resume(playTrack);
-
     playing = true;
 }
 
@@ -158,31 +154,26 @@ CDAudio_Play(byte track, qboolean looping)
 	if (!cdValid)
 	    return;
     }
-
     track = remap[track];
     if (track < 1 || track > maxTrack) {
 	Con_DPrintf("CDAudio: Bad track number %u.\n", track);
 	return;
     }
-
     if (!CDDrv_IsAudioTrack(track)) {
 	Con_Printf("CDAudio: track %i is not audio\n", track);
 	return;
     }
-
     if (playing) {
 	if (playTrack == track)
 	    return;
 	CDAudio_Stop();
     }
-
     err = CDDrv_PlayTrack(track);
     if (!err) {
 	playLooping = looping;
 	playTrack = track;
 	playing = true;
     }
-
     if (cdvolume == 0.0)
 	CDAudio_Pause();
 }
@@ -227,14 +218,12 @@ CD_f(void)
 	enabled = true;
 	return;
     }
-
     if (strcasecmp(command, "off") == 0) {
 	if (playing)
 	    CDAudio_Stop();
 	enabled = false;
 	return;
     }
-
     if (strcasecmp(command, "reset") == 0) {
 	enabled = true;
 	if (playing)
@@ -244,7 +233,6 @@ CD_f(void)
 	CDAudio_GetAudioDiskInfo();
 	return;
     }
-
     if (strcasecmp(command, "remap") == 0) {
 	ret = Cmd_Argc() - 2;
 	if (ret <= 0) {
@@ -257,12 +245,10 @@ CD_f(void)
 	    remap[n] = Q_atoi(Cmd_Argv(n + 1));
 	return;
     }
-
     if (strcasecmp(command, "close") == 0) {
 	CDAudio_CloseDoor();
 	return;
     }
-
     if (!cdValid) {
 	CDAudio_GetAudioDiskInfo();
 	if (!cdValid) {
@@ -270,32 +256,26 @@ CD_f(void)
 	    return;
 	}
     }
-
     if (strcasecmp(command, "play") == 0) {
 	CDAudio_Play((byte)Q_atoi(Cmd_Argv(2)), false);
 	return;
     }
-
     if (strcasecmp(command, "loop") == 0) {
 	CDAudio_Play((byte)Q_atoi(Cmd_Argv(2)), true);
 	return;
     }
-
     if (strcasecmp(command, "stop") == 0) {
 	CDAudio_Stop();
 	return;
     }
-
     if (strcasecmp(command, "pause") == 0) {
 	CDAudio_Pause();
 	return;
     }
-
     if (strcasecmp(command, "resume") == 0) {
 	CDAudio_Resume();
 	return;
     }
-
     if (strcasecmp(command, "eject") == 0) {
 	if (playing)
 	    CDAudio_Stop();
@@ -303,7 +283,6 @@ CD_f(void)
 	cdValid = false;
 	return;
     }
-
     if (strcasecmp(command, "info") == 0) {
 	Con_Printf("%u tracks\n", maxTrack);
 	if (playing)
@@ -332,7 +311,6 @@ CDAudio_Init(void)
 	return -1;
 
     Cmd_AddCommand("cd", CD_f);
-
     err = CDDrv_InitDevice();
     if (err)
 	return err;
@@ -343,12 +321,10 @@ CDAudio_Init(void)
     enabled = true;
 
     Con_Printf("CD Audio Initialized\n");
-
     if (CDAudio_GetAudioDiskInfo()) {
 	Con_Printf("CDAudio_Init: No CD in player.\n");
 	cdValid = false;
     }
-
     Cvar_RegisterVariable(&bgmvolume);
 
     return 0;
@@ -360,7 +336,6 @@ CDAudio_Shutdown(void)
     if (!initialized)
 	return;
     CDAudio_Stop();
-
     CDDrv_CloseDevice();
     initialized = false;
 }
