@@ -44,6 +44,16 @@ static byte remap[100];
 static qboolean initialized = false;
 static qboolean wasPlaying = false;
 static byte maxTrack;
+static float cdvolume;
+
+static void CDAudio_SetVolume_f(struct cvar_s *var);
+
+cvar_t bgmvolume = {
+    .name = "bgmvolume",
+    .string = "1",
+    .archive = true,
+    .callback = CDAudio_SetVolume_f
+};
 
 static void
 CDAudio_Eject(void)
@@ -70,6 +80,25 @@ CDAudio_GetAudioDiskInfo(void)
 	cdValid = true;
 
     return err;
+}
+
+static void
+CDAudio_SetVolume_f(struct cvar_s *var)
+{
+    int ret;
+
+    if (var->value > 1.0) {
+	var->value = 1.0;
+	Cvar_SetValue("bgmvolume", var->value);
+    } else if (var->value < 0.0) {
+	var->value = 0.0;
+	Cvar_SetValue("bgmvolume", var->value);
+    } else if (cdvolume != var->value) {
+	ret = CDDrv_SetVolume(var->value * 255.0);
+	if (ret >= 0)
+	    cdvolume = (float)ret / 255.0;
+	Cvar_SetValue("bgmvolume", cdvolume);
+    }
 }
 
 void
@@ -155,11 +184,8 @@ CDAudio_Play(byte track, qboolean looping)
 	playing = true;
     }
 
-#if 0
-    /* FIXME: was in the windows driver; fix with bgmvolume callback. */
     if (cdvolume == 0.0)
 	CDAudio_Pause();
-#endif
 }
 
 static void
@@ -299,6 +325,8 @@ CDAudio_Init(void)
 	Con_Printf("CDAudio_Init: No CD in player.\n");
 	cdValid = false;
     }
+
+    Cvar_RegisterVariable(&bgmvolume);
 
     return 0;
 }

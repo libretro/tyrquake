@@ -39,7 +39,6 @@ qboolean cdValid = false;
 qboolean playing = false;
 qboolean enabled = false;
 qboolean playLooping = false;
-static float cdvolume;
 byte playTrack;
 
 static UINT wDeviceID;
@@ -259,17 +258,6 @@ CDDrv_SetVolume(byte volume)
 void
 CDAudio_Update(void)
 {
-    int ret;
-
-    if (!enabled)
-	return;
-
-    if (bgmvolume.value != cdvolume) {
-	ret = CDDrv_SetVolume(bgmvolume.value * 255);
-	if (ret >= 0)
-	    cdvolume = (float)ret / 255.0;
-	Cvar_SetValue("bgmvolume", cdvolume);
-    }
 }
 
 

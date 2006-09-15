@@ -177,15 +177,6 @@ CDAudio_Update(void)
     if (!enabled)
 	return;
 
-    if ((int)(255.0 * bgmvolume.value) != (int)drv_vol.channel0) {
-	if (bgmvolume.value > 1.0f)
-	    Cvar_SetValue ("bgmvolume", 1.0f);
-	if (bgmvolume.value < 0.0f)
-	    Cvar_SetValue ("bgmvolume", 0.0f);
-
-	CDDrv_SetVolume(bgmvolume.value * 255.0);
-    }
-
     if (playing && lastchk < time(NULL)) {
 	lastchk = time(NULL) + 2;	//two seconds between chks
 	subchnl.cdsc_format = CDROM_MSF;
