@@ -284,12 +284,12 @@ $(BUILD_DIR)/qwgl/%.o:		QW/common/%.c	; $(do_cc_o_c)
 $(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(do_windres_res_rc)
 $(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
 
-$(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(do_cc_o_c)
 $(BUILD_DIR)/qwsv/%.o:		QW/server/%.S	; $(do_cc_o_c)
 $(BUILD_DIR)/qwsv/%.o:		QW/common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(do_cc_o_c)
 $(BUILD_DIR)/qwsv/%.o:		QW/server/%.c	; $(do_cc_o_c)
 $(BUILD_DIR)/qwsv/%.o:		QW/common/%.c	; $(do_cc_o_c)
+$(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(do_cc_o_c)
 
 # ----------------------------------------------------------------------------
 # Normal Quake (NQ)
