@@ -759,7 +759,7 @@ Mod_LoadFaces(lump_t *l)
 
     for (surfnum = 0; surfnum < count; surfnum++, in++, out++) {
 	out->firstedge = LittleLong(in->firstedge);
-	out->numedges = LittleShort(in->numedges); /* FIXME: < 0 means??? */
+	out->numedges = LittleShort(in->numedges);
 	out->flags = 0;
 
 	planenum = LittleShort(in->planenum);
@@ -1179,10 +1179,10 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 
 	mod->firstmodelsurface = bm->firstface;
 	mod->nummodelsurfaces = bm->numfaces;
+	mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
 
 	VectorCopy(bm->maxs, mod->maxs);
 	VectorCopy(bm->mins, mod->mins);
-	mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
 
 	mod->numleafs = bm->visleafs;
 

@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // models are the only shared resource between a client and server running
 // on the same machine.
 
+#include <stdint.h>
+
 #include "console.h"
 #include "crc.h"
 #include "quakedef.h"
@@ -1004,7 +1006,7 @@ Mod_LoadMarksurfaces(lump_t *l)
     loadmodel->nummarksurfaces = count;
 
     for (i = 0; i < count; i++) {
-	j = (unsigned short)LittleShort(in[i]);
+	j = (uint16_t)LittleShort(in[i]);
 	if (j >= loadmodel->numsurfaces)
 	    Sys_Error("%s: bad surface number", __func__);
 	out[i] = loadmodel->surfaces + j;
@@ -1179,7 +1181,8 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 
 	mod->numleafs = bm->visleafs;
 
-	if (i < mod->numsubmodels - 1) {	// duplicate the basic information
+	/* duplicate the basic information */
+	if (i < mod->numsubmodels - 1) {
 	    char name[10];
 
 	    sprintf(name, "*%i", i + 1);
@@ -1376,9 +1379,7 @@ Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize,
     paliasskingroup->numskins = numskins;
 
     *pskinindex = (byte *)paliasskingroup - (byte *)pheader;
-
     pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
-
     poutskinintervals = Hunk_AllocName(numskins * sizeof(float), loadname);
 
     paliasskingroup->intervals = (byte *)poutskinintervals - (byte *)pheader;
@@ -1601,7 +1602,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 
 	frametype = LittleLong(pframetype->type);
 	pheader->frames[i].type = frametype;
-
 
 	if (frametype == ALIAS_SINGLE) {
 	    pframetype = (daliasframetype_t *)
