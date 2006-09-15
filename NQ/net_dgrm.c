@@ -1347,6 +1347,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 	reason = MSG_ReadString();
 	Con_Printf(reason);
 	strncpy(m_return_reason, reason, 31);
+	m_return_reason[31] = 0;
 	goto ErrorReturn;
     }
 
