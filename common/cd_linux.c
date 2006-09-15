@@ -100,10 +100,6 @@ CDDrv_IsAudioTrack(byte track)
     int ret = 1;
     struct cdrom_tocentry entry;
 
-    /* FIXME - !enabled should be enough */
-    if (cdfile == -1)
-	return 0;
-
     entry.cdte_track = track;
     entry.cdte_format = CDROM_MSF;
     if (ioctl(cdfile, CDROMREADTOCENTRY, &entry) == -1) {
@@ -119,9 +115,6 @@ int
 CDDrv_PlayTrack(byte track)
 {
     struct cdrom_ti ti;
-
-    if (cdfile == -1)
-	return 1;
 
     ti.cdti_trk0 = track;
     ti.cdti_trk1 = track;
