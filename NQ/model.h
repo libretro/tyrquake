@@ -27,6 +27,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "spritegn.h"
 #include "zone.h"
 
+#ifdef QW_HACK
+#include "bothdefs.h"
+#endif
+
 /*
 
 d*_t structures are on-disk representations
@@ -35,12 +39,12 @@ m*_t structures are in-memory
 */
 
 // entity effects
-
-#define	EF_BRIGHTFIELD	1
-#define	EF_MUZZLEFLASH 	2
-#define	EF_BRIGHTLIGHT 	4
-#define	EF_DIMLIGHT 	8
-
+#define EF_BRIGHTFIELD	1
+#define EF_MUZZLEFLASH 	2
+#define EF_BRIGHTLIGHT 	4
+#define EF_DIMLIGHT 	8
+#define EF_FLAG1	16
+#define EF_FLAG2	32
 #define EF_BLUE		64
 #define EF_RED		128
 
@@ -308,6 +312,14 @@ typedef struct model_s {
     vec3_t mins, maxs;
     float radius;
 
+#ifdef QW_HACK
+//
+// solid volume for clipping (sent from server)
+//
+    qboolean clipbox;
+    vec3_t clipmins, clipmaxs;
+#endif
+
 //
 // brush model
 //
@@ -354,6 +366,11 @@ typedef struct model_s {
     byte *visdata;
     byte *lightdata;
     char *entities;
+
+#ifdef QW_HACK
+    unsigned checksum;		// for world models only
+    unsigned checksum2;		// for world models only
+#endif
 
 //
 // additional model data

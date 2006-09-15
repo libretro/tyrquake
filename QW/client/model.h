@@ -21,12 +21,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef MODEL_H
 #define MODEL_H
 
-#include "bothdefs.h"
 #include "bspfile.h"
 #include "modelgen.h"
 #include "render.h"
 #include "spritegn.h"
 #include "zone.h"
+
+#ifdef QW_HACK
+#include "bothdefs.h"
+#endif
 
 /*
 
@@ -309,11 +312,13 @@ typedef struct model_s {
     vec3_t mins, maxs;
     float radius;
 
+#ifdef QW_HACK
 //
 // solid volume for clipping (sent from server)
 //
     qboolean clipbox;
     vec3_t clipmins, clipmaxs;
+#endif
 
 //
 // brush model
@@ -362,8 +367,10 @@ typedef struct model_s {
     byte *lightdata;
     char *entities;
 
+#ifdef QW_HACK
     unsigned checksum;		// for world models only
     unsigned checksum2;		// for world models only
+#endif
 
 //
 // additional model data
@@ -379,6 +386,7 @@ void Mod_ClearAll(void);
 model_t *Mod_ForName(char *name, qboolean crash);
 void *Mod_Extradata(model_t *mod);	// handles caching
 void Mod_TouchModel(char *name);
+void Mod_Print(void);
 
 mleaf_t *Mod_PointInLeaf(float *p, model_t *model);
 byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
