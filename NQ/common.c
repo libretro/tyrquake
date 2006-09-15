@@ -1048,21 +1048,31 @@ does a varargs printf into a temp buffer, so I don't need to have
 varargs versions of all text functions.
 ============
 */
+#define VA_BUFFERLEN 1024
+static char *
+get_va_buffer(void)
+{
+    static char buffers[4][VA_BUFFERLEN];
+    static int index;
+    return buffers[3 & ++index];
+}
+
 char *
 va(char *format, ...)
 {
-    static char string[1024];
     va_list argptr;
+    char *buf;
     int ret;
 
+    buf = get_va_buffer();
     va_start(argptr, format);
-    ret = vsnprintf(string, 1024, format, argptr);
+    ret = vsnprintf(buf, VA_BUFFERLEN, format, argptr);
     va_end(argptr);
 
-    if (ret >= 1024)
+    if (ret >= VA_BUFFERLEN)
 	Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 
-    return string;
+    return buf;
 }
 
 

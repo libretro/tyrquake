@@ -1128,20 +1128,33 @@ va
 
 does a varargs printf into a temp buffer, so I don't need to have
 varargs versions of all text functions.
-FIXME: make this buffer size safe someday
 ============
 */
+#define VA_BUFFERLEN 1024
+static char *
+get_va_buffer(void)
+{
+    static char buffers[4][VA_BUFFERLEN];
+    static int index;
+    return buffers[3 & ++index];
+}
+
 char *
 va(char *format, ...)
 {
     va_list argptr;
-    static char string[1024];
+    char *buf;
+    int ret;
 
+    buf = get_va_buffer();
     va_start(argptr, format);
-    vsprintf(string, format, argptr);
+    ret = vsnprintf(buf, VA_BUFFERLEN, format, argptr);
     va_end(argptr);
 
-    return string;
+    if (ret >= VA_BUFFERLEN)
+	Con_DPrintf("%s: overflow (string truncated)\n", __func__);
+
+    return buf;
 }
 
 
