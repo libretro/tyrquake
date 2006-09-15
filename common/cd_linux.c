@@ -47,15 +47,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-extern int CDAudio_Init_Common(void);
-
 qboolean cdValid = false;
 qboolean playing = false;
 qboolean wasPlaying = false;
-static qboolean initialized = false;
+qboolean initialized = false;
 qboolean enabled = true;
 qboolean playLooping = false;
-byte remap[100];
 byte playTrack;
 byte maxTrack;
 
@@ -244,18 +241,9 @@ CDAudio_Update(void)
 }
 
 int
-CDAudio_Init(void)
+CDDrv_InitDevice(void)
 {
     int i;
-
-#ifdef NQ_HACK
-    // FIXME - not a valid client state in QW?
-    if (cls.state == ca_dedicated)
-	return -1;
-#endif
-
-    if (COM_CheckParm("-nocdaudio"))
-	return -1;
 
     if ((i = COM_CheckParm("-cddev")) != 0 && i < com_argc - 1) {
 	strncpy(cd_dev, com_argv[i + 1], sizeof(cd_dev));
@@ -268,20 +256,6 @@ CDAudio_Init(void)
 	cdfile = -1;
 	return -1;
     }
-
-    for (i = 0; i < 100; i++)
-	remap[i] = i;
-    initialized = true;
-    enabled = true;
-
-    Con_Printf("CD Audio Initialized\n");
-
-    if (CDAudio_GetAudioDiskInfo()) {
-	Con_Printf("CDAudio_Init: No CD in player.\n");
-	cdValid = false;
-    }
-
-    CDAudio_Init_Common();
 
     /* get drive's current volume */
     if (ioctl(cdfile, CDROMVOLREAD, &drv_vol_saved) == -1) {

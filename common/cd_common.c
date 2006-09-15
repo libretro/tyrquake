@@ -29,18 +29,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "sound.h"
 
+#ifdef NQ_HACK
+#include "client.h"
+#endif
+
 // FIXME - transitional hacks
 extern qboolean cdValid;
 extern qboolean enabled;
+extern qboolean initialized;
 extern qboolean playing;
 extern qboolean wasPlaying;
 extern qboolean playLooping;
-extern byte remap[];
 extern byte playTrack;
 extern byte maxTrack;
 void CDAudio_Eject(void);
 void CDAudio_CloseDoor(void);
 int CDAudio_GetAudioDiskInfo(void);
+
+static byte remap[100];
 
 void
 CDAudio_Play(byte track, qboolean looping)
@@ -194,9 +200,36 @@ CD_f(void)
 }
 
 int
-CDAudio_Init_Common(void)
+CDAudio_Init(void)
 {
+    int i, err;
+
+#ifdef NQ_HACK
+    // FIXME - not a valid client state in QW?
+    if (cls.state == ca_dedicated)
+	return -1;
+#endif
+
+    if (COM_CheckParm("-nocdaudio"))
+	return -1;
+
     Cmd_AddCommand("cd", CD_f);
 
-    return 1;
+    err = CDDrv_InitDevice();
+    if (err)
+	return err;
+
+    for (i = 0; i < 100; i++)
+	remap[i] = i;
+    initialized = true;
+    enabled = true;
+
+    Con_Printf("CD Audio Initialized\n");
+
+    if (CDAudio_GetAudioDiskInfo()) {
+	Con_Printf("CDAudio_Init: No CD in player.\n");
+	cdValid = false;
+    }
+
+    return 0;
 }

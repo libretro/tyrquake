@@ -35,16 +35,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-extern int CDAudio_Init_Common(void);
-
 qboolean cdValid = false;
 qboolean playing = false;
 qboolean wasPlaying = false;
-static qboolean initialized = false;
+qboolean initialized = false;
 qboolean enabled = false;
 qboolean playLooping = false;
 static float cdvolume;
-byte remap[100];
 byte playTrack;
 byte maxTrack;
 
@@ -298,21 +295,11 @@ CDAudio_Update(void)
 
 
 int
-CDAudio_Init(void)
+CDDrv_InitDevice(void)
 {
     DWORD dwReturn;
     MCI_OPEN_PARMS mciOpenParms;
     MCI_SET_PARMS mciSetParms;
-    int n;
-
-// no such state in QW
-#ifdef NQ_HACK
-    if (cls.state == ca_dedicated)
-	return -1;
-#endif
-
-    if (COM_CheckParm("-nocdaudio"))
-	return -1;
 
     mciOpenParms.lpstrDeviceType = "cdaudio";
     dwReturn = mciSendCommand(0, MCI_OPEN, MCI_OPEN_TYPE | MCI_OPEN_SHAREABLE,
@@ -332,21 +319,6 @@ CDAudio_Init(void)
 	mciSendCommand(wDeviceID, MCI_CLOSE, 0, (DWORD)NULL);
 	return -1;
     }
-
-    for (n = 0; n < 100; n++)
-	remap[n] = n;
-    initialized = true;
-    enabled = true;
-
-    if (CDAudio_GetAudioDiskInfo()) {
-	Con_Printf("CDAudio_Init: No CD in player.\n");
-	cdValid = false;
-	enabled = false;
-    }
-
-    CDAudio_Init_Common();
-
-    Con_Printf("CD Audio Initialized\n");
 
     return 0;
 }
