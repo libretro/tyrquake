@@ -30,7 +30,7 @@ void CDDrv_Eject(void);
 void CDDrv_CloseDoor(void);
 void CDDrv_Stop(void);
 void CDDrv_Pause(void);
-void CDDrv_Resume(void);
+void CDDrv_Resume(byte track);
 int CDDrv_GetMaxTrack(byte *track);
 int CDDrv_SetVolume(byte volume);
 

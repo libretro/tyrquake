@@ -34,9 +34,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #endif
 
-// FIXME - transitional hacks
-byte playTrack;
-
 static UINT wDeviceID;
 static qboolean isPlaying = false;
 
@@ -187,13 +184,13 @@ CDDrv_Pause(void)
 
 
 void
-CDDrv_Resume(void)
+CDDrv_Resume(byte track)
 {
     DWORD dwReturn;
     MCI_PLAY_PARMS mciPlayParms;
 
-    mciPlayParms.dwFrom = MCI_MAKE_TMSF(playTrack, 0, 0, 0);
-    mciPlayParms.dwTo = MCI_MAKE_TMSF(playTrack + 1, 0, 0, 0);
+    mciPlayParms.dwFrom = MCI_MAKE_TMSF(track, 0, 0, 0);
+    mciPlayParms.dwTo = MCI_MAKE_TMSF(track + 1, 0, 0, 0);
     mciPlayParms.dwCallback = (DWORD)mainwindow;
     dwReturn =
 	mciSendCommand(wDeviceID, MCI_PLAY, MCI_TO | MCI_NOTIFY,

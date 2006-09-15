@@ -45,9 +45,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #endif
 
-// FIXME - transitional hacks
-byte playTrack;
-
 static int cdfile = -1;
 static char cd_dev[64] = _PATH_DEV "cdrom";
 static struct cdrom_volctrl drv_vol_saved;
@@ -144,7 +141,7 @@ CDDrv_Pause(void)
 
 
 void
-CDDrv_Resume(void)
+CDDrv_Resume(byte track)
 {
     if (ioctl(cdfile, CDROMRESUME) == -1)
 	Con_DPrintf("ioctl cdromresume failed\n");

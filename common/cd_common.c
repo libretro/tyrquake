@@ -34,9 +34,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #endif
 
-// FIXME - transitional hacks
-extern byte playTrack;
-
 static byte remap[100];
 static qboolean enabled = false;
 static qboolean initialized = false;
@@ -45,6 +42,7 @@ static qboolean wasPlaying = false;
 static qboolean playLooping = false;
 static qboolean cdValid = false;
 static byte maxTrack;
+static byte playTrack;
 static float cdvolume;
 
 static void CDAudio_SetVolume_f(struct cvar_s *var);
@@ -141,7 +139,7 @@ CDAudio_Resume(void)
     if (!wasPlaying)
 	return;
 
-    CDDrv_Resume();
+    CDDrv_Resume(playTrack);
 
     playing = true;
 }
