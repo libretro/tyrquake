@@ -201,37 +201,6 @@ CDDrv_Resume(byte track)
     }
 }
 
-
-LONG
-CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    if (lParam != wDeviceID)
-	return 1;
-
-    switch (wParam) {
-    case MCI_NOTIFY_SUCCESSFUL:
-	if (isPlaying)
-	    isPlaying = false;
-	break;
-
-    case MCI_NOTIFY_ABORTED:
-    case MCI_NOTIFY_SUPERSEDED:
-	break;
-
-    case MCI_NOTIFY_FAILURE:
-	Con_DPrintf("MCI_NOTIFY_FAILURE\n");
-	CDAudio_Stop();
-	CDAudio_InvalidateDisk();
-	break;
-
-    default:
-	Con_DPrintf("Unexpected MM_MCINOTIFY type (%i)\n", wParam);
-	return 1;
-    }
-
-    return 0;
-}
-
 int
 CDDrv_SetVolume(byte volume)
 {
@@ -293,4 +262,35 @@ CDDrv_CloseDevice(void)
 	Con_DPrintf("CDAudio_Shutdown: MCI_CLOSE failed\n");
 
     isPlaying = false;
+}
+
+
+LONG
+CDDrv_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    if (lParam != wDeviceID)
+	return 1;
+
+    switch (wParam) {
+    case MCI_NOTIFY_SUCCESSFUL:
+	if (isPlaying)
+	    isPlaying = false;
+	break;
+
+    case MCI_NOTIFY_ABORTED:
+    case MCI_NOTIFY_SUPERSEDED:
+	break;
+
+    case MCI_NOTIFY_FAILURE:
+	Con_DPrintf("MCI_NOTIFY_FAILURE\n");
+	CDAudio_Stop();
+	CDAudio_InvalidateDisk();
+	break;
+
+    default:
+	Con_DPrintf("Unexpected MM_MCINOTIFY type (%i)\n", wParam);
+	return 1;
+    }
+
+    return 0;
 }

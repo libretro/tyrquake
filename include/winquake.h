@@ -37,6 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SERVERONLY
 # include <ddraw.h>
 # include <dsound.h>
+# include <commctrl.h>
 #endif
 
 #include "qtypes.h"
@@ -104,6 +105,9 @@ extern qboolean mouseinitialized;
 
 void S_BlockSound(void);
 void S_UnblockSound(void);
+
+// cdaudio_driver.h
+LONG CDDrv_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 // misc stuff that should be elsewhere...
 

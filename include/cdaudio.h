@@ -23,17 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qtypes.h"
 
-/* FIXME - it's just not clean... */
-#ifdef _WIN32
-#include <windows.h>
-#include <commctrl.h>
-LONG CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam,
-			    LPARAM lParam);
-#endif
-
-/*
- * OS Independent CDAudio API
- */
 int CDAudio_Init(void);
 void CDAudio_Play(byte track, qboolean looping);
 void CDAudio_Stop(void);

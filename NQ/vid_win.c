@@ -2860,7 +2860,7 @@ MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	break;
 
     case MM_MCINOTIFY:
-	lRet = CDAudio_MessageHandler(hWnd, uMsg, wParam, lParam);
+	lRet = CDDrv_MessageHandler(hWnd, uMsg, wParam, lParam);
 	break;
 
     default:
