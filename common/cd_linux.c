@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/types.h>
 #include <fcntl.h>
 #include <string.h>
-#include <time.h>
 #include <errno.h>
 
 #include <linux/cdrom.h>
@@ -47,9 +46,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-qboolean playing = false;
-qboolean enabled = true;
-qboolean playLooping = false;
 byte playTrack;
 
 static int cdfile = -1;
@@ -167,30 +163,21 @@ CDDrv_SetVolume(byte volume)
     return volume;
 }
 
-void
-CDAudio_Update(void)
+int
+CDDrv_IsPlaying(void)
 {
+    int err, ret = 1;
     struct cdrom_subchnl subchnl;
-    static time_t lastchk;
 
-    if (!enabled)
-	return;
+    subchnl.cdsc_format = CDROM_MSF;
+    err = ioctl(cdfile, CDROMSUBCHNL, &subchnl);
+    if (err == -1)
+	Con_DPrintf("ioctl cdromsubchnl failed\n");
+    else if (subchnl.cdsc_audiostatus != CDROM_AUDIO_PLAY &&
+	     subchnl.cdsc_audiostatus != CDROM_AUDIO_PAUSED)
+	ret = 0;
 
-    if (playing && lastchk < time(NULL)) {
-	lastchk = time(NULL) + 2;	//two seconds between chks
-	subchnl.cdsc_format = CDROM_MSF;
-	if (ioctl(cdfile, CDROMSUBCHNL, &subchnl) == -1) {
-	    Con_DPrintf("ioctl cdromsubchnl failed\n");
-	    playing = false;
-	    return;
-	}
-	if (subchnl.cdsc_audiostatus != CDROM_AUDIO_PLAY &&
-	    subchnl.cdsc_audiostatus != CDROM_AUDIO_PAUSED) {
-	    playing = false;
-	    if (playLooping)
-		CDAudio_Play(playTrack, true);
-	}
-    }
+    return ret;
 }
 
 int

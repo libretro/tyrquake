@@ -35,13 +35,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-qboolean playing = false;
-qboolean enabled = false;
-qboolean playLooping = false;
 byte playTrack;
 
 static UINT wDeviceID;
-
+static qboolean isPlaying = false;
 
 void
 CDDrv_Eject(void)
@@ -156,6 +153,8 @@ CDDrv_PlayTrack(byte track)
 	return 1;
     }
 
+    isPlaying = true;
+
     return 0;
 }
 
@@ -168,6 +167,8 @@ CDDrv_Stop(void)
     dwReturn = mciSendCommand(wDeviceID, MCI_STOP, 0, (DWORD)NULL);
     if (dwReturn)
 	Con_DPrintf("MCI_STOP failed (%i)", dwReturn);
+
+    isPlaying = false;
 }
 
 
@@ -212,11 +213,8 @@ CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     switch (wParam) {
     case MCI_NOTIFY_SUCCESSFUL:
-	if (playing) {
-	    playing = false;
-	    if (playLooping)
-		CDAudio_Play(playTrack, true);
-	}
+	if (isPlaying)
+	    isPlaying = false;
 	break;
 
     case MCI_NOTIFY_ABORTED:
@@ -254,11 +252,11 @@ CDDrv_SetVolume(byte volume)
     return ret;
 }
 
-void
-CDAudio_Update(void)
+int
+CDDrv_IsPlaying(void)
 {
+    return isPlaying;
 }
-
 
 int
 CDDrv_InitDevice(void)
@@ -285,6 +283,7 @@ CDDrv_InitDevice(void)
 	mciSendCommand(wDeviceID, MCI_CLOSE, 0, (DWORD)NULL);
 	return -1;
     }
+    isPlaying = false;
 
     return 0;
 }
@@ -295,4 +294,6 @@ CDDrv_CloseDevice(void)
 {
     if (mciSendCommand(wDeviceID, MCI_CLOSE, MCI_WAIT, (DWORD)NULL))
 	Con_DPrintf("CDAudio_Shutdown: MCI_CLOSE failed\n");
+
+    isPlaying = false;
 }

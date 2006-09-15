@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // rights reserved.
 
 #include <string.h>
+#include <time.h>
 
 #include "cdaudio.h"
 #include "cdaudio_driver.h"
@@ -34,14 +35,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - transitional hacks
-extern qboolean enabled;
-extern qboolean playing;
-extern qboolean playLooping;
 extern byte playTrack;
 
 static byte remap[100];
+static qboolean enabled = false;
 static qboolean initialized = false;
+static qboolean playing = false;
 static qboolean wasPlaying = false;
+static qboolean playLooping = false;
 static qboolean cdValid = false;
 static byte maxTrack;
 static float cdvolume;
@@ -192,6 +193,24 @@ void
 CDAudio_InvalidateDisk(void)
 {
     cdValid = false;
+}
+
+void
+CDAudio_Update(void)
+{
+    static time_t lastchk;
+
+    if (!enabled)
+	return;
+
+    if (playing && lastchk < time(NULL)) {
+	lastchk = time(NULL) + 2;	//two seconds between chks
+	if (!CDDrv_IsPlaying()) {
+	    playing = false;
+	    if (playLooping)
+		CDAudio_Play(playTrack, true);
+	}
+    }
 }
 
 static void
