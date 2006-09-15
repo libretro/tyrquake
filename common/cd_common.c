@@ -36,17 +36,74 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - transitional hacks
 extern qboolean cdValid;
 extern qboolean enabled;
-extern qboolean initialized;
 extern qboolean playing;
-extern qboolean wasPlaying;
 extern qboolean playLooping;
 extern byte playTrack;
 extern byte maxTrack;
-void CDAudio_Eject(void);
-void CDAudio_CloseDoor(void);
 int CDAudio_GetAudioDiskInfo(void);
 
 static byte remap[100];
+static qboolean initialized = false;
+static qboolean wasPlaying = false;
+
+static void
+CDAudio_Eject(void)
+{
+    if (enabled)
+	CDDrv_Eject();
+}
+
+static void
+CDAudio_CloseDoor(void)
+{
+    if (enabled)
+	CDDrv_CloseDoor();
+}
+
+void
+CDAudio_Stop(void)
+{
+    if (!enabled)
+	return;
+    if (!playing)
+	return;
+
+    CDDrv_Stop();
+
+    wasPlaying = false;
+    playing = false;
+
+}
+
+void
+CDAudio_Pause(void)
+{
+    if (!enabled)
+	return;
+    if (!playing)
+	return;
+
+    CDDrv_Pause();
+
+    wasPlaying = playing;
+    playing = false;
+}
+
+void
+CDAudio_Resume(void)
+{
+    if (!enabled)
+	return;
+    if (!cdValid)
+	return;
+    if (!wasPlaying)
+	return;
+
+    CDDrv_Resume();
+
+    playing = true;
+}
+
 
 void
 CDAudio_Play(byte track, qboolean looping)
@@ -232,4 +289,15 @@ CDAudio_Init(void)
     }
 
     return 0;
+}
+
+void
+CDAudio_Shutdown(void)
+{
+    if (!initialized)
+	return;
+    CDAudio_Stop();
+
+    CDDrv_CloseDevice();
+    initialized = false;
 }

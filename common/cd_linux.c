@@ -49,8 +49,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - transitional hacks
 qboolean cdValid = false;
 qboolean playing = false;
-qboolean wasPlaying = false;
-qboolean initialized = false;
 qboolean enabled = true;
 qboolean playLooping = false;
 byte playTrack;
@@ -62,22 +60,16 @@ static struct cdrom_volctrl drv_vol_saved;
 static struct cdrom_volctrl drv_vol;
 
 void
-CDAudio_Eject(void)
+CDDrv_Eject(void)
 {
-    if (cdfile == -1 || !enabled)
-	return;			// no cd init'd
-
     if (ioctl(cdfile, CDROMEJECT) == -1)
 	Con_DPrintf("ioctl cdromeject failed\n");
 }
 
 
 void
-CDAudio_CloseDoor(void)
+CDDrv_CloseDoor(void)
 {
-    if (cdfile == -1 || !enabled)
-	return;			// no cd init'd
-
     if (ioctl(cdfile, CDROMCLOSETRAY) == -1)
 	Con_DPrintf("ioctl cdromclosetray failed\n");
 }
@@ -153,53 +145,25 @@ CDDrv_PlayTrack(byte track)
 
 
 void
-CDAudio_Stop(void)
+CDDrv_Stop(void)
 {
-    if (cdfile == -1 || !enabled)
-	return;
-
-    if (!playing)
-	return;
-
     if (ioctl(cdfile, CDROMSTOP) == -1)
 	Con_DPrintf("ioctl cdromstop failed (%d)\n", errno);
-
-    wasPlaying = false;
-    playing = false;
 }
 
 void
-CDAudio_Pause(void)
+CDDrv_Pause(void)
 {
-    if (cdfile == -1 || !enabled)
-	return;
-
-    if (!playing)
-	return;
-
     if (ioctl(cdfile, CDROMPAUSE) == -1)
 	Con_DPrintf("ioctl cdrompause failed\n");
-
-    wasPlaying = playing;
-    playing = false;
 }
 
 
 void
-CDAudio_Resume(void)
+CDDrv_Resume(void)
 {
-    if (cdfile == -1 || !enabled)
-	return;
-
-    if (!cdValid)
-	return;
-
-    if (!wasPlaying)
-	return;
-
     if (ioctl(cdfile, CDROMRESUME) == -1)
 	Con_DPrintf("ioctl cdromresume failed\n");
-    playing = true;
 }
 
 void
@@ -274,12 +238,8 @@ CDDrv_InitDevice(void)
 
 
 void
-CDAudio_Shutdown(void)
+CDDrv_CloseDevice(void)
 {
-    if (!initialized)
-	return;
-    CDAudio_Stop();
-
     /* Restore the saved volume setting */
     if (ioctl(cdfile, CDROMVOLCTRL, &drv_vol_saved) == -1)
 	Con_DPrintf("ioctl CDROMVOLCTRL failed\n");

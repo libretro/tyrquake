@@ -31,8 +31,11 @@ LONG CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam,
 			    LPARAM lParam);
 #endif
 
+/*
+ * OS Independent CDAudio API
+ */
 int CDAudio_Init(void);
-void CDAudio_Play(byte, qboolean);
+void CDAudio_Play(byte track, qboolean looping);
 void CDAudio_Stop(void);
 void CDAudio_Pause(void);
 void CDAudio_Resume(void);

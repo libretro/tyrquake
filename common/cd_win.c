@@ -37,8 +37,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - transitional hacks
 qboolean cdValid = false;
 qboolean playing = false;
-qboolean wasPlaying = false;
-qboolean initialized = false;
 qboolean enabled = false;
 qboolean playLooping = false;
 static float cdvolume;
@@ -49,7 +47,7 @@ static UINT wDeviceID;
 
 
 void
-CDAudio_Eject(void)
+CDDrv_Eject(void)
 {
     DWORD dwReturn;
 
@@ -61,7 +59,7 @@ CDAudio_Eject(void)
 
 
 void
-CDAudio_CloseDoor(void)
+CDDrv_CloseDoor(void)
 {
     DWORD dwReturn;
 
@@ -169,62 +167,35 @@ CDDrv_PlayTrack(byte track)
 
 
 void
-CDAudio_Stop(void)
+CDDrv_Stop(void)
 {
     DWORD dwReturn;
-
-    if (!enabled)
-	return;
-
-    if (!playing)
-	return;
 
     dwReturn = mciSendCommand(wDeviceID, MCI_STOP, 0, (DWORD)NULL);
     if (dwReturn)
 	Con_DPrintf("MCI_STOP failed (%i)", dwReturn);
-
-    wasPlaying = false;
-    playing = false;
 }
 
 
 void
-CDAudio_Pause(void)
+CDDrv_Pause(void)
 {
     DWORD dwReturn;
     MCI_GENERIC_PARMS mciGenericParms;
-
-    if (!enabled)
-	return;
-
-    if (!playing)
-	return;
 
     mciGenericParms.dwCallback = (DWORD)mainwindow;
     dwReturn = mciSendCommand(wDeviceID, MCI_PAUSE, 0,
 			      (DWORD)(LPVOID)&mciGenericParms);
     if (dwReturn)
 	Con_DPrintf("MCI_PAUSE failed (%i)", dwReturn);
-
-    wasPlaying = playing;
-    playing = false;
 }
 
 
 void
-CDAudio_Resume(void)
+CDDrv_Resume(void)
 {
     DWORD dwReturn;
     MCI_PLAY_PARMS mciPlayParms;
-
-    if (!enabled)
-	return;
-
-    if (!cdValid)
-	return;
-
-    if (!wasPlaying)
-	return;
 
     mciPlayParms.dwFrom = MCI_MAKE_TMSF(playTrack, 0, 0, 0);
     mciPlayParms.dwTo = MCI_MAKE_TMSF(playTrack + 1, 0, 0, 0);
@@ -236,7 +207,6 @@ CDAudio_Resume(void)
 	Con_DPrintf("CDAudio: MCI_PLAY failed (%i)\n", dwReturn);
 	return;
     }
-    playing = true;
 }
 
 
@@ -325,11 +295,8 @@ CDDrv_InitDevice(void)
 
 
 void
-CDAudio_Shutdown(void)
+CDDrv_CloseDevice(void)
 {
-    if (!initialized)
-	return;
-    CDAudio_Stop();
     if (mciSendCommand(wDeviceID, MCI_CLOSE, MCI_WAIT, (DWORD)NULL))
 	Con_DPrintf("CDAudio_Shutdown: MCI_CLOSE failed\n");
 }
