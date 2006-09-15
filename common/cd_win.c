@@ -41,7 +41,6 @@ qboolean enabled = false;
 qboolean playLooping = false;
 static float cdvolume;
 byte playTrack;
-byte maxTrack;
 
 static UINT wDeviceID;
 
@@ -71,12 +70,10 @@ CDDrv_CloseDoor(void)
 
 
 int
-CDAudio_GetAudioDiskInfo(void)
+CDDrv_GetMaxTrack(byte *maxTrack)
 {
     DWORD dwReturn;
     MCI_STATUS_PARMS mciStatusParms;
-
-    cdValid = false;
 
     mciStatusParms.dwItem = MCI_STATUS_READY;
     dwReturn =
@@ -104,8 +101,7 @@ CDAudio_GetAudioDiskInfo(void)
 	return -1;
     }
 
-    cdValid = true;
-    maxTrack = mciStatusParms.dwReturn;
+    *maxTrack = mciStatusParms.dwReturn;
 
     return 0;
 }

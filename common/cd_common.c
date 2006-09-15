@@ -39,12 +39,11 @@ extern qboolean enabled;
 extern qboolean playing;
 extern qboolean playLooping;
 extern byte playTrack;
-extern byte maxTrack;
-int CDAudio_GetAudioDiskInfo(void);
 
 static byte remap[100];
 static qboolean initialized = false;
 static qboolean wasPlaying = false;
+static byte maxTrack;
 
 static void
 CDAudio_Eject(void)
@@ -58,6 +57,19 @@ CDAudio_CloseDoor(void)
 {
     if (enabled)
 	CDDrv_CloseDoor();
+}
+
+static int
+CDAudio_GetAudioDiskInfo(void)
+{
+    int err;
+
+    cdValid = false;
+    err = CDDrv_GetMaxTrack(&maxTrack);
+    if (!err)
+	cdValid = true;
+
+    return err;
 }
 
 void

@@ -30,5 +30,6 @@ void CDDrv_CloseDoor(void);
 void CDDrv_Stop(void);
 void CDDrv_Pause(void);
 void CDDrv_Resume(void);
+int CDDrv_GetMaxTrack(byte *track);
 
 #endif /* CDAUDIO_DRIVER_H */

@@ -52,7 +52,6 @@ qboolean playing = false;
 qboolean enabled = true;
 qboolean playLooping = false;
 byte playTrack;
-byte maxTrack;
 
 static int cdfile = -1;
 static char cd_dev[64] = _PATH_DEV "cdrom";
@@ -75,11 +74,9 @@ CDDrv_CloseDoor(void)
 }
 
 int
-CDAudio_GetAudioDiskInfo(void)
+CDDrv_GetMaxTrack(byte *maxTrack)
 {
     struct cdrom_tochdr tochdr;
-
-    cdValid = false;
 
     if (ioctl(cdfile, CDROMREADTOCHDR, &tochdr) == -1) {
 	Con_DPrintf("ioctl cdromreadtochdr failed\n");
@@ -91,8 +88,7 @@ CDAudio_GetAudioDiskInfo(void)
 	return -1;
     }
 
-    cdValid = true;
-    maxTrack = tochdr.cdth_trk1;
+    *maxTrack = tochdr.cdth_trk1;
 
     return 0;
 }
