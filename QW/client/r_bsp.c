@@ -29,13 +29,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 qboolean insubmodel;
 entity_t *currententity;
-vec3_t modelorg, base_modelorg;
 
 // modelorg is the viewpoint reletive to
 // the currently rendering entity
+vec3_t modelorg, base_modelorg;
 
-vec3_t r_entorigin;	// the currently rendering entity in world
-			// coordinates
+vec3_t r_entorigin;	// the currently rendering entity in world coordinates
 
 static float entity_rotation[3][3];
 
@@ -282,11 +281,13 @@ R_RecursiveClipBPoly(bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 	numbedges += 2;
     }
 
-// draw or recurse further
+    /* draw or recurse further */
     for (i = 0; i < 2; i++) {
 	if (psideedges[i]) {
-	    // draw if we've reached a non-solid leaf, done if all that's left
-	    // is a solid leaf, and continue down the tree if it's not a leaf
+	    /*
+	     * draw if we've reached a non-solid leaf, done if all that's left
+	     * is a solid leaf, and continue down the tree if it's not a leaf
+	     */
 	    pn = pnode->children[i];
 
 	    // we're done with this branch if the node or leaf isn't in the PVS
@@ -343,8 +344,10 @@ R_DrawSolidClippedSubmodelPolygons(model_t *pmodel)
 	    // copy the edges to bedges, flipping if necessary so always
 	    // clockwise winding
 
-	    // FIXME: if edges and vertices get caches, these assignments must
-	    // move outside the loop, and overflow checking must be done here
+	    /*
+	     * FIXME: if edges and vertices get caches, these assignments must
+	     * move outside the loop, and overflow checking must be done here
+	     */
 	    pbverts = bverts;
 	    pbedges = bedges;
 	    numbverts = numbedges = 0;
@@ -437,9 +440,9 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
     if (node->visframe != r_visframecount)
 	return;
 
-    // cull the clipping planes if not trivial accept
-    // FIXME: the compiler is doing a lousy job of optimizing here; it could be
-    //  twice as fast in ASM
+// cull the clipping planes if not trivial accept
+// FIXME: the compiler is doing a lousy job of optimizing here; it could be
+//  twice as fast in ASM
     if (clipflags) {
 	for (i = 0; i < 4; i++) {
 	    if (!(clipflags & (1 << i)))
@@ -473,7 +476,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	}
     }
 
-    // if a leaf node, draw stuff
+    /* if a leaf node, draw stuff */
     if (node->contents < 0) {
 	pleaf = (mleaf_t *)node;
 
@@ -496,10 +499,8 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	r_currentkey++;		// all bmodels in a leaf share the same key
     } else {
 	// node is just a decision point, so go down the apropriate sides
-
 	// find which side of the node we are on
 	plane = node->plane;
-
 	switch (plane->type) {
 	case PLANE_X:
 	    dot = modelorg[0] - plane->dist;
@@ -514,7 +515,6 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	    dot = DotProduct(modelorg, plane->normal) - plane->dist;
 	    break;
 	}
-
 	side = (dot >= 0) ? 0 : 1;
 
 	// recurse down the children, front side first
@@ -593,7 +593,12 @@ R_RenderWorld(void)
 
     pbtofpolys = btofpolys;
 
+#ifdef NQ_HACK
+    currententity = &cl_entities[0];
+#endif
+#ifdef QW_HACK
     currententity = &r_worldentity;
+#endif
     VectorCopy(r_origin, modelorg);
     clmodel = currententity->model;
     r_pcurrentvertbase = clmodel->vertexes;

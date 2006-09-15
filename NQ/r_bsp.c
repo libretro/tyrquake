@@ -36,7 +36,7 @@ vec3_t modelorg, base_modelorg;
 
 vec3_t r_entorigin;	// the currently rendering entity in world coordinates
 
-float entity_rotation[3][3];
+static float entity_rotation[3][3];
 
 vec3_t r_worldmodelorg;
 
@@ -63,7 +63,7 @@ static qboolean makeclippededge;
 R_EntityRotate
 ================
 */
-void
+static void
 R_EntityRotate(vec3_t vec)
 {
     vec3_t tvec;
@@ -105,7 +105,6 @@ R_RotateBmodel(void)
     temp1[2][0] = 0;
     temp1[2][1] = 0;
     temp1[2][2] = 1;
-
 
 // pitch
     angle = currententity->angles[PITCH];
@@ -160,7 +159,7 @@ R_RotateBmodel(void)
 R_RecursiveClipBPoly
 ================
 */
-void
+static void
 R_RecursiveClipBPoly(bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 {
     bedge_t *psideedges[2], *pnextedge, *ptedge;
@@ -281,7 +280,8 @@ R_RecursiveClipBPoly(bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 
 	numbedges += 2;
     }
-// draw or recurse further
+
+    /* draw or recurse further */
     for (i = 0; i < 2; i++) {
 	if (psideedges[i]) {
 	    /*
@@ -369,10 +369,8 @@ R_DrawSolidClippedSubmodelPolygons(model_t *pmodel)
 			pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[1]];
 			pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[0]];
 		    }
-
 		    pbedge[j].pnext = &pbedge[j + 1];
 		}
-
 		pbedge[j - 1].pnext = NULL;	// mark end of edges
 
 		R_RecursiveClipBPoly(pbedge, currententity->topnode, psurf);
@@ -477,7 +475,8 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 		clipflags &= ~(1 << i);	// node is entirely on screen
 	}
     }
-// if a leaf node, draw stuff
+
+    /* if a leaf node, draw stuff */
     if (node->contents < 0) {
 	pleaf = (mleaf_t *)node;
 
@@ -490,6 +489,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 		mark++;
 	    } while (--c);
 	}
+
 	// deal with model fragments in this leaf
 	if (pleaf->efrags) {
 	    R_StoreEfrags(&pleaf->efrags);
@@ -501,7 +501,6 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	// node is just a decision point, so go down the apropriate sides
 	// find which side of the node we are on
 	plane = node->plane;
-
 	switch (plane->type) {
 	case PLANE_X:
 	    dot = modelorg[0] - plane->dist;
@@ -516,11 +515,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	    dot = DotProduct(modelorg, plane->normal) - plane->dist;
 	    break;
 	}
-
-	if (dot >= 0)
-	    side = 0;
-	else
-	    side = 1;
+	side = (dot >= 0) ? 0 : 1;
 
 	// recurse down the children, front side first
 	R_RecursiveWorldNode(node->children[side], clipflags);
@@ -550,7 +545,6 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 			    R_RenderFace(surf, clipflags);
 			}
 		    }
-
 		    surf++;
 		} while (--c);
 	    } else if (dot > BACKFACE_EPSILON) {
@@ -572,7 +566,6 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 			    R_RenderFace(surf, clipflags);
 			}
 		    }
-
 		    surf++;
 		} while (--c);
 	    }
@@ -600,7 +593,12 @@ R_RenderWorld(void)
 
     pbtofpolys = btofpolys;
 
+#ifdef NQ_HACK
     currententity = &cl_entities[0];
+#endif
+#ifdef QW_HACK
+    currententity = &r_worldentity;
+#endif
     VectorCopy(r_origin, modelorg);
     clmodel = currententity->model;
     r_pcurrentvertbase = clmodel->vertexes;
