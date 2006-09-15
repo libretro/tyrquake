@@ -43,11 +43,6 @@ byte mod_novis[MAX_MAP_LEAFS / 8];
 model_t mod_known[MAX_MOD_KNOWN];
 int mod_numknown;
 
-// values for model_t's needload
-#define NL_PRESENT	0
-#define NL_NEEDS_LOADED	1
-#define NL_UNREFERENCED	2
-
 /*
 ===============
 Mod_Init
@@ -174,7 +169,8 @@ Mod_ClearAll(void)
     model_t *mod;
 
     for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++) {
-	mod->needload = NL_UNREFERENCED;
+	if (mod->type != mod_alias)
+	    mod->needload = true;
 //FIX FOR CACHE_ALLOC ERRORS:
 //FIXME - should be worked around in sprite loading routines?
 	if (mod->type == mod_sprite)
@@ -193,7 +189,6 @@ Mod_FindName(char *name)
 {
     int i;
     model_t *mod;
-    model_t *avail = NULL;
 
     if (!name[0])
 	Sys_Error("%s: NULL name", __func__);
@@ -201,27 +196,16 @@ Mod_FindName(char *name)
 //
 // search the currently loaded models
 //
-    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++) {
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	if (!strcmp(mod->name, name))
 	    break;
-	if (mod->needload == NL_UNREFERENCED)
-	    if (!avail || mod->type != mod_alias)
-		avail = mod;
-    }
 
     if (i == mod_numknown) {
-	if (mod_numknown == MAX_MOD_KNOWN) {
-	    if (avail) {
-		mod = avail;
-		if (mod->type == mod_alias)
-		    if (Cache_Check(&mod->cache))
-			Cache_Free(&mod->cache);
-	    } else
-		Sys_Error("mod_numknown == MAX_MOD_KNOWN");
-	} else
-	    mod_numknown++;
+	if (mod_numknown == MAX_MOD_KNOWN)
+	    Sys_Error("mod_numknown == MAX_MOD_KNOWN");
 	strcpy(mod->name, name);
-	mod->needload = NL_NEEDS_LOADED;
+	mod->needload = true;
+	mod_numknown++;
     }
 
     return mod;
@@ -240,7 +224,7 @@ Mod_TouchModel(char *name)
 
     mod = Mod_FindName(name);
 
-    if (mod->needload == NL_PRESENT) {
+    if (!mod->needload) {
 	if (mod->type == mod_alias)
 	    Cache_Check(&mod->cache);
     }
@@ -259,14 +243,12 @@ Mod_LoadModel(model_t *mod, qboolean crash)
     unsigned *buf;
     byte stackbuf[1024];	// avoid dirtying the cache heap
 
-    if (mod->type == mod_alias) {
-	if (Cache_Check(&mod->cache)) {
-	    mod->needload = NL_PRESENT;
-	    return mod;
-	}
-    } else {
-	if (mod->needload == NL_PRESENT)
-	    return mod;
+    if (!mod->needload) {
+	if (mod->type == mod_alias) {
+	    if (Cache_Check(&mod->cache))
+		return mod;
+	} else
+	    return mod;		// not cached at all
     }
 
 //
@@ -295,7 +277,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 //
 
 // call the apropriate loader
-    mod->needload = NL_PRESENT;
+    mod->needload = false;
 
     switch (LittleLong(*(unsigned *)buf)) {
     case IDPOLYHEADER:
@@ -1816,12 +1798,6 @@ Mod_Print(void)
     model_t *mod;
 
     Con_Printf("Cached models:\n");
-    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++) {
-	Con_Printf("%8p : %s", mod->cache.data, mod->name);
-	if (mod->needload & NL_UNREFERENCED)
-	    Con_Printf(" (!R)");
-	if (mod->needload & NL_NEEDS_LOADED)
-	    Con_Printf(" (!P)");
-	Con_Printf("\n");
-    }
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+	Con_Printf("%8p : %s\n", mod->cache.data, mod->name);
 }
