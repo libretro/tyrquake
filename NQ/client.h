@@ -286,6 +286,7 @@ enum {
 const float dl_colors[4][4]; /* Use enums to reference the colors */
 
 void CL_DecayLights(void);
+void CL_RunParticles(void);
 
 void CL_Init(void);
 

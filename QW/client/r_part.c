@@ -419,50 +419,20 @@ R_RocketTrail(vec3_t start, vec3_t end, int type)
     }
 }
 
-
 /*
 ===============
-R_DrawParticles
+CL_RunParticles
 ===============
 */
 void
-R_DrawParticles(void)
+CL_RunParticles(void)
 {
     particle_t *p, *kill;
     float grav;
-    int i;
-    float time2, time3;
-    float time1;
-    float dvel;
+    float time1, time2, time3;
     float frametime;
-
-#ifdef GLQUAKE
-    unsigned char *at;
-    unsigned char theAlpha;
-    vec3_t up, right;
-    float scale;
-    qboolean alphaTestEnabled;
-
-    GL_Bind(particletexture);
-    alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
-
-    if (alphaTestEnabled)
-	glDisable(GL_ALPHA_TEST);
-    glEnable(GL_BLEND);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glDepthMask(GL_FALSE);
-
-    glBegin(GL_TRIANGLES);
-
-    VectorScale(vup, 1.5, up);
-    VectorScale(vright, 1.5, right);
-#else
-    D_StartParticles();
-
-    VectorScale(vright, xscaleshrink, r_pright);
-    VectorScale(vup, yscaleshrink, r_pup);
-    VectorCopy(vpn, r_ppn);
-#endif
+    float dvel;
+    int i;
 
     frametime = host_frametime;
     time3 = frametime * 15;
@@ -493,41 +463,6 @@ R_DrawParticles(void)
 	    }
 	    break;
 	}
-
-#ifdef GLQUAKE
-	// hack a scale up to keep particles from disapearing
-	scale =
-	    (p->org[0] - r_origin[0]) * vpn[0] + (p->org[1] -
-						  r_origin[1]) * vpn[1]
-	    + (p->org[2] - r_origin[2]) * vpn[2];
-	if (scale < 20)
-	    scale = 1;
-	else
-	    scale = 1 + scale * 0.004;
-	at = (byte *)&d_8to24table[(int)p->color];
-	if (p->type == pt_fire)
-	    theAlpha = 255 * (6 - p->ramp) / 6;
-//                      theAlpha = 192;
-//              else if (p->type==pt_explode || p->type==pt_explode2)
-//                      theAlpha = 255*(8-p->ramp)/8;
-	else
-	    theAlpha = 255;
-	glColor4ub(*at, *(at + 1), *(at + 2), theAlpha);
-//              glColor3ubv (at);
-//              glColor3ubv ((byte *)&d_8to24table[(int)p->color]);
-	glTexCoord2f(0, 0);
-	glVertex3fv(p->org);
-	glTexCoord2f(1, 0);
-	glVertex3f(p->org[0] + up[0] * scale, p->org[1] + up[1] * scale,
-		   p->org[2] + up[2] * scale);
-	glTexCoord2f(0, 1);
-	glVertex3f(p->org[0] + right[0] * scale,
-		   p->org[1] + right[1] * scale,
-		   p->org[2] + right[2] * scale);
-
-#else
-	D_DrawParticle(p);
-#endif
 
 	p->org[0] += p->vel[0] * frametime;
 	p->org[1] += p->vel[1] * frametime;
@@ -584,6 +519,84 @@ R_DrawParticles(void)
 	    p->vel[2] -= grav;
 	    break;
 	}
+    }
+}
+
+/*
+===============
+R_DrawParticles
+===============
+*/
+void
+R_DrawParticles(void)
+{
+    particle_t *p;
+
+#ifdef GLQUAKE
+    unsigned char *at;
+    unsigned char theAlpha;
+    vec3_t up, right;
+    float scale;
+    qboolean alphaTestEnabled;
+
+    GL_Bind(particletexture);
+    alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
+
+    if (alphaTestEnabled)
+	glDisable(GL_ALPHA_TEST);
+    glEnable(GL_BLEND);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glDepthMask(GL_FALSE);
+
+    glBegin(GL_TRIANGLES);
+
+    VectorScale(vup, 1.5, up);
+    VectorScale(vright, 1.5, right);
+#else
+    D_StartParticles();
+
+    VectorScale(vright, xscaleshrink, r_pright);
+    VectorScale(vup, yscaleshrink, r_pup);
+    VectorCopy(vpn, r_ppn);
+#endif
+
+    for (p = active_particles; p; p = p->next) {
+
+#ifdef GLQUAKE
+	// hack a scale up to keep particles from disapearing
+	scale =
+	    (p->org[0] - r_origin[0]) * vpn[0] + (p->org[1] -
+						  r_origin[1]) * vpn[1]
+	    + (p->org[2] - r_origin[2]) * vpn[2];
+	if (scale < 20)
+	    scale = 1;
+	else
+	    scale = 1 + scale * 0.004;
+	at = (byte *)&d_8to24table[(int)p->color];
+	if (p->type == pt_fire)
+	    theAlpha = 255 * (6 - p->ramp) / 6;
+//                      theAlpha = 192;
+//              else if (p->type==pt_explode || p->type==pt_explode2)
+//                      theAlpha = 255*(8-p->ramp)/8;
+	else
+	    theAlpha = 255;
+	glColor4ub(*at, *(at + 1), *(at + 2), theAlpha);
+//              glColor3ubv (at);
+//              glColor3ubv ((byte *)&d_8to24table[(int)p->color]);
+	glTexCoord2f(0, 0);
+	glVertex3fv(p->org);
+	glTexCoord2f(1, 0);
+	glVertex3f(p->org[0] + up[0] * scale, p->org[1] + up[1] * scale,
+		   p->org[2] + up[2] * scale);
+	glTexCoord2f(0, 1);
+	glVertex3f(p->org[0] + right[0] * scale,
+		   p->org[1] + right[1] * scale,
+		   p->org[2] + right[2] * scale);
+
+#else
+	D_DrawParticle(p);
+#endif
+
     }
 
 #ifdef GLQUAKE

@@ -728,6 +728,7 @@ _Host_Frame(float time)
 	time1 = Sys_DoubleTime();
 
     SCR_UpdateScreen();
+    CL_RunParticles();
 
     if (host_speeds.value)
 	time2 = Sys_DoubleTime();
