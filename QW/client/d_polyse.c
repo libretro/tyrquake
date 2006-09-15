@@ -691,11 +691,13 @@ D_RasterizeAliasPolySmooth(void)
     d_pdest = (byte *)d_viewbuffer + ystart * screenwidth + plefttop[0];
     d_pz = d_pzbuffer + ystart * d_zwidth + plefttop[0];
 
-// TODO: can reuse partial expressions here
+    /* TODO: can reuse partial expressions here */
 
-// for negative steps in x along left edge, bias toward overflow rather than
-// underflow (sort of turning the floor () we did in the gradient calcs into
-// ceil (), but plus a little bit)
+    /*
+     * for negative steps in x along left edge, bias toward overflow rather
+     * than underflow (sort of turning the floor () we did in the gradient
+     * calcs into ceil (), but plus a little bit)
+     */
     if (ubasestep < 0)
 	working_lstepx = r_lstepx - 1;
     else
