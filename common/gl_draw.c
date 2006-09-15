@@ -54,9 +54,9 @@ byte *draw_chars;		/* 8*8 graphic characters */
 qpic_t *draw_disc;
 static qpic_t *draw_backtile;
 
-static int translate_texture;
-static int char_texture;
-static int cs_texture;		// crosshair texture
+static GLuint translate_texture;
+static GLuint char_texture;
+static GLuint cs_texture;		// crosshair texture
 
 static byte cs_data[64] = {
     0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff,
@@ -87,7 +87,7 @@ static int gl_filter_max = GL_LINEAR;
 static int texels;
 
 typedef struct {
-    int texnum;
+    GLuint texnum;
     char identifier[64];
     int width, height;
     qboolean mipmap;
@@ -135,7 +135,7 @@ GL_Bind(int texnum)
 static int scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
 static byte scrap_texels[MAX_SCRAPS][BLOCK_WIDTH * BLOCK_HEIGHT * 4];
 static qboolean scrap_dirty;
-static int scrap_texnum;
+static GLuint scrap_textures[MAX_SCRAPS];
 
 // returns a texture number and the position inside it
 static int
@@ -185,7 +185,7 @@ Scrap_Upload(void)
 
     scrap_uploads++;
     for (texnum = 0; texnum < MAX_SCRAPS; ++texnum) {
-	GL_Bind(scrap_texnum + texnum);
+	GL_Bind(scrap_textures[texnum]);
 	GL_Upload8(scrap_texels[texnum], BLOCK_WIDTH, BLOCK_HEIGHT, false,
 		   true);
     }
@@ -232,8 +232,7 @@ Draw_PicFromWad(const char *name)
 	    for (j = 0; j < p->width; j++, k++)
 		scrap_texels[texnum][(y + i) * BLOCK_WIDTH + x + j] =
 		    p->data[k];
-	texnum += scrap_texnum;
-	gl->texnum = texnum;
+	gl->texnum = scrap_textures[texnum];
 	gl->sl = (x + 0.01) / (float)BLOCK_WIDTH;
 	gl->sh = (x + p->width - 0.01) / (float)BLOCK_WIDTH;
 	gl->tl = (y + 0.01) / (float)BLOCK_WIDTH;
@@ -512,11 +511,10 @@ Draw_Init(void)
     Hunk_FreeToLowMark(start);
 
     // save a texture slot for translated picture
-    translate_texture = texture_extension_number++;
+    glGenTextures(1, &translate_texture);
 
     // save slots for scraps
-    scrap_texnum = texture_extension_number;
-    texture_extension_number += MAX_SCRAPS;
+    glGenTextures(MAX_SCRAPS, scrap_textures);
 
     //
     // get the other pics we need
@@ -1364,8 +1362,7 @@ GL_LoadTexture(const char *identifier, int width, int height,
     strncpy(glt->identifier, identifier, sizeof(glt->identifier) - 1);
     glt->identifier[sizeof(glt->identifier) - 1] = '\0';
 
-    glt->texnum = texture_extension_number;
-    texture_extension_number++;
+    glGenTextures(1, &glt->texnum);
 
   GL_LoadTexture_setup:
     glt->crc = crc;

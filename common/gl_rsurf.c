@@ -52,15 +52,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int skytexturenum;
 
+#define	MAX_LIGHTMAPS	80
+
 static int lightmap_bytes;		// 1, 2, or 4
-static int lightmap_textures;
+static int lightmap_textures_initialised = 0;
+static GLuint lightmap_textures[MAX_LIGHTMAPS];
 
 static unsigned blocklights[18 * 18];
 
 #define	BLOCK_WIDTH	128
 #define	BLOCK_HEIGHT	128
 
-#define	MAX_LIGHTMAPS	80
 
 typedef struct glRect_s {
     unsigned char l, t, w, h;
@@ -541,7 +543,7 @@ R_BlendLightmaps(void)
 	p = lightmap_polys[i];
 	if (!p)
 	    continue;
-	GL_Bind(lightmap_textures + i);
+	GL_Bind(lightmap_textures[i]);
 	if (lightmap_modified[i]) {
 	    R_UploadLightmapUpdate(i);
 	    lightmap_modified[i] = false;
@@ -657,7 +659,7 @@ R_RenderBrushPoly(msurface_t *fa)
 	/* All lightmaps are up to date... */
 	i = fa->lightmaptexturenum;
 	GL_EnableMultitexture();
-	GL_Bind(lightmap_textures + i);
+	GL_Bind(lightmap_textures[i]);
 	if (lightmap_modified[i]) {
 	    R_UploadLightmapUpdate(i);
 	    lightmap_modified[i] = false;
@@ -1308,9 +1310,10 @@ GL_BuildLightmaps(void)
 
     r_framecount = 1;		// no dlightcache
 
-    if (!lightmap_textures) {
-	lightmap_textures = texture_extension_number;
-	texture_extension_number += MAX_LIGHTMAPS;
+    // FIXME - move this to one of the init functions...
+    if (!lightmap_textures_initialised) {
+	glGenTextures(MAX_LIGHTMAPS, lightmap_textures);
+	lightmap_textures_initialised = 1;
     }
 
     gl_lightmap_format = GL_LUMINANCE;
@@ -1431,7 +1434,7 @@ GL_BuildLightmaps(void)
 	lightmap_rectchange[i].t = BLOCK_HEIGHT;
 	lightmap_rectchange[i].w = 0;
 	lightmap_rectchange[i].h = 0;
-	GL_Bind(lightmap_textures + i);
+	GL_Bind(lightmap_textures[i]);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, lightmap_bytes, BLOCK_WIDTH,

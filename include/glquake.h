@@ -31,8 +31,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <GL/glext.h>
 #endif
 
-#include "gl_model.h"
 #include "client.h"
+#include "gl_model.h"
+#include "protocol.h"
 
 #ifndef APIENTRY
 #define APIENTRY
@@ -72,7 +73,6 @@ extern TEXSUBIMAGEPTR TexSubImage2DFunc;
 #define GL_MAX_TEXTURE_UNITS GL_MAX_TEXTURE_UNITS_ARB
 #endif
 
-extern int texture_extension_number;
 extern int texture_mode;
 
 extern float gldepthmin, gldepthmax;
@@ -182,9 +182,9 @@ extern texture_t *r_notexture_mip;
 extern int d_lightstylevalue[256];	// 8.8 fraction of base light value
 
 extern qboolean envmap;
-extern int currenttexture;
-extern int particletexture;
-extern int playertextures;
+extern GLuint currenttexture;
+extern GLuint particletexture;
+extern GLuint playertextures[MAX_CLIENTS];
 
 extern int skytexturenum;	// index in cl.loadmodel, not gl texture object
 
@@ -225,7 +225,7 @@ extern cvar_t gl_doubleeyes;
 #endif
 
 #ifdef QW_HACK
-extern int netgraphtexture;	// netgraph texture
+extern GLuint netgraphtexture;	// netgraph texture
 extern cvar_t r_netgraph;
 void R_NetGraph(void);
 #endif
@@ -269,10 +269,6 @@ void EmitBothSkyLayers(msurface_t *fa);
 void EmitWaterPolys(msurface_t *fa);
 void EmitSkyPolys(msurface_t *fa);
 void R_DrawSkyChain(msurface_t *s);
-
-extern int solidskytexture;
-extern int alphaskytexture;
-extern float speedscale;    // for top sky and bottom sky
 
 //
 // gl_draw.c

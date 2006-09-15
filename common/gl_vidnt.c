@@ -571,8 +571,6 @@ int texture_mode = GL_LINEAR;
 //int           texture_mode = GL_LINEAR_MIPMAP_NEAREST;
 //int           texture_mode = GL_LINEAR_MIPMAP_LINEAR;
 
-int texture_extension_number = 1;
-
 static void
 CheckMultiTextureExtensions(void)
 {

@@ -31,10 +31,13 @@ extern cvar_t gl_subdivide_size;
 
 int skytexturenum;
 
-int solidskytexture;
-int alphaskytexture;
-float speedscale;		// for top sky and bottom sky
-float speedscale2;		// for sky alpha layer using multitexture
+static GLuint solidskytexture;
+static GLuint alphaskytexture;
+static int solidskytexture_initialised = 0;
+static int alphaskytexture_initialised = 0;
+
+static float speedscale;	// for top sky and bottom sky
+static float speedscale2;	// for sky alpha layer using multitexture
 
 msurface_t *warpface;
 
@@ -425,8 +428,11 @@ R_InitSky(texture_t *mt)
     ((byte *)&transpix)[2] = b / (128 * 128);
     ((byte *)&transpix)[3] = 0;
 
-    if (!solidskytexture)
-	solidskytexture = texture_extension_number++;
+    // FIXME - move this to some init function
+    if (!solidskytexture_initialised) {
+	glGenTextures(1, &solidskytexture);
+	solidskytexture_initialised = 1;
+    }
     GL_Bind(solidskytexture);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, 128, 128, 0, GL_RGBA,
 		 GL_UNSIGNED_BYTE, trans);
@@ -442,8 +448,12 @@ R_InitSky(texture_t *mt)
 		trans[(i * 128) + j] = d_8to24table[p];
 	}
 
-    if (!alphaskytexture)
-	alphaskytexture = texture_extension_number++;
+    // FIXME - move this to an init function...
+    if (!alphaskytexture_initialised) {
+	glGenTextures(1, &alphaskytexture);
+	alphaskytexture_initialised = 1;
+    }
+
     GL_Bind(alphaskytexture);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_alpha_format, 128, 128, 0, GL_RGBA,
 		 GL_UNSIGNED_BYTE, trans);

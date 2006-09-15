@@ -45,8 +45,8 @@ static int c_alias_polys;
 
 qboolean envmap;		// true during envmap command capture
 
-int currenttexture = -1;	// to avoid unnecessary texture sets
-int playertextures;		// up to 16 color translated skins
+GLuint currenttexture = -1;	// to avoid unnecessary texture sets
+GLuint playertextures[MAX_CLIENTS];// up to 16 color translated skins
 
 int mirrortexturenum;		// quake texturenum, not gltexturenum
 qboolean mirror;
@@ -552,7 +552,7 @@ R_DrawAliasModel(entity_t *e)
 	if (i >= 1 && i <= cl.maxclients
 	    /* && !strcmp (currententity->model->name, "progs/player.mdl") */
 	    )
-	    GL_Bind(playertextures - 1 + i);
+	    GL_Bind(playertextures[i - 1]);
     }
 
     if (gl_smoothmodels.value)

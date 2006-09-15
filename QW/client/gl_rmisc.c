@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 
 // FIXME - should only be needed in r_part.c or here, not both.
-int particletexture;
+GLuint particletexture;
 
 /*
 ==================
@@ -84,7 +84,7 @@ R_InitParticleTexture(void)
     //
     // particle texture
     //
-    particletexture = texture_extension_number++;
+    glGenTextures(1, &particletexture);
     GL_Bind(particletexture);
 
     for (x = 0; x < 8; x++) {
@@ -233,11 +233,8 @@ R_Init(void)
     R_InitParticles();
     R_InitParticleTexture();
 
-    netgraphtexture = texture_extension_number;
-    texture_extension_number++;
-
-    playertextures = texture_extension_number;
-    texture_extension_number += MAX_CLIENTS;
+    glGenTextures(1, &netgraphtexture);
+    glGenTextures(MAX_CLIENTS, playertextures);
 }
 
 /*
@@ -323,7 +320,7 @@ R_TranslatePlayerSkin(int playernum)
 
 	// because this happens during gameplay, do it fast
 	// instead of sending it through gl_upload 8
-	GL_Bind(playertextures + playernum);
+	GL_Bind(playertextures[playernum]);
 
 #if 0
 	s = 320 * 200;
