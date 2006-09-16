@@ -46,6 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static cvar_t gl_nobind = { "gl_nobind", "0" };
 static cvar_t gl_picmip = { "gl_picmip", "0" };
+static cvar_t gl_constretch = { "gl_constretch", "0", true };
 
 // FIXME - should I let this get larger, with view to enhancements?
 cvar_t gl_max_size = { "gl_max_size", "1024" };
@@ -432,6 +433,7 @@ Draw_Init(void)
     Cvar_RegisterVariable(&gl_nobind);
     Cvar_RegisterVariable(&gl_max_size);
     Cvar_RegisterVariable(&gl_picmip);
+    Cvar_RegisterVariable(&gl_constretch);
 
     // FIXME - could do better to check on each texture upload with
     //         GL_PROXY_TEXTURE_2D
@@ -660,42 +662,6 @@ Draw_Pic(int x, int y, const qpic_t *pic)
     glEnd();
 }
 
-/*
-=============
-Draw_AlphaPic
-=============
-*/
-static void
-Draw_AlphaPic(int x, int y, const qpic_t *pic, float alpha)
-{
-    glpic_t *gl;
-
-    if (scrap_dirty)
-	Scrap_Upload();
-    gl = (glpic_t *)pic->data;
-
-    glDisable(GL_ALPHA_TEST);
-    glEnable(GL_BLEND);
-    glCullFace(GL_FRONT);
-    glColor4f(1, 1, 1, alpha);
-    GL_Bind(gl->texnum);
-
-    glBegin(GL_QUADS);
-    glTexCoord2f(gl->sl, gl->tl);
-    glVertex2f(x, y);
-    glTexCoord2f(gl->sh, gl->tl);
-    glVertex2f(x + pic->width, y);
-    glTexCoord2f(gl->sh, gl->th);
-    glVertex2f(x + pic->width, y + pic->height);
-    glTexCoord2f(gl->sl, gl->th);
-    glVertex2f(x, y + pic->height);
-    glEnd();
-
-    glColor4f(1, 1, 1, 1);
-    glEnable(GL_ALPHA_TEST);
-    glDisable(GL_BLEND);
-}
-
 void
 Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 	    int height)
@@ -805,17 +771,56 @@ Draw_ConsoleBackground
 
 ================
 */
+static void
+Draw_ConsolePic(int lines, float offset, const qpic_t *pic, float alpha)
+{
+    glpic_t *gl;
+
+    if (scrap_dirty)
+	Scrap_Upload();
+    gl = (glpic_t *)pic->data;
+
+    glDisable(GL_ALPHA_TEST);
+    glEnable(GL_BLEND);
+    glCullFace(GL_FRONT);
+    glColor4f(1, 1, 1, alpha);
+    GL_Bind(gl->texnum);
+
+    glBegin (GL_QUADS);
+    glTexCoord2f (0, offset);
+    glVertex2f (0, 0);
+    glTexCoord2f (1, offset);
+    glVertex2f (vid.conwidth, 0);
+    glTexCoord2f (1, 1);
+    glVertex2f (vid.conwidth, lines);
+    glTexCoord2f (0, 1);
+    glVertex2f (0, lines);
+    glEnd();
+
+    glColor4f(1, 1, 1, 1);
+    glEnable(GL_ALPHA_TEST);
+    glDisable(GL_BLEND);
+}
+
 void
 Draw_ConsoleBackground(int lines)
 {
     int y;
+    float offset, alpha;
 
     y = (vid.height * 3) >> 2;
-    if (lines > y)
-	Draw_Pic(0, lines - vid.height, conback);
+
+    if (gl_constretch.value)
+	offset = 0.0f;
     else
-	Draw_AlphaPic(0, lines - vid.height, conback,
-		      (float)(1.2 * lines) / y);
+	offset = (vid.conheight - lines) / (float)vid.conheight;
+
+    if (lines > y)
+	alpha = 1.0f;
+    else
+	alpha = (float) 1.1 * lines / y;
+
+    Draw_ConsolePic(lines, offset, conback, alpha);
 
 #ifdef QW_HACK
     {
