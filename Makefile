@@ -273,13 +273,13 @@ endef
 quiet_cmd_strip = '  STRIP   $(1)'
       cmd_strip = $(STRIP) $(1)
 
-ifndef DEBUG
+ifeq ($(DEBUG),Y)
+do_strip=
+else
 define do_strip
 	@echo $(call $(quiet)cmd_strip,$(1));
 	@$(call cmd_strip,$(1));
 endef
-else
-do_strip=
 endif
 
 DEPFILES = \
