@@ -140,9 +140,10 @@ CFLAGS += $(call cc-option,-mtune=i686,-mcpu=i686)
 endif
 endif
 
-# ---------------------------------------------------------
-#  WIP: Getting rid of recursive make, separate build dirs
-# ---------------------------------------------------------
+# --------------------------------------------------------------------------
+#  Each binary needs to build it's own object files in separate directories
+#  due to the {NQ,QW}_HACK ifdefs still present in the common files.
+# --------------------------------------------------------------------------
 
 # (sw = software renderer, gl = OpenGL renderer, sv = server)
 NQSWDIR	= $(BUILD_DIR)/nqsw
