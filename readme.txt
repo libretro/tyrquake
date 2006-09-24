@@ -2,20 +2,23 @@
  Tyr-Quake
 -----------
 
-Date:		2006-06-13
-Version: 	0.54
+Date:		2006-09-24
+Version: 	0.55
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
 
 Why?
 ----
-This is meant to be a very conservative branch of the Quake source code. I
-intend to support Quake and Quakeworld in both software and GL versions, as
-well as Quakeworld Server; all on both MS Windows and Linux. I don't intend on
-adding lots of rendering enhancements, but rather fixing little bugs that I've
-come across over the years. I'll be adding small enhancements, but I don't
-want to completely overhaul the engine.
+This is meant to be a fairly conservative branch of the Quake source
+code. It's intended to support Quake and Quakeworld in both software and GL
+versions, as well as the Quakeworld Server; all on both MS Windows and Linux
+(BSD supported as best I can manage with some help from some other users). I
+don't intend on changing the look or feel of the game by adding lots of
+rendering enhancements, etc, but rather just fixing little bugs that I've come
+across over the years. I'll be adding small enhancements and may even rewrite
+substantial portions of the code, but I don't want to change the fundamental
+feel of the game.
 
 Building:
 ---------
@@ -28,10 +31,19 @@ prepare' (this sets up the build directories) followed by 'make <target>' -
 where <target> is the name of the executable you want to build.
 
 To build a debug version or one without the intel assembly, there are options
-you can select by editing the Makefile.
-
+you can select by setting Makefile variables:
+  e.g. make DEBUG=Y prepare tyr-glquake
+    or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.55
+=====
+- Fix a crash provoked by the qd100qlite2 mod
+- Refactor the cdaudio system, adding a BSD driver
+- Allow user to add custom data/config files in $HOME/.tyrquake
+- Add console stretch effect ("gl_constretch 1" to enable)
+- Makefile cleanups to aid customisations for packagers
 
 v0.54
 =====
