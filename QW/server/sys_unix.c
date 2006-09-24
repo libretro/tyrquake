@@ -242,7 +242,7 @@ main(int argc, char *argv[])
     if ((parms.membase = malloc(parms.memsize)) == NULL)
 	Sys_Error("Can't allocate %ld", parms.memsize);
 
-    parms.basedir = ".";
+    parms.basedir = stringify(QBASEDIR);
 
 /*
 	if (Sys_FileTime ("id1/pak0.pak") != -1)

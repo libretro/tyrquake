@@ -42,9 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static qboolean noconinput = false;
 static qboolean nostdout = false;
 
-static char *basedir = ".";
-//static char *cachedir = "/tmp";
-
 // set for entity display
 //static cvar_t sys_linerefresh = { "sys_linerefresh", "0" };
 
@@ -328,8 +325,7 @@ main(int c, char **v)
     if (j)
 	parms.memsize = (int)(Q_atof(com_argv[j + 1]) * 1024 * 1024);
     parms.membase = malloc(parms.memsize);
-
-    parms.basedir = basedir;
+    parms.basedir = stringify(QBASEDIR);
 // caching is disabled by default, use -cachedir to enable
 //      parms.cachedir = cachedir;
 

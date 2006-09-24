@@ -31,6 +31,7 @@ DEBUG            ?= N# Compile with debug info
 OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
 USE_X86_ASM      ?= Y# Compile with x86 asm
 X11BASE          ?= $(X11BASE_GUESS)
+QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 
 # ============================================================================
 
@@ -162,7 +163,7 @@ all:	prepare $(APPS)
 .PHONY:	prepare
 prepare:	$(BUILD_DIRS)
 
-COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION)
+COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQBASEDIR="$(QBASEDIR)"
 ifeq ($(DEBUG),Y)
 COMMON_CPPFLAGS += -DDEBUG
 else

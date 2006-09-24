@@ -48,9 +48,6 @@ qboolean isDedicated;
 static qboolean noconinput = false;
 static qboolean nostdout = false;
 
-char *basedir = ".";
-char *cachedir = "/tmp";
-
 // FIXME - Used in NQ, not QW... why?
 // set for entity display
 cvar_t sys_linerefresh = { "sys_linerefresh", "0" };
@@ -358,8 +355,7 @@ main(int c, char **v)
     if (j)
 	parms.memsize = (int)(Q_atof(com_argv[j + 1]) * 1024 * 1024);
     parms.membase = malloc(parms.memsize);
-
-    parms.basedir = basedir;
+    parms.basedir = stringify(QBASEDIR);
 // caching is disabled by default, use -cachedir to enable
 //      parms.cachedir = cachedir;
 
