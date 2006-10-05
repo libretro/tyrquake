@@ -415,7 +415,7 @@ Cmd_Alias_f(void)
     c = Cmd_Argc();
     for (i = 2; i < c; i++) {
 	strcat(cmd, Cmd_Argv(i));
-	if (i != c)
+	if (i != c - 1)
 	    strcat(cmd, " ");
     }
     strcat(cmd, "\n");
