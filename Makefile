@@ -5,15 +5,6 @@
 # just type e.g. "make tyr-quake". If the build dirs haven't been created yet,
 # you might need to type "make prepare" first.
 # 
-# Options:
-# --------
-# To build an executable with debugging symbols, un-comment the DEBUG=Y option
-# below. You should "make clean" when switching this option on or off.
-#
-# To build an executable without using any of the hand written x86 assembler,
-# un-comment the NO_X86_ASM option below. You should "make clean" when
-# switching this option on or off.
-#
 
 TYR_VERSION_MAJOR = 0
 TYR_VERSION_MINOR = 55
@@ -41,7 +32,6 @@ QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 
 SYSNAME := $(shell uname -s)
 
-# FIXME - how to detect build env reliably...?
 ifneq (,$(findstring MINGW32,$(SYSNAME)))
 TARGET_OS = WIN32
 TOPDIR := $(shell pwd -W)
