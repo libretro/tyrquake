@@ -381,6 +381,7 @@ Cmd_Alias_f(void)
     char cmd[1024];
     int i, c;
     char *s;
+    size_t cmd_len;
     struct stree_node *node;
 
     if (Cmd_Argc() == 1) {
@@ -413,7 +414,16 @@ Cmd_Alias_f(void)
 // copy the rest of the command line
     cmd[0] = 0;			// start out with a null string
     c = Cmd_Argc();
+    cmd_len = 1;
     for (i = 2; i < c; i++) {
+	cmd_len += strlen(Cmd_Argv(i));
+	if (i != c - 1)
+		cmd_len++;
+	if (cmd_len >= sizeof(cmd)) {
+	    Con_Printf("Alias value is too long\n");
+	    cmd[0] = 0;	// nullify the string
+	    break;
+	}
 	strcat(cmd, Cmd_Argv(i));
 	if (i != c - 1)
 	    strcat(cmd, " ");
