@@ -575,23 +575,20 @@ Key_SetBinding
 void
 Key_SetBinding(int keynum, char *binding)
 {
-    char *new;
-    int l;
-
     if (keynum == -1)
 	return;
 
-// free old bindings
+    /* free old bindings */
     if (keybindings[keynum]) {
 	Z_Free(keybindings[keynum]);
 	keybindings[keynum] = NULL;
     }
-// allocate memory for new binding
-    l = strlen(binding);
-    new = Z_Malloc(l + 1);
-    strcpy(new, binding);
-    new[l] = 0;
-    keybindings[keynum] = new;
+
+    if (binding) {
+	/* allocate memory for new binding */
+	keybindings[keynum] = Z_Malloc(strlen(binding) + 1);
+	strcpy(keybindings[keynum], binding);
+    }
 }
 
 /*
@@ -615,7 +612,7 @@ Key_Unbind_f(void)
 	return;
     }
 
-    Key_SetBinding(b, "");
+    Key_SetBinding(b, NULL);
 }
 
 void
@@ -625,7 +622,7 @@ Key_Unbindall_f(void)
 
     for (i = 0; i < 256; i++)
 	if (keybindings[i])
-	    Key_SetBinding(i, "");
+	    Key_SetBinding(i, NULL);
 }
 
 

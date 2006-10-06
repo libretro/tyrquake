@@ -656,7 +656,7 @@ M_UnbindCommand(const char *const command)
 	if (!b)
 	    continue;
 	if (!strncmp(b, command, l))
-	    Key_SetBinding(j, "");
+	    Key_SetBinding(j, NULL);
     }
 }
 
