@@ -270,7 +270,7 @@ byte gammatable[256];		// palette is sent through this
 
 
 #ifdef	GLQUAKE
-static unsigned short ramps[3][256];
+unsigned short ramps[3][256];
 float v_blend[4];		// rgba 0.0 - 1.0
 #endif // GLQUAKE
 

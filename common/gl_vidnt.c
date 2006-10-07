@@ -1005,9 +1005,15 @@ AppActivate(BOOL fActive, BOOL minimize)
 	    IN_ActivateMouse();
 	    IN_HideMouse();
 	}
+	/* Restore game gamma */
+	if (VID_SetGammaRamp)
+	    VID_SetGammaRamp(ramps);
     }
 
     if (!fActive) {
+	/* Restore desktop gamma */
+	if (VID_SetGammaRamp)
+	    VID_SetGammaRamp(saved_gamma_ramp);
 	if (modestate == MS_FULLDIB) {
 	    IN_DeactivateMouse();
 	    IN_ShowMouse();
