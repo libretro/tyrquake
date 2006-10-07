@@ -1291,8 +1291,6 @@ SV_InitLocal(void)
     Cvar_RegisterVariable(&spawn);
     Cvar_RegisterVariable(&watervis);
 
-    Cvar_RegisterVariable(&developer);
-
     Cvar_RegisterVariable(&timeout);
     Cvar_RegisterVariable(&zombietime);
 
@@ -1322,6 +1320,10 @@ SV_InitLocal(void)
     Cvar_RegisterVariable(&sv_phs);
 
     Cvar_RegisterVariable(&pausable);
+
+    Cvar_RegisterVariable(&developer);
+    if (COM_CheckParm("-developer"))
+	Cvar_SetValue("developer", 1);
 
     Cmd_AddCommand("addip", SV_AddIP_f);
     Cmd_AddCommand("removeip", SV_RemoveIP_f);

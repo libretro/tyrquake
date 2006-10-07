@@ -240,13 +240,16 @@ Host_InitLocal(void)
     Cvar_RegisterVariable(&samelevel);
     Cvar_RegisterVariable(&noexit);
     Cvar_RegisterVariable(&skill);
-    Cvar_RegisterVariable(&developer);
     Cvar_RegisterVariable(&deathmatch);
     Cvar_RegisterVariable(&coop);
 
     Cvar_RegisterVariable(&pausable);
 
     Cvar_RegisterVariable(&temp1);
+
+    Cvar_RegisterVariable(&developer);
+    if (COM_CheckParm("-developer"))
+	Cvar_SetValue("developer", 1);
 
     Host_FindMaxClients();
 

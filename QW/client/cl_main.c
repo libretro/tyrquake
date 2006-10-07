@@ -1094,8 +1094,6 @@ CL_Init(void)
 // register our commands
 //
     Cvar_RegisterVariable(&host_speeds);
-    Cvar_RegisterVariable(&developer);
-
     Cvar_RegisterVariable(&cl_warncmd);
     Cvar_RegisterVariable(&cl_upspeed);
     Cvar_RegisterVariable(&cl_forwardspeed);
@@ -1146,6 +1144,9 @@ CL_Init(void)
     Cvar_RegisterVariable(&msg);
     Cvar_RegisterVariable(&noaim);
 
+    Cvar_RegisterVariable(&developer);
+    if (COM_CheckParm("-developer"))
+	Cvar_SetValue("developer", 1);
 
     Cmd_AddCommand("version", CL_Version_f);
 
