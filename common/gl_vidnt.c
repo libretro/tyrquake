@@ -999,6 +999,14 @@ AppActivate(BOOL fActive, BOOL minimize)
 		vid_wassuspended = false;
 		ChangeDisplaySettings(&gdevmode, CDS_FULLSCREEN);
 		ShowWindow(mainwindow, SW_SHOWNORMAL);
+
+		/*
+		 * Work-around for a bug in some video drivers that don't
+		 * correctly update the offsets into the GL front buffer after
+		 * alt-tab to the desktop and back.
+		 */
+		MoveWindow(mainwindow, 0, 0, gdevmode.dmPelsWidth,
+			   gdevmode.dmPelsHeight, false);
 	    }
 	} else if ((modestate == MS_WINDOWED) && _windowed_mouse.value
 		   && key_dest == key_game) {
