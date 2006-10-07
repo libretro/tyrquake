@@ -805,6 +805,9 @@ VID_Shutdown(void)
     HDC hDC;
 
     if (vid_initialized) {
+	if (VID_SetGammaRamp)
+	    VID_SetGammaRamp(saved_gamma_ramp);
+
 	vid_canalttab = false;
 	hRC = wglGetCurrentContext();
 	hDC = wglGetCurrentDC();
