@@ -62,7 +62,7 @@ void
 Sys_DebugLog(char *file, char *fmt, ...)
 {
     va_list argptr;
-    static char data[1024];
+    static char data[MAX_PRINTMSG];
     int fd;
 
     va_start(argptr, fmt);
@@ -232,7 +232,7 @@ void
 Sys_Error(char *error, ...)
 {
     va_list argptr;
-    char text[1024];
+    char text[MAX_PRINTMSG];
 
     Host_Shutdown();
 

@@ -69,7 +69,7 @@ void
 Sys_Error(char *error, ...)
 {
     va_list argptr;
-    char text[1024];
+    char text[MAX_PRINTMSG];
 
     va_start(argptr, error);
     vsprintf(text, error, argptr);

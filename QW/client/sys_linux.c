@@ -53,7 +53,7 @@ void
 Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
-    char text[4096];
+    char text[MAX_PRINTMSG];
     unsigned char *p;
     int cnt;
 
@@ -98,7 +98,7 @@ void
 Sys_Error(char *error, ...)
 {
     va_list argptr;
-    char string[1024];
+    char string[MAX_PRINTMSG];
 
 // change stdin to non blocking
     fcntl(STDIN_FILENO, F_SETFL,
@@ -111,7 +111,6 @@ Sys_Error(char *error, ...)
 
     Host_Shutdown();
     exit(1);
-
 }
 
 /*
@@ -201,7 +200,7 @@ void
 Sys_DebugLog(char *file, char *fmt, ...)
 {
     va_list argptr;
-    static char data[1024];
+    static char data[MAX_PRINTMSG];
     int fd;
 
     va_start(argptr, fmt);

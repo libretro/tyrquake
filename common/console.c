@@ -653,7 +653,7 @@ void
 Con_SafePrintf(char *fmt, ...)
 {
     va_list argptr;
-    char msg[1024];
+    char msg[MAX_PRINTMSG];
     int temp;
 
     va_start(argptr, fmt);

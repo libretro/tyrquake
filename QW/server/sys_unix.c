@@ -112,7 +112,7 @@ void
 Sys_Error(char *error, ...)
 {
     va_list argptr;
-    char string[1024];
+    char string[MAX_PRINTMSG];
 
     va_start(argptr, error);
     vsprintf(string, error, argptr);
@@ -131,7 +131,7 @@ void
 Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
-    static char text[4096];
+    static char text[MAX_PRINTMSG];
     unsigned char *p;
 
     va_start(argptr, fmt);

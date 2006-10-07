@@ -73,7 +73,7 @@ void
 Sys_DebugLog(char *file, char *fmt, ...)
 {
     va_list argptr;
-    static char data[1024];
+    static char data[MAX_PRINTMSG];
     int fd;
 
     va_start(argptr, fmt);
@@ -377,7 +377,8 @@ void
 Sys_Error(char *error, ...)
 {
     va_list argptr;
-    char text[1024], text2[1024];
+    char text[MAX_PRINTMSG];
+    char text2[MAX_PRINTMSG + 7 /* strlen("ERROR: ") */];
     char *text3 = "Press Enter to exit\n";
     char *text4 = "***********************************\n";
     char *text5 = "\n";
@@ -446,7 +447,7 @@ void
 Sys_Printf(char *fmt, ...)
 {
     va_list argptr;
-    char text[4096];
+    char text[MAX_PRINTMSG];
     DWORD dummy;
 
     if (isDedicated) {
