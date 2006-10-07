@@ -62,15 +62,10 @@ Sys_Printf(char *fmt, ...)
     va_list argptr;
     char text[MAX_PRINTMSG];
     unsigned char *p;
-    int cnt;
 
     va_start(argptr, fmt);
-    cnt = vsnprintf(text, sizeof(text) - 1, fmt, argptr);
+    vsnprintf(text, sizeof(text) - 1, fmt, argptr);
     va_end(argptr);
-
-    // FIXME - require glibc >= 2.1 for C99 standard return value
-    if (cnt >= sizeof(text))
-	Sys_Error("memory overwrite in Sys_Printf");
 
     if (nostdout)
 	return;
@@ -126,7 +121,7 @@ Sys_Error(char *error, ...)
 	  fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 
     va_start(argptr, error);
-    vsprintf(string, error, argptr);
+    vsnprintf(string, sizeof(string), error, argptr);
     va_end(argptr);
     fprintf(stderr, "Error: %s\n", string);
 
@@ -225,7 +220,7 @@ Sys_DebugLog(char *file, char *fmt, ...)
     int fd;
 
     va_start(argptr, fmt);
-    vsprintf(data, fmt, argptr);
+    vsnprintf(data, sizeof(data), fmt, argptr);
     va_end(argptr);
 //    fd = open(file, O_WRONLY | O_BINARY | O_CREAT | O_APPEND, 0666);
     fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);

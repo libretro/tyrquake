@@ -254,10 +254,10 @@ void
 PR_RunError(char *error, ...)
 {
     va_list argptr;
-    char string[1024];
+    char string[MAX_PRINTMSG];
 
     va_start(argptr, error);
-    vsprintf(string, error, argptr);
+    vsnprintf(string, sizeof(string), error, argptr);
     va_end(argptr);
 
     PR_PrintStatement(pr_statements + pr_xstatement);

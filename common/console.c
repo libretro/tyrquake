@@ -304,7 +304,6 @@ Con_Printf
 Handles cursor positioning, line wrapping, etc
 ================
 */
-// FIXME: make a buffer size safe vsprintf?
 void
 Con_Printf(char *fmt, ...)
 {
@@ -313,7 +312,7 @@ Con_Printf(char *fmt, ...)
     static qboolean inupdate;
 
     va_start(argptr, fmt);
-    vsprintf(msg, fmt, argptr);
+    vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
 
 // also echo to debugging console
@@ -375,7 +374,7 @@ Con_DPrintf(char *fmt, ...)
 	return;			// don't confuse non-developers with techie stuff...
 
     va_start(argptr, fmt);
-    vsprintf(msg, fmt, argptr);
+    vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
 
     Con_Printf("%s", msg);
@@ -657,7 +656,7 @@ Con_SafePrintf(char *fmt, ...)
     int temp;
 
     va_start(argptr, fmt);
-    vsprintf(msg, fmt, argptr);
+    vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
 
     temp = scr_disabled_for_loading;

@@ -129,7 +129,7 @@ void
 SV_Error(char *error, ...)
 {
     va_list argptr;
-    static char string[1024];
+    static char string[MAX_PRINTMSG];
     static qboolean inerror = false;
 
     if (inerror)
@@ -138,7 +138,7 @@ SV_Error(char *error, ...)
     inerror = true;
 
     va_start(argptr, error);
-    vsprintf(string, error, argptr);
+    vsnprintf(string, sizeof(string), error, argptr);
     va_end(argptr);
 
     Con_Printf("%s: %s\n", __func__, string);

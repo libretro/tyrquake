@@ -551,7 +551,7 @@ void
 OutofBandPrintf(netadr_t where, char *fmt, ...)
 {
     va_list argptr;
-    char send[1024];
+    char send[MAX_PRINTMSG];
 
     send[0] = 0xff;
     send[1] = 0xff;
@@ -559,7 +559,7 @@ OutofBandPrintf(netadr_t where, char *fmt, ...)
     send[3] = 0xff;
     send[4] = A2C_PRINT;
     va_start(argptr, fmt);
-    vsprintf(send + 5, fmt, argptr);
+    vsnprintf(send + 5, sizeof(send) - 5, fmt, argptr);
     va_end(argptr);
 
     NET_SendPacket(strlen(send) + 1, send, where);

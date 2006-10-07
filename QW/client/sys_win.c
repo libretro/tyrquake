@@ -66,7 +66,7 @@ Sys_DebugLog(char *file, char *fmt, ...)
     int fd;
 
     va_start(argptr, fmt);
-    vsprintf(data, fmt, argptr);
+    vsnprintf(data, sizeof(data), fmt, argptr);
     va_end(argptr);
     fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
     write(fd, data, strlen(data));
@@ -237,7 +237,7 @@ Sys_Error(char *error, ...)
     Host_Shutdown();
 
     va_start(argptr, error);
-    vsprintf(text, error, argptr);
+    vsnprintf(text, sizeof(text), error, argptr);
     va_end(argptr);
 
     MessageBox(NULL, text, "Error", 0 /* MB_OK */ );

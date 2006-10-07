@@ -151,7 +151,7 @@ Netchan_OutOfBandPrint(netadr_t adr, char *format, ...)
     static char string[8192];	/* FIXME - ??? why static? - stack probs? */
 
     va_start(argptr, format);
-    vsprintf(string, format, argptr);
+    vsnprintf(string, sizeof(string), format, argptr);
     va_end(argptr);
 
     Netchan_OutOfBand(adr, strlen(string), (byte *)string);

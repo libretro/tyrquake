@@ -115,7 +115,7 @@ Sys_Error(char *error, ...)
     char string[MAX_PRINTMSG];
 
     va_start(argptr, error);
-    vsprintf(string, error, argptr);
+    vsnprintf(string, sizeof(string), error, argptr);
     va_end(argptr);
     printf("Fatal error: %s\n", string);
 
@@ -135,11 +135,8 @@ Sys_Printf(char *fmt, ...)
     unsigned char *p;
 
     va_start(argptr, fmt);
-    vsprintf(text, fmt, argptr);
+    vsnprintf(text, sizeof(text), fmt, argptr);
     va_end(argptr);
-
-    if (strlen(text) > sizeof(text))
-	Sys_Error("memory overwrite in Sys_Printf");
 
     if (sys_nostdout.value)
 	return;

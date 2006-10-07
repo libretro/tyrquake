@@ -77,7 +77,7 @@ Sys_DebugLog(char *file, char *fmt, ...)
     int fd;
 
     va_start(argptr, fmt);
-    vsprintf(data, fmt, argptr);
+    vsnprintf(data, sizeof(data), fmt, argptr);
     va_end(argptr);
     fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
     write(fd, data, strlen(data));
@@ -395,12 +395,12 @@ Sys_Error(char *error, ...)
     }
 
     va_start(argptr, error);
-    vsprintf(text, error, argptr);
+    vsnprintf(text, sizeof(error), error, argptr);
     va_end(argptr);
 
     if (isDedicated) {
 	va_start(argptr, error);
-	vsprintf(text, error, argptr);
+	vsnprintf(text, sizeof(text), error, argptr);
 	va_end(argptr);
 
 	sprintf(text2, "ERROR: %s\n", text);
@@ -452,7 +452,7 @@ Sys_Printf(char *fmt, ...)
 
     if (isDedicated) {
 	va_start(argptr, fmt);
-	vsprintf(text, fmt, argptr);
+	vsnprintf(text, sizeof(text), fmt, argptr);
 	va_end(argptr);
 
 	WriteFile(houtput, text, strlen(text), &dummy, NULL);
