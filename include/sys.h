@@ -58,15 +58,15 @@ void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
 //
 // system IO
 //
-void Sys_DebugLog(char *file, char *fmt, ...);
 
-void Sys_Error(char *error, ...);
-
-// an error will cause the entire program to exit
+#define MAX_PRINTMSG 4096
 
 void Sys_Printf(char *fmt, ...);
+void Sys_DebugLog(char *file, char *fmt, ...);
+void Sys_Error(char *error, ...);
 
 // send text to the console
+// an error will cause the entire program to exit
 
 void Sys_Quit(void);
 
