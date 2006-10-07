@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qwsvdef.h"
 #include "common.h"
 #include "server.h"
+#include "sys.h"
 
 cvar_t sys_nostdout = { "sys_nostdout", "0" };
 
@@ -35,7 +36,7 @@ Sys_FileTime
 ================
 */
 int
-Sys_FileTime(char *path)
+Sys_FileTime(const char *path)
 {
     FILE *f;
 
@@ -54,7 +55,7 @@ Sys_mkdir
 ================
 */
 void
-Sys_mkdir(char *path)
+Sys_mkdir(const char *path)
 {
     _mkdir(path);
 }
