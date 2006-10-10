@@ -228,28 +228,6 @@ Sys_DebugLog(char *file, char *fmt, ...)
     close(fd);
 }
 
-void
-Sys_EditFile(char *filename)
-{
-
-    char cmd[256];
-    char *term;
-    char *editor;
-
-    term = getenv("TERM");
-    if (term && !strcmp(term, "xterm")) {
-	editor = getenv("VISUAL");
-	if (!editor)
-	    editor = getenv("EDITOR");
-	if (!editor)
-	    editor = getenv("EDIT");
-	if (!editor)
-	    editor = "vi";
-	sprintf(cmd, "xterm -e %s %s", editor, filename);
-	system(cmd);
-    }
-}
-
 double
 Sys_DoubleTime(void)
 {
