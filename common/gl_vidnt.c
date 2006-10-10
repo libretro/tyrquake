@@ -1617,7 +1617,7 @@ VID_Init(unsigned char *palette)
 
     height = 0;			// FIXME - Uninitialized? Zero probably not desirable...
 
-    if (COM_CheckParm("-window")) {
+    if (COM_CheckParm("-window") || COM_CheckParm("-w")) {
 	hdc = GetDC(NULL);
 
 	if (GetDeviceCaps(hdc, RASTERCAPS) & RC_PALETTE) {

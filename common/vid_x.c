@@ -559,7 +559,7 @@ VID_Init(unsigned char *palette)
 // for debugging only
     XSynchronize(x_disp, True);
 
-    if (COM_CheckParm("-window"))
+    if (COM_CheckParm("-window") || COM_CheckParm("-w"))
 	fullscreen = false;
 
 // check for command-line window size

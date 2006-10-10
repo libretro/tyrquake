@@ -835,7 +835,7 @@ VID_Init(unsigned char *palette)
 // interpret command-line params
 
 // set vid parameters
-    if (COM_CheckParm("-window"))
+    if (COM_CheckParm("-window") || COM_CheckParm("-w"))
 	fullscreen = false;
     if ((i = COM_CheckParm("-width")) != 0)
 	width = atoi(com_argv[i + 1]);
