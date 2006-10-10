@@ -378,7 +378,7 @@ Sys_Error(char *error, ...)
 {
     va_list argptr;
     char text[MAX_PRINTMSG];
-    char text2[MAX_PRINTMSG + 7 /* strlen("ERROR: ") */];
+    char text2[MAX_PRINTMSG];
     char *text3 = "Press Enter to exit\n";
     char *text4 = "***********************************\n";
     char *text5 = "\n";
@@ -404,6 +404,7 @@ Sys_Error(char *error, ...)
 	va_end(argptr);
 
 	sprintf(text2, "ERROR: %s\n", text);
+	text2[sizeof(text2) - 1] = '\n'; /* in case we truncated */
 	WriteFile(houtput, text5, strlen(text5), &dummy, NULL);
 	WriteFile(houtput, text4, strlen(text4), &dummy, NULL);
 	WriteFile(houtput, text2, strlen(text2), &dummy, NULL);
