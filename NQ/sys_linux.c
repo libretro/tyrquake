@@ -64,7 +64,7 @@ Sys_Printf(char *fmt, ...)
     unsigned char *p;
 
     va_start(argptr, fmt);
-    vsnprintf(text, sizeof(text) - 1, fmt, argptr);
+    vsnprintf(text, sizeof(text), fmt, argptr);
     va_end(argptr);
 
     if (nostdout)

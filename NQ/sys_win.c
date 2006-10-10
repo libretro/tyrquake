@@ -395,7 +395,7 @@ Sys_Error(char *error, ...)
     }
 
     va_start(argptr, error);
-    vsnprintf(text, sizeof(error), error, argptr);
+    vsnprintf(text, sizeof(text), error, argptr);
     va_end(argptr);
 
     if (isDedicated) {
