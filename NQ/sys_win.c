@@ -399,12 +399,9 @@ Sys_Error(char *error, ...)
     va_end(argptr);
 
     if (isDedicated) {
-	va_start(argptr, error);
-	vsnprintf(text, sizeof(text), error, argptr);
-	va_end(argptr);
-
-	sprintf(text2, "ERROR: %s\n", text);
-	text2[sizeof(text2) - 1] = '\n'; /* in case we truncated */
+	snprintf(text2, sizeof(text2), "ERROR: %s\n", text);
+	if (text2[sizeof(text2) - 2])
+	    strcpy(text2 + sizeof(text2) - 2, "\n"); /* in case we truncated */
 	WriteFile(houtput, text5, strlen(text5), &dummy, NULL);
 	WriteFile(houtput, text4, strlen(text4), &dummy, NULL);
 	WriteFile(houtput, text2, strlen(text2), &dummy, NULL);
