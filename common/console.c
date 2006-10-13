@@ -370,8 +370,16 @@ Con_DPrintf(char *fmt, ...)
     va_list argptr;
     char msg[MAX_PRINTMSG];
 
-    if (!developer.value)
-	return;			// don't confuse non-developers with techie stuff...
+    if (!developer.value) {
+	if (debuglog) {
+	    strcpy(msg, "DEBUG: ");
+	    va_start(argptr, fmt);
+	    vsnprintf(msg + 7, sizeof(msg) - 7, fmt, argptr);
+	    va_end(argptr);
+	    Sys_DebugLog(va("%s/qconsole.log", com_gamedir), "%s", msg);
+	}
+	return;
+    }
 
     va_start(argptr, fmt);
     vsnprintf(msg, sizeof(msg), fmt, argptr);
