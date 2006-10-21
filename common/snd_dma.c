@@ -227,7 +227,8 @@ S_Init(void)
 	shm->buffer = Hunk_AllocName(1 << 16, "shmbuf");
     }
 
-    Con_Printf("Sound sampling rate: %i\n", shm->speed);
+    if (sound_started)
+	Con_Printf("Sound sampling rate: %i\n", shm->speed);
 
 #if 0
     /* provides a tick sound until washed clean; for debugging */
