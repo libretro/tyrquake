@@ -500,9 +500,9 @@ VID_SetPalette(unsigned char *palette)
 	pal += 3;
 
 	v = (255 << 24) + (r << 0) + (g << 8) + (b << 16);
-	*table++ = v;
+	*table++ = LittleLong(v);
     }
-    d_8to24table[255] &= 0xffffff;	// 255 is transparent
+    d_8to24table[255] &= LittleLong(0xffffff);	// 255 is transparent
 
     for (i = 0; i < (1 << 15); i++) {
 	/*
