@@ -21,12 +21,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef PR_COMP_H
 #define PR_COMP_H
 
+#include <inttypes.h>
+
 #include "qtypes.h"
 
 // this file is shared by quake and qcc
 
-typedef int func_t;
-typedef int string_t;
+typedef int32_t func_t;
+typedef int32_t string_t;
 
 typedef enum {
     ev_void, ev_string, ev_float, ev_vector, ev_entity, ev_field,
@@ -127,15 +129,15 @@ enum {
 
 
 typedef struct statement_s {
-    unsigned short op;
-    short a, b, c;
+    uint16_t op;
+    int16_t a, b, c;
 } dstatement_t;
 
 typedef struct {
-    unsigned short type;	// if DEF_SAVEGLOBGAL bit is set
-    // the variable needs to be saved in savegames
-    unsigned short ofs;
-    int s_name;
+    uint16_t type;	/* if DEF_SAVEGLOBGAL bit is set, the variable needs
+			   to be saved in savegames */
+    uint16_t ofs;
+    int32_t s_name;
 } ddef_t;
 
 #define	DEF_SAVEGLOBAL	(1<<15)
@@ -143,44 +145,44 @@ typedef struct {
 #define	MAX_PARMS	8
 
 typedef struct {
-    int first_statement;	// negative numbers are builtins
-    int parm_start;
-    int locals;			// total ints of parms + locals
+    int32_t first_statement;	/* negative numbers are builtins */
+    int32_t parm_start;
+    int32_t locals;		/* total ints of parms + locals */
 
-    int profile;		// runtime
+    int32_t profile;		/* runtime */
 
-    int s_name;
-    int s_file;			// source file defined in
+    int32_t s_name;
+    int32_t s_file;		/* source file defined in */
 
-    int numparms;
+    int32_t numparms;
     byte parm_size[MAX_PARMS];
 } dfunction_t;
 
 
 #define	PROG_VERSION	6
 typedef struct {
-    int version;
-    int crc;			// check of header file
+    int32_t version;
+    int32_t crc;		/* check of header file */
 
-    int ofs_statements;
-    int numstatements;		// statement 0 is an error
+    int32_t ofs_statements;
+    int32_t numstatements;	/* statement 0 is an error */
 
-    int ofs_globaldefs;
-    int numglobaldefs;
+    int32_t ofs_globaldefs;
+    int32_t numglobaldefs;
 
-    int ofs_fielddefs;
-    int numfielddefs;
+    int32_t ofs_fielddefs;
+    int32_t numfielddefs;
 
-    int ofs_functions;
-    int numfunctions;		// function 0 is an empty
+    int32_t ofs_functions;
+    int32_t numfunctions;	/* function 0 is an empty */
 
-    int ofs_strings;
-    int numstrings;		// first string is a null string
+    int32_t ofs_strings;
+    int32_t numstrings;		/* first string is a null string */
 
-    int ofs_globals;
-    int numglobals;
+    int32_t ofs_globals;
+    int32_t numglobals;
 
-    int entityfields;
+    int32_t entityfields;
 } dprograms_t;
 
 #endif /* PR_COMP_H */

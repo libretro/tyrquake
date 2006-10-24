@@ -45,13 +45,13 @@ static ddef_t *pr_globaldefs;
  */
 static int type_size[8] = {
     1,				// ev_void
-    sizeof(void *) / 4,		// ev_string
+    1,				// ev_string
     1,				// ev_float
     3,				// ev_vector
     1,				// ev_entity
     1,				// ev_field
-    sizeof(void *) / 4,		// ev_function
-    sizeof(void *) / 4		// ev_pointer
+    1,				// ev_function
+    1				// ev_pointer
 };
 
 static qboolean ED_ParseEpair(void *base, ddef_t *key, char *s);
