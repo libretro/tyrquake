@@ -40,6 +40,12 @@ static const char *snd_dev = "/dev/dsp";
 static const int tryrates[] = { 11025, 22050, 22051, 44100, 48000, 8000 };
 static const unsigned num_tryrates = sizeof(tryrates) / sizeof(int);
 
+/* Request sound format as signed 16-bit (host-endian) */
+#ifdef __BIG_ENDIAN__
+#define TYRQ_AFMT_S16 AFMT_S16_BE
+#else
+#define TYRQ_AFMT_S16 AFMT_S16_LE
+#endif
 
 qboolean
 SNDDMA_Init(void)
@@ -92,11 +98,11 @@ SNDDMA_Init(void)
 
     // Try to set the requested format
     if (shm->samplebits == 16 || shm->samplebits == 0) {
-	tmp = AFMT_S16_LE;
+	tmp = TYRQ_AFMT_S16;
 	rc = ioctl(audio_fd, SNDCTL_DSP_SETFMT, &tmp);
 	if (rc == -1)
 	    perror(snd_dev);
-	if (rc == -1 || tmp != AFMT_S16_LE) {
+	if (rc == -1 || tmp != TYRQ_AFMT_S16) {
 	    if (shm->samplebits == 16) {
 		Con_Printf("Could not support 16-bit data. Try 8-bit.\n");
 		close(audio_fd);
