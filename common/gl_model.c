@@ -1222,6 +1222,8 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 	mod->checksum2 ^=
 	    Com_BlockChecksum(mod_base + l->fileofs, l->filelen);
     }
+    mod->checksum = LittleLong(mod->checksum);
+    mod->checksum2 = LittleLong(mod->checksum2);
 #endif
 
     /* load into heap */
