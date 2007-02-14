@@ -1209,18 +1209,16 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
     mod->checksum2 = 0;
 
     for (i = 0; i < HEADER_LUMPS; i++) {
-	lump_t *l = &header->lumps[i];
+	const lump_t *l = &header->lumps[i];
+	unsigned int checksum;
 
 	if (i == LUMP_ENTITIES)
 	    continue;
-	mod->checksum ^=
-	    Com_BlockChecksum(mod_base + l->fileofs, l->filelen);
-
+	checksum = Com_BlockChecksum(mod_base + l->fileofs, l->filelen);
+	mod->checksum ^= checksum;
 	if (i == LUMP_VISIBILITY || i == LUMP_LEAFS || i == LUMP_NODES)
 	    continue;
-
-	mod->checksum2 ^=
-	    Com_BlockChecksum(mod_base + l->fileofs, l->filelen);
+	mod->checksum2 ^= checksum;
     }
     mod->checksum = LittleLong(mod->checksum);
     mod->checksum2 = LittleLong(mod->checksum2);

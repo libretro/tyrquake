@@ -44,8 +44,6 @@ int mod_numknown;
 // A dummy texture to point to... shouldn't even look at textures in server?
 static texture_t r_notexture_mip_qwsv;
 
-unsigned *model_checksum;
-
 /*
 ===============
 Mod_Init
@@ -1049,20 +1047,19 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 
     // checksum all of the map, except for entities
     for (i = 0; i < HEADER_LUMPS; i++) {
+	const lump_t *l = &header->lumps[i];
+	unsigned int checksum;
+
 	if (i == LUMP_ENTITIES)
 	    continue;
-	mod->checksum ^=
-	    LittleLong(Com_BlockChecksum
-		       (mod_base + header->lumps[i].fileofs,
-			header->lumps[i].filelen));
-
+	checksum = Com_BlockChecksum(mod_base + l->fileofs, l->filelen);
+	mod->checksum ^= checksum;
 	if (i == LUMP_VISIBILITY || i == LUMP_LEAFS || i == LUMP_NODES)
 	    continue;
-	mod->checksum2 ^=
-	    LittleLong(Com_BlockChecksum
-		       (mod_base + header->lumps[i].fileofs,
-			header->lumps[i].filelen));
+	mod->checksum2 ^= checksum;
     }
+    mod->checksum = LittleLong(mod->checksum);
+    mod->checksum2 = LittleLong(mod->checksum2);
 
     Mod_LoadVertexes(&header->lumps[LUMP_VERTEXES]);
     Mod_LoadEdges(&header->lumps[LUMP_EDGES]);
