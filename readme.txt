@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2006-09-24
-Version: 	0.55
+Date:		2007-02-14
+Version: 	0.56
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -36,6 +36,15 @@ you can select by setting Makefile variables:
     or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.56
+=====
+- Added "-developer" command line argument (equivalent to "developer 1" at the
+  console, but activates very early during startup)
+- "-w" is equivalent to "-window" on the command line
+- Fixed potential crash on startup when hostname is not set
+- Various fixes for big-endian builds
+- Now works on Linux/PPC!
 
 v0.55
 =====
