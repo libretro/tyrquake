@@ -126,7 +126,7 @@ CFLAGS += $(shell if [ $(GCC_VERSION) -lt 0400 ] ;\
 		then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
 CFLAGS += $(call cc-option,-fweb,)
 CFLAGS += $(call cc-option,-frename-registers,)
-CFLAGS += $(call cc-option,-mtune=i686,-mcpu=i686)
+CFLAGS += $(call cc-option,-ffast-math,)
 endif
 endif
 
