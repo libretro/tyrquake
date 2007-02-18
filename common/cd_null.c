@@ -17,46 +17,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-#include "quakedef.h"
 
-void
-CDAudio_Play(byte track, qboolean looping)
-{
-}
+#include "cdaudio_driver.h"
 
-
-void
-CDAudio_Stop(void)
-{
-}
-
-
-void
-CDAudio_Pause(void)
-{
-}
-
-
-void
-CDAudio_Resume(void)
-{
-}
-
-
-void
-CDAudio_Update(void)
-{
-}
-
-
-int
-CDAudio_Init(void)
-{
-    return 0;
-}
-
-
-void
-CDAudio_Shutdown(void)
-{
-}
+int CDDrv_IsAudioTrack(byte track) { return 0; }
+int CDDrv_PlayTrack(byte track) { return 1; }
+int CDDrv_IsPlaying(byte track) { return 0; }
+int CDDrv_InitDevice(void) { return -1; }
+void CDDrv_CloseDevice(void) { }
+void CDDrv_Eject(void) { }
+void CDDrv_CloseDoor(void) { }
+void CDDrv_Stop(void) { }
+void CDDrv_Pause(void) { }
+void CDDrv_Resume(byte track) { }
+int CDDrv_GetMaxTrack(byte *track) { return 0; }
+int CDDrv_SetVolume(byte volume) { return -1; }
