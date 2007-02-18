@@ -26,6 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "zone.h"
 
+#ifdef NQ_HACK
+#include "quakedef.h"
+#endif
+#ifdef QW_HACK
+#include "bothdefs.h"
+#endif
+
 // sound.h -- client sound i/o functions
 
 // FIXME - QW defines these in protocol.h, which is better?
