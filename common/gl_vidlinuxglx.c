@@ -1,4 +1,3 @@
-
 /*
 Copyright (C) 1996-1997 Id Software, Inc.
 
@@ -367,7 +366,7 @@ HandleEvents(void)
     XEvent event;
     qboolean dowarp = false;
 
-    if (x_disp == NULL)
+    if (!x_disp)
 	return;
 
     while (XPending(x_disp)) {

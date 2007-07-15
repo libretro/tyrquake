@@ -1049,64 +1049,70 @@ static int config_notify_width;
 static int config_notify_height;
 
 static void
-GetEvent(void)
+HandleEvents(void)
 {
     XEvent x_event;
+    qboolean dowarp = false;
 
-    XNextEvent(x_disp, &x_event);
-    switch (x_event.type) {
-    case KeyPress:
-	Key_Event(XLateKey(&x_event.xkey), true);
-	break;
+    if (!x_disp)
+	return;
 
-    case KeyRelease:
-	Key_Event(XLateKey(&x_event.xkey), false);
-	break;
+    while (XPending(x_disp)) {
+	XNextEvent(x_disp, &x_event);
 
-    case MotionNotify:
-	if (mouse_grab_active) {
-	    if (dga_mouse_active) {
-		mouse_x += x_event.xmotion.x_root;
-		mouse_y += x_event.xmotion.y_root;
-	    } else {
-		mouse_x = x_event.xmotion.x - (int)(vid.width / 2);
-		mouse_y = x_event.xmotion.y - (int)(vid.height / 2);
+	switch (x_event.type) {
+	case KeyPress:
+	case KeyRelease:
+	    Key_Event(XLateKey(&x_event.xkey), x_event.type == KeyPress);
+	    break;
 
-		/* move the mouse to the window center again */
-		IN_CenterMouse();
+	case MotionNotify:
+	    if (mouse_grab_active) {
+		if (dga_mouse_active) {
+		    mouse_x += x_event.xmotion.x_root;
+		    mouse_y += x_event.xmotion.y_root;
+		} else {
+		    mouse_x = x_event.xmotion.x - (int)(vid.width / 2);
+		    mouse_y = x_event.xmotion.y - (int)(vid.height / 2);
+
+		    if (mouse_x || mouse_y)
+			dowarp = true;
+		}
 	    }
+	    break;
+
+	case ButtonPress:
+	    if (x_event.xbutton.button == 1)
+		Key_Event(K_MOUSE1, true);
+	    else if (x_event.xbutton.button == 2)
+		Key_Event(K_MOUSE3, true);
+	    else if (x_event.xbutton.button == 3)
+		Key_Event(K_MOUSE2, true);
+	    break;
+
+	case ButtonRelease:
+	    if (x_event.xbutton.button == 1)
+		Key_Event(K_MOUSE1, false);
+	    else if (x_event.xbutton.button == 2)
+		Key_Event(K_MOUSE3, false);
+	    else if (x_event.xbutton.button == 3)
+		Key_Event(K_MOUSE2, false);
+	    break;
+
+	case ConfigureNotify:
+	    config_notify_width = x_event.xconfigure.width;
+	    config_notify_height = x_event.xconfigure.height;
+	    config_notify = 1;
+	    break;
+
+	default:
+	    if (doShm && x_event.type == x_shmeventtype)
+		oktodraw = true;
 	}
-	break;
-
-    case ButtonPress:
-	if (x_event.xbutton.button == 1)
-	    Key_Event(K_MOUSE1, true);
-	else if (x_event.xbutton.button == 2)
-	    Key_Event(K_MOUSE3, true);
-	else if (x_event.xbutton.button == 3)
-	    Key_Event(K_MOUSE2, true);
-	break;
-
-    case ButtonRelease:
-	if (x_event.xbutton.button == 1)
-	    Key_Event(K_MOUSE1, false);
-	else if (x_event.xbutton.button == 2)
-	    Key_Event(K_MOUSE3, false);
-	else if (x_event.xbutton.button == 3)
-	    Key_Event(K_MOUSE2, false);
-	break;
-
-    case ConfigureNotify:
-//printf("config notify\n");
-	config_notify_width = x_event.xconfigure.width;
-	config_notify_height = x_event.xconfigure.height;
-	config_notify = 1;
-	break;
-
-    default:
-	if (doShm && x_event.type == x_shmeventtype)
-	    oktodraw = true;
     }
+
+    if (dowarp)
+	IN_CenterMouse();
 }
 
 // flushes the given rectangles from the view buffer to the screen
@@ -1157,7 +1163,7 @@ VID_Update(vrect_t *rects)
 		Sys_Error("VID_Update: XShmPutImage failed");
 	    oktodraw = false;
 	    while (!oktodraw)
-		GetEvent();
+		HandleEvents();
 	    rects = rects->pnext;
 	}
 	current_framebuffer = !current_framebuffer;
@@ -1230,6 +1236,7 @@ Sys_DisplayWindow (int window)
 void
 Sys_SendKeyEvents(void)
 {
+    HandleEvents();
 }
 
 #if 0
