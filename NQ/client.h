@@ -108,7 +108,6 @@ typedef struct {
     cactive_t state;
 
 // personalization data sent to server
-    char mapstring[MAX_QPATH];
     char spawnparms[MAX_MAPSTRING];	// to restart a level
 
 // demo loop control
@@ -201,6 +200,7 @@ typedef struct {
     struct model_s *model_precache[MAX_MODELS];
     struct sfx_s *sound_precache[MAX_SOUNDS];
 
+    char mapname[MAX_QPATH];
     char levelname[40];		// for display on solo scoreboard
     int viewentity;		// cl_entitites[cl.viewentity] = player
     int maxclients;

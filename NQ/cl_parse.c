@@ -295,6 +295,9 @@ CL_ParseServerInfo(void)
 	S_TouchSound(str);
     }
 
+// copy the naked name of the map file to the cl structure
+    COM_StripExtension (COM_SkipPath(model_precache[1]), cl.mapname);
+
 //
 // now we try to load everything else until a cache allocation fails
 //

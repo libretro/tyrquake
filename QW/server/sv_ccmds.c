@@ -310,6 +310,8 @@ SV_Map_f(void)
 
     if (Cmd_Argc() != 2) {
 	Con_Printf("map <levelname> : continue game on a new level\n");
+	if (sv.name)
+	    Con_Printf ("Currently on: %s\n",sv.name);
 	return;
     }
     strcpy(level, Cmd_Argv(1));

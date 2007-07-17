@@ -265,6 +265,19 @@ Host_Map_f(void)
     if (cmd_source != src_command)
 	return;
 
+    if (Cmd_Argc() < 2) {	// no map name given
+	Con_Printf ("map <levelname>: start a new server\n");
+	if (cls.state == ca_dedicated) {
+	    if (sv.active)
+		Con_Printf ("Currently on: %s\n", sv.name);
+	    else
+		Con_Printf ("Server not active\n");
+	} else if (cls.state >= ca_connected) {
+	    Con_Printf ("Currently on: %s ( %s )\n", cl.levelname, cl.mapname);
+	}
+	return;
+    }
+
     cls.demonum = -1;		// stop demo loop in case this fails
 
     CL_Disconnect();
@@ -272,13 +285,6 @@ Host_Map_f(void)
 
     key_dest = key_game;	// remove console or menu
     SCR_BeginLoadingPlaque();
-
-    cls.mapstring[0] = 0;
-    for (i = 0; i < Cmd_Argc(); i++) {
-	strcat(cls.mapstring, Cmd_Argv(i));
-	strcat(cls.mapstring, " ");
-    }
-    strcat(cls.mapstring, "\n");
 
     svs.serverflags = 0;	// haven't completed an episode yet
     strcpy(name, Cmd_Argv(1));
