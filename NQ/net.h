@@ -293,7 +293,7 @@ int NET_SendUnreliableMessage(struct qsocket_s *sock, sizebuf_t *data);
 /*
  * This is a reliable *blocking* send to all attached clients.
  */
-int NET_SendToAll(sizebuf_t *data, int blocktime);
+int NET_SendToAll(sizebuf_t *data, double blocktime);
 
 /*
  * if a dead connection is returned by a get or send function, this function
