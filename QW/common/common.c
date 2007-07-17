@@ -856,7 +856,8 @@ COM_FileBase(const char *in, char *out)
     while (s != in && *s != '.')
 	s--;
 
-    for (s2 = s; *s2 && *s2 != '/'; s2--);
+    for (s2 = s; s2 >= in && *s2 && *s2 != '/'; s2--)
+	/* nothing */;
 
     if (s - s2 < 2)
 	strcpy(out, "?model?");
