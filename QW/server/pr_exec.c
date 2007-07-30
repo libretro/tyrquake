@@ -667,11 +667,17 @@ int num_prstr;
 char *
 PR_GetString(int num)
 {
-    if (num < 0) {
-//Con_DPrintf("GET:%d == %s\n", num, pr_strtbl[-num]);
-	return pr_strtbl[-num];
-    }
-    return pr_strings + num;
+    char *s = "";
+
+    if (num >= 0 && num < pr_strings_size - 1)
+	s = pr_strings + num;
+    else if (num < 0 && num >= -num_prstr)
+	s = pr_strtbl[-num];
+    else
+	SV_Error("%s: invalid string offset %d (%d to %d valid)\n",
+		 __func__, num, -num_prstr, pr_strings_size - 2);
+
+    return s;
 }
 
 int
@@ -679,7 +685,7 @@ PR_SetString(char *s)
 {
     int i;
 
-    if (s - pr_strings < 0) {
+    if (s - pr_strings < 0 || s - pr_strings > pr_strings_size - 2) {
 	for (i = 0; i <= num_prstr; i++)
 	    if (pr_strtbl[i] == s)
 		break;
@@ -689,7 +695,6 @@ PR_SetString(char *s)
 	    Sys_Error("MAX_PRSTR");
 	num_prstr++;
 	pr_strtbl[num_prstr] = s;
-//Con_DPrintf("SET:%d == %s\n", -num_prstr, s);
 	return -num_prstr;
     }
     return (int)(s - pr_strings);

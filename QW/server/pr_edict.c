@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 dprograms_t *progs;
 dfunction_t *pr_functions;
 char *pr_strings;
+int pr_strings_size;
 dstatement_t *pr_statements;
 globalvars_t *pr_global_struct;
 float *pr_globals;		// same as pr_global_struct
@@ -994,6 +995,12 @@ PR_LoadProgs(void)
 
     pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
     pr_strings = (char *)progs + progs->ofs_strings;
+    pr_strings_size = 0;
+    for (i = 0; i < progs->numstrings; i++) {
+	if (progs->ofs_strings + pr_strings_size >= com_filesize)
+	    SV_Error("progs.dat strings extend past end of file\n");
+	pr_strings_size += strlen(pr_strings + pr_strings_size) + 1;
+    }
     pr_globaldefs = (ddef_t *)((byte *)progs + progs->ofs_globaldefs);
     pr_fielddefs = (ddef_t *)((byte *)progs + progs->ofs_fielddefs);
     pr_statements = (dstatement_t *)((byte *)progs + progs->ofs_statements);
