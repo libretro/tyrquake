@@ -67,7 +67,7 @@ static int scrnum;
 static GLXContext ctx = NULL;
 
 unsigned short d_8to16table[256];
-unsigned d_8to24table[256];
+unsigned int d_8to24table[256];
 unsigned char d_15to8table[65536];
 
 cvar_t vid_mode = { "vid_mode", "0", false };

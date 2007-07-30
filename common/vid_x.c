@@ -96,13 +96,13 @@ void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
 typedef unsigned short PIXEL16;
-typedef unsigned long PIXEL24;
+typedef unsigned int PIXEL24;
 static PIXEL16 st2d_8to16table[256];
 static PIXEL24 st2d_8to24table[256];
 
 static int shiftmask_fl = 0;
-static long r_shift, g_shift, b_shift;
-static unsigned long r_mask, g_mask, b_mask;
+static int r_shift, g_shift, b_shift;
+static unsigned int r_mask, g_mask, b_mask;
 
 static XF86VidModeModeInfo saved_vidmode;
 static qboolean vidmode_active;
@@ -378,7 +378,7 @@ ResetSharedFrameBuffers(void)
     X11_buffersize += vid_surfcachesize;
 
     d_pzbuffer = Hunk_HighAllocName(X11_buffersize, "video");
-    if (d_pzbuffer == NULL)
+    if (!d_pzbuffer)
 	Sys_Error("Not enough memory for video mode");
 
     vid_surfcache = (byte *)d_pzbuffer
@@ -389,14 +389,13 @@ ResetSharedFrameBuffers(void)
     for (frm = 0; frm < 2; frm++) {
 
 	// free up old frame buffer memory
-
 	if (x_framebuffer[frm]) {
 	    XShmDetach(x_disp, &x_shminfo[frm]);
 	    free(x_framebuffer[frm]);
 	    shmdt(x_shminfo[frm].shmaddr);
 	}
-	// create the image
 
+	// create the image
 	x_framebuffer[frm] = XShmCreateImage(x_disp,
 					     x_vis,
 					     x_visinfo->depth,
@@ -406,7 +405,6 @@ ResetSharedFrameBuffers(void)
 					     vid.width, vid.height);
 
 	// grab shared memory
-
 	size = x_framebuffer[frm]->bytes_per_line
 	    * x_framebuffer[frm]->height;
 	if (size < minsize)
@@ -426,14 +424,11 @@ ResetSharedFrameBuffers(void)
 	x_framebuffer[frm]->data = x_shminfo[frm].shmaddr;
 
 	// get the X server to attach to it
-
 	if (!XShmAttach(x_disp, &x_shminfo[frm]))
 	    Sys_Error("VID: XShmAttach() failed");
 	XSync(x_disp, 0);
 	shmctl(x_shminfo[frm].shmid, IPC_RMID, 0);
-
     }
-
 }
 
 
