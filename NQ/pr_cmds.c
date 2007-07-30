@@ -83,7 +83,7 @@ PF_error(void)
 
     s = PF_VarString(0);
     Con_Printf("======SERVER ERROR in %s:\n%s\n",
-	       pr_strings + pr_xfunction->s_name, s);
+	       PR_GetString(pr_xfunction->s_name), s);
     ed = PROG_TO_EDICT(pr_global_struct->self);
     ED_Print(ed);
 
@@ -108,7 +108,7 @@ PF_objerror(void)
 
     s = PF_VarString(0);
     Con_Printf("======OBJECT ERROR in %s:\n%s\n",
-	       pr_strings + pr_xfunction->s_name, s);
+	       PR_GetString(pr_xfunction->s_name), s);
     ed = PROG_TO_EDICT(pr_global_struct->self);
     ED_Print(ed);
     ED_Free(ed);
@@ -276,7 +276,7 @@ PF_setmodel(void)
     if (!*check)
 	PR_RunError("no precache: %s\n", m);
 
-    e->v.model = m - pr_strings;
+    e->v.model = PR_SetString(m);
     e->v.modelindex = i;			//SV_ModelIndex (m);
 
     mod = sv.models[(int)e->v.modelindex];	// Mod_ForName (m, true);
@@ -925,9 +925,7 @@ PF_dprint(void)
     Con_DPrintf("%s", PF_VarString(0));
 }
 
-// FIXME - replaced with global...
-// char        pr_string_temp[128];
-char *pr_string_temp;
+static char pr_string_temp[128];
 
 void
 PF_ftos(void)
@@ -940,7 +938,7 @@ PF_ftos(void)
 	sprintf(pr_string_temp, "%d", (int)v);
     else
 	sprintf(pr_string_temp, "%5.1f", v);
-    G_INT(OFS_RETURN) = pr_string_temp - pr_strings;
+    G_INT(OFS_RETURN) = PR_SetString(pr_string_temp);
 }
 
 void
@@ -957,7 +955,7 @@ PF_vtos(void)
 {
     sprintf(pr_string_temp, "'%5.1f %5.1f %5.1f'", G_VECTOR(OFS_PARM0)[0],
 	    G_VECTOR(OFS_PARM0)[1], G_VECTOR(OFS_PARM0)[2]);
-    G_INT(OFS_RETURN) = pr_string_temp - pr_strings;
+    G_INT(OFS_RETURN) = PR_SetString(pr_string_temp);
 }
 
 void
@@ -1512,7 +1510,7 @@ PF_makestatic(void)
     ent = G_EDICT(OFS_PARM0);
 
     MSG_WriteByte(&sv.signon, svc_spawnstatic);
-    MSG_WriteByte(&sv.signon, SV_ModelIndex(pr_strings + ent->v.model));
+    MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
     MSG_WriteByte(&sv.signon, ent->v.frame);
     MSG_WriteByte(&sv.signon, ent->v.colormap);
     MSG_WriteByte(&sv.signon, ent->v.skin);

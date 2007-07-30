@@ -139,7 +139,7 @@ void ED_PrintNum(int ent);
 eval_t *GetEdictFieldValue(edict_t *ed, char *field);
 
 //
-// PR STrings stuff
+// PR Strings stuff
 //
 #define MAX_PRSTR 2048
 

@@ -824,7 +824,7 @@ PF_dprint(void)
     Con_Printf("%s", PF_VarString(0));
 }
 
-char pr_string_temp[128];
+static char pr_string_temp[128];
 
 void
 PF_ftos(void)

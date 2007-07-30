@@ -194,9 +194,9 @@ PR_StackTrace(void)
     for (i = pr_depth; i >= 0; i--) {
 	f = pr_stack[i].f;
 
-	if (!f) {
+	if (!f)
 	    Con_Printf("<NO FUNCTION>\n");
-	} else
+	else
 	    Con_Printf("%12s : %s\n", PR_GetString(f->s_file),
 		       PR_GetString(f->s_name));
     }
