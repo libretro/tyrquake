@@ -212,8 +212,6 @@ extern int net_hostport;
 
 extern net_driver_t *net_driver;
 extern cvar_t hostname;
-extern char playername[];
-extern int playercolor;
 
 extern int messagesSent;
 extern int messagesReceived;
