@@ -18,10 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-// This is enables a simple IP banning mechanism
-#define BAN_TEST
-
-#ifdef BAN_TEST
 #if defined(_WIN32)
 #include <windows.h>
 #else
@@ -48,7 +44,6 @@ struct sockaddr_in {
 char *inet_ntoa(struct in_addr in);
 unsigned long inet_addr(const char *cp);
 #endif
-#endif /* BAN_TEST */
 
 #include "cmd.h"
 #include "console.h"
@@ -91,7 +86,6 @@ StrAddr(struct qsockaddr *addr)
 #endif
 
 
-#ifdef BAN_TEST
 unsigned long banAddr = 0x00000000;
 unsigned long banMask = 0xffffffff;
 
@@ -142,7 +136,6 @@ NET_Ban_f(void)
 	break;
     }
 }
-#endif
 
 
 int
@@ -792,9 +785,7 @@ Datagram_Init(void)
 	net_landrivers[i].controlSock = csock;
     }
 
-#ifdef BAN_TEST
     Cmd_AddCommand("ban", NET_Ban_f);
-#endif
     Cmd_AddCommand("test", Test_f);
     Cmd_AddCommand("test2", Test2_f);
 
@@ -989,7 +980,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	SZ_Clear(&net_message);
 	return NULL;
     }
-#ifdef BAN_TEST
+
     // check for a ban
     if (clientaddr.sa_family == AF_INET) {
 	unsigned long testAddr;
@@ -1010,7 +1001,6 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	    return NULL;
 	}
     }
-#endif
 
     // see if this guy is already connected
     for (s = net_activeSockets; s; s = s->next) {
