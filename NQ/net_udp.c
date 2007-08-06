@@ -40,7 +40,7 @@ static int net_acceptsocket = -1;
 static int net_controlsocket;
 static int net_broadcastsocket = 0;
 static struct qsockaddr broadcastaddr;
-static unsigned long myAddr;
+static struct in_addr myAddr;
 
 
 int
@@ -58,10 +58,10 @@ UDP_Init(void)
     gethostname(buff, MAXHOSTNAMELEN);
     buff[MAXHOSTNAMELEN - 1] = 0;
     local = gethostbyname(buff);
-    if (!local)
+    if (!local || local->h_addrtype != AF_INET)
 	return -1;
 
-    myAddr = *(int *)local->h_addr_list[0];
+    myAddr = *(struct in_addr *)local->h_addr_list[0];
 
     /* if the quake hostname isn't set, set it to the machine name */
     if (strcmp(hostname.string, "UNNAMED") == 0) {
@@ -83,7 +83,7 @@ UDP_Init(void)
     if (colon)
 	*colon = 0;
 
-    Con_Printf("UDP Initialized\n");
+    Con_Printf("UDP Initialized (%s)\n", my_tcpip_address);
     tcpipAvailable = true;
 
     return net_controlsocket;
@@ -122,12 +122,12 @@ UDP_OpenSocket(int port)
 {
     int newsocket;
     struct sockaddr_in address;
-    qboolean _true = true;
+    int _true = 1;
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
 
-    if (ioctl(newsocket, FIONBIO, (char *)&_true) == -1)
+    if (ioctl(newsocket, FIONBIO, &_true) == -1)
 	goto ErrorReturn;
 
     address.sin_family = AF_INET;
@@ -205,7 +205,7 @@ PartialIPAddress(char *in, struct qsockaddr *hostaddr)
     hostaddr->sa_family = AF_INET;
     ((struct sockaddr_in *)hostaddr)->sin_port = htons((short)port);
     ((struct sockaddr_in *)hostaddr)->sin_addr.s_addr =
-	(myAddr & htonl(mask)) | htonl(addr);
+	(myAddr.s_addr & htonl(mask)) | htonl(addr);
 
     return 0;
 }
@@ -335,7 +335,7 @@ UDP_GetSocketAddr(int socket, struct qsockaddr *addr)
     getsockname(socket, (struct sockaddr *)addr, &addrlen);
     a = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
     if (a == 0 || a == inet_addr("127.0.0.1"))
-	((struct sockaddr_in *)addr)->sin_addr.s_addr = myAddr;
+	((struct sockaddr_in *)addr)->sin_addr.s_addr = myAddr.s_addr;
 
     return 0;
 }

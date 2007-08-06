@@ -288,7 +288,7 @@ WINS_OpenSocket(int port)
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = myAddr;
     address.sin_port = htons((unsigned short)port);
-    if (bind(newsocket, (void *)&address, sizeof(address)) == 0)
+    if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == 0)
 	return newsocket;
 
     Sys_Error("Unable to bind to %s",

@@ -20,29 +20,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #if defined(_WIN32)
 #include <windows.h>
+#include <winsock.h>
 #else
-#define AF_INET 		2	/* internet */
-struct in_addr {
-    union {
-	struct {
-	    unsigned char s_b1, s_b2, s_b3, s_b4;
-	} S_un_b;
-	struct {
-	    unsigned short s_w1, s_w2;
-	} S_un_w;
-	unsigned long S_addr;
-    } S_un;
-};
-
-#define	s_addr	S_un.S_addr	/* can be used for most tcp & ip code */
-struct sockaddr_in {
-    short sin_family;
-    unsigned short sin_port;
-    struct in_addr sin_addr;
-    char sin_zero[8];
-};
-char *inet_ntoa(struct in_addr in);
-unsigned long inet_addr(const char *cp);
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #endif
 
 #include "cmd.h"
@@ -65,7 +47,7 @@ int droppedDatagrams;
 
 static net_driver_t *dgrm_driver;
 
-struct {
+static struct {
     unsigned int length;
     unsigned int sequence;
     byte data[MAX_DATAGRAM];
@@ -85,9 +67,8 @@ StrAddr(struct qsockaddr *addr)
 }
 #endif
 
-
-unsigned long banAddr = 0x00000000;
-unsigned long banMask = 0xffffffff;
+static struct in_addr banAddr = { .s_addr = INADDR_ANY };
+static struct in_addr banMask = { .s_addr = INADDR_NONE };
 
 void
 NET_Ban_f(void)
@@ -110,9 +91,9 @@ NET_Ban_f(void)
 
     switch (Cmd_Argc()) {
     case 1:
-	if (((struct in_addr *)&banAddr)->s_addr) {
-	    strcpy(addrStr, inet_ntoa(*(struct in_addr *)&banAddr));
-	    strcpy(maskStr, inet_ntoa(*(struct in_addr *)&banMask));
+	if (banAddr.s_addr) {
+	    strcpy(addrStr, inet_ntoa(banAddr));
+	    strcpy(maskStr, inet_ntoa(banMask));
 	    print("Banning %s [%s]\n", addrStr, maskStr);
 	} else
 	    print("Banning not active\n");
@@ -120,15 +101,15 @@ NET_Ban_f(void)
 
     case 2:
 	if (strcasecmp(Cmd_Argv(1), "off") == 0)
-	    banAddr = 0x00000000;
+	    banAddr.s_addr = INADDR_NONE;
 	else
-	    banAddr = inet_addr(Cmd_Argv(1));
-	banMask = 0xffffffff;
+	    banAddr.s_addr = inet_addr(Cmd_Argv(1));
+	banMask.s_addr = INADDR_ANY;
 	break;
 
     case 3:
-	banAddr = inet_addr(Cmd_Argv(1));
-	banMask = inet_addr(Cmd_Argv(2));
+	banAddr.s_addr = inet_addr(Cmd_Argv(1));
+	banMask.s_addr = inet_addr(Cmd_Argv(2));
 	break;
 
     default:
@@ -983,10 +964,10 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 
     // check for a ban
     if (clientaddr.sa_family == AF_INET) {
-	unsigned long testAddr;
+	struct in_addr testAddr;
 
-	testAddr = ((struct sockaddr_in *)&clientaddr)->sin_addr.s_addr;
-	if ((testAddr & banMask) == banAddr) {
+	testAddr.s_addr = ((struct sockaddr_in *)&clientaddr)->sin_addr.s_addr;
+	if ((testAddr.s_addr & banMask.s_addr) == banAddr.s_addr) {
 	    SZ_Clear(&net_message);
 	    // save space for the header, filled in later
 	    MSG_WriteLong(&net_message, 0);

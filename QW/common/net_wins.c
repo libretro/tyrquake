@@ -158,7 +158,7 @@ NET_IsClientLegal(netadr_t *adr)
 
     sadr.sin_port = 0;
 
-    if (bind(newsocket, (void *)&sadr, sizeof(sadr)) == -1) {
+    if (bind(newsocket, (struct sockaddr *)&sadr, sizeof(sadr)) == -1) {
 	/* It is not a local address */
 	close(newsocket);
 	return true;
@@ -248,7 +248,7 @@ UDP_OpenSocket(int port)
 {
     int newsocket;
     struct sockaddr_in address;
-    unsigned long _true = true;
+    int _true = 1;
     int i;
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -270,7 +270,7 @@ UDP_OpenSocket(int port)
 	address.sin_port = 0;
     else
 	address.sin_port = htons((short)port);
-    if (bind(newsocket, (void *)&address, sizeof(address)) == -1)
+    if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == -1)
 	Sys_Error("%s: bind: %s", __func__, strerror(errno));
 
     return newsocket;
