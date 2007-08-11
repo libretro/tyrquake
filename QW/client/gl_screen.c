@@ -20,8 +20,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
-#include <time.h>
-
 #include "client.h"
 #include "cmd.h"
 #include "console.h"
@@ -63,15 +61,15 @@ xblited, but sync draw can just ignore it.
 sync
 draw
 
-CenterPrint ()
-SlowPrint ()
-Screen_Update ();
-Con_Printf ();
+CenterPrint();
+SlowPrint();
+Screen_Update();
+Con_Printf();
 
 net
 turn off messages option
 
-the refresh is allways rendered, unless the console is full screen
+the refresh is always rendered, unless the console is full screen
 
 console is:
 	notify lines
@@ -88,7 +86,9 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
-float oldscreensize, oldfov;
+static float oldscreensize, oldfov;
+static float oldsbar = 0;
+
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 cvar_t scr_conspeed = { "scr_conspeed", "300" };
@@ -108,14 +108,11 @@ qpic_t *scr_net;
 qpic_t *scr_turtle;
 
 int scr_fullupdate;
-
 int clearconsole;
 int clearnotify;
-
 int sb_lines;
 
 viddef_t vid;			// global video state
-
 vrect_t scr_vrect;
 
 qboolean scr_disabled_for_loading;
@@ -213,6 +210,7 @@ SCR_DrawCenterString(void)
     } while (1);
 }
 
+
 void
 SCR_CheckDrawCenterString(void)
 {
@@ -247,13 +245,12 @@ CalcFov(float fov_x, float width, float height)
 	Sys_Error("Bad fov: %f", fov_x);
 
     x = width / tan(fov_x / 360 * M_PI);
-
     a = atan(height / x);
-
     a = a * 360 / M_PI;
 
     return a;
 }
+
 
 /*
 =================
@@ -269,7 +266,6 @@ SCR_CalcRefdef(void)
     float size;
     int h;
     qboolean full = false;
-
 
     scr_fullupdate = 0;		// force a background redraw
     vid.recalc_refdef = 0;
@@ -304,17 +300,17 @@ SCR_CalcRefdef(void)
     else
 	sb_lines = 24 + 16 + 8;
 
-    if (scr_viewsize.value >= 100.0) {
+    if (scr_viewsize.value >= 100) {
 	full = true;
-	size = 100.0;
+	size = 100;
     } else
 	size = scr_viewsize.value;
     if (cl.intermission) {
 	full = true;
-	size = 100.0;
+	size = 100;
 	sb_lines = 0;
     }
-    size /= 100.0;
+    size /= 100;
 
     if (!cl_sbar.value && full)
 	h = vid.height;
@@ -398,9 +394,6 @@ SCR_Init(void)
     Cvar_RegisterVariable(&gl_triplebuffer);
     Cvar_RegisterVariable(&show_fps);
 
-//
-// register our commands
-//
     Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
     Cmd_AddCommand("snap", SCR_RSShot_f);
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
@@ -412,7 +405,6 @@ SCR_Init(void)
 
     scr_initialized = true;
 }
-
 
 
 /*
@@ -431,6 +423,7 @@ SCR_DrawRam(void)
 
     Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
 }
+
 
 /*
 ==============
@@ -457,6 +450,7 @@ SCR_DrawTurtle(void)
     Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
 }
 
+
 /*
 ==============
 SCR_DrawNet
@@ -473,6 +467,7 @@ SCR_DrawNet(void)
 
     Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
 }
+
 
 void
 SCR_DrawFPS(void)
@@ -494,9 +489,8 @@ SCR_DrawFPS(void)
     }
 
     sprintf(st, "%3d FPS", lastfps);
-    x = vid.width - strlen(st) * 8 - 8;
+    x = vid.width - strlen(st) * 8 - 16;
     y = vid.height - sb_lines - 8;
-//      Draw_TileClear(x, y, strlen(st) * 8, 8);
     Draw_String(x, y, st);
 }
 
@@ -523,7 +517,6 @@ SCR_DrawPause(void)
 }
 
 
-
 /*
 ==============
 SCR_DrawLoading
@@ -542,10 +535,7 @@ SCR_DrawLoading(void)
 	     (vid.height - 48 - pic->height) / 2, pic);
 }
 
-
-
 //=============================================================================
-
 
 /*
 ==================
@@ -582,12 +572,12 @@ SCR_SetUpToDrawConsole(void)
 	    scr_con_current = scr_conlines;
     }
 
-    if (clearconsole++ < vid.numpages) {
+    if (clearconsole++ < vid.numpages)
 	Sbar_Changed();
-    } else if (clearnotify++ < vid.numpages) {
-    } else
+    else if (clearnotify++ >= id.numpages)
 	con_notifylines = 0;
 }
+
 
 /*
 ==================
@@ -611,7 +601,7 @@ SCR_DrawConsole(void)
 /*
 ==============================================================================
 
-						SCREEN SHOTS
+				SCREEN SHOTS
 
 ==============================================================================
 */
@@ -680,6 +670,7 @@ SCR_ScreenShot_f(void)
     free(buffer);
     Con_Printf("Wrote %s\n", tganame);
 }
+
 
 /*
 ==============
@@ -750,7 +741,6 @@ WritePCXfile(char *filename, byte *data, int width, int height,
 }
 
 
-
 /*
 Find closest color in the palette for named color
 */
@@ -789,6 +779,7 @@ MipColor(int r, int g, int b)
     return best;
 }
 
+
 // from gl_draw.c
 byte *draw_chars;		// 8*8 graphic characters
 
@@ -817,6 +808,7 @@ SCR_DrawCharToSnap(int num, byte *dest, int width)
     }
 
 }
+
 
 void
 SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width)
@@ -960,16 +952,10 @@ SCR_RSShot_f(void)
     Con_Printf("Wrote %s\n", pcxname);
 }
 
-
-
-
 //=============================================================================
 
-
-//=============================================================================
-
-char *scr_notifystring;
-qboolean scr_drawdialog;
+static char *scr_notifystring;
+static qboolean scr_drawdialog;
 
 void
 SCR_DrawNotifyString(void)
@@ -1002,6 +988,7 @@ SCR_DrawNotifyString(void)
 	start++;		// skip the \n
     } while (1);
 }
+
 
 /*
 ==================
@@ -1060,6 +1047,7 @@ SCR_BringDownConsole(void)
     VID_SetPalette(host_basepal);
 }
 
+
 void
 SCR_TileClear(void)
 {
@@ -1084,8 +1072,6 @@ SCR_TileClear(void)
 		       (r_refdef.vrect.height + r_refdef.vrect.y));
     }
 }
-
-float oldsbar = 0;
 
 /*
 ==================

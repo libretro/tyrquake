@@ -61,8 +61,8 @@ xblited, but sync draw can just ignore it.
 sync
 draw
 
-CenterPrint()
-SlowPrint()
+CenterPrint();
+SlowPrint();
 Screen_Update();
 Con_Printf();
 
@@ -77,7 +77,6 @@ console is:
 	full
 */
 
-
 int glx, gly, glwidth, glheight;
 
 // only the refresh window will be updated unless these variables are flagged
@@ -87,7 +86,8 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
-float oldscreensize, oldfov;
+static float oldscreensize, oldfov;
+
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 cvar_t scr_conspeed = { "scr_conspeed", "300" };
@@ -105,14 +105,11 @@ qpic_t *scr_net;
 qpic_t *scr_turtle;
 
 int scr_fullupdate;
-
 int clearconsole;
 int clearnotify;
-
 int sb_lines;
 
 viddef_t vid;			// global video state
-
 vrect_t scr_vrect;
 
 qboolean scr_disabled_for_loading;
@@ -209,6 +206,7 @@ SCR_DrawCenterString(void)
     } while (1);
 }
 
+
 void
 SCR_CheckDrawCenterString(void)
 {
@@ -249,6 +247,7 @@ CalcFov(float fov_x, float width, float height)
     return a;
 }
 
+
 /*
 =================
 SCR_CalcRefdef
@@ -263,7 +262,6 @@ SCR_CalcRefdef(void)
     float size;
     int h;
     qboolean full = false;
-
 
     scr_fullupdate = 0;		// force a background redraw
     vid.recalc_refdef = 0;
@@ -298,9 +296,9 @@ SCR_CalcRefdef(void)
     else
 	sb_lines = 24 + 16 + 8;
 
-    if (scr_viewsize.value >= 100.0) {
+    if (scr_viewsize.value >= 100) {
 	full = true;
-	size = 100.0;
+	size = 100;
     } else
 	size = scr_viewsize.value;
     if (cl.intermission) {
@@ -308,7 +306,7 @@ SCR_CalcRefdef(void)
 	size = 100;
 	sb_lines = 0;
     }
-    size /= 100.0;
+    size /= 100;
 
     h = vid.height - sb_lines;
 
@@ -376,7 +374,6 @@ SCR_Init
 void
 SCR_Init(void)
 {
-
     Cvar_RegisterVariable(&scr_fov);
     Cvar_RegisterVariable(&scr_viewsize);
     Cvar_RegisterVariable(&scr_conspeed);
@@ -387,9 +384,6 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_printspeed);
     Cvar_RegisterVariable(&gl_triplebuffer);
 
-//
-// register our commands
-//
     Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
@@ -400,7 +394,6 @@ SCR_Init(void)
 
     scr_initialized = true;
 }
-
 
 
 /*
@@ -419,6 +412,7 @@ SCR_DrawRam(void)
 
     Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
 }
+
 
 /*
 ==============
@@ -445,6 +439,7 @@ SCR_DrawTurtle(void)
     Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
 }
 
+
 /*
 ==============
 SCR_DrawNet
@@ -460,6 +455,7 @@ SCR_DrawNet(void)
 
     Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
 }
+
 
 /*
 ==============
@@ -483,7 +479,6 @@ SCR_DrawPause(void)
 }
 
 
-
 /*
 ==============
 SCR_DrawLoading
@@ -502,10 +497,7 @@ SCR_DrawLoading(void)
 	     (vid.height - 48 - pic->height) / 2, pic);
 }
 
-
-
 //=============================================================================
-
 
 /*
 ==================
@@ -542,12 +534,12 @@ SCR_SetUpToDrawConsole(void)
 	    scr_con_current = scr_conlines;
     }
 
-    if (clearconsole++ < vid.numpages) {
+    if (clearconsole++ < vid.numpages)
 	Sbar_Changed();
-    } else if (clearnotify++ < vid.numpages) {
-    } else
+    else if (clearnotify++ >= vid.numpages)
 	con_notifylines = 0;
 }
+
 
 /*
 ==================
@@ -675,6 +667,7 @@ SCR_BeginLoadingPlaque(void)
     scr_fullupdate = 0;
 }
 
+
 /*
 ===============
 SCR_EndLoadingPlaque
@@ -691,8 +684,8 @@ SCR_EndLoadingPlaque(void)
 
 //=============================================================================
 
-char *scr_notifystring;
-qboolean scr_drawdialog;
+static char *scr_notifystring;
+static qboolean scr_drawdialog;
 
 void
 SCR_DrawNotifyString(void)
@@ -725,6 +718,7 @@ SCR_DrawNotifyString(void)
 	start++;		// skip the \n
     } while (1);
 }
+
 
 /*
 ==================
@@ -786,6 +780,7 @@ SCR_BringDownConsole(void)
     VID_SetPalette(host_basepal);
 }
 
+
 void
 SCR_TileClear(void)
 {
@@ -810,6 +805,7 @@ SCR_TileClear(void)
 		       (r_refdef.vrect.height + r_refdef.vrect.y));
     }
 }
+
 
 /*
 ==================

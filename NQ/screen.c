@@ -17,6 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
 #include "screen.h"
@@ -41,7 +42,8 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
-float oldscreensize, oldfov;
+static float oldscreensize, oldfov;
+
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 cvar_t scr_conspeed = { "scr_conspeed", "300" };
@@ -58,19 +60,17 @@ qpic_t *scr_net;
 qpic_t *scr_turtle;
 
 int scr_fullupdate;
-
 int clearconsole;
 int clearnotify;
 
 viddef_t vid;			// global video state
-
 vrect_t *pconupdate;
 vrect_t scr_vrect;
 
 qboolean scr_disabled_for_loading;
 qboolean scr_drawloading;
-float scr_disabled_time;
 qboolean scr_skipupdate;
+float scr_disabled_time;
 
 qboolean block_drawing;
 
@@ -115,6 +115,7 @@ SCR_CenterPrint(char *str)
     }
 }
 
+
 void
 SCR_EraseCenterString(void)
 {
@@ -133,6 +134,7 @@ SCR_EraseCenterString(void)
     scr_copytop = 1;
     Draw_TileClear(0, y, vid.width, 8 * scr_erase_lines);
 }
+
 
 void
 SCR_DrawCenterString(void)
@@ -180,6 +182,7 @@ SCR_DrawCenterString(void)
     } while (1);
 }
 
+
 void
 SCR_CheckDrawCenterString(void)
 {
@@ -214,13 +217,12 @@ CalcFov(float fov_x, float width, float height)
 	Sys_Error("Bad fov: %f", fov_x);
 
     x = width / tan(fov_x / 360 * M_PI);
-
     a = atan(height / x);
-
     a = a * 360 / M_PI;
 
     return a;
 }
+
 
 /*
 =================
@@ -340,9 +342,6 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
 
-//
-// register our commands
-//
     Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
@@ -353,7 +352,6 @@ SCR_Init(void)
 
     scr_initialized = true;
 }
-
 
 
 /*
@@ -372,6 +370,7 @@ SCR_DrawRam(void)
 
     Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
 }
+
 
 /*
 ==============
@@ -398,6 +397,7 @@ SCR_DrawTurtle(void)
     Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
 }
 
+
 /*
 ==============
 SCR_DrawNet
@@ -413,6 +413,7 @@ SCR_DrawNet(void)
 
     Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
 }
+
 
 /*
 ==============
@@ -436,7 +437,6 @@ SCR_DrawPause(void)
 }
 
 
-
 /*
 ==============
 SCR_DrawLoading
@@ -455,10 +455,7 @@ SCR_DrawLoading(void)
 	     (vid.height - 48 - pic->height) / 2, pic);
 }
 
-
-
 //=============================================================================
-
 
 /*
 ==================
@@ -507,6 +504,7 @@ SCR_SetUpToDrawConsole(void)
 	con_notifylines = 0;
 }
 
+
 /*
 ==================
 SCR_DrawConsole
@@ -533,7 +531,6 @@ SCR_DrawConsole(void)
 
 ==============================================================================
 */
-
 
 typedef struct {
     char manufacturer;
@@ -613,7 +610,6 @@ WritePCXfile(char *filename, byte *data, int width, int height,
 }
 
 
-
 /*
 ==================
 SCR_ScreenShot_f
@@ -657,9 +653,7 @@ SCR_ScreenShot_f(void)
     Con_Printf("Wrote %s\n", pcxname);
 }
 
-
 //=============================================================================
-
 
 /*
 ===============
@@ -691,6 +685,7 @@ SCR_BeginLoadingPlaque(void)
     scr_fullupdate = 0;
 }
 
+
 /*
 ===============
 SCR_EndLoadingPlaque
@@ -707,8 +702,8 @@ SCR_EndLoadingPlaque(void)
 
 //=============================================================================
 
-char *scr_notifystring;
-qboolean scr_drawdialog;
+static char *scr_notifystring;
+static qboolean scr_drawdialog;
 
 void
 SCR_DrawNotifyString(void)
@@ -741,6 +736,7 @@ SCR_DrawNotifyString(void)
 	start++;		// skip the \n
     } while (1);
 }
+
 
 /*
 ==================
@@ -880,7 +876,6 @@ SCR_UpdateScreen(void)
 
     pconupdate = NULL;
 
-
     SCR_SetUpToDrawConsole();
     SCR_EraseCenterString();
 
@@ -888,9 +883,7 @@ SCR_UpdateScreen(void)
     //  for linear writes all the time
 
     VID_LockBuffer();
-
     V_RenderView();
-
     VID_UnlockBuffer();
 
     D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
@@ -932,7 +925,6 @@ SCR_UpdateScreen(void)
 //
 // update one of three areas
 //
-
     if (scr_copyeverything) {
 	vrect.x = 0;
 	vrect.y = 0;
