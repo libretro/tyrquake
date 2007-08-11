@@ -39,7 +39,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #include "common.h"
 #include "host.h"
-#include "net_vcr.h"
 #include "quakedef.h"
 #include "sys.h"
 
@@ -356,8 +355,8 @@ main(int c, char **v)
 	newtime = Sys_DoubleTime();
 	time = newtime - oldtime;
 
-	if (cls.state == ca_dedicated) {	// play vcrfiles at max speed
-	    if (time < sys_ticrate.value && (vcrFile == -1 || recording)) {
+	if (cls.state == ca_dedicated) {
+	    if (time < sys_ticrate.value) {
 		usleep(1);
 		continue;	// not time to run a server only tic yet
 	    }

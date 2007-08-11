@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "cmd.h"
 #include "console.h"
-#include "net_vcr.h"
+#include "net.h"
 #include "quakedef.h"
 #include "server.h"
 #include "sys.h"
@@ -84,8 +84,6 @@ cvar_t config_modem_dialtype = { "_config_modem_dialtype", "T", true };
 cvar_t config_modem_clear = { "_config_modem_clear", "ATZ", true };
 cvar_t config_modem_init = { "_config_modem_init", "", true };
 cvar_t config_modem_hangup = { "_config_modem_hangup", "AT H", true };
-
-qboolean recording = false;
 
 net_driver_t *net_driver;
 double net_time;
@@ -457,17 +455,11 @@ NET_Connect(char *host)
  * NET_CheckNewConnections
  * ===================
  */
-static struct {
-    double time;
-    int op;
-    long session;
-} vcrConnect;
-
 qsocket_t *
 NET_CheckNewConnections(void)
 {
     int i;
-    qsocket_t *ret;
+    qsocket_t *ret = NULL;
 
     SetNetTime();
 
@@ -478,26 +470,11 @@ NET_CheckNewConnections(void)
 	if (!IS_LOOP_DRIVER(net_driver) && listening == false)
 	    continue;
 	ret = net_driver->CheckNewConnections();
-	if (ret) {
-	    if (recording) {
-		vcrConnect.time = host_time;
-		vcrConnect.op = VCR_OP_CONNECT;
-		vcrConnect.session = (long)ret;
-		Sys_FileWrite(vcrFile, &vcrConnect, sizeof(vcrConnect));
-		Sys_FileWrite(vcrFile, ret->address, NET_NAMELEN);
-	    }
-	    return ret;
-	}
+	if (ret)
+	    break;
     }
 
-    if (recording) {
-	vcrConnect.time = host_time;
-	vcrConnect.op = VCR_OP_CONNECT;
-	vcrConnect.session = 0;
-	Sys_FileWrite(vcrFile, &vcrConnect, sizeof(vcrConnect));
-    }
-
-    return NULL;
+    return ret;
 }
 
 /*
@@ -534,14 +511,6 @@ NET_Close(qsocket_t *sock)
  * returns -1 if connection is invalid
  * =================
  */
-static struct {
-    double time;
-    int op;
-    long session;
-    int ret;
-    int len;
-} vcrGetMessage;
-
 int
 NET_GetMessage(qsocket_t *sock)
 {
@@ -567,7 +536,6 @@ NET_GetMessage(qsocket_t *sock)
 	}
     }
 
-
     if (ret > 0) {
 	if (!IS_LOOP_DRIVER(sock->driver)) {
 	    sock->lastMessageTime = net_time;
@@ -575,24 +543,6 @@ NET_GetMessage(qsocket_t *sock)
 		messagesReceived++;
 	    else if (ret == 2)
 		unreliableMessagesReceived++;
-	}
-
-	if (recording) {
-	    vcrGetMessage.time = host_time;
-	    vcrGetMessage.op = VCR_OP_GETMESSAGE;
-	    vcrGetMessage.session = (long)sock;
-	    vcrGetMessage.ret = ret;
-	    vcrGetMessage.len = net_message.cursize;
-	    Sys_FileWrite(vcrFile, &vcrGetMessage, 24);
-	    Sys_FileWrite(vcrFile, net_message.data, net_message.cursize);
-	}
-    } else {
-	if (recording) {
-	    vcrGetMessage.time = host_time;
-	    vcrGetMessage.op = VCR_OP_GETMESSAGE;
-	    vcrGetMessage.session = (long)sock;
-	    vcrGetMessage.ret = ret;
-	    Sys_FileWrite(vcrFile, &vcrGetMessage, 20);
 	}
     }
 
@@ -611,13 +561,6 @@ NET_GetMessage(qsocket_t *sock)
  * returns -1 : if the connection died
  * ==================
  */
-static struct {
-    double time;
-    int op;
-    long session;
-    int r;
-} vcrSendMessage;
-
 int
 NET_SendMessage(qsocket_t *sock, sizebuf_t *data)
 {
@@ -636,14 +579,6 @@ NET_SendMessage(qsocket_t *sock, sizebuf_t *data)
     r = sock->driver->QSendMessage(sock, data);
     if (r == 1 && !IS_LOOP_DRIVER(sock->driver))
 	messagesSent++;
-
-    if (recording) {
-	vcrSendMessage.time = host_time;
-	vcrSendMessage.op = VCR_OP_SENDMESSAGE;
-	vcrSendMessage.session = (long)sock;
-	vcrSendMessage.r = r;
-	Sys_FileWrite(vcrFile, &vcrSendMessage, 20);
-    }
 
     return r;
 }
@@ -666,14 +601,6 @@ NET_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
     r = sock->driver->SendUnreliableMessage(sock, data);
     if (r == 1 && !IS_LOOP_DRIVER(sock->driver))
 	unreliableMessagesSent++;
-
-    if (recording) {
-	vcrSendMessage.time = host_time;
-	vcrSendMessage.op = VCR_OP_SENDMESSAGE;
-	vcrSendMessage.session = (long)sock;
-	vcrSendMessage.r = r;
-	Sys_FileWrite(vcrFile, &vcrSendMessage, 20);
-    }
 
     return r;
 }
@@ -701,14 +628,6 @@ NET_CanSendMessage(qsocket_t *sock)
     SetNetTime();
 
     r = sock->driver->CanSendMessage(sock);
-
-    if (recording) {
-	vcrSendMessage.time = host_time;
-	vcrSendMessage.op = VCR_OP_CANSENDMESSAGE;
-	vcrSendMessage.session = (long)sock;
-	vcrSendMessage.r = r;
-	Sys_FileWrite(vcrFile, &vcrSendMessage, 20);
-    }
 
     return r;
 }
@@ -788,14 +707,6 @@ NET_Init(void)
     int i;
     int controlSocket;
     qsocket_t *s;
-
-    if (COM_CheckParm("-playback")) {
-	net_numdrivers = 1;
-	net_drivers[0].Init = VCR_Init;
-    }
-
-    if (COM_CheckParm("-record"))
-	recording = true;
 
     i = COM_CheckParm("-port");
     if (!i)
@@ -888,11 +799,6 @@ NET_Shutdown(void)
 	    net_driver->Shutdown();
 	    net_driver->initialized = false;
 	}
-    }
-
-    if (vcrFile != -1) {
-	Con_Printf("Closing vcrfile.\n");
-	Sys_FileClose(vcrFile);
     }
 }
 

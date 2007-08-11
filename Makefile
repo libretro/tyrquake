@@ -358,7 +358,6 @@ NQ_COMMON_C_OBJS = \
 	net_dgrm.o	\
 	net_loop.o	\
 	net_main.o	\
-	net_vcr.o	\
 	pr_cmds.o	\
 	pr_edict.o	\
 	pr_exec.o	\

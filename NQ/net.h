@@ -336,6 +336,4 @@ extern qboolean slistLocal;
 
 void NET_Slist_f(void);
 
-extern qboolean recording;
-
 #endif /* NET_H */
