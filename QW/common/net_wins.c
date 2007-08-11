@@ -202,10 +202,10 @@ NET_SendPacket(int length, void *data, netadr_t to)
 
 #ifndef SERVERONLY
 	if (err == WSAEADDRNOTAVAIL)
-	    Con_DPrintf("NET_SendPacket Warning: %i\n", err);
+	    Con_DPrintf("%s Warning: %i\n", __func__, err);
 	else
 #endif
-	    Con_Printf("NET_SendPacket ERROR: %i\n", err);
+	    Con_Printf("%s ERROR: %i\n", __func__, err);
     }
 }
 
