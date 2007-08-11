@@ -235,12 +235,6 @@ CL_SendConnectPacket(void)
 	return;
     }
 
-    if (!NET_IsClientLegal(&adr)) {
-	Con_Printf("Illegal server address\n");
-	connect_time = -1;
-	return;
-    }
-
     if (adr.port == 0)
 	adr.port = BigShort(27500);
     t2 = Sys_DoubleTime();
@@ -284,11 +278,6 @@ CL_CheckForResend(void)
     t1 = Sys_DoubleTime();
     if (!NET_StringToAdr(cls.servername, &adr)) {
 	Con_Printf("Bad server address\n");
-	connect_time = -1;
-	return;
-    }
-    if (!NET_IsClientLegal(&adr)) {
-	Con_Printf("Illegal server address\n");
 	connect_time = -1;
 	return;
     }
