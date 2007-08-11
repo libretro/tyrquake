@@ -212,11 +212,13 @@ else
 endif
 
 quiet_cmd_mkdir = '  MKDIR   $@'
-      cmd_mkdir = if [ ! -d $@ ]; then mkdir -p $@; fi
+      cmd_mkdir = mkdir -p $@
 
 define do_mkdir
-	@echo $($(quiet)cmd_mkdir);
-	@$(cmd_mkdir);
+	@if [ ! -d $@ ]; then \
+		echo $($(quiet)cmd_mkdir); \
+		$(cmd_mkdir); \
+	fi;
 endef
 
 # cmd_fixdep => Turn all pre-requisites into targets with no commands, to
