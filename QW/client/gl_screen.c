@@ -634,28 +634,28 @@ void
 SCR_ScreenShot_f(void)
 {
     byte *buffer;
-    char pcxname[80];
+    char tganame[80];
     char checkname[MAX_OSPATH];
     int i, c, temp;
 
 //
 // find a file name to save it to
 //
-    strcpy(pcxname, "quake00.tga");
+    strcpy(tganame, "quake00.tga");
 
     for (i = 0; i <= 99; i++) {
-	pcxname[5] = i / 10 + '0';
-	pcxname[6] = i % 10 + '0';
-	sprintf(checkname, "%s/%s", com_gamedir, pcxname);
+	tganame[5] = i / 10 + '0';
+	tganame[6] = i % 10 + '0';
+	sprintf(checkname, "%s/%s", com_gamedir, tganame);
 	if (Sys_FileTime(checkname) == -1)
 	    break;		// file doesn't exist
     }
     if (i == 100) {
-	Con_Printf("SCR_ScreenShot_f: Couldn't create a PCX file\n");
+	Con_Printf("%s: Couldn't create a TGA file\n", __func__);
 	return;
     }
 
-
+    /* Construct the TGA header */
     buffer = malloc(glwidth * glheight * 3 + 18);
     memset(buffer, 0, 18);
     buffer[2] = 2;		// uncompressed type
@@ -675,10 +675,10 @@ SCR_ScreenShot_f(void)
 	buffer[i] = buffer[i + 2];
 	buffer[i + 2] = temp;
     }
-    COM_WriteFile(pcxname, buffer, glwidth * glheight * 3 + 18);
+    COM_WriteFile(tganame, buffer, glwidth * glheight * 3 + 18);
 
     free(buffer);
-    Con_Printf("Wrote %s\n", pcxname);
+    Con_Printf("Wrote %s\n", tganame);
 }
 
 /*
