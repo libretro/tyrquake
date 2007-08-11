@@ -41,10 +41,10 @@ sizebuf_t net_message;
 int net_socket;
 
 #define	MAX_UDP_PACKET	8192
-byte net_message_buffer[MAX_UDP_PACKET];
+static byte net_message_buffer[MAX_UDP_PACKET];
 
 
-void
+static void
 NetadrToSockadr(netadr_t *a, struct sockaddr_in *s)
 {
     memset(s, 0, sizeof(*s));
@@ -54,7 +54,7 @@ NetadrToSockadr(netadr_t *a, struct sockaddr_in *s)
     s->sin_port = a->port;
 }
 
-void
+static void
 SockadrToNetadr(struct sockaddr_in *s, netadr_t *a)
 {
     *(int *)&a->ip = *(int *)&s->sin_addr;
@@ -194,7 +194,7 @@ NET_SendPacket(int length, void *data, netadr_t to)
 }
 
 
-int
+static int
 UDP_OpenSocket(int port)
 {
     int newsocket;
