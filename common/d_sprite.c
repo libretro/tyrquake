@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // d_sprite.c: software top-level rasterization driver module for drawing
 // sprites
 
+#include <float.h>
+
 #include "quakedef.h"
 #include "d_local.h"
 
@@ -387,8 +389,8 @@ D_DrawSprite(void)
 
 // find the top and bottom vertices, and make sure there's at least one scan to
 // draw
-    ymin = 999999.9;
-    ymax = -999999.9;
+    ymin = FLT_MAX;
+    ymax = -FLT_MAX;
     pverts = r_spritedesc.pverts;
 
     for (i = 0; i < r_spritedesc.nump; i++) {

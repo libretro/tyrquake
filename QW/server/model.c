@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // models are the only shared resource between a client and server running
 // on the same machine.
 
+#include <float.h>
+
 #include "common.h"
 #include "model.h"
 #include "qtypes.h"
@@ -621,8 +623,8 @@ CalcSurfaceExtents(msurface_t *s)
     mtexinfo_t *tex;
     int bmins[2], bmaxs[2];
 
-    mins[0] = mins[1] = 999999;
-    maxs[0] = maxs[1] = -99999;
+    mins[0] = mins[1] = FLT_MAX;
+    maxs[0] = maxs[1] = -FLT_MAX;
 
     tex = s->texinfo;
 

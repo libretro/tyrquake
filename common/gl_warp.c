@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // gl_warp.c -- sky and water polygons
 
+#include <float.h>
+
 #include "console.h"
 #include "gl_model.h"
 #include "glquake.h"
@@ -47,8 +49,8 @@ BoundPoly(int numverts, float *verts, vec3_t mins, vec3_t maxs)
     int i, j;
     float *v;
 
-    mins[0] = mins[1] = mins[2] = 9999;
-    maxs[0] = maxs[1] = maxs[2] = -9999;
+    mins[0] = mins[1] = mins[2] = FLT_MAX;
+    maxs[0] = maxs[1] = maxs[2] = -FLT_MAX;
     v = verts;
     for (i = 0; i < numverts; i++)
 	for (j = 0; j < 3; j++, v++) {

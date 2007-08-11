@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <float.h>
+
 #include "quakedef.h"
 #include "host.h"
 #include "progs.h"
@@ -192,8 +194,8 @@ SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 	VectorCopy(min, bounds[0]);
 	VectorCopy(max, bounds[1]);
 
-	rmin[0] = rmin[1] = rmin[2] = 9999;
-	rmax[0] = rmax[1] = rmax[2] = -9999;
+	rmin[0] = rmin[1] = rmin[2] = FLT_MAX;
+	rmax[0] = rmax[1] = rmax[2] = -FLT_MAX;
 
 	for (i = 0; i <= 1; i++) {
 	    base[0] = bounds[i][0];
