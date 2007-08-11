@@ -38,8 +38,7 @@ netadr_t net_local_adr;
 
 netadr_t net_from;
 sizebuf_t net_message;
-int net_socket;			/* non blocking, for receives */
-int net_send_socket;		/* blocking, for sends */
+int net_socket;
 
 #define	MAX_UDP_PACKET	8192
 byte net_message_buffer[MAX_UDP_PACKET];
