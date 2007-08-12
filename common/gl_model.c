@@ -1288,7 +1288,7 @@ ALIAS MODELS
 ==============================================================================
 */
 
-aliashdr_t *pheader;
+static aliashdr_t *pheader;
 
 stvert_t stverts[MAXALIASVERTS];
 mtriangle_t triangles[MAXALIASTRIS];

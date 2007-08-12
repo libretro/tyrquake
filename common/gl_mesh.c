@@ -34,34 +34,34 @@ ALIAS MODEL DISPLAY LIST GENERATION
 =================================================================
 */
 
-model_t *aliasmodel;
 aliashdr_t *paliashdr;
 
-qboolean used[8192];
+static model_t *aliasmodel;
+static qboolean used[8192];
 
 // the command list holds counts and s/t values that are valid for
 // every frame
-int commands[8192];
-int numcommands;
+static int commands[8192];
+static int numcommands;
 
 // all frames will have their vertexes rearranged and expanded
 // so they are in the order expected by the command list
-int vertexorder[8192];
-int numorder;
+static int vertexorder[8192];
+static int numorder;
 
-int allverts, alltris;
+static int allverts, alltris;
 
-int stripverts[128];
-int striptris[128];
-int stripcount;
+static int stripverts[128];
+static int striptris[128];
+static int stripcount;
 
 /*
 ================
 StripLength
 ================
 */
-int
-StripLength(int starttri, int startv)
+static int
+StripLength(aliashdr_t *hdr, int starttri, int startv)
 {
     int m1, m2;
     int j;
@@ -85,7 +85,7 @@ StripLength(int starttri, int startv)
     // look for a matching triangle
   nexttri:
     for (j = starttri + 1, check = &triangles[starttri + 1];
-	 j < pheader->numtris; j++, check++) {
+	 j < hdr->numtris; j++, check++) {
 	if (check->facesfront != last->facesfront)
 	    continue;
 	for (k = 0; k < 3; k++) {
@@ -117,7 +117,7 @@ StripLength(int starttri, int startv)
   done:
 
     // clear the temp used flags
-    for (j = starttri + 1; j < pheader->numtris; j++)
+    for (j = starttri + 1; j < hdr->numtris; j++)
 	if (used[j] == 2)
 	    used[j] = 0;
 
@@ -129,8 +129,8 @@ StripLength(int starttri, int startv)
 FanLength
 ===========
 */
-int
-FanLength(int starttri, int startv)
+static int
+FanLength(aliashdr_t *hdr, int starttri, int startv)
 {
     int m1, m2;
     int j;
@@ -155,7 +155,7 @@ FanLength(int starttri, int startv)
     // look for a matching triangle
   nexttri:
     for (j = starttri + 1, check = &triangles[starttri + 1];
-	 j < pheader->numtris; j++, check++) {
+	 j < hdr->numtris; j++, check++) {
 	if (check->facesfront != last->facesfront)
 	    continue;
 	for (k = 0; k < 3; k++) {
@@ -184,7 +184,7 @@ FanLength(int starttri, int startv)
   done:
 
     // clear the temp used flags
-    for (j = starttri + 1; j < pheader->numtris; j++)
+    for (j = starttri + 1; j < hdr->numtris; j++)
 	if (used[j] == 2)
 	    used[j] = 0;
 
@@ -200,8 +200,8 @@ Generate a list of trifans or strips
 for the model, which holds for all frames
 ================
 */
-void
-BuildTris(void)
+static void
+BuildTris(aliashdr_t *hdr)
 {
     int i, j, k;
     int startv;
@@ -217,7 +217,7 @@ BuildTris(void)
     numorder = 0;
     numcommands = 0;
     memset(used, 0, sizeof(used));
-    for (i = 0; i < pheader->numtris; i++) {
+    for (i = 0; i < hdr->numtris; i++) {
 	// pick an unused triangle and start the trifan
 	if (used[i])
 	    continue;
@@ -227,9 +227,9 @@ BuildTris(void)
 	for (type = 0; type < 2; type++) {
 	    for (startv = 0; startv < 3; startv++) {
 		if (type == 1)
-		    len = StripLength(i, startv);
+		    len = StripLength(hdr, i, startv);
 		else
-		    len = FanLength(i, startv);
+		    len = FanLength(hdr, i, startv);
 		if (len > bestlen) {
 		    besttype = type;
 		    bestlen = len;
@@ -259,9 +259,9 @@ BuildTris(void)
 	    s = stverts[k].s;
 	    t = stverts[k].t;
 	    if (!triangles[besttris[0]].facesfront && stverts[k].onseam)
-		s += pheader->skinwidth / 2;	// on back side
-	    s = (s + 0.5) / pheader->skinwidth;
-	    t = (t + 0.5) / pheader->skinheight;
+		s += hdr->skinwidth / 2;	// on back side
+	    s = (s + 0.5) / hdr->skinwidth;
+	    t = (t + 0.5) / hdr->skinheight;
 
 	    *(float *)&commands[numcommands++] = s;
 	    *(float *)&commands[numcommands++] = t;
@@ -270,11 +270,11 @@ BuildTris(void)
 
     commands[numcommands++] = 0;	// end of list marker
 
-    Con_DPrintf("%3i tri %3i vert %3i cmd\n", pheader->numtris, numorder,
+    Con_DPrintf("%3i tri %3i vert %3i cmd\n", hdr->numtris, numorder,
 		numcommands);
 
     allverts += numorder;
-    alltris += pheader->numtris;
+    alltris += hdr->numtris;
 }
 
 
@@ -315,7 +315,7 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr)
 	//
 	Con_DPrintf("meshing %s...\n", m->name);
 
-	BuildTris();		// trifans or lists
+	BuildTris(hdr);		// trifans or lists
 
 	//
 	// save out the cached version
