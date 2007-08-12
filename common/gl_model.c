@@ -738,8 +738,7 @@ CalcSurfaceExtents(msurface_t *s)
 	s->texturemins[i] = bmins[i] * 16;
 	s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
 
-	// Is this a FIXME? I thought 256 was the limit. Like in model.c...
-	if (!(tex->flags & TEX_SPECIAL) && s->extents[i] > 512 /* 256 */ )
+	if (!(tex->flags & TEX_SPECIAL) && s->extents[i] > 256)
 	    Sys_Error("Bad surface extents");
     }
 }
