@@ -50,8 +50,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     (r_waterwarp.value && ((surf)->flags & SURF_UNDERWATER))
 #endif
 
-int skytexturenum;
-
 #define	MAX_LIGHTMAPS	80
 
 static int lightmap_bytes;		// 1, 2, or 4
@@ -771,7 +769,7 @@ DrawTextureChains(void)
 	    s = t->texturechain;
 	    if (!s)
 		continue;
-	    if (i == skytexturenum)
+	    if (s->flags & SURF_DRAWSKY)
 		continue;
 	    if (i == mirrortexturenum && !r_mirroralpha.value)
 		continue;
@@ -790,7 +788,7 @@ DrawTextureChains(void)
 	s = t->texturechain;
 	if (!s)
 	    continue;
-	if (i == skytexturenum) {
+	if (s->flags & SURF_DRAWSKY) {
 	    R_DrawSkyChain(s);
 	} else if (i == mirrortexturenum && r_mirroralpha.value != 1.0) {
 	    R_MirrorChain(s);
@@ -826,7 +824,7 @@ DrawFlatTextureChains(void)
 	    continue;
 
 	/* sky and water polys are chained together! */
-	if (i == skytexturenum || (s->flags & SURF_DRAWTURB)) {
+	if (s->flags & (SURF_DRAWSKY | SURF_DRAWTURB)) {
 	    for (; s; s = s->texturechain) {
 		glpoly_t *p;
 		for (p = s->polys; p; p = p->next)

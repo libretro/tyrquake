@@ -429,14 +429,11 @@ R_NewMap(void)
 
     GL_BuildLightmaps();
 
-    // identify sky texture
-    skytexturenum = -1;
+    /* identify mirror texture */
     mirrortexturenum = -1;
     for (i = 0; i < cl.worldmodel->numtextures; i++) {
 	if (!cl.worldmodel->textures[i])
 	    continue;
-	if (!strncmp(cl.worldmodel->textures[i]->name, "sky", 3))
-	    skytexturenum = i;
 	if (!strncmp(cl.worldmodel->textures[i]->name, "window02_1", 10))
 	    mirrortexturenum = i;
 	cl.worldmodel->textures[i]->texturechain = NULL;

@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GL_MODEL_H
 #define GL_MODEL_H
 
+#include <GL/gl.h>
+
 #include "bspfile.h"
 #include "modelgen.h"
 #include "render.h"
@@ -84,7 +86,8 @@ typedef struct mplane_s {
 typedef struct texture_s {
     char name[16];
     unsigned width, height;
-    int gl_texturenum;
+    GLuint gl_texturenum;
+    GLuint gl_texturenum_alpha;	// for sky texture
     struct msurface_s *texturechain;
     int anim_total;		// total tenths in sequence ( 0 = no)
     int anim_min, anim_max;	// time for this frame min <=time< max

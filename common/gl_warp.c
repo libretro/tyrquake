@@ -31,13 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern model_t *loadmodel;
 extern cvar_t gl_subdivide_size;
 
-int skytexturenum;
-
-static GLuint solidskytexture;
-static GLuint alphaskytexture;
-static int solidskytexture_initialised = 0;
-static int alphaskytexture_initialised = 0;
-
 static float speedscale;	// for top sky and bottom sky
 static float speedscale2;	// for sky alpha layer using multitexture
 
@@ -319,16 +312,18 @@ will have them chained together.
 void
 EmitBothSkyLayers(msurface_t *fa)
 {
+    texture_t *t = fa->texinfo->texture;
+
     GL_DisableMultitexture();
 
-    GL_Bind(solidskytexture);
+    GL_Bind(t->gl_texturenum);
     speedscale = realtime * 8;
     speedscale -= (int)speedscale & ~127;
 
     EmitSkyPolys(fa);
 
     glEnable(GL_BLEND);
-    GL_Bind(alphaskytexture);
+    GL_Bind(t->gl_texturenum_alpha);
     speedscale = realtime * 16;
     speedscale -= (int)speedscale & ~127;
 
@@ -346,14 +341,15 @@ void
 R_DrawSkyChain(msurface_t *s)
 {
     msurface_t *fa;
+    texture_t *t = s->texinfo->texture;
 
     if (gl_mtexable) {
 	GL_SelectTexture(GL_TEXTURE0_ARB);
-	GL_Bind(solidskytexture);
+	GL_Bind(t->gl_texturenum);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
 	GL_EnableMultitexture();
-	GL_Bind(alphaskytexture);
+	GL_Bind(t->gl_texturenum_alpha);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 
 	speedscale = realtime * 8;
@@ -370,7 +366,7 @@ R_DrawSkyChain(msurface_t *s)
     } else {
 	GL_DisableMultitexture();
 
-	GL_Bind(solidskytexture);
+	GL_Bind(t->gl_texturenum);
 	speedscale = realtime * 8;
 	speedscale -= (int)speedscale & ~127;
 
@@ -378,7 +374,7 @@ R_DrawSkyChain(msurface_t *s)
 	    EmitSkyPolys(fa);
 
 	glEnable(GL_BLEND);
-	GL_Bind(alphaskytexture);
+	GL_Bind(t->gl_texturenum_alpha);
 	speedscale = realtime * 16;
 	speedscale -= (int)speedscale & ~127;
 
@@ -430,11 +426,8 @@ R_InitSky(texture_t *mt)
     ((byte *)&transpix)[3] = 0;
 
     // FIXME - move this to some init function
-    if (!solidskytexture_initialised) {
-	glGenTextures(1, &solidskytexture);
-	solidskytexture_initialised = 1;
-    }
-    GL_Bind(solidskytexture);
+    glGenTextures(1, &mt->gl_texturenum);
+    GL_Bind(mt->gl_texturenum);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, 128, 128, 0, GL_RGBA,
 		 GL_UNSIGNED_BYTE, trans);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -450,12 +443,8 @@ R_InitSky(texture_t *mt)
 	}
 
     // FIXME - move this to an init function...
-    if (!alphaskytexture_initialised) {
-	glGenTextures(1, &alphaskytexture);
-	alphaskytexture_initialised = 1;
-    }
-
-    GL_Bind(alphaskytexture);
+    glGenTextures(1, &mt->gl_texturenum_alpha);
+    GL_Bind(mt->gl_texturenum_alpha);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_alpha_format, 128, 128, 0, GL_RGBA,
 		 GL_UNSIGNED_BYTE, trans);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
