@@ -574,7 +574,7 @@ SCR_SetUpToDrawConsole(void)
 
     if (clearconsole++ < vid.numpages)
 	Sbar_Changed();
-    else if (clearnotify++ >= id.numpages)
+    else if (clearnotify++ >= vid.numpages)
 	con_notifylines = 0;
 }
 
