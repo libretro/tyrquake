@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 #endif
 
-#define MAX_MODE_LIST	30
+#define MAX_MODE_LIST	80
 #define VID_ROW_SIZE	3
 #define WARP_WIDTH	320
 #define WARP_HEIGHT	200
