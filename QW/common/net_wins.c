@@ -215,7 +215,7 @@ UDP_OpenSocket(int port)
 {
     int newsocket;
     struct sockaddr_in address;
-    int _true = 1;
+    u_long _true = 1;
     int i;
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
