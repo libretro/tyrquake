@@ -60,6 +60,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #define glXGetProcAddress glXGetProcAddressARB
 
+/*
+ * Ignore the fact that our char type may be signed
+ */
+#define qglXGetProcAddress(s) glXGetProcAddress((GLubyte *)(s))
+
 #define WARP_WIDTH              320
 #define WARP_HEIGHT             200
 
@@ -538,8 +543,10 @@ CheckMultiTextureExtensions(void)
 	&& strstr(gl_extensions, "GL_ARB_multitexture ")) {
 	Con_Printf("ARB multitexture extensions found.\n");
 
-	qglMultiTexCoord2fARB = glXGetProcAddress("glMultiTexCoord2fARB");
-	qglActiveTextureARB = glXGetProcAddress("glActiveTextureARB");
+	qglMultiTexCoord2fARB =
+	    (lpMultiTexFUNC)qglXGetProcAddress("glMultiTexCoord2fARB");
+	qglActiveTextureARB =
+	    (lpActiveTextureFUNC)qglXGetProcAddress("glActiveTextureARB");
 
 	/* Check how many texture units there actually are */
 	glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_num_texture_units);
@@ -593,14 +600,14 @@ GL_Init
 void
 GL_Init(void)
 {
-    gl_vendor = glGetString(GL_VENDOR);
+    gl_vendor = (char *)glGetString(GL_VENDOR);
     Con_Printf("GL_VENDOR: %s\n", gl_vendor);
-    gl_renderer = glGetString(GL_RENDERER);
+    gl_renderer = (char *)glGetString(GL_RENDERER);
     Con_Printf("GL_RENDERER: %s\n", gl_renderer);
 
-    gl_version = glGetString(GL_VERSION);
+    gl_version = (char *)glGetString(GL_VERSION);
     Con_Printf("GL_VERSION: %s\n", gl_version);
-    gl_extensions = glGetString(GL_EXTENSIONS);
+    gl_extensions = (char *)glGetString(GL_EXTENSIONS);
     Con_DPrintf("GL_EXTENSIONS: %s\n", gl_extensions);
 
     CheckMultiTextureExtensions();
@@ -653,22 +660,28 @@ VID_Is8bit(void)
     return is8bit;
 }
 
+typedef void (*tdfxSetPaletteFUNC) (GLuint *);
+typedef void (*ColorTableFUNC) (GLenum, GLenum, GLsizei, GLenum, GLenum,
+				const GLvoid *);
+
 // FIXME - allow 8-bit palettes to be enabled/disabled
 static void
 VID_Init8bitPalette(void)
 {
-    // Check for 8bit Extensions and initialize them.
-    // Try color table extension first, then 3dfx specific
-    void (*qglColorTableEXT) (GLenum, GLenum, GLsizei, GLenum, GLenum,
-			      const GLvoid *);
-    void (*qgl3DfxSetPaletteEXT) (GLuint *);
+    /*
+     * Check for 8bit Extensions and initialize them.
+     * Try color table extension first, then 3dfx specific
+     */
+    tdfxSetPaletteFUNC qgl3DfxSetPaletteEXT;
+    ColorTableFUNC qglColorTableEXT;
     int i;
 
-    if (strstr(gl_extensions, "GL_EXT_shared_texture_palette") &&
-	(qglColorTableEXT = glXGetProcAddress("glColorTableEXT")) != NULL) {
+    if (strstr(gl_extensions, "GL_EXT_shared_texture_palette")) {
 	char thePalette[256 * 3];
 	char *oldPalette, *newPalette;
 
+	qglColorTableEXT =
+	    (ColorTableFUNC)qglXGetProcAddress("glColorTableEXT");
 	Con_SafePrintf("8-bit GL extensions enabled.\n");
 	glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
 	oldPalette = (char *)d_8to24table;	//d_8to24table3dfx;
@@ -683,24 +696,23 @@ VID_Init8bitPalette(void)
 			 GL_UNSIGNED_BYTE, (void *)thePalette);
 	is8bit = true;
     } else if (strstr(gl_extensions, "3DFX_set_global_palette")) {
-	qgl3DfxSetPaletteEXT = glXGetProcAddress("gl3DfxSetPaletteEXT");
-	if (qgl3DfxSetPaletteEXT) {
-	    GLubyte table[256][4];
-	    char *oldpal;
+	GLubyte table[256][4];
+	char *oldpal;
 
-	    Con_SafePrintf("8-bit GL extensions (3dfx) enabled.\n");
-	    oldpal = (char *)d_8to24table;	//d_8to24table3dfx;
-	    for (i = 0; i < 256; i++) {
-		table[i][2] = *oldpal++;
-		table[i][1] = *oldpal++;
-		table[i][0] = *oldpal++;
-		table[i][3] = 255;
-		oldpal++;
-	    }
-	    glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
-	    qgl3DfxSetPaletteEXT((GLuint *)table);
-	    is8bit = true;
+	qgl3DfxSetPaletteEXT =
+	    (tdfxSetPaletteFUNC)qglXGetProcAddress("gl3DfxSetPaletteEXT");
+	Con_SafePrintf("8-bit GL extensions (3dfx) enabled.\n");
+	oldpal = (char *)d_8to24table;	//d_8to24table3dfx;
+	for (i = 0; i < 256; i++) {
+	    table[i][2] = *oldpal++;
+	    table[i][1] = *oldpal++;
+	    table[i][0] = *oldpal++;
+	    table[i][3] = 255;
+	    oldpal++;
 	}
+	glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
+	qgl3DfxSetPaletteEXT((GLuint *)table);
+	is8bit = true;
     }
 }
 
