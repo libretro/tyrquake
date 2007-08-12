@@ -1122,6 +1122,11 @@ SCR_UpdateScreen(void)
 	vid.recalc_refdef = true;
     }
 
+    if (oldscreensize != scr_viewsize.value) {
+	oldscreensize = scr_viewsize.value;
+	vid.recalc_refdef = true;
+    }
+
     if (vid.recalc_refdef)
 	SCR_CalcRefdef();
 
