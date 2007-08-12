@@ -203,7 +203,7 @@ st2_fixup(XImage *framebuf, int x, int y, int width, int height)
 	return;
 
     for (yi = y; yi < (y + height); yi++) {
-	src = &framebuf->data[yi * framebuf->bytes_per_line];
+	src = (unsigned char *)&framebuf->data[yi * framebuf->bytes_per_line];
 
 	// Duff's Device
 	count = width;
@@ -250,7 +250,7 @@ st3_fixup(XImage * framebuf, int x, int y, int width, int height)
 	return;
 
     for (yi = y; yi < (y + height); yi++) {
-	src = &framebuf->data[yi * framebuf->bytes_per_line];
+	src = (unsigned char *)&framebuf->data[yi * framebuf->bytes_per_line];
 
 	// Duff's Device
 	count = width;
@@ -729,9 +729,9 @@ VID_Init(unsigned char *palette)
 
     current_framebuffer = 0;
     vid.rowbytes = x_framebuffer[0]->bytes_per_line;
-    vid.buffer = x_framebuffer[0]->data;
+    vid.buffer = (byte *)x_framebuffer[0]->data;
     vid.direct = 0;
-    vid.conbuffer = x_framebuffer[0]->data;
+    vid.conbuffer = vid.buffer;
     vid.conrowbytes = vid.rowbytes;
     vid.conwidth = vid.width;
     vid.conheight = vid.height;
@@ -1135,7 +1135,7 @@ VID_Update(vrect_t *rects)
 	else
 	    ResetFrameBuffer();
 	vid.rowbytes = x_framebuffer[0]->bytes_per_line;
-	vid.buffer = x_framebuffer[current_framebuffer]->data;
+	vid.buffer = (byte *)x_framebuffer[current_framebuffer]->data;
 	vid.conbuffer = vid.buffer;
 	vid.conwidth = vid.width;
 	vid.conheight = vid.height;
@@ -1170,7 +1170,7 @@ VID_Update(vrect_t *rects)
 	    rects = rects->pnext;
 	}
 	current_framebuffer = !current_framebuffer;
-	vid.buffer = x_framebuffer[current_framebuffer]->data;
+	vid.buffer = (byte *)x_framebuffer[current_framebuffer]->data;
 	vid.conbuffer = vid.buffer;
 	XSync(x_disp, False);
     } else {
