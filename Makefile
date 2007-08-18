@@ -72,10 +72,13 @@ GCC_VERSION := $(call cc-version)
 
 X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6
 X11BASE_GUESS := $(shell \
-	if [ -e /usr/include/X11/Xlib.h ]; then exit 0; fi; \
-	if [ -e /usr/local/include/X11/Xlib.h ]; then exit 0; fi; \
+	if [ -e /usr/include/X11/Xlib.h ] && \
+		[ -e /usr/lib/libX11.a ]; then exit 0; fi; \
+	if [ -e /usr/local/include/X11/Xlib.h ] && \
+		[ -e /usr/local/lib/libX11.a ]; then exit 0; fi; \
 	for DIR in $(X11DIRS); do \
-            if [ -e $$DIR/include/X11/Xlib.h ]; then echo $$DIR; break; fi; \
+            if [ -e $$DIR/include/X11/Xlib.h ] && \
+		[ -e $$DIR/lib/libX11.a ]; then echo $$DIR; break; fi; \
 	done )
 
 # ---------------------
