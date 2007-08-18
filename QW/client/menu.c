@@ -36,25 +36,18 @@ void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
 enum {
-    m_none, m_main, m_singleplayer, m_load, m_save, m_multiplayer, m_setup,
-    m_net, m_options, m_video, m_keys, m_help, m_quit, m_serialconfig,
-    m_modemconfig, m_lanconfig, m_gameoptions, m_search,
-    m_slist
+    m_none, m_main, m_options, m_video, m_keys, m_help, m_quit
 } m_state;
 
 void M_Menu_Options_f(void);
 void M_Menu_Quit_f(void);
 
 static void M_Menu_Main_f(void);
-static void M_Menu_SinglePlayer_f(void);
-static void M_Menu_MultiPlayer_f(void);
 static void M_Menu_Keys_f(void);
 static void M_Menu_Video_f(void);
 static void M_Menu_Help_f(void);
 
 static void M_Main_Draw(void);
-static void M_SinglePlayer_Draw(void);
-static void M_MultiPlayer_Draw(void);
 static void M_Options_Draw(void);
 static void M_Keys_Draw(void);
 static void M_Video_Draw(void);
@@ -62,8 +55,6 @@ static void M_Help_Draw(void);
 static void M_Quit_Draw(void);
 
 static void M_Main_Key(int key);
-static void M_SinglePlayer_Key(int key);
-static void M_MultiPlayer_Key(int key);
 static void M_Options_Key(int key);
 static void M_Keys_Key(int key);
 static void M_Video_Key(int key);
@@ -73,13 +64,6 @@ static void M_Quit_Key(int key);
 static qboolean m_recursiveDraw;
 static qboolean m_entersound;	// play after drawing a frame, so caching
 				// won't disrupt the sound
-
-#define StartingGame	(m_multiplayer_cursor == 1)
-#define JoiningGame	(m_multiplayer_cursor == 0)
-#define SerialConfig	(m_net_cursor == 0)
-#define DirectConfig	(m_net_cursor == 1)
-#define	IPXConfig	(m_net_cursor == 2)
-#define	TCPIPConfig	(m_net_cursor == 3)
 
 //=============================================================================
 /* Support Routines */
@@ -217,7 +201,7 @@ M_ToggleMenu_f(void)
 
 static int m_main_cursor;
 
-#define MAIN_ITEMS 5
+#define MAIN_ITEMS 3
 
 static void
 M_Menu_Main_f(void)
@@ -245,7 +229,7 @@ M_Main_Draw(void)
 
     f = (int)(realtime * 10) % 6;
 
-    M_DrawTransPic(54, 32 + m_main_cursor * 20,
+    M_DrawTransPic(54, 32 + 40 + m_main_cursor * 20,
 		   Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
 }
 
@@ -264,15 +248,9 @@ M_Main_Key(int key)
 	break;
 
     case K_DOWNARROW:
-	S_LocalSound("misc/menu1.wav");
-	if (++m_main_cursor >= MAIN_ITEMS)
-	    m_main_cursor = 0;
-	break;
-
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
-	if (--m_main_cursor < 0)
-	    m_main_cursor = MAIN_ITEMS - 1;
+	m_main_cursor = m_main_cursor ? 0 : 2;
 	break;
 
     case K_ENTER:
@@ -280,22 +258,10 @@ M_Main_Key(int key)
 
 	switch (m_main_cursor) {
 	case 0:
-	    M_Menu_SinglePlayer_f();
-	    break;
-
-	case 1:
-	    M_Menu_MultiPlayer_f();
-	    break;
-
-	case 2:
 	    M_Menu_Options_f();
 	    break;
 
-	case 3:
-	    M_Menu_Help_f();
-	    break;
-
-	case 4:
+	case 2:
 	    M_Menu_Quit_f();
 	    break;
 	}
@@ -426,12 +392,6 @@ M_DrawSlider(int x, int y, float range)
 static void
 M_DrawCheckbox(int x, int y, int on)
 {
-#if 0
-    if (on)
-	M_DrawCharacter(x, y, 131);
-    else
-	M_DrawCharacter(x, y, 129);
-#endif
     if (on)
 	M_Print(x, y, "on");
     else
@@ -838,7 +798,6 @@ M_Help_Key(int key)
 	    help_page = NUM_HELP_PAGES - 1;
 	break;
     }
-
 }
 
 //=============================================================================
@@ -953,70 +912,6 @@ M_Quit_Draw(void)
 }
 
 
-static void
-M_Menu_SinglePlayer_f(void)
-{
-    m_state = m_singleplayer;
-}
-
-static void
-M_SinglePlayer_Draw(void)
-{
-    qpic_t *p;
-
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-//      M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp") );
-    p = Draw_CachePic("gfx/ttl_sgl.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-//      M_DrawTransPic(72, 32, Draw_CachePic("gfx/sp_menu.lmp") );
-
-    M_DrawTextBox(60, 10 * 8, 23, 4);
-    M_PrintWhite(92, 12 * 8, "QuakeWorld is for");
-    M_PrintWhite(88, 13 * 8, "Internet play only");
-
-}
-
-static void
-M_SinglePlayer_Key(key)
-{
-    if (key == K_ESCAPE || key == K_ENTER)
-	m_state = m_main;
-}
-
-static void
-M_Menu_MultiPlayer_f(void)
-{
-    m_state = m_multiplayer;
-}
-
-static void
-M_MultiPlayer_Draw(void)
-{
-    qpic_t *p;
-
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-//      M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp") );
-    p = Draw_CachePic("gfx/p_multi.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-//      M_DrawTransPic(72, 32, Draw_CachePic("gfx/sp_menu.lmp") );
-
-    M_DrawTextBox(46, 8 * 8, 27, 9);
-    M_PrintWhite(72, 10 * 8, "If you want to find QW  ");
-    M_PrintWhite(72, 11 * 8, "games, head on over to: ");
-    M_Print(72, 12 * 8, "   www.quakeworld.net   ");
-    M_PrintWhite(72, 13 * 8, "          or            ");
-    M_Print(72, 14 * 8, "   www.quakespy.com     ");
-    M_PrintWhite(72, 15 * 8, "For pointers on getting ");
-    M_PrintWhite(72, 16 * 8, "        started!        ");
-}
-
-static void
-M_MultiPlayer_Key(key)
-{
-    if (key == K_ESCAPE || key == K_ENTER)
-	m_state = m_main;
-}
-
 //=============================================================================
 /* Menu Subsystem */
 
@@ -1057,35 +952,8 @@ M_Draw(void)
     }
 
     switch (m_state) {
-    case m_none:
-	break;
-
     case m_main:
 	M_Main_Draw();
-	break;
-
-    case m_singleplayer:
-	M_SinglePlayer_Draw();
-	break;
-
-    case m_load:
-//              M_Load_Draw();
-	break;
-
-    case m_save:
-//              M_Save_Draw();
-	break;
-
-    case m_multiplayer:
-	M_MultiPlayer_Draw();
-	break;
-
-    case m_setup:
-//              M_Setup_Draw();
-	break;
-
-    case m_net:
-//              M_Net_Draw();
 	break;
 
     case m_options:
@@ -1108,28 +976,7 @@ M_Draw(void)
 	M_Quit_Draw();
 	break;
 
-    case m_serialconfig:
-//              M_SerialConfig_Draw();
-	break;
-
-    case m_modemconfig:
-//              M_ModemConfig_Draw();
-	break;
-
-    case m_lanconfig:
-//              M_LanConfig_Draw();
-	break;
-
-    case m_gameoptions:
-//              M_GameOptions_Draw();
-	break;
-
-    case m_search:
-//              M_Search_Draw();
-	break;
-
-    case m_slist:
-//              M_ServerList_Draw();
+    case m_none:
 	break;
     }
 
@@ -1155,30 +1002,6 @@ M_Keydown(int key)
 	M_Main_Key(key);
 	return;
 
-    case m_singleplayer:
-	M_SinglePlayer_Key(key);
-	return;
-
-    case m_load:
-//              M_Load_Key(key);
-	return;
-
-    case m_save:
-//              M_Save_Key(key);
-	return;
-
-    case m_multiplayer:
-	M_MultiPlayer_Key(key);
-	return;
-
-    case m_setup:
-//              M_Setup_Key(key);
-	return;
-
-    case m_net:
-//              M_Net_Key(key);
-	return;
-
     case m_options:
 	M_Options_Key(key);
 	return;
@@ -1197,30 +1020,6 @@ M_Keydown(int key)
 
     case m_quit:
 	M_Quit_Key(key);
-	return;
-
-    case m_serialconfig:
-//              M_SerialConfig_Key(key);
-	return;
-
-    case m_modemconfig:
-//              M_ModemConfig_Key(key);
-	return;
-
-    case m_lanconfig:
-//              M_LanConfig_Key(key);
-	return;
-
-    case m_gameoptions:
-//              M_GameOptions_Key(key);
-	return;
-
-    case m_search:
-//              M_Search_Key(key);
-	break;
-
-    case m_slist:
-//              M_ServerList_Key(key);
 	return;
     }
 }
