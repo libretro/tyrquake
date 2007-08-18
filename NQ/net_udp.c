@@ -253,7 +253,7 @@ UDP_MakeSocketBroadcastCapable(int socket)
     int i = 1;
 
     /* make this socket broadcast capable */
-    if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (char *)&i, sizeof(i))
+    if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, &i, sizeof(i))
 	< 0)
 	return -1;
     net_broadcastsocket = socket;
