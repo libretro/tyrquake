@@ -247,7 +247,7 @@ UDP_Read(int socket, byte *buf, int len, struct qsockaddr *addr)
 }
 
 
-int
+static int
 UDP_MakeSocketBroadcastCapable(int socket)
 {
     int i = 1;

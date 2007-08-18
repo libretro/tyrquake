@@ -63,7 +63,7 @@ WSADATA winsockdata;
 static double blocktime;
 
 
-BOOL PASCAL FAR
+static BOOL PASCAL FAR
 BlockingHook(void)
 {
     MSG msg;
@@ -88,7 +88,7 @@ BlockingHook(void)
 }
 
 
-void
+static void
 WINS_GetLocalAddress()
 {
     struct hostent *local = NULL;
@@ -406,7 +406,7 @@ WINS_Read(int socket, byte *buf, int len, struct qsockaddr *addr)
 }
 
 
-int
+static int
 WINS_MakeSocketBroadcastCapable(int socket)
 {
     int i = 1;
