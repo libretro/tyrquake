@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2007-02-14
-Version: 	0.56
+Date:		2007-08-18
+Version: 	0.57
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -36,6 +36,16 @@ you can select by setting Makefile variables:
     or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.57
+=====
+- Various 64 bit correctness fixes. All executables now work at least on 64 bit
+  Linux, as long as you build with USE_X86_ASM=N.
+- Removed a few pieces of dead/legacy code. No more "-record" and "-playback"
+  options (net_vcr) and no more IPX or Serial/Modem networking either.
+- Fixed a fairly rare memory corruption issue due to poor handling of BSPs
+  having more than one sky texture in glquake.
+- Various other minor fixes and code cleanups.
 
 v0.56
 =====
