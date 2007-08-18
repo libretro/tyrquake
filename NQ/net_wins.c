@@ -93,7 +93,6 @@ WINS_GetLocalAddress()
 {
     struct hostent *local = NULL;
     char buff[MAXHOSTNAMELEN];
-    unsigned long addr;
 
     if (myAddr != INADDR_ANY)
 	return;
@@ -109,10 +108,6 @@ WINS_GetLocalAddress()
 	return;
 
     myAddr = *(int *)local->h_addr_list[0];
-
-    addr = ntohl(myAddr);
-    sprintf(my_tcpip_address, "%ld.%ld.%ld.%ld", (addr >> 24) & 0xff,
-	    (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff);
 }
 
 
@@ -125,6 +120,8 @@ WINS_Init(void)
     int r;
     WORD wVersionRequested;
     HINSTANCE hInst;
+    struct qsockaddr addr;
+    char *colon;
 
     /*
      * initialize the Winsock function vectors (we do this instead of
@@ -204,22 +201,6 @@ WINS_Init(void)
 	Cvar_Set("hostname", buff);
     }
 
-    i = COM_CheckParm("-ip");
-    if (i) {
-	if (i < com_argc - 1) {
-	    myAddr = inet_addr(com_argv[i + 1]);
-	    if (myAddr == INADDR_NONE)
-		Sys_Error("%s is not a valid IP address", com_argv[i + 1]);
-	    strcpy(my_tcpip_address, com_argv[i + 1]);
-	} else {
-	    Sys_Error("%s: you must specify an IP address after -ip",
-		      __func__);
-	}
-    } else {
-	myAddr = INADDR_ANY;
-	strcpy(my_tcpip_address, "INADDR_ANY");
-    }
-
     if ((net_controlsocket = WINS_OpenSocket(0)) == -1) {
 	Con_Printf("WINS_Init: Unable to open control socket\n");
 	if (--winsock_initialized == 0)
@@ -233,7 +214,13 @@ WINS_Init(void)
     ((struct sockaddr_in *)&broadcastaddr)->sin_port =
 	htons((unsigned short)net_hostport);
 
-    Con_Printf("Winsock TCP/IP Initialized\n");
+    WINS_GetSocketAddr(net_controlsocket, &addr);
+    strcpy(my_tcpip_address, WINS_AddrToString(&addr));
+    colon = strrchr(my_tcpip_address, ':');
+    if (colon)
+	*colon = 0;
+
+    Con_Printf("Winsock TCP/IP Initialized (%s)\n", my_tcpip_address);
     tcpipAvailable = true;
 
     return net_controlsocket;
@@ -278,15 +265,21 @@ WINS_OpenSocket(int port)
     int newsocket;
     struct sockaddr_in address;
     u_long _true = 1;
+    int i;
 
     if ((newsocket = psocket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
-
     if (pioctlsocket(newsocket, FIONBIO, &_true) == -1)
 	goto ErrorReturn;
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = myAddr;
+    if ((i = COM_CheckParm("-bindip")) != 0 && i < com_argc) {
+	address.sin_addr.s_addr = inet_addr(com_argv[i + 1]);
+	Con_Printf("Binding to IP Interface Address of %s\n",
+		   inet_ntoa(address.sin_addr));
+    } else
+	address.sin_addr.s_addr = INADDR_ANY;
+
     address.sin_port = htons((unsigned short)port);
     if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == 0)
 	return newsocket;
@@ -490,14 +483,27 @@ WINS_StringToAddr(char *string, struct qsockaddr *addr)
 int
 WINS_GetSocketAddr(int socket, struct qsockaddr *addr)
 {
+    struct sockaddr_in *address = (struct sockaddr_in *)addr;
     int addrlen = sizeof(struct qsockaddr);
-    unsigned int a;
+    struct in_addr a;
+    int i;
 
     memset(addr, 0, sizeof(struct qsockaddr));
     pgetsockname(socket, (struct sockaddr *)addr, &addrlen);
-    a = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
-    if (a == 0 || a == inet_addr("127.0.0.1"))
-	((struct sockaddr_in *)addr)->sin_addr.s_addr = myAddr;
+
+    /*
+     * The returned IP is embedded in our repsonse to a broadcast request for
+     * server info from clients. The server admin may wish to advertise a
+     * specific IP for various reasons, so allow the "default" address
+     * returned by the OS to be overridden.
+     */
+    if ((i = COM_CheckParm("-ip")) && i < com_argc)
+	address->sin_addr.s_addr = inet_addr(com_argv[i + 1]);
+    else {
+	a = address->sin_addr;
+	if (!a.s_addr || a.s_addr == inet_addr("127.0.0.1"))
+	    address->sin_addr.s_addr = myAddr;
+    }
 
     return 0;
 }

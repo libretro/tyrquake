@@ -123,17 +123,23 @@ UDP_OpenSocket(int port)
     int newsocket;
     struct sockaddr_in address;
     int _true = 1;
+    int i;
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
-
     if (ioctl(newsocket, FIONBIO, &_true) == -1)
 	goto ErrorReturn;
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
-    if (bind(newsocket, (void *)&address, sizeof(address)) == -1)
+    if ((i = COM_CheckParm("-bindip")) != 0 && i < com_argc) {
+	address.sin_addr.s_addr = inet_addr(com_argv[i + 1]);
+	Con_Printf("Binding to IP Interface Address of %s\n",
+		   inet_ntoa(address.sin_addr));
+    } else
+	address.sin_addr.s_addr = INADDR_ANY;
+
+    address.sin_port = htons((unsigned short)port);
+    if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == -1)
 	goto ErrorReturn;
 
     return newsocket;
@@ -328,14 +334,27 @@ UDP_StringToAddr(char *string, struct qsockaddr *addr)
 int
 UDP_GetSocketAddr(int socket, struct qsockaddr *addr)
 {
-    socklen_t addrlen = sizeof(struct qsockaddr);
-    unsigned int a;
+    struct sockaddr_in *address = (struct sockaddr_in *)addr;
+    socklen_t len = sizeof(struct qsockaddr);
+    struct in_addr a;
+    int i;
 
-    memset(addr, 0, sizeof(struct qsockaddr));
-    getsockname(socket, (struct sockaddr *)addr, &addrlen);
-    a = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
-    if (a == 0 || a == inet_addr("127.0.0.1"))
-	((struct sockaddr_in *)addr)->sin_addr.s_addr = myAddr.s_addr;
+    memset(address, 0, len);
+    getsockname(socket, (struct sockaddr *)address, &len);
+
+    /*
+     * The returned IP is embedded in our repsonse to a broadcast request for
+     * server info from clients. The server admin may wish to advertise a
+     * specific IP for various reasons, so allow the "default" address
+     * returned by the OS to be overridden.
+     */
+    if ((i = COM_CheckParm("-ip")) && i < com_argc)
+	address->sin_addr.s_addr = inet_addr(com_argv[i + 1]);
+    else {
+	a = address->sin_addr;
+	if (!a.s_addr || a.s_addr == inet_addr("127.0.0.1"))
+	    address->sin_addr.s_addr = myAddr.s_addr;
+    }
 
     return 0;
 }
