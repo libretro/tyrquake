@@ -65,7 +65,7 @@ UDP_Init(void)
 
     /* if the quake hostname isn't set, set it to the machine name */
     if (strcmp(hostname.string, "UNNAMED") == 0) {
-	buff[15] = 0;		/* FIXME - 15? */
+	buff[MAXHOSTNAMELEN - 1] = 0;
 	Cvar_Set("hostname", buff);
     }
 
