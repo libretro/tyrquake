@@ -393,7 +393,6 @@ NQ_W32_C_OBJS = \
 	in_win.o	\
 	net_win.o	\
 	net_wins.o	\
-	net_wipx.o	\
 	snd_win.o	\
 	sys_win.o
 

@@ -21,9 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net.h"
 #include "net_dgrm.h"
 #include "net_loop.h"
-#include "net_ser.h"
 #include "net_wins.h"
-#include "net_wipx.h"
 
 #include "quakedef.h"
 
@@ -87,29 +85,7 @@ net_landriver_t net_landrivers[MAX_NET_DRIVERS] = {
 	.AddrCompare		= WINS_AddrCompare,
 	.GetSocketPort		= WINS_GetSocketPort,
 	.SetSocketPort		= WINS_SetSocketPort
-    }, {
-	.name			= "Winsock IPX",
-	.initialized		= false,
-	.controlSock		= 0,
-	.Init			= WIPX_Init,
-	.Shutdown		= WIPX_Shutdown,
-	.Listen			= WIPX_Listen,
-	.OpenSocket		= WIPX_OpenSocket,
-	.CloseSocket		= WIPX_CloseSocket,
-	.Connect		= WIPX_Connect,
-	.CheckNewConnections	= WIPX_CheckNewConnections,
-	.Read			= WIPX_Read,
-	.Write			= WIPX_Write,
-	.Broadcast		= WIPX_Broadcast,
-	.AddrToString		= WIPX_AddrToString,
-	.StringToAddr		= WIPX_StringToAddr,
-	.GetSocketAddr		= WIPX_GetSocketAddr,
-	.GetNameFromAddr	= WIPX_GetNameFromAddr,
-	.GetAddrFromName	= WIPX_GetAddrFromName,
-	.AddrCompare		= WIPX_AddrCompare,
-	.GetSocketPort		= WIPX_GetSocketPort,
-	.SetSocketPort		= WIPX_SetSocketPort
     }
 };
 
-int net_numlandrivers = 2;
+int net_numlandrivers = 1;
