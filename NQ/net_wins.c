@@ -30,8 +30,7 @@ static int net_acceptsocket = -1;
 static int net_controlsocket;
 static int net_broadcastsocket = 0;
 static struct qsockaddr broadcastaddr;
-
-static unsigned long myAddr;
+static struct in_addr myAddr;
 
 qboolean winsock_lib_initialized;
 
@@ -94,7 +93,7 @@ WINS_GetLocalAddress()
     struct hostent *local = NULL;
     char buff[MAXHOSTNAMELEN];
 
-    if (myAddr != INADDR_ANY)
+    if (myAddr.s_addr != INADDR_ANY)
 	return;
 
     if (pgethostname(buff, MAXHOSTNAMELEN) == SOCKET_ERROR)
@@ -107,7 +106,7 @@ WINS_GetLocalAddress()
     if (local == NULL)
 	return;
 
-    myAddr = *(int *)local->h_addr_list[0];
+    myAddr = *(struct in_addr *)local->h_addr_list[0];
 }
 
 
@@ -353,7 +352,7 @@ PartialIPAddress(char *in, struct qsockaddr *hostaddr)
     hostaddr->sa_family = AF_INET;
     ((struct sockaddr_in *)hostaddr)->sin_port = htons((short)port);
     ((struct sockaddr_in *)hostaddr)->sin_addr.s_addr =
-	(myAddr & htonl(mask)) | htonl(addr);
+	(myAddr.s_addr & htonl(mask)) | htonl(addr);
 
     return 0;
 }
@@ -502,7 +501,7 @@ WINS_GetSocketAddr(int socket, struct qsockaddr *addr)
     else {
 	a = address->sin_addr;
 	if (!a.s_addr || a.s_addr == inet_addr("127.0.0.1"))
-	    address->sin_addr.s_addr = myAddr;
+	    address->sin_addr.s_addr = myAddr.s_addr;
     }
 
     return 0;
