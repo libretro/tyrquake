@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <unistd.h>
+#include <net/if.h>
 
 #include "common.h"
 #include "console.h"
@@ -57,6 +58,43 @@ static struct qsockaddr broadcastaddr;
 static struct in_addr myAddr;
 static struct in_addr localAddr;
 static struct in_addr bindAddr;
+static char ifname[IFNAMSIZ];
+
+
+static int
+UDP_GetLocalAddress(int sock)
+{
+    struct ifconf ifc;
+    struct ifreq *ifr;
+    char buf[8192];
+    int i, n;
+    struct sockaddr_in *iaddr;
+    struct in_addr addr;
+
+    ifc.ifc_len = sizeof (buf);
+    ifc.ifc_buf = buf;
+
+    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1)
+	return -1;
+
+    ifr = ifc.ifc_req;
+    n = ifc.ifc_len / sizeof(struct ifreq);
+
+    for (i = 0; i < n; i++) {
+	if (ioctl(sock, SIOCGIFADDR, &ifr[i]) == -1)
+	    continue;
+	iaddr = (struct sockaddr_in *)&ifr[i].ifr_addr;
+	Con_DPrintf("%s: %s\n", ifr[i].ifr_name, inet_ntoa(iaddr->sin_addr));
+	addr.s_addr = iaddr->sin_addr.s_addr;
+	if (addr.s_addr != htonl(INADDR_LOOPBACK)) {
+	    myAddr.s_addr = addr.s_addr;
+	    strcpy (ifname, ifr[i].ifr_name);
+	    return 0;
+	}
+    }
+
+    return -1;
+}
 
 int
 UDP_Init(void)
@@ -118,6 +156,13 @@ UDP_Init(void)
 	Con_Printf("%s: Unable to open control socket, UDP disabled\n",
 		   __func__);
 	return -1;
+    }
+
+    memset (ifname, 0, sizeof(ifname));
+    if (bindAddr.s_addr == INADDR_NONE && localAddr.s_addr == INADDR_NONE) {
+	/* myAddr may resolve to 127.0.0.1, see if we can do any better */
+	if (UDP_GetLocalAddress(net_controlsocket) == 0)
+	    Con_Printf ("Local address: %s (%s)\n", inet_ntoa(myAddr), ifname);
     }
 
     ((struct sockaddr_in *)&broadcastaddr)->sin_family = AF_INET;
