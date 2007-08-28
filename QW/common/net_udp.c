@@ -209,7 +209,8 @@ UDP_OpenSocket(int port)
     address.sin_family = AF_INET;
 
     /* ZOID -- check for interface binding option */
-    if ((i = COM_CheckParm("-ip")) != 0 && i < com_argc) {
+    i = COM_CheckParm("-ip");
+    if (i && i < com_argc - 1) {
 	address.sin_addr.s_addr = inet_addr(com_argv[i + 1]);
 	Con_Printf("Binding to IP Interface Address of %s\n",
 		   inet_ntoa(address.sin_addr));
