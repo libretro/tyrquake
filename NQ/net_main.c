@@ -682,7 +682,7 @@ NET_SendToAll(sizebuf_t *data, double blocktime)
 void
 NET_Init(void)
 {
-    int i;
+    int i, num_inited;
     int controlSocket;
     qsocket_t *s;
 
@@ -725,16 +725,21 @@ NET_Init(void)
     Cmd_AddCommand("port", NET_Port_f);
 
     /* initialize all the drivers */
+    num_inited = 0;
     for (i = 0; i < net_numdrivers; i++) {
 	net_driver = &net_drivers[i];
 	controlSocket = net_driver->Init();
 	if (controlSocket == -1)
 	    continue;
+	num_inited++;
 	net_driver->initialized = true;
 	net_driver->controlSock = controlSocket;
 	if (listening)
 	    net_driver->Listen(true);
     }
+
+    if (num_inited == 0 && cls.state == ca_dedicated)
+	Sys_Error("Network not available!");
 
     if (*my_tcpip_address)
 	Con_DPrintf("TCP/IP address %s\n", my_tcpip_address);
