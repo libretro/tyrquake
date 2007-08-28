@@ -69,8 +69,12 @@ UDP_Init(void)
 	Cvar_Set("hostname", buff);
     }
 
-    if ((net_controlsocket = UDP_OpenSocket(0)) == -1)
-	Sys_Error("%s: Unable to open control socket", __func__);
+    net_controlsocket = UDP_OpenSocket(0);
+    if (net_controlsocket == -1) {
+	Con_Printf("%s: Unable to open control socket, UDP disabled\n",
+		   __func__);
+	return -1;
+    }
 
     ((struct sockaddr_in *)&broadcastaddr)->sin_family = AF_INET;
     ((struct sockaddr_in *)&broadcastaddr)->sin_addr.s_addr =
