@@ -500,7 +500,7 @@ WINS_GetSocketAddr(int socket, struct qsockaddr *addr)
 	address->sin_addr.s_addr = inet_addr(com_argv[i + 1]);
     else {
 	a = address->sin_addr;
-	if (!a.s_addr || a.s_addr == inet_addr("127.0.0.1"))
+	if (!a.s_addr || a.s_addr == htonl(INADDR_LOOPBACK))
 	    address->sin_addr.s_addr = myAddr.s_addr;
     }
 
