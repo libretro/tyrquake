@@ -46,6 +46,7 @@ static struct in_addr myAddr;
 int
 UDP_Init(void)
 {
+    int err;
     struct hostent *local;
     char buff[MAXHOSTNAMELEN];
     struct qsockaddr addr;
@@ -55,7 +56,12 @@ UDP_Init(void)
 	return -1;
 
     /* determine my name & address */
-    gethostname(buff, MAXHOSTNAMELEN);
+    err = gethostname(buff, MAXHOSTNAMELEN);
+    if (err) {
+	Con_Printf("%s: gethostname failed, UDP disabled (errno: %i)\n",
+		   __func__, errno);
+	return -1;
+    }
     buff[MAXHOSTNAMELEN - 1] = 0;
     local = gethostbyname(buff);
     if (!local || local->h_addrtype != AF_INET)
