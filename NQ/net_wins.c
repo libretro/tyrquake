@@ -30,7 +30,23 @@ static int net_acceptsocket = -1;
 static int net_controlsocket;
 static int net_broadcastsocket = 0;
 static struct qsockaddr broadcastaddr;
+
+/*
+ * There are three addresses that we may use in different ways:
+ *   myAddr	- This is the "default" address returned by the OS
+ *   localAddr	- This is an address to advertise in CCREP_SERVER_INFO
+ *		 and CCREP_ACCEPT response packets, rather than the
+ *		 default address (sometimes the default address is not
+ *		 suitable for LAN clients; i.e. loopback address). Set
+ *		 on the command line using the "-localip" option.
+ *   bindAddr	- The address to which we bind our network socket. The
+ *		 default is INADDR_ANY, but in some cases we may want
+ *		 to only listen on a particular address. Set on the
+ *		 command line using the "-ip" option.
+ */
 static struct in_addr myAddr;
+static struct in_addr localAddr;
+static struct in_addr bindAddr;
 
 qboolean winsock_lib_initialized;
 
@@ -200,8 +216,32 @@ WINS_Init(void)
 	Cvar_Set("hostname", buff);
     }
 
-    if ((net_controlsocket = WINS_OpenSocket(0)) == -1) {
-	Con_Printf("WINS_Init: Unable to open control socket\n");
+    i = COM_CheckParm("-ip");
+    if (i && i < com_argc - 1) {
+	bindAddr.s_addr = inet_addr(com_argv[i + 1]);
+	if (bindAddr.s_addr == INADDR_NONE)
+	    Sys_Error("%s: %s is not a valid IP address", __func__,
+		      com_argv[i + 1]);
+	Con_Printf("Binding to IP Interface Address of %s\n", com_argv[i + 1]);
+    } else {
+	bindAddr.s_addr = INADDR_NONE;
+    }
+
+    i = COM_CheckParm("-localip");
+    if (i && i < com_argc - 1) {
+	localAddr.s_addr = inet_addr(com_argv[i + 1]);
+	if (localAddr.s_addr == INADDR_NONE)
+	    Sys_Error("%s: %s is not a valid IP address", __func__,
+		      com_argv[i + 1]);
+	Con_Printf("Advertising %s as the local IP in response packets\n",
+		   com_argv[i + 1]);
+    } else {
+	localAddr.s_addr = INADDR_NONE;
+    }
+
+    net_controlsocket = WINS_OpenSocket(0);
+    if (net_controlsocket == -1) {
+	Con_Printf("%s: Unable to open control socket\n", __func__);
 	if (--winsock_initialized == 0)
 	    pWSACleanup();
 	return -1;
@@ -264,7 +304,6 @@ WINS_OpenSocket(int port)
     int newsocket;
     struct sockaddr_in address;
     u_long _true = 1;
-    int i;
 
     if ((newsocket = psocket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
@@ -272,13 +311,10 @@ WINS_OpenSocket(int port)
 	goto ErrorReturn;
 
     address.sin_family = AF_INET;
-    if ((i = COM_CheckParm("-bindip")) != 0 && i < com_argc) {
-	address.sin_addr.s_addr = inet_addr(com_argv[i + 1]);
-	Con_Printf("Binding to IP Interface Address of %s\n",
-		   inet_ntoa(address.sin_addr));
-    } else
+    if (bindAddr.s_addr != INADDR_NONE)
+	address.sin_addr.s_addr = bindAddr.s_addr;
+    else
 	address.sin_addr.s_addr = INADDR_ANY;
-
     address.sin_port = htons((unsigned short)port);
     if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == 0)
 	return newsocket;
@@ -485,7 +521,6 @@ WINS_GetSocketAddr(int socket, struct qsockaddr *addr)
     struct sockaddr_in *address = (struct sockaddr_in *)addr;
     int addrlen = sizeof(struct qsockaddr);
     struct in_addr a;
-    int i;
 
     memset(addr, 0, sizeof(struct qsockaddr));
     pgetsockname(socket, (struct sockaddr *)addr, &addrlen);
@@ -496,8 +531,8 @@ WINS_GetSocketAddr(int socket, struct qsockaddr *addr)
      * specific IP for various reasons, so allow the "default" address
      * returned by the OS to be overridden.
      */
-    if ((i = COM_CheckParm("-ip")) && i < com_argc)
-	address->sin_addr.s_addr = inet_addr(com_argv[i + 1]);
+    if (localAddr.s_addr != INADDR_NONE)
+	address->sin_addr.s_addr = localAddr.s_addr;
     else {
 	a = address->sin_addr;
 	if (!a.s_addr || a.s_addr == htonl(INADDR_LOOPBACK))

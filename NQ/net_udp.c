@@ -40,13 +40,28 @@ static int net_acceptsocket = -1;
 static int net_controlsocket;
 static int net_broadcastsocket = 0;
 static struct qsockaddr broadcastaddr;
-static struct in_addr myAddr;
 
+/*
+ * There are three addresses that we may use in different ways:
+ *   myAddr	- This is the "default" address returned by the OS
+ *   localAddr	- This is an address to advertise in CCREP_SERVER_INFO
+ *		 and CCREP_ACCEPT response packets, rather than the
+ *		 default address (sometimes the default address is not
+ *		 suitable for LAN clients; i.e. loopback address). Set
+ *		 on the command line using the "-localip" option.
+ *   bindAddr	- The address to which we bind our network socket. The
+ *		 default is INADDR_ANY, but in some cases we may want
+ *		 to only listen on a particular address. Set on the
+ *		 command line using the "-ip" option.
+ */
+static struct in_addr myAddr;
+static struct in_addr localAddr;
+static struct in_addr bindAddr;
 
 int
 UDP_Init(void)
 {
-    int err;
+    int i, err;
     struct hostent *local;
     char buff[MAXHOSTNAMELEN];
     struct qsockaddr addr;
@@ -67,12 +82,35 @@ UDP_Init(void)
     if (!local || local->h_addrtype != AF_INET)
 	return -1;
 
-    myAddr = *(struct in_addr *)local->h_addr_list[0];
-
     /* if the quake hostname isn't set, set it to the machine name */
     if (strcmp(hostname.string, "UNNAMED") == 0) {
 	buff[MAXHOSTNAMELEN - 1] = 0;
 	Cvar_Set("hostname", buff);
+    }
+
+    myAddr = *(struct in_addr *)local->h_addr_list[0];
+
+    i = COM_CheckParm("-ip");
+    if (i && i < com_argc - 1) {
+	bindAddr.s_addr = inet_addr(com_argv[i + 1]);
+	if (bindAddr.s_addr == INADDR_NONE)
+	    Sys_Error("%s: %s is not a valid IP address", __func__,
+		      com_argv[i + 1]);
+	Con_Printf("Binding to IP Interface Address of %s\n", com_argv[i + 1]);
+    } else {
+	bindAddr.s_addr = INADDR_NONE;
+    }
+
+    i = COM_CheckParm("-localip");
+    if (i && i < com_argc - 1) {
+	localAddr.s_addr = inet_addr(com_argv[i + 1]);
+	if (localAddr.s_addr == INADDR_NONE)
+	    Sys_Error("%s: %s is not a valid IP address", __func__,
+		      com_argv[i + 1]);
+	Con_Printf("Advertising %s as the local IP in response packets\n",
+		   com_argv[i + 1]);
+    } else {
+	localAddr.s_addr = INADDR_NONE;
     }
 
     net_controlsocket = UDP_OpenSocket(0);
@@ -133,7 +171,6 @@ UDP_OpenSocket(int port)
     int newsocket;
     struct sockaddr_in address;
     int _true = 1;
-    int i;
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
@@ -141,13 +178,10 @@ UDP_OpenSocket(int port)
 	goto ErrorReturn;
 
     address.sin_family = AF_INET;
-    if ((i = COM_CheckParm("-bindip")) != 0 && i < com_argc) {
-	address.sin_addr.s_addr = inet_addr(com_argv[i + 1]);
-	Con_Printf("Binding to IP Interface Address of %s\n",
-		   inet_ntoa(address.sin_addr));
-    } else
+    if (bindAddr.s_addr != INADDR_NONE)
+	address.sin_addr.s_addr = bindAddr.s_addr;
+    else
 	address.sin_addr.s_addr = INADDR_ANY;
-
     address.sin_port = htons((unsigned short)port);
     if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == -1)
 	goto ErrorReturn;
@@ -347,7 +381,6 @@ UDP_GetSocketAddr(int socket, struct qsockaddr *addr)
     struct sockaddr_in *address = (struct sockaddr_in *)addr;
     socklen_t len = sizeof(struct qsockaddr);
     struct in_addr a;
-    int i;
 
     memset(address, 0, len);
     getsockname(socket, (struct sockaddr *)address, &len);
@@ -358,8 +391,8 @@ UDP_GetSocketAddr(int socket, struct qsockaddr *addr)
      * specific IP for various reasons, so allow the "default" address
      * returned by the OS to be overridden.
      */
-    if ((i = COM_CheckParm("-ip")) && i < com_argc)
-	address->sin_addr.s_addr = inet_addr(com_argv[i + 1]);
+    if (localAddr.s_addr != INADDR_NONE)
+	address->sin_addr.s_addr = localAddr.s_addr;
     else {
 	a = address->sin_addr;
 	if (!a.s_addr || a.s_addr == htonl(INADDR_LOOPBACK))
