@@ -71,6 +71,9 @@ UDP_GetLocalAddress(int sock)
     struct sockaddr_in *iaddr;
     struct in_addr addr;
 
+    if (COM_CheckParm("-noifscan"))
+	return -1;
+
     ifc.ifc_len = sizeof (buf);
     ifc.ifc_buf = buf;
 
