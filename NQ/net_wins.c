@@ -108,7 +108,6 @@ WINS_Init(void)
     int i;
     char buff[MAXHOSTNAMELEN];
     char *p;
-    WORD wVersionRequested;
     struct qsockaddr addr;
     char *colon;
 
@@ -116,7 +115,7 @@ WINS_Init(void)
 	return -1;
 
     if (winsock_initialized == 0) {
-	if (pWSAStartup(MAKEWORD(1,1), &winsockdata) != 0) {
+	if (WSAStartup(MAKEWORD(1,1), &winsockdata) != 0) {
 	    Con_SafePrintf("Winsock initialization failed.\n");
 	    return -1;
 	}
