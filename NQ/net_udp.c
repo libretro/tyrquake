@@ -317,6 +317,9 @@ int
 UDP_CheckNewConnections(void)
 {
     unsigned long available;
+    struct sockaddr_in from;
+    socklen_t fromlen;
+    char buff[1];
 
     if (net_acceptsocket == -1)
 	return -1;
@@ -325,6 +328,8 @@ UDP_CheckNewConnections(void)
 	Sys_Error("%s: ioctlsocket (FIONREAD) failed", __func__);
     if (available)
 	return net_acceptsocket;
+    /* quietly absorb empty packets */
+    recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *)&from, &fromlen);
     return -1;
 }
 
