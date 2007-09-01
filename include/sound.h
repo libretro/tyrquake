@@ -63,9 +63,6 @@ typedef struct {
 } sfxcache_t;
 
 typedef struct {
-    qboolean gamealive;
-    qboolean soundalive;
-    qboolean splitbuffer;
     int channels;
     int samples;		// mono samples in buffer
     int submission_chunk;	// don't mix less than this #

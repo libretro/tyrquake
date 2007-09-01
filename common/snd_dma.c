@@ -215,14 +215,11 @@ S_Init(void)
     /* create a piece of DMA memory */
     if (fakedma) {
 	shm = (void *)Hunk_AllocName(sizeof(*shm), "shm");
-	shm->splitbuffer = 0;
 	shm->samplebits = 16;
 	shm->speed = 22050;
 	shm->channels = 2;
 	shm->samples = 32768;
 	shm->samplepos = 0;
-	shm->soundalive = true;
-	shm->gamealive = true;
 	shm->submission_chunk = 1;
 	shm->buffer = Hunk_AllocName(1 << 16, "shmbuf");
     }
@@ -252,8 +249,6 @@ S_Shutdown(void)
 
     if (!sound_started)
 	return;
-    if (shm)
-	shm->gamealive = 0;
 
     shm = 0;
     sound_started = 0;

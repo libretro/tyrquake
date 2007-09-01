@@ -82,7 +82,6 @@ SNDDMA_Init(void)
     }
 
     shm = &sn;
-    shm->splitbuffer = false;
 
     // Get sample format
     s = getenv("QUAKE_SOUND_SAMPLEBITS");
