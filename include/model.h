@@ -312,14 +312,6 @@ typedef struct model_s {
     vec3_t mins, maxs;
     float radius;
 
-#ifdef QW_HACK
-//
-// solid volume for clipping (sent from server)
-//
-    qboolean clipbox;
-    vec3_t clipmins, clipmaxs;
-#endif
-
 //
 // brush model
 //
