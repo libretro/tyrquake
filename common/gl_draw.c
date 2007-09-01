@@ -89,7 +89,7 @@ static int texels;
 
 typedef struct {
     GLuint texnum;
-    char identifier[64];
+    char identifier[MAX_QPATH];
     int width, height;
     qboolean mipmap;
     unsigned short crc;		// CRC for texture cache matching
