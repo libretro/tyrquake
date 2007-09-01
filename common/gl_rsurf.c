@@ -530,7 +530,6 @@ R_BlendLightmaps(void)
     else if (gl_lightmap_format == GL_INTENSITY) {
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glColor4f(0, 0, 0, 1);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
 
     if (!r_lightmap.value) {

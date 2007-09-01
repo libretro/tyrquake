@@ -789,7 +789,6 @@ R_PolyBlend(void)
 	glRotatef(90, 0, 0, 1);		// put Z going up
 
 	if (gl_polyblend.value && v_blend[3]) {
-	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	    glColor4fv(v_blend);
 	    GL_DrawBlendPoly();
 	}
@@ -797,9 +796,8 @@ R_PolyBlend(void)
 	    glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
 	    glColor4f(1, 1, 1, gamma);
 	    GL_DrawBlendPoly();
+	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
-
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glDisable(GL_BLEND);
 	glEnable(GL_TEXTURE_2D);
