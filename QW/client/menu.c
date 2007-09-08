@@ -36,7 +36,7 @@ void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
 enum {
-    m_none, m_main, m_options, m_video, m_keys, m_help, m_quit
+    m_none, m_main, m_options, m_video, m_keys, m_quit
 } m_state;
 
 void M_Menu_Options_f(void);
@@ -45,20 +45,17 @@ void M_Menu_Quit_f(void);
 static void M_Menu_Main_f(void);
 static void M_Menu_Keys_f(void);
 static void M_Menu_Video_f(void);
-static void M_Menu_Help_f(void);
 
 static void M_Main_Draw(void);
 static void M_Options_Draw(void);
 static void M_Keys_Draw(void);
 static void M_Video_Draw(void);
-static void M_Help_Draw(void);
 static void M_Quit_Draw(void);
 
 static void M_Main_Key(int key);
 static void M_Options_Key(int key);
 static void M_Keys_Key(int key);
 static void M_Video_Key(int key);
-static void M_Help_Key(int key);
 static void M_Quit_Key(int key);
 
 static qboolean m_recursiveDraw;
@@ -752,55 +749,6 @@ M_Video_Key(int key)
 }
 
 //=============================================================================
-/* HELP MENU */
-
-#define NUM_HELP_PAGES 6
-
-static int help_page;
-
-
-static void
-M_Menu_Help_f(void)
-{
-    key_dest = key_menu;
-    m_state = m_help;
-    m_entersound = true;
-    help_page = 0;
-}
-
-
-static void
-M_Help_Draw(void)
-{
-    M_DrawPic(0, 0, Draw_CachePic(va("gfx/help%i.lmp", help_page)));
-}
-
-
-static void
-M_Help_Key(int key)
-{
-    switch (key) {
-    case K_ESCAPE:
-	M_Menu_Main_f();
-	break;
-
-    case K_UPARROW:
-    case K_RIGHTARROW:
-	m_entersound = true;
-	if (++help_page >= NUM_HELP_PAGES)
-	    help_page = 0;
-	break;
-
-    case K_DOWNARROW:
-    case K_LEFTARROW:
-	m_entersound = true;
-	if (--help_page < 0)
-	    help_page = NUM_HELP_PAGES - 1;
-	break;
-    }
-}
-
-//=============================================================================
 /* QUIT MENU */
 
 static int msgNumber;
@@ -924,7 +872,6 @@ M_Init(void)
     Cmd_AddCommand("menu_options", M_Menu_Options_f);
     Cmd_AddCommand("menu_keys", M_Menu_Keys_f);
     Cmd_AddCommand("menu_video", M_Menu_Video_f);
-    Cmd_AddCommand("help", M_Menu_Help_f);
     Cmd_AddCommand("menu_quit", M_Menu_Quit_f);
 }
 
@@ -968,10 +915,6 @@ M_Draw(void)
 	M_Video_Draw();
 	break;
 
-    case m_help:
-	M_Help_Draw();
-	break;
-
     case m_quit:
 	M_Quit_Draw();
 	break;
@@ -1012,10 +955,6 @@ M_Keydown(int key)
 
     case m_video:
 	M_Video_Key(key);
-	return;
-
-    case m_help:
-	M_Help_Key(key);
 	return;
 
     case m_quit:
