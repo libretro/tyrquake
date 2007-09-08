@@ -1140,8 +1140,7 @@ AllocBlock(int w, int h, int *x, int *y)
      * packing efficiency, but much faster for maps with a lot of lightmaps.
      */
     texnum = (lm_used < 4) ? 0 : lm_used - 4;
-    for (texnum = (lm_used < 4) ? 0 : lm_used - 4; texnum < MAX_LIGHTMAPS;
-	 texnum++) {
+    for ( ; texnum < MAX_LIGHTMAPS; texnum++) {
 
 	if (texnum > lm_used)
 	    lm_used = texnum;
