@@ -55,7 +55,7 @@ static int snd_sent, snd_completed;
  */
 
 HANDLE hData;
-HPSTR lpData, lpData2;
+LPVOID lpData;
 
 HGLOBAL hWaveHdr;
 LPWAVEHDR lpWaveHdr;
@@ -495,7 +495,7 @@ SNDDMA_InitWav(void)
     /* After allocation, set up and prepare headers. */
     for (i = 0; i < WAV_BUFFERS; i++) {
 	lpWaveHdr[i].dwBufferLength = WAV_BUFFER_SIZE;
-	lpWaveHdr[i].lpData = lpData + i * WAV_BUFFER_SIZE;
+	lpWaveHdr[i].lpData = (LPSTR)lpData + i * WAV_BUFFER_SIZE;
 
 	if (waveOutPrepareHeader(hWaveOut, lpWaveHdr + i, sizeof(WAVEHDR))
 	    != MMSYSERR_NOERROR) {
