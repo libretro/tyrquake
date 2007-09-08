@@ -26,8 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifdef _WIN32
 #include "winquake.h"
-#else
-#define DWORD	unsigned long
 #endif
 
 #define PAINTBUFFER_SIZE 512
@@ -70,12 +68,11 @@ S_TransferStereo16(int endtime)
 {
     int lpos;
     int lpaintedtime;
-    DWORD *pbuf;
+    void *pbuf;
 
 #ifdef _WIN32
     int reps;
-    DWORD dwSize, dwSize2;
-    DWORD *pbuf2;
+    DWORD dwSize;
     HRESULT hresult;
 #endif
 
@@ -90,7 +87,7 @@ S_TransferStereo16(int endtime)
 
 	while ((hresult =
 		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &dwSize,
-				     &pbuf2, &dwSize2, 0)) != DS_OK) {
+				     NULL, NULL, 0)) != DS_OK) {
 	    if (hresult != DSERR_BUFFERLOST) {
 		Con_Printf
 		    ("S_TransferStereo16: DS::Lock Sound Buffer Failed\n");
@@ -110,7 +107,7 @@ S_TransferStereo16(int endtime)
     } else
 #endif
     {
-	pbuf = (DWORD *)shm->buffer;
+	pbuf = shm->buffer;
     }
 
     while (lpaintedtime < endtime) {
@@ -148,12 +145,11 @@ S_TransferPaintBuffer(int endtime)
     int step;
     int val;
     int snd_vol;
-    DWORD *pbuf;
+    void *pbuf;
 
 #ifdef _WIN32
     int reps;
-    DWORD dwSize, dwSize2;
-    DWORD *pbuf2;
+    DWORD dwSize;
     HRESULT hresult;
 #endif
 
@@ -175,7 +171,7 @@ S_TransferPaintBuffer(int endtime)
 
 	while ((hresult =
 		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &dwSize,
-				     &pbuf2, &dwSize2, 0)) != DS_OK) {
+				     NULL, NULL, 0)) != DS_OK) {
 	    if (hresult != DSERR_BUFFERLOST) {
 		Con_Printf
 		    ("S_TransferPaintBuffer: DS::Lock Sound Buffer Failed\n");
@@ -195,7 +191,7 @@ S_TransferPaintBuffer(int endtime)
     } else
 #endif
     {
-	pbuf = (DWORD *)shm->buffer;
+	pbuf = shm->buffer;
     }
 
     if (shm->samplebits == 16) {
