@@ -89,16 +89,14 @@ S_TransferStereo16(int endtime)
 		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &dwSize,
 				     NULL, NULL, 0)) != DS_OK) {
 	    if (hresult != DSERR_BUFFERLOST) {
-		Con_Printf
-		    ("S_TransferStereo16: DS::Lock Sound Buffer Failed\n");
+		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
 		S_Shutdown();
 		S_Startup();
 		return;
 	    }
 
 	    if (++reps > 10000) {
-		Con_Printf
-		    ("S_TransferStereo16: DS: couldn't restore buffer\n");
+		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
 		S_Shutdown();
 		S_Startup();
 		return;
@@ -173,16 +171,14 @@ S_TransferPaintBuffer(int endtime)
 		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &dwSize,
 				     NULL, NULL, 0)) != DS_OK) {
 	    if (hresult != DSERR_BUFFERLOST) {
-		Con_Printf
-		    ("S_TransferPaintBuffer: DS::Lock Sound Buffer Failed\n");
+		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
 		S_Shutdown();
 		S_Startup();
 		return;
 	    }
 
 	    if (++reps > 10000) {
-		Con_Printf
-		    ("S_TransferPaintBuffer: DS: couldn't restore buffer\n");
+		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
 		S_Shutdown();
 		S_Startup();
 		return;

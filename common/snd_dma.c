@@ -156,7 +156,7 @@ S_Startup(void)
 	rc = SNDDMA_Init();
 	if (!rc) {
 #ifndef	_WIN32
-	    Con_Printf("S_Startup: SNDDMA_Init failed.\n");
+	    Con_Printf("%s: SNDDMA_Init failed.\n", __func__);
 #endif
 	    sound_started = 0;
 	    return;
@@ -574,12 +574,12 @@ S_ClearBuffer(void)
 		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pData, &dwSize,
 				     NULL, NULL, 0)) != DS_OK) {
 	    if (hresult != DSERR_BUFFERLOST) {
-		Con_Printf("S_ClearBuffer: DS::Lock Sound Buffer Failed\n");
+		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
 		S_Shutdown();
 		return;
 	    }
 	    if (++reps > 10000) {
-		Con_Printf("S_ClearBuffer: DS: couldn't restore buffer\n");
+		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
 		S_Shutdown();
 		return;
 	    }
@@ -950,7 +950,7 @@ S_LocalSound(char *sound)
 
     sfx = S_PrecacheSound(sound);
     if (!sfx) {
-	Con_Printf("S_LocalSound: can't cache %s\n", sound);
+	Con_Printf("%s: can't cache %s\n", __func__, sound);
 	return;
     }
 #ifdef NQ_HACK
