@@ -272,10 +272,7 @@ NET_GetLocalAddress(void)
 void
 NET_Init(int port)
 {
-    WORD wVersionRequested;
     int r;
-
-    wVersionRequested = MAKEWORD(1, 1);
 
     r = WSAStartup(MAKEWORD(1, 1), &winsockdata);
 
