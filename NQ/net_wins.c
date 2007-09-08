@@ -79,59 +79,52 @@ BlockingHook(void)
 }
 
 
-static void
-WINS_GetLocalAddress()
-{
-    struct hostent *local = NULL;
-    char buff[MAXHOSTNAMELEN];
-
-    if (myAddr.s_addr != INADDR_ANY)
-	return;
-
-    if (gethostname(buff, MAXHOSTNAMELEN) == SOCKET_ERROR)
-	return;
-
-    blocktime = Sys_DoubleTime();
-    WSASetBlockingHook(BlockingHook);
-    local = gethostbyname(buff);
-    WSAUnhookBlockingHook();
-    if (local == NULL)
-	return;
-
-    myAddr = *(struct in_addr *)local->h_addr_list[0];
-}
-
-
 int
 WINS_Init(void)
 {
     int i;
+    int err;
     char buff[MAXHOSTNAMELEN];
-    char *p;
-    struct qsockaddr addr;
     char *colon;
+    char *p;
+    struct hostent *local;
+    struct qsockaddr addr;
 
     if (COM_CheckParm("-noudp"))
 	return -1;
 
-    if (winsock_initialized == 0) {
-	if (WSAStartup(MAKEWORD(1,1), &winsockdata) != 0) {
+    if (!winsock_initialized) {
+	err = WSAStartup(MAKEWORD(1,1), &winsockdata);
+	if (err) {
 	    Con_SafePrintf("Winsock initialization failed.\n");
 	    return -1;
 	}
     }
     winsock_initialized++;
 
-    /* determine my name */
-    if (gethostname(buff, MAXHOSTNAMELEN) == SOCKET_ERROR) {
-	Con_DPrintf("Winsock TCP/IP Initialization failed.\n");
+    /* determine my name & address */
+    err = gethostname(buff, MAXHOSTNAMELEN);
+    if (err) {
+	Con_Printf("%s: gethostname failed, UDP disabled.\n", __func__);
+	if (--winsock_initialized == 0)
+	    WSACleanup();
+	return -1;
+    }
+    buff[MAXHOSTNAMELEN - 1] = 0;
+
+    blocktime = Sys_DoubleTime();
+    WSASetBlockingHook(BlockingHook);
+    local = gethostbyname(buff);
+    WSAUnhookBlockingHook();
+    if (!local) {
+	Con_Printf("%s: gethostbyname timed out, UDP disabled.\n", __func__);
 	if (--winsock_initialized == 0)
 	    WSACleanup();
 	return -1;
     }
 
     /* if the quake hostname isn't set, set it to the machine name */
-    if (strcmp(hostname.string, "UNNAMED") == 0) {
+    if (!strcmp(hostname.string, "UNNAMED")) {
 	/* see if it's a text IP address (well, close enough) */
 	for (p = buff; *p; p++)
 	    if ((*p < '0' || *p > '9') && *p != '.')
@@ -146,6 +139,8 @@ WINS_Init(void)
 	}
 	Cvar_Set("hostname", buff);
     }
+
+    myAddr = *(struct in_addr *)local->h_addr_list[0];
 
     i = COM_CheckParm("-ip");
     if (i && i < com_argc - 1) {
@@ -214,7 +209,6 @@ WINS_Listen(qboolean state)
     if (state) {
 	if (net_acceptsocket != -1)
 	    return;
-	WINS_GetLocalAddress();
 	if ((net_acceptsocket = WINS_OpenSocket(net_hostport)) == -1)
 	    Sys_Error("%s: Unable to open accept socket", __func__);
 	return;
@@ -393,7 +387,6 @@ WINS_Broadcast(int socket, byte *buf, int len)
     if (socket != net_broadcastsocket) {
 	if (net_broadcastsocket != 0)
 	    Sys_Error("Attempted to use multiple broadcasts sockets");
-	WINS_GetLocalAddress();
 	ret = WINS_MakeSocketBroadcastCapable(socket);
 	if (ret == -1) {
 	    Con_Printf("Unable to make socket broadcast capable\n");
