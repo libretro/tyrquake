@@ -25,8 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "winquake.h"
 
-#define iDirectSoundCreate(a,b,c)	pDirectSoundCreate(a,b,c)
-
 HRESULT (WINAPI * pDirectSoundCreate) (GUID FAR *lpGUID,
 				       LPDIRECTSOUND FAR *lplpDS,
 				       IUnknown FAR *pUnkOuter);
@@ -224,7 +222,7 @@ SNDDMA_InitDirect(void)
 	}
     }
 
-    while ((hresult = iDirectSoundCreate(NULL, &pDS, NULL)) != DS_OK) {
+    while ((hresult = pDirectSoundCreate(NULL, &pDS, NULL)) != DS_OK) {
 	if (hresult != DSERR_ALLOCATED) {
 	    Con_SafePrintf("DirectSound create failed\n");
 	    return SIS_FAILURE;
