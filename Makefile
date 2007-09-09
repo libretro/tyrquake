@@ -23,6 +23,7 @@ OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
 USE_X86_ASM      ?= Y# Compile with x86 asm
 X11BASE          ?= $(X11BASE_GUESS)
 QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
+TARGET_OS        ?= $(HOST_OS)
 
 # ============================================================================
 
@@ -33,38 +34,40 @@ QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 SYSNAME := $(shell uname -s)
 
 ifneq (,$(findstring MINGW32,$(SYSNAME)))
-TARGET_OS = WIN32
+HOST_OS = WIN32
 TOPDIR := $(shell pwd -W)
-EXT = .exe
 else
 ifneq (,$(findstring $(SYSNAME),FreeBSD NetBSD OpenBSD))
-TARGET_OS = UNIX
+HOST_OS = UNIX
 UNIX = bsd
 TOPDIR := $(shell pwd)
-EXT =
 else
 ifneq (,$(findstring $(SYSNAME),Linux))
-TARGET_OS = UNIX
+HOST_OS = UNIX
 UNIX = linux
+#UNIX = null
 TOPDIR := $(shell pwd)
-EXT =
 else
 $(error OS type not detected.)
 endif
 endif
 endif
 
+ifeq ($(TARGET_OS),WIN32)
+EXT = .exe
+ifneq ($(HOST_OS),WIN32)
+TARGET ?= $(MINGW_CROSS_GUESS)
+CC = $(TARGET)-gcc
+STRIP = $(TARGET)-strip
+WINDRES = $(TARGET)-windres
+endif
+else
+EXT =
+endif
+
 # ============================================================================
 # Helper functions
 # ============================================================================
-
-cc-version = $(shell sh $(TOPDIR)/scripts/gcc-version \
-              $(if $(1), $(1), $(CC)))
-
-cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
-             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
-
-GCC_VERSION := $(call cc-version)
 
 # ----------------------------------------------
 # Try to guess the location of X11 includes/libs
@@ -80,6 +83,30 @@ X11BASE_GUESS := $(shell \
             if [ -e $$DIR/include/X11/Xlib.h ] && \
 		[ -e $$DIR/lib/libX11.a ]; then echo $$DIR; break; fi; \
 	done )
+
+# --------------------------------------------------------------------
+# Try to guess the MinGW cross compiler
+# - I think i386-... is the standard naming, but Debian uses i586-...
+# --------------------------------------------------------------------
+
+MINGW_CROSS_GUESS := $(shell \
+	if which i586-mingw32msvc-gcc > /dev/null 2>&1; then \
+		echo i586-mingw32msvc; \
+	else \
+		echo i386-mingw32msvc; \
+	fi)
+
+# --------------------------------
+# GCC version and option checking
+# --------------------------------
+
+cc-version = $(shell sh $(TOPDIR)/scripts/gcc-version \
+              $(if $(1), $(1), $(CC)))
+
+cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
+             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
+
+GCC_VERSION := $(call cc-version)
 
 # ---------------------
 # Special include dirs
@@ -114,7 +141,8 @@ endif
 # Define some build variables
 # ---------------------------------------
 
-STRIP ?= strip
+STRIP   ?= strip
+WINDRES ?= windres
 
 CFLAGS := $(CFLAGS) -Wall -Wno-trigraphs
 
@@ -251,7 +279,7 @@ cmd_cc_dep_rc = \
 	$(cmd_fixdep)
 
 quiet_cmd_windres_res_rc = '  WINDRES $@'
-      cmd_windres_res_rc = windres -I $(<D) -i $< -O coff -o $@
+      cmd_windres_res_rc = $(WINDRES) -I $(<D) -i $< -O coff -o $@
 
 define do_windres_res_rc
 	@$(cmd_cc_dep_rc);
