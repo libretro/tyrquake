@@ -42,6 +42,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "wad.h"
 #include "winquake.h"
 
+#ifdef NQ_HACK
+#include "host.h"
+#endif
+#ifdef QW_HACK
+#include "client.h"
+#endif
+
 #include "resource.h"
 
 #define MAX_MODE_LIST	80
@@ -288,7 +295,7 @@ VID_CheckAdequateMem(int width, int height)
      * z, and surface buffers
      */
     if ((host_parms.memsize - tbuffersize + SURFCACHE_SIZE_AT_320X200 +
-	 0x10000 * 3) < MINIMUM_MEMORY)
+	 0x10000 * 3) < minimum_memory)
 	return false;
 
     return true;
@@ -314,7 +321,7 @@ VID_AllocBuffers(int width, int height)
      * z, and surface buffers
      */
     if ((host_parms.memsize - tbuffersize + SURFCACHE_SIZE_AT_320X200 +
-	 0x10000 * 3) < MINIMUM_MEMORY) {
+	 0x10000 * 3) < minimum_memory) {
 	Con_SafePrintf("Not enough memory for video mode\n");
 	return false;
     }

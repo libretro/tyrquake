@@ -136,6 +136,8 @@ int host_framecount;
 
 int host_hunklevel;
 
+int minimum_memory;
+
 byte *host_basepal;
 byte *host_colormap;
 
@@ -1446,12 +1448,13 @@ Host_Init(quakeparms_t *parms)
 
     Sys_mkdir("qw");
 
+    minimum_memory = MINIMUM_MEMORY;
     if (COM_CheckParm("-minmemory"))
-	parms->memsize = MINIMUM_MEMORY;
+	parms->memsize = minimum_memory;
 
     host_parms = *parms;
 
-    if (parms->memsize < MINIMUM_MEMORY)
+    if (parms->memsize < minimum_memory)
 	Sys_Error("Only %4.1f megs of memory reported, can't execute game",
 		  parms->memsize / (float)0x100000);
 

@@ -30,7 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "d_local.h"
 #include "draw.h"
-#include "host.h"
 #include "input.h"
 #include "keys.h"
 #include "menu.h"
@@ -42,6 +41,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.h"
 #include "wad.h"
 #include "winquake.h"
+
+#ifdef NQ_HACK
+#include "host.h"
+#endif
+#ifdef QW_HACK
+#include "client.h"
+#endif
 
 #include "resource.h"
 

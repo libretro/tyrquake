@@ -392,6 +392,7 @@ extern char modellist_name[];
 extern char soundlist_name[];
 
 extern int fps_count;
+extern int minimum_memory;
 
 //
 // cl_input
