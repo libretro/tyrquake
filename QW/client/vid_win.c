@@ -1790,7 +1790,7 @@ VID_SetPalette(unsigned char *palette)
     palette_t pal[256];
     HDC hdc;
 
-    if (!Minimized) {
+    if (window_visible()) {
 	palette_changed = true;
 
 	// make sure we have the static colors if we're the active app
