@@ -30,8 +30,8 @@ HRESULT (WINAPI * pDirectSoundCreate) (GUID FAR *lpGUID,
 				       IUnknown FAR *pUnkOuter);
 
 // 64K is > 1 second at 16-bit, 22050 Hz
-#define	WAV_BUFFERS		64
-#define	WAV_MASK		0x3F
+#define	WAV_BUFFERS		0x40
+#define	WAV_MASK		(WAV_BUFFERS - 1)
 #define	WAV_BUFFER_SIZE		0x0400
 #define SECONDARY_BUFFER_SIZE	0x10000
 
