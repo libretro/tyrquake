@@ -446,7 +446,7 @@ Sbar_SortTeams(void)
 	// find his team in the list
 	t[16] = 0;
 	strncpy(t, Info_ValueForKey(s->userinfo, "team"), 16);
-	if (!t || !t[0])
+	if (!t[0])
 	    continue;		// not on team
 	for (j = 0; j < scoreboardteams; j++)
 	    if (!strcmp(teams[j].team, t)) {
