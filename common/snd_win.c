@@ -222,22 +222,14 @@ SNDDMA_InitDirect(void)
 	}
     }
 
-    while ((hresult = pDirectSoundCreate(NULL, &pDS, NULL)) != DS_OK) {
+    hresult = pDirectSoundCreate(NULL, &pDS, NULL);
+    if (hresult != DS_OK) {
 	if (hresult != DSERR_ALLOCATED) {
 	    Con_SafePrintf("DirectSound create failed\n");
 	    return SIS_FAILURE;
 	}
-
-	if (MessageBox(NULL,
-		       "The sound hardware is in use by another app.\n\n"
-		       "Select Retry to try to start sound again or Cancel to run Quake with no sound.",
-		       "Sound not available",
-		       MB_RETRYCANCEL | MB_SETFOREGROUND |
-		       MB_ICONEXCLAMATION) != IDRETRY) {
-	    Con_SafePrintf("DirectSoundCreate failure\n"
-			   "  hardware already in use\n");
-	    return SIS_NOTAVAIL;
-	}
+	Con_SafePrintf("DirectSoundCreate failure: hardware already in use\n");
+	return SIS_NOTAVAIL;
     }
 
     dscaps.dwSize = sizeof(dscaps);
@@ -426,24 +418,15 @@ SNDDMA_InitWav(void)
     format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
 
     /* Open a waveform device for output using window callback. */
-    while ((hr = waveOutOpen((LPHWAVEOUT) & hWaveOut, WAVE_MAPPER,
-			     &format,
-			     0, 0L, CALLBACK_NULL)) != MMSYSERR_NOERROR) {
+    hr = waveOutOpen((LPHWAVEOUT) & hWaveOut, WAVE_MAPPER, &format,
+		     0, 0L, CALLBACK_NULL);
+    if (hr != MMSYSERR_NOERROR) {
 	if (hr != MMSYSERR_ALLOCATED) {
 	    Con_SafePrintf("waveOutOpen failed\n");
 	    return false;
 	}
-
-	if (MessageBox(NULL,
-		       "The sound hardware is in use by another app.\n\n"
-		       "Select Retry to try to start sound again or Cancel to run Quake with no sound.",
-		       "Sound not available",
-		       MB_RETRYCANCEL | MB_SETFOREGROUND |
-		       MB_ICONEXCLAMATION) != IDRETRY) {
-	    Con_SafePrintf("waveOutOpen failure;\n"
-			   "  hardware already in use\n");
-	    return false;
-	}
+	Con_SafePrintf("waveOutOpen failure; hardware already in use\n");
+	return false;
     }
 
     /*
