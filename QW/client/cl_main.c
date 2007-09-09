@@ -1484,35 +1484,19 @@ Host_Init(quakeparms_t *parms)
     host_colormap = (byte *)COM_LoadHunkFile("gfx/colormap.lmp");
     if (!host_colormap)
 	Sys_Error("Couldn't load gfx/colormap.lmp");
-#ifdef __linux__
-    CDAudio_Init();
+
     VID_Init(host_basepal);
-    IN_Init();
     Draw_Init();
     SCR_Init();
     R_Init();
-
-//      S_Init ();              // S_Init is now done as part of VID. Sigh.
+    Sbar_Init();
 
     cls.state = ca_disconnected;
-    Sbar_Init();
-    CL_Init();
-#else
-    VID_Init(host_basepal);
-    Draw_Init();
-    SCR_Init();
-    R_Init();
-//      S_Init ();              // S_Init is now done as part of VID. Sigh.
-#ifdef GLQUAKE
+
     S_Init();
-#endif
-
-    cls.state = ca_disconnected;
     CDAudio_Init();
-    Sbar_Init();
     CL_Init();
     IN_Init();
-#endif
 
     Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();

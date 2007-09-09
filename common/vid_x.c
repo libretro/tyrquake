@@ -502,10 +502,6 @@ VID_Init(unsigned char *palette)
     int MajorVersion, MinorVersion;
     Window root;
 
-#ifdef QW_HACK
-    S_Init();
-#endif
-
     ignorenext = 0;		// FIXME - what's this for??
     vid.width = 320;
     vid.height = 200;

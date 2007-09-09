@@ -846,45 +846,19 @@ Host_Init(quakeparms_t *parms)
 	if (!host_colormap)
 	    Sys_Error("Couldn't load gfx/colormap.lmp");
 
-#if 0
-#ifndef _WIN32
-	/*
-	 * On non win32, mouse comes before video for security reasons
-	 * FIXME - huh?
-	 */
-	IN_Init ();
-#endif
-#endif
-
 	VID_Init(host_basepal);
 
 	Draw_Init();
 	SCR_Init();
 	R_Init();
 
-#ifndef	_WIN32
-	/*
-	 * On Win32, sound initialization has to come before video
-	 * initialization, so we can put up a popup if the sound hardware is
-	 * in use
-	 */
 	S_Init();
-#else
-
-#ifdef	GLQUAKE
-	// FIXME: doesn't use the new one-window approach yet
-	S_Init();
-#endif
-
-#endif // _WIN32
 	CDAudio_Init();
+
 	Sbar_Init();
 	CL_Init();
 
-	//#ifdef _WIN32
-	// on non win32, mouse comes before video for security reasons
 	IN_Init();
-	//#endif
     }
 
     Hunk_AllocName(0, "-HOST_HUNKLEVEL-");

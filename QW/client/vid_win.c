@@ -2096,18 +2096,10 @@ VID_Init(unsigned char *palette)
     if (hwnd_dialog)
 	DestroyWindow(hwnd_dialog);
 
-    /*
-     * sound initialization has to go here, preceded by a windowed mode set,
-     * so there's a window for DirectSound to work with but we're not yet
-     * fullscreen so the "hardware already in use" dialog is visible if it
-     * gets displayed
-     */
-
     /* keep the window minimized until we're ready for the first mode set */
     hide_window = true;
     VID_SetMode(VID_MODE_WINDOWED, palette);
     hide_window = false;
-    S_Init();
 
     vid_initialized = true;
 

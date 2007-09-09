@@ -832,10 +832,6 @@ VID_Init(unsigned char *palette)
     qboolean vidmode_ext = false;
     int MajorVersion, MinorVersion;
 
-#ifdef QW_HACK
-    S_Init();
-#endif
-
     VID_InitCvars();
 
     vid.maxwarpwidth = WARP_WIDTH;
