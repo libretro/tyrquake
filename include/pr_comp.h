@@ -177,7 +177,7 @@ typedef struct {
     int32_t numfunctions;	/* function 0 is an empty */
 
     int32_t ofs_strings;
-    int32_t numstrings;		/* first string is a null string */
+    int32_t strings_size;	/* first string is a null string */
 
     int32_t ofs_globals;
     int32_t numglobals;

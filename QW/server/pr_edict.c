@@ -995,12 +995,10 @@ PR_LoadProgs(void)
 
     pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
     pr_strings = (char *)progs + progs->ofs_strings;
-    pr_strings_size = 0;
-    for (i = 0; i < progs->numstrings; i++) {
-	if (progs->ofs_strings + pr_strings_size >= com_filesize)
-	    SV_Error("progs.dat strings extend past end of file\n");
-	pr_strings_size += strlen(pr_strings + pr_strings_size) + 1;
-    }
+    pr_strings_size = progs->strings_size;
+    if (progs->ofs_strings + pr_strings_size >= com_filesize)
+	SV_Error("progs.dat strings extend past end of file\n");
+
     pr_globaldefs = (ddef_t *)((byte *)progs + progs->ofs_globaldefs);
     pr_fielddefs = (ddef_t *)((byte *)progs + progs->ofs_fielddefs);
     pr_statements = (dstatement_t *)((byte *)progs + progs->ofs_statements);
