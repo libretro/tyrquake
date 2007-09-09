@@ -2689,7 +2689,6 @@ MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	wParam <<= 16;
     }
 
-
     switch (uMsg) {
     case WM_CREATE:
 	break;

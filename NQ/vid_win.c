@@ -2684,6 +2684,11 @@ MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     HDC hdc;
     PAINTSTRUCT ps;
 
+    if (uMsg == uiWheelMessage) {
+	uMsg = WM_MOUSEWHEEL;
+	wParam <<= 16;
+    }
+
     switch (uMsg) {
     case WM_CREATE:
 	break;
