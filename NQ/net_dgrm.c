@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <windows.h>
 #include <winsock.h>
 #else
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
