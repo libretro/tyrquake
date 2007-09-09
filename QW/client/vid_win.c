@@ -2298,7 +2298,7 @@ VID_Update(vrect_t *rects)
     }
 
 // handle the mouse state when windowed if that's changed
-    if (modestate == MS_WINDOWED) {
+    if (modestate == MS_WINDOWED && _windowed_mouse.value) {
 	if (!_windowed_mouse.value) {
 	    if (windowed_mouse) {
 		IN_DeactivateMouse();
@@ -2306,7 +2306,6 @@ VID_Update(vrect_t *rects)
 	    }
 	    windowed_mouse = false;
 	} else {
-	    windowed_mouse = true;
 	    if (key_dest == key_game && !mouseactive && ActiveApp) {
 		IN_ActivateMouse();
 		IN_HideMouse();
@@ -2314,6 +2313,7 @@ VID_Update(vrect_t *rects)
 		IN_DeactivateMouse();
 		IN_ShowMouse();
 	    }
+	    windowed_mouse = true;
 	}
     }
 }
@@ -2638,8 +2638,7 @@ AppActivate(BOOL fActive, BOOL minimize)
 		}
 		IN_DeactivateMouse();
 		IN_ShowMouse();
-	    } else if ((modestate == MS_WINDOWED)
-		       && _windowed_mouse.value /* && mouseactive */ ) {
+	    } else if ((modestate == MS_WINDOWED) && _windowed_mouse.value) {
 		IN_DeactivateMouse();
 		IN_ShowMouse();
 	    }
