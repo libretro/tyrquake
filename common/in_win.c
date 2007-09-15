@@ -604,11 +604,21 @@ IN_MouseMove(usercmd_t *cmd)
 
 	    switch (od.dwOfs) {
 	    case DIMOFS_X:
-		mx += od.dwData;
+		mx += (int)od.dwData;
 		break;
 
 	    case DIMOFS_Y:
-		my += od.dwData;
+		my += (int)od.dwData;
+		break;
+
+	    case DIMOFS_Z:
+		if ((int)od.dwData > 0) {
+		    Key_Event(K_MWHEELUP, true);
+		    Key_Event(K_MWHEELUP, false);
+		} else {
+		    Key_Event(K_MWHEELDOWN, true);
+		    Key_Event(K_MWHEELDOWN, false);
+		}
 		break;
 
 	    case DIMOFS_BUTTON0:
