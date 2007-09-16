@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
+#include "mathlib.h"
 #include "quakedef.h"
 #include "sys.h"
 #include "zone.h"
@@ -237,6 +238,40 @@ Z_Malloc(int size)
     return buf;
 }
 
+/*
+ * ========================
+ * Z_Realloc
+ * ========================
+ */
+void *
+Z_Realloc(void *ptr, int size)
+{
+    memblock_t *block;
+    int orig_size;
+    void *ret;
+
+    if (!ptr)
+	return Z_Malloc(size);
+
+    block = (memblock_t *)((byte *)ptr - sizeof(memblock_t));
+    if (block->id != ZONEID)
+	Sys_Error("%s: realloced a pointer without ZONEID", __func__);
+    if (!block->tag)
+	Sys_Error("%s: realloced a freed pointer", __func__);
+
+    orig_size = block->size;
+    orig_size -= sizeof(memblock_t);
+    orig_size -= 4;
+
+    Z_Free(ptr);
+    ret = Z_TagMalloc(size, 1);
+    if (!ret)
+	Sys_Error("%s: failed on allocation of %i bytes", __func__, size);
+    if (ret != ptr)
+	memmove(ret, ptr, qmin(orig_size, size));
+
+    return ret;
+}
 
 /* FIXME - unused; Make a console command? */
 #if 0
