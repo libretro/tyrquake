@@ -18,12 +18,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "console.h"
 #include "pr_comp.h"
 #include "progs.h"
-#include "qwsvdef.h"
 #include "server.h"
 #include "sys.h"
 #include "zone.h"
+
+#ifdef NQ_HACK
+#include "host.h"
+#include "quakedef.h"
+#endif
+#ifdef QW_HACK
+#include "qwsvdef.h"
+#endif
 
 typedef struct {
     int s;
@@ -38,12 +46,9 @@ int pr_depth;
 int localstack[LOCALSTACK_SIZE];
 int localstack_used;
 
-
 qboolean pr_trace;
 dfunction_t *pr_xfunction;
 int pr_xstatement;
-
-
 int pr_argc;
 
 char *pr_opnames[] = {
@@ -194,7 +199,6 @@ PR_StackTrace(void)
     pr_stack[pr_depth].f = pr_xfunction;
     for (i = pr_depth; i >= 0; i--) {
 	f = pr_stack[i].f;
-
 	if (!f)
 	    Con_Printf("<NO FUNCTION>\n");
 	else
@@ -265,9 +269,15 @@ PR_RunError(char *error, ...)
     PR_StackTrace();
     Con_Printf("%s\n", string);
 
-    pr_depth = 0;		// dump the stack so SV_Error can shutdown functions
+    /* dump the stack so SV/Host_Error can shutdown functions */
+    pr_depth = 0;
 
+#ifdef NQ_HACK
+    Host_Error("Program error");
+#endif
+#ifdef QW_HACK
     SV_Error("Program error");
+#endif
 }
 
 /*
@@ -331,7 +341,12 @@ PR_LeaveFunction(void)
     int i, c;
 
     if (pr_depth <= 0)
+#ifdef NQ_HACK
+	Sys_Error("prog stack underflow");
+#endif
+#ifdef QW_HACK
 	SV_Error("prog stack underflow");
+#endif
 
 // restore locals from the stack
     c = pr_xfunction->locals;
@@ -371,7 +386,12 @@ PR_ExecuteProgram(func_t fnum)
     if (!fnum || fnum >= progs->numfunctions) {
 	if (pr_global_struct->self)
 	    ED_Print(PROG_TO_EDICT(pr_global_struct->self));
+#ifdef NQ_HACK
+	Host_Error("PR_ExecuteProgram: NULL function");
+#endif
+#ifdef QW_HACK
 	SV_Error("PR_ExecuteProgram: NULL function");
+#endif
     }
 
     f = &pr_functions[fnum];
@@ -622,7 +642,8 @@ PR_ExecuteProgram(func_t fnum)
 
 	    newf = &pr_functions[a->function];
 
-	    if (newf->first_statement < 0) {	// negative statements are built in functions
+	    /* negative statements are built in functions */
+	    if (newf->first_statement < 0) {
 		i = -newf->first_statement;
 		if (i >= pr_numbuiltins)
 		    PR_RunError("Bad builtin call number");
@@ -657,7 +678,6 @@ PR_ExecuteProgram(func_t fnum)
 	    PR_RunError("Bad opcode %i", st->op);
 	}
     }
-
 }
 
 /*----------------------*/
@@ -688,8 +708,14 @@ PR_GetString(int num)
     else if (num < 0 && num >= -num_prstr)
 	s = pr_strtbl[-num - 1];
     else
+#ifdef NQ_HACK
+	Host_Error("%s: invalid string offset %d (%d to %d valid)\n",
+		 __func__, num, -num_prstr, pr_strings_size - 2);
+#endif
+#ifdef QW_HACK
 	SV_Error("%s: invalid string offset %d (%d to %d valid)\n",
 		 __func__, num, -num_prstr, pr_strings_size - 2);
+#endif
 
     return s;
 }
