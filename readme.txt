@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2007-08-18
-Version: 	0.57
+Date:		2007-09-16
+Version: 	0.58
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -22,9 +22,12 @@ feel of the game.
 
 Building:
 ---------
-The build process was cleaned up a bit in version 0.53, so now all you should
-need to do it type 'make'. This should build all five targets. For my Windows
-builds, I'm using MinGW with Msys.
+All you should need to do to get a regular build for your system is
+type 'make'. This should build all five executable targets. Windows
+builds can be done using MinGW and Msys on a Windows host, or by cross
+compiling with a suitable MinGW cross compiler. As long as your cross
+compiler is in your path somewhere, "make TARGET_OS=WIN32" should be
+all you need.
 
 If you're in a hurry and only want to build one target, you can type 'make
 prepare' (this sets up the build directories) followed by 'make <target>' -
@@ -36,6 +39,14 @@ you can select by setting Makefile variables:
     or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.58
+=====
+- Various net fixes and cleanups from O.Sezer
+- Fixed mouse wheel support with MS "Direct Input" and made direct input the
+  default (disable with -nodinput).
+- Added some cross compiling support to the main makefile (MinGW32 target)
+- Remove the MAX_PRSTR limit (was set too low anyway) 
 
 v0.57
 =====
