@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "progs.h"
 #include "server.h"
 #include "sys.h"
+#include "zone.h"
 
 typedef struct {
     int s;
@@ -660,13 +661,19 @@ PR_ExecuteProgram(func_t fnum)
 
 /*----------------------*/
 
-#define MAX_PRSTR 2048
-static char *pr_strtbl[MAX_PRSTR];
+#define PR_STRTBL_CHUNK 256
+static char **pr_strtbl = NULL;
+static int pr_strtbl_size;
 static int num_prstr;
 
 void
 PR_InitStringTable(void)
 {
+    if (pr_strtbl) {
+	Z_Free(pr_strtbl);
+	pr_strtbl = NULL;
+    }
+    pr_strtbl_size = 0;
     num_prstr = 0;
 }
 
@@ -678,7 +685,7 @@ PR_GetString(int num)
     if (num >= 0 && num < pr_strings_size - 1)
 	s = pr_strings + num;
     else if (num < 0 && num >= -num_prstr)
-	s = pr_strtbl[-num];
+	s = pr_strtbl[-num - 1];
     else
 	Host_Error("%s: invalid string offset %d (%d to %d valid)\n",
 		 __func__, num, -num_prstr, pr_strings_size - 2);
@@ -692,15 +699,19 @@ PR_SetString(char *s)
     int i;
 
     if (s - pr_strings < 0 || s - pr_strings > pr_strings_size - 2) {
-	for (i = 0; i <= num_prstr; i++)
+	for (i = 0; i < num_prstr; i++)
 	    if (pr_strtbl[i] == s)
 		break;
 	if (i < num_prstr)
-	    return -i;
-	if (num_prstr == MAX_PRSTR - 1)
-	    Sys_Error("MAX_PRSTR");
-	num_prstr++;
+	    return -i - 1;
+	if (num_prstr == pr_strtbl_size) {
+	    pr_strtbl_size += PR_STRTBL_CHUNK;
+	    pr_strtbl = Z_Realloc(pr_strtbl, pr_strtbl_size * sizeof(char *));
+	    Con_DPrintf("%s: Progs string table grew to %d entries.\n",
+			__func__, pr_strtbl_size);
+	}
 	pr_strtbl[num_prstr] = s;
+	num_prstr++;
 	return -num_prstr;
     }
     return (int)(s - pr_strings);
