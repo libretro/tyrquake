@@ -428,7 +428,7 @@ IN_StartupMouse(void)
 
     mouseinitialized = true;
 
-    if (COM_CheckParm("-dinput")) {
+    if (!COM_CheckParm("-nodinput")) {
 	dinput = IN_InitDInput();
 
 	if (dinput) {
