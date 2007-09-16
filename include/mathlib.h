@@ -31,6 +31,20 @@ typedef int fixed4_t;
 typedef int fixed8_t;
 typedef int fixed16_t;
 
+/* min and max macros with type checking */
+#define qmax(a,b) ({       \
+    typeof(a) a_ = (a);   \
+    typeof(b) b_ = (b);   \
+    (void)(&a_ == &b_);   \
+    (a_ > b_) ? a_ : b_;  \
+})
+#define qmin(a,b) ({       \
+    typeof(a) a_ = (a);   \
+    typeof(b) b_ = (b);   \
+    (void)(&a_ == &b_);   \
+    (a_ < b_) ? a_ : b_;  \
+})
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846	// matches value in gcc v2 math.h
 #endif

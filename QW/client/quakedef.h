@@ -36,29 +36,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "cvar.h"
 
-#ifndef max
-#if 0
-#define max(a,b) ((a) > (b) ? (a) : (b))
-#define min(a,b) ((a) < (b) ? (a) : (b))
-#else
-
-// Minimal type checking...
-#define max(a,b) ({       \
-    typeof(a) a_ = (a);   \
-    typeof(b) b_ = (b);   \
-    (void)(&a_ == &b_);   \
-    (a_ > b_) ? a_ : b_;  \
-})
-#define min(a,b) ({       \
-    typeof(a) a_ = (a);   \
-    typeof(b) b_ = (b);   \
-    (void)(&a_ == &b_);   \
-    (a_ < b_) ? a_ : b_;  \
-})
-
-#endif
-#endif
-
 //=============================================================================
 
 // the host system specifies the base of the directory tree, the

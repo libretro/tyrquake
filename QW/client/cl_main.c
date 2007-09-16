@@ -1303,9 +1303,9 @@ Host_SimulationTime(float time)
 	oldrealtime = 0;
 
     if (cl_maxfps.value)
-	fps = max(30.0, min(cl_maxfps.value, 72.0));
+	fps = qmax(30.0, qmin(cl_maxfps.value, 72.0));
     else
-	fps = max(30.0, min(rate.value / 80.0, 72.0));
+	fps = qmax(30.0, qmin(rate.value / 80.0, 72.0));
 
     if (!cls.timedemo && (realtime + time) - oldrealtime < 1.0 / fps)
 	return false;		// framerate is too high
@@ -1340,9 +1340,9 @@ Host_Frame(float time)
 	oldrealtime = 0;
 
     if (cl_maxfps.value)
-	fps = max(30.0f, min(cl_maxfps.value, 72.0f));
+	fps = qmax(30.0f, qmin(cl_maxfps.value, 72.0f));
     else
-	fps = max(30.0f, min(rate.value / 80.0f, 72.0f));
+	fps = qmax(30.0f, qmin(rate.value / 80.0f, 72.0f));
 
     if (!cls.timedemo && realtime - oldrealtime < 1.0 / fps)
 	return;		// framerate is too high

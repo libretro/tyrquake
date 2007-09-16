@@ -181,7 +181,7 @@ SCR_EraseCenterString(void)
     // FIXME - min/signed/unsigned?
     scr_copytop = 1;
     Draw_TileClear(0, y, vid.width,
-		   min(8 * scr_erase_lines, ((int)vid.height) - y - 1));
+		   qmin(8 * scr_erase_lines, ((int)vid.height) - y - 1));
 }
 
 
