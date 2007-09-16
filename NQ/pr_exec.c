@@ -660,8 +660,15 @@ PR_ExecuteProgram(func_t fnum)
 
 /*----------------------*/
 
-char *pr_strtbl[MAX_PRSTR];
-int num_prstr;
+#define MAX_PRSTR 2048
+static char *pr_strtbl[MAX_PRSTR];
+static int num_prstr;
+
+void
+PR_InitStringTable(void)
+{
+    num_prstr = 0;
+}
 
 char *
 PR_GetString(int num)
