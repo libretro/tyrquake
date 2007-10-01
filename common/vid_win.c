@@ -2104,23 +2104,18 @@ VID_Init(unsigned char *palette)
 	DestroyWindow(hwnd_dialog);
 
     /* keep the window minimized until we're ready for the first mode set */
-    hide_window = true;
-    VID_SetMode(VID_MODE_WINDOWED, palette);
     hide_window = false;
+    if (!VID_SetMode(VID_MODE_WINDOWED, palette)) {
+	force_mode_set = true;
+	VID_SetMode(vid_default, palette);
+	force_mode_set = false;
+    }
 
     vid_initialized = true;
-
-    force_mode_set = true;
-    VID_SetMode(vid_default, palette);
-    force_mode_set = false;
-
     vid_realmode = vid_modenum;
-
     VID_SetPalette(palette);
-
     vid_menudrawfn = VID_MenuDraw;
     vid_menukeyfn = VID_MenuKey;
-
     strcpy(badmode.modedesc, "Bad mode");
 }
 
@@ -2242,7 +2237,7 @@ VID_Update(vrect_t *rects)
 	rects = &rect;
     }
 
-    if (firstupdate) {
+    if (firstupdate && host_initialized) {
 	if (modestate == MS_WINDOWED) {
 	    GetWindowRect(mainwindow, &trect);
 
@@ -2261,9 +2256,8 @@ VID_Update(vrect_t *rects)
 	    }
 	}
 
-	if ((_vid_default_mode_win.value != vid_default) &&
-	    (!startwindowed
-	     || (_vid_default_mode_win.value < VID_MODE_FULLSCREEN_DEFAULT))) {
+	if (!startwindowed ||
+	    _vid_default_mode_win.value < VID_MODE_FULLSCREEN_DEFAULT) {
 	    firstupdate = 0;
 
 	    if (COM_CheckParm("-resetwinpos")) {
