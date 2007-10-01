@@ -110,7 +110,8 @@ extern int net_drop;		/* packets dropped before this one */
 void Netchan_Init(void);
 void Netchan_Transmit(netchan_t *chan, int length, byte *data);
 void Netchan_OutOfBand(netadr_t adr, int length, byte *data);
-void Netchan_OutOfBandPrint(netadr_t adr, char *format, ...);
+void Netchan_OutOfBandPrint(netadr_t adr, const char *format, ...)
+    __attribute__((format(printf,2,3)));
 qboolean Netchan_Process(netchan_t *chan);
 void Netchan_Setup(netchan_t *chan, netadr_t adr, int qport);
 

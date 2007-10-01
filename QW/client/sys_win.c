@@ -59,7 +59,7 @@ void Sys_PopFPCW(void);
 void Sys_PushFPCW_SetHigh(void);
 
 void
-Sys_DebugLog(char *file, char *fmt, ...)
+Sys_DebugLog(const char *file, const char *fmt, ...)
 {
     va_list argptr;
     static char data[MAX_PRINTMSG];
@@ -229,7 +229,7 @@ Sys_Init(void)
 
 
 void
-Sys_Error(char *error, ...)
+Sys_Error(const char *error, ...)
 {
     va_list argptr;
     char text[MAX_PRINTMSG];
@@ -250,7 +250,7 @@ Sys_Error(char *error, ...)
 }
 
 void
-Sys_Printf(char *fmt, ...)
+Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
 

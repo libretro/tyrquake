@@ -67,7 +67,7 @@ Sys_Error
 ================
 */
 void
-Sys_Error(char *error, ...)
+Sys_Error(const char *error, ...)
 {
     va_list argptr;
     char text[MAX_PRINTMSG];
@@ -153,7 +153,7 @@ Sys_Printf
 ================
 */
 void
-Sys_Printf(char *fmt, ...)
+Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
 

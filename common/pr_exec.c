@@ -256,7 +256,7 @@ Aborts the currently executing function
 ============
 */
 void
-PR_RunError(char *error, ...)
+PR_RunError(const char *error, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];

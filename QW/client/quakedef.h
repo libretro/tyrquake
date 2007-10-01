@@ -79,19 +79,19 @@ extern byte *host_basepal;
 extern byte *host_colormap;
 extern int host_framecount;	// incremented every frame, never reset
 extern double realtime;		// not bounded in any way, changed at
-
-										// start of every frame, never reset
+				// start of every frame, never reset
 
 void Host_ServerFrame(void);
 void Host_InitCommands(void);
 void Host_Init(quakeparms_t *parms);
 void Host_Shutdown(void);
-void Host_Error(char *error, ...);
-void Host_EndGame(char *message, ...);
+void Host_Error(const char *error, ...) __attribute__((format(printf,1,2)));
+void Host_EndGame(const char *message, ...) __attribute__((format(printf,1,2)));
 qboolean Host_SimulationTime(float time);
 void Host_Frame(float time);
 void Host_Quit_f(void);
-void Host_ClientCommands(char *fmt, ...);
+void Host_ClientCommands(const char *fmt, ...)
+    __attribute__((format(printf,1,2)));
 void Host_ShutdownServer(qboolean crash);
 
 extern qboolean msg_suppress_1;	// suppresses resolution and cache size console

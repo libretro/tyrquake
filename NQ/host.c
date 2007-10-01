@@ -105,7 +105,7 @@ Host_EndGame
 ================
 */
 void
-Host_EndGame(char *message, ...)
+Host_EndGame(const char *message, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];
@@ -137,7 +137,7 @@ This shuts down both the client and server
 ================
 */
 void
-Host_Error(char *error, ...)
+Host_Error(const char *error, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];
@@ -298,7 +298,7 @@ FIXME: make this just a stuffed echo?
 =================
 */
 void
-SV_ClientPrintf(char *fmt, ...)
+SV_ClientPrintf(const char *fmt, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];
@@ -319,7 +319,7 @@ Sends text to all active clients
 =================
 */
 void
-SV_BroadcastPrintf(char *fmt, ...)
+SV_BroadcastPrintf(const char *fmt, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];
@@ -344,7 +344,7 @@ Send text over to the client to be executed
 =================
 */
 void
-Host_ClientCommands(char *fmt, ...)
+Host_ClientCommands(const char *fmt, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];

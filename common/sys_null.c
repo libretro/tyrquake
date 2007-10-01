@@ -157,12 +157,12 @@ Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
 }
 
 void
-Sys_DebugLog(char *file, char *fmt, ...)
+Sys_DebugLog(const char *file, const char *fmt, ...)
 {
 }
 
 void
-Sys_Error(char *error, ...)
+Sys_Error(const char *error, ...)
 {
     va_list argptr;
 
@@ -176,7 +176,7 @@ Sys_Error(char *error, ...)
 }
 
 void
-Sys_Printf(char *fmt, ...)
+Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
 

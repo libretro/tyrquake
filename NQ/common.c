@@ -1060,7 +1060,7 @@ get_va_buffer(void)
 }
 
 char *
-va(char *format, ...)
+va(const char *format, ...)
 {
     va_list argptr;
     char *buf;

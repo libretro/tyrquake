@@ -145,7 +145,7 @@ void COM_FileBase(const char *in, char *out);
 void COM_DefaultExtension(char *path, const char *extension);
 int COM_CheckExtension(const char *path, const char *extn);
 
-char *va(char *format, ...);
+char *va(const char *format, ...) __attribute__((format(printf,1,2)));
 
 // does a varargs printf into a temp buffer
 

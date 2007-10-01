@@ -124,7 +124,7 @@ extern int pr_xstatement;
 
 extern unsigned short pr_crc;
 
-void PR_RunError(char *error, ...);
+void PR_RunError(const char *error, ...) __attribute__((format(printf,1,2)));
 
 void ED_PrintEdicts(void);
 void ED_PrintNum(int ent);

@@ -76,7 +76,7 @@ NET_Ban_f(void)
 {
     char addrStr[32];
     char maskStr[32];
-    void (*print)(char *fmt, ...);
+    void (*print)(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
     if (cmd_source == src_command) {
 	if (!sv.active) {

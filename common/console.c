@@ -232,7 +232,7 @@ If no console is visible, the notify window will pop up.
 ================
 */
 void
-Con_Print(char *txt)
+Con_Print(const char *txt)
 {
     int y;
     int c, l;
@@ -305,7 +305,7 @@ Handles cursor positioning, line wrapping, etc
 ================
 */
 void
-Con_Printf(char *fmt, ...)
+Con_Printf(const char *fmt, ...)
 {
     va_list argptr;
     char msg[MAX_PRINTMSG];
@@ -365,7 +365,7 @@ A Con_Printf that only shows up if the "developer" cvar is set
 ================
 */
 void
-Con_DPrintf(char *fmt, ...)
+Con_DPrintf(const char *fmt, ...)
 {
     va_list argptr;
     char msg[MAX_PRINTMSG];
@@ -657,7 +657,7 @@ Okay to call even when the screen can't be updated
 ==================
 */
 void
-Con_SafePrintf(char *fmt, ...)
+Con_SafePrintf(const char *fmt, ...)
 {
     va_list argptr;
     char msg[MAX_PRINTMSG];

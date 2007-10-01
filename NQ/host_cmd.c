@@ -74,7 +74,7 @@ Host_Status_f(void)
     int minutes;
     int hours = 0;
     int j;
-    void (*print) (char *fmt, ...);
+    void (*print)(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
     if (cmd_source == src_command) {
 	if (!sv.active) {

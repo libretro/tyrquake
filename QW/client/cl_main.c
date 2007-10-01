@@ -1203,7 +1203,7 @@ Call this to drop to a console without exiting the qwcl
 ================
 */
 void
-Host_EndGame(char *message, ...)
+Host_EndGame(const char *message, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];
@@ -1228,7 +1228,7 @@ This shuts down the client and exits qwcl
 ================
 */
 void
-Host_Error(char *error, ...)
+Host_Error(const char *error, ...)
 {
     va_list argptr;
     char string[MAX_PRINTMSG];
