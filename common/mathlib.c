@@ -553,7 +553,7 @@ FloorDivMod(double numer, double denom, int *quotient, int *rem)
 
 #ifndef PARANOID
     if (denom <= 0.0)
-	Sys_Error("%s: bad denominator %d", __func__, denom);
+	Sys_Error("%s: bad denominator %lf", __func__, denom);
 
 //      if ((floor(numer) != numer) || (floor(denom) != denom))
 //              Sys_Error ("%s: non-integer numer or denom %f %f", __func__

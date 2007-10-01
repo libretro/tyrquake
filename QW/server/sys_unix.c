@@ -237,7 +237,7 @@ main(int argc, char *argv[])
     if (j)
 	parms.memsize = (int)(Q_atof(com_argv[j + 1]) * 1024 * 1024);
     if ((parms.membase = malloc(parms.memsize)) == NULL)
-	Sys_Error("Can't allocate %ld", parms.memsize);
+	Sys_Error("Can't allocate %d", parms.memsize);
 
     parms.basedir = stringify(QBASEDIR);
 

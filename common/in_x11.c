@@ -150,7 +150,7 @@ IN_GrabMouse(void)
 	    if (err == GrabFrozen)
 		Sys_Error("%s: GrabFrozen", __func__);
 	    if (err == GrabInvalidTime)
-		Sys_Error("%: GrabInvalidTime", __func__);
+		Sys_Error("%s: GrabInvalidTime", __func__);
 	}
 	mouse_grab_active = true;
 

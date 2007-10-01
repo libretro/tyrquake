@@ -203,9 +203,9 @@ UDP_OpenSocket(int port)
     int i;
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-	Sys_Error("%s: socket:", __func__, strerror(errno));
+	Sys_Error("%s: socket: %s", __func__, strerror(errno));
     if (ioctl(newsocket, FIONBIO, &_true) == -1)
-	Sys_Error("%s: ioctl FIONBIO:", __func__, strerror(errno));
+	Sys_Error("%s: ioctl FIONBIO: %s", __func__, strerror(errno));
     address.sin_family = AF_INET;
 
     /* ZOID -- check for interface binding option */
@@ -240,7 +240,7 @@ NET_GetLocalAddress(void)
 
     namelen = sizeof(address);
     if (getsockname(net_socket, (struct sockaddr *)&address, &namelen) == -1)
-	Sys_Error("%s: getsockname:", __func__, strerror(errno));
+	Sys_Error("%s: getsockname: %s", __func__, strerror(errno));
     net_local_adr.port = address.sin_port;
 
     Con_Printf("IP address %s\n", NET_AdrToString(net_local_adr));

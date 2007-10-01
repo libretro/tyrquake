@@ -135,7 +135,7 @@ S_SoundInfo_f(void)
     Con_Printf("%5d samplebits\n", shm->samplebits);
     Con_Printf("%5d submission_chunk\n", shm->submission_chunk);
     Con_Printf("%5d speed\n", shm->speed);
-    Con_Printf("0x%x dma buffer\n", shm->buffer);
+    Con_Printf("%p dma buffer\n", shm->buffer);
     Con_Printf("%5d total_channels\n", total_channels);
 }
 

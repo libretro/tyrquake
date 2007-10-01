@@ -435,8 +435,6 @@ Sys_ConsoleInput(void)
 		    break;
 
 		default:
-		    Con_Printf("Stupid: %d\n",
-			       recs[0].Event.KeyEvent.dwControlKeyState);
 		    if (((ch == 'V' || ch == 'v')
 			 && (recs[0].Event.KeyEvent.
 			     dwControlKeyState & (LEFT_CTRL_PRESSED |

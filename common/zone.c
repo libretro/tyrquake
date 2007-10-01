@@ -613,7 +613,7 @@ Hunk_TempAllocExtend(int size)
     hunk_t *old, *new;
 
     if (!hunk_tempactive)
-	Sys_Error("%s: temp hunk not active");
+	Sys_Error("%s: temp hunk not active", __func__);
 
     old = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
 
