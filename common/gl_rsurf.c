@@ -1179,7 +1179,6 @@ AllocBlock(int w, int h, int *x, int *y)
     }
 
     Sys_Error("%s: full", __func__);
-    return 0;
 }
 
 mvertex_t *r_pcurrentvertbase;

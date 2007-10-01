@@ -850,9 +850,8 @@ RawValuePointer(int axis)
     case JOY_AXIS_V:
 	return &ji.dwVpos;
     }
-    // May as well complain if this happens...
+
     Sys_Error("%s: Invalid axis.", __func__);
-    return NULL;		// FIXME - SysError call doesn't return...
 }
 
 

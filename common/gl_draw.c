@@ -174,7 +174,6 @@ Scrap_AllocBlock(int w, int h, int *x, int *y)
     }
 
     Sys_Error("%s: full", __func__);
-    return 0;
 }
 
 static int scrap_uploads;

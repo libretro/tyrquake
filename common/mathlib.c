@@ -178,7 +178,7 @@ BOPS_Error
 Split out like this for ASM to call.
 ==================
 */
-void
+void __attribute__((noreturn))
 BOPS_Error(void)
 {
     Sys_Error("%s:  Bad signbits", __func__);

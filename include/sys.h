@@ -63,12 +63,12 @@ void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
 
 void Sys_Printf(char *fmt, ...);
 void Sys_DebugLog(char *file, char *fmt, ...);
-void Sys_Error(char *error, ...);
+void Sys_Error(char *error, ...) __attribute__((noreturn));
 
 // send text to the console
 // an error will cause the entire program to exit
 
-void Sys_Quit(void);
+void Sys_Quit(void) __attribute__((noreturn));
 
 double Sys_DoubleTime(void);
 

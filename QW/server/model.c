@@ -1032,9 +1032,8 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 
     i = LittleLong(header->version);
     if (i != BSPVERSION)
-	SV_Error
-	    ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)",
-	     mod->name, i, BSPVERSION);
+	SV_Error("%s: %s has wrong version number (%i should be %i)", __func__,
+		 mod->name, i, BSPVERSION);
 
 // swap all the lumps
     mod_base = (byte *)header;

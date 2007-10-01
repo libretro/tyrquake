@@ -215,7 +215,7 @@ SV_WriteDelta(entity_state_t *from, entity_state_t *to, sizebuf_t *msg,
 	return;			// nothing to send!
     i = to->number | (bits & ~511);
     if (i & U_REMOVE)
-	Sys_Error("U_REMOVE");
+	Sys_Error("%s: U_REMOVE", __func__);
     MSG_WriteShort(msg, i);
 
     if (bits & U_MOREBITS)

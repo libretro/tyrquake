@@ -452,7 +452,6 @@ signal_handler(int sig)
 	VID_SetGammaRamp(saved_gamma_ramp);
     XCloseDisplay(x_disp);
     Sys_Quit();
-    exit(0);
 }
 
 void
@@ -872,7 +871,6 @@ VID_Init(unsigned char *palette)
 	    Sys_Error("VID: Could not open display [%s]", getenv("DISPLAY"));
 	else
 	    Sys_Error("VID: Could not open local display\n");
-	exit(EXIT_FAILURE);
     }
 
     scrnum = DefaultScreen(x_disp);

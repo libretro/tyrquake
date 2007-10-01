@@ -524,7 +524,6 @@ VID_Init(unsigned char *palette)
 	    Sys_Error("VID: Could not open display [%s]", getenv("DISPLAY"));
 	else
 	    Sys_Error("VID: Could not open local display");
-	exit(EXIT_FAILURE);
     }
 
     // Check video mode extension

@@ -559,7 +559,6 @@ CheckTextureExtensions(void)
     if ((bindTexFunc = (BINDTEXFUNCPTR)
 	 wglGetProcAddress((LPCSTR) "glBindTextureEXT")) == NULL) {
 	Sys_Error("GetProcAddress for BindTextureEXT failed");
-	return;
     }
 }
 

@@ -389,9 +389,7 @@ VID_Suspend(MGLDC *dc, m_int flags)
 	return MGL_NO_SUSPEND_APP;
     }
 
-    Sys_Error("%s: called with invalid flags - %x", __func__,
-	      (unsigned)flags);
-    return 0;
+    Sys_Error("%s: called with invalid flags (%x)", __func__, (unsigned)flags);
 }
 
 

@@ -1786,8 +1786,8 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer)
 
     version = LittleLong(pin->version);
     if (version != SPRITE_VERSION)
-	Sys_Error("%s has wrong version number "
-		  "(%i should be %i)", mod->name, version, SPRITE_VERSION);
+	Sys_Error("%s: %s has wrong version number (%i should be %i)",
+		  __func__, mod->name, version, SPRITE_VERSION);
 
     numframes = LittleLong(pin->numframes);
     size = sizeof(msprite_t) + (numframes - 1) * sizeof(psprite->frames);

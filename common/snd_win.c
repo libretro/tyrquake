@@ -590,11 +590,9 @@ SNDDMA_GetDMAPos(void)
     } else {
 	// FIXME - find out if this should happen...
 	Sys_Error("%s: no dsound or wav to init.", __func__);
-	s = 0;			// shut up compiler warning
     }
 
     s >>= sample16;
-
     s &= (shm->samples - 1);
 
     return s;

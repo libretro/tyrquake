@@ -128,7 +128,6 @@ findhandle(void)
 	if (!sys_handles[i])
 	    return i;
     Sys_Error("out of handles");
-    return -1;
 }
 
 /*

@@ -122,7 +122,6 @@ W_GetLumpinfo(const char *name)
     }
 
     Sys_Error("%s: %s not found", __func__, name);
-    return NULL;
 }
 
 void *
