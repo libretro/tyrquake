@@ -17,8 +17,6 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// in_win.c -- windows 95 mouse and joystick code
-// 02/21/97 JCB Added extended DirectInput code to support external controllers
 
 #include <windows.h>
 #include <dinput.h>
@@ -38,11 +36,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #define DINPUT_BUFFERSIZE           16
-#define iDirectInputCreate(a,b,c,d)	pDirectInputCreate(a,b,c,d)
 
-HRESULT (WINAPI * pDirectInputCreate) (HINSTANCE hinst, DWORD dwVersion,
-				       LPDIRECTINPUT * lplpDirectInput,
-				       LPUNKNOWN punkOuter);
+static HRESULT (WINAPI * pDirectInputCreate) (HINSTANCE hinst, DWORD dwVersion,
+					      LPDIRECTINPUT * lplpDirectInput,
+					      LPUNKNOWN punkOuter);
 
 // mouse variables
 cvar_t m_filter = { "m_filter", "0" };
@@ -372,7 +369,7 @@ IN_InitDInput(void)
 	}
     }
 // register with DirectInput and get an IDirectInput to play with.
-    hr = iDirectInputCreate(global_hInstance, DIRECTINPUT_VERSION, &g_pdi,
+    hr = pDirectInputCreate(global_hInstance, DIRECTINPUT_VERSION, &g_pdi,
 			    NULL);
 
     if (FAILED(hr)) {
