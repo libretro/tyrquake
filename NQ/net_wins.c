@@ -335,14 +335,15 @@ int
 WINS_CheckNewConnections(void)
 {
     char buf[4096];
+    int ret;
 
     if (net_acceptsocket == -1)
 	return -1;
 
-    if (recvfrom(net_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL)
-	>= 0) {
+    ret = recvfrom(net_acceptsocket, buf, sizeof(buf), MSG_PEEK, NULL, NULL);
+    if (ret >= 0)
 	return net_acceptsocket;
-    }
+
     return -1;
 }
 
@@ -353,7 +354,8 @@ WINS_Read(int socket, byte *buf, int len, struct qsockaddr *addr)
     int addrlen = sizeof(struct qsockaddr);
     int ret;
 
-    ret = recvfrom(socket, buf, len, 0, (struct sockaddr *)addr, &addrlen);
+    ret = recvfrom(socket, (char *)buf, len, 0, (struct sockaddr *)addr,
+		   &addrlen);
     if (ret == -1) {
 	int err = WSAGetLastError();
 
@@ -403,9 +405,8 @@ WINS_Write(int socket, byte *buf, int len, struct qsockaddr *addr)
 {
     int ret;
 
-    ret =
-	sendto(socket, buf, len, 0, (struct sockaddr *)addr,
-		sizeof(struct qsockaddr));
+    ret = sendto(socket, (char *)buf, len, 0, (struct sockaddr *)addr,
+		 sizeof(struct qsockaddr));
     if (ret == -1)
 	if (WSAGetLastError() == WSAEWOULDBLOCK)
 	    return 0;
