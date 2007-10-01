@@ -113,7 +113,6 @@ LONG CDDrv_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 extern qboolean winsock_lib_initialized;
 extern HWND hwnd_dialog;
-extern HANDLE hinput, houtput;
 
 /*
  * net stuff
