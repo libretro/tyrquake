@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_edict.c -- entity dictionary
 
 #include "cmd.h"
+#include "console.h"
 #include "crc.h"
 #include "pr_comp.h"
 #include "progs.h"
