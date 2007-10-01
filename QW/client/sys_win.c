@@ -45,9 +45,6 @@ qboolean ActiveApp;
 qboolean WinNT;
 
 HWND hwnd_dialog;		// startup dialog box
-
-static HANDLE hinput, houtput;
-
 HANDLE qwclsemaphore;
 
 static HANDLE tevent;
@@ -185,28 +182,6 @@ Sys_Init(void)
     MaskExceptions();
     Sys_SetFPCW();
 
-#if 0
-    if (!QueryPerformanceFrequency(&PerformanceFreq))
-	Sys_Error("No hardware timer available");
-
-// get 32 out of the 64 time bits such that we have around
-// 1 microsecond resolution
-    lowpart = (unsigned int)PerformanceFreq.LowPart;
-    highpart = (unsigned int)PerformanceFreq.HighPart;
-    lowshift = 0;
-
-    while (highpart || (lowpart > 2000000.0)) {
-	lowshift++;
-	lowpart >>= 1;
-	lowpart |= (highpart & 1) << 31;
-	highpart >>= 1;
-    }
-
-    pfreq = 1.0 / (double)lowpart;
-
-    Sys_InitFloatTime();
-#endif
-
     // make sure the timer is high precision, otherwise
     // NT gets 18ms resolution
     timeBeginPeriod(1);
@@ -276,91 +251,6 @@ Sys_Quit(void)
     exit(0);
 }
 
-
-#if 0
-/*
-================
-Sys_DoubleTime
-================
-*/
-double
-Sys_DoubleTime(void)
-{
-    static int sametimecount;
-    static unsigned int oldtime;
-    static int first = 1;
-    LARGE_INTEGER PerformanceCount;
-    unsigned int temp, t2;
-    double time;
-
-    Sys_PushFPCW_SetHigh();
-
-    QueryPerformanceCounter(&PerformanceCount);
-
-    temp = ((unsigned int)PerformanceCount.LowPart >> lowshift) |
-	((unsigned int)PerformanceCount.HighPart << (32 - lowshift));
-
-    if (first) {
-	oldtime = temp;
-	first = 0;
-    } else {
-	// check for turnover or backward time
-	if ((temp <= oldtime) && ((oldtime - temp) < 0x10000000)) {
-	    oldtime = temp;	// so we can't get stuck
-	} else {
-	    t2 = temp - oldtime;
-
-	    time = (double)t2 *pfreq;
-
-	    oldtime = temp;
-
-	    curtime += time;
-
-	    if (curtime == lastcurtime) {
-		sametimecount++;
-
-		if (sametimecount > 100000) {
-		    curtime += 1.0;
-		    sametimecount = 0;
-		}
-	    } else {
-		sametimecount = 0;
-	    }
-
-	    lastcurtime = curtime;
-	}
-    }
-
-    Sys_PopFPCW();
-
-    return curtime;
-}
-
-/*
-================
-Sys_InitFloatTime
-================
-*/
-void
-Sys_InitFloatTime(void)
-{
-    int j;
-
-    Sys_DoubleTime();
-
-    j = COM_CheckParm("-starttime");
-
-    if (j) {
-	curtime = (double)(Q_atof(com_argv[j + 1]));
-    } else {
-	curtime = 0.0;
-    }
-
-    lastcurtime = curtime;
-}
-
-#endif
-
 double
 Sys_DoubleTime(void)
 {
@@ -383,107 +273,6 @@ Sys_DoubleTime(void)
 	return 0.0;
 
     return (now - starttime) / 1000.0;
-}
-
-char *
-Sys_ConsoleInput(void)
-{
-    static char text[256];
-    static int len;
-    INPUT_RECORD recs[1024];
-    int i;
-    DWORD dummy;
-    int ch;
-    DWORD numevents, numread;
-    HANDLE th;
-    char *clipText, *textCopied;
-
-    for (;;) {
-	if (!GetNumberOfConsoleInputEvents(hinput, &numevents))
-	    Sys_Error("Error getting # of console events");
-
-	if (numevents <= 0)
-	    break;
-
-	if (!ReadConsoleInput(hinput, recs, 1, &numread))
-	    Sys_Error("Error reading console input");
-
-	if (numread != 1)
-	    Sys_Error("Couldn't read console input");
-
-	if (recs[0].EventType == KEY_EVENT) {
-	    if (!recs[0].Event.KeyEvent.bKeyDown) {
-		ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
-
-		switch (ch) {
-		case '\r':
-		    WriteFile(houtput, "\r\n", 2, &dummy, NULL);
-
-		    if (len) {
-			text[len] = 0;
-			len = 0;
-			return text;
-		    }
-		    break;
-
-		case '\b':
-		    WriteFile(houtput, "\b \b", 3, &dummy, NULL);
-		    if (len) {
-			len--;
-			putch('\b');
-		    }
-		    break;
-
-		default:
-		    if (((ch == 'V' || ch == 'v')
-			 && (recs[0].Event.KeyEvent.
-			     dwControlKeyState & (LEFT_CTRL_PRESSED |
-						  RIGHT_CTRL_PRESSED)))
-			||
-			((recs[0].Event.KeyEvent.
-			  dwControlKeyState & SHIFT_PRESSED)
-			 && (recs[0].Event.KeyEvent.wVirtualKeyCode ==
-			     VK_INSERT))) {
-			if (OpenClipboard(NULL)) {
-			    th = GetClipboardData(CF_TEXT);
-			    if (th) {
-				clipText = GlobalLock(th);
-				if (clipText) {
-				    textCopied = malloc(GlobalSize(th) + 1);
-				    strcpy(textCopied, clipText);
-/* Substitutes a NULL for every token */
-				    strtok(textCopied, "\n\r\b");
-				    i = strlen(textCopied);
-				    if (i + len >= 256)
-					i = 256 - len;
-				    if (i > 0) {
-					textCopied[i] = 0;
-					text[len] = 0;
-					strcat(text, textCopied);
-					len += dummy;
-					WriteFile(houtput, textCopied, i,
-						  &dummy, NULL);
-				    }
-				    free(textCopied);
-				}
-				GlobalUnlock(th);
-			    }
-			    CloseClipboard();
-			}
-		    } else if (ch >= ' ') {
-			WriteFile(houtput, &ch, 1, &dummy, NULL);
-			text[len] = ch;
-			len = (len + 1) & 0xff;
-		    }
-
-		    break;
-
-		}
-	    }
-	}
-    }
-
-    return NULL;
 }
 
 void

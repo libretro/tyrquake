@@ -227,38 +227,11 @@ Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-// FIXME - Unused only in QW?
-#if 0
-static void
-Sys_LineRefresh (void)
-{
-}
-#endif
-
 static void
 floating_point_exception_handler(int whatever)
 {
 //      Sys_Warn("floating point exception\n");
     signal(SIGFPE, floating_point_exception_handler);
-}
-
-char *
-Sys_ConsoleInput(void)
-{
-#if 0
-    static char text[256];
-    int len;
-
-    if (cls.state == ca_dedicated) {
-	len = read(0, text, sizeof(text));
-	if (len < 1)
-	    return NULL;
-	text[len - 1] = 0;	// rip off the /n and terminate
-
-	return text;
-    }
-#endif
-    return NULL;
 }
 
 #ifndef USE_X86_ASM
