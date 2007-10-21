@@ -306,11 +306,12 @@ Z_Print(memzone_t * zone)
 /* ======================================================================= */
 
 #define	HUNK_SENTINAL	0x1df001ed
+#define HUNK_NAMELEN	8
 
 typedef struct {
     int sentinal;
     int size;		/* including sizeof(hunk_t), -1 = not allocated */
-    char name[8];
+    char name[HUNK_NAMELEN];
 } hunk_t;
 
 static byte *hunk_base;
@@ -361,9 +362,9 @@ Hunk_Print(qboolean all)
     hunk_t *h, *next, *endlow, *starthigh, *endhigh;
     int count, sum;
     int totalblocks;
-    char name[9];
+    char name[HUNK_NAMELEN + 1];
 
-    name[8] = 0;
+    name[HUNK_NAMELEN] = 0;
     count = 0;
     sum = 0;
     totalblocks = 0;
@@ -409,7 +410,7 @@ Hunk_Print(qboolean all)
 	/*
 	 * print the single block
 	 */
-	memcpy(name, h->name, 8);
+	memcpy(name, h->name, HUNK_NAMELEN);
 	if (all)
 	    Con_Printf("%8p :%8i %8s\n", h, h->size, name);
 
@@ -417,7 +418,7 @@ Hunk_Print(qboolean all)
 	 * print the total
 	 */
 	if (next == endlow || next == endhigh ||
-	    strncmp(h->name, next->name, 8)) {
+	    strncmp(h->name, next->name, HUNK_NAMELEN)) {
 	    if (!all)
 		Con_Printf("          :%8i %8s (TOTAL)\n", sum, name);
 	    count = 0;
@@ -473,7 +474,8 @@ Hunk_AllocName(int size, char *name)
 
     h->size = size;
     h->sentinal = HUNK_SENTINAL;
-    strncpy(h->name, name, 8);
+    strncpy(h->name, name, HUNK_NAMELEN - 1);
+    h->name[HUNK_NAMELEN - 1] = 0;
 
     return (void *)(h + 1);
 }
@@ -565,7 +567,8 @@ Hunk_HighAllocName(int size, char *name)
     memset(h, 0, size);
     h->size = size;
     h->sentinal = HUNK_SENTINAL;
-    strncpy(h->name, name, 8);
+    strncpy(h->name, name, HUNK_NAMELEN - 1);
+    h->name[HUNK_NAMELEN - 1] = 0;
 
     return (void *)(h + 1);
 }
@@ -619,7 +622,7 @@ Hunk_TempAllocExtend(int size)
 
     if (old->sentinal != HUNK_SENTINAL)
 	Sys_Error("%s: old sentinal trashed\n", __func__);
-    if (strncmp(old->name, "temp", 8))
+    if (strncmp(old->name, "temp", HUNK_NAMELEN))
 	Sys_Error("%s: old hunk name trashed\n", __func__);
 
     size = (size + 15) & ~15;
@@ -646,10 +649,12 @@ Hunk_TempAllocExtend(int size)
  * ===========================================================================
  */
 
+#define CACHE_NAMELEN 16
+
 typedef struct cache_system_s {
     int size;			/* including this header */
     cache_user_t *user;
-    char name[16];
+    char name[CACHE_NAMELEN];
     struct cache_system_s *prev, *next;
     struct cache_system_s *lru_prev, *lru_next;	/* for LRU flushing */
 } cache_system_t;
