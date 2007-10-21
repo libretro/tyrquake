@@ -35,7 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 model_t *loadmodel;
-char loadname[32];		// for hunk tags
+char loadname[MAX_QPATH];	/* for hunk tags */
 
 void Mod_LoadSpriteModel(model_t *mod, void *buffer);
 void Mod_LoadBrushModel(model_t *mod, void *buffer);
@@ -210,7 +210,8 @@ Mod_FindName(char *name)
     if (i == mod_numknown) {
 	if (mod_numknown == MAX_MOD_KNOWN)
 	    Sys_Error("mod_numknown == MAX_MOD_KNOWN");
-	strcpy(mod->name, name);
+	strncpy(mod->name, name, MAX_QPATH - 1);
+	mod->name[MAX_QPATH - 1] = 0;
 	mod->needload = true;
 	mod_numknown++;
     }
@@ -1200,7 +1201,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 	if (i < mod->numsubmodels - 1) {
 	    char name[10];
 
-	    sprintf(name, "*%i", i + 1);
+	    snprintf(name, sizeof(name), "*%i", i + 1);
 	    loadmodel = Mod_FindName(name);
 	    *loadmodel = *mod;
 	    strcpy(loadmodel->name, name);
@@ -1454,7 +1455,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	for (len = com_filesize, p = buffer; len; len--, p++)
 	    CRC_ProcessByte(&crc, *p);
 
-	sprintf(st, "%d", (int)crc);
+	snprintf(st, sizeof(st), "%d", (int)crc);
 	Info_SetValueForKey(cls.userinfo,
 			    !strcmp(loadmodel->name,
 				    "progs/player.mdl") ? pmodel_name :
@@ -1462,10 +1463,10 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	    sprintf(st, "setinfo %s %d",
-		    !strcmp(loadmodel->name,
-			    "progs/player.mdl") ? pmodel_name : emodel_name,
-		    (int)crc);
+	    snprintf(st, sizeof(st), "setinfo %s %d",
+		     !strcmp(loadmodel->name,
+			     "progs/player.mdl") ? pmodel_name : emodel_name,
+		     (int)crc);
 	    SZ_Print(&cls.netchan.message, st);
 	}
     }

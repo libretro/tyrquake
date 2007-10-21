@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern unsigned d_8to24table[];
 
 model_t *loadmodel;
-char loadname[32];		// for hunk tags
+char loadname[MAX_QPATH];	/* for hunk tags */
 static dheader_t *loadheader;
 
 void Mod_LoadSpriteModel(model_t *mod, void *buffer);
@@ -217,7 +217,8 @@ Mod_FindName(char *name)
     if (i == mod_numknown) {
 	if (mod_numknown == MAX_MOD_KNOWN)
 	    Sys_Error("mod_numknown == MAX_MOD_KNOWN");
-	strcpy(mod->name, name);
+	strncpy(mod->name, name, MAX_QPATH - 1);
+	mod->name[MAX_QPATH - 1] = 0;
 	mod->needload = true;
 	mod_numknown++;
     }
@@ -903,7 +904,8 @@ Mod_LoadLeafs(lump_t *l)
     loadmodel->numleafs = count;
 
 #ifdef QW_HACK
-    sprintf(s, "maps/%s.bsp", Info_ValueForKey(cl.serverinfo, "map"));
+    snprintf(s, sizeof(s), "maps/%s.bsp",
+	     Info_ValueForKey(cl.serverinfo, "map"));
     if (!strcmp(s, loadmodel->name))
 	isnotmap = false;
 #endif
@@ -1271,7 +1273,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 	if (i < mod->numsubmodels - 1) {
 	    char name[10];
 
-	    sprintf(name, "*%i", i + 1);
+	    snprintf(name, sizeof(name), "*%i", i + 1);
 	    loadmodel = Mod_FindName(name);
 	    *loadmodel = *mod;
 	    strcpy(loadmodel->name, name);
@@ -1505,7 +1507,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 		memcpy(player_8bit_texels, (byte *)(pskintype + 1), s);
 	    }
 #endif
-	    sprintf(name, "%s_%i", loadmodel->name, i);
+	    snprintf(name, sizeof(name), "%s_%i", loadmodel->name, i);
 	    pheader->gl_texturenum[i][0] =
 		pheader->gl_texturenum[i][1] =
 		pheader->gl_texturenum[i][2] =
@@ -1533,7 +1535,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 		    memcpy(texels, (byte *)(pskintype), s);
 		}
 #endif
-		sprintf(name, "%s_%i_%i", loadmodel->name, i, j);
+		snprintf(name, sizeof(name), "%s_%i_%i", loadmodel->name, i, j);
 		pheader->gl_texturenum[i][j & 3] =
 		    GL_LoadTexture(name, pheader->skinwidth,
 				   pheader->skinheight, (byte *)(pskintype),
@@ -1583,7 +1585,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	for (len = com_filesize, p = buffer; len; len--, p++)
 	    CRC_ProcessByte(&crc, *p);
 
-	sprintf(st, "%d", (int)crc);
+	snprintf(st, sizeof(st), "%d", (int)crc);
 	Info_SetValueForKey(cls.userinfo,
 			    !strcmp(loadmodel->name,
 				    "progs/player.mdl") ? pmodel_name :
@@ -1591,10 +1593,10 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	    sprintf(st, "setinfo %s %d",
-		    !strcmp(loadmodel->name,
-			    "progs/player.mdl") ? pmodel_name : emodel_name,
-		    (int)crc);
+	    snprintf(st, sizeof(st), "setinfo %s %d",
+		     !strcmp(loadmodel->name,
+			     "progs/player.mdl") ? pmodel_name : emodel_name,
+		     (int)crc);
 	    SZ_Print(&cls.netchan.message, st);
 	}
     }
@@ -1751,7 +1753,7 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, int framenum)
     dspriteframe_t *pinframe;
     mspriteframe_t *pspriteframe;
     int width, height, size, origin[2];
-    char name[64];
+    char name[MAX_QPATH];
 
     pinframe = (dspriteframe_t *)pin;
 
@@ -1775,7 +1777,7 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, int framenum)
     pspriteframe->left = origin[0];
     pspriteframe->right = width + origin[0];
 
-    sprintf(name, "%s_%i", loadmodel->name, framenum);
+    snprintf(name, sizeof(name), "%s_%i", loadmodel->name, framenum);
     pspriteframe->gl_texturenum =
 	GL_LoadTexture(name, width, height, (byte *)(pinframe + 1), true,
 		       true);

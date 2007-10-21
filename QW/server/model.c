@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qwsvdef.h"
 
 model_t *loadmodel;
-char loadname[32];		// for hunk tags
+char loadname[MAX_QPATH];	/* for hunk tags */
 
 void Mod_LoadSpriteModel(model_t *mod, void *buffer);
 void Mod_LoadBrushModel(model_t *mod, void *buffer);
@@ -182,7 +182,8 @@ Mod_FindName(char *name)
     if (i == mod_numknown) {
 	if (mod_numknown == MAX_MOD_KNOWN)
 	    SV_Error("mod_numknown == MAX_MOD_KNOWN");
-	strcpy(mod->name, name);
+	strncpy(mod->name, name, MAX_QPATH - 1);
+	mod->name[MAX_QPATH - 1] = 0;
 	mod->needload = true;
 	mod_numknown++;
     }
@@ -1105,7 +1106,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 	if (i < mod->numsubmodels - 1) {	// duplicate the basic information
 	    char name[10];
 
-	    sprintf(name, "*%i", i + 1);
+	    snprintf(name, sizeof(name), "*%i", i + 1);
 	    loadmodel = Mod_FindName(name);
 	    *loadmodel = *mod;
 	    strcpy(loadmodel->name, name);
