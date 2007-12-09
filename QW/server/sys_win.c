@@ -141,7 +141,8 @@ Sys_ConsoleInput(void)
 	if (len == sizeof(text)) {
 	    /* buffer is full */
 	    len = 0;
-	    text[sizeof(text) - 1] = 0;
+	    text[0] = '\0';
+	    fprintf (stderr, "\nConsole input too long!\n");
 	    return text;
 	} else {
 	    text[len] = 0;
