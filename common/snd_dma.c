@@ -38,10 +38,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #endif
 
-#ifdef _WIN32
-#include "winquake.h"
-#endif
-
 #ifdef NQ_HACK
 #include "host.h"
 #endif
@@ -155,9 +151,7 @@ S_Startup(void)
     if (!fakedma) {
 	rc = SNDDMA_Init();
 	if (!rc) {
-#ifndef	_WIN32
 	    Con_Printf("%s: SNDDMA_Init failed.\n", __func__);
-#endif
 	    sound_started = 0;
 	    return;
 	}
