@@ -589,13 +589,14 @@ SNDDMA_Init(void)
 	}
     }
 
-    snd_firsttime = false;
     if (!dsound_init && !wav_init) {
-	if (snd_firsttime)
+	if (snd_firsttime) {
 	    Con_SafePrintf("No sound device initialized\n");
-
+	    snd_firsttime = false;
+	}
 	return false;
     }
+    snd_firsttime = false;
 
     return true;
 }
