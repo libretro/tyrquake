@@ -121,6 +121,10 @@ qboolean SNDDMA_Init(void);
 // gets the current DMA position
 int SNDDMA_GetDMAPos(void);
 
+/* Lock and unlock the DMA sound buffer */
+int SNDDMA_LockBuffer(void);
+void SNDDMA_UnlockBuffer(void);
+
 // shutdown the DMA xfer.
 void SNDDMA_Shutdown(void);
 

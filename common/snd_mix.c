@@ -68,69 +68,34 @@ S_TransferStereo16(int endtime)
 {
     int lpos;
     int lpaintedtime;
-    void *pbuf;
-
-#ifdef _WIN32
-    int reps;
-    DWORD dwSize;
-    HRESULT hresult;
-#endif
+    int err;
 
     snd_vol = volume.value * 256;
-
     snd_p = (int *)paintbuffer;
     lpaintedtime = paintedtime;
 
-#ifdef _WIN32
-    if (pDSBuf) {
-	reps = 0;
-
-	while ((hresult =
-		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &dwSize,
-				     NULL, NULL, 0)) != DS_OK) {
-	    if (hresult != DSERR_BUFFERLOST) {
-		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
-		S_Shutdown();
-		S_Startup();
-		return;
-	    }
-
-	    if (++reps > 10000) {
-		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
-		S_Shutdown();
-		S_Startup();
-		return;
-	    }
-	}
-    } else
-#endif
-    {
-	pbuf = shm->buffer;
+    err = SNDDMA_LockBuffer();
+    if (err) {
+	S_Shutdown();
+	S_Startup();
+	return;
     }
 
     while (lpaintedtime < endtime) {
 	// handle recirculating buffer issues
 	lpos = lpaintedtime & ((shm->samples >> 1) - 1);
-
-	snd_out = (short *)pbuf + (lpos << 1);
-
+	snd_out = (short *)shm->buffer + (lpos << 1);
 	snd_linear_count = (shm->samples >> 1) - lpos;
 	if (lpaintedtime + snd_linear_count > endtime)
 	    snd_linear_count = endtime - lpaintedtime;
-
 	snd_linear_count <<= 1;
 
 	// write a linear blast of samples
 	Snd_WriteLinearBlastStereo16();
-
 	snd_p += snd_linear_count;
 	lpaintedtime += (snd_linear_count >> 1);
     }
-
-#ifdef _WIN32
-    if (pDSBuf)
-	pDSBuf->lpVtbl->Unlock(pDSBuf, pbuf, dwSize, NULL, 0);
-#endif
+    SNDDMA_UnlockBuffer();
 }
 
 void
@@ -143,13 +108,7 @@ S_TransferPaintBuffer(int endtime)
     int step;
     int val;
     int snd_vol;
-    void *pbuf;
-
-#ifdef _WIN32
-    int reps;
-    DWORD dwSize;
-    HRESULT hresult;
-#endif
+    int err;
 
     if (shm->samplebits == 16 && shm->channels == 2) {
 	S_TransferStereo16(endtime);
@@ -163,36 +122,15 @@ S_TransferPaintBuffer(int endtime)
     step = 3 - shm->channels;
     snd_vol = volume.value * 256;
 
-#ifdef _WIN32
-    if (pDSBuf) {
-	reps = 0;
-
-	while ((hresult =
-		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pbuf, &dwSize,
-				     NULL, NULL, 0)) != DS_OK) {
-	    if (hresult != DSERR_BUFFERLOST) {
-		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
-		S_Shutdown();
-		S_Startup();
-		return;
-	    }
-
-	    if (++reps > 10000) {
-		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
-		S_Shutdown();
-		S_Startup();
-		return;
-	    }
-	}
-    } else
-#endif
-    {
-	pbuf = shm->buffer;
+    err = SNDDMA_LockBuffer();
+    if (err) {
+	S_Shutdown();
+	S_Startup();
+	return;
     }
 
     if (shm->samplebits == 16) {
-	short *out = (short *)pbuf;
-
+	short *out = (short *)shm->buffer;
 	while (count--) {
 	    val = (*p * snd_vol) >> 8;
 	    p += step;
@@ -204,8 +142,7 @@ S_TransferPaintBuffer(int endtime)
 	    out_idx = (out_idx + 1) & out_mask;
 	}
     } else if (shm->samplebits == 8) {
-	unsigned char *out = (unsigned char *)pbuf;
-
+	unsigned char *out = (unsigned char *)shm->buffer;
 	while (count--) {
 	    val = (*p * snd_vol) >> 8;
 	    p += step;
@@ -217,6 +154,7 @@ S_TransferPaintBuffer(int endtime)
 	    out_idx = (out_idx + 1) & out_mask;
 	}
     }
+    SNDDMA_UnlockBuffer();
 #ifdef _WIN32
     if (pDSBuf) {
 	DWORD dwNewpos, dwWrite;
@@ -224,7 +162,6 @@ S_TransferPaintBuffer(int endtime)
 	int ir = endtime - paintedtime;
 
 	ir += il;
-	pDSBuf->lpVtbl->Unlock(pDSBuf, pbuf, dwSize, NULL, 0);
 	pDSBuf->lpVtbl->GetCurrentPosition(pDSBuf, &dwNewpos, &dwWrite);
     }
 #endif

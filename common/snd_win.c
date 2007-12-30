@@ -169,6 +169,52 @@ FreeSound(void)
     wav_init = false;
 }
 
+static DWORD dsLockSize;
+static qboolean dsIsLocked = false;
+
+int
+SNDDMA_LockBuffer(void)
+{
+    int reps;
+    void *pData;
+    HRESULT hresult;
+
+    if (dsIsLocked)
+	Sys_Error("%s: Recursive locking detected!", __func__);
+
+    if (pDSBuf) {
+	reps = 0;
+
+	while ((hresult =
+		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pData,
+				     &dsLockSize, NULL, NULL, 0)) != DS_OK) {
+	    if (hresult != DSERR_BUFFERLOST) {
+		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
+		return 1;
+	    }
+	    if (++reps > 10000) {
+		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
+		return 1;
+	    }
+	}
+	shm->buffer = pData;
+    }
+    dsIsLocked = true;
+
+    return 0;
+}
+
+void
+SNDDMA_UnlockBuffer()
+{
+    if (!dsIsLocked)
+	Sys_Error("%s: Detected unlock without lock", __func__);
+    if (pDSBuf) {
+	pDSBuf->lpVtbl->Unlock(pDSBuf, shm->buffer, dsLockSize, NULL, 0);
+	shm->buffer = NULL;
+    }
+    dsIsLocked = false;
+}
 
 /*
 ==================

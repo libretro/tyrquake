@@ -236,6 +236,17 @@ SNDDMA_Init(void)
 }
 
 int
+SNDDMA_LockBuffer(void)
+{
+    return 0;
+}
+
+void
+SNDDMA_UnlockBuffer(void)
+{
+}
+
+int
 SNDDMA_GetDMAPos(void)
 {
     struct count_info count;

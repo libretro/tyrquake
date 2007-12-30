@@ -547,50 +547,21 @@ S_StopAllSoundsC(void)
 void
 S_ClearBuffer(void)
 {
+    int err;
     int clear;
 
-#ifdef _WIN32
-    if (!sound_started || !shm || (!shm->buffer && !pDSBuf))
-#else
-    if (!sound_started || !shm || !shm->buffer)
-#endif
+    if (!sound_started || !shm)
 	return;
 
-    if (shm->samplebits == 8)
-	clear = 0x80;
-    else
-	clear = 0;
-
-#ifdef _WIN32
-    if (pDSBuf) {
-	int reps;
-	void *pData;
-	DWORD dwSize;
-	HRESULT hresult;
-
-	reps = 0;
-
-	while ((hresult =
-		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pData, &dwSize,
-				     NULL, NULL, 0)) != DS_OK) {
-	    if (hresult != DSERR_BUFFERLOST) {
-		Con_Printf("%s: DS::Lock Sound Buffer Failed\n", __func__);
-		S_Shutdown();
-		return;
-	    }
-	    if (++reps > 10000) {
-		Con_Printf("%s: DS: couldn't restore buffer\n", __func__);
-		S_Shutdown();
-		return;
-	    }
-	}
-	memset(pData, clear, shm->samples * shm->samplebits / 8);
-	pDSBuf->lpVtbl->Unlock(pDSBuf, pData, dwSize, NULL, 0);
-    } else
-#endif
-    {
-	memset(shm->buffer, clear, shm->samples * shm->samplebits / 8);
+    err = SNDDMA_LockBuffer();
+    if (err) {
+	S_Shutdown();
+	return;
     }
+
+    clear = (shm->samplebits == 8) ? 0x80 : 0;
+    memset(shm->buffer, clear, shm->samples * shm->samplebits / 8);
+    SNDDMA_UnlockBuffer();
 }
 
 
