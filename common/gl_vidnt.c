@@ -19,6 +19,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // gl_vidnt.c -- NT GL vid component
 
+#include <windows.h>
+#include <commctrl.h>
+
 #include "cdaudio.h"
 #include "cmd.h"
 #include "console.h"
