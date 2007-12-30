@@ -792,22 +792,17 @@ Mod_LoadFaces(lump_t *l)
 	else
 	    out->samples = loadmodel->lightdata + i;
 
-	// set the drawing flags flag
+	/* set the surface drawing flags */
 	if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
-	    // sky
 	    out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
-	    GL_SubdivideSurface(out);	// cut up polygon for warps
-	    continue;
-	}
-	if (!strncmp(out->texinfo->texture->name, "*", 1)) {
-	    // turbulent
+	    GL_SubdivideSurface(out);
+	} else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
 	    out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
 	    for (i = 0; i < 2; i++) {
 		out->extents[i] = 16384;
 		out->texturemins[i] = -8192;
 	    }
-	    GL_SubdivideSurface(out);	// cut up polygon for warps
-	    continue;
+	    GL_SubdivideSurface(out);
 	}
     }
 }
