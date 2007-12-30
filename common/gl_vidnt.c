@@ -536,11 +536,9 @@ CheckTextureExtensions(void)
 
     texture_ext = FALSE;
     /* check for texture extension */
-    tmp = (unsigned char *)glGetString(GL_EXTENSIONS);
+    tmp = (char *)glGetString(GL_EXTENSIONS);
     while (*tmp) {
-	if (strncmp
-	    ((const char *)tmp, TEXTURE_EXT_STRING,
-	     strlen(TEXTURE_EXT_STRING)) == 0)
+	if (!strncmp(tmp, TEXTURE_EXT_STRING, strlen(TEXTURE_EXT_STRING)))
 	    texture_ext = TRUE;
 	tmp++;
     }
@@ -614,14 +612,14 @@ GL_Init
 static void
 GL_Init(void)
 {
-    gl_vendor = glGetString(GL_VENDOR);
+    gl_vendor = (char *)glGetString(GL_VENDOR);
     Con_Printf("GL_VENDOR: %s\n", gl_vendor);
-    gl_renderer = glGetString(GL_RENDERER);
+    gl_renderer = (char *)glGetString(GL_RENDERER);
     Con_Printf("GL_RENDERER: %s\n", gl_renderer);
 
-    gl_version = glGetString(GL_VERSION);
+    gl_version = (char *)glGetString(GL_VERSION);
     Con_Printf("GL_VERSION: %s\n", gl_version);
-    gl_extensions = glGetString(GL_EXTENSIONS);
+    gl_extensions = (char *)glGetString(GL_EXTENSIONS);
     Con_DPrintf("GL_EXTENSIONS: %s\n", gl_extensions);
 
 //      Con_Printf ("%s %s\n", gl_renderer, gl_version);
