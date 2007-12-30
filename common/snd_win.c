@@ -178,13 +178,23 @@ SNDDMA_LockBuffer(void)
     int reps;
     void *pData;
     HRESULT hresult;
+    DWORD dwStatus;
 
     if (dsIsLocked)
 	Sys_Error("%s: Recursive locking detected!", __func__);
 
     if (pDSBuf) {
-	reps = 0;
+	/* if the buffer was lost or stopped, restore it and/or restart it */
+	if (pDSBuf) {
+	    if (pDSBuf->lpVtbl->GetStatus(pDSBuf, &dwStatus) != DS_OK)
+		Con_Printf("Couldn't get sound buffer status\n");
+	    if (dwStatus & DSBSTATUS_BUFFERLOST)
+		pDSBuf->lpVtbl->Restore(pDSBuf);
+	    if (!(dwStatus & DSBSTATUS_PLAYING))
+		pDSBuf->lpVtbl->Play(pDSBuf, 0, 0, DSBPLAY_LOOPING);
+	}
 
+	reps = 0;
 	while ((hresult =
 		pDSBuf->lpVtbl->Lock(pDSBuf, 0, gSndBufSize, &pData,
 				     &dsLockSize, NULL, NULL, 0)) != DS_OK) {

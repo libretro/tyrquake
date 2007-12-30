@@ -809,26 +809,7 @@ S_Update_(void)
     if (endtime - soundtime > samps)
 	endtime = soundtime + samps;
 
-#ifdef _WIN32
-    /* if the buffer was lost or stopped, restore it and/or restart it */
-    {
-	DWORD dwStatus;
-
-	if (pDSBuf) {
-	    if (pDSBuf->lpVtbl->GetStatus(pDSBuf, &dwStatus) != DD_OK)
-		Con_Printf("Couldn't get sound buffer status\n");
-
-	    if (dwStatus & DSBSTATUS_BUFFERLOST)
-		pDSBuf->lpVtbl->Restore(pDSBuf);
-
-	    if (!(dwStatus & DSBSTATUS_PLAYING))
-		pDSBuf->lpVtbl->Play(pDSBuf, 0, 0, DSBPLAY_LOOPING);
-	}
-    }
-#endif
-
     S_PaintChannels(endtime);
-
     SNDDMA_Submit();
 }
 
