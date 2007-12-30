@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <dsound.h>
+
 #include "common.h"
 #include "console.h"
 #include "quakedef.h"
@@ -25,9 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "winquake.h"
 
-HRESULT (WINAPI * pDirectSoundCreate) (GUID FAR *lpGUID,
-				       LPDIRECTSOUND FAR *lplpDS,
-				       IUnknown FAR *pUnkOuter);
+static HRESULT (WINAPI * pDirectSoundCreate)(GUID FAR *lpGUID,
+					     LPDIRECTSOUND FAR *lplpDS,
+					     IUnknown FAR *pUnkOuter);
 
 // 64K is > 1 second at 16-bit, 22050 Hz
 #define	WAV_BUFFERS		0x40
@@ -46,33 +48,22 @@ static qboolean primary_format_set;
 static int sample16;
 static int snd_sent, snd_completed;
 
+static HANDLE hData;
+static LPVOID lpData;
 
-/*
- * Global variables. Must be visible to window-procedure function
- *  so it can unlock and free the data block after it has been played.
- */
+static HGLOBAL hWaveHdr;
+static LPWAVEHDR lpWaveHdr;
+static HWAVEOUT hWaveOut;
 
-HANDLE hData;
-LPVOID lpData;
+static DWORD gSndBufSize;
+static MMTIME mmstarttime;
 
-HGLOBAL hWaveHdr;
-LPWAVEHDR lpWaveHdr;
+static LPDIRECTSOUND pDS;
+static LPDIRECTSOUNDBUFFER pDSBuf, pDSPBuf;
+static HINSTANCE hInstDS;
 
-HWAVEOUT hWaveOut;
-
-WAVEOUTCAPS wavecaps;
-
-DWORD gSndBufSize;
-
-MMTIME mmstarttime;
-
-LPDIRECTSOUND pDS;
-LPDIRECTSOUNDBUFFER pDSBuf, pDSPBuf;
-
-HINSTANCE hInstDS;
-
-sndinitstat SNDDMA_InitDirect(void);
-qboolean SNDDMA_InitWav(void);
+static sndinitstat SNDDMA_InitDirect(void);
+static qboolean SNDDMA_InitWav(void);
 
 
 /*
@@ -115,7 +106,7 @@ S_UnblockSound(void)
 FreeSound
 ==================
 */
-void
+static void
 FreeSound(void)
 {
     int i;
@@ -233,7 +224,7 @@ SNDDMA_InitDirect
 Direct-Sound support
 ==================
 */
-sndinitstat
+static sndinitstat
 SNDDMA_InitDirect(void)
 {
     DSBUFFERDESC dsbuf;
@@ -448,7 +439,7 @@ SNDDM_InitWav
 Crappy windows multimedia base
 ==================
 */
-qboolean
+static qboolean
 SNDDMA_InitWav(void)
 {
     WAVEFORMATEX format;
