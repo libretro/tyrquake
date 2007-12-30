@@ -571,10 +571,12 @@ SNDDMA_Init(void)
 	    }
 	}
     }
-// if DirectSound didn't succeed in initializing, try to initialize
-// waveOut sound, unless DirectSound failed because the hardware is
-// already allocated (in which case the user has already chosen not
-// to have sound)
+    /*
+     * If DirectSound didn't succeed in initializing, try to initialize
+     * waveOut sound, unless DirectSound failed because the hardware is
+     * already allocated (in which case the user has already chosen not to
+     * have sound)
+     */
     if (!dsound_init && (stat != SIS_NOTAVAIL)) {
 	if (snd_firsttime || snd_iswave) {
 	    snd_iswave = SNDDMA_InitWav();
