@@ -340,14 +340,13 @@ IN_InitDInput(void)
 {
     HRESULT hr;
     DIPROPDWORD dipdw = {
-	{
-	 sizeof(DIPROPDWORD),	// diph.dwSize
-	 sizeof(DIPROPHEADER),	// diph.dwHeaderSize
-	 0,			// diph.dwObj
-	 DIPH_DEVICE,		// diph.dwHow
-	 }
-	,
-	DINPUT_BUFFERSIZE,	// dwData
+	.diph = {
+	    .dwSize = sizeof(DIPROPDWORD),
+	    .dwHeaderSize = sizeof(DIPROPHEADER),
+	    .dwObj = 0,
+	    .dwHow = DIPH_DEVICE,
+	},
+	.dwData = DINPUT_BUFFERSIZE
     };
 
     if (!hInstDI) {
