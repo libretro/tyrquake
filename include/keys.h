@@ -39,7 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	K_UPARROW		128
 #define	K_DOWNARROW		129
 #define	K_LEFTARROW		130
-#define	K_RIGHTARROW	131
+#define	K_RIGHTARROW		131
 
 #define	K_ALT			132
 #define	K_CTRL			133
@@ -65,9 +65,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define K_PAUSE			255
 
-//
-// mouse buttons generate virtual keys
-//
+/*
+ * mouse buttons generate virtual keys
+ * (mouse buttons 4-8 added below)
+ */
 #define	K_MOUSE1		200
 #define	K_MOUSE2		201
 #define	K_MOUSE3		202
@@ -121,6 +122,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define K_MWHEELUP		239
 #define K_MWHEELDOWN		240
+
+/* Extra mouse buttons */
+
+#define K_MOUSE4		241
+#define K_MOUSE5		242
+#define K_MOUSE6		243
+#define K_MOUSE7		244
+#define K_MOUSE8		245
 
 typedef enum { key_game, key_console, key_message, key_menu } keydest_t;
 

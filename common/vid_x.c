@@ -1083,6 +1083,16 @@ HandleEvents(void)
 		Key_Event(K_MWHEELUP, true);
 	    else if (x_event.xbutton.button == 5)
 		Key_Event(K_MWHEELDOWN, true);
+	    else if (x_event.xbutton.button == 6)
+		Key_Event(K_MOUSE4, true);
+	    else if (x_event.xbutton.button == 7)
+		Key_Event(K_MOUSE5, true);
+	    else if (x_event.xbutton.button == 8)
+		Key_Event(K_MOUSE6, true);
+	    else if (x_event.xbutton.button == 9)
+		Key_Event(K_MOUSE7, true);
+	    else if (x_event.xbutton.button == 10)
+		Key_Event(K_MOUSE8, true);
 	    break;
 
 	case ButtonRelease:
@@ -1096,6 +1106,16 @@ HandleEvents(void)
 		Key_Event(K_MWHEELUP, false);
 	    else if (x_event.xbutton.button == 5)
 		Key_Event(K_MWHEELDOWN, false);
+	    else if (x_event.xbutton.button == 6)
+		Key_Event(K_MOUSE4, false);
+	    else if (x_event.xbutton.button == 7)
+		Key_Event(K_MOUSE5, false);
+	    else if (x_event.xbutton.button == 8)
+		Key_Event(K_MOUSE6, false);
+	    else if (x_event.xbutton.button == 9)
+		Key_Event(K_MOUSE7, false);
+	    else if (x_event.xbutton.button == 10)
+		Key_Event(K_MOUSE8, false);
 	    break;
 
 	case ConfigureNotify:
