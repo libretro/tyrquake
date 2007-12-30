@@ -663,4 +663,8 @@ void
 SNDDMA_Shutdown(void)
 {
     FreeSound();
+    if (hInstDS) {
+	FreeLibrary(hInstDS);
+	hInstDS = NULL;
+    }
 }
