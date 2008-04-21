@@ -63,7 +63,6 @@ int scr_fullupdate;
 int clearconsole;
 int clearnotify;
 
-viddef_t vid;			// global video state
 vrect_t *pconupdate;
 vrect_t scr_vrect;
 

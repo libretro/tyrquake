@@ -71,6 +71,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static int scrnum;
 static GLXContext ctx = NULL;
 
+viddef_t vid;			// global video state
+
 unsigned short d_8to16table[256];
 unsigned int d_8to24table[256];
 unsigned char d_15to8table[65536];
