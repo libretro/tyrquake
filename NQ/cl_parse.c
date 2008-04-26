@@ -183,17 +183,16 @@ CL_KeepaliveMessage(void)
     do {
 	ret = CL_GetMessage();
 	switch (ret) {
-	default:
-	    Host_Error("CL_KeepaliveMessage: CL_GetMessage failed");
 	case 0:
 	    break;		// nothing waiting
 	case 1:
-	    Host_Error("CL_KeepaliveMessage: received a message");
-	    break;
+	    Host_Error("%s: received a message", __func__);
 	case 2:
 	    if (MSG_ReadByte() != svc_nop)
-		Host_Error("CL_KeepaliveMessage: datagram wasn't a nop");
+		Host_Error("%s: datagram wasn't a nop", __func__);
 	    break;
+	default:
+	    Host_Error("%s: CL_GetMessage failed", __func__);
 	}
     } while (ret);
 
@@ -748,7 +747,7 @@ CL_ParseServerMessage(void)
 
     while (1) {
 	if (msg_badread)
-	    Host_Error("CL_ParseServerMessage: Bad server message");
+	    Host_Error("%s: Bad server message", __func__);
 
 	cmd = MSG_ReadByte();
 
@@ -767,12 +766,7 @@ CL_ParseServerMessage(void)
 
 	// other commands
 	switch (cmd) {
-	default:
-	    Host_Error("CL_ParseServerMessage: Illegible server message");
-	    break;
-
 	case svc_nop:
-//                      Con_Printf ("svc_nop\n");
 	    break;
 
 	case svc_time:
@@ -788,8 +782,7 @@ CL_ParseServerMessage(void)
 	case svc_version:
 	    i = MSG_ReadLong();
 	    if (i != PROTOCOL_VERSION)
-		Host_Error("CL_ParseServerMessage: "
-			   "Server is protocol %i instead of %i",
+		Host_Error("%s: Server is protocol %i instead of %i", __func__,
 			   i, PROTOCOL_VERSION);
 	    break;
 
@@ -847,8 +840,7 @@ CL_ParseServerMessage(void)
 	    Sbar_Changed();
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
-		Host_Error
-		    ("CL_ParseServerMessage: svc_updatename > MAX_SCOREBOARD");
+		Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
 	    strcpy(cl.scores[i].name, MSG_ReadString());
 	    break;
 
@@ -856,8 +848,7 @@ CL_ParseServerMessage(void)
 	    Sbar_Changed();
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
-		Host_Error
-		    ("CL_ParseServerMessage: svc_updatefrags > MAX_SCOREBOARD");
+		Host_Error("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
 	    cl.scores[i].frags = MSG_ReadShort();
 	    break;
 
@@ -865,8 +856,7 @@ CL_ParseServerMessage(void)
 	    Sbar_Changed();
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
-		Host_Error
-		    ("CL_ParseServerMessage: svc_updatecolors > MAX_SCOREBOARD");
+		Host_Error("%s: svc_updatecolors > MAX_SCOREBOARD", __func__);
 	    cl.scores[i].colors = MSG_ReadByte();
 	    CL_NewTranslation(i);
 	    break;
@@ -965,6 +955,9 @@ CL_ParseServerMessage(void)
 	case svc_sellscreen:
 	    Cmd_ExecuteString("help", src_command);
 	    break;
+
+	default:
+	    Host_Error("%s: Illegible server message", __func__);
 	}
     }
 }

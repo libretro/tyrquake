@@ -550,11 +550,10 @@ CL_ParseServerData(void)
     if (protover != PROTOCOL_VERSION &&
 	!(cls.demoplayback
 	  && (protover == 26 || protover == 27 || protover == 28)))
-	Host_EndGame
-	    ("Server returned version %i, not %i\n"
-	     "You probably need to upgrade.\n"
-	     "Check http://www.quakeworld.net/",
-	     protover, PROTOCOL_VERSION);
+	Host_EndGame("Server returned version %i, not %i\n"
+		     "You probably need to upgrade.\n"
+		     "Check http://disenchant.net/",
+		     protover, PROTOCOL_VERSION);
 
     cl.servercount = MSG_ReadLong();
 
@@ -832,7 +831,7 @@ CL_ParseStartSoundPacket(void)
     channel &= 7;
 
     if (ent > MAX_EDICTS)
-	Host_EndGame("CL_ParseStartSoundPacket: ent = %i", ent);
+	Host_EndGame("%s: ent = %i", __func__, ent);
 
     S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
 		 volume / 255.0, attenuation);
@@ -982,8 +981,7 @@ CL_UpdateUserinfo(void)
 
     slot = MSG_ReadByte();
     if (slot >= MAX_CLIENTS)
-	Host_EndGame
-	    ("CL_ParseServerMessage: svc_updateuserinfo > MAX_SCOREBOARD");
+	Host_EndGame("%s: svc_updateuserinfo > MAX_SCOREBOARD", __func__);
 
     player = &cl.players[slot];
     player->userid = MSG_ReadLong();
@@ -1007,7 +1005,7 @@ CL_SetInfo(void)
 
     slot = MSG_ReadByte();
     if (slot >= MAX_CLIENTS)
-	Host_EndGame("CL_ParseServerMessage: svc_setinfo > MAX_SCOREBOARD");
+	Host_EndGame("%s: svc_setinfo > MAX_SCOREBOARD", __func__);
 
     player = &cl.players[slot];
 
@@ -1146,7 +1144,7 @@ CL_ParseServerMessage(void)
 //
     while (1) {
 	if (msg_badread) {
-	    Host_EndGame("CL_ParseServerMessage: Bad server message");
+	    Host_EndGame("%s: Bad server message", __func__);
 	    break;
 	}
 
@@ -1162,10 +1160,6 @@ CL_ParseServerMessage(void)
 
 	// other commands
 	switch (cmd) {
-	default:
-	    Host_EndGame("CL_ParseServerMessage: Illegible server message");
-	    break;
-
 	case svc_nop:
 //                      Con_Printf ("svc_nop\n");
 	    break;
@@ -1235,24 +1229,21 @@ CL_ParseServerMessage(void)
 	    Sbar_Changed();
 	    i = MSG_ReadByte();
 	    if (i >= MAX_CLIENTS)
-		Host_EndGame
-		    ("CL_ParseServerMessage: svc_updatefrags > MAX_SCOREBOARD");
+		Host_EndGame("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
 	    cl.players[i].frags = MSG_ReadShort();
 	    break;
 
 	case svc_updateping:
 	    i = MSG_ReadByte();
 	    if (i >= MAX_CLIENTS)
-		Host_EndGame
-		    ("CL_ParseServerMessage: svc_updateping > MAX_SCOREBOARD");
+		Host_EndGame("%s: svc_updateping > MAX_SCOREBOARD", __func__);
 	    cl.players[i].ping = MSG_ReadShort();
 	    break;
 
 	case svc_updatepl:
 	    i = MSG_ReadByte();
 	    if (i >= MAX_CLIENTS)
-		Host_EndGame
-		    ("CL_ParseServerMessage: svc_updatepl > MAX_SCOREBOARD");
+		Host_EndGame("%s: svc_updatepl > MAX_SCOREBOARD", __func__);
 	    cl.players[i].pl = MSG_ReadByte();
 	    break;
 
@@ -1260,8 +1251,8 @@ CL_ParseServerMessage(void)
 	    // time is sent over as seconds ago
 	    i = MSG_ReadByte();
 	    if (i >= MAX_CLIENTS)
-		Host_EndGame
-		    ("CL_ParseServerMessage: svc_updateentertime > MAX_SCOREBOARD");
+		Host_EndGame("%s: svc_updateentertime > MAX_SCOREBOARD",
+			     __func__);
 	    cl.players[i].entertime = realtime - MSG_ReadFloat();
 	    break;
 
@@ -1400,6 +1391,8 @@ CL_ParseServerMessage(void)
 		CDAudio_Resume();
 	    break;
 
+	default:
+	    Host_EndGame("%s: Illegible server message", __func__);
 	}
     }
 
