@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2007-09-16
-Version: 	0.58
+Date:		2008-04-26
+Version: 	0.59
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -39,6 +39,15 @@ you can select by setting Makefile variables:
     or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.59
+=====
+- Various improvements to the windows video code
+  - Start in windowed mode to avoid extra mode changes on the monitor
+  - Fix logic for mouse grab and release when console or menu is active
+- Fix handling of sound files with incorrect headers (fixes SoE crash)
+- Increase software renderer's MAX_MOD_KNOWN (fixes Contract Revoked crash)
+- Various other minor cleanups and code improvements
 
 v0.58
 =====
