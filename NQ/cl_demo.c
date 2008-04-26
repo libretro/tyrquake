@@ -310,8 +310,6 @@ CL_PlayDemo_f(void)
 
     if (neg)
 	cls.forcetrack = -cls.forcetrack;
-// ZOID, fscanf is evil
-//      fscanf (cls.demofile, "%i\n", &cls.forcetrack);
 }
 
 struct stree_root *

@@ -461,8 +461,7 @@ Host_ShutdownServer(qboolean crash)
 	}
 	if ((Sys_DoubleTime() - start) > 3.0)
 	    break;
-    }
-    while (count);
+    } while (count);
 
 // make sure all the clients know we're disconnecting
     buf.data = message;

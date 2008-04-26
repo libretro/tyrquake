@@ -191,10 +191,8 @@ IN_UpdateClipCursor
 void
 IN_UpdateClipCursor(void)
 {
-
-    if (mouseinitialized && mouseactive && !dinput) {
+    if (mouseinitialized && mouseactive && !dinput)
 	ClipCursor(&window_rect);
-    }
 }
 
 
