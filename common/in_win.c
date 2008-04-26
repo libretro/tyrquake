@@ -725,16 +725,14 @@ IN_Accumulate
 void
 IN_Accumulate(void)
 {
-    if (mouseactive) {
-	if (!dinput) {		// FIXME - this test necessary? Was in NQ but not QW
-	    GetCursorPos(&current_pos);
+    if (mouseactive && !dinput) {
+	GetCursorPos(&current_pos);
 
-	    mx_accum += current_pos.x - window_center_x;
-	    my_accum += current_pos.y - window_center_y;
+	mx_accum += current_pos.x - window_center_x;
+	my_accum += current_pos.y - window_center_y;
 
-	    // force the mouse to the center, so there's room to move
-	    SetCursorPos(window_center_x, window_center_y);
-	}
+	/* force the mouse to the center, so there's room to move */
+	SetCursorPos(window_center_x, window_center_y);
     }
 }
 
