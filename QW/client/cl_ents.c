@@ -237,10 +237,8 @@ FlushEntityPacket(void)
     // read it all, but ignore it
     while (1) {
 	word = (unsigned short)MSG_ReadShort();
-	if (msg_badread) {	// something didn't parse right...
+	if (msg_badread)
 	    Host_EndGame("msg_badread in packetentities");
-	    return;
-	}
 
 	if (!word)
 	    break;		// done
@@ -302,10 +300,8 @@ CL_ParsePacketEntities(qboolean delta)
 
     while (1) {
 	word = (unsigned short)MSG_ReadShort();
-	if (msg_badread) {	// something didn't parse right...
+	if (msg_badread)
 	    Host_EndGame("msg_badread in packetentities");
-	    return;
-	}
 
 	if (!word) {
 	    while (oldindex < oldp->num_entities) {	// copy all the rest of the entities from the old packet

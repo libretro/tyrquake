@@ -934,7 +934,6 @@ CL_ConnectionlessPacket(void)
 	Con_Printf("disconnect\n");
 
 	Host_EndGame("Server disconnected");
-	return;
     }
 #endif
 

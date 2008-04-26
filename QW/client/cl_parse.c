@@ -1143,10 +1143,8 @@ CL_ParseServerMessage(void)
 // parse the message
 //
     while (1) {
-	if (msg_badread) {
+	if (msg_badread)
 	    Host_EndGame("%s: Bad server message", __func__);
-	    break;
-	}
 
 	cmd = MSG_ReadByte();
 
