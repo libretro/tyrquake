@@ -88,7 +88,7 @@ static qboolean vid_initialized = false, vid_palettized;
 static int lockcount;
 static int vid_fulldib_on_focus_mode;
 static qboolean force_minimized, in_mode_set, is_mode0x13, force_mode_set;
-static int vid_stretched, windowed_mouse;
+static int vid_stretched;
 static qboolean palette_changed, pal_is_nostatic;
 static qboolean syscolchg, vid_mode_set, hide_window;
 
@@ -2290,22 +2290,20 @@ VID_Update(vrect_t *rects)
     }
 
 // handle the mouse state when windowed if that's changed
-    if (modestate == MS_WINDOWED && _windowed_mouse.value) {
+    if (modestate == MS_WINDOWED) {
 	if (!_windowed_mouse.value) {
-	    if (windowed_mouse) {
+	    if (mouseactive) {
 		IN_DeactivateMouse();
 		IN_ShowMouse();
 	    }
-	    windowed_mouse = false;
-	} else {
-	    if (key_dest == key_game && !mouseactive && ActiveApp) {
-		IN_ActivateMouse();
-		IN_HideMouse();
-	    } else if (mouseactive && key_dest != key_game) {
+	} else if (mouseactive) {
+	    if (key_dest != key_game) {
 		IN_DeactivateMouse();
 		IN_ShowMouse();
 	    }
-	    windowed_mouse = true;
+	} else if (key_dest == key_game && ActiveApp) {
+	    IN_ActivateMouse();
+	    IN_HideMouse();
 	}
     }
 }
