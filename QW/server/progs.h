@@ -141,8 +141,14 @@ eval_t *GetEdictFieldValue(edict_t *ed, char *field);
 //
 // PR Strings stuff
 //
-void PR_InitStringTable();
+void PR_InitStringTable(void);
 char *PR_GetString(int num);
 int PR_SetString(char *s);
+
+/*
+ * Somehow, I don't think this should be exposed - but better to have it here
+ * than have hidden exports between .c files.
+ */
+void PF_changeyaw(void);
 
 #endif /* SERVER_PROGS_H */
