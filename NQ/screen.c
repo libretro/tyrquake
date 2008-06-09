@@ -118,7 +118,7 @@ SCR_CenterPrint(char *str)
 void
 SCR_EraseCenterString(void)
 {
-    int y;
+    int y, height;
 
     if (scr_erase_center++ > vid.numpages) {
 	scr_erase_lines = 0;
@@ -130,8 +130,11 @@ SCR_EraseCenterString(void)
     else
 	y = 48;
 
+    /* Make sure we don't draw off the bottom of the screen*/
+    height = qmin(8 * scr_erase_lines, ((int)vid.height) - y - 1);
+
     scr_copytop = 1;
-    Draw_TileClear(0, y, vid.width, 8 * scr_erase_lines);
+    Draw_TileClear(0, y, vid.width, height);
 }
 
 
