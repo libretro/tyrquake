@@ -704,8 +704,8 @@ Draw_TransPic
 void
 Draw_TransPic(int x, int y, const qpic_t *pic)
 {
-    if (x < 0 || (unsigned)(x + pic->width) > vid.width || y < 0 ||
-	(unsigned)(y + pic->height) > vid.height) {
+    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
+	y < 0 || (unsigned)(y + pic->height) > vid.height) {
 	Sys_Error("%s: bad coordinates", __func__);
     }
 

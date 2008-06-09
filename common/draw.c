@@ -322,9 +322,8 @@ Draw_Pic(int x, int y, const qpic_t *pic)
     unsigned short *pusdest;
     int v, u;
 
-    if ((x < 0) ||
-	(x + pic->width > vid.width) ||
-	(y < 0) || (y + pic->height > vid.height)) {
+    if (x < 0 || x + pic->width > vid.width ||
+	y < 0 || y + pic->height > vid.height) {
 	Sys_Error("%s: bad coordinates", __func__);
     }
 
@@ -367,8 +366,8 @@ Draw_SubPic(int x, int y, qpic_t *pic, int srcx, int srcy, int width,
     unsigned short *pusdest;
     int v, u;
 
-    if ((x < 0) ||
-	(x + width > vid.width) || (y < 0) || (y + height > vid.height)) {
+    if (x < 0 || x + width > vid.width ||
+	y < 0 || y + height > vid.height) {
 	Sys_Error("%s: bad coordinates", __func__);
     }
 
@@ -411,8 +410,8 @@ Draw_TransPic(int x, int y, const qpic_t *pic)
     unsigned short *pusdest;
     int v, u;
 
-    if (x < 0 || (unsigned)(x + pic->width) > vid.width || y < 0 ||
-	(unsigned)(y + pic->height) > vid.height) {
+    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
+	y < 0 || (unsigned)(y + pic->height) > vid.height) {
 	Sys_Error("%s: bad coordinates", __func__);
     }
 
@@ -487,8 +486,8 @@ Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
     unsigned short *pusdest;
     int v, u;
 
-    if (x < 0 || (unsigned)(x + pic->width) > vid.width || y < 0 ||
-	(unsigned)(y + pic->height) > vid.height) {
+    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
+	y < 0 || (unsigned)(y + pic->height) > vid.height) {
 	Sys_Error("%s: bad coordinates", __func__);
     }
 
@@ -780,6 +779,11 @@ Draw_TileClear(int x, int y, int w, int h)
     int width, height, tileoffsetx, tileoffsety;
     byte *psrc;
     vrect_t vr;
+
+    if (x < 0 || (unsigned)(x + w) > vid.width ||
+	y < 0 || (unsigned)(y + h) > vid.height) {
+	Sys_Error("%s: bad coordinates", __func__);
+    }
 
     r_rectdesc.rect.x = x;
     r_rectdesc.rect.y = y;
