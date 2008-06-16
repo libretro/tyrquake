@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2008-04-26
-Version: 	0.59
+Date:		2008-06-16
+Version: 	0.60
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -39,6 +39,11 @@ you can select by setting Makefile variables:
     or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.60
+=====
+- Fix video buffer overrun when rendering endtitle in low-res vid mode
+- Reduce the load timeout when a changelevel fails
 
 v0.59
 =====
