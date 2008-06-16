@@ -826,7 +826,12 @@ SCR_UpdateScreen(void)
     scr_copyeverything = 0;
 
     if (scr_disabled_for_loading) {
-	if (realtime - scr_disabled_time > 60) {
+	/*
+	 * FIXME - this really needs to be fixed properly.
+	 * Simply starting a new game and typing "changelevel foo" will hang
+	 * the engine for 15s (was 60s!) if foo.bsp does not exist.
+	 */
+	if (realtime - scr_disabled_time > 15) {
 	    scr_disabled_for_loading = false;
 	    Con_Printf("load failed.\n");
 	} else
