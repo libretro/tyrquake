@@ -62,7 +62,7 @@ static char ifname[IFNAMSIZ];
 
 
 static int
-UDP_GetLocalAddress(int sock)
+udp_scan_iface(int sock)
 {
     struct ifconf ifc;
     struct ifreq *ifr;
@@ -74,11 +74,13 @@ UDP_GetLocalAddress(int sock)
     if (COM_CheckParm("-noifscan"))
 	return -1;
 
-    ifc.ifc_len = sizeof (buf);
+    ifc.ifc_len = sizeof(buf);
     ifc.ifc_buf = buf;
 
-    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1)
+    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) {
+	Con_Printf("%s: SIOCGIFCONF failed\n", __func__);
 	return -1;
+    }
 
     ifr = ifc.ifc_req;
     n = ifc.ifc_len / sizeof(struct ifreq);
@@ -164,7 +166,7 @@ UDP_Init(void)
     memset (ifname, 0, sizeof(ifname));
     if (bindAddr.s_addr == INADDR_NONE && localAddr.s_addr == INADDR_NONE) {
 	/* myAddr may resolve to 127.0.0.1, see if we can do any better */
-	if (UDP_GetLocalAddress(net_controlsocket) == 0)
+	if (udp_scan_iface(net_controlsocket) == 0)
 	    Con_Printf ("Local address: %s (%s)\n", inet_ntoa(myAddr), ifname);
     }
 
