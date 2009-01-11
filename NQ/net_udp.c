@@ -114,17 +114,23 @@ UDP_Init(void)
 	return -1;
 
     /* determine my name & address */
+    myAddr.s_addr = htonl(INADDR_LOOPBACK);
     err = gethostname(buff, MAXHOSTNAMELEN);
     if (err) {
-	Con_Printf("%s: gethostname failed, UDP disabled (errno: %i)\n",
-		   __func__, errno);
-	return -1;
+	Con_Printf("%s: WARNING: gethostname failed (%s)\n", __func__,
+		   strerror(errno));
+    } else {
+	buff[MAXHOSTNAMELEN - 1] = 0;
+	local = gethostbyname(buff);
+	if (!local) {
+	    Con_Printf("%s: WARNING: gethostbyname failed (%s)\n", __func__,
+			hstrerror(h_errno));
+	} else if (local->h_addrtype != AF_INET) {
+	    Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
+	} else {
+	    myAddr = *(struct in_addr *)local->h_addr_list[0];
+	}
     }
-    buff[MAXHOSTNAMELEN - 1] = 0;
-    local = gethostbyname(buff);
-    if (!local || local->h_addrtype != AF_INET)
-	return -1;
-    myAddr = *(struct in_addr *)local->h_addr_list[0];
 
     i = COM_CheckParm("-ip");
     if (i && i < com_argc - 1) {
@@ -156,11 +162,15 @@ UDP_Init(void)
 	return -1;
     }
 
+    /* myAddr may resolve to 127.0.0.1, see if we can do any better */
     memset (ifname, 0, sizeof(ifname));
-    if (bindAddr.s_addr == INADDR_NONE && localAddr.s_addr == INADDR_NONE) {
-	/* myAddr may resolve to 127.0.0.1, see if we can do any better */
+    if (myAddr.s_addr == htonl(INADDR_LOOPBACK)) {
 	if (udp_scan_iface(net_controlsocket) == 0)
-	    Con_Printf ("Local address: %s (%s)\n", inet_ntoa(myAddr), ifname);
+	    Con_Printf ("UDP, Local address: %s (%s)\n", inet_ntoa(myAddr),
+			ifname);
+    }
+    if (ifname[0] == 0) {
+	Con_Printf ("UDP, Local address: %s\n", inet_ntoa(myAddr));
     }
 
     broadcastaddr.sin_family = AF_INET;

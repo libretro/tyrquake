@@ -102,26 +102,25 @@ WINS_Init(void)
     winsock_initialized++;
 
     /* determine my name & address */
+    myAddr.s_addr = htonl(INADDR_LOOPBACK);
     err = gethostname(buff, MAXHOSTNAMELEN);
     if (err) {
-	Con_Printf("%s: gethostname failed, UDP disabled.\n", __func__);
-	if (--winsock_initialized == 0)
-	    WSACleanup();
-	return -1;
+	Con_Printf("%s: WARNING: gethostname failed.\n", __func__);
+    } else {
+	buff[MAXHOSTNAMELEN - 1] = 0;
+	blocktime = Sys_DoubleTime();
+	WSASetBlockingHook(BlockingHook);
+	local = gethostbyname(buff);
+	WSAUnhookBlockingHook();
+	if (!local) {
+	    Con_Printf("%s: WARNING: gethostbyname timed out.\n", __func__);
+	} else if (local->h_addrtype != AF_INET) {
+	    Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
+	} else {
+	    myAddr = *(struct in_addr *)local->h_addr_list[0];
+	}
     }
-    buff[MAXHOSTNAMELEN - 1] = 0;
-
-    blocktime = Sys_DoubleTime();
-    WSASetBlockingHook(BlockingHook);
-    local = gethostbyname(buff);
-    WSAUnhookBlockingHook();
-    if (!local) {
-	Con_Printf("%s: gethostbyname timed out, UDP disabled.\n", __func__);
-	if (--winsock_initialized == 0)
-	    WSACleanup();
-	return -1;
-    }
-    myAddr = *(struct in_addr *)local->h_addr_list[0];
+    Con_Printf ("UDP, Local address: %s\n", inet_ntoa(myAddr));
 
     i = COM_CheckParm("-ip");
     if (i && i < com_argc - 1) {
