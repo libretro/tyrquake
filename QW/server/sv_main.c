@@ -1609,8 +1609,6 @@ SV_Init(quakeparms_t *parms)
     Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
-    Cbuf_InsertText("exec server.cfg\n");
-
     host_initialized = true;
 
     Con_Printf("Exe: " __TIME__ " " __DATE__ "\n");
@@ -1618,8 +1616,10 @@ SV_Init(quakeparms_t *parms)
     Con_Printf("\nServer Version TyrQuake-%s\n\n", stringify(TYR_VERSION));
     Con_Printf("======== QuakeWorld Initialized ========\n");
 
-// process command line arguments
-    Cmd_StuffCmds_f();
+    /*
+     * Process command line arguments, then exec server.cfg
+     */
+    Cbuf_InsertText("stuffcmds\nexec server.cfg\n");
     Cbuf_Execute();
 
 // if a map wasn't specified on the command line, spawn start.map
