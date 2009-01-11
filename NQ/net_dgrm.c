@@ -92,7 +92,7 @@ NET_Ban_f(void)
 
     switch (Cmd_Argc()) {
     case 1:
-	if (banAddr.s_addr) {
+	if (banAddr.s_addr != INADDR_ANY) {
 	    strcpy(addrStr, inet_ntoa(banAddr));
 	    strcpy(maskStr, inet_ntoa(banMask));
 	    print("Banning %s [%s]\n", addrStr, maskStr);
@@ -102,10 +102,10 @@ NET_Ban_f(void)
 
     case 2:
 	if (strcasecmp(Cmd_Argv(1), "off") == 0)
-	    banAddr.s_addr = INADDR_NONE;
+	    banAddr.s_addr = INADDR_ANY;
 	else
 	    banAddr.s_addr = inet_addr(Cmd_Argv(1));
-	banMask.s_addr = INADDR_ANY;
+	banMask.s_addr = INADDR_NONE;
 	break;
 
     case 3:
