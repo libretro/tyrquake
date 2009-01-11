@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static int net_acceptsocket = -1;
 static int net_controlsocket;
 static int net_broadcastsocket = 0;
-static struct qsockaddr broadcastaddr;
+static struct sockaddr_in broadcastaddr;
 
 /*
  * There are three addresses that we may use in different ways:
@@ -173,11 +173,9 @@ WINS_Init(void)
 	return -1;
     }
 
-    ((struct sockaddr_in *)&broadcastaddr)->sin_family = AF_INET;
-    ((struct sockaddr_in *)&broadcastaddr)->sin_addr.s_addr =
-	INADDR_BROADCAST;
-    ((struct sockaddr_in *)&broadcastaddr)->sin_port =
-	htons((unsigned short)net_hostport);
+    broadcastaddr.sin_family = AF_INET;
+    broadcastaddr.sin_addr.s_addr = INADDR_BROADCAST;
+    broadcastaddr.sin_port = htons((unsigned short)net_hostport);
 
     WINS_GetSocketAddr(net_controlsocket, &addr);
     strcpy(my_tcpip_address, WINS_AddrToString(&addr));
@@ -396,7 +394,7 @@ WINS_Broadcast(int socket, byte *buf, int len)
 	}
     }
 
-    return WINS_Write(socket, buf, len, &broadcastaddr);
+    return WINS_Write(socket, buf, len, (struct qsockaddr *)&broadcastaddr);
 }
 
 

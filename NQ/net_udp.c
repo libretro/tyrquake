@@ -40,7 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static int net_acceptsocket = -1;
 static int net_controlsocket;
 static int net_broadcastsocket = 0;
-static struct qsockaddr broadcastaddr;
+static struct sockaddr_in broadcastaddr;
 
 /*
  * There are three addresses that we may use in different ways:
@@ -168,10 +168,9 @@ UDP_Init(void)
 	    Con_Printf ("Local address: %s (%s)\n", inet_ntoa(myAddr), ifname);
     }
 
-    ((struct sockaddr_in *)&broadcastaddr)->sin_family = AF_INET;
-    ((struct sockaddr_in *)&broadcastaddr)->sin_addr.s_addr =
-	INADDR_BROADCAST;
-    ((struct sockaddr_in *)&broadcastaddr)->sin_port = htons(net_hostport);
+    broadcastaddr.sin_family = AF_INET;
+    broadcastaddr.sin_addr.s_addr = INADDR_BROADCAST;
+    broadcastaddr.sin_port = htons(net_hostport);
 
     UDP_GetSocketAddr(net_controlsocket, &addr);
     strcpy(my_tcpip_address, UDP_AddrToString(&addr));
@@ -380,7 +379,7 @@ UDP_Broadcast(int socket, byte *buf, int len)
 	}
     }
 
-    return UDP_Write(socket, buf, len, &broadcastaddr);
+    return UDP_Write(socket, buf, len, (struct qsockaddr *)&broadcastaddr);
 }
 
 
