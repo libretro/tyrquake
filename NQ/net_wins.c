@@ -86,7 +86,6 @@ WINS_Init(void)
     int err;
     char buff[MAXHOSTNAMELEN];
     char *colon;
-    char *p;
     struct hostent *local;
     struct qsockaddr addr;
 
@@ -122,24 +121,6 @@ WINS_Init(void)
 	    WSACleanup();
 	return -1;
     }
-
-    /* if the quake hostname isn't set, set it to the machine name */
-    if (!strcmp(hostname.string, "UNNAMED")) {
-	/* see if it's a text IP address (well, close enough) */
-	for (p = buff; *p; p++)
-	    if ((*p < '0' || *p > '9') && *p != '.')
-		break;
-
-	/* if it is a real name, strip off the domain; we only want the host */
-	if (*p) {
-	    for (i = 0; i < 15; i++)
-		if (buff[i] == '.')
-		    break;
-	    buff[i] = 0;
-	}
-	Cvar_Set("hostname", buff);
-    }
-
     myAddr = *(struct in_addr *)local->h_addr_list[0];
 
     i = COM_CheckParm("-ip");

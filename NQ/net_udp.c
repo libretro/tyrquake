@@ -124,13 +124,6 @@ UDP_Init(void)
     local = gethostbyname(buff);
     if (!local || local->h_addrtype != AF_INET)
 	return -1;
-
-    /* if the quake hostname isn't set, set it to the machine name */
-    if (strcmp(hostname.string, "UNNAMED") == 0) {
-	buff[MAXHOSTNAMELEN - 1] = 0;
-	Cvar_Set("hostname", buff);
-    }
-
     myAddr = *(struct in_addr *)local->h_addr_list[0];
 
     i = COM_CheckParm("-ip");
