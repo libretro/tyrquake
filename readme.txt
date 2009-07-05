@@ -2,8 +2,8 @@
  Tyr-Quake
 -----------
 
-Date:		2008-06-16
-Version: 	0.60
+Date:		2009-07-05
+Version: 	0.61
 Author:		Kevin Shanahan (aka. Tyrann)
 Webpage:	http://disenchant.net
 email:		tyrann@disenchant.net
@@ -39,6 +39,11 @@ you can select by setting Makefile variables:
     or make USE_X86_ASM=N prepare tyr-qwcl
 
 Version History:
+
+v0.61
+=====
+- Fix QWSV command line parsing
+- Attempt to detect when X86 assembler files should be used
 
 v0.60
 =====
