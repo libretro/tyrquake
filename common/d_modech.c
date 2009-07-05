@@ -43,9 +43,9 @@ D_Patch(void)
     static qboolean protectset8 = false;
 
     if (!protectset8) {
-	Sys_MakeCodeWriteable((int)D_PolysetAff8Start,
-			      (int)D_PolysetAff8End -
-			      (int)D_PolysetAff8Start);
+	Sys_MakeCodeWriteable((unsigned long)D_PolysetAff8Start,
+			      (unsigned long)D_PolysetAff8End -
+			      (unsigned long)D_PolysetAff8Start);
 	protectset8 = true;
     }
 #endif /* USE_X86_ASM */

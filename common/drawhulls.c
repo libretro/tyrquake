@@ -718,7 +718,7 @@ R_DrawWorldHull(void)
     int i;
 
     list_for_each_entry(poly, &hull_polys, chain) {
-	srand((int)poly);
+	srand((unsigned long)poly);
 	glColor3f(rand() % 256 / 255.0, rand() % 256 / 255.0,
 		  rand() % 256 / 255.0);
 	glBegin(GL_POLYGON);

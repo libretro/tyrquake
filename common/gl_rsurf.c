@@ -456,7 +456,7 @@ DrawFlatGLPoly(glpoly_t *p)
     int i;
     float *v;
 
-    srand((int)p);
+    srand((unsigned long)p);
     glColor3f(rand() % 256 / 255.0, rand() % 256 / 255.0,
 	      rand() % 256 / 255.0);
     glBegin(GL_POLYGON);
