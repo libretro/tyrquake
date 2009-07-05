@@ -20,7 +20,7 @@ BUILD_DIR        ?= build
 
 DEBUG            ?= N# Compile with debug info
 OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
-USE_X86_ASM      ?= Y# Compile with x86 asm
+USE_X86_ASM      ?= $(I386_GUESS)
 X11BASE          ?= $(X11BASE_GUESS)
 QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 TARGET_OS        ?= $(HOST_OS)
@@ -106,7 +106,10 @@ cc-version = $(shell sh $(TOPDIR)/scripts/gcc-version \
 cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
 
+cc-i386 = $(if $(subst __i386,,$(shell echo __i386 | $(CC) -E -xc - | tail -n 1)),Y,N)
+
 GCC_VERSION := $(call cc-version)
+I386_GUESS  := $(call cc-i386)
 
 # ---------------------
 # Special include dirs
