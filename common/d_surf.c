@@ -143,12 +143,7 @@ D_SCAlloc(int width, int size)
     if ((size <= 0) || (size > 0x10000))
 	Sys_Error("%s: bad cache size %d", __func__, size);
 
-#ifdef __alpha__
-    // FIXME - not sure about this (alpha version was only in QW)
-    size = (int)((long)&((surfcache_t *)0)->data[size]);
-#else
-    size = (int)&((surfcache_t *)0)->data[size];
-#endif
+    size = (unsigned long)&((surfcache_t *)0)->data[size];
     size = (size + 3) & ~3;
     if (size > sc_size)
 	Sys_Error("%s: %i > cache size", __func__, size);
