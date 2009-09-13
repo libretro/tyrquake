@@ -263,11 +263,10 @@ cvar_t v_gamma = { "gamma", "1", true };
 
 byte gammatable[256];		// palette is sent through this
 
-
 #ifdef	GLQUAKE
 unsigned short ramps[3][256];
 float v_blend[4];		// rgba 0.0 - 1.0
-#endif // GLQUAKE
+#endif
 
 void
 BuildGammaTable(float g)
@@ -470,7 +469,6 @@ V_CalcPowerupCshift(void)
 	cl.cshifts[CSHIFT_POWERUP].percent = 0;
 }
 
-
 /*
 =============
 V_CalcBlend
@@ -548,11 +546,6 @@ V_UpdatePalette(void)
     }
 }
 #else // !GLQUAKE
-/*
-=============
-V_UpdatePalette
-=============
-*/
 void
 V_UpdatePalette(void)
 {
@@ -619,7 +612,6 @@ V_UpdatePalette(void)
 
     VID_ShiftPalette(pal);
 }
-
 #endif // !GLQUAKE
 
 /*
@@ -980,8 +972,8 @@ V_Init(void)
     Cvar_RegisterVariable(&v_contentblend);
 
     Cvar_RegisterVariable(&v_idlescale);
-    Cvar_RegisterVariable(&crosshaircolor);
     Cvar_RegisterVariable(&crosshair);
+    Cvar_RegisterVariable(&crosshaircolor);
     Cvar_RegisterVariable(&cl_crossx);
     Cvar_RegisterVariable(&cl_crossy);
 #ifdef GLQUAKE
