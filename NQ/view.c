@@ -37,9 +37,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * especially when crossing a water boudnary.
  */
 
-cvar_t lcd_x = { "lcd_x", "0" };
-cvar_t lcd_yaw = { "lcd_yaw", "0" };
-
 cvar_t scr_ofsx = { "scr_ofsx", "0", false };
 cvar_t scr_ofsy = { "scr_ofsy", "0", false };
 cvar_t scr_ofsz = { "scr_ofsz", "0", false };
@@ -953,39 +950,7 @@ V_RenderView(void)
     }
 
     R_PushDlights();
-
-    if (lcd_x.value) {
-	//
-	// render two interleaved views
-	//
-	int i;
-
-	vid.rowbytes <<= 1;
-	vid.aspect *= 0.5;
-
-	r_refdef.viewangles[YAW] -= lcd_yaw.value;
-	for (i = 0; i < 3; i++)
-	    r_refdef.vieworg[i] -= right[i] * lcd_x.value;
-	R_RenderView();
-
-	vid.buffer += vid.rowbytes >> 1;
-
-	R_PushDlights();
-
-	r_refdef.viewangles[YAW] += lcd_yaw.value * 2;
-	for (i = 0; i < 3; i++)
-	    r_refdef.vieworg[i] += 2 * right[i] * lcd_x.value;
-	R_RenderView();
-
-	vid.buffer -= vid.rowbytes >> 1;
-
-	r_refdef.vrect.height <<= 1;
-
-	vid.rowbytes >>= 1;
-	vid.aspect *= 2;
-    } else {
-	R_RenderView();
-    }
+    R_RenderView();
 
 #ifndef GLQUAKE
     if (crosshair.value)
@@ -1007,9 +972,6 @@ V_Init(void)
     Cmd_AddCommand("v_cshift", V_cshift_f);
     Cmd_AddCommand("bf", V_BonusFlash_f);
     Cmd_AddCommand("centerview", V_StartPitchDrift);
-
-    Cvar_RegisterVariable(&lcd_x);
-    Cvar_RegisterVariable(&lcd_yaw);
 
     Cvar_RegisterVariable(&v_centermove);
     Cvar_RegisterVariable(&v_centerspeed);

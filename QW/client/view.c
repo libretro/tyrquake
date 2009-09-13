@@ -34,8 +34,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * especially when crossing a water boudnary.
  */
 
-cvar_t lcd_x = { "lcd_x", "0" };	// FIXME: make this work sometime...
-
 cvar_t cl_rollspeed = { "cl_rollspeed", "200" };
 cvar_t cl_rollangle = { "cl_rollangle", "2.0" };
 

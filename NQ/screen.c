@@ -32,7 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.h"
 #include "console.h"
 #include "sound.h"
-#include "view.h"		/* lcd_x */
 #include "menu.h"
 
 // only the refresh window will be updated unless these variables are flagged
@@ -816,7 +815,6 @@ void
 SCR_UpdateScreen(void)
 {
     static float oldscr_viewsize;
-    static float oldlcd_x;
     vrect_t vrect;
 
     if (scr_skipupdate || block_drawing)
@@ -853,11 +851,6 @@ SCR_UpdateScreen(void)
 //
     if (oldfov != scr_fov.value) {
 	oldfov = scr_fov.value;
-	vid.recalc_refdef = true;
-    }
-
-    if (oldlcd_x != lcd_x.value) {
-	oldlcd_x = lcd_x.value;
 	vid.recalc_refdef = true;
     }
 

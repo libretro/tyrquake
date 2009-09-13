@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // view.h
 
 extern cvar_t v_gamma;
-extern cvar_t lcd_x;
 extern cvar_t cl_crossx;
 extern cvar_t cl_crossy;
 extern cvar_t crosshair;

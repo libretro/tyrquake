@@ -369,11 +369,6 @@ R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
 
     pvrect->x = (pvrectin->width - pvrect->width) / 2;
     pvrect->y = (h - pvrect->height) / 2;
-
-    if (lcd_x.value) {
-	pvrect->y >>= 1;
-	pvrect->height >>= 1;
-    }
 }
 
 
