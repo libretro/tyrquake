@@ -27,9 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.h"
 #include "view.h"
 
-// FIXME - header hacks
-extern vrect_t scr_vrect;
-
 /*
  * The view is allowed to move slightly from it's true position for bobbing,
  * but if it exceeds 8 pixels linear distance (spherical, not box), the list
