@@ -1202,7 +1202,6 @@ GL_Upload32(const unsigned *data, int width, int height, qboolean mipmap,
 void
 GL_Upload8_EXT(const byte *data, int width, int height, qboolean mipmap)
 {
-    int i;
     static unsigned char scaled[1024 * 512];	// [512*256];
     int scaled_width, scaled_height;
 
