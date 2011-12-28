@@ -709,20 +709,20 @@ Test2_f(void)
 		       sizeof(struct qsockaddr));
 		break;
 	    }
-	if (n < hostCacheCount)
+	if (state.driver)
 	    goto JustDoIt;
     }
 
     for (i = 0; i < net_numlandrivers; i++) {
-	state.driver = &net_landrivers[i];
-	if (!state.driver->initialized)
+	if (!net_landrivers[i].initialized)
 	    continue;
-
 	// see if we can resolve the host name
-	if (state.driver->GetAddrFromName(host, &sendaddr) != -1)
+	if (net_landrivers[i].GetAddrFromName(host, &sendaddr) != -1) {
+	    state.driver = &net_landrivers[i];
 	    break;
+	}
     }
-    if (i == net_numlandrivers)
+    if (!state.driver)
 	return;
 
   JustDoIt:
