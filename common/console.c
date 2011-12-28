@@ -430,9 +430,8 @@ Con_DrawInput(void)
 
 // draw it
     y = con_vislines - 22;
-
     for (i = 0; i < con_linewidth; i++)
-	Draw_Character((i + 1) << 3, con_vislines - 22, text[i]);
+	Draw_Character((i + 1) << 3, y, text[i]);
 
 // remove cursor
     key_lines[edit_line][key_linepos] = 0;
