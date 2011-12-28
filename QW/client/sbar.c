@@ -911,7 +911,7 @@ void
 Sbar_TeamOverlay(void)
 {
     qpic_t *pic;
-    int i, k, l;
+    int i, k;
     int x, y;
     char num[12];
     int teamplay;
@@ -946,8 +946,6 @@ Sbar_TeamOverlay(void)
     Sbar_SortTeams();
 
 // draw the text
-    l = scoreboardlines;
-
     for (i = 0; i < scoreboardteams && y <= vid.height - 10; i++) {
 	k = teamsort[i];
 	tm = teams + k;

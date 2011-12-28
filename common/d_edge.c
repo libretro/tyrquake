@@ -121,13 +121,10 @@ D_CalcGradients
 static void
 D_CalcGradients(msurface_t *pface)
 {
-    mplane_t *pplane;
     float mipscale;
     vec3_t p_temp1;
     vec3_t p_saxis, p_taxis;
     float t;
-
-    pplane = pface->plane;
 
     mipscale = 1.0 / (float)(1 << miplevel);
 

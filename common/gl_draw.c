@@ -85,8 +85,6 @@ int gl_alpha_format = GL_RGBA;	// 4
 static int gl_filter_min = GL_LINEAR_MIPMAP_NEAREST;
 static int gl_filter_max = GL_LINEAR;
 
-static int texels;
-
 typedef struct {
     GLuint texnum;
     char identifier[MAX_QPATH];
@@ -176,14 +174,12 @@ Scrap_AllocBlock(int w, int h, int *x, int *y)
     Sys_Error("%s: full", __func__);
 }
 
-static int scrap_uploads;
 
 static void
 Scrap_Upload(void)
 {
     int texnum;
 
-    scrap_uploads++;
     for (texnum = 0; texnum < MAX_SCRAPS; ++texnum) {
 	GL_Bind(scrap_textures[texnum]);
 	GL_Upload8(scrap_texels[texnum], BLOCK_WIDTH, BLOCK_HEIGHT, false,
@@ -723,14 +719,12 @@ Only used for the player color selection menu
 void
 Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 {
-    int v, u, c;
+    int v, u;
     unsigned trans[64 * 64], *dest;
     byte *src;
     int p;
 
     GL_Bind(translate_texture);
-
-    c = pic->width * pic->height;
 
     dest = trans;
     for (v = 0; v < 64; v++, dest += 64) {
@@ -1154,9 +1148,6 @@ GL_Upload32(const unsigned *data, int width, int height, qboolean mipmap,
 	Sys_Error("%s: too big", __func__);
 
     samples = alpha ? gl_alpha_format : gl_solid_format;
-
-    texels += scaled_width * scaled_height;
-
     if (scaled_width == width && scaled_height == height) {
 	if (!mipmap) {
 	    glTexImage2D(GL_TEXTURE_2D, 0, samples, scaled_width,
@@ -1218,8 +1209,6 @@ GL_Upload8_EXT(const byte *data, int width, int height, qboolean mipmap)
 
     if (scaled_width * scaled_height > sizeof(scaled))
 	Sys_Error("%s: too big", __func__);
-
-    texels += scaled_width * scaled_height;
 
     if (scaled_width == width && scaled_height == height) {
 	if (!mipmap) {

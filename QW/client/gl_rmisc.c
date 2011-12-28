@@ -252,7 +252,7 @@ R_TranslatePlayerSkin(int playernum)
     byte *original;
     unsigned pixels[512 * 256], *out;
     unsigned scaled_width, scaled_height;
-    int inwidth, inheight;
+    int inwidth;
     int tinwidth, tinheight;
     byte *inrow;
     unsigned frac, fracstep;
@@ -309,11 +309,9 @@ R_TranslatePlayerSkin(int playernum)
 	if ((original = Skin_Cache(player->skin)) != NULL) {
 	    //skin data width
 	    inwidth = 320;
-	    inheight = 200;
 	} else {
 	    original = player_8bit_texels;
 	    inwidth = 296;
-	    inheight = 194;
 	}
 
 	// because this happens during gameplay, do it fast

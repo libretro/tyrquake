@@ -1050,10 +1050,8 @@ SV_ReadPackets(void)
 {
     int i;
     client_t *cl;
-    qboolean good;
     int qport;
 
-    good = false;
     while (NET_GetPacket()) {
 	if (SV_FilterPacket()) {
 	    SV_SendBan();	// tell them we aren't listening...
@@ -1086,7 +1084,6 @@ SV_ReadPackets(void)
 	    if (Netchan_Process(&cl->netchan)) {
 		/* this is a valid, sequenced packet, so process it */
 		svs.stats.packets++;
-		good = true;
 		cl->send_message = true;	/* reply at end of frame */
 		if (cl->state != cs_zombie)
 		    SV_ExecuteClientMessage(cl);

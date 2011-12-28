@@ -85,22 +85,17 @@ float timescale = 0.01;
 void
 R_EntityParticles(entity_t *ent)
 {
-    int count;
     int i;
     particle_t *p;
     float angle;
-    float sr, sp, sy, cr, cp, cy;
+    float sp, sy, cp, cy;
     vec3_t forward;
-    float dist;
-
-    dist = 64;
-    count = 50;
+    float dist = 64;
 
     if (!avelocities[0][0]) {
 	for (i = 0; i < NUMVERTEXNORMALS * 3; i++)
 	    avelocities[0][i] = (rand() & 255) * 0.01;
     }
-
 
     for (i = 0; i < NUMVERTEXNORMALS; i++) {
 	angle = cl.time * avelocities[i][0];
@@ -109,9 +104,6 @@ R_EntityParticles(entity_t *ent)
 	angle = cl.time * avelocities[i][1];
 	sp = sin(angle);
 	cp = cos(angle);
-	angle = cl.time * avelocities[i][2];
-	sr = sin(angle);
-	cr = cos(angle);
 
 	forward[0] = cp * cy;
 	forward[1] = cp * sy;
