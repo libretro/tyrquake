@@ -109,8 +109,8 @@ byte *skintable[MAX_LBM_HEIGHT];
 static int skinwidth;
 static byte *skinstart;
 
-void D_DrawSubdiv(void);
-void D_DrawNonSubdiv(void);
+static void D_DrawSubdiv(void);
+static void D_DrawNonSubdiv(void);
 void D_PolysetDrawSpans8(spanpackage_t *pspanpackage);
 void D_PolysetCalcGradients(int skinwidth);
 void D_PolysetRecursiveTriangle(int *p1, int *p2, int *p3);
@@ -179,7 +179,7 @@ D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
 D_DrawSubdiv
 ================
 */
-void
+static void
 D_DrawSubdiv(void)
 {
     mtriangle_t *ptri;
@@ -236,7 +236,7 @@ D_DrawSubdiv(void)
 D_DrawNonSubdiv
 ================
 */
-void
+static void
 D_DrawNonSubdiv(void)
 {
     mtriangle_t *ptri;
