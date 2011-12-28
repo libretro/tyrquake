@@ -331,10 +331,6 @@ Netchan_Process(netchan_t *chan)
     unsigned sequence, sequence_ack;
     unsigned reliable_ack, reliable_message;
 
-#ifdef SERVERONLY
-    int qport;
-#endif
-
     if (
 #ifndef SERVERONLY
 	   !cls.demoplayback &&
@@ -347,9 +343,9 @@ Netchan_Process(netchan_t *chan)
     sequence = MSG_ReadLong();
     sequence_ack = MSG_ReadLong();
 
-    /* read the qport if we are a server */
 #ifdef SERVERONLY
-    qport = MSG_ReadShort();
+    /* read the qport if we are a server (ignored - FIXME?) */
+    (void)MSG_ReadShort();
 #endif
 
     reliable_message = sequence >> 31;
