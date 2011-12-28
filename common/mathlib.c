@@ -278,7 +278,6 @@ BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
 	    p->normal[2] * emaxs[2];
 	break;
     default:
-	dist1 = dist2 = 0;	// shut up compiler
 	BOPS_Error();
 	break;
     }

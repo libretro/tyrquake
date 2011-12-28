@@ -423,7 +423,6 @@ Mod_LoadTextures(lump_t *l)
 	memset(altanims, 0, sizeof(altanims));
 
 	max = tx->name[1];
-	altmax = 0;
 	if (max >= 'a' && max <= 'z')
 	    max -= 'a' - 'A';
 	if (max >= '0' && max <= '9') {

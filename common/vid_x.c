@@ -576,8 +576,6 @@ VID_Init(unsigned char *palette)
 	    Sys_Error("VID: Bad window height");
     }
 
-    template_mask = 0;
-
 // specify a visual id
     if ((pnum = COM_CheckParm("-visualid"))) {
 	if (pnum >= com_argc - 1)
@@ -800,8 +798,6 @@ XLateKey(XKeyEvent * ev)
     int key;
     char buf[64];
     KeySym keysym;
-
-    key = 0;
 
     XLookupString(ev, buf, sizeof(buf), &keysym, 0);
 

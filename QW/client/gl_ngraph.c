@@ -100,7 +100,6 @@ R_NetGraph(void)
     char st[80];
     unsigned ngraph_pixels[NET_GRAPHHEIGHT][NET_TIMINGS];
 
-    x = 0;
     lost = CL_CalcNet();
     for (a = 0; a < NET_TIMINGS; a++) {
 	i = (cls.netchan.outgoing_sequence - a) & NET_TIMINGSMASK;

@@ -634,7 +634,6 @@ Host_Loadgame_f(void)
 	if (i == sizeof(str) - 1)
 	    Sys_Error("Loadgame buffer overflow");
 	str[i] = 0;
-	start = str;
 	start = COM_Parse(str);
 	if (!com_token[0])
 	    break;		// end of file

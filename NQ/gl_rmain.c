@@ -352,13 +352,11 @@ GL_DrawAliasShadow(aliashdr_t *paliashdr, int posenum)
     int count;
 
     lheight = currententity->origin[2] - lightspot[2];
+    height = -lheight + 1.0;
 
-    height = 0;
     verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
     verts += posenum * paliashdr->poseverts;
     order = (int *)((byte *)paliashdr + paliashdr->commands);
-
-    height = -lheight + 1.0;
 
     while (1) {
 	// get the vertex count and primitive type
