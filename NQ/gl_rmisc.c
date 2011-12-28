@@ -319,8 +319,8 @@ R_TranslatePlayerSkin(int playernum)
 
 
     // don't mipmap these, because it takes too long
-    GL_Upload8(translated, paliashdr->skinwidth, paliashdr->skinheight,
-	       false, false, true);
+    GL_Upload8(translated, paliashdr->skinwidth, paliashdr->skinheight, false,
+	       true);
 #else
     // allow users to crunch sizes down
     scaled_width = 512 >> (int)gl_playermip.value;
@@ -353,8 +353,7 @@ R_TranslatePlayerSkin(int playernum)
 	    }
 	}
 
-	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false,
-		       false);
+	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
 	return;
     }
 

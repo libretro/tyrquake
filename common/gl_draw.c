@@ -1200,28 +1200,12 @@ GL_Upload32(const unsigned *data, int width, int height, qboolean mipmap,
 }
 
 void
-GL_Upload8_EXT(const byte *data, int width, int height, qboolean mipmap,
-	       qboolean alpha)
+GL_Upload8_EXT(const byte *data, int width, int height, qboolean mipmap)
 {
-    int i, s;
-    qboolean noalpha;
-    int samples;
+    int i;
     static unsigned char scaled[1024 * 512];	// [512*256];
     int scaled_width, scaled_height;
 
-    s = width * height;
-    // if there are no transparent pixels, make it a 3 component
-    // texture even if it was specified as otherwise
-    if (alpha) {
-	noalpha = true;
-	for (i = 0; i < s; i++) {
-	    if (data[i] == 255)
-		noalpha = false;
-	}
-
-	if (alpha && noalpha)
-	    alpha = false;
-    }
     for (scaled_width = 1; scaled_width < width; scaled_width <<= 1);
     for (scaled_height = 1; scaled_height < height; scaled_height <<= 1);
 
@@ -1235,8 +1219,6 @@ GL_Upload8_EXT(const byte *data, int width, int height, qboolean mipmap,
 
     if (scaled_width * scaled_height > sizeof(scaled))
 	Sys_Error("%s: too big", __func__);
-
-    samples = 1;		// alpha ? gl_alpha_format : gl_solid_format;
 
     texels += scaled_width * scaled_height;
 
@@ -1323,7 +1305,7 @@ GL_Upload8(const byte *data, int width, int height, qboolean mipmap,
     }
 
     if (VID_Is8bit() && !alpha && (data != scrap_texels[0])) {
-	GL_Upload8_EXT(data, width, height, mipmap, alpha);
+	GL_Upload8_EXT(data, width, height, mipmap);
 	return;
     }
     GL_Upload32(trans, width, height, mipmap, alpha);
