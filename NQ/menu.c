@@ -1678,10 +1678,7 @@ M_LanConfig_Key(int key)
     }
 
     l = Q_atoi(lanConfig_portname);
-    if (l > 65535)
-	l = lanConfig_port;
-    else
-	lanConfig_port = l;
+    lanConfig_port = qmin(l, 65535);
     sprintf(lanConfig_portname, "%u", lanConfig_port);
 }
 
