@@ -254,12 +254,6 @@ Sys_LineRefresh(void)
 {
 }
 
-static void
-floating_point_exception_handler(int whatever)
-{
-//      Sys_Warn("floating point exception\n");
-    signal(SIGFPE, floating_point_exception_handler);
-}
 
 // FIXME - need this at all? (see QW)
 char *
@@ -308,7 +302,6 @@ main(int c, char **v)
     quakeparms_t parms;
     int j;
 
-//      signal(SIGFPE, floating_point_exception_handler);
     signal(SIGFPE, SIG_IGN);
 
     memset(&parms, 0, sizeof(parms));

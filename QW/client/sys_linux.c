@@ -227,13 +227,6 @@ Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-static void
-floating_point_exception_handler(int whatever)
-{
-//      Sys_Warn("floating point exception\n");
-    signal(SIGFPE, floating_point_exception_handler);
-}
-
 #ifndef USE_X86_ASM
 void
 Sys_HighFPPrecision(void)
@@ -253,7 +246,6 @@ main(int c, char **v)
     quakeparms_t parms;
     int j;
 
-//      signal(SIGFPE, floating_point_exception_handler);
     signal(SIGFPE, SIG_IGN);
 
     memset(&parms, 0, sizeof(parms));
