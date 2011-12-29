@@ -84,13 +84,16 @@ X11BASE_GUESS := $(shell \
 		[ -e $$DIR/lib/libX11.a ]; then echo $$DIR; break; fi; \
 	done )
 
-# --------------------------------------------------------------------
-# Try to guess the MinGW cross compiler
-# - I think i386-... is the standard naming, but Debian uses i586-...
-# --------------------------------------------------------------------
+# ------------------------------------------------------------------------
+# Try to guess the MinGW cross compiler executables
+# - I've seen i386-mingw32msvc, i586-mingw32msvc (Debian) and now
+#   i486-mingw32 (Arch).
+# ------------------------------------------------------------------------
 
 MINGW_CROSS_GUESS := $(shell \
-	if which i586-mingw32msvc-gcc > /dev/null 2>&1; then \
+	if which i486-mingw32-gcc > /dev/null 2>&1; then \
+		echo i486-mingw32; \
+	elif which i586-mingw32msvc-gcc > /dev/null 2>&1; then \
 		echo i586-mingw32msvc; \
 	else \
 		echo i386-mingw32msvc; \
