@@ -20,7 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "console.h"
+#include "draw.h"
 #include "host.h"
+#include "menu.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "render.h"
@@ -150,40 +152,52 @@ R_TimeGraph
 Performance monitoring tool
 ==============
 */
-#define	MAX_TIMINGS		100
+#define MAX_TIMINGS 256
 void
 R_TimeGraph(void)
 {
-    static int timex;
-    int a;
-    float r_time2;
     static byte r_timings[MAX_TIMINGS];
-    int x;
+    static int timex;
+    float r_time2;
+    int a, x, y, y2, w, i;
+    char st[80];
 
     r_time2 = Sys_DoubleTime();
 
-    a = (r_time2 - r_time1) / 0.01;
+    a = (r_time2 - r_time1) / 0.001;
 //a = fabs(mouse_y * 0.05);
 //a = (int)((r_refdef.vieworg[2] + 1024)/1)%(int)r_graphheight.value;
+//a = (int)((pmove.velocity[2] + 500)/10);
 //a = fabs(velocity[0])/20;
 //a = ((int)fabs(origin[0])/8)%20;
 //a = (cl.idealpitch + 30)/5;
-    r_timings[timex] = a;
-    a = timex;
+//a = (int)(cl.simangles[YAW] * 64/360) & 63;
 
-    if (r_refdef.vrect.width <= MAX_TIMINGS)
-	x = r_refdef.vrect.width - 1;
+    r_timings[timex] = a;
+
+    if (vid.width - 16 <= MAX_TIMINGS)
+	w = vid.width - 16;
     else
-	x = r_refdef.vrect.width - (r_refdef.vrect.width - MAX_TIMINGS) / 2;
-    do {
-	R_LineGraph(x, r_refdef.vrect.height - 2, r_timings[a]);
-	if (x == 0)
-	    break;		// screen too small to hold entire thing
-	x--;
-	a--;
-	if (a == -1)
-	    a = MAX_TIMINGS - 1;
-    } while (a != timex);
+	w = MAX_TIMINGS;
+
+    x = -((vid.width - 320) >> 1);
+    y = vid.height - sb_lines - 24 - (int)r_graphheight.value * 2 - 2;
+    y2 = y + 8;
+
+    M_DrawTextBox(x, y, (w + 7) / 8,
+		  ((int)r_graphheight.value * 2 + 7) / 8 + 1);
+
+    x = 8;
+    y = vid.height - sb_lines - 8 - 2;
+
+    for (a = MAX_TIMINGS - w; a < w; a++) {
+	i = timex - a;
+	if (i < 0)
+	    i += MAX_TIMINGS;
+	R_LineGraph(x + w - 1 - a, y, r_timings[i]);
+    }
+    sprintf(st, "Render time %dms", r_timings[timex]);
+    Draw_String(8, y2, st);
 
     timex = (timex + 1) % MAX_TIMINGS;
 }
