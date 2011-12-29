@@ -21,16 +21,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.h"
 #include "draw.h"
-#include "host.h"
 #include "menu.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "render.h"
 #include "sbar.h"
-#include "screen.h"
+#ifdef NQ_HACK
 #include "server.h"
+#endif
 #include "sys.h"
-#include "view.h"
 
 /*
 ===============
@@ -122,27 +121,32 @@ R_LineGraph(int x, int y, int h)
     int i;
     byte *dest;
     int s;
+    int color;
 
 // FIXME: should be disabled on no-buffer adapters, or should be in the driver
 
+#ifdef NQ_HACK
     x += r_refdef.vrect.x;
     y += r_refdef.vrect.y;
-
+#endif
     dest = vid.buffer + vid.rowbytes * y + x;
 
     s = r_graphheight.value;
 
+    if (h == 10000)
+	color = 0x6f;		// yellow
+    else if (h == 9999)
+	color = 0x4f;		// red
+    else if (h == 9998)
+	color = 0xd0;		// blue
+    else
+	color = 0xff;		// pink
+
     if (h > s)
 	h = s;
 
-    for (i = 0; i < h; i++, dest -= vid.rowbytes * 2) {
-	dest[0] = 0xff;
-	*(dest - vid.rowbytes) = 0x30;
-    }
-    for (; i < s; i++, dest -= vid.rowbytes * 2) {
-	dest[0] = 0x30;
-	*(dest - vid.rowbytes) = 0x30;
-    }
+    for (i = 0; i < h; i++, dest -= vid.rowbytes * 2)
+	dest[0] = color;
 }
 
 /*
@@ -201,6 +205,68 @@ R_TimeGraph(void)
 
     timex = (timex + 1) % MAX_TIMINGS;
 }
+
+#ifdef QW_HACK
+/*
+==============
+R_NetGraph
+==============
+*/
+void
+R_NetGraph(void)
+{
+    int a, x, y, y2, w, i;
+    int lost;
+    char st[80];
+
+    if (vid.width - 16 <= NET_TIMINGS)
+	w = vid.width - 16;
+    else
+	w = NET_TIMINGS;
+
+    x = -((vid.width - 320) >> 1);
+    y = vid.height - sb_lines - 24 - (int)r_graphheight.value * 2 - 2;
+
+    M_DrawTextBox(x, y, (w + 7) / 8,
+		  ((int)r_graphheight.value * 2 + 7) / 8 + 1);
+    y2 = y + 8;
+    y = vid.height - sb_lines - 8 - 2;
+
+    x = 8;
+    lost = CL_CalcNet();
+    for (a = NET_TIMINGS - w; a < w; a++) {
+	i = (cls.netchan.outgoing_sequence - a) & NET_TIMINGSMASK;
+	R_LineGraph(x + w - 1 - a, y, packet_latency[i]);
+    }
+    sprintf(st, "%3i%% packet loss", lost);
+    Draw_String(8, y2, st);
+}
+
+/*
+==============
+R_ZGraph
+==============
+*/
+void
+R_ZGraph(void)
+{
+    int a, x, w, i;
+    static int height[256];
+
+    if (r_refdef.vrect.width <= 256)
+	w = r_refdef.vrect.width;
+    else
+	w = 256;
+
+    height[r_framecount & 255] = ((int)r_origin[2]) & 31;
+
+    x = 0;
+    for (a = 0; a < w; a++) {
+	i = (r_framecount - a) & 255;
+	R_LineGraph(x + w - 1 - a, r_refdef.vrect.height - 2, height[i]);
+    }
+}
+#endif
 
 /*
 =============
@@ -291,8 +357,10 @@ R_TransformFrustum(void)
     int i;
     vec3_t v, v2;
 
+#ifdef NQ_HACK
     if (r_lockfrustum.value)
 	return;
+#endif
 
     for (i = 0; i < 4; i++) {
 	v[0] = screenedge[i].normal[2];
@@ -384,12 +452,20 @@ R_SetupFrame(void)
     float w, h;
 
 // don't allow cheats in multiplayer
+#ifdef NQ_HACK
     if (cl.maxclients > 1) {
 	Cvar_Set("r_draworder", "0");
 	Cvar_Set("r_fullbright", "0");
 	Cvar_Set("r_ambient", "0");
 	Cvar_Set("r_drawflat", "0");
     }
+#endif
+#ifdef QW_HACK
+    r_draworder.value = 0;
+    r_fullbright.value = 0;
+    r_ambient.value = 0;
+    r_drawflat.value = 0;
+#endif
 
     if (r_numsurfs.value) {
 	if ((surface_p - surfaces) > r_maxsurfsseen)
@@ -415,8 +491,13 @@ R_SetupFrame(void)
     if (r_refdef.ambientlight < 0)
 	r_refdef.ambientlight = 0;
 
+#ifdef NQ_HACK
     if (!sv.active)
 	r_draworder.value = 0;	// don't let cheaters look behind walls
+#endif
+#ifdef QW_HACK
+    r_draworder.value = 0;	// don't let cheaters look behind walls
+#endif
 
     R_CheckVariables();
 
