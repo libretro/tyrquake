@@ -930,8 +930,7 @@ XLateKey(XKeyEvent * ev)
 	break;
 
     case XK_KP_Begin:
-	// FIXME - what keys are these???
-	key = K_AUX30;
+    case XK_KP_5:
 	key = '5';
 	break;
 
