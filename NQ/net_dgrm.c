@@ -515,9 +515,9 @@ Test_Poll(struct test_poll_state *state)
 	connectTime = MSG_ReadLong();
 	strcpy(address, MSG_ReadString());
 
-	Con_Printf("%s\n  frags:%3i  colors:%u %u  time:%u\n  %s\n", name,
-		   frags, colors >> 4, colors & 0x0f, connectTime / 60,
-		   address);
+	Con_Printf("%s (%d)\n  frags:%3i  colors:%u %u  time:%u\n  %s\n",
+		   name, (int)playerNumber, frags, colors >> 4, colors & 0x0f,
+		   connectTime / 60, address);
     }
 
     state->pollCount--;
