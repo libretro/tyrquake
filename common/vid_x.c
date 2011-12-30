@@ -48,10 +48,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_local.h"
 #include "keys.h"
 #include "quakedef.h"
+#include "screen.h"
 #include "sys.h"
-
-// FIXME - header hacks
-extern int scr_fullupdate;
 
 static float old_mouse_x, old_mouse_y;
 static int ignorenext;
