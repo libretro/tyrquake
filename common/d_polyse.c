@@ -72,11 +72,6 @@ static edgetable edgetables[12] = {
     {0, 1, r_p0, r_p2, NULL, 1, r_p0, r_p1, NULL},
 };
 
-/*
- * FIXME: some of these could become statics
- *        most used in d_polysa.S also, but some only used in one file or the
- *        other, depending on USE_X86_ASM.
- */
 int a_sstepxfrac, a_tstepxfrac, r_lstepx, a_ststepxwhole;
 int r_sstepx, r_tstepx, r_lstepy, r_sstepy, r_tstepy;
 int r_zistepx, r_zistepy;
