@@ -38,9 +38,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <X11/extensions/XShm.h>
 #include <X11/extensions/xf86vmode.h>
 
-// FIXME - not declared in <X11/extensions/XShm.h>, should have been...
-int XShmGetEventBase(Display *);
-
 // FIXME - refactoring X11 support...
 #include "x11_core.h"
 #include "in_x11.h"
