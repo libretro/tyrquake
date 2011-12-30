@@ -845,10 +845,15 @@ local network.
 ==============================================================================
 */
 
-
 typedef struct {
-    unsigned mask;
-    unsigned compare;
+    union {
+	unsigned l;
+	byte b[4];
+    } mask;
+    union {
+	unsigned l;
+	byte b[4];
+    } addr;
 } ipfilter_t;
 
 #define	MAX_IPFILTERS	1024
@@ -864,42 +869,64 @@ StringToFilter
 =================
 */
 qboolean
-StringToFilter(char *s, ipfilter_t * f)
+StringToFilter(char *in, ipfilter_t *f)
 {
-    char num[128];
-    int i, j;
-    byte b[4];
-    byte m[4];
+    char num[4];
+    int i, j, b;
+    char *s = in;
 
     for (i = 0; i < 4; i++) {
-	b[i] = 0;
-	m[i] = 0;
+	f->addr.b[i] = 0;
+	f->mask.b[i] = 0;
     }
 
     for (i = 0; i < 4; i++) {
-	if (*s < '0' || *s > '9') {
-	    Con_Printf("Bad filter address: %s\n", s);
-	    return false;
-	}
+	if (*s < '0' || *s > '9')
+	    goto badaddr;
 
 	j = 0;
-	while (*s >= '0' && *s <= '9') {
+	while (*s >= '0' && *s <= '9' && j < 4)
 	    num[j++] = *s++;
-	}
 	num[j] = 0;
-	b[i] = atoi(num);
-	if (b[i] != 0)
-	    m[i] = 255;
+	b = atoi(num);
+	if (b > 0xff) {
+	    s -= j;
+	    goto badaddr;
+	}
+	f->addr.b[i] = b;
+	f->mask.b[i] = 0xff;
 
-	if (!*s)
+	if (!*s || *s == '/')
 	    break;
-	s++;
+	if (i < 3) {
+	    if (*s != '.')
+		goto badaddr;
+	    s++;
+	    if (!*s)
+		break;
+	}
     }
 
-    f->mask = *(unsigned *)m;
-    f->compare = *(unsigned *)b;
-
+    /* If the IP or prefix looks ok, user can specify a mask */
+    if (*s) {
+	if (*s != '/')
+	    goto badaddr;
+	s++;
+	j = 0;
+	while (*s >= '0' && *s <= '9' && j < 3)
+	    num[j++] = *s++;
+	num[j] = 0;
+	b = atoi(num);
+	if (b > 32 || *s)
+	    goto badaddr;
+	f->mask.l = BigLong(0xffffffff << (32 - b));
+    }
     return true;
+
+ badaddr:
+    Con_Printf("Bad filter address: %s\n", in);
+    Con_Printf("                    %*s\n", (int)(s - in) + 1, "^");
+    return false;
 }
 
 /*
@@ -913,7 +940,7 @@ SV_AddIP_f(void)
     int i;
 
     for (i = 0; i < numipfilters; i++)
-	if (ipfilters[i].compare == 0xffffffff)
+	if (ipfilters[i].addr.l == 0xffffffff)
 	    break;		// free spot
     if (i == numipfilters) {
 	if (numipfilters == MAX_IPFILTERS) {
@@ -924,7 +951,7 @@ SV_AddIP_f(void)
     }
 
     if (!StringToFilter(Cmd_Argv(1), &ipfilters[i]))
-	ipfilters[i].compare = 0xffffffff;
+	ipfilters[i].addr.l = 0xffffffff;
 }
 
 /*
@@ -940,14 +967,16 @@ SV_RemoveIP_f(void)
 
     if (!StringToFilter(Cmd_Argv(1), &f))
 	return;
-    for (i = 0; i < numipfilters; i++)
-	if (ipfilters[i].mask == f.mask && ipfilters[i].compare == f.compare) {
+    for (i = 0; i < numipfilters; i++) {
+	const ipfilter_t *tmp = &ipfilters[i];
+	if (tmp->mask.l == f.mask.l && tmp->addr.l == f.addr.l) {
 	    for (j = i + 1; j < numipfilters; j++)
 		ipfilters[j - 1] = ipfilters[j];
 	    numipfilters--;
 	    Con_Printf("Removed.\n");
 	    return;
 	}
+    }
     Con_Printf("Didn't find %s.\n", Cmd_Argv(1));
 }
 
@@ -959,13 +988,18 @@ SV_ListIP_f
 void
 SV_ListIP_f(void)
 {
-    int i;
-    byte b[4];
+    int i, j, mask;
 
     Con_Printf("Filter list:\n");
     for (i = 0; i < numipfilters; i++) {
-	*(unsigned *)b = ipfilters[i].compare;
-	Con_Printf("%3i.%3i.%3i.%3i\n", b[0], b[1], b[2], b[3]);
+	const byte *b = ipfilters[i].addr.b;
+	const unsigned m = ipfilters[i].mask.l;
+	mask = 0;
+	for (j = 0; j < 32; j++) {
+	    if ((m >> j) & 0x1)
+		mask++;
+	}
+	Con_Printf("%3i.%3i.%3i.%3i / %2i\n", b[0], b[1], b[2], b[3], mask);
     }
 }
 
@@ -979,7 +1013,6 @@ SV_WriteIP_f(void)
 {
     FILE *f;
     char name[MAX_OSPATH];
-    byte b[4];
     int i;
 
     sprintf(name, "%s/listip.cfg", com_gamedir);
@@ -993,7 +1026,7 @@ SV_WriteIP_f(void)
     }
 
     for (i = 0; i < numipfilters; i++) {
-	*(unsigned *)b = ipfilters[i].compare;
+	const byte *b = ipfilters[i].addr.b;
 	fprintf(f, "addip %i.%i.%i.%i\n", b[0], b[1], b[2], b[3]);
     }
 
@@ -1029,10 +1062,15 @@ SV_FilterPacket(void)
     int i;
     unsigned in;
 
-    in = *(unsigned *)net_from.ip;
+    /* FIXME - be smarter about this */
+    in  = net_from.ip[0] << 24;
+    in |= net_from.ip[1] << 16;
+    in |= net_from.ip[2] << 8;
+    in |= net_from.ip[3];
+    in = BigLong(in);
 
     for (i = 0; i < numipfilters; i++)
-	if ((in & ipfilters[i].mask) == ipfilters[i].compare)
+	if ((in & ipfilters[i].mask.l) == ipfilters[i].addr.l)
 	    return filterban.value;
 
     return !filterban.value;
