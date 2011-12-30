@@ -124,8 +124,6 @@ static HWND dibwindow;
 static int vid_modenum = NO_MODE;
 static int vid_realmode;
 static int vid_default = MODE_WINDOWED;
-
-static int windowed_default;
 static qboolean fullsbardraw = false;
 
 static float vid_gamma = 1.0;
@@ -254,10 +252,8 @@ static qboolean
 VID_SetWindowedMode(int modenum)
 {
     HDC hdc;
-    int lastmodestate, width, height;
+    int width, height;
     RECT rect;
-
-    lastmodestate = modestate;
 
     WindowRect.top = WindowRect.left = 0;
 
@@ -328,7 +324,7 @@ static qboolean
 VID_SetFullDIBMode(int modenum)
 {
     HDC hdc;
-    int lastmodestate, width, height;
+    int width, height;
     RECT rect;
 
     if (!leavecurrentmode) {
@@ -344,11 +340,9 @@ VID_SetFullDIBMode(int modenum)
 	    Sys_Error("Couldn't set fullscreen DIB mode");
     }
 
-    lastmodestate = modestate;
     modestate = MS_FULLDIB;
 
     WindowRect.top = WindowRect.left = 0;
-
     WindowRect.right = modelist[modenum].width;
     WindowRect.bottom = modelist[modenum].height;
 
@@ -412,7 +406,7 @@ VID_SetFullDIBMode(int modenum)
 static int
 VID_SetMode(int modenum, unsigned char *palette)
 {
-    int original_mode, temp;
+    int temp;
     qboolean stat;
     MSG msg;
 
@@ -426,11 +420,6 @@ VID_SetMode(int modenum, unsigned char *palette)
     scr_disabled_for_loading = true;
 
     CDAudio_Pause();
-
-    if (vid_modenum == NO_MODE)
-	original_mode = windowed_default;
-    else
-	original_mode = vid_modenum;
 
     // Set either the fullscreen or windowed mode
     stat = false;
@@ -1303,7 +1292,6 @@ VID_DescribeModes_f(void)
 {
     int i, lnummodes, t;
     char *pinfo;
-    vmode_t *pv;
 
     lnummodes = VID_NumModes();
 
@@ -1311,7 +1299,6 @@ VID_DescribeModes_f(void)
     leavecurrentmode = 0;
 
     for (i = 1; i < lnummodes; i++) {
-	pv = VID_GetModePtr(i);
 	pinfo = VID_GetExtModeDescription(i);
 	Con_Printf("%2d: %s\n", i, pinfo);
     }
@@ -1582,7 +1569,7 @@ void
 VID_Init(unsigned char *palette)
 {
     int i, existingmode;
-    int basenummodes, width, height, bpp, findbpp, done;
+    int width, height, bpp, findbpp, done;
     char gldir[MAX_OSPATH];
     HDC hdc;
     DEVMODE devmode;
@@ -1611,7 +1598,7 @@ VID_Init(unsigned char *palette)
     InitCommonControls();
 
     VID_InitDIB(global_hInstance);
-    basenummodes = nummodes = 1;
+    nummodes = 1;
 
     VID_InitFullDIB(global_hInstance);
 
@@ -1845,7 +1832,6 @@ VID_MenuDraw(void)
     qpic_t *p;
     char *ptr;
     int lnummodes, i, k, column, row;
-    vmode_t *pv;
 
     p = Draw_CachePic("gfx/vidmodes.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
@@ -1855,10 +1841,8 @@ VID_MenuDraw(void)
 
     for (i = 1; (i < lnummodes) && (vid_wmodes < MAX_MODEDESCS); i++) {
 	ptr = VID_GetModeDescription(i);
-	pv = VID_GetModePtr(i);
 
 	k = vid_wmodes;
-
 	modedescs[k].modenum = i;
 	modedescs[k].desc = ptr;
 	modedescs[k].iscur = 0;

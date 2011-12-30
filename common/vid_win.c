@@ -1228,7 +1228,6 @@ VID_SetWindowedMode(int modenum)
     HDC hdc;
     pixel_format_t pf;
     qboolean stretched;
-    int lastmodestate;
 
     if (!windowed_mode_set) {
 	if (COM_CheckParm("-resetwinpos")) {
@@ -1241,7 +1240,6 @@ VID_SetWindowedMode(int modenum)
     VID_CheckModedescFixup(modenum);
 
     DDActive = 0;
-    lastmodestate = modestate;
 
     DestroyFullscreenWindow();
     DestroyFullDIBWindow();
@@ -1417,7 +1415,6 @@ VID_SetFullDIBMode(int modenum)
 {
     HDC hdc;
     pixel_format_t pf;
-    int lastmodestate;
 
     DDActive = 0;
 
@@ -1447,7 +1444,6 @@ VID_SetFullDIBMode(int modenum)
 	DISP_CHANGE_SUCCESSFUL)
 	Sys_Error("Couldn't set fullscreen DIB mode");
 
-    lastmodestate = modestate;
     modestate = MS_FULLDIB;
     vid_fulldib_on_focus_mode = modenum;
 
