@@ -320,4 +320,6 @@ R_AliasClipTriangle(mtriangle_t *ptri)
 	mtri.vertindex[2] = i + 1;
 	D_PolysetDraw();
     }
+    /* Clean up global pointer to stack before returning */
+    r_affinetridesc.ptriangles = NULL;
 }
