@@ -157,8 +157,6 @@ D_SetupFrame(void)
 #else
     d_drawspans = D_DrawSpans8;
 #endif
-
-    d_aflatcolor = 0;
 }
 
 

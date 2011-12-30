@@ -54,7 +54,6 @@ int r_p0[6], r_p1[6], r_p2[6];
 
 byte *d_pcolormap;
 
-int d_aflatcolor;
 int d_xdenom;
 
 static edgetable *pedgetable;

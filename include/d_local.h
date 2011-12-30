@@ -104,7 +104,6 @@ extern pixel_t *d_viewbuffer;
 
 extern short *zspantable[MAXHEIGHT];
 
-extern int d_aflatcolor;
 extern int d_minmip;
 extern float d_scalemip[3];
 
