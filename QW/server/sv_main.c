@@ -46,13 +46,13 @@ cvar_t sv_maxtic = { "sv_maxtic", "0.1" };	// physics time tic
 
 cvar_t developer = { "developer", "0" };	// show extra messages
 
-cvar_t timeout = { "timeout", "65" };		// seconds without any message
-cvar_t zombietime = { "zombietime", "2" };	// seconds to sink messages
+static cvar_t timeout = { "timeout", "65" };	// seconds without any message
+static cvar_t zombietime = { "zombietime", "2" }; // seconds to sink messages
 						// after disconnect
 
-cvar_t rcon_password = { "rcon_password", "" };	// password for remote server commands
-cvar_t password = { "password", "" };	// password for entering the game
-cvar_t spectator_password = { "spectator_password", "" };	// password for entering as a sepctator
+static cvar_t rcon_password = { "rcon_password", "" };	// for remote commands
+static cvar_t password = { "password", "" };	// for entering the game
+static cvar_t spectator_password = { "spectator_password", "" }; // for entering as a spectator
 
 cvar_t allow_download = { "allow_download", "1" };
 cvar_t allow_download_skins = { "allow_download_skins", "1" };
@@ -61,11 +61,8 @@ cvar_t allow_download_sounds = { "allow_download_sounds", "1" };
 cvar_t allow_download_maps = { "allow_download_maps", "1" };
 
 cvar_t sv_highchars = { "sv_highchars", "1" };
-
 cvar_t sv_phs = { "sv_phs", "1" };
-
 cvar_t pausable = { "pausable", "1" };
-
 
 //
 // game rules mirrored in svs.info
@@ -85,8 +82,8 @@ cvar_t hostname = { "hostname", "unnamed", false, true };
 FILE *sv_logfile;
 FILE *sv_fraglogfile;
 
-void SV_AcceptClient(netadr_t adr, int userid, char *userinfo);
-void Master_Shutdown(void);
+static void Master_Heartbeat(void);
+static void Master_Shutdown(void);
 
 //============================================================================
 
@@ -346,7 +343,7 @@ Responds with all the info that qplug or qspy can see
 This message can be up to around 5k with worst case string lengths.
 ================
 */
-void
+static void
 SVC_Status(void)
 {
     int i;
@@ -382,16 +379,16 @@ SV_CheckLog
 
 ===================
 */
-#define	LOG_HIGHWATER	4096
-#define	LOG_FLUSH		10*60
-void
+#define LOG_HIGHWATER 4096
+#define LOG_FLUSH 10*60
+static void
 SV_CheckLog(void)
 {
     sizebuf_t *sz;
 
     sz = &svs.log[svs.logsequence & 1];
 
-    // bump sequence if allmost full, or ten minutes have passed and
+    // bump sequence if almost full, or ten minutes have passed and
     // there is something still sitting there
     if (sz->cursize > LOG_HIGHWATER
 	|| (realtime - svs.logtime > LOG_FLUSH && sz->cursize)) {
@@ -415,7 +412,7 @@ the same as the current sequence, an A2A_NACK will be returned
 instead of the data.
 ================
 */
-void
+static void
 SVC_Log(void)
 {
     int seq;
@@ -426,7 +423,8 @@ SVC_Log(void)
     else
 	seq = -1;
 
-    if (seq == svs.logsequence - 1 || !sv_fraglogfile) {	// they allready have this data, or we aren't logging frags
+    /* they already have this data, or we aren't logging frags */
+    if (seq == svs.logsequence - 1 || !sv_fraglogfile) {
 	data[0] = A2A_NACK;
 	NET_SendPacket(1, data, net_from);
 	return;
@@ -448,7 +446,7 @@ SVC_Ping
 Just responds with an acknowledgement
 ================
 */
-void
+static void
 SVC_Ping(void)
 {
     char data;
@@ -469,7 +467,7 @@ flood the server with invalid connection IPs.  With a
 challenge, they must give a valid IP address.
 =================
 */
-void
+static void
 SVC_GetChallenge(void)
 {
     int i;
@@ -508,7 +506,7 @@ SVC_DirectConnect
 A connection request that did not come from the master
 ==================
 */
-void
+static void
 SVC_DirectConnect(void)
 {
     char userinfo[1024];
@@ -731,7 +729,7 @@ Shift down the remaining args
 Redirect all printfs
 ===============
 */
-void
+static void
 SVC_RemoteCommand(void)
 {
     int i;
@@ -768,7 +766,7 @@ Clients that are in the game can still send
 connectionless packets.
 =================
 */
-void
+static void
 SV_ConnectionlessPacket(void)
 {
     char *s;
@@ -858,17 +856,17 @@ typedef struct {
 
 #define	MAX_IPFILTERS	1024
 
-ipfilter_t ipfilters[MAX_IPFILTERS];
-int numipfilters;
+static ipfilter_t ipfilters[MAX_IPFILTERS];
+static int numipfilters;
 
-cvar_t filterban = { "filterban", "1" };
+static cvar_t filterban = { "filterban", "1" };
 
 /*
 =================
 StringToFilter
 =================
 */
-qboolean
+static qboolean
 StringToFilter(char *in, ipfilter_t *f)
 {
     char num[4];
@@ -934,7 +932,7 @@ StringToFilter(char *in, ipfilter_t *f)
 SV_AddIP_f
 =================
 */
-void
+static void
 SV_AddIP_f(void)
 {
     int i;
@@ -959,7 +957,7 @@ SV_AddIP_f(void)
 SV_RemoveIP_f
 =================
 */
-void
+static void
 SV_RemoveIP_f(void)
 {
     ipfilter_t f;
@@ -985,7 +983,7 @@ SV_RemoveIP_f(void)
 SV_ListIP_f
 =================
 */
-void
+static void
 SV_ListIP_f(void)
 {
     int i, j, mask;
@@ -1008,7 +1006,7 @@ SV_ListIP_f(void)
 SV_WriteIP_f
 =================
 */
-void
+static void
 SV_WriteIP_f(void)
 {
     FILE *f;
@@ -1038,7 +1036,7 @@ SV_WriteIP_f(void)
 SV_SendBan
 =================
 */
-void
+static void
 SV_SendBan(void)
 {
     char data[128];
@@ -1056,7 +1054,7 @@ SV_SendBan(void)
 SV_FilterPacket
 =================
 */
-qboolean
+static qboolean
 SV_FilterPacket(void)
 {
     int i;
@@ -1083,7 +1081,7 @@ SV_FilterPacket(void)
 SV_ReadPackets
 =================
 */
-void
+static void
 SV_ReadPackets(void)
 {
     int i;
@@ -1150,7 +1148,7 @@ for a few seconds to make sure any final reliable message gets resent
 if necessary
 ==================
 */
-void
+static void
 SV_CheckTimeouts(void)
 {
     int i;
@@ -1189,7 +1187,7 @@ SV_GetConsoleCommands
 Add them exactly as if they had been typed at the console
 ===================
 */
-void
+static void
 SV_GetConsoleCommands(void)
 {
     char *cmd;
@@ -1208,7 +1206,7 @@ SV_CheckVars
 
 ===================
 */
-void
+static void
 SV_CheckVars(void)
 {
     static char *pw, *spw;
@@ -1301,7 +1299,7 @@ SV_Frame(float time)
 SV_InitLocal
 ===============
 */
-void
+static void
 SV_InitLocal(void)
 {
     int i;
@@ -1398,7 +1396,7 @@ let it know we are alive, and log information
 ================
 */
 #define	HEARTBEAT_SECONDS	300
-void
+static void
 Master_Heartbeat(void)
 {
     char string[2048];
@@ -1439,7 +1437,7 @@ Master_Shutdown
 Informs all masters that this server is going down
 =================
 */
-void
+static void
 Master_Shutdown(void)
 {
     char string[2048];
@@ -1583,7 +1581,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 SV_InitNet
 ====================
 */
-void
+static void
 SV_InitNet(void)
 {
     int port;

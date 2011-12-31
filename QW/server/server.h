@@ -391,9 +391,6 @@ void SV_InitOperatorCommands(void);
 void SV_SendServerinfo(client_t *client);
 void SV_ExtractFromUserinfo(client_t *cl);
 
-void Master_Heartbeat(void);
-void Master_Packet(void);
-
 //
 // sv_init.c
 //
