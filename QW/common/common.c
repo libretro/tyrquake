@@ -1094,10 +1094,15 @@ COM_Init
 void
 COM_Init(void)
 {
-    byte swaptest[2] = { 1, 0 };
+    union {
+	byte b[2];
+	short s;
+    } swaptest = {
+	.b = { 1, 0 }
+    };
 
 // set the byte swapping variables in a portable manner
-    if (*(short *)swaptest == 1) {
+    if (swaptest.s == 1) {
 	bigendien = false;
 	BigShort = ShortSwap;
 	LittleShort = ShortNoSwap;
