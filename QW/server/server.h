@@ -364,6 +364,10 @@ extern int host_hunklevel;
 extern FILE *sv_logfile;
 extern FILE *sv_fraglogfile;
 
+extern int sv_nailmodel;
+extern int sv_supernailmodel;
+extern int sv_playermodel;
+
 //===========================================================
 
 //
