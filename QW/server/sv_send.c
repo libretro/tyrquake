@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_main.c -- server main program
+// sv_send.c
 
 #include "model.h"
 #include "qwsvdef.h"
@@ -38,7 +38,7 @@ Con_Printf redirection
 =============================================================================
 */
 
-char outputbuf[8000];
+static char outputbuf[8000];
 
 redirect_t sv_redirected;
 
@@ -47,7 +47,7 @@ redirect_t sv_redirected;
 SV_FlushRedirect
 ==================
 */
-void
+static void
 SV_FlushRedirect(void)
 {
     char send[8000 + 6];
@@ -512,7 +512,7 @@ Performs a delta update of the stats array.  This should only be performed
 when a reliable message can be delivered this frame.
 =======================
 */
-void
+static void
 SV_UpdateClientStats(client_t *client)
 {
     edict_t *ent;
@@ -561,7 +561,7 @@ SV_UpdateClientStats(client_t *client)
 SV_SendClientDatagram
 =======================
 */
-qboolean
+static qboolean
 SV_SendClientDatagram(client_t *client)
 {
     byte buf[MAX_DATAGRAM];
@@ -608,7 +608,7 @@ SV_SendClientDatagram(client_t *client)
 SV_UpdateToReliableMessages
 =======================
 */
-void
+static void
 SV_UpdateToReliableMessages(void)
 {
     int i, j;
