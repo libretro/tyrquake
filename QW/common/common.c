@@ -41,9 +41,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-// FIXME - header hacks
 #ifdef SERVERONLY
-    extern cvar_t sv_highchars;
+#include "server.h"
 #endif
 
 #define MAX_NUM_ARGVS	50

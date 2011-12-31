@@ -346,6 +346,9 @@ extern cvar_t allow_download_models;
 extern cvar_t allow_download_sounds;
 extern cvar_t allow_download_maps;
 
+extern cvar_t sv_highchars;
+extern cvar_t sv_phs;
+
 extern server_static_t svs;	// persistant server info
 extern server_t sv;		// local server
 

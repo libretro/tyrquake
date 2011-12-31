@@ -24,9 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "sys.h"
 
-// FIXME - header hacks
-extern cvar_t sv_phs;
-
 #define CHAN_AUTO   0
 #define CHAN_WEAPON 1
 #define CHAN_VOICE  2
