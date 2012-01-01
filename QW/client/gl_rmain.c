@@ -22,9 +22,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "gl_model.h"
 #include "glquake.h"
+#include "mathlib.h"
 #include "quakedef.h"
 #include "render.h"
 #include "screen.h"
+#include "sound.h"
 #include "sys.h"
 #include "vid.h"
 #include "view.h"
@@ -63,7 +65,7 @@ vec3_t r_origin;
 
 float r_world_matrix[16];
 
-#if 0				/* Mirrors currently disabled... */
+#ifdef NQ_HACK /* Mirrors disabled for now in QW */
 static float r_base_world_matrix[16];
 #endif
 
@@ -86,7 +88,9 @@ cvar_t r_mirroralpha = { "r_mirroralpha", "1" };
 cvar_t r_wateralpha = { "r_wateralpha", "1", true };
 cvar_t r_dynamic = { "r_dynamic", "1" };
 cvar_t r_novis = { "r_novis", "0" };
+#ifdef QW_HACK
 cvar_t r_netgraph = { "r_netgraph", "0" };
+#endif
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
 
 cvar_t r_fullbright = {
@@ -119,6 +123,9 @@ cvar_t gl_polyblend = { "gl_polyblend", "1" };
 cvar_t gl_flashblend = { "gl_flashblend", "1" };
 cvar_t gl_playermip = { "gl_playermip", "0" };
 cvar_t gl_nocolors = { "gl_nocolors", "0" };
+#ifdef NQ_HACK
+cvar_t gl_doubleeyes = { "gl_doubleeyes", "1" };
+#endif
 
 cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
 
@@ -356,13 +363,11 @@ GL_DrawAliasShadow(aliashdr_t *paliashdr, int posenum)
     int count;
 
     lheight = currententity->origin[2] - lightspot[2];
+    height = -lheight + 1.0;
 
-    height = 0;
     verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
     verts += posenum * paliashdr->poseverts;
     order = (int *)((byte *)paliashdr + paliashdr->commands);
-
-    height = -lheight + 1.0;
 
     while (1) {
 	// get the vertex count and primitive type
@@ -495,7 +500,14 @@ R_DrawAliasModel(entity_t *e)
 	shadelight = 192 - ambientlight;
 
     // ZOID: never allow players to go totally black
+#ifdef NQ_HACK
+    i = currententity - cl_entities;
+    if (i >= 1 && i <= cl.maxclients
+	/* && !strcmp (currententity->model->name, "progs/player.mdl") */ ) {
+#endif
+#ifdef QW_HACK
     if (!strcmp(clmodel->name, "progs/player.mdl")) {
+#endif
 	if (ambientlight < 8)
 	    ambientlight = shadelight = 8;
     } else if (!strcmp(clmodel->name, "progs/flame.mdl")
@@ -529,7 +541,12 @@ R_DrawAliasModel(entity_t *e)
     glPushMatrix();
     R_RotateForEntity(e);
 
+#ifdef NQ_HACK
+    if (!strcmp(clmodel->name, "progs/eyes.mdl") && gl_doubleeyes.value) {
+#endif
+#ifdef QW_HACK
     if (!strcmp(clmodel->name, "progs/eyes.mdl")) {
+#endif
 	glTranslatef(paliashdr->scale_origin[0], paliashdr->scale_origin[1],
 		     paliashdr->scale_origin[2] - (22 + 8));
 	// double size of eyes, since they are really hard to see in gl
@@ -547,6 +564,16 @@ R_DrawAliasModel(entity_t *e)
 
     // we can't dynamically colormap textures, so they are cached
     // seperately for the players.  Heads are just uncolored.
+#ifdef NQ_HACK
+    if (currententity->colormap != vid.colormap && !gl_nocolors.value) {
+	i = currententity - cl_entities;
+	if (i >= 1 && i <= cl.maxclients
+	    /* && !strcmp (currententity->model->name, "progs/player.mdl") */
+	    )
+	    GL_Bind(playertextures[i - 1]);
+    }
+#endif
+#ifdef QW_HACK
     if (currententity->scoreboard && !gl_nocolors.value) {
 	i = currententity->scoreboard - cl.players;
 	if (!currententity->scoreboard->skin) {
@@ -556,6 +583,7 @@ R_DrawAliasModel(entity_t *e)
 	if (i >= 0 && i < MAX_CLIENTS)
 	    GL_Bind(playertextures[i]);
     }
+#endif
 
     if (gl_smoothmodels.value)
 	glShadeModel(GL_SMOOTH);
@@ -646,8 +674,12 @@ R_DrawEntitiesOnList(void)
 
     // draw sprites seperately, because of alpha blending
     for (i = 0; i < cl_numvisedicts; i++) {
+#ifdef NQ_HACK
+	currententity = cl_visedicts[i];
+#endif
+#ifdef QW_HACK
 	currententity = &cl_visedicts[i];
-
+#endif
 	switch (currententity->model->type) {
 	case mod_alias:
 	    R_DrawAliasModel(currententity);
@@ -661,8 +693,12 @@ R_DrawEntitiesOnList(void)
     }
 
     for (i = 0; i < cl_numvisedicts; i++) {
+#ifdef NQ_HACK
+	currententity = cl_visedicts[i];
+#endif
+#ifdef QW_HACK
 	currententity = &cl_visedicts[i];
-
+#endif
 	switch (currententity->model->type) {
 	case mod_sprite:
 	    R_DrawSpriteModel(currententity);
@@ -689,8 +725,17 @@ R_DrawViewModel(void)
     dlight_t *dl;
     int ambientlight, shadelight;
 
+#ifdef NQ_HACK
+    if (!r_drawviewmodel.value)
+	return;
+
+    if (chase_active.value)
+	return;
+#endif
+#ifdef QW_HACK
     if (!r_drawviewmodel.value || !Cam_DrawViewModel())
 	return;
+#endif
 
     if (envmap)
 	return;
@@ -698,8 +743,14 @@ R_DrawViewModel(void)
     if (!r_drawentities.value)
 	return;
 
+#ifdef NQ_HACK
+    if (cl.items & IT_INVISIBILITY)
+	return;
+#endif
+#ifdef QW_HACK
     if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
 	return;
+#endif
 
     if (cl.stats[STAT_HEALTH] <= 0)
 	return;
@@ -872,10 +923,16 @@ void
 R_SetupFrame(void)
 {
 // don't allow cheats in multiplayer
+#ifdef NQ_HACK
+    if (cl.maxclients > 1)
+	Cvar_Set("r_fullbright", "0");
+#endif
+#ifdef QW_HACK
     r_fullbright.value = 0;
     r_lightmap.value = 0;
     if (!atoi(Info_ValueForKey(cl.serverinfo, "watervis")))
 	r_wateralpha.value = 1;
+#endif
 
     R_AnimateLight();
 
@@ -1080,7 +1137,7 @@ R_Clear(void)
     glDepthRange(gldepthmin, gldepthmax);
 }
 
-#if 0				//!!! FIXME, Zoid, mirror is disabled for now
+#ifdef NQ_HACK /* Mirrors disabled for now in QW */
 /*
 =============
 R_Mirror
@@ -1188,8 +1245,10 @@ R_RenderView(void)
     R_DrawViewModel();
     R_DrawWaterSurfaces();
 
+#ifdef NQ_HACK /* Mirrors disabled for now in QW */
     // render mirror view
-//      R_Mirror ();
+    R_Mirror();
+#endif
 
     R_PolyBlend();
 
