@@ -57,27 +57,21 @@ NetadrToSockadr(netadr_t *a, struct sockaddr_in *s)
 static void
 SockadrToNetadr(struct sockaddr_in *s, netadr_t *a)
 {
-    *(int *)&a->ip = *(int *)&s->sin_addr;
+    *(int *)&a->ip.l = *(int *)&s->sin_addr;
     a->port = s->sin_port;
 }
 
 qboolean
 NET_CompareBaseAdr(netadr_t a, netadr_t b)
 {
-    if (a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1] && a.ip[2] == b.ip[2]
-	&& a.ip[3] == b.ip[3])
-	return true;
-    return false;
+    return a.ip.l == b.ip.l;
 }
 
 
 qboolean
 NET_CompareAdr(netadr_t a, netadr_t b)
 {
-    if (a.ip[0] == b.ip[0] && a.ip[1] == b.ip[1] && a.ip[2] == b.ip[2]
-	&& a.ip[3] == b.ip[3] && a.port == b.port)
-	return true;
-    return false;
+    return a.ip.l == b.ip.l && a.port == b.port;
 }
 
 char *
@@ -85,7 +79,7 @@ NET_AdrToString(netadr_t a)
 {
     static char s[64];
 
-    sprintf(s, "%i.%i.%i.%i:%i", a.ip[0], a.ip[1], a.ip[2], a.ip[3],
+    sprintf(s, "%i.%i.%i.%i:%i", a.ip.b[0], a.ip.b[1], a.ip.b[2], a.ip.b[3],
 	    ntohs(a.port));
 
     return s;
@@ -96,7 +90,7 @@ NET_BaseAdrToString(netadr_t a)
 {
     static char s[64];
 
-    sprintf(s, "%i.%i.%i.%i", a.ip[0], a.ip[1], a.ip[2], a.ip[3]);
+    sprintf(s, "%i.%i.%i.%i", a.ip.b[0], a.ip.b[1], a.ip.b[2], a.ip.b[3]);
 
     return s;
 }

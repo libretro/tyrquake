@@ -30,7 +30,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	PORT_ANY	-1
 
 typedef struct {
-    byte ip[4];
+    union {
+	byte b[4];
+	unsigned l;
+    } ip;
     unsigned short port;
     unsigned short pad;
 } netadr_t;

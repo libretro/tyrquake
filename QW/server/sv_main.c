@@ -1061,10 +1061,10 @@ SV_FilterPacket(void)
     unsigned in;
 
     /* FIXME - be smarter about this */
-    in  = net_from.ip[0] << 24;
-    in |= net_from.ip[1] << 16;
-    in |= net_from.ip[2] << 8;
-    in |= net_from.ip[3];
+    in  = net_from.ip.b[0] << 24;
+    in |= net_from.ip.b[1] << 16;
+    in |= net_from.ip.b[2] << 8;
+    in |= net_from.ip.b[3];
     in = BigLong(in);
 
     for (i = 0; i < numipfilters; i++)
