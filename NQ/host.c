@@ -809,7 +809,7 @@ Host_Init(quakeparms_t *parms)
     host_parms = *parms;
 
     if (parms->memsize < minimum_memory)
-	Sys_Error("Only %4.1f megs of memory available, can't execute game",
+	Sys_Error("Only %4.1f megs of memory reported, can't execute game",
 		  parms->memsize / (float)0x100000);
 
     com_argc = parms->argc;

@@ -1330,8 +1330,9 @@ Host_Frame(float time)
     int pass1, pass2, pass3;
     float fps;
 
+    /* something bad happened, or the server disconnected */
     if (setjmp(host_abort))
-	return;		// something bad happened, or the server disconnected
+	return;
 
     // decide the simulation time
     realtime += time;
@@ -1354,10 +1355,10 @@ Host_Frame(float time)
     // get new key events
     Sys_SendKeyEvents();
 
-    // allow mice or other external controllers to add commands
+    /* allow mice or other external controllers to add commands */
     IN_Commands();
 
-    // process console commands
+    /* process console commands */
     Cbuf_Execute();
 
     // fetch results from server
@@ -1392,7 +1393,7 @@ Host_Frame(float time)
     if (host_speeds.value)
 	time2 = Sys_DoubleTime();
 
-    // update audio
+    /* update audio */
     if (cls.state == ca_active) {
 	S_Update(r_origin, vpn, vright, vup);
 	CL_DecayLights();
