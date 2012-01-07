@@ -70,7 +70,7 @@ int minimum_memory;
 
 client_t *host_client;		// current client
 
-jmp_buf host_abortserver;
+static jmp_buf host_abort;
 
 byte *host_basepal;
 byte *host_colormap;
@@ -126,7 +126,7 @@ Host_EndGame(const char *message, ...)
     else
 	CL_Disconnect();
 
-    longjmp(host_abortserver, 1);
+    longjmp(host_abort, 1);
 }
 
 /*
@@ -165,7 +165,7 @@ Host_Error(const char *error, ...)
 
     inerror = false;
 
-    longjmp(host_abortserver, 1);
+    longjmp(host_abort, 1);
 }
 
 /*
@@ -664,7 +664,7 @@ _Host_Frame(float time)
     int pass1, pass2, pass3;
 
     /* something bad happened, or the server disconnected */
-    if (setjmp(host_abortserver))
+    if (setjmp(host_abort))
 	return;
 
     /* keep the random time dependent */
@@ -862,12 +862,14 @@ Host_Init(quakeparms_t *parms)
     Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
-    Cbuf_InsertText("exec quake.rc\n");
-    Cbuf_Execute();
-
     host_initialized = true;
-
     Sys_Printf("========Quake Initialized=========\n");
+
+    /* In case exec of quake.rc fails */
+    if (!setjmp(host_abort)) {
+	Cbuf_InsertText("exec quake.rc\n");
+	Cbuf_Execute();
+    }
 }
 
 

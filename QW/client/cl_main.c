@@ -148,7 +148,7 @@ cvar_t developer = { "developer", "0" };
 
 int fps_count;
 
-jmp_buf host_abort;
+static jmp_buf host_abort;
 
 void Master_Connect_f(void);
 
@@ -1504,16 +1504,19 @@ Host_Init(quakeparms_t *parms)
     Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
     host_hunklevel = Hunk_LowMark();
 
-    Cbuf_InsertText("exec quake.rc\n");
-    Cbuf_Execute();
-    Cbuf_AddText
-	("echo Type connect <internet address> or use GameSpy to connect to a game.\n");
-    Cbuf_AddText("cl_warncmd 1\n");
-
     host_initialized = true;
-
     Con_Printf("\nClient Version TyrQuake-%s\n\n", stringify(TYR_VERSION));
     Con_Printf("ÄÅÅÅÅÅÅ QuakeWorld Initialized ÅÅÅÅÅÅÇ\n");
+
+    /* In case exec of quake.rc fails */
+    if (!setjmp(host_abort)) {
+	Cbuf_InsertText("exec quake.rc\n");
+	Cbuf_Execute();
+    }
+
+    Cbuf_AddText("echo Type connect <internet address> or use GameSpy to "
+		 "connect to a game.\n");
+    Cbuf_AddText("cl_warncmd 1\n");
 }
 
 
