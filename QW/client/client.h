@@ -346,7 +346,6 @@ extern lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 extern dlight_t cl_dlights[MAX_DLIGHTS];
 
 extern qboolean nomaster;
-extern float server_version;	// version of server we connected to
 
 //=============================================================================
 

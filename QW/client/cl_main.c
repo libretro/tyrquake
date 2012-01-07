@@ -152,7 +152,7 @@ static jmp_buf host_abort;
 
 void Master_Connect_f(void);
 
-float server_version = 0;	// version of server we connected to
+static float server_version = 0;// version of server we connected to
 
 char emodel_name[] =
     { 'e' ^ 0xff, 'm' ^ 0xff, 'o' ^ 0xff, 'd' ^ 0xff, 'e' ^ 0xff, 'l' ^ 0xff,
