@@ -16,7 +16,7 @@ TYR_VERSION = $(TYR_VERSION_MAJOR).$(TYR_VERSION_MINOR)$(TYR_VERSION_BUILD)
 # ============================================================================
 
 BUILD_DIR        ?= build
-
+BIN_DIR          ?= bin
 DEBUG            ?= N# Compile with debug info
 OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
 USE_X86_ASM      ?= $(I386_GUESS)
@@ -184,7 +184,7 @@ APPS =	tyr-quake$(EXT) tyr-glquake$(EXT) \
 
 default:	all
 
-all:	$(APPS)
+all:	$(patsubst %,$(BIN_DIR)/%,$(APPS))
 
 COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQBASEDIR="$(QBASEDIR)"
 ifeq ($(DEBUG),Y)
@@ -596,20 +596,20 @@ endif
 # ------------------------
 
 # Win32
-tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
+$(BIN_DIR)/tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
 	$(call do_cc_link,-mwindows -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
 	$(call do_strip,$@)
 
-tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
+$(BIN_DIR)/tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
 	$(call do_cc_link,-mwindows -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
 	$(call do_strip,$@)
 
 # Unix
-tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_UNIX_SW_OBJS))
+$(BIN_DIR)/tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_UNIX_SW_OBJS))
 	$(call do_cc_link,$(NQ_UNIX_SW_LFLAGS))
 	$(call do_strip,$@)
 
-tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_UNIX_GL_OBJS))
+$(BIN_DIR)/tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_UNIX_GL_OBJS))
 	$(call do_cc_link,$(NQ_UNIX_GL_LFLAGS))
 	$(call do_strip,$@)
 
@@ -845,20 +845,20 @@ endif
 # --------------------
 
 # Win32
-tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
+$(BIN_DIR)/tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
 	$(call do_cc_link,-mwindows -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
 	$(call do_strip,$@)
 
-tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
+$(BIN_DIR)/tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
 	$(call do_cc_link,-mwindows $(QW_W32_GL_LFLAGS))
 	$(call do_strip,$@)
 
 # Unix
-tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_UNIX_SW_OBJS))
+$(BIN_DIR)/tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_UNIX_SW_OBJS))
 	$(call do_cc_link,$(QW_UNIX_SW_LFLAGS))
 	$(call do_strip,$@)
 
-tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_UNIX_GL_OBJS))
+$(BIN_DIR)/tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_UNIX_GL_OBJS))
 	$(call do_cc_link,$(QW_UNIX_GL_LFLAGS))
 	$(call do_strip,$@)
 
@@ -935,12 +935,12 @@ QWSV_UNIX_LFLAGS = $(patsubst %,-l%,$(QWSV_UNIX_LIBS))
 # -------------
 
 # Win32
-tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
+$(BIN_DIR)/tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
 	$(call do_cc_link,$(QWSV_W32_LFLAGS))
 	$(call do_strip,$@)
 
 # Unix
-tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_UNIX_OBJS))
+$(BIN_DIR)/tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_UNIX_OBJS))
 	$(call do_cc_link,$(QWSV_UNIX_LFLAGS))
 	$(call do_strip,$@)
 
@@ -950,7 +950,8 @@ tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_UNIX_OBJS))
 
 # Main clean function...
 clean:
-	@rm -rf build
+	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BIN_DIR)
 	@rm -f $(shell find . \( \
 		-name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' \
 	\) -print)
