@@ -2,8 +2,7 @@
 # TyrQuake Makefile (tested under Linux and MinGW/Msys)
 #
 # By default, all executables will be built. If you want to just build one,
-# just type e.g. "make tyr-quake". If the build dirs haven't been created yet,
-# you might need to type "make prepare" first.
+# just type e.g. "make tyr-quake".
 # 
 
 TYR_VERSION_MAJOR = 0
@@ -179,17 +178,13 @@ QWSWDIR	= $(BUILD_DIR)/qwsw
 QWGLDIR	= $(BUILD_DIR)/qwgl
 QWSVDIR	= $(BUILD_DIR)/qwsv
 
-BUILD_DIRS = $(NQSWDIR) $(NQGLDIR) $(QWSWDIR) $(QWGLDIR) $(QWSVDIR)
 APPS =	tyr-quake$(EXT) tyr-glquake$(EXT) \
 	tyr-qwcl$(EXT) tyr-glqwcl$(EXT) \
 	tyr-qwsv$(EXT)
 
 default:	all
 
-all:	prepare $(APPS)
-
-.PHONY:	prepare
-prepare:	$(BUILD_DIRS)
+all:	$(APPS)
 
 COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQBASEDIR="$(QBASEDIR)"
 ifeq ($(DEBUG),Y)
@@ -248,14 +243,14 @@ else
   quiet = quiet_
 endif
 
-quiet_cmd_mkdir = '  MKDIR   $@'
-      cmd_mkdir = mkdir -p $@
+quiet_cmd_mkdir = '  MKDIR   $(@D)'
+      cmd_mkdir = mkdir -p $(@D)
 
 define do_mkdir
-	@if [ ! -d $@ ]; then \
+	@if [ ! -d $(@D) ]; then \
 		echo $($(quiet)cmd_mkdir); \
 		$(cmd_mkdir); \
-	fi;
+	fi
 endef
 
 # cmd_fixdep => Turn all pre-requisites into targets with no commands, to
@@ -275,6 +270,7 @@ quiet_cmd_cc_o_c = '  CC      $@'
       cmd_cc_o_c = $(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
 define do_cc_o_c
+	@$(do_mkdir);
 	@$(cmd_cc_dep_c);
 	@echo $($(quiet)cmd_cc_o_c);
 	@$(cmd_cc_o_c);
@@ -288,6 +284,7 @@ quiet_cmd_windres_res_rc = '  WINDRES $@'
       cmd_windres_res_rc = $(WINDRES) -I $(<D) -i $< -O coff -o $@
 
 define do_windres_res_rc
+	@$(do_mkdir);
 	@$(cmd_cc_dep_rc);
 	@echo $($(quiet)cmd_windres_res_rc);
 	@$(cmd_windres_res_rc);
@@ -297,6 +294,7 @@ quiet_cmd_cc_link = '  LINK    $@'
       cmd_cc_link = $(CC) -o $@ $^ $(1)
 
 define do_cc_link
+	@$(do_mkdir);
 	@echo $($(quiet)cmd_cc_link);
 	@$(call cmd_cc_link,$(1))
 endef
@@ -323,12 +321,6 @@ DEPFILES = \
 ifneq ($(DEPFILES),)
 -include $(DEPFILES)
 endif
-
-$(NQSWDIR):	; $(do_mkdir)
-$(NQGLDIR):	; $(do_mkdir)
-$(QWSWDIR):	; $(do_mkdir)
-$(QWGLDIR):	; $(do_mkdir)
-$(QWSVDIR):	; $(do_mkdir)
 
 $(BUILD_DIR)/nqsw/%.o:		common/%.S	; $(do_cc_o_c)
 $(BUILD_DIR)/nqsw/%.o:		NQ/%.S		; $(do_cc_o_c)
