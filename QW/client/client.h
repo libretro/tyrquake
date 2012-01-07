@@ -345,8 +345,6 @@ extern entity_t cl_static_entities[MAX_STATIC_ENTITIES];
 extern lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 extern dlight_t cl_dlights[MAX_DLIGHTS];
 
-extern qboolean nomaster;
-
 //=============================================================================
 
 

@@ -127,7 +127,6 @@ double connect_time = -1;	// for connection retransmits
 quakeparms_t host_parms;
 
 qboolean host_initialized;	// true if into command execution
-qboolean nomaster;
 
 double host_frametime;
 double realtime;		// without any filtering or bounding
@@ -149,9 +148,6 @@ cvar_t developer = { "developer", "0" };
 int fps_count;
 
 static jmp_buf host_abort;
-
-void Master_Connect_f(void);
-
 static float server_version = 0;// version of server we connected to
 
 char emodel_name[] =
