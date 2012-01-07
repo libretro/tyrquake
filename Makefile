@@ -229,11 +229,11 @@ QWGL_CPPFLAGS += -DELF -DX11 -DGL_EXT_SHARED
 QWSV_CPPFLAGS += -DELF
 endif
 
-$(BUILD_DIR)/nqsw/%.o:	CPPFLAGS = $(NQSW_CPPFLAGS)
-$(BUILD_DIR)/nqgl/%.o:	CPPFLAGS = $(NQGL_CPPFLAGS)
-$(BUILD_DIR)/qwsw/%.o:	CPPFLAGS = $(QWSW_CPPFLAGS)
-$(BUILD_DIR)/qwgl/%.o:	CPPFLAGS = $(QWGL_CPPFLAGS)
-$(BUILD_DIR)/qwsv/%.o:	CPPFLAGS = $(QWSV_CPPFLAGS)
+$(NQSWDIR)/%.o:	CPPFLAGS = $(NQSW_CPPFLAGS)
+$(NQGLDIR)/%.o:	CPPFLAGS = $(NQGL_CPPFLAGS)
+$(QWSWDIR)/%.o:	CPPFLAGS = $(QWSW_CPPFLAGS)
+$(QWGLDIR)/%.o:	CPPFLAGS = $(QWGL_CPPFLAGS)
+$(QWSVDIR)/%.o:	CPPFLAGS = $(QWSV_CPPFLAGS)
 
 # To make warnings more obvious, be less verbose as default
 # Use 'make V=1' to see the full commands
@@ -312,54 +312,54 @@ endef
 endif
 
 DEPFILES = \
-	$(wildcard $(BUILD_DIR)/nqsw/.*.d) \
-	$(wildcard $(BUILD_DIR)/nqgl/.*.d) \
-	$(wildcard $(BUILD_DIR)/qwsw/.*.d) \
-	$(wildcard $(BUILD_DIR)/qwgl/.*.d) \
-	$(wildcard $(BUILD_DIR)/qwsv/.*.d)
+	$(wildcard $(NQSWDIR)/.*.d) \
+	$(wildcard $(NQGLDIR)/.*.d) \
+	$(wildcard $(QWSWDIR)/.*.d) \
+	$(wildcard $(QWGLDIR)/.*.d) \
+	$(wildcard $(QWSVDIR)/.*.d)
 
 ifneq ($(DEPFILES),)
 -include $(DEPFILES)
 endif
 
-$(BUILD_DIR)/nqsw/%.o:		common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/nqsw/%.o:		NQ/%.S		; $(do_cc_o_c)
-$(BUILD_DIR)/nqsw/%.o:		common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/nqsw/%.o:		NQ/%.c		; $(do_cc_o_c)
-$(BUILD_DIR)/nqsw/%.res:	common/%.rc	; $(do_windres_res_rc)
-$(BUILD_DIR)/nqsw/%.res:	NQ/%.rc		; $(do_windres_res_rc)
+$(NQSWDIR)/%.o:		common/%.S	; $(do_cc_o_c)
+$(NQSWDIR)/%.o:		NQ/%.S		; $(do_cc_o_c)
+$(NQSWDIR)/%.o:		common/%.c	; $(do_cc_o_c)
+$(NQSWDIR)/%.o:		NQ/%.c		; $(do_cc_o_c)
+$(NQSWDIR)/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(NQSWDIR)/%.res:	NQ/%.rc		; $(do_windres_res_rc)
 
-$(BUILD_DIR)/nqgl/%.o:		common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/nqgl/%.o:		NQ/%.S		; $(do_cc_o_c)
-$(BUILD_DIR)/nqgl/%.o:		common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/nqgl/%.o:		NQ/%.c		; $(do_cc_o_c)
-$(BUILD_DIR)/nqgl/%.res:	common/%.rc	; $(do_windres_res_rc)
-$(BUILD_DIR)/nqgl/%.res:	NQ/%.rc		; $(do_windres_res_rc)
+$(NQGLDIR)/%.o:		common/%.S	; $(do_cc_o_c)
+$(NQGLDIR)/%.o:		NQ/%.S		; $(do_cc_o_c)
+$(NQGLDIR)/%.o:		common/%.c	; $(do_cc_o_c)
+$(NQGLDIR)/%.o:		NQ/%.c		; $(do_cc_o_c)
+$(NQGLDIR)/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(NQGLDIR)/%.res:	NQ/%.rc		; $(do_windres_res_rc)
 
-$(BUILD_DIR)/qwsw/%.o:		common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsw/%.o:		QW/client/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsw/%.o:		QW/common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsw/%.o:		common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsw/%.o:		QW/client/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsw/%.o:		QW/common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsw/%.res:	common/%.rc	; $(do_windres_res_rc)
-$(BUILD_DIR)/qwsw/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
+$(QWSWDIR)/%.o:		common/%.S	; $(do_cc_o_c)
+$(QWSWDIR)/%.o:		QW/client/%.S	; $(do_cc_o_c)
+$(QWSWDIR)/%.o:		QW/common/%.S	; $(do_cc_o_c)
+$(QWSWDIR)/%.o:		common/%.c	; $(do_cc_o_c)
+$(QWSWDIR)/%.o:		QW/client/%.c	; $(do_cc_o_c)
+$(QWSWDIR)/%.o:		QW/common/%.c	; $(do_cc_o_c)
+$(QWSWDIR)/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(QWSWDIR)/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
 
-$(BUILD_DIR)/qwgl/%.o:		common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwgl/%.o:		QW/client/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwgl/%.o:		QW/common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwgl/%.o:		common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwgl/%.o:		QW/client/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwgl/%.o:		QW/common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwgl/%.res:	common/%.rc	; $(do_windres_res_rc)
-$(BUILD_DIR)/qwgl/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
+$(QWGLDIR)/%.o:		common/%.S	; $(do_cc_o_c)
+$(QWGLDIR)/%.o:		QW/client/%.S	; $(do_cc_o_c)
+$(QWGLDIR)/%.o:		QW/common/%.S	; $(do_cc_o_c)
+$(QWGLDIR)/%.o:		common/%.c	; $(do_cc_o_c)
+$(QWGLDIR)/%.o:		QW/client/%.c	; $(do_cc_o_c)
+$(QWGLDIR)/%.o:		QW/common/%.c	; $(do_cc_o_c)
+$(QWGLDIR)/%.res:	common/%.rc	; $(do_windres_res_rc)
+$(QWGLDIR)/%.res:	QW/client/%.rc	; $(do_windres_res_rc)
 
-$(BUILD_DIR)/qwsv/%.o:		QW/server/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsv/%.o:		QW/common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsv/%.o:		common/%.S	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsv/%.o:		QW/server/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsv/%.o:		QW/common/%.c	; $(do_cc_o_c)
-$(BUILD_DIR)/qwsv/%.o:		common/%.c	; $(do_cc_o_c)
+$(QWSVDIR)/%.o:		QW/server/%.S	; $(do_cc_o_c)
+$(QWSVDIR)/%.o:		QW/common/%.S	; $(do_cc_o_c)
+$(QWSVDIR)/%.o:		common/%.S	; $(do_cc_o_c)
+$(QWSVDIR)/%.o:		QW/server/%.c	; $(do_cc_o_c)
+$(QWSVDIR)/%.o:		QW/common/%.c	; $(do_cc_o_c)
+$(QWSVDIR)/%.o:		common/%.c	; $(do_cc_o_c)
 
 # ----------------------------------------------------------------------------
 # Normal Quake (NQ)
