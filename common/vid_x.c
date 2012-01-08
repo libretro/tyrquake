@@ -1046,9 +1046,16 @@ HandleEvents(void)
 	    break;
 
 	case ConfigureNotify:
-	    config_notify_width = x_event.xconfigure.width;
-	    config_notify_height = x_event.xconfigure.height;
-	    config_notify = 1;
+	    /*
+	     * FIXME - I think something is still broken here. Why do I keep
+	     * receiving these events?
+	     */
+	    if (x_event.xconfigure.width != config_notify_width ||
+		x_event.xconfigure.height != config_notify_height) {
+		config_notify_width = x_event.xconfigure.width;
+		config_notify_height = x_event.xconfigure.height;
+		config_notify = 1;
+	    }
 	    break;
 
 	default:
