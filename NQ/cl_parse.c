@@ -235,9 +235,8 @@ CL_ParseServerInfo(void)
 
 // parse protocol version number
     i = MSG_ReadLong();
-    if (i != PROTOCOL_VERSION_NQ) {
-	Con_Printf("Server returned version %i, not %i\n", i,
-		   PROTOCOL_VERSION_NQ);
+    if (!Protocol_Known(i)) {
+	Con_Printf("Server returned unknown protocol version %i\n", i);
 	return;
     }
 // parse maxclients
@@ -781,9 +780,9 @@ CL_ParseServerMessage(void)
 
 	case svc_version:
 	    i = MSG_ReadLong();
-	    if (i != PROTOCOL_VERSION_NQ)
-		Host_Error("%s: Server is protocol %i instead of %i", __func__,
-			   i, PROTOCOL_VERSION_NQ);
+	    if (!Protocol_Known(i))
+		Host_Error("%s: Server returned unknown protocol version %i",
+			   __func__, i);
 	    break;
 
 	case svc_disconnect:

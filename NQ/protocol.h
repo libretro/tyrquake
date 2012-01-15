@@ -23,7 +23,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // protocol.h -- communications protocols
 
+#include "qtypes.h"
+
 #define	PROTOCOL_VERSION_NQ 15
+
+static inline qboolean
+Protocol_Known(int version)
+{
+    switch (version) {
+    case PROTOCOL_VERSION_NQ:
+	return true;
+    default:
+	return false;
+    }
+}
 
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define	U_MOREBITS	(1<<0)
