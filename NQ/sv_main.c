@@ -209,7 +209,7 @@ SV_SendServerinfo(client_t *client)
     MSG_WriteString(&client->message, message);
 
     MSG_WriteByte(&client->message, svc_serverinfo);
-    MSG_WriteLong(&client->message, PROTOCOL_VERSION);
+    MSG_WriteLong(&client->message, PROTOCOL_VERSION_NQ);
     MSG_WriteByte(&client->message, svs.maxclients);
 
     if (!coop.value && deathmatch.value)
