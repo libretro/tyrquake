@@ -46,6 +46,85 @@ char localmodels[MAX_MODELS][5];	// inline model names for precache
 
 //============================================================================
 
+typedef struct {
+    int version;
+    const char *name;
+    const char *description;
+} sv_protocol_t;
+
+#define PROT(v, n, d) { .version = v, .name = n, .description = d }
+static sv_protocol_t sv_protocols[] = {
+    PROT(PROTOCOL_VERSION_NQ,   "NQ",   "Standard NetQuake protocol"),
+};
+
+static int sv_protocol = PROTOCOL_VERSION_NQ;
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+static void
+SV_Protocol_f(void)
+{
+    const char *name = "unknown";
+    int i;
+
+    if (Cmd_Argc() == 1) {
+	for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
+	    if (sv_protocols[i].version == sv_protocol) {
+		name = sv_protocols[i].name;
+		break;
+	    }
+	}
+	Con_Printf("sv_protocol is %d (%s)\n", sv_protocol, name);
+    } else if (Cmd_Argc() == 2) {
+	if (!strcmp(Cmd_Argv(1), "list")) {
+	    Con_Printf("Version  Name  Description\n"
+		       "-------  ----  -----------\n");
+	    for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
+		Con_Printf("%7d  %4s  %s\n", sv_protocols[i].version,
+			   sv_protocols[i].name, sv_protocols[i].description);
+	    }
+	} else {
+	    int v = Q_atoi(Cmd_Argv(1));
+	    for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
+		if (sv_protocols[i].version == v) {
+		    sv_protocol = v;
+		    return;
+		} else if (!strcmp(sv_protocols[i].name, Cmd_Argv(1))) {
+		    sv_protocol = sv_protocols[i].version;
+		    return;
+		}
+	    }
+	    Con_Printf("sv_protocol: invalid protocol version (%d)\n", v);
+	}
+    } else {
+	Con_Printf("Usage: sv_protocol [version | name | 'list']\n"
+		   "       With no arguments, displays the current value\n"
+		   "       Set using protocol name or number as argument\n"
+		   "       'sv_protocol list' to see available protocols\n");
+    }
+}
+
+static struct stree_root *
+SV_Protocol_Arg_f(const char *arg)
+{
+    int i, arg_len;
+    struct stree_root *root;
+
+    root = Z_Malloc(sizeof(struct stree_root));
+    if (root) {
+	*root = STREE_ROOT;
+	STree_AllocInit();
+	arg_len = arg ? strlen(arg) : 0;
+	for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
+	    if (!arg || !strncasecmp(sv_protocols[i].name, arg, arg_len))
+		STree_InsertAlloc(root, sv_protocols[i].name, false);
+	}
+    }
+    return root;
+}
+
 /*
 ===============
 SV_Init
@@ -66,6 +145,9 @@ SV_Init(void)
     Cvar_RegisterVariable(&sv_idealpitchscale);
     Cvar_RegisterVariable(&sv_aim);
     Cvar_RegisterVariable(&sv_nostep);
+
+    Cmd_AddCommand("sv_protocol", SV_Protocol_f);
+    Cmd_SetCompletion("sv_protocol", SV_Protocol_Arg_f);
 
     for (i = 0; i < MAX_MODELS; i++)
 	sprintf(localmodels[i], "*%i", i);
@@ -209,7 +291,7 @@ SV_SendServerinfo(client_t *client)
     MSG_WriteString(&client->message, message);
 
     MSG_WriteByte(&client->message, svc_serverinfo);
-    MSG_WriteLong(&client->message, PROTOCOL_VERSION_NQ);
+    MSG_WriteLong(&client->message, sv.protocol);
     MSG_WriteByte(&client->message, svs.maxclients);
 
     if (!coop.value && deathmatch.value)
@@ -1056,6 +1138,8 @@ SV_SpawnServer(char *server)
     memset(&sv, 0, sizeof(sv));
 
     strcpy(sv.name, server);
+
+    sv.protocol = sv_protocol;
 
 // load progs to get entity field count
     PR_LoadProgs();

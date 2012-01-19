@@ -60,6 +60,8 @@ typedef struct {
 
     sizebuf_t signon;
     byte signon_buf[8192];
+
+    int protocol;		/* Active network protocol version */
 } server_t;
 
 
