@@ -218,6 +218,8 @@ typedef struct {
 // frag scoreboard
     scoreboard_t *scores;	// [cl.maxclients]
 
+    int protocol;		/* Active network protocol version */
+
 } client_state_t;
 
 

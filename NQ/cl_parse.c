@@ -239,6 +239,8 @@ CL_ParseServerInfo(void)
 	Con_Printf("Server returned unknown protocol version %i\n", i);
 	return;
     }
+    cl.protocol = i;
+
 // parse maxclients
     cl.maxclients = MSG_ReadByte();
     if (cl.maxclients < 1 || cl.maxclients > MAX_SCOREBOARD) {
@@ -783,6 +785,7 @@ CL_ParseServerMessage(void)
 	    if (!Protocol_Known(i))
 		Host_Error("%s: Server returned unknown protocol version %i",
 			   __func__, i);
+	    cl.protocol = i;
 	    break;
 
 	case svc_disconnect:
