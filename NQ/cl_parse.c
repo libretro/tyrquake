@@ -110,6 +110,18 @@ CL_EntityNum(int num)
 }
 
 
+static int
+CL_ReadSoundNum()
+{
+    switch (cl.protocol) {
+    case PROTOCOL_VERSION_NQ:
+	return MSG_ReadByte();
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   cl.protocol);
+    }
+}
+
 /*
 ==================
 CL_ParseStartSoundPacket
@@ -139,7 +151,7 @@ CL_ParseStartSoundPacket(void)
 	attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
     channel = MSG_ReadShort();
-    sound_num = MSG_ReadByte();
+    sound_num = CL_ReadSoundNum();
 
     ent = channel >> 3;
     channel &= 7;
@@ -690,6 +702,19 @@ CL_ParseStatic(void)
     R_AddEfrags(ent);
 }
 
+
+static int
+CL_ReadSoundNum_Static(void)
+{
+    switch (cl.protocol) {
+    case PROTOCOL_VERSION_NQ:
+	return MSG_ReadByte();
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   cl.protocol);
+    }
+}
+
 /*
 ===================
 CL_ParseStaticSound
@@ -704,7 +729,7 @@ CL_ParseStaticSound(void)
 
     for (i = 0; i < 3; i++)
 	org[i] = MSG_ReadCoord();
-    sound_num = MSG_ReadByte();
+    sound_num = CL_ReadSoundNum_Static();
     vol = MSG_ReadByte();
     atten = MSG_ReadByte();
 
