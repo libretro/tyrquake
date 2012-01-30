@@ -342,6 +342,18 @@ CL_ParseServerInfo(void)
 }
 
 
+static int
+CL_ReadModelIndex(void)
+{
+    switch (cl.protocol) {
+    case PROTOCOL_VERSION_NQ:
+	return MSG_ReadByte();
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   cl.protocol);
+    }
+}
+
 /*
 ==================
 CL_ParseUpdate
@@ -399,7 +411,7 @@ CL_ParseUpdate(int bits)
     ent->msgtime = cl.mtime[0];
 
     if (bits & U_MODEL) {
-	modnum = MSG_ReadByte();
+	modnum = CL_ReadModelIndex();
 	if (modnum >= MAX_MODELS)
 	    Host_Error("CL_ParseModel: bad modnum");
     } else
@@ -517,7 +529,7 @@ CL_ParseBaseline(entity_t *ent)
 {
     int i;
 
-    ent->baseline.modelindex = MSG_ReadByte();
+    ent->baseline.modelindex = CL_ReadModelIndex();
     ent->baseline.frame = MSG_ReadByte();
     ent->baseline.colormap = MSG_ReadByte();
     ent->baseline.skinnum = MSG_ReadByte();
@@ -591,7 +603,7 @@ CL_ParseClientdata(int bits)
     }
 
     if (bits & SU_WEAPON)
-	i = MSG_ReadByte();
+	i = CL_ReadModelIndex();
     else
 	i = 0;
     if (cl.stats[STAT_WEAPON] != i) {

@@ -1506,7 +1506,7 @@ PF_makestatic(void)
     ent = G_EDICT(OFS_PARM0);
 
     MSG_WriteByte(&sv.signon, svc_spawnstatic);
-    MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
+    SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
     MSG_WriteByte(&sv.signon, ent->v.frame);
     MSG_WriteByte(&sv.signon, ent->v.colormap);
     MSG_WriteByte(&sv.signon, ent->v.skin);

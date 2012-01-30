@@ -241,4 +241,10 @@ void SV_SaveSpawnparms();
 
 void SV_SpawnServer(char *server);
 
+/*
+ * Protocol dependent write of model index to buffer
+ * (shared with pr_cmds.c)
+ */
+void SV_WriteModelIndex(sizebuf_t *sb, int c);
+
 #endif /* SERVER_H */

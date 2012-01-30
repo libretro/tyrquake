@@ -518,6 +518,18 @@ SV_FatPVS(vec3_t org)
 
 //=============================================================================
 
+void
+SV_WriteModelIndex(sizebuf_t *sb, int c)
+{
+    switch (sv.protocol) {
+    case PROTOCOL_VERSION_NQ:
+	MSG_WriteByte(sb, c);
+	break;
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   sv.protocol);
+    }
+}
 
 /*
 =============
@@ -618,7 +630,7 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 	    MSG_WriteByte(msg, e);
 
 	if (bits & U_MODEL)
-	    MSG_WriteByte(msg, ent->v.modelindex);
+	    SV_WriteModelIndex(msg, ent->v.modelindex);
 	if (bits & U_FRAME)
 	    MSG_WriteByte(msg, ent->v.frame);
 	if (bits & U_COLORMAP)
@@ -773,7 +785,7 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
     if (bits & SU_ARMOR)
 	MSG_WriteByte(msg, ent->v.armorvalue);
     if (bits & SU_WEAPON)
-	MSG_WriteByte(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel)));
+	SV_WriteModelIndex(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel)));
 
     MSG_WriteShort(msg, ent->v.health);
     MSG_WriteByte(msg, ent->v.currentammo);
@@ -1036,7 +1048,7 @@ SV_CreateBaseline(void)
 	MSG_WriteByte(&sv.signon, svc_spawnbaseline);
 	MSG_WriteShort(&sv.signon, entnum);
 
-	MSG_WriteByte(&sv.signon, svent->baseline.modelindex);
+	SV_WriteModelIndex(&sv.signon, svent->baseline.modelindex);
 	MSG_WriteByte(&sv.signon, svent->baseline.frame);
 	MSG_WriteByte(&sv.signon, svent->baseline.colormap);
 	MSG_WriteByte(&sv.signon, svent->baseline.skinnum);
