@@ -191,6 +191,19 @@ SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
     MSG_WriteByte(&sv.datagram, color);
 }
 
+static void
+SV_WriteSoundNum(sizebuf_t *sb, int c)
+{
+    switch (sv.protocol) {
+    case PROTOCOL_VERSION_NQ:
+	MSG_WriteByte(sb, c);
+	break;
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   sv.protocol);
+    }
+}
+
 /*
 ==================
 SV_StartSound
@@ -256,7 +269,7 @@ SV_StartSound(edict_t *entity, int channel, char *sample, int volume,
     if (field_mask & SND_ATTENUATION)
 	MSG_WriteByte(&sv.datagram, attenuation * 64);
     MSG_WriteShort(&sv.datagram, channel);
-    MSG_WriteByte(&sv.datagram, sound_num);
+    SV_WriteSoundNum(&sv.datagram, sound_num);
     for (i = 0; i < 3; i++)
 	MSG_WriteCoord(&sv.datagram,
 		       entity->v.origin[i] + 0.5 * (entity->v.mins[i] +

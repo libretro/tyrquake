@@ -529,6 +529,19 @@ PF_particle(void)
 }
 
 
+static void
+PF_WriteSoundNum_Static(sizebuf_t *sb, int c)
+{
+    switch (sv.protocol) {
+    case PROTOCOL_VERSION_NQ:
+	MSG_WriteByte(sb, c);
+	break;
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   sv.protocol);
+    }
+}
+
 /*
 =================
 PF_ambientsound
@@ -558,17 +571,15 @@ PF_ambientsound(void)
 	Con_Printf("no precache: %s\n", samp);
 	return;
     }
-// add an svc_spawnambient command to the level signon packet
 
+// add an svc_spawnambient command to the level signon packet
     MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
     for (i = 0; i < 3; i++)
 	MSG_WriteCoord(&sv.signon, pos[i]);
 
-    MSG_WriteByte(&sv.signon, soundnum);
-
+    PF_WriteSoundNum_Static(&sv.signon, soundnum);
     MSG_WriteByte(&sv.signon, vol * 255);
     MSG_WriteByte(&sv.signon, attenuation * 64);
-
 }
 
 /*
