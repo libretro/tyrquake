@@ -1057,7 +1057,7 @@ PF_precache_model(void)
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
     PR_CheckEmptyString(s);
 
-    for (i = 0; i < MAX_MODELS; i++) {
+    for (i = 0; i < max_models(sv.protocol); i++) {
 	if (!sv.model_precache[i]) {
 	    sv.model_precache[i] = s;
 	    sv.models[i] = Mod_ForName(s, true);

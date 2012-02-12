@@ -285,8 +285,9 @@ CL_ParseServerInfo(void)
 	str = MSG_ReadString();
 	if (!str[0])
 	    break;
-	if (nummodels == MAX_MODELS) {
-	    Con_Printf("Server sent too many model precaches\n");
+	if (nummodels == max_models(cl.protocol)) {
+	    Host_Error("Server sent too many model precaches (max = %d)",
+		       max_models(cl.protocol));
 	    return;
 	}
 	strcpy(model_precache[nummodels], str);
@@ -412,7 +413,7 @@ CL_ParseUpdate(int bits)
 
     if (bits & U_MODEL) {
 	modnum = CL_ReadModelIndex();
-	if (modnum >= MAX_MODELS)
+	if (modnum >= max_models(cl.protocol))
 	    Host_Error("CL_ParseModel: bad modnum");
     } else
 	modnum = ent->baseline.modelindex;

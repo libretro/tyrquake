@@ -38,6 +38,17 @@ Protocol_Known(int version)
     }
 }
 
+static inline int
+max_models(int protocol)
+{
+    switch (protocol) {
+    case PROTOCOL_VERSION_NQ:
+	return qmin(256, MAX_MODELS);
+    default:
+	return 0;
+    }
+}
+
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define	U_MOREBITS	(1<<0)
 #define	U_ORIGIN1	(1<<1)
