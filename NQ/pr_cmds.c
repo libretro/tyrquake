@@ -1032,7 +1032,7 @@ PF_precache_sound(void)
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
     PR_CheckEmptyString(s);
 
-    for (i = 0; i < MAX_SOUNDS; i++) {
+    for (i = 0; i < max_sounds(sv.protocol); i++) {
 	if (!sv.sound_precache[i]) {
 	    sv.sound_precache[i] = s;
 	    return;
@@ -1040,7 +1040,7 @@ PF_precache_sound(void)
 	if (!strcmp(sv.sound_precache[i], s))
 	    return;
     }
-    PR_RunError("PF_precache_sound: overflow");
+    PR_RunError("%s: overflow (max = %d)", __func__, max_sounds(sv.protocol));
 }
 
 static void
@@ -1050,8 +1050,8 @@ PF_precache_model(void)
     int i;
 
     if (sv.state != ss_loading)
-	PR_RunError
-	    ("PF_Precache_*: Precache can only be done in spawn functions");
+	PR_RunError("%s: Precache can only be done in spawn functions",
+		    __func__);
 
     s = G_STRING(OFS_PARM0);
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
@@ -1066,7 +1066,7 @@ PF_precache_model(void)
 	if (!strcmp(sv.model_precache[i], s))
 	    return;
     }
-    PR_RunError("PF_precache_model: overflow");
+    PR_RunError("%s: overflow (max = %d)", __func__, max_models(sv.protocol));
 }
 
 

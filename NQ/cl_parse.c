@@ -300,8 +300,9 @@ CL_ParseServerInfo(void)
 	str = MSG_ReadString();
 	if (!str[0])
 	    break;
-	if (numsounds == MAX_SOUNDS) {
-	    Con_Printf("Server sent too many sound precaches\n");
+	if (numsounds == max_sounds(cl.protocol)) {
+	    Host_Error("Server sent too many sound precaches (max = %d)",
+		       max_sounds(cl.protocol));
 	    return;
 	}
 	strcpy(sound_precache[numsounds], str);

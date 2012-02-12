@@ -49,6 +49,34 @@ max_models(int protocol)
     }
 }
 
+static inline int
+max_sounds_static(int protocol)
+{
+    switch (protocol) {
+    case PROTOCOL_VERSION_NQ:
+	return qmin(256, MAX_SOUNDS);
+    default:
+	return 0;
+    }
+}
+
+static inline int
+max_sounds_dynamic(int protocol)
+{
+    switch (protocol) {
+    case PROTOCOL_VERSION_NQ:
+	return qmin(256, MAX_SOUNDS);
+    default:
+	return 0;
+    }
+}
+
+static inline int
+max_sounds(int p)
+{
+    return qmax(max_sounds_dynamic(p), max_sounds_static(p));
+}
+
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define	U_MOREBITS	(1<<0)
 #define	U_ORIGIN1	(1<<1)
