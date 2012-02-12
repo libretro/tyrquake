@@ -115,7 +115,11 @@ CL_ReadSoundNum()
 {
     switch (cl.protocol) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
 	return MSG_ReadByte();
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	return MSG_ReadShort();
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
 		   cl.protocol);
@@ -350,6 +354,10 @@ CL_ReadModelIndex(void)
     switch (cl.protocol) {
     case PROTOCOL_VERSION_NQ:
 	return MSG_ReadByte();
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	return MSG_ReadShort();
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
 		   cl.protocol);
@@ -722,7 +730,11 @@ CL_ReadSoundNum_Static(void)
 {
     switch (cl.protocol) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP3:
 	return MSG_ReadByte();
+    case PROTOCOL_VERSION_BJP2:
+	return MSG_ReadShort();
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
 		   cl.protocol);

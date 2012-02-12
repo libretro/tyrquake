@@ -56,6 +56,9 @@ typedef struct {
 #define PROT(v, n, d) { .version = v, .name = n, .description = d }
 static sv_protocol_t sv_protocols[] = {
     PROT(PROTOCOL_VERSION_NQ,   "NQ",   "Standard NetQuake protocol"),
+    PROT(PROTOCOL_VERSION_BJP,  "BJP",  "BJP protocol (v1)"),
+    PROT(PROTOCOL_VERSION_BJP2, "BJP2", "BJP protocol (v2)"),
+    PROT(PROTOCOL_VERSION_BJP3, "BJP3", "BJP protocol (v3)")
 };
 
 static int sv_protocol = PROTOCOL_VERSION_NQ;
@@ -197,7 +200,12 @@ SV_WriteSoundNum(sizebuf_t *sb, int c)
 {
     switch (sv.protocol) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
 	MSG_WriteByte(sb, c);
+	break;
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	MSG_WriteShort(sb, c);
 	break;
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
@@ -525,6 +533,11 @@ SV_WriteModelIndex(sizebuf_t *sb, int c)
     switch (sv.protocol) {
     case PROTOCOL_VERSION_NQ:
 	MSG_WriteByte(sb, c);
+	break;
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	MSG_WriteShort(sb, c);
 	break;
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,

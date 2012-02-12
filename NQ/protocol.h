@@ -25,13 +25,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qtypes.h"
 
-#define	PROTOCOL_VERSION_NQ 15
+#define PROTOCOL_VERSION_NQ   15
+#define PROTOCOL_VERSION_BJP  10000
+#define PROTOCOL_VERSION_BJP2 10001
+#define PROTOCOL_VERSION_BJP3 10002
 
 static inline qboolean
 Protocol_Known(int version)
 {
     switch (version) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
 	return true;
     default:
 	return false;
@@ -44,6 +50,10 @@ max_models(int protocol)
     switch (protocol) {
     case PROTOCOL_VERSION_NQ:
 	return qmin(256, MAX_MODELS);
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	return qmin(65536, MAX_MODELS);
     default:
 	return 0;
     }
@@ -54,7 +64,11 @@ max_sounds_static(int protocol)
 {
     switch (protocol) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP3:
 	return qmin(256, MAX_SOUNDS);
+    case PROTOCOL_VERSION_BJP2:
+	return qmin(65536, MAX_SOUNDS);
     default:
 	return 0;
     }
@@ -65,7 +79,11 @@ max_sounds_dynamic(int protocol)
 {
     switch (protocol) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
 	return qmin(256, MAX_SOUNDS);
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	return qmin(65536, MAX_SOUNDS);
     default:
 	return 0;
     }

@@ -534,7 +534,12 @@ PF_WriteSoundNum_Static(sizebuf_t *sb, int c)
 {
     switch (sv.protocol) {
     case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP3:
 	MSG_WriteByte(sb, c);
+	break;
+    case PROTOCOL_VERSION_BJP2:
+	MSG_WriteShort(sb, c);
 	break;
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
