@@ -27,13 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "world.h"
 
-// FIXME - header hacks
-extern vec3_t player_mins;
-extern int fp_messages, fp_persecond, fp_secondsdead;
-extern char fp_msg[];
-extern int file_from_pak;	// ZOID did file come from pak?
-void SV_FullClientUpdateToClient(client_t *client, client_t *cl);
-
 edict_t *sv_player;
 
 usercmd_t cmd;

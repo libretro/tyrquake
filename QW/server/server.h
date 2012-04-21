@@ -368,6 +368,13 @@ extern int sv_nailmodel;
 extern int sv_supernailmodel;
 extern int sv_playermodel;
 
+extern vec3_t player_mins;
+
+extern int fp_messages, fp_persecond, fp_secondsdead;
+extern char fp_msg[];
+
+extern int file_from_pak;
+
 //===========================================================
 
 //
@@ -377,6 +384,7 @@ void SV_Shutdown(void);
 void SV_Frame(float time);
 void SV_FinalMessage(char *message);
 void SV_DropClient(client_t *drop);
+void SV_FullClientUpdateToClient(client_t *client, client_t *cl);
 
 int SV_CalcPing(client_t *cl);
 void SV_FullClientUpdate(client_t *client, sizebuf_t *buf);
