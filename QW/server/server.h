@@ -424,8 +424,17 @@ void SV_Impact(edict_t *e1, edict_t *e2);
 void SV_SetMoveVars(void);
 
 //
+// svonly.c
+//
+typedef enum { RD_NONE, RD_CLIENT, RD_PACKET } redirect_t;
+void SV_BeginRedirect(redirect_t rd);
+void SV_EndRedirect(void);
+
+//
 // sv_send.c
 //
+extern redirect_t sv_redirected;
+
 void SV_SendClientMessages(void);
 
 void SV_Multicast(vec3_t origin, int to);
@@ -446,14 +455,6 @@ void SV_FindModelNumbers(void);
 void SV_ExecuteClientMessage(client_t *cl);
 void SV_UserInit(void);
 void SV_TogglePause(const char *msg);
-
-
-//
-// svonly.c
-//
-typedef enum { RD_NONE, RD_CLIENT, RD_PACKET } redirect_t;
-void SV_BeginRedirect(redirect_t rd);
-void SV_EndRedirect(void);
 
 //
 // sv_ccmds.c

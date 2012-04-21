@@ -25,10 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-// FIXME - header hacks
 extern cvar_t cl_warncmd;
-extern redirect_t sv_redirected;
-
 qboolean sv_allow_cheats;
 
 int fp_messages = 4, fp_persecond = 4, fp_secondsdead = 10;
