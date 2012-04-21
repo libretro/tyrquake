@@ -34,7 +34,7 @@ SYSNAME := $(shell uname -s)
 
 ifneq (,$(findstring MINGW32,$(SYSNAME)))
 HOST_OS = WIN32
-TOPDIR := $(shell pwd -W)
+TOPDIR := $(shell pwd)
 else
 ifneq (,$(findstring $(SYSNAME),FreeBSD NetBSD OpenBSD))
 HOST_OS = UNIX
