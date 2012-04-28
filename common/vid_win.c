@@ -2631,28 +2631,6 @@ AppActivate(BOOL fActive, BOOL minimize)
 
 
 /*
-================
-VID_HandlePause
-================
-*/
-void
-VID_HandlePause(qboolean pause)
-{
-#if 0
-    if ((modestate == MS_WINDOWED) && _windowed_mouse.value) {
-	if (pause) {
-	    IN_DeactivateMouse();
-	    IN_ShowMouse();
-	} else {
-	    IN_ActivateMouse();
-	    IN_HideMouse();
-	}
-    }
-#endif
-}
-
-
-/*
 ===================================================================
 MAIN WINDOW
 ===================================================================

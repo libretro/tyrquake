@@ -89,9 +89,6 @@ void VID_Update(vrect_t *rects);
 
 // flushes the given rectangles from the view buffer to the screen
 
-void VID_HandlePause(qboolean pause);
-
-// called only on Win32, when pause happens, so the mouse can be released
 void VID_LockBuffer(void);
 void VID_UnlockBuffer(void);
 

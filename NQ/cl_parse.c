@@ -931,21 +931,11 @@ CL_ParseServerMessage(void)
 	    break;
 
 	case svc_setpause:
-	    {
-		cl.paused = MSG_ReadByte();
-
-		if (cl.paused) {
-		    CDAudio_Pause();
-#ifdef _WIN32
-		    VID_HandlePause(true);
-#endif
-		} else {
-		    CDAudio_Resume();
-#ifdef _WIN32
-		    VID_HandlePause(false);
-#endif
-		}
-	    }
+	    cl.paused = MSG_ReadByte();
+	    if (cl.paused)
+		CDAudio_Pause();
+	    else
+		CDAudio_Resume();
 	    break;
 
 	case svc_signonnum:
