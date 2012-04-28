@@ -157,7 +157,7 @@ static int vid_modenum = VID_MODE_NONE;
 static int vid_testingmode, vid_realmode;
 static double vid_testendtime;
 
-modestate_t modestate = MS_UNINIT;
+static modestate_t modestate = MS_UNINIT;
 
 static byte *vid_surfcache;
 static int vid_surfcachesize;

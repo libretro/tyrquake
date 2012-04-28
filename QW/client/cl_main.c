@@ -1042,11 +1042,7 @@ CL_Minimize_f
 void
 CL_Windows_f(void)
 {
-//      if (modestate == MS_WINDOWED)
-//              ShowWindow(mainwindow, SW_MINIMIZE);
-//      else
     SendMessage(mainwindow, WM_SYSKEYUP, VK_TAB, 1 | (0x0F << 16) | (1 << 29));
-    /* count = 1 | scancode = 0x0F = TAB | Alt was down when tab released... */
 }
 #endif
 

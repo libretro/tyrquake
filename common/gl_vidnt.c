@@ -141,7 +141,7 @@ unsigned char d_15to8table[65536];
 
 float gldepthmin, gldepthmax;
 
-modestate_t modestate = MS_UNINIT;
+static modestate_t modestate = MS_UNINIT;
 
 static void AppActivate(BOOL fActive, BOOL minimize);
 static LONG WINAPI MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam,
