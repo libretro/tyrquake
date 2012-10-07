@@ -51,6 +51,7 @@ cvar_t scr_showram = { "showram", "1" };
 cvar_t scr_showturtle = { "showturtle", "0" };
 cvar_t scr_showpause = { "showpause", "1" };
 cvar_t scr_printspeed = { "scr_printspeed", "8" };
+static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
 
 qboolean scr_initialized;	// ready to draw
 
@@ -342,6 +343,7 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_showpause);
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
+    Cvar_RegisterVariable(&show_fps);
 
     Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
@@ -413,6 +415,32 @@ SCR_DrawNet(void)
 	return;
 
     Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
+}
+
+
+void
+SCR_DrawFPS(void)
+{
+    static double lastframetime;
+    static int lastfps;
+    double t;
+    int x, y;
+    char st[80];
+
+    if (!show_fps.value)
+	return;
+
+    t = Sys_DoubleTime();
+    if ((t - lastframetime) >= 1.0) {
+	lastfps = fps_count;
+	fps_count = 0;
+	lastframetime = t;
+    }
+
+    sprintf(st, "%3d FPS", lastfps);
+    x = vid.width - strlen(st) * 8 - 8;
+    y = vid.height - sb_lines - 8;
+    Draw_String(x, y, st);
 }
 
 
@@ -906,6 +934,7 @@ SCR_UpdateScreen(void)
     } else {
 	SCR_DrawRam();
 	SCR_DrawNet();
+	SCR_DrawFPS();
 	SCR_DrawTurtle();
 	SCR_DrawPause();
 	SCR_CheckDrawCenterString();

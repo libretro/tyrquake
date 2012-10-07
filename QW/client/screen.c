@@ -474,8 +474,8 @@ void
 SCR_DrawFPS(void)
 {
     static double lastframetime;
-    double t;
     static int lastfps;
+    double t;
     int x, y;
     char st[80];
 
@@ -492,7 +492,6 @@ SCR_DrawFPS(void)
     sprintf(st, "%3d FPS", lastfps);
     x = vid.width - strlen(st) * 8 - 8;
     y = vid.height - sb_lines - 8;
-//      Draw_TileClear(x, y, strlen(st) * 8, 8);
     Draw_String(x, y, st);
 }
 
