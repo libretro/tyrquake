@@ -20,6 +20,7 @@ BIN_DIR          ?= bin
 DEBUG            ?= N# Compile with debug info
 OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
 USE_X86_ASM      ?= $(I386_GUESS)
+USE_SDL          ?= N# New (experimental) SDL video implementation for Win32
 X11BASE          ?= $(X11BASE_GUESS)
 QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 TARGET_OS        ?= $(HOST_OS)
@@ -62,6 +63,19 @@ WINDRES = $(TARGET)-windres
 endif
 else
 EXT =
+endif
+
+# Adjust object files and libs for SDL choice
+ifeq ($(USE_SDL),Y)
+VID_WIN = vid_sdl
+VID_WIN_LIBS_NQ = sdl
+VID_WIN_LIBS_QW = sdl
+IN_WIN = in_sdl
+else
+VID_WIN = vid_win
+VID_WIN_LIBS_NQ = mgllt ddraw
+VID_WIN_LIBS_QW = mgllt
+IN_WIN = in_win
 endif
 
 # ============================================================================
@@ -126,7 +140,7 @@ NQ_ST_LIBDIR = scitech/lib/win32/vc
 QW_ST_LIBDIR = scitech/lib/win32/vc
 
 NQ_W32_COMMON_LIBS = wsock32 winmm dxguid
-NQ_W32_SW_LIBS = mgllt ddraw
+NQ_W32_SW_LIBS = $(VID_WIN_LIBS_NQ)
 NQ_W32_GL_LIBS = opengl32 comctl32
 
 NQ_UNIX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
@@ -421,7 +435,6 @@ NQ_COMMON_ASM_OBJS = \
 NQ_W32_C_OBJS = \
 	cd_win.o	\
 	conproc.o	\
-	in_win.o	\
 	net_win.o	\
 	net_wins.o	\
 	snd_win.o	\
@@ -491,8 +504,10 @@ NQ_SW_ASM_OBJS = \
 	surf8.o
 
 # Objects only used in software rendering versions of NQ on the Win32 Platform
+# Experimenting with an SDL renderer
 NQ_W32_SW_C_OBJS = \
-	vid_win.o
+	$(IN_WIN).o	\
+	$(VID_WIN).o
 
 NQ_W32_SW_ASM_OBJS = \
 	dosasm.o
@@ -521,7 +536,8 @@ NQ_GL_ASM_OBJS =
 
 # Objects only used in OpenGL rendering versions of NQ on the Win32 Platform
 NQ_W32_GL_C_OBJS = \
-	gl_vidnt.o
+	gl_vidnt.o \
+	in_win.o
 
 NQ_W32_GL_ASM_OBJS =
 
@@ -663,7 +679,6 @@ QW_COMMON_ASM_OBJS = \
 
 QW_W32_C_OBJS = \
 	cd_win.o	\
-	in_win.o	\
 	net_wins.o	\
 	snd_win.o	\
 	sys_win.o
@@ -732,7 +747,8 @@ QW_SW_ASM_OBJS = \
 	surf8.o
 
 QW_W32_SW_C_OBJS = \
-	vid_win.o
+	$(IN_WIN).o	\
+	$(VID_WIN).o
 
 QW_W32_SW_ASM_OBJS =
 
@@ -758,7 +774,8 @@ QW_GL_C_OBJS = \
 QW_GL_ASM_OBJS =
 
 QW_W32_GL_C_OBJS = \
-	gl_vidnt.o
+	gl_vidnt.o \
+	in_win.o
 
 QW_W32_GL_ASM_OBJS =
 
@@ -826,7 +843,7 @@ endif
 # QW Libs
 # ---------
 QW_W32_COMMON_LIBS = wsock32 dxguid winmm
-QW_W32_SW_LIBS = mgllt
+QW_W32_SW_LIBS = $(VID_WIN_LIBS_QW)
 QW_W32_GL_LIBS = opengl32 comctl32
 
 QW_UNIX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm

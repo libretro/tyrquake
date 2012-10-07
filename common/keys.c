@@ -45,8 +45,10 @@ key up events are sent even if in console mode
 
 char key_lines[32][MAXCMDLINE];
 int key_linepos;
-int shift_down = false;
 int key_lastpress;
+
+static qboolean lshift_down = false;
+static qboolean rshift_down = false;
 
 int edit_line = 0;
 int history_line = 0;
@@ -55,12 +57,12 @@ keydest_t key_dest;
 
 int key_count;			// incremented every key event
 
-char *keybindings[256];
-qboolean consolekeys[256];	// if true, can't be rebound while in console
-qboolean menubound[256];	// if true, can't be rebound while in menu
-int keyshift[256];		// key to map to if shift held down in console
-int key_repeats[256];		// if > 1, it is autorepeating
-qboolean keydown[256];
+char *keybindings[K_LAST];
+qboolean consolekeys[K_LAST];	// if true, can't be rebound while in console
+qboolean menubound[K_LAST];	// if true, can't be rebound while in menu
+int keyshift[K_LAST];		// key to map to if shift held down in console
+int key_repeats[K_LAST];		// if > 1, it is autorepeating
+qboolean keydown[K_LAST];
 
 typedef struct {
     char *name;
@@ -78,9 +80,12 @@ keyname_t keynames[] = {
     {"LEFTARROW", K_LEFTARROW},
     {"RIGHTARROW", K_RIGHTARROW},
 
-    {"ALT", K_ALT},
-    {"CTRL", K_CTRL},
-    {"SHIFT", K_SHIFT},
+    {"LALT", K_LALT},
+    {"RALT", K_RALT},
+    {"LCTRL", K_LCTRL},
+    {"RCTRL", K_RCTRL},
+    {"LSHIFT", K_LSHIFT},
+    {"RSHIFT", K_RSHIFT},
 
     {"F1", K_F1},
     {"F2", K_F2},
@@ -578,7 +583,7 @@ Key_SetBinding
 ===================
 */
 void
-Key_SetBinding(int keynum, char *binding)
+Key_SetBinding(knum_t keynum, char *binding)
 {
     if (keynum == -1)
 	return;
@@ -625,7 +630,7 @@ Key_Unbindall_f(void)
 {
     int i;
 
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < K_LAST; i++)
 	if (keybindings[i])
 	    Key_SetBinding(i, NULL);
 }
@@ -683,7 +688,7 @@ Key_WriteBindings(FILE *f)
 {
     int i;
 
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < K_LAST; i++)
 	if (keybindings[i])
 	    fprintf(f, "bind \"%s\" \"%s\"\n",
 		    Key_KeynumToString(i), keybindings[i]);
@@ -722,41 +727,22 @@ Key_Init(void)
     consolekeys[K_END] = true;
     consolekeys[K_PGUP] = true;
     consolekeys[K_PGDN] = true;
-    consolekeys[K_SHIFT] = true;
+    consolekeys[K_LSHIFT] = true;
+    consolekeys[K_RSHIFT] = true;
     consolekeys[K_MWHEELUP] = true;
     consolekeys[K_MWHEELDOWN] = true;
     consolekeys['`'] = false;
     consolekeys['~'] = false;
 
-    for (i = 0; i < 256; i++)
-	keyshift[i] = i;
+    for (i = 0; i < K_LAST; i++)
+        keyshift[i] = i;
     for (i = 'a'; i <= 'z'; i++)
-	keyshift[i] = i - 'a' + 'A';
-    keyshift['1'] = '!';
-    keyshift['2'] = '@';
-    keyshift['3'] = '#';
-    keyshift['4'] = '$';
-    keyshift['5'] = '%';
-    keyshift['6'] = '^';
-    keyshift['7'] = '&';
-    keyshift['8'] = '*';
-    keyshift['9'] = '(';
-    keyshift['0'] = ')';
-    keyshift['-'] = '_';
-    keyshift['='] = '+';
-    keyshift[','] = '<';
-    keyshift['.'] = '>';
-    keyshift['/'] = '?';
-    keyshift[';'] = ':';
-    keyshift['\''] = '"';
-    keyshift['['] = '{';
-    keyshift[']'] = '}';
-    keyshift['`'] = '~';
-    keyshift['\\'] = '|';
+        keyshift[i] = i - 'a' + 'A';
+    keyshift[K_MINUS] = K_UNDERSCORE;
 
     menubound[K_ESCAPE] = true;
-    for (i = 0; i < 12; i++)
-	menubound[K_F1 + i] = true;
+    for (i = K_F1; i <= K_F15; i++)
+	menubound[i] = true;
 
 //
 // register our functions
@@ -775,7 +761,7 @@ Should NOT be called during an interrupt!
 ===================
 */
 void
-Key_Event(int key, qboolean down)
+Key_Event(knum_t key, qboolean down)
 {
     char *kb;
     char cmd[1024];
@@ -798,13 +784,15 @@ Key_Event(int key, qboolean down)
 	    && key != K_PGUP && key != K_PGDN && key_repeats[key] > 1)
 	    return;		// ignore most autorepeats
 
-	if (key >= 200 && !keybindings[key])
+	if (key >= K_MOUSE1 && !keybindings[key])
 	    Con_Printf("%s is unbound, hit F4 to set.\n",
 		       Key_KeynumToString(key));
     }
 
-    if (key == K_SHIFT)
-	shift_down = down;
+    if (key == K_LSHIFT)
+	lshift_down = down;
+    if (key == K_RSHIFT)
+	rshift_down = down;
 
 //
 // handle escape specialy, so the user can never unbind it
@@ -884,7 +872,7 @@ Key_Event(int key, qboolean down)
     if (!down)
 	return;			// other systems only care about key down events
 
-    if (shift_down)
+    if (lshift_down || rshift_down)
 	key = keyshift[key];
 
     switch (key_dest) {

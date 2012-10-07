@@ -253,21 +253,36 @@ XLateKey(XKeyEvent * ev)
 	break;
 
     case XK_Shift_L:
+	key = K_LSHIFT;
+	break;
+
     case XK_Shift_R:
-	key = K_SHIFT;
+	key = K_RSHIFT;
 	break;
 
     case XK_Execute:
     case XK_Control_L:
+	key = K_LCTRL;
+	break;
+
     case XK_Control_R:
-	key = K_CTRL;
+	key = K_RCTRL;
 	break;
 
     case XK_Alt_L:
+	key = K_LALT;
+	break;
+
     case XK_Meta_L:
+	key = K_LMETA;
+	break;
+
     case XK_Alt_R:
+	key = K_RALT;
+	break;
+
     case XK_Meta_R:
-	key = K_ALT;
+	key = K_RMETA;
 	break;
 
     case XK_KP_Begin:
