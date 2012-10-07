@@ -153,7 +153,9 @@ CFLAGS := $(CFLAGS) -Wall -Wno-trigraphs
 
 ifeq ($(DEBUG),Y)
 CFLAGS += -g
+WINMODE = console
 else
+WINMODE = windows
 ifeq ($(OPTIMIZED_CFLAGS),Y)
 CFLAGS += -O2
 # -funit-at-a-time is buggy for MinGW GCC > 3.2
@@ -597,11 +599,11 @@ endif
 
 # Win32
 $(BIN_DIR)/tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
-	$(call do_cc_link,-mwindows -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
+	$(call do_cc_link,-m$(WINMODE) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
 	$(call do_strip,$@)
 
 $(BIN_DIR)/tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
-	$(call do_cc_link,-mwindows -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
+	$(call do_cc_link,-m$(WINMODE) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
 	$(call do_strip,$@)
 
 # Unix
@@ -846,11 +848,11 @@ endif
 
 # Win32
 $(BIN_DIR)/tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
-	$(call do_cc_link,-mwindows -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
+	$(call do_cc_link,-m$(WINMODE) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
 	$(call do_strip,$@)
 
 $(BIN_DIR)/tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
-	$(call do_cc_link,-mwindows $(QW_W32_GL_LFLAGS))
+	$(call do_cc_link,-m$(WINMODE) $(QW_W32_GL_LFLAGS))
 	$(call do_strip,$@)
 
 # Unix
