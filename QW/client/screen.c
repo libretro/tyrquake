@@ -624,31 +624,30 @@ WritePCXfile(char *filename, byte *data, int width, int height,
     memset(pcx->palette, 0, sizeof(pcx->palette));
     pcx->color_planes = 1;	// chunky image
     pcx->bytes_per_line = LittleShort((short)width);
-    pcx->palette_type = LittleShort(2);	// not a grey scale
+    pcx->palette_type = LittleShort(1);	// not a grey scale
     memset(pcx->filler, 0, sizeof(pcx->filler));
 
-// pack the image
+    // pack the image
     pack = &pcx->data;
 
     for (i = 0; i < height; i++) {
 	for (j = 0; j < width; j++) {
-	    if ((*data & 0xc0) != 0xc0)
+	    if ((*data & 0xc0) != 0xc0) {
 		*pack++ = *data++;
-	    else {
+	    } else {
 		*pack++ = 0xc1;
 		*pack++ = *data++;
 	    }
 	}
-
 	data += rowbytes - width;
     }
 
-// write the palette
+    // write the palette
     *pack++ = 0x0c;		// palette ID byte
     for (i = 0; i < 768; i++)
 	*pack++ = *palette++;
 
-// write output file
+    // write output file
     length = pack - (byte *)pcx;
     if (upload)
 	CL_StartUpload((void *)pcx, length);
