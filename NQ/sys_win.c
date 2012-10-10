@@ -453,6 +453,10 @@ Sys_Printf(const char *fmt, ...)
 	va_end(argptr);
 
 	WriteFile(houtput, text, strlen(text), &dummy, NULL);
+    } else {
+	va_start(argptr, fmt);
+	vprintf(fmt, argptr);
+	va_end(argptr);
     }
 }
 
