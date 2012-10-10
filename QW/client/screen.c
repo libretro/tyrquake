@@ -597,7 +597,7 @@ SCR_DrawConsole(void)
 WritePCXfile
 ==============
 */
-void
+static void
 WritePCXfile(char *filename, byte *data, int width, int height,
 	     int rowbytes, byte *palette, qboolean upload)
 {
