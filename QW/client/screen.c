@@ -49,11 +49,9 @@ menu
 required background clears
 required update regions
 
-
 syncronous draw mode or async
 One off screen buffer, with updates either copied or xblited
 Need to double buffer?
-
 
 async draw will require the refresh area to be cleared, because it will be
 xblited, but sync draw can just ignore it.
@@ -61,24 +59,21 @@ xblited, but sync draw can just ignore it.
 sync
 draw
 
-CenterPrint ()
-SlowPrint ()
-Screen_Update ();
-Con_Printf ();
+CenterPrint();
+SlowPrint();
+Screen_Update();
+Con_Printf();
 
 net
 turn off messages option
 
-the refresh is allways rendered, unless the console is full screen
-
+the refresh is always rendered, unless the console is full screen
 
 console is:
 	notify lines
 	half
 	full
-
 */
-
 
 // only the refresh window will be updated unless these variables are flagged
 int scr_copytop;
@@ -719,7 +714,7 @@ MipColor(int r, int g, int b)
 
     bestdist = 256 * 256 * 3;
 
-    best = 0;			// FIXME - Uninitialised? Assuming zero is ok...
+    best = 0;			// FIXME - Uninitialised? Zero ok?
     for (i = 0; i < 256; i++) {
 	r1 = host_basepal[i * 3] - r;
 	g1 = host_basepal[i * 3 + 1] - g;

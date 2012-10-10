@@ -87,7 +87,7 @@ float scr_con_current;
 float scr_conlines;		// lines of console to display
 
 static float oldscreensize, oldfov;
-static float oldsbar = 0;
+static float oldsbar;
 
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
@@ -472,8 +472,8 @@ void
 SCR_DrawFPS(void)
 {
     static double lastframetime;
-    double t;
     static int lastfps;
+    double t;
     int x, y;
     char st[80];
 
@@ -758,8 +758,7 @@ MipColor(int r, int g, int b)
 
     bestdist = 256 * 256 * 3;
 
-    best = 0;			// FIXME - Unitialised? Zero ok?
-
+    best = 0;			// FIXME - Uninitialised? Zero ok?
     for (i = 0; i < 256; i++) {
 	r1 = host_basepal[i * 3] - r;
 	g1 = host_basepal[i * 3 + 1] - g;
