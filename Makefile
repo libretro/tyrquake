@@ -73,8 +73,8 @@ VID_WIN_LIBS_QW = sdl
 IN_WIN = in_sdl
 else
 VID_WIN = vid_win
-VID_WIN_LIBS_NQ = mgllt ddraw
-VID_WIN_LIBS_QW = mgllt
+VID_WIN_LIBS_NQ = mgllt gdi32 ddraw
+VID_WIN_LIBS_QW = mgllt gdi32
 IN_WIN = in_win
 endif
 
@@ -141,7 +141,7 @@ QW_ST_LIBDIR = scitech/lib/win32/vc
 
 NQ_W32_COMMON_LIBS = wsock32 winmm dxguid
 NQ_W32_SW_LIBS = $(VID_WIN_LIBS_NQ)
-NQ_W32_GL_LIBS = opengl32 comctl32
+NQ_W32_GL_LIBS = opengl32 comctl32 gdi32
 
 NQ_UNIX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
 NQ_UNIX_GL_LIBS = GL
@@ -844,7 +844,7 @@ endif
 # ---------
 QW_W32_COMMON_LIBS = wsock32 dxguid winmm
 QW_W32_SW_LIBS = $(VID_WIN_LIBS_QW)
-QW_W32_GL_LIBS = opengl32 comctl32
+QW_W32_GL_LIBS = opengl32 comctl32 gdi32
 
 QW_UNIX_COMMON_LIBS = m X11 Xext Xxf86dga Xxf86vm
 QW_UNIX_GL_LIBS = GL
