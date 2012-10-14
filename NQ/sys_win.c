@@ -47,8 +47,6 @@ qboolean ActiveApp;
 qboolean WinNT;
 
 static double pfreq;
-static double curtime = 0.0;
-static double lastcurtime = 0.0;
 static int lowshift;
 qboolean isDedicated;
 static qboolean sc_return_on_enter = false;
@@ -60,7 +58,6 @@ static HANDLE heventParent;
 static HANDLE heventChild;
 
 void MaskExceptions(void);
-void Sys_InitFloatTime(void);
 void Sys_PushFPCW_SetHigh(void);
 void Sys_PopFPCW(void);
 
@@ -494,9 +491,12 @@ Sys_DoubleTime
 double
 Sys_DoubleTime(void)
 {
+    static double curtime = 0.0;
+    static double lastcurtime = 0.0;
     static int sametimecount;
     static unsigned int oldtime;
     static int first = 1;
+
     LARGE_INTEGER pcount;
     unsigned int temp, t2;
     double time;
@@ -536,30 +536,6 @@ Sys_DoubleTime(void)
     Sys_PopFPCW();
 
     return curtime;
-}
-
-
-/*
-================
-Sys_InitFloatTime
-================
-*/
-void
-Sys_InitFloatTime(void)
-{
-    int j;
-
-    Sys_DoubleTime();
-
-    j = COM_CheckParm("-starttime");
-
-    if (j) {
-	curtime = (double)(Q_atof(com_argv[j + 1]));
-    } else {
-	curtime = 0.0;
-    }
-
-    lastcurtime = curtime;
 }
 
 
@@ -885,7 +861,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 
     Sys_Init();
     Sys_InitTimers();
-    Sys_InitFloatTime();
 
 // because sound is off until we become active
     S_BlockSound();
