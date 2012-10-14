@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "sys.h"
 
-cvar_t sys_nostdout = { "sys_nostdout", "0" };
+static cvar_t sys_nostdout = { "sys_nostdout", "0" };
 
 /*
 ================
@@ -203,8 +203,6 @@ main
 
 ==================
 */
-char *newargv[256];
-
 int
 main(int argc, char **argv)
 {

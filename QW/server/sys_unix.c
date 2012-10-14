@@ -33,10 +33,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - header hacks
 extern int net_socket;
 
-cvar_t sys_nostdout = { "sys_nostdout", "0" };
-cvar_t sys_extrasleep = { "sys_extrasleep", "0" };
+static cvar_t sys_nostdout = { "sys_nostdout", "0" };
+static cvar_t sys_extrasleep = { "sys_extrasleep", "0" };
 
-qboolean stdin_ready;
+static qboolean stdin_ready;
 
 /*
 ===============================================================================

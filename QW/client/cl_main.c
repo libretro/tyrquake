@@ -130,7 +130,7 @@ qboolean host_initialized;	// true if into command execution
 
 double host_frametime;
 double realtime;		// without any filtering or bounding
-double oldrealtime;		// last frame run
+static double oldrealtime;	// last frame run
 int host_framecount;
 
 int host_hunklevel;
@@ -1312,7 +1312,6 @@ Host_Frame
 Runs all active servers
 ==================
 */
-int nopacketcount;
 void
 Host_Frame(float time)
 {

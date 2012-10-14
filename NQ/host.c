@@ -61,7 +61,7 @@ qboolean host_initialized;	// true if into command execution
 double host_frametime;
 double host_time;
 double realtime;		// without any filtering or bounding
-double oldrealtime;		// last frame run
+static double oldrealtime;	// last frame run
 int host_framecount;
 
 int host_hunklevel;

@@ -49,8 +49,6 @@ HANDLE qwclsemaphore;
 
 static HANDLE tevent;
 
-void Sys_InitFloatTime(void);
-
 void MaskExceptions(void);
 void Sys_PopFPCW(void);
 void Sys_PushFPCW_SetHigh(void);
