@@ -1328,8 +1328,6 @@ Host_Frame(float time)
 
     // decide the simulation time
     realtime += time;
-    if (oldrealtime > realtime)
-	oldrealtime = 0;
 
     if (cl_maxfps.value)
 	fps = qmax(30.0f, qmin(cl_maxfps.value, 72.0f));
