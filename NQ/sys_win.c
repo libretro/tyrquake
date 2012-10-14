@@ -320,28 +320,24 @@ MaskExceptions(void)
 
 #endif
 
-/*
-================
-Sys_Init
-================
-*/
-void
-Sys_Init(void)
+static void
+Sys_InitTimers(void)
 {
-    LARGE_INTEGER PerformanceFreq;
+    LARGE_INTEGER freq;
     unsigned int lowpart, highpart;
-    OSVERSIONINFO vinfo;
 
     MaskExceptions();
     Sys_SetFPCW();
 
-    if (!QueryPerformanceFrequency(&PerformanceFreq))
+    if (!QueryPerformanceFrequency(&freq))
 	Sys_Error("No hardware timer available");
 
-// get 32 out of the 64 time bits such that we have around
-// 1 microsecond resolution
-    lowpart = (unsigned int)PerformanceFreq.LowPart;
-    highpart = (unsigned int)PerformanceFreq.HighPart;
+    /*
+     * get 32 out of the 64 time bits such that we have around
+     * 1 microsecond resolution
+     */
+    lowpart = (unsigned int)freq.LowPart;
+    highpart = (unsigned int)freq.HighPart;
     lowshift = 0;
 
     while (highpart || (lowpart > 2000000.0)) {
@@ -352,8 +348,18 @@ Sys_Init(void)
     }
 
     pfreq = 1.0 / (double)lowpart;
+}
 
-    Sys_InitFloatTime();
+
+/*
+================
+Sys_Init
+================
+*/
+void
+Sys_Init(void)
+{
+    OSVERSIONINFO vinfo;
 
     vinfo.dwOSVersionInfoSize = sizeof(vinfo);
 
@@ -491,36 +497,31 @@ Sys_DoubleTime(void)
     static int sametimecount;
     static unsigned int oldtime;
     static int first = 1;
-    LARGE_INTEGER PerformanceCount;
+    LARGE_INTEGER pcount;
     unsigned int temp, t2;
     double time;
 
     Sys_PushFPCW_SetHigh();
 
-    QueryPerformanceCounter(&PerformanceCount);
+    QueryPerformanceCounter(&pcount);
 
-    temp = ((unsigned int)PerformanceCount.LowPart >> lowshift) |
-	((unsigned int)PerformanceCount.HighPart << (32 - lowshift));
+    temp = (unsigned int)pcount.LowPart >> lowshift;
+    temp |= (unsigned int)pcount.HighPart << (32 - lowshift);
 
     if (first) {
 	oldtime = temp;
 	first = 0;
     } else {
-	// check for turnover or backward time
+	/* check for turnover or backward time */
 	if ((temp <= oldtime) && ((oldtime - temp) < 0x10000000)) {
-	    oldtime = temp;	// so we can't get stuck
+	    oldtime = temp;	/* so we don't get stuck */
 	} else {
 	    t2 = temp - oldtime;
-
 	    time = (double)t2 *pfreq;
-
 	    oldtime = temp;
-
 	    curtime += time;
-
 	    if (curtime == lastcurtime) {
 		sametimecount++;
-
 		if (sametimecount > 100000) {
 		    curtime += 1.0;
 		    sametimecount = 0;
@@ -528,7 +529,6 @@ Sys_DoubleTime(void)
 	    } else {
 		sametimecount = 0;
 	    }
-
 	    lastcurtime = curtime;
 	}
     }
@@ -884,6 +884,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     }
 
     Sys_Init();
+    Sys_InitTimers();
+    Sys_InitFloatTime();
 
 // because sound is off until we become active
     S_BlockSound();
