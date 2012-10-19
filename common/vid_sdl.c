@@ -273,6 +273,7 @@ typedef struct {
     char *desc;
     int iscur;
     int width;
+    int height;
 } modedesc_t;
 
 #define MAX_COLUMN_SIZE		5
@@ -343,6 +344,7 @@ VID_MenuDraw(void)
 		    modedescs[k].desc = ptr;
 		    modedescs[k].iscur = 0;
 		    modedescs[k].width = pv->width;
+		    modedescs[k].height = pv->height;
 
 		    if (i == vid_modenum)
 			modedescs[k].iscur = 1;
@@ -354,11 +356,15 @@ VID_MenuDraw(void)
 	}
     }
 
-// sort the modes on width (to handle picking up oddball dibonly modes
-// after all the others)
+    /*
+     * Sort the modes on width & height
+     * (to handle picking up oddball dibonly modes after all the others)
+     */
     for (i = VID_MODE_FULLSCREEN_DEFAULT; i < (vid_wmodes - 1); i++) {
 	for (j = (i + 1); j < vid_wmodes; j++) {
-	    if (modedescs[i].width > modedescs[j].width) {
+	    if (modedescs[i].width > modedescs[j].width	||
+		(modedescs[i].width == modedescs[j].width &&
+		 modedescs[i].height > modedescs[j].height)) {
 		tmodedesc = modedescs[i];
 		modedescs[i] = modedescs[j];
 		modedescs[j] = tmodedesc;
