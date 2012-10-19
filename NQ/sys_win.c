@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #include "common.h"
 #include "conproc.h"
+#include "console.h"
 #include "host.h"
 #include "quakedef.h"
 #include "resource.h"
@@ -48,6 +49,9 @@ qboolean WinNT;
 
 static double pfreq;
 static int lowshift;
+static qboolean timer_fallback;
+static DWORD timer_fallback_start;
+
 qboolean isDedicated;
 static qboolean sc_return_on_enter = false;
 static HANDLE hinput, houtput;
@@ -326,8 +330,12 @@ Sys_InitTimers(void)
     MaskExceptions();
     Sys_SetFPCW();
 
-    if (!QueryPerformanceFrequency(&freq))
-	Sys_Error("No hardware timer available");
+    if (!QueryPerformanceFrequency(&freq)) {
+	Con_Printf("WARNING: No hardware timer available, using fallback\n");
+	timer_fallback = true;
+	timer_fallback_start = timeGetTime();
+	return;
+    }
 
     /*
      * get 32 out of the 64 time bits such that we have around
@@ -500,6 +508,13 @@ Sys_DoubleTime(void)
     LARGE_INTEGER pcount;
     unsigned int temp, t2;
     double time;
+
+    if (timer_fallback) {
+	DWORD now = timeGetTime();
+	if (now < timer_fallback_start)	/* wrapped */
+	    return (now + (LONG_MAX - timer_fallback_start)) / 1000.0;
+	return (now - timer_fallback_start) / 1000.0;
+    }
 
     Sys_PushFPCW_SetHigh();
 
