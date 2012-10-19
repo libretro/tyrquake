@@ -49,6 +49,7 @@ qboolean WinNT;
 
 static double pfreq;
 static int lowshift;
+static unsigned int oldtime;
 static qboolean timer_fallback;
 static DWORD timer_fallback_start;
 
@@ -324,7 +325,7 @@ MaskExceptions(void)
 static void
 Sys_InitTimers(void)
 {
-    LARGE_INTEGER freq;
+    LARGE_INTEGER freq, pcount;
     unsigned int lowpart, highpart;
 
     MaskExceptions();
@@ -351,10 +352,15 @@ Sys_InitTimers(void)
 	lowpart |= (highpart & 1) << 31;
 	highpart >>= 1;
     }
-
     pfreq = 1.0 / (double)lowpart;
-}
 
+    /* Do first time initialisation */
+    Sys_PushFPCW_SetHigh();
+    QueryPerformanceCounter(&pcount);
+    oldtime = (unsigned int)pcount.LowPart >> lowshift;
+    oldtime |= (unsigned int)pcount.HighPart << (32 - lowshift);
+    Sys_PopFPCW();
+}
 
 /*
 ================
@@ -502,8 +508,6 @@ Sys_DoubleTime(void)
     static double curtime = 0.0;
     static double lastcurtime = 0.0;
     static int sametimecount;
-    static unsigned int oldtime;
-    static int first = 1;
 
     LARGE_INTEGER pcount;
     unsigned int temp, t2;
@@ -523,29 +527,24 @@ Sys_DoubleTime(void)
     temp = (unsigned int)pcount.LowPart >> lowshift;
     temp |= (unsigned int)pcount.HighPart << (32 - lowshift);
 
-    if (first) {
-	oldtime = temp;
-	first = 0;
+    /* check for turnover or backward time */
+    if ((temp <= oldtime) && ((oldtime - temp) < 0x10000000)) {
+	oldtime = temp;	/* so we don't get stuck */
     } else {
-	/* check for turnover or backward time */
-	if ((temp <= oldtime) && ((oldtime - temp) < 0x10000000)) {
-	    oldtime = temp;	/* so we don't get stuck */
-	} else {
-	    t2 = temp - oldtime;
-	    time = (double)t2 *pfreq;
-	    oldtime = temp;
-	    curtime += time;
-	    if (curtime == lastcurtime) {
-		sametimecount++;
-		if (sametimecount > 100000) {
-		    curtime += 1.0;
-		    sametimecount = 0;
-		}
-	    } else {
+	t2 = temp - oldtime;
+	time = (double)t2 *pfreq;
+	oldtime = temp;
+	curtime += time;
+	if (curtime == lastcurtime) {
+	    sametimecount++;
+	    if (sametimecount > 100000) {
+		curtime += 1.0;
 		sametimecount = 0;
 	    }
-	    lastcurtime = curtime;
+	} else {
+	    sametimecount = 0;
 	}
+	lastcurtime = curtime;
     }
 
     Sys_PopFPCW();
