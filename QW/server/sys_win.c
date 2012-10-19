@@ -17,18 +17,28 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-#include <sys/types.h>
-#include <sys/timeb.h>
-#include <winsock.h>
+#include <windows.h>
 #include <conio.h>
 #include <direct.h>
+#include <limits.h>
 
 #include "qwsvdef.h"
 #include "common.h"
+#include "console.h"
 #include "server.h"
 #include "sys.h"
 
 static cvar_t sys_nostdout = { "sys_nostdout", "0" };
+
+static double timer_pfreq;
+static int timer_lowshift;
+static unsigned int timer_oldtime;
+static qboolean timer_fallback;
+static DWORD timer_fallback_start;
+
+void MaskExceptions(void);
+void Sys_PopFPCW(void);
+void Sys_PushFPCW_SetHigh(void);
 
 /*
 ================
@@ -58,6 +68,47 @@ void
 Sys_mkdir(const char *path)
 {
     _mkdir(path);
+}
+
+
+static void
+Sys_InitTimers(void)
+{
+    LARGE_INTEGER freq, pcount;
+    unsigned int lowpart, highpart;
+
+    MaskExceptions();
+    Sys_SetFPCW();
+
+    if (!QueryPerformanceFrequency(&freq)) {
+	Con_Printf("WARNING: No hardware timer available, using fallback\n");
+	timer_fallback = true;
+	timer_fallback_start = timeGetTime();
+	return;
+    }
+
+    /*
+     * get 32 out of the 64 time bits such that we have around
+     * 1 microsecond resolution
+     */
+    lowpart = (unsigned int)freq.LowPart;
+    highpart = (unsigned int)freq.HighPart;
+    timer_lowshift = 0;
+
+    while (highpart || (lowpart > 2000000.0)) {
+	timer_lowshift++;
+	lowpart >>= 1;
+	lowpart |= (highpart & 1) << 31;
+	highpart >>= 1;
+    }
+    timer_pfreq = 1.0 / (double)lowpart;
+
+    /* Do first time initialisation */
+    Sys_PushFPCW_SetHigh();
+    QueryPerformanceCounter(&pcount);
+    timer_oldtime = (unsigned int)pcount.LowPart >> timer_lowshift;
+    timer_oldtime |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
+    Sys_PopFPCW();
 }
 
 
@@ -91,17 +142,51 @@ Sys_DoubleTime
 double
 Sys_DoubleTime(void)
 {
-    double t;
-    struct _timeb tstruct;
-    static int starttime;
+    static double curtime = 0.0;
+    static double lastcurtime = 0.0;
+    static int sametimecount;
 
-    _ftime(&tstruct);
+    LARGE_INTEGER pcount;
+    unsigned int temp, t2;
+    double time;
 
-    if (!starttime)
-	starttime = tstruct.time;
-    t = (tstruct.time - starttime) + tstruct.millitm * 0.001;
+    if (timer_fallback) {
+	DWORD now = timeGetTime();
+	if (now < timer_fallback_start)	/* wrapped */
+	    return (now + (LONG_MAX - timer_fallback_start)) / 1000.0;
+	return (now - timer_fallback_start) / 1000.0;
+    }
 
-    return t;
+    Sys_PushFPCW_SetHigh();
+
+    QueryPerformanceCounter(&pcount);
+
+    temp = (unsigned int)pcount.LowPart >> timer_lowshift;
+    temp |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
+
+    /* check for turnover or backward time */
+    if ((temp <= timer_oldtime) && ((timer_oldtime - temp) < 0x10000000)) {
+	timer_oldtime = temp;	/* so we don't get stuck */
+    } else {
+	t2 = temp - timer_oldtime;
+	time = (double)t2 * timer_pfreq;
+	timer_oldtime = temp;
+	curtime += time;
+	if (curtime == lastcurtime) {
+	    sametimecount++;
+	    if (sametimecount > 100000) {
+		curtime += 1.0;
+		sametimecount = 0;
+	    }
+	} else {
+	    sametimecount = 0;
+	}
+	lastcurtime = curtime;
+    }
+
+    Sys_PopFPCW();
+
+    return curtime;
 }
 
 
@@ -195,6 +280,7 @@ void
 Sys_Init(void)
 {
     Cvar_RegisterVariable(&sys_nostdout);
+    Sys_InitTimers();
 }
 
 /*
@@ -266,3 +352,25 @@ main(int argc, char **argv)
 
     return true;
 }
+
+#ifndef USE_X86_ASM
+void
+Sys_SetFPCW(void)
+{
+}
+
+void
+Sys_PushFPCW_SetHigh(void)
+{
+}
+
+void
+Sys_PopFPCW(void)
+{
+}
+
+void
+MaskExceptions(void)
+{
+}
+#endif

@@ -44,6 +44,12 @@ int starttime;
 qboolean ActiveApp;
 qboolean WinNT;
 
+static double timer_pfreq;
+static int timer_lowshift;
+static unsigned int timer_oldtime;
+static qboolean timer_fallback;
+static DWORD timer_fallback_start;
+
 HWND hwnd_dialog;		// startup dialog box
 HANDLE qwclsemaphore;
 
@@ -149,6 +155,46 @@ Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
 }
 
 
+static void
+Sys_InitTimers(void)
+{
+    LARGE_INTEGER freq, pcount;
+    unsigned int lowpart, highpart;
+
+    MaskExceptions();
+    Sys_SetFPCW();
+
+    if (!QueryPerformanceFrequency(&freq)) {
+	Con_Printf("WARNING: No hardware timer available, using fallback\n");
+	timer_fallback = true;
+	timer_fallback_start = timeGetTime();
+	return;
+    }
+
+    /*
+     * get 32 out of the 64 time bits such that we have around
+     * 1 microsecond resolution
+     */
+    lowpart = (unsigned int)freq.LowPart;
+    highpart = (unsigned int)freq.HighPart;
+    timer_lowshift = 0;
+
+    while (highpart || (lowpart > 2000000.0)) {
+	timer_lowshift++;
+	lowpart >>= 1;
+	lowpart |= (highpart & 1) << 31;
+	highpart >>= 1;
+    }
+    timer_pfreq = 1.0 / (double)lowpart;
+
+    /* Do first time initialisation */
+    Sys_PushFPCW_SetHigh();
+    QueryPerformanceCounter(&pcount);
+    timer_oldtime = (unsigned int)pcount.LowPart >> timer_lowshift;
+    timer_oldtime |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
+    Sys_PopFPCW();
+}
+
 /*
 ================
 Sys_Init
@@ -252,25 +298,51 @@ Sys_Quit(void)
 double
 Sys_DoubleTime(void)
 {
-    static DWORD starttime;
-    static qboolean first = true;
-    DWORD now;
+    static double curtime = 0.0;
+    static double lastcurtime = 0.0;
+    static int sametimecount;
 
-    now = timeGetTime();
+    LARGE_INTEGER pcount;
+    unsigned int temp, t2;
+    double time;
 
-    if (first) {
-	first = false;
-	starttime = now;
-	return 0.0;
+    if (timer_fallback) {
+	DWORD now = timeGetTime();
+	if (now < timer_fallback_start)	/* wrapped */
+	    return (now + (LONG_MAX - timer_fallback_start)) / 1000.0;
+	return (now - timer_fallback_start) / 1000.0;
     }
 
-    if (now < starttime)	// wrapped?
-	return (now / 1000.0) + (LONG_MAX - starttime / 1000.0);
+    Sys_PushFPCW_SetHigh();
 
-    if (now - starttime == 0)
-	return 0.0;
+    QueryPerformanceCounter(&pcount);
 
-    return (now - starttime) / 1000.0;
+    temp = (unsigned int)pcount.LowPart >> timer_lowshift;
+    temp |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
+
+    /* check for turnover or backward time */
+    if ((temp <= timer_oldtime) && ((timer_oldtime - temp) < 0x10000000)) {
+	timer_oldtime = temp;	/* so we don't get stuck */
+    } else {
+	t2 = temp - timer_oldtime;
+	time = (double)t2 * timer_pfreq;
+	timer_oldtime = temp;
+	curtime += time;
+	if (curtime == lastcurtime) {
+	    sametimecount++;
+	    if (sametimecount > 100000) {
+		curtime += 1.0;
+		sametimecount = 0;
+	    }
+	} else {
+	    sametimecount = 0;
+	}
+	lastcurtime = curtime;
+    }
+
+    Sys_PopFPCW();
+
+    return curtime;
 }
 
 void
@@ -439,6 +511,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 	Sys_Error("Couldn't create event");
 
     Sys_Init();
+    Sys_InitTimers();
 
 // because sound is off until we become active
     S_BlockSound();
@@ -482,6 +555,16 @@ Sys_LowFPPrecision(void)
 
 void
 Sys_SetFPCW(void)
+{
+}
+
+void
+Sys_PushFPCW_SetHigh(void)
+{
+}
+
+void
+Sys_PopFPCW(void)
 {
 }
 

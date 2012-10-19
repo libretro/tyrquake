@@ -298,29 +298,6 @@ Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
 	Sys_Error("Protection change failed");
 }
 
-#ifndef USE_X86_ASM
-
-void
-Sys_SetFPCW(void)
-{
-}
-
-void
-Sys_PushFPCW_SetHigh(void)
-{
-}
-
-void
-Sys_PopFPCW(void)
-{
-}
-
-void
-MaskExceptions(void)
-{
-}
-
-#endif
 
 static void
 Sys_InitTimers(void)
@@ -925,6 +902,26 @@ Sys_HighFPPrecision(void)
 
 void
 Sys_LowFPPrecision(void)
+{
+}
+
+void
+Sys_SetFPCW(void)
+{
+}
+
+void
+Sys_PushFPCW_SetHigh(void)
+{
+}
+
+void
+Sys_PopFPCW(void)
+{
+}
+
+void
+MaskExceptions(void)
 {
 }
 #endif
