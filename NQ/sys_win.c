@@ -47,9 +47,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qboolean ActiveApp;
 qboolean WinNT;
 
-static double pfreq;
-static int lowshift;
-static unsigned int oldtime;
+static double timer_pfreq;
+static int timer_lowshift;
+static unsigned int timer_oldtime;
 static qboolean timer_fallback;
 static DWORD timer_fallback_start;
 
@@ -344,21 +344,21 @@ Sys_InitTimers(void)
      */
     lowpart = (unsigned int)freq.LowPart;
     highpart = (unsigned int)freq.HighPart;
-    lowshift = 0;
+    timer_lowshift = 0;
 
     while (highpart || (lowpart > 2000000.0)) {
-	lowshift++;
+	timer_lowshift++;
 	lowpart >>= 1;
 	lowpart |= (highpart & 1) << 31;
 	highpart >>= 1;
     }
-    pfreq = 1.0 / (double)lowpart;
+    timer_pfreq = 1.0 / (double)lowpart;
 
     /* Do first time initialisation */
     Sys_PushFPCW_SetHigh();
     QueryPerformanceCounter(&pcount);
-    oldtime = (unsigned int)pcount.LowPart >> lowshift;
-    oldtime |= (unsigned int)pcount.HighPart << (32 - lowshift);
+    timer_oldtime = (unsigned int)pcount.LowPart >> timer_lowshift;
+    timer_oldtime |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
     Sys_PopFPCW();
 }
 
@@ -524,16 +524,16 @@ Sys_DoubleTime(void)
 
     QueryPerformanceCounter(&pcount);
 
-    temp = (unsigned int)pcount.LowPart >> lowshift;
-    temp |= (unsigned int)pcount.HighPart << (32 - lowshift);
+    temp = (unsigned int)pcount.LowPart >> timer_lowshift;
+    temp |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
 
     /* check for turnover or backward time */
-    if ((temp <= oldtime) && ((oldtime - temp) < 0x10000000)) {
-	oldtime = temp;	/* so we don't get stuck */
+    if ((temp <= timer_oldtime) && ((timer_oldtime - temp) < 0x10000000)) {
+	timer_oldtime = temp;	/* so we don't get stuck */
     } else {
-	t2 = temp - oldtime;
-	time = (double)t2 *pfreq;
-	oldtime = temp;
+	t2 = temp - timer_oldtime;
+	time = (double)t2 * timer_pfreq;
+	timer_oldtime = temp;
 	curtime += time;
 	if (curtime == lastcurtime) {
 	    sametimecount++;
