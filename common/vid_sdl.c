@@ -197,6 +197,18 @@ VID_GetWindowSize(int default_width, int default_height)
 }
 
 static void
+InitMode(vmode_t *mode, int num, int fullscreen, int width, int height)
+{
+    mode->modenum = num;
+    mode->fullscreen = fullscreen;
+    mode->bpp = 8;
+    mode->width = width;
+    mode->height = height;
+    snprintf(mode->modedesc, 13, "%dx%d", width, height);
+    mode->modedesc[12] = 0;
+}
+
+static void
 VID_InitModeList(void)
 {
     int i;
@@ -208,18 +220,38 @@ VID_InitModeList(void)
 	.BytesPerPixel = 1
     };
 
-    char txtbuf[8192];
-    char *out;
-    int used;
-
-    out = txtbuf;
-
     nummodes = 0;
+
+    /*
+     * Check availability of windowed video modes
+     * Usually any mode is allowed, but the API allows for systems where only
+     * specific modes are possible.
+     */
+    modes = SDL_ListModes(&fmt, flags);
+    if (modes == (SDL_Rect **)-1) {
+	InitMode(&modelist[0], 0, 0, 320, 240);
+	InitMode(&modelist[1], 1, 0, 640, 480);
+	InitMode(&modelist[2], 2, 0, 800, 600);
+	InitMode(&modelist[3], 3, 0, 1024, 768);
+	InitMode(&modelist[4], 4, 0, 1280, 960);
+	nummodes = 5;
+    } else {
+	for (i = 0; modes[i] && i < NUM_WINDOWED_MODES; i++) {
+	    InitMode(modelist + nummodes, nummodes, 0, modes[i]->w, modes[i]->h);
+	    nummodes++;
+	}
+	/* FIXME - still kind of broken due to hard coded constants */
+	while (i < NUM_WINDOWED_MODES) {
+	    InitMode(modelist + nummodes, nummodes, 0, 0, 0);
+	    strcpy(modelist[nummodes].modedesc, "<N/A>");
+	    nummodes++;
+	}
+    }
 
     /* Get available fullscreen modes */
     modes = SDL_ListModes(&fmt, SDL_FULLSCREEN | flags);
     if (!modes)
-	Sys_Error("No video modes available?");
+	Sys_Error("No fullscreen video modes available?");
     for (i = 0; modes[i]; i++) {
 	modelist[nummodes].modenum = nummodes;
 	modelist[nummodes].fullscreen = 1;
@@ -227,17 +259,7 @@ VID_InitModeList(void)
 	modelist[nummodes].width = modes[i]->w;
 	modelist[nummodes].height = modes[i]->h;
 	sprintf(modelist[nummodes].modedesc, "%dx%d", modes[i]->w, modes[i]->h);
-
-	used = sprintf(out, "Found SDL fullscreen mode: %s\n", modelist[nummodes].modedesc);
-	out += used;
-
 	nummodes++;
-    }
-
-    modes = SDL_ListModes(&fmt, flags);
-    if (modes == (SDL_Rect **)-1) {
-	used = sprintf(out, "All windowed modes are available/allowed.\n");
-	out += used;
     }
 
     //Sys_Error("Not fully implemented...\n%s", txtbuf);
