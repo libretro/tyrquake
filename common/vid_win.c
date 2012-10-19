@@ -626,6 +626,24 @@ createDisplayDC(int forcemem)
 
 
 static void
+InitWindowedMode(vmode_t *mode, int num, int width, int height)
+{
+    mode->type = MS_WINDOWED;
+    mode->width = width;
+    mode->height = height;
+    snprintf(mode->modedesc, 13, "%dx%d", width, height);
+    mode->modedesc[12] = 0;
+    mode->mode13 = 0;
+    mode->modenum = num;
+    mode->stretched = 0;
+    mode->dib = 1;
+    mode->fullscreen = 0;
+    mode->halfscreen = 0;
+    mode->bpp = 8;
+}
+
+
+static void
 VID_InitMGLDIB(HINSTANCE hInstance)
 {
     WNDCLASS wc;
@@ -654,65 +672,11 @@ VID_InitMGLDIB(HINSTANCE hInstance)
     registerAllMemDrivers();
     MGL_initWindowed("");
 
-    modelist[0].type = MS_WINDOWED;
-    modelist[0].width = 320;
-    modelist[0].height = 240;
-    strcpy(modelist[0].modedesc, "320x240");
-    modelist[0].mode13 = 0;
-    modelist[0].modenum = VID_MODE_WINDOWED;
-    modelist[0].stretched = 0;
-    modelist[0].dib = 1;
-    modelist[0].fullscreen = 0;
-    modelist[0].halfscreen = 0;
-    modelist[0].bpp = 8;
-
-    modelist[1].type = MS_WINDOWED;
-    modelist[1].width = 640;
-    modelist[1].height = 480;
-    strcpy(modelist[1].modedesc, "640x480");
-    modelist[1].mode13 = 0;
-    modelist[1].modenum = VID_MODE_WINDOWED + 1;
-    modelist[1].stretched = 0;
-    modelist[1].dib = 1;
-    modelist[1].fullscreen = 0;
-    modelist[1].halfscreen = 0;
-    modelist[1].bpp = 8;
-
-    modelist[2].type = MS_WINDOWED;
-    modelist[2].width = 800;
-    modelist[2].height = 600;
-    strcpy(modelist[2].modedesc, "800x600");
-    modelist[2].mode13 = 0;
-    modelist[2].modenum = VID_MODE_WINDOWED + 2;
-    modelist[2].stretched = 0;
-    modelist[2].dib = 1;
-    modelist[2].fullscreen = 0;
-    modelist[2].halfscreen = 0;
-    modelist[2].bpp = 8;
-
-    modelist[3].type = MS_WINDOWED;
-    modelist[3].width = 1024;
-    modelist[3].height = 768;
-    strcpy(modelist[3].modedesc, "1024x768");
-    modelist[3].mode13 = 0;
-    modelist[3].modenum = VID_MODE_WINDOWED + 3;
-    modelist[3].stretched = 0;
-    modelist[3].dib = 1;
-    modelist[3].fullscreen = 0;
-    modelist[3].halfscreen = 0;
-    modelist[3].bpp = 8;
-
-    modelist[4].type = MS_WINDOWED;
-    modelist[4].width = 1280;
-    modelist[4].height = 960;
-    strcpy(modelist[4].modedesc, "1280x960");
-    modelist[4].mode13 = 0;
-    modelist[4].modenum = VID_MODE_WINDOWED + 4;
-    modelist[4].stretched = 0;
-    modelist[4].dib = 1;
-    modelist[4].fullscreen = 0;
-    modelist[4].halfscreen = 0;
-    modelist[4].bpp = 8;
+    InitWindowedMode(&modelist[0], 0, 320, 240);
+    InitWindowedMode(&modelist[1], 1, 640, 480);
+    InitWindowedMode(&modelist[2], 2, 800, 600);
+    InitWindowedMode(&modelist[3], 3, 1024, 768);
+    InitWindowedMode(&modelist[4], 4, 1280, 960);
 
 // automatically stretch the default mode up if > 640x480 desktop resolution
     hdc = GetDC(NULL);
