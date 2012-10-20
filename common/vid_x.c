@@ -567,7 +567,7 @@ VID_Init(unsigned char *palette)
 	if (pnum >= com_argc - 1)
 	    Sys_Error("VID: -height <height>");
 	vid.height = Q_atoi(com_argv[pnum + 1]);
-	if (!vid.height)
+	if (!vid.height || vid.height > MAXHEIGHT)
 	    Sys_Error("VID: Bad window height");
     }
 

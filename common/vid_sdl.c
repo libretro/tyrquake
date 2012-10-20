@@ -234,6 +234,8 @@ VID_InitModeList(void)
 	nummodes = 5;
     } else {
 	for (i = 0; modes[i] && i < NUM_WINDOWED_MODES; i++) {
+	    if (modes[i]->h > MAXHEIGHT)
+		continue;
 	    InitMode(modelist + nummodes, nummodes, 0, modes[i]->w, modes[i]->h);
 	    nummodes++;
 	}
@@ -250,6 +252,8 @@ VID_InitModeList(void)
     if (!modes)
 	Sys_Error("No fullscreen video modes available?");
     for (i = 0; modes[i]; i++) {
+	if (modes[i]->h > MAXHEIGHT)
+	    continue;
 	modelist[nummodes].modenum = nummodes;
 	modelist[nummodes].fullscreen = 1;
 	modelist[nummodes].bpp = 8;
