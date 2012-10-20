@@ -21,17 +21,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef R_SHARED_H
 #define R_SHARED_H
 
-#include "d_iface.h"
-
 #ifndef GLQUAKE
 // r_shared.h: general refresh-related stuff shared between the refresh and the
 // driver
+
+#include "d_iface.h"
+#include "mathlib.h"
 
 // FIXME: clean up and move into d_iface.h
 
 #define	MAXVERTS	16	// max points in a surface polygon
 #define MAXWORKINGVERTS	(MAXVERTS+4)	// max points in an intermediate
 					//  polygon (while processing)
+
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 #define	MAXHEIGHT	1200
 #define	MAXWIDTH	1920
@@ -54,7 +56,6 @@ extern int r_drawnpolycount;
 
 extern cvar_t r_clearcolor;
 
-// FIXME - not the same as NQ. Check it.
 #define TURB_TABLE_SIZE (2*TURB_CYCLE)
 extern int sintable[TURB_TABLE_SIZE];
 extern int intsintable[TURB_TABLE_SIZE];

@@ -25,8 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_shared.h: general refresh-related stuff shared between the refresh and the
 // driver
 
-#include "d_iface.h"		/* polyvert_t */
-#include "mathlib.h"		/* vec3_t     */
+#include "d_iface.h"
+#include "mathlib.h"
 
 // FIXME: clean up and move into d_iface.h
 
@@ -153,6 +153,6 @@ typedef struct edge_s {
     medge_t *owner;
 } edge_t;
 
-#endif // !GLQUAKE
+#endif // GLQUAKE
 
 #endif /* R_SHARED_H */
