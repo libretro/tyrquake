@@ -812,15 +812,19 @@ VID_SetMode(int modenum, unsigned char *palette)
 {
     vmode_t *mode;
     int w, h;
+    Uint32 flags;
 
     mode = VID_GetModePtr(modenum);
     w = mode->width;
     h = mode->height;
+    flags = SDL_SWSURFACE | SDL_HWPALETTE;
+    if (mode->fullscreen)
+	flags |= SDL_FULLSCREEN;
 
     /*
      * Placeholder code - just set one video mode for now
      */
-    screen = SDL_SetVideoMode(w, h, 8, SDL_SWSURFACE | SDL_HWPALETTE);
+    screen = SDL_SetVideoMode(w, h, 8, flags);
     if (!screen)
 	Sys_Error("VID: Couldn't set video mode: %s", SDL_GetError());
 
