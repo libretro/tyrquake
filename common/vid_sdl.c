@@ -155,8 +155,6 @@ static int vid_modenum = VID_MODE_NONE;
 static int vid_testingmode, vid_realmode;
 static double vid_testendtime;
 
-static unsigned char vid_curpal[256 * 3];
-
 typedef struct {
     int width;
     int height;
@@ -182,7 +180,6 @@ static vmode_t *VID_GetModePtr(int modenum);
 
 static qboolean Minimized;
 static qboolean force_mode_set;
-static qboolean in_mode_set;
 
 qboolean
 window_visible(void)
@@ -545,7 +542,7 @@ VID_MenuKey(int key)
 
     case K_ENTER:
 	S_LocalSound("misc/menu1.wav");
-	VID_SetMode(modedescs[vid_line].modenum, vid_curpal);
+	VID_SetMode(modedescs[vid_line].modenum, host_basepal);
 	break;
 
     case 'T':
@@ -557,7 +554,7 @@ VID_MenuKey(int key)
 	vid_testingmode = 1;
 	vid_testendtime = realtime + 5.0;
 
-	if (!VID_SetMode(modedescs[vid_line].modenum, vid_curpal)) {
+	if (!VID_SetMode(modedescs[vid_line].modenum, host_basepal)) {
 	    vid_testingmode = 0;
 	}
 	break;
@@ -813,15 +810,17 @@ VID_UpdateWindowStatus(void)
 static int
 VID_SetMode(int modenum, unsigned char *palette)
 {
-    static qboolean vid_mode_set = false;
+    vmode_t *mode;
+    int w, h;
 
-    if (vid_mode_set)
-	return true;
+    mode = VID_GetModePtr(modenum);
+    w = mode->width;
+    h = mode->height;
 
     /*
      * Placeholder code - just set one video mode for now
      */
-    screen = SDL_SetVideoMode(800, 600, 8, SDL_SWSURFACE | SDL_HWPALETTE);
+    screen = SDL_SetVideoMode(w, h, 8, SDL_SWSURFACE | SDL_HWPALETTE);
     if (!screen)
 	Sys_Error("VID: Couldn't set video mode: %s", SDL_GetError());
 
@@ -829,8 +828,8 @@ VID_SetMode(int modenum, unsigned char *palette)
     VID_SetPalette(palette);
 
     vid.numpages = 1;
-    vid.width = vid.conwidth = 800;
-    vid.height = vid.conheight = 600;
+    vid.width = vid.conwidth = w;
+    vid.height = vid.conheight = h;
     vid.maxwarpwidth = WARP_WIDTH;
     vid.maxwarpheight = WARP_HEIGHT;
     vid.aspect = ((float)vid.height / (float)vid.width) * (320.0 / 240.0);
@@ -850,10 +849,12 @@ VID_SetMode(int modenum, unsigned char *palette)
     vid_modenum = modenum;
     Cvar_SetValue("vid_mode", (float)vid_modenum);
 
-    in_mode_set = false;
     vid.recalc_refdef = 1;
 
-    vid_mode_set = true;
+    mainwindow=GetActiveWindow();
+    SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)hIcon);
+    SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hIcon);
+
     return true;
 }
 
@@ -901,52 +902,6 @@ VID_Init(unsigned char *palette) /* (byte *palette, byte *colormap) */
     mainwindow=GetActiveWindow();
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)hIcon);
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hIcon);
-
-#if 0
-    // Set up display mode (width and height)
-    VID_GetWindowSize(BASEWIDTH, BASEHEIGHT);
-
-    // Set video width, height and flags
-    flags = (SDL_SWSURFACE | SDL_HWPALETTE);
-    if (vid_fullscreen->int_val)
-	flags |= SDL_FULLSCREEN;
-
-    // Initialize display
-    if (!(screen = SDL_SetVideoMode(vid.width, vid.height, 8, flags)))
-	Sys_Error("VID: Couldn't set video mode: %s", SDL_GetError());
-
-    vid_colormap = colormap;
-    VID_InitGamma(palette);
-    VID_SetPalette(vid.palette);
-
-    // now know everything we need to know about the buffer
-    VGA_width = vid.width;
-    VGA_height = vid.height;
-    vid.numpages = 1;
-    vid.colormap8 = vid_colormap;
-    vid.fullbright = 256 - vid.colormap8[256 * VID_GRADES];
-    vid.do_screen_buffer = do_screen_buffer;
-    VGA_pagebase = vid.buffer = screen->pixels;
-    VGA_rowbytes = vid.rowbytes = screen->pitch;
-    vid.conbuffer = vid.buffer;
-    vid.conrowbytes = vid.rowbytes;
-    vid.direct = 0;
-
-    VID_InitBuffers();		// allocate z buffer and surface cache
-
-    SDL_ShowCursor(0);		// hide the mouse pointer
-
-#ifdef _WIN32
-// FIXME: EVIL thing - but needed for win32 until
-// SDL_sound works better - without this DirectSound fails.
-
-//    SDL_GetWMInfo(&info);
-//    mainwindow=info.window;
-    mainwindow=GetActiveWindow();
-#endif
-
-    vid.initialized = true;
-#endif // 0
 
     vid_menudrawfn = VID_MenuDraw;
     vid_menukeyfn = VID_MenuKey;
