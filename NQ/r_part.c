@@ -414,7 +414,7 @@ R_LavaSplash(vec3_t org)
 
 		p->die = cl.time + 2 + (rand() & 31) * 0.02;
 		p->color = 224 + (rand() & 7);
-		p->type = pt_slowgrav;
+		p->type = pt_grav;
 
 		dir[0] = j * 8 + (rand() & 7);
 		dir[1] = i * 8 + (rand() & 7);
@@ -456,7 +456,7 @@ R_TeleportSplash(vec3_t org)
 
 		p->die = cl.time + 0.2 + (rand() & 7) * 0.02;
 		p->color = 7 + (rand() & 7);
-		p->type = pt_slowgrav;
+		p->type = pt_grav;
 
 		dir[0] = j * 8;
 		dir[1] = i * 8;
@@ -666,9 +666,8 @@ CL_RunParticles(void)
 	    p->vel[2] -= grav;
 	    break;
 
-	case pt_grav:
-
 	case pt_slowgrav:
+	case pt_grav:
 	    p->vel[2] -= grav;
 	    break;
 	}
