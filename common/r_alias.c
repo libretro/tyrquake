@@ -79,7 +79,7 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 
 void R_AliasTransformAndProjectFinalVerts(finalvert_t *fv,
 					  stvert_t *pstverts);
-void R_AliasSetUpTransform(int trivial_accept);
+static void R_AliasSetUpTransform(entity_t *e, int trivial_accept);
 void R_AliasTransformVector(vec3_t in, vec3_t out);
 void R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 			       trivertx_t *pverts, stvert_t *pstverts);
@@ -111,7 +111,7 @@ R_AliasCheckBBox(entity_t *e)
     pahdr = Mod_Extradata(pmodel);
     pmdl = (mdl_t *)((byte *)pahdr + pahdr->model);
 
-    R_AliasSetUpTransform(0);
+    R_AliasSetUpTransform(e, 0);
 
 // construct the base bounding box for this frame
     frame = e->frame;
@@ -322,8 +322,8 @@ R_AliasPreparePoints(void)
 R_AliasSetUpTransform
 ================
 */
-void
-R_AliasSetUpTransform(int trivial_accept)
+static void
+R_AliasSetUpTransform(entity_t *e, int trivial_accept)
 {
     int i;
     float rotationmatrix[3][4], t2matrix[3][4];
@@ -335,9 +335,9 @@ R_AliasSetUpTransform(int trivial_accept)
 // TODO: should use a look-up table
 // TODO: could cache lazily, stored in the entity
 
-    angles[ROLL] = currententity->angles[ROLL];
-    angles[PITCH] = -currententity->angles[PITCH];
-    angles[YAW] = currententity->angles[YAW];
+    angles[ROLL] = e->angles[ROLL];
+    angles[PITCH] = -e->angles[PITCH];
+    angles[YAW] = e->angles[YAW];
     AngleVectors(angles, alias_forward, alias_right, alias_up);
 
     tmatrix[0][0] = pmdl->scale[0];
@@ -717,7 +717,7 @@ R_AliasDrawModel(alight_t *plighting)
     pmdl = (mdl_t *)((byte *)paliashdr + paliashdr->model);
 
     R_AliasSetupSkin();
-    R_AliasSetUpTransform(currententity->trivial_accept);
+    R_AliasSetUpTransform(currententity, currententity->trivial_accept);
     R_AliasSetupLighting(plighting);
     R_AliasSetupFrame();
 
