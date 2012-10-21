@@ -162,6 +162,15 @@ R_AddEfrags(entity_t *ent)
     if (!ent->model)
 	return;
 
+#ifdef NQ_HACK
+    if (ent == cl_entities)
+	return;			// never add the world
+#endif
+#ifdef QW_HACK
+    if (ent == &r_worldentity)
+	return;			// never add the world
+#endif
+
     r_addent = ent;
 
     lastlink = &ent->efrag;
