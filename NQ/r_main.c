@@ -135,6 +135,11 @@ cvar_t r_fullbright = {
     .flags = CVAR_DEVELOPER
 };
 
+#ifdef QW_HACK
+cvar_t r_netgraph = { "r_netgraph", "0" };
+static cvar_t r_zgraph = { "r_zgraph", "0" };
+#endif
+
 static cvar_t r_timegraph = { "r_timegraph", "0" };
 static cvar_t r_aliasstats = { "r_polymodelstats", "0" };
 static cvar_t r_dspeeds = { "r_dspeeds", "0" };
@@ -245,6 +250,11 @@ R_Init(void)
     Cvar_RegisterVariable(&r_aliastransbase);
     Cvar_RegisterVariable(&r_aliastransadj);
 
+#ifdef QW_HACK
+    Cvar_RegisterVariable(&r_netgraph);
+    Cvar_RegisterVariable(&r_zgraph);
+#endif
+
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);
 
@@ -338,37 +348,62 @@ R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
 {
     int h;
     float size;
+    qboolean full = false;
 
     if (scr_viewsize.value >= 100.0) {
 	size = 100.0;
-	//full = true;
+	full = true;
     } else {
 	size = scr_viewsize.value;
-	//full = false;
+	full = false;
     }
 
     if (cl.intermission) {
-	//full = true;
+	full = true;
 	size = 100.0;
 	lineadj = 0;
     }
     size /= 100.0;
 
-    h = pvrectin->height - lineadj;
-    pvrect->width = pvrectin->width * size;
+#ifdef NQ_HACK
+    if (full)
+#endif
+#ifdef QW_HACK
+    if (!cl_sbar.value && full)
+#endif
+	h = pvrectin->height;
+    else
+	h = pvrectin->height - lineadj;
+
+    if (full)
+	pvrect->width = pvrectin->width;
+    else
+	pvrect->width = pvrectin->width * size;
+
     if (pvrect->width < 96) {
 	size = 96.0 / pvrectin->width;
 	pvrect->width = 96;	// min for icons
     }
     pvrect->width &= ~7;
     pvrect->height = pvrectin->height * size;
-    if (pvrect->height > pvrectin->height - lineadj)
-	pvrect->height = pvrectin->height - lineadj;
+#ifdef NQ_HACK
+    if (!full) {
+#endif
+#ifdef QW_HACK
+    if (cl_sbar.value || !full) {
+#endif
+	if (pvrect->height > pvrectin->height - lineadj)
+	    pvrect->height = pvrectin->height - lineadj;
+    } else if (pvrect->height > pvrectin->height)
+	pvrect->height = pvrectin->height;
 
     pvrect->height &= ~1;
 
     pvrect->x = (pvrectin->width - pvrect->width) / 2;
-    pvrect->y = (h - pvrect->height) / 2;
+    if (full)
+	pvrect->y = 0;
+    else
+	pvrect->y = (h - pvrect->height) / 2;
 }
 
 
@@ -565,10 +600,10 @@ R_DrawEntitiesOnList(void)
 
     for (i = 0; i < cl_numvisedicts; i++) {
 	currententity = &cl_visedicts[i];
-
+#ifdef NQ_HACK
 	if (currententity == &cl_entities[cl.viewentity])
 	    continue;		// don't draw the player
-
+#endif
 	switch (currententity->model->type) {
 	case mod_sprite:
 	    VectorCopy(currententity->origin, r_entorigin);
@@ -633,8 +668,14 @@ R_DrawViewModel(void)
     float add;
     dlight_t *dl;
 
+#ifdef NQ_HACK
     if (!r_drawviewmodel.value || r_fov_greater_than_90)
 	return;
+#endif
+#ifdef QW_HACK
+    if (!r_drawviewmodel.value || r_fov_greater_than_90 || !Cam_DrawViewModel())
+	return;
+#endif
 
     if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
 	return;
@@ -998,6 +1039,14 @@ R_RenderView_(void)
     if (r_timegraph.value)
 	R_TimeGraph();
 
+#ifdef QW_HACK
+    if (r_netgraph.value)
+	R_NetGraph();
+
+    if (r_zgraph.value)
+	R_ZGraph();
+#endif
+
     if (r_aliasstats.value)
 	R_PrintAliasStats();
 
@@ -1031,7 +1080,7 @@ R_RenderView(void)
 
     delta = (byte *)&dummy - r_stack_start;
     if (delta < -10000 || delta > 10000)
-	Sys_Error("%s: called without enough stack (delta: %i).", __func__,
+	Sys_Error("%s: called without enough stack (delta: %d)", __func__,
 		  delta);
 #endif
     if (Hunk_LowMark() & 3)

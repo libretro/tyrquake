@@ -24,7 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "r_local.h"
 #include "screen.h"
+#include "sound.h"
 #include "sys.h"
+#include "view.h"
 
 void *colormap;
 float r_time1;
@@ -114,7 +116,6 @@ float se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
 
 cvar_t r_draworder = { "r_draworder", "0" };
 cvar_t r_speeds = { "r_speeds", "0" };
-cvar_t r_netgraph = { "r_netgraph", "0" };
 cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
@@ -134,8 +135,12 @@ cvar_t r_fullbright = {
     .flags = CVAR_DEVELOPER
 };
 
-static cvar_t r_timegraph = { "r_timegraph", "0" };
+#ifdef QW_HACK
+cvar_t r_netgraph = { "r_netgraph", "0" };
 static cvar_t r_zgraph = { "r_zgraph", "0" };
+#endif
+
+static cvar_t r_timegraph = { "r_timegraph", "0" };
 static cvar_t r_aliasstats = { "r_polymodelstats", "0" };
 static cvar_t r_dspeeds = { "r_dspeeds", "0" };
 static cvar_t r_reportsurfout = { "r_reportsurfout", "0" };
@@ -220,7 +225,6 @@ R_Init(void)
 
     Cvar_RegisterVariable(&r_draworder);
     Cvar_RegisterVariable(&r_speeds);
-    Cvar_RegisterVariable(&r_netgraph);
     Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
@@ -237,7 +241,6 @@ R_Init(void)
     Cvar_RegisterVariable(&r_fullbright);
 
     Cvar_RegisterVariable(&r_timegraph);
-    Cvar_RegisterVariable(&r_zgraph);
     Cvar_RegisterVariable(&r_aliasstats);
     Cvar_RegisterVariable(&r_dspeeds);
     Cvar_RegisterVariable(&r_reportsurfout);
@@ -246,6 +249,11 @@ R_Init(void)
     Cvar_RegisterVariable(&r_maxedges);
     Cvar_RegisterVariable(&r_aliastransbase);
     Cvar_RegisterVariable(&r_aliastransadj);
+
+#ifdef QW_HACK
+    Cvar_RegisterVariable(&r_netgraph);
+    Cvar_RegisterVariable(&r_zgraph);
+#endif
 
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);
@@ -357,24 +365,33 @@ R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
     }
     size /= 100.0;
 
+#ifdef NQ_HACK
+    if (full)
+#endif
+#ifdef QW_HACK
     if (!cl_sbar.value && full)
+#endif
 	h = pvrectin->height;
     else
 	h = pvrectin->height - lineadj;
 
-//      h = (!cl_sbar.value && size==1.0) ? pvrectin->height : (pvrectin->height - lineadj);
-//      h = pvrectin->height - lineadj;
     if (full)
 	pvrect->width = pvrectin->width;
     else
 	pvrect->width = pvrectin->width * size;
+
     if (pvrect->width < 96) {
 	size = 96.0 / pvrectin->width;
 	pvrect->width = 96;	// min for icons
     }
     pvrect->width &= ~7;
     pvrect->height = pvrectin->height * size;
+#ifdef NQ_HACK
+    if (!full) {
+#endif
+#ifdef QW_HACK
     if (cl_sbar.value || !full) {
+#endif
 	if (pvrect->height > pvrectin->height - lineadj)
 	    pvrect->height = pvrectin->height - lineadj;
     } else if (pvrect->height > pvrectin->height)
@@ -583,7 +600,10 @@ R_DrawEntitiesOnList(void)
 
     for (i = 0; i < cl_numvisedicts; i++) {
 	currententity = &cl_visedicts[i];
-
+#ifdef NQ_HACK
+	if (currententity == &cl_entities[cl.viewentity])
+	    continue;		// don't draw the player
+#endif
 	switch (currententity->model->type) {
 	case mod_sprite:
 	    VectorCopy(currententity->origin, r_entorigin);
@@ -624,7 +644,6 @@ R_DrawEntitiesOnList(void)
 
 		R_AliasDrawModel(&lighting);
 	    }
-
 	    break;
 
 	default:
@@ -649,9 +668,14 @@ R_DrawViewModel(void)
     float add;
     dlight_t *dl;
 
-    if (!r_drawviewmodel.value || r_fov_greater_than_90
-	|| !Cam_DrawViewModel())
+#ifdef NQ_HACK
+    if (!r_drawviewmodel.value || r_fov_greater_than_90)
 	return;
+#endif
+#ifdef QW_HACK
+    if (!r_drawviewmodel.value || r_fov_greater_than_90 || !Cam_DrawViewModel())
+	return;
+#endif
 
     if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
 	return;
@@ -798,7 +822,6 @@ R_DrawBEntitiesOnList(void)
 		minmaxs[j] = currententity->origin[j] + clmodel->mins[j];
 		minmaxs[3 + j] = currententity->origin[j] + clmodel->maxs[j];
 	    }
-
 	    clipflags = R_BmodelCheckBBox(clmodel, minmaxs);
 
 	    if (clipflags != BMODEL_FULLY_CLIPPED) {
@@ -851,7 +874,6 @@ R_DrawBEntitiesOnList(void)
 			    // handle drawing order
 			    R_DrawSubmodelPolygons(clmodel, clipflags);
 			}
-
 			currententity->topnode = NULL;
 		    }
 		}
@@ -865,7 +887,6 @@ R_DrawBEntitiesOnList(void)
 		VectorCopy(oldorigin, modelorg);
 		R_TransformFrustum();
 	    }
-
 	    break;
 
 	default:
@@ -961,7 +982,6 @@ R_RenderView_(void)
 	r_time1 = Sys_DoubleTime();
 
     R_SetupFrame();
-
     R_MarkLeaves();		// done here so we know if we're in water
 
     // make FDIV fast. This reduces timing precision after we've been running
@@ -1019,11 +1039,13 @@ R_RenderView_(void)
     if (r_timegraph.value)
 	R_TimeGraph();
 
+#ifdef QW_HACK
     if (r_netgraph.value)
 	R_NetGraph();
 
     if (r_zgraph.value)
 	R_ZGraph();
+#endif
 
     if (r_aliasstats.value)
 	R_PrintAliasStats();
@@ -1058,7 +1080,8 @@ R_RenderView(void)
 
     delta = (byte *)&dummy - r_stack_start;
     if (delta < -10000 || delta > 10000)
-	Sys_Error("%s: called without enough stack", __func__);
+	Sys_Error("%s: called without enough stack (delta: %d)", __func__,
+		  delta);
 #endif
     if (Hunk_LowMark() & 3)
 	Sys_Error("Hunk is missaligned");
