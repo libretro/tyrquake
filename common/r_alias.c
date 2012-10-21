@@ -545,8 +545,8 @@ R_AliasPrepareUnclippedPoints(void)
 R_AliasSetupSkin
 ===============
 */
-void
-R_AliasSetupSkin(void)
+static void
+R_AliasSetupSkin(entity_t *e)
 {
     int skinnum;
     int i, numskins;
@@ -554,9 +554,9 @@ R_AliasSetupSkin(void)
     float *pskinintervals, fullskininterval;
     float skintargettime, skintime;
 
-    skinnum = currententity->skinnum;
+    skinnum = e->skinnum;
     if ((skinnum >= pmdl->numskins) || (skinnum < 0)) {
-	Con_DPrintf("R_AliasSetupSkin: no such skin # %d\n", skinnum);
+	Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
 	skinnum = 0;
     }
 
@@ -572,7 +572,7 @@ R_AliasSetupSkin(void)
 	numskins = paliasskingroup->numskins;
 	fullskininterval = pskinintervals[numskins - 1];
 
-	skintime = cl.time + currententity->syncbase;
+	skintime = cl.time + e->syncbase;
 
 	// when loading in Mod_LoadAliasSkinGroup, we guaranteed all interval
 	// values are positive, so we don't have to worry about division by 0
@@ -594,12 +594,12 @@ R_AliasSetupSkin(void)
     r_affinetridesc.skinheight = pmdl->skinheight;
 
 #ifdef QW_HACK
-    if (currententity->scoreboard) {
+    if (e->scoreboard) {
 	byte *base;
 
-	if (!currententity->scoreboard->skin)
-	    Skin_Find(currententity->scoreboard);
-	base = Skin_Cache(currententity->scoreboard->skin);
+	if (!e->scoreboard->skin)
+	    Skin_Find(e->scoreboard);
+	base = Skin_Cache(e->scoreboard->skin);
 	if (base) {
 	    r_affinetridesc.pskin = base;
 	    r_affinetridesc.skinwidth = 320;
@@ -716,7 +716,7 @@ R_AliasDrawModel(alight_t *plighting)
     paliashdr = (aliashdr_t *)Mod_Extradata(currententity->model);
     pmdl = (mdl_t *)((byte *)paliashdr + paliashdr->model);
 
-    R_AliasSetupSkin();
+    R_AliasSetupSkin(currententity);
     R_AliasSetUpTransform(currententity, currententity->trivial_accept);
     R_AliasSetupLighting(plighting);
     R_AliasSetupFrame();
