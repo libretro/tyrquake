@@ -743,14 +743,8 @@ R_DrawViewModel(void)
     if (!r_drawentities.value)
 	return;
 
-#ifdef NQ_HACK
-    if (cl.items & IT_INVISIBILITY)
-	return;
-#endif
-#ifdef QW_HACK
     if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
 	return;
-#endif
 
     if (cl.stats[STAT_HEALTH] <= 0)
 	return;

@@ -636,7 +636,7 @@ R_DrawViewModel(void)
     if (!r_drawviewmodel.value || r_fov_greater_than_90)
 	return;
 
-    if (cl.items & IT_INVISIBILITY)
+    if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
 	return;
 
     if (cl.stats[STAT_HEALTH] <= 0)
