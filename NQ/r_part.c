@@ -679,13 +679,13 @@ CL_RunParticles(void)
 R_DrawParticles
 ===============
 */
-
 void
 R_DrawParticles(void)
 {
     particle_t *p;
 
 #ifdef GLQUAKE
+    qboolean alphaTestEnabled;
     vec3_t up, right;
     float scale;
 
@@ -696,6 +696,11 @@ R_DrawParticles(void)
     GL_DisableMultitexture();
 
     GL_Bind(particletexture);
+
+    alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
+    if (alphaTestEnabled)
+	glDisable(GL_ALPHA_TEST);
+
     glEnable(GL_BLEND);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glDepthMask(GL_FALSE);
@@ -743,6 +748,8 @@ R_DrawParticles(void)
     glEnd();
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+    if (alphaTestEnabled)
+	glEnable(GL_ALPHA_TEST);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 #else
     D_EndParticles();
