@@ -666,6 +666,7 @@ R_DrawEntitiesOnList
 static void
 R_DrawEntitiesOnList(void)
 {
+    entity_t *e;
     int i;
 
     if (!r_drawentities.value)
@@ -673,13 +674,13 @@ R_DrawEntitiesOnList(void)
 
     // draw sprites seperately, because of alpha blending
     for (i = 0; i < cl_numvisedicts; i++) {
-	currententity = &cl_visedicts[i];
-	switch (currententity->model->type) {
+	e = currententity = &cl_visedicts[i];
+	switch (e->model->type) {
 	case mod_alias:
-	    R_DrawAliasModel(currententity);
+	    R_DrawAliasModel(e);
 	    break;
 	case mod_brush:
-	    R_DrawBrushModel(currententity);
+	    R_DrawBrushModel(e);
 	    break;
 	default:
 	    break;
@@ -687,10 +688,10 @@ R_DrawEntitiesOnList(void)
     }
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	currententity = &cl_visedicts[i];
-	switch (currententity->model->type) {
+	e = currententity = &cl_visedicts[i];
+	switch (e->model->type) {
 	case mod_sprite:
-	    R_DrawSpriteModel(currententity);
+	    R_DrawSpriteModel(e);
 	    break;
 	default:
 	    break;
@@ -713,6 +714,7 @@ R_DrawViewModel(void)
     float add;
     dlight_t *dl;
     int ambientlight, shadelight;
+    entity_t *e;
 
 #ifdef NQ_HACK
     if (!r_drawviewmodel.value)
@@ -738,11 +740,11 @@ R_DrawViewModel(void)
     if (cl.stats[STAT_HEALTH] <= 0)
 	return;
 
-    currententity = &cl.viewent;
-    if (!currententity->model)
+    e = currententity = &cl.viewent;
+    if (!e->model)
 	return;
 
-    j = R_LightPoint(currententity->origin);
+    j = R_LightPoint(e->origin);
 
     if (j < 24)
 	j = 24;			// allways give some light on gun
@@ -759,7 +761,7 @@ R_DrawViewModel(void)
 	if (dl->die < cl.time)
 	    continue;
 
-	VectorSubtract(currententity->origin, dl->origin, dist);
+	VectorSubtract(e->origin, dl->origin, dist);
 	add = dl->radius - Length(dist);
 	if (add > 0)
 	    ambientlight += add;
@@ -772,7 +774,7 @@ R_DrawViewModel(void)
 
     // hack the depth range to prevent view model from poking into walls
     glDepthRange(gldepthmin, gldepthmin + 0.3 * (gldepthmax - gldepthmin));
-    R_DrawAliasModel(currententity);
+    R_DrawAliasModel(e);
     glDepthRange(gldepthmin, gldepthmax);
 }
 
