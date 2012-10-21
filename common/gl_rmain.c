@@ -354,7 +354,7 @@ GL_DrawAliasShadow
 =============
 */
 static void
-GL_DrawAliasShadow(aliashdr_t *paliashdr, int posenum)
+GL_DrawAliasShadow(entity_t *e, aliashdr_t *paliashdr, int posenum)
 {
     trivertx_t *verts;
     int *order;
@@ -362,7 +362,7 @@ GL_DrawAliasShadow(aliashdr_t *paliashdr, int posenum)
     float height, lheight;
     int count;
 
-    lheight = currententity->origin[2] - lightspot[2];
+    lheight = e->origin[2] - lightspot[2];
     height = -lheight + 1.0;
 
     verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
@@ -608,7 +608,7 @@ R_DrawAliasModel(entity_t *e)
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glColor4f(0, 0, 0, 0.5);
-	GL_DrawAliasShadow(paliashdr, lastposenum);
+	GL_DrawAliasShadow(currententity, paliashdr, lastposenum);
 	glEnable(GL_TEXTURE_2D);
 	glDisable(GL_BLEND);
 	glColor4f(1, 1, 1, 1);
