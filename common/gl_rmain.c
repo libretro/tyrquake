@@ -459,21 +459,21 @@ R_DrawAliasModel(entity_t *e)
     float an;
     int anim;
 
-    clmodel = currententity->model;
+    clmodel = e->model;
 
-    VectorAdd(currententity->origin, clmodel->mins, mins);
-    VectorAdd(currententity->origin, clmodel->maxs, maxs);
+    VectorAdd(e->origin, clmodel->mins, mins);
+    VectorAdd(e->origin, clmodel->maxs, maxs);
 
     if (R_CullBox(mins, maxs))
 	return;
 
-    VectorCopy(currententity->origin, r_entorigin);
+    VectorCopy(e->origin, r_entorigin);
     VectorSubtract(r_origin, r_entorigin, modelorg);
 
     //
     // get lighting information
     //
-    ambientlight = shadelight = R_LightPoint(currententity->origin);
+    ambientlight = shadelight = R_LightPoint(e->origin);
 
     // allways give the gun some light
     if (e == &cl.viewent && ambientlight < 24)
@@ -481,8 +481,7 @@ R_DrawAliasModel(entity_t *e)
 
     for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
 	if (cl_dlights[lnum].die >= cl.time) {
-	    VectorSubtract(currententity->origin,
-			   cl_dlights[lnum].origin, dist);
+	    VectorSubtract(e->origin, cl_dlights[lnum].origin, dist);
 	    add = cl_dlights[lnum].radius - Length(dist);
 
 	    if (add > 0) {
@@ -501,9 +500,9 @@ R_DrawAliasModel(entity_t *e)
 
     // ZOID: never allow players to go totally black
 #ifdef NQ_HACK
-    i = currententity - cl_entities;
+    i = e - cl_entities;
     if (i >= 1 && i <= cl.maxclients
-	/* && !strcmp (currententity->model->name, "progs/player.mdl") */ ) {
+	/* && !strcmp (e->model->name, "progs/player.mdl") */ ) {
 #endif
 #ifdef QW_HACK
     if (!strcmp(clmodel->name, "progs/player.mdl")) {
@@ -530,7 +529,7 @@ R_DrawAliasModel(entity_t *e)
     //
     // locate the proper data
     //
-    paliashdr = (aliashdr_t *)Mod_Extradata(currententity->model);
+    paliashdr = (aliashdr_t *)Mod_Extradata(e->model);
 
     c_alias_polys += paliashdr->numtris;
 
@@ -560,24 +559,24 @@ R_DrawAliasModel(entity_t *e)
     }
 
     anim = (int)(cl.time * 10) & 3;
-    GL_Bind(paliashdr->gl_texturenum[currententity->skinnum][anim]);
+    GL_Bind(paliashdr->gl_texturenum[e->skinnum][anim]);
 
     // we can't dynamically colormap textures, so they are cached
     // seperately for the players.  Heads are just uncolored.
 #ifdef NQ_HACK
-    if (currententity->colormap != vid.colormap && !gl_nocolors.value) {
-	i = currententity - cl_entities;
+    if (e->colormap != vid.colormap && !gl_nocolors.value) {
+	i = e - cl_entities;
 	if (i >= 1 && i <= cl.maxclients
-	    /* && !strcmp (currententity->model->name, "progs/player.mdl") */
+	    /* && !strcmp (e->model->name, "progs/player.mdl") */
 	    )
 	    GL_Bind(playertextures[i - 1]);
     }
 #endif
 #ifdef QW_HACK
-    if (currententity->scoreboard && !gl_nocolors.value) {
-	i = currententity->scoreboard - cl.players;
-	if (!currententity->scoreboard->skin) {
-	    Skin_Find(currententity->scoreboard);
+    if (e->scoreboard && !gl_nocolors.value) {
+	i = e->scoreboard - cl.players;
+	if (!e->scoreboard->skin) {
+	    Skin_Find(e->scoreboard);
 	    R_TranslatePlayerSkin(i);
 	}
 	if (i >= 0 && i < MAX_CLIENTS)
@@ -592,7 +591,7 @@ R_DrawAliasModel(entity_t *e)
     if (gl_affinemodels.value)
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
 
-    R_SetupAliasFrame(currententity->frame, paliashdr);
+    R_SetupAliasFrame(e->frame, paliashdr);
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
@@ -608,7 +607,7 @@ R_DrawAliasModel(entity_t *e)
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glColor4f(0, 0, 0, 0.5);
-	GL_DrawAliasShadow(currententity, paliashdr, lastposenum);
+	GL_DrawAliasShadow(e, paliashdr, lastposenum);
 	glEnable(GL_TEXTURE_2D);
 	glDisable(GL_BLEND);
 	glColor4f(1, 1, 1, 1);
