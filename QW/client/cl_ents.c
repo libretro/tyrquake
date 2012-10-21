@@ -37,6 +37,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_iface.h"
 #endif
 
+// refresh list
+// this is double buffered so the last frame
+// can be scanned for oldorigins of trailing objects
+int cl_numvisedicts;
+entity_t *cl_visedicts;
+static int cl_oldnumvisedicts;
+static entity_t *cl_oldvisedicts;
+static entity_t cl_visedicts_list[2][MAX_VISEDICTS];
+
 static struct predicted_player {
     int flags;
     qboolean active;
