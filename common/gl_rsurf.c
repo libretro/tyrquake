@@ -260,12 +260,12 @@ Returns the proper texture for a given time and base texture
 ===============
 */
 texture_t *
-R_TextureAnimation(texture_t *base)
+R_TextureAnimation(entity_t *e, texture_t *base)
 {
     int reletive;
     int count;
 
-    if (currententity->frame) {
+    if (e->frame) {
 	if (base->alternate_anims)
 	    base = base->alternate_anims;
     }
@@ -644,7 +644,7 @@ R_RenderBrushPoly(msurface_t *fa)
 	GL_SelectTexture(GL_TEXTURE0_ARB);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     }
-    t = R_TextureAnimation(fa->texinfo->texture);
+    t = R_TextureAnimation(currententity, fa->texinfo->texture);
     GL_Bind(t->gl_texturenum);
 
     if (fa->flags & SURF_DRAWTURB) {	// warp texture, no lightmaps

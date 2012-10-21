@@ -190,12 +190,12 @@ Returns the proper texture for a given time and base texture
 ===============
 */
 texture_t *
-R_TextureAnimation(texture_t *base)
+R_TextureAnimation(entity_t *e, texture_t *base)
 {
     int reletive;
     int count;
 
-    if (currententity->frame) {
+    if (e->frame) {
 	if (base->alternate_anims)
 	    base = base->alternate_anims;
     }

@@ -384,6 +384,6 @@ mleaf_t *Mod_PointInLeaf(float *p, model_t *model);
 byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
 
 // FIXME - surely this doesn't belong here?
-texture_t *R_TextureAnimation(texture_t *base);
+texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
 
 #endif /* MODEL_H */
