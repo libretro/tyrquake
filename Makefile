@@ -410,14 +410,11 @@ NQ_COMMON_C_OBJS = \
 	pr_cmds.o	\
 	pr_edict.o	\
 	pr_exec.o	\
+	r_efrag.o	\
 	r_part.o	\
-	\
 	rb_tree.o	\
-	\
 	sbar.o		\
-	\
 	shell.o		\
-	\
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
@@ -481,7 +478,6 @@ NQ_SW_C_OBJS = \
 	r_bsp.o		\
 	r_draw.o	\
 	r_edge.o	\
-	r_efrag.o	\
 	r_light.o	\
 	r_main.o	\
 	r_misc.o	\
@@ -528,7 +524,6 @@ NQ_GL_C_OBJS = \
 	gl_draw.o	\
 	gl_mesh.o	\
 	gl_model.o	\
-	gl_refrag.o	\
 	gl_rlight.o	\
 	gl_rmain.o	\
 	gl_rmisc.o	\
@@ -668,6 +663,7 @@ QW_COMMON_C_OBJS = \
 	console.o	\
 	keys.o		\
 	menu.o		\
+	r_efrag.o	\
 	r_part.o	\
 	sbar.o		\
 	skin.o		\
@@ -724,7 +720,6 @@ QW_SW_C_OBJS = \
 	r_bsp.o		\
 	r_draw.o	\
 	r_edge.o	\
-	r_efrag.o	\
 	r_light.o	\
 	r_main.o	\
 	r_misc.o	\
@@ -767,7 +762,6 @@ QW_GL_C_OBJS = \
 	gl_mesh.o	\
 	gl_model.o	\
 	gl_ngraph.o	\
-	gl_refrag.o	\
 	gl_rlight.o	\
 	gl_rmain.o	\
 	gl_rmisc.o	\
