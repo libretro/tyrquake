@@ -564,7 +564,7 @@ R_DrawEntitiesOnList(void)
 	return;
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	currententity = cl_visedicts[i];
+	currententity = &cl_visedicts[i];
 
 	if (currententity == &cl_entities[cl.viewentity])
 	    continue;		// don't draw the player
@@ -768,7 +768,7 @@ R_DrawBEntitiesOnList(void)
     r_dlightframecount = r_framecount;
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	currententity = cl_visedicts[i];
+	currententity = &cl_visedicts[i];
 
 	switch (currententity->model->type) {
 	case mod_brush:

@@ -674,12 +674,7 @@ R_DrawEntitiesOnList(void)
 
     // draw sprites seperately, because of alpha blending
     for (i = 0; i < cl_numvisedicts; i++) {
-#ifdef NQ_HACK
-	currententity = cl_visedicts[i];
-#endif
-#ifdef QW_HACK
 	currententity = &cl_visedicts[i];
-#endif
 	switch (currententity->model->type) {
 	case mod_alias:
 	    R_DrawAliasModel(currententity);
@@ -693,12 +688,7 @@ R_DrawEntitiesOnList(void)
     }
 
     for (i = 0; i < cl_numvisedicts; i++) {
-#ifdef NQ_HACK
-	currententity = cl_visedicts[i];
-#endif
-#ifdef QW_HACK
 	currententity = &cl_visedicts[i];
-#endif
 	switch (currententity->model->type) {
 	case mod_sprite:
 	    R_DrawSpriteModel(currententity);
@@ -1163,7 +1153,7 @@ R_Mirror(void)
 
     ent = &cl_entities[cl.viewentity];
     if (cl_numvisedicts < MAX_VISEDICTS) {
-	cl_visedicts[cl_numvisedicts] = ent;
+	cl_visedicts[cl_numvisedicts] = *ent;
 	cl_numvisedicts++;
     }
 

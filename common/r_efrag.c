@@ -238,33 +238,21 @@ R_StoreEfrags(efrag_t **ppefrag)
     model_t *clmodel;
     efrag_t *pefrag;
 
-
     while ((pefrag = *ppefrag) != NULL) {
 	pent = pefrag->entity;
 	clmodel = pent->model;
-
 	switch (clmodel->type) {
 	case mod_alias:
 	case mod_brush:
 	case mod_sprite:
-	    pent = pefrag->entity;
-
 	    if ((pent->visframe != r_framecount) &&
 		(cl_numvisedicts < MAX_VISEDICTS)) {
-#ifdef NQ_HACK
-		cl_visedicts[cl_numvisedicts++] = pent;
-#endif
-#ifdef QW_HACK
-		cl_visedicts[cl_numvisedicts++] = *pent;
-#endif
-
-		// mark that we've recorded this entity for this frame
+		/* mark that we've recorded this entity for this frame */
 		pent->visframe = r_framecount;
+		cl_visedicts[cl_numvisedicts++] = *pent;
 	    }
-
 	    ppefrag = &pefrag->leafnext;
 	    break;
-
 	default:
 	    Sys_Error("%s: Bad entity type %d", __func__, clmodel->type);
 	}

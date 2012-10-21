@@ -70,7 +70,8 @@ lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t cl_dlights[MAX_DLIGHTS];
 
 int cl_numvisedicts;
-entity_t *cl_visedicts[MAX_VISEDICTS];
+entity_t *cl_visedicts;
+static entity_t cl_visedicts_list[MAX_VISEDICTS];
 
 /*
 =====================
@@ -479,6 +480,7 @@ CL_RelinkEntities(void)
     frac = CL_LerpPoint();
 
     cl_numvisedicts = 0;
+    cl_visedicts = cl_visedicts_list;
 
 //
 // interpolate player info
@@ -627,7 +629,7 @@ CL_RelinkEntities(void)
 	    continue;
 
 	if (cl_numvisedicts < MAX_VISEDICTS) {
-	    cl_visedicts[cl_numvisedicts] = ent;
+	    cl_visedicts[cl_numvisedicts] = *ent;
 	    cl_numvisedicts++;
 	}
     }
