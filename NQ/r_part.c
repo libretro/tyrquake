@@ -20,11 +20,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.h"
 #include "quakedef.h"
+#ifdef NQ_HACK
 #include "server.h"
+#endif
 
 #ifdef GLQUAKE
 #include "glquake.h"
+#include "gl_model.h"
 #else
+#include "model.h"
+#include "d_iface.h"
 #include "r_local.h"
 #endif
 
@@ -69,6 +74,7 @@ R_InitParticles(void)
 	Hunk_AllocName(r_numparticles * sizeof(particle_t), "particles");
 }
 
+#ifdef NQ_HACK
 /*
 ===============
 R_EntityParticles
@@ -131,7 +137,7 @@ R_EntityParticles(entity_t *ent)
 	    forward[2] * beamlength;
     }
 }
-
+#endif /* NQ_HACK */
 
 /*
 ===============
@@ -162,7 +168,13 @@ R_ReadPointFile_f(void)
     particle_t *p;
     char name[MAX_OSPATH];
 
+#ifdef NQ_HACK
     sprintf(name, "maps/%s.pts", sv.name);
+#endif
+#ifdef QW_HACK
+    snprintf(name, sizeof(name), "maps/%s.pts",
+	     Info_ValueForKey(cl.serverinfo, "map"));
+#endif
 
     COM_FOpenFile(name, &f);
     if (!f) {
@@ -198,6 +210,7 @@ R_ReadPointFile_f(void)
     Con_Printf("%i points read\n", c);
 }
 
+#ifdef NQ_HACK
 /*
 ===============
 R_ParseParticleEffect
@@ -225,6 +238,7 @@ R_ParseParticleEffect(void)
 
     R_RunParticleEffect(org, dir, color, count);
 }
+#endif
 
 /*
 ===============
@@ -265,6 +279,7 @@ R_ParticleExplosion(vec3_t org)
     }
 }
 
+#ifdef NQ_HACK
 /*
 ===============
 R_ParticleExplosion2
@@ -297,6 +312,7 @@ R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
 	}
     }
 }
+#endif
 
 /*
 ===============
@@ -349,6 +365,16 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 {
     int i, j;
     particle_t *p;
+#ifdef QW_HACK
+    int scale;
+
+    if (count > 130)
+	scale = 3;
+    else if (count > 20)
+	scale = 2;
+    else
+	scale = 1;
+#endif
 
     for (i = 0; i < count; i++) {
 	if (!free_particles)
@@ -358,6 +384,7 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 	p->next = active_particles;
 	active_particles = p;
 
+#ifdef NQ_HACK
 	if (count == 1024) {	// rocket explosion
 	    p->die = cl.time + 5;
 	    p->color = ramp1[0];
@@ -384,6 +411,16 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 		p->vel[j] = dir[j] * 15;	// + (rand()%300)-150;
 	    }
 	}
+#endif
+#ifdef QW_HACK
+	p->die = cl.time + 0.1 * (rand() % 5);
+	p->color = (color & ~7) + (rand() & 7);
+	p->type = pt_grav;
+	for (j = 0; j < 3; j++) {
+	    p->org[j] = org[j] + scale * ((rand() & 15) - 8);
+	    p->vel[j] = dir[j] * 15;	// + (rand()%300)-150;
+	}
+#endif
     }
 }
 
@@ -475,25 +512,33 @@ R_TeleportSplash(vec3_t org)
 void
 R_RocketTrail(vec3_t start, vec3_t end, int type)
 {
+    static int tracercount;
     vec3_t vec;
     float len;
     int j;
     particle_t *p;
+#ifdef NQ_HACK
     int dec;
-    static int tracercount;
+#endif
 
     VectorSubtract(end, start, vec);
     len = VectorNormalize(vec);
+#ifdef NQ_HACK
     if (type < 128)
 	dec = 3;
     else {
 	dec = 1;
 	type -= 128;
     }
+#endif
 
     while (len > 0) {
+#ifdef NQ_HACK
 	len -= dec;
-
+#endif
+#ifdef QW_HACK
+	len -= 3;
+#endif
 	if (!free_particles)
 	    return;
 	p = free_particles;
@@ -538,7 +583,6 @@ R_RocketTrail(vec3_t start, vec3_t end, int type)
 		p->color = 230 + ((tracercount & 4) << 1);
 
 	    tracercount++;
-
 	    VectorCopy(start, p->org);
 	    if (tracercount & 1) {
 		p->vel[0] = 30 * vec[1];
@@ -566,7 +610,6 @@ R_RocketTrail(vec3_t start, vec3_t end, int type)
 	    break;
 	}
 
-
 	VectorAdd(start, vec, start);
     }
 }
@@ -586,11 +629,17 @@ CL_RunParticles(void)
     float dvel;
     int i;
 
+#ifdef NQ_HACK
     frametime = cl.time - cl.oldtime;
+    grav = frametime * sv_gravity.value * 0.05;
+#endif
+#ifdef QW_HACK
+    frametime = host_frametime;
+    grav = frametime * 800 * 0.05;
+#endif
     time3 = frametime * 15;
     time2 = frametime * 10;	// 15;
     time1 = frametime * 5;
-    grav = frametime * sv_gravity.value * 0.05;
     dvel = 4 * frametime;
 
     for (;;) {
@@ -685,16 +734,21 @@ R_DrawParticles(void)
     particle_t *p;
 
 #ifdef GLQUAKE
+#ifdef QW_HACK
+    unsigned char *at;
+    unsigned char theAlpha;
+#endif
     qboolean alphaTestEnabled;
     vec3_t up, right;
     float scale;
 
+#ifdef NQ_HACK
     /*
      * FIXME - shouldn't need to do this, just get the caller to make sure
      *         multitexture is not enabled.
      */
     GL_DisableMultitexture();
-
+#endif
     GL_Bind(particletexture);
 
     alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
@@ -729,7 +783,17 @@ R_DrawParticles(void)
 	    scale = 1;
 	else
 	    scale = 1 + scale * 0.004;
+#ifdef QW_HACK
+	at = (byte *)&d_8to24table[(int)p->color];
+	if (p->type == pt_fire)
+	    theAlpha = 255 * (6 - p->ramp) / 6;
+	else
+	    theAlpha = 255;
+	glColor4ub(*at, *(at + 1), *(at + 2), theAlpha);
+#endif
+#ifdef NQ_HACK
 	glColor3ubv((byte *)&d_8to24table[(int)p->color]);
+#endif
 	glTexCoord2f(0, 0);
 	glVertex3fv(p->org);
 	glTexCoord2f(1, 0);

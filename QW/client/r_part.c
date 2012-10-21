@@ -20,6 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.h"
 #include "quakedef.h"
+#ifdef NQ_HACK
+#include "server.h"
+#endif
 
 #ifdef GLQUAKE
 #include "glquake.h"
@@ -71,6 +74,70 @@ R_InitParticles(void)
 	Hunk_AllocName(r_numparticles * sizeof(particle_t), "particles");
 }
 
+#ifdef NQ_HACK
+/*
+===============
+R_EntityParticles
+===============
+*/
+
+#define NUMVERTEXNORMALS	162
+vec3_t avelocities[NUMVERTEXNORMALS];
+float beamlength = 16;
+vec3_t avelocity = { 23, 7, 3 };
+float partstep = 0.01;
+float timescale = 0.01;
+
+void
+R_EntityParticles(entity_t *ent)
+{
+    int i;
+    particle_t *p;
+    float angle;
+    float sp, sy, cp, cy;
+    vec3_t forward;
+    float dist = 64;
+
+    if (!avelocities[0][0]) {
+	for (i = 0; i < NUMVERTEXNORMALS * 3; i++)
+	    avelocities[0][i] = (rand() & 255) * 0.01;
+    }
+
+    for (i = 0; i < NUMVERTEXNORMALS; i++) {
+	angle = cl.time * avelocities[i][0];
+	sy = sin(angle);
+	cy = cos(angle);
+	angle = cl.time * avelocities[i][1];
+	sp = sin(angle);
+	cp = cos(angle);
+
+	forward[0] = cp * cy;
+	forward[1] = cp * sy;
+	forward[2] = -sp;
+
+	if (!free_particles)
+	    return;
+	p = free_particles;
+	free_particles = p->next;
+	p->next = active_particles;
+	active_particles = p;
+
+	p->die = cl.time + 0.01;
+	p->color = 0x6f;
+	p->type = pt_explode;
+
+	p->org[0] =
+	    ent->origin[0] + r_avertexnormals[i][0] * dist +
+	    forward[0] * beamlength;
+	p->org[1] =
+	    ent->origin[1] + r_avertexnormals[i][1] * dist +
+	    forward[1] * beamlength;
+	p->org[2] =
+	    ent->origin[2] + r_avertexnormals[i][2] * dist +
+	    forward[2] * beamlength;
+    }
+}
+#endif /* NQ_HACK */
 
 /*
 ===============
@@ -101,8 +168,13 @@ R_ReadPointFile_f(void)
     particle_t *p;
     char name[MAX_OSPATH];
 
+#ifdef NQ_HACK
+    sprintf(name, "maps/%s.pts", sv.name);
+#endif
+#ifdef QW_HACK
     snprintf(name, sizeof(name), "maps/%s.pts",
 	     Info_ValueForKey(cl.serverinfo, "map"));
+#endif
 
     COM_FOpenFile(name, &f);
     if (!f) {
@@ -137,6 +209,36 @@ R_ReadPointFile_f(void)
     fclose(f);
     Con_Printf("%i points read\n", c);
 }
+
+#ifdef NQ_HACK
+/*
+===============
+R_ParseParticleEffect
+
+Parse an effect out of the server message
+===============
+*/
+void
+R_ParseParticleEffect(void)
+{
+    vec3_t org, dir;
+    int i, count, msgcount, color;
+
+    for (i = 0; i < 3; i++)
+	org[i] = MSG_ReadCoord();
+    for (i = 0; i < 3; i++)
+	dir[i] = MSG_ReadChar() * (1.0 / 16);
+    msgcount = MSG_ReadByte();
+    color = MSG_ReadByte();
+
+    if (msgcount == 255)
+	count = 1024;
+    else
+	count = msgcount;
+
+    R_RunParticleEffect(org, dir, color, count);
+}
+#endif
 
 /*
 ===============
@@ -176,6 +278,41 @@ R_ParticleExplosion(vec3_t org)
 	}
     }
 }
+
+#ifdef NQ_HACK
+/*
+===============
+R_ParticleExplosion2
+
+===============
+*/
+void
+R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
+{
+    int i, j;
+    particle_t *p;
+    int colorMod = 0;
+
+    for (i = 0; i < 512; i++) {
+	if (!free_particles)
+	    return;
+	p = free_particles;
+	free_particles = p->next;
+	p->next = active_particles;
+	active_particles = p;
+
+	p->die = cl.time + 0.3;
+	p->color = colorStart + (colorMod % colorLength);
+	colorMod++;
+
+	p->type = pt_blob;
+	for (j = 0; j < 3; j++) {
+	    p->org[j] = org[j] + ((rand() % 32) - 16);
+	    p->vel[j] = (rand() % 512) - 256;
+	}
+    }
+}
+#endif
 
 /*
 ===============
@@ -228,6 +365,7 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 {
     int i, j;
     particle_t *p;
+#ifdef QW_HACK
     int scale;
 
     if (count > 130)
@@ -236,6 +374,7 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 	scale = 2;
     else
 	scale = 1;
+#endif
 
     for (i = 0; i < count; i++) {
 	if (!free_particles)
@@ -245,6 +384,35 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 	p->next = active_particles;
 	active_particles = p;
 
+#ifdef NQ_HACK
+	if (count == 1024) {	// rocket explosion
+	    p->die = cl.time + 5;
+	    p->color = ramp1[0];
+	    p->ramp = rand() & 3;
+	    if (i & 1) {
+		p->type = pt_explode;
+		for (j = 0; j < 3; j++) {
+		    p->org[j] = org[j] + ((rand() % 32) - 16);
+		    p->vel[j] = (rand() % 512) - 256;
+		}
+	    } else {
+		p->type = pt_explode2;
+		for (j = 0; j < 3; j++) {
+		    p->org[j] = org[j] + ((rand() % 32) - 16);
+		    p->vel[j] = (rand() % 512) - 256;
+		}
+	    }
+	} else {
+	    p->die = cl.time + 0.1 * (rand() % 5);
+	    p->color = (color & ~7) + (rand() & 7);
+	    p->type = pt_slowgrav;
+	    for (j = 0; j < 3; j++) {
+		p->org[j] = org[j] + ((rand() & 15) - 8);
+		p->vel[j] = dir[j] * 15;	// + (rand()%300)-150;
+	    }
+	}
+#endif
+#ifdef QW_HACK
 	p->die = cl.time + 0.1 * (rand() % 5);
 	p->color = (color & ~7) + (rand() & 7);
 	p->type = pt_grav;
@@ -252,6 +420,7 @@ R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 	    p->org[j] = org[j] + scale * ((rand() & 15) - 8);
 	    p->vel[j] = dir[j] * 15;	// + (rand()%300)-150;
 	}
+#endif
     }
 }
 
@@ -343,18 +512,33 @@ R_TeleportSplash(vec3_t org)
 void
 R_RocketTrail(vec3_t start, vec3_t end, int type)
 {
+    static int tracercount;
     vec3_t vec;
     float len;
     int j;
     particle_t *p;
-    static int tracercount;
+#ifdef NQ_HACK
+    int dec;
+#endif
 
     VectorSubtract(end, start, vec);
     len = VectorNormalize(vec);
+#ifdef NQ_HACK
+    if (type < 128)
+	dec = 3;
+    else {
+	dec = 1;
+	type -= 128;
+    }
+#endif
 
     while (len > 0) {
+#ifdef NQ_HACK
+	len -= dec;
+#endif
+#ifdef QW_HACK
 	len -= 3;
-
+#endif
 	if (!free_particles)
 	    return;
 	p = free_particles;
@@ -445,11 +629,17 @@ CL_RunParticles(void)
     float dvel;
     int i;
 
+#ifdef NQ_HACK
+    frametime = cl.time - cl.oldtime;
+    grav = frametime * sv_gravity.value * 0.05;
+#endif
+#ifdef QW_HACK
     frametime = host_frametime;
+    grav = frametime * 800 * 0.05;
+#endif
     time3 = frametime * 15;
     time2 = frametime * 10;	// 15;
     time1 = frametime * 5;
-    grav = frametime * 800 * 0.05;
     dvel = 4 * frametime;
 
     for (;;) {
@@ -544,17 +734,27 @@ R_DrawParticles(void)
     particle_t *p;
 
 #ifdef GLQUAKE
+#ifdef QW_HACK
     unsigned char *at;
     unsigned char theAlpha;
+#endif
+    qboolean alphaTestEnabled;
     vec3_t up, right;
     float scale;
-    qboolean alphaTestEnabled;
 
+#ifdef NQ_HACK
+    /*
+     * FIXME - shouldn't need to do this, just get the caller to make sure
+     *         multitexture is not enabled.
+     */
+    GL_DisableMultitexture();
+#endif
     GL_Bind(particletexture);
-    alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
 
+    alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
     if (alphaTestEnabled)
 	glDisable(GL_ALPHA_TEST);
+
     glEnable(GL_BLEND);
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     glDepthMask(GL_FALSE);
@@ -583,17 +783,17 @@ R_DrawParticles(void)
 	    scale = 1;
 	else
 	    scale = 1 + scale * 0.004;
+#ifdef QW_HACK
 	at = (byte *)&d_8to24table[(int)p->color];
 	if (p->type == pt_fire)
 	    theAlpha = 255 * (6 - p->ramp) / 6;
-//                      theAlpha = 192;
-//              else if (p->type==pt_explode || p->type==pt_explode2)
-//                      theAlpha = 255*(8-p->ramp)/8;
 	else
 	    theAlpha = 255;
 	glColor4ub(*at, *(at + 1), *(at + 2), theAlpha);
-//              glColor3ubv (at);
-//              glColor3ubv ((byte *)&d_8to24table[(int)p->color]);
+#endif
+#ifdef NQ_HACK
+	glColor3ubv((byte *)&d_8to24table[(int)p->color]);
+#endif
 	glTexCoord2f(0, 0);
 	glVertex3fv(p->org);
 	glTexCoord2f(1, 0);
@@ -603,11 +803,9 @@ R_DrawParticles(void)
 	glVertex3f(p->org[0] + right[0] * scale,
 		   p->org[1] + right[1] * scale,
 		   p->org[2] + right[2] * scale);
-
 #else
 	D_DrawParticle(p);
 #endif
-
     }
 
 #ifdef GLQUAKE
