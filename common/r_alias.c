@@ -650,17 +650,17 @@ R_AliasSetupFrame
 set r_apverts
 =================
 */
-void
-R_AliasSetupFrame(void)
+static void
+R_AliasSetupFrame(entity_t *e)
 {
     int frame;
     int i, numframes;
     maliasgroup_t *paliasgroup;
     float *pintervals, fullinterval, targettime, time;
 
-    frame = currententity->frame;
+    frame = e->frame;
     if ((frame >= pmdl->numframes) || (frame < 0)) {
-	Con_DPrintf("R_AliasSetupFrame: no such frame %d\n", frame);
+	Con_DPrintf("%s: no such frame %d\n", __func__, frame);
 	frame = 0;
     }
 
@@ -676,7 +676,7 @@ R_AliasSetupFrame(void)
     numframes = paliasgroup->numframes;
     fullinterval = pintervals[numframes - 1];
 
-    time = cl.time + currententity->syncbase;
+    time = cl.time + e->syncbase;
 
 //
 // when loading in Mod_LoadAliasGroup, we guaranteed all interval values
@@ -719,7 +719,7 @@ R_AliasDrawModel(alight_t *plighting)
     R_AliasSetupSkin(currententity);
     R_AliasSetUpTransform(currententity, currententity->trivial_accept);
     R_AliasSetupLighting(plighting);
-    R_AliasSetupFrame();
+    R_AliasSetupFrame(currententity);
 
     if (!currententity->colormap)
 	Sys_Error("%s: !currententity->colormap", __func__);
