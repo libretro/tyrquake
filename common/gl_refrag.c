@@ -20,10 +20,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_efrag.c
 
 #include "console.h"
-#include "glquake.h"
-#include "gl_model.h"
 #include "quakedef.h"
 #include "sys.h"
+
+#ifdef GLQUAKE
+#include "glquake.h"
+#include "gl_model.h"
+#else
+#include "r_local.h"
+#endif
 
 mnode_t *r_pefragtopnode;
 
@@ -146,6 +151,44 @@ R_SplitEntityOnNode(mnode_t *node)
 	R_SplitEntityOnNode(node->children[1]);
 }
 
+
+#ifndef GLQUAKE
+/*
+===================
+R_SplitEntityOnNode2
+===================
+*/
+void
+R_SplitEntityOnNode2(mnode_t *node)
+{
+    mplane_t *splitplane;
+    int sides;
+
+    if (node->visframe != r_visframecount)
+	return;
+
+    if (node->contents < 0) {
+	if (node->contents != CONTENTS_SOLID)
+	    r_pefragtopnode = node;	// we've reached a non-solid leaf, so it's
+	//  visible and not BSP clipped
+	return;
+    }
+
+    splitplane = node->plane;
+    sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
+
+    if (sides == 3) {
+	// remember first splitter
+	r_pefragtopnode = node;
+	return;
+    }
+// not split yet; recurse down the contacted side
+    if (sides & 1)
+	R_SplitEntityOnNode2(node->children[0]);
+    else
+	R_SplitEntityOnNode2(node->children[1]);
+}
+#endif
 
 
 /*

@@ -21,8 +21,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.h"
 #include "quakedef.h"
-#include "r_local.h"
 #include "sys.h"
+
+#ifdef GLQUAKE
+#include "glquake.h"
+#include "gl_model.h"
+#else
+#include "r_local.h"
+#endif
 
 mnode_t *r_pefragtopnode;
 
@@ -32,7 +38,7 @@ mnode_t *r_pefragtopnode;
 /*
 ===============================================================================
 
-					ENTITY FRAGMENT FUNCTIONS
+			ENTITY FRAGMENT FUNCTIONS
 
 ===============================================================================
 */
@@ -146,6 +152,7 @@ R_SplitEntityOnNode(mnode_t *node)
 }
 
 
+#ifndef GLQUAKE
 /*
 ===================
 R_SplitEntityOnNode2
@@ -181,6 +188,7 @@ R_SplitEntityOnNode2(mnode_t *node)
     else
 	R_SplitEntityOnNode2(node->children[1]);
 }
+#endif
 
 
 /*
