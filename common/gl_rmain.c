@@ -172,7 +172,7 @@ R_GetSpriteFrame
 ================
 */
 static mspriteframe_t *
-R_GetSpriteFrame(entity_t *currententity)
+R_GetSpriteFrame(entity_t *e)
 {
     msprite_t *psprite;
     mspritegroup_t *pspritegroup;
@@ -180,8 +180,8 @@ R_GetSpriteFrame(entity_t *currententity)
     int i, numframes, frame;
     float *pintervals, fullinterval, targettime, time;
 
-    psprite = currententity->model->cache.data;
-    frame = currententity->frame;
+    psprite = e->model->cache.data;
+    frame = e->frame;
 
     if ((frame >= psprite->numframes) || (frame < 0)) {
 	Con_Printf("R_DrawSprite: no such frame %d\n", frame);
@@ -196,7 +196,7 @@ R_GetSpriteFrame(entity_t *currententity)
 	numframes = pspritegroup->numframes;
 	fullinterval = pintervals[numframes - 1];
 
-	time = cl.time + currententity->syncbase;
+	time = cl.time + e->syncbase;
 
 	// when loading in Mod_LoadSpriteGroup, we guaranteed all interval
 	// values are positive, so we don't have to worry about division by 0
