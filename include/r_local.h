@@ -213,7 +213,7 @@ extern finalvert_t *pfinalverts;
 extern auxvert_t *pauxverts;
 extern float r_avertexnormals[][3];
 
-qboolean R_AliasCheckBBox(void);
+qboolean R_AliasCheckBBox(entity_t *e);
 
 //=========================================================
 // turbulence stuff

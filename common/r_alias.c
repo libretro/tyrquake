@@ -92,7 +92,7 @@ R_AliasCheckBBox
 ================
 */
 qboolean
-R_AliasCheckBBox(void)
+R_AliasCheckBBox(entity_t *e)
 {
     int i, flags, frame, numv;
     aliashdr_t *pahdr;
@@ -106,15 +106,15 @@ R_AliasCheckBBox(void)
 
 // expand, rotate, and translate points into worldspace
 
-    currententity->trivial_accept = 0;
-    pmodel = currententity->model;
+    e->trivial_accept = 0;
+    pmodel = e->model;
     pahdr = Mod_Extradata(pmodel);
     pmdl = (mdl_t *)((byte *)pahdr + pahdr->model);
 
     R_AliasSetUpTransform(0);
 
 // construct the base bounding box for this frame
-    frame = currententity->frame;
+    frame = e->frame;
 // TODO: don't repeat this check when drawing?
     if ((frame >= pmdl->numframes) || (frame < 0)) {
 	Con_DPrintf("No such frame %d %s\n", frame, pmodel->name);
@@ -225,11 +225,11 @@ R_AliasCheckBBox(void)
     if (allclip)
 	return false;		// trivial reject off one side
 
-    currententity->trivial_accept = !anyclip & !zclipped;
+    e->trivial_accept = !anyclip & !zclipped;
 
-    if (currententity->trivial_accept) {
+    if (e->trivial_accept) {
 	if (minz > (r_aliastransition + (pmdl->size * r_resfudge))) {
-	    currententity->trivial_accept |= 2;
+	    e->trivial_accept |= 2;
 	}
     }
 
