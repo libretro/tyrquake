@@ -116,7 +116,7 @@ float se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
 
 cvar_t r_draworder = { "r_draworder", "0" };
 cvar_t r_speeds = { "r_speeds", "0" };
-cvar_t r_graphheight = { "r_graphheight", "10" };
+cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
 cvar_t r_drawentities = { "r_drawentities", "1" };
