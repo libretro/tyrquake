@@ -293,7 +293,7 @@ R_RecursiveClipBPoly(bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 		if (pn->contents < 0) {
 		    if (pn->contents != CONTENTS_SOLID) {
 			r_currentbkey = ((mleaf_t *)pn)->key;
-			R_RenderBmodelFace(psideedges[i], psurf);
+			R_RenderBmodelFace(currententity, psideedges[i], psurf);
 		    }
 		} else {
 		    R_RecursiveClipBPoly(psideedges[i], pnode->children[i],

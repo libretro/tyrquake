@@ -529,7 +529,7 @@ R_RenderBmodelFace
 ================
 */
 void
-R_RenderBmodelFace(bedge_t *pedges, msurface_t *psurf)
+R_RenderBmodelFace(entity_t *e, bedge_t *pedges, msurface_t *psurf)
 {
     int i;
     unsigned mask;
@@ -608,7 +608,7 @@ R_RenderBmodelFace(bedge_t *pedges, msurface_t *psurf)
     surface_p->flags = psurf->flags;
     surface_p->insubmodel = true;
     surface_p->spanstate = 0;
-    surface_p->entity = currententity;
+    surface_p->entity = e;
     surface_p->key = r_currentbkey;
     surface_p->spans = NULL;
 
