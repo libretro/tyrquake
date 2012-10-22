@@ -586,6 +586,7 @@ R_DrawEntitiesOnList
 static void
 R_DrawEntitiesOnList(void)
 {
+    entity_t *e;
     int i, j;
     int lnum;
     alight_t lighting;
@@ -599,26 +600,26 @@ R_DrawEntitiesOnList(void)
 	return;
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	currententity = &cl_visedicts[i];
+	e = currententity = &cl_visedicts[i];
 #ifdef NQ_HACK
-	if (currententity == &cl_entities[cl.viewentity])
+	if (e == &cl_entities[cl.viewentity])
 	    continue;		// don't draw the player
 #endif
-	switch (currententity->model->type) {
+	switch (e->model->type) {
 	case mod_sprite:
-	    VectorCopy(currententity->origin, r_entorigin);
+	    VectorCopy(e->origin, r_entorigin);
 	    VectorSubtract(r_origin, r_entorigin, modelorg);
 	    R_DrawSprite();
 	    break;
 
 	case mod_alias:
-	    VectorCopy(currententity->origin, r_entorigin);
+	    VectorCopy(e->origin, r_entorigin);
 	    VectorSubtract(r_origin, r_entorigin, modelorg);
 
 	    // see if the bounding box lets us trivially reject, also sets
 	    // trivial accept status
-	    if (R_AliasCheckBBox(currententity)) {
-		j = R_LightPoint(currententity->origin);
+	    if (R_AliasCheckBBox(e)) {
+		j = R_LightPoint(e->origin);
 
 		lighting.ambientlight = j;
 		lighting.shadelight = j;
@@ -627,8 +628,8 @@ R_DrawEntitiesOnList(void)
 
 		for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
 		    if (cl_dlights[lnum].die >= cl.time) {
-			VectorSubtract(currententity->origin,
-				       cl_dlights[lnum].origin, dist);
+			VectorSubtract(e->origin, cl_dlights[lnum].origin,
+				       dist);
 			add = cl_dlights[lnum].radius - Length(dist);
 
 			if (add > 0)
@@ -642,7 +643,7 @@ R_DrawEntitiesOnList(void)
 		if (lighting.ambientlight + lighting.shadelight > 192)
 		    lighting.shadelight = 192 - lighting.ambientlight;
 
-		R_AliasDrawModel(currententity, &lighting);
+		R_AliasDrawModel(e, &lighting);
 	    }
 	    break;
 
@@ -660,6 +661,7 @@ R_DrawViewModel
 static void
 R_DrawViewModel(void)
 {
+    entity_t *e;
 // FIXME: remove and do real lighting
     float lightvec[3] = { -1, 0, 0 };
     int j;
@@ -683,17 +685,17 @@ R_DrawViewModel(void)
     if (cl.stats[STAT_HEALTH] <= 0)
 	return;
 
-    currententity = &cl.viewent;
-    if (!currententity->model)
+    e = currententity = &cl.viewent;
+    if (!e->model)
 	return;
 
-    VectorCopy(currententity->origin, r_entorigin);
+    VectorCopy(e->origin, r_entorigin);
     VectorSubtract(r_origin, r_entorigin, modelorg);
 
     VectorCopy(vup, viewlightvec);
     VectorInverse(viewlightvec);
 
-    j = R_LightPoint(currententity->origin);
+    j = R_LightPoint(e->origin);
 
     if (j < 24)
 	j = 24;			// allways give some light on gun
@@ -710,7 +712,7 @@ R_DrawViewModel(void)
 	if (dl->die < cl.time)
 	    continue;
 
-	VectorSubtract(currententity->origin, dl->origin, dist);
+	VectorSubtract(e->origin, dl->origin, dist);
 	add = dl->radius - Length(dist);
 	if (add > 0)
 	    r_viewlighting.ambientlight += add;
@@ -724,7 +726,7 @@ R_DrawViewModel(void)
 
     r_viewlighting.plightvec = lightvec;
 
-    R_AliasDrawModel(currententity, &r_viewlighting);
+    R_AliasDrawModel(e, &r_viewlighting);
 }
 
 
@@ -796,6 +798,7 @@ R_DrawBEntitiesOnList
 static void
 R_DrawBEntitiesOnList(void)
 {
+    entity_t *e;
     int i, j, k, clipflags;
     vec3_t oldorigin;
     model_t *clmodel;
@@ -809,23 +812,23 @@ R_DrawBEntitiesOnList(void)
     r_dlightframecount = r_framecount;
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	currententity = &cl_visedicts[i];
+	e = currententity = &cl_visedicts[i];
 
-	switch (currententity->model->type) {
+	switch (e->model->type) {
 	case mod_brush:
 
-	    clmodel = currententity->model;
+	    clmodel = e->model;
 
 	    // see if the bounding box lets us trivially reject, also sets
 	    // trivial accept status
 	    for (j = 0; j < 3; j++) {
-		minmaxs[j] = currententity->origin[j] + clmodel->mins[j];
-		minmaxs[3 + j] = currententity->origin[j] + clmodel->maxs[j];
+		minmaxs[j] = e->origin[j] + clmodel->mins[j];
+		minmaxs[3 + j] = e->origin[j] + clmodel->maxs[j];
 	    }
 	    clipflags = R_BmodelCheckBBox(clmodel, minmaxs);
 
 	    if (clipflags != BMODEL_FULLY_CLIPPED) {
-		VectorCopy(currententity->origin, r_entorigin);
+		VectorCopy(e->origin, r_entorigin);
 		VectorSubtract(r_origin, r_entorigin, modelorg);
 		r_pcurrentvertbase = clmodel->vertexes;
 
@@ -862,7 +865,7 @@ R_DrawBEntitiesOnList(void)
 		    R_SplitEntityOnNode2(cl.worldmodel->nodes);
 
 		    if (r_pefragtopnode) {
-			currententity->topnode = r_pefragtopnode;
+			e->topnode = r_pefragtopnode;
 
 			if (r_pefragtopnode->contents >= 0) {
 			    // not a leaf; has to be clipped to the world BSP
@@ -874,7 +877,7 @@ R_DrawBEntitiesOnList(void)
 			    // handle drawing order
 			    R_DrawSubmodelPolygons(clmodel, clipflags);
 			}
-			currententity->topnode = NULL;
+			e->topnode = NULL;
 		    }
 		}
 
