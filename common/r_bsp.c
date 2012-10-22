@@ -158,7 +158,8 @@ R_RecursiveClipBPoly
 ================
 */
 static void
-R_RecursiveClipBPoly(bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
+R_RecursiveClipBPoly(entity_t *e, bedge_t *pedges, mnode_t *pnode,
+		     msurface_t *psurf)
 {
     bedge_t *psideedges[2], *pnextedge, *ptedge;
     int i, side, lastside;
@@ -293,10 +294,10 @@ R_RecursiveClipBPoly(bedge_t *pedges, mnode_t *pnode, msurface_t *psurf)
 		if (pn->contents < 0) {
 		    if (pn->contents != CONTENTS_SOLID) {
 			r_currentbkey = ((mleaf_t *)pn)->key;
-			R_RenderBmodelFace(currententity, psideedges[i], psurf);
+			R_RenderBmodelFace(e, psideedges[i], psurf);
 		    }
 		} else {
-		    R_RecursiveClipBPoly(psideedges[i], pnode->children[i],
+		    R_RecursiveClipBPoly(e, psideedges[i], pnode->children[i],
 					 psurf);
 		}
 	    }
@@ -371,7 +372,7 @@ R_DrawSolidClippedSubmodelPolygons(model_t *pmodel)
 		}
 		pbedge[j - 1].pnext = NULL;	// mark end of edges
 
-		R_RecursiveClipBPoly(pbedge, currententity->topnode, psurf);
+		R_RecursiveClipBPoly(currententity, pbedge, currententity->topnode, psurf);
 	    } else {
 		Sys_Error("no edges in bmodel");
 	    }
