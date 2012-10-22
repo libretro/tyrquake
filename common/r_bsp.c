@@ -586,24 +586,25 @@ R_RenderWorld
 void
 R_RenderWorld(void)
 {
+    entity_t *e;
     int i;
     model_t *clmodel;
     btofpoly_t btofpolys[MAX_BTOFPOLYS];
 
     pbtofpolys = btofpolys;
 
-    currententity = &r_worldentity;
+    e = currententity = &r_worldentity;
     VectorCopy(r_origin, modelorg);
-    clmodel = currententity->model;
+    clmodel = e->model;
     r_pcurrentvertbase = clmodel->vertexes;
 
-    R_RecursiveWorldNode(currententity, clmodel->nodes, 15);
+    R_RecursiveWorldNode(e, clmodel->nodes, 15);
 
 // if the driver wants the polygons back to front, play the visible ones back
 // in that order
     if (r_worldpolysbacktofront) {
 	for (i = numbtofpolys - 1; i >= 0; i--) {
-	    R_RenderPoly(currententity, btofpolys[i].psurf, btofpolys[i].clipflags);
+	    R_RenderPoly(e, btofpolys[i].psurf, btofpolys[i].clipflags);
 	}
     }
 }
