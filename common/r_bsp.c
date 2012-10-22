@@ -424,7 +424,7 @@ R_RecursiveWorldNode
 ================
 */
 static void
-R_RecursiveWorldNode(mnode_t *node, int clipflags)
+R_RecursiveWorldNode(entity_t *e, mnode_t *node, int clipflags)
 {
     int i, c, side, *pindex;
     vec3_t acceptpt, rejectpt;
@@ -517,7 +517,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	side = (dot >= 0) ? 0 : 1;
 
 	// recurse down the children, front side first
-	R_RecursiveWorldNode(node->children[side], clipflags);
+	R_RecursiveWorldNode(e, node->children[side], clipflags);
 
 	// draw stuff
 	c = node->numsurfaces;
@@ -538,10 +538,10 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 				    numbtofpolys++;
 				}
 			    } else {
-				R_RenderPoly(currententity, surf, clipflags);
+				R_RenderPoly(e, surf, clipflags);
 			    }
 			} else {
-			    R_RenderFace(currententity, surf, clipflags);
+			    R_RenderFace(e, surf, clipflags);
 			}
 		    }
 		    surf++;
@@ -559,10 +559,10 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 				    numbtofpolys++;
 				}
 			    } else {
-				R_RenderPoly(currententity, surf, clipflags);
+				R_RenderPoly(e, surf, clipflags);
 			    }
 			} else {
-			    R_RenderFace(currententity, surf, clipflags);
+			    R_RenderFace(e, surf, clipflags);
 			}
 		    }
 		    surf++;
@@ -572,7 +572,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 	    r_currentkey++;
 	}
 	// recurse down the back side
-	R_RecursiveWorldNode(node->children[!side], clipflags);
+	R_RecursiveWorldNode(e, node->children[!side], clipflags);
     }
 }
 
@@ -597,7 +597,7 @@ R_RenderWorld(void)
     clmodel = currententity->model;
     r_pcurrentvertbase = clmodel->vertexes;
 
-    R_RecursiveWorldNode(clmodel->nodes, 15);
+    R_RecursiveWorldNode(currententity, clmodel->nodes, 15);
 
 // if the driver wants the polygons back to front, play the visible ones back
 // in that order
