@@ -237,7 +237,7 @@ D_DrawSurfaces(void)
 		    VectorSubtract(r_origin, e->origin, local_modelorg);
 		    TransformVector(local_modelorg, transformed_modelorg);
 
-		    R_RotateBmodel();	// FIXME: don't mess with the frustum,
+		    R_RotateBmodel(e);	// FIXME: don't mess with the frustum,
 		    // make entity passed in
 		}
 
@@ -269,7 +269,7 @@ D_DrawSurfaces(void)
 		    VectorSubtract(r_origin, e->origin, local_modelorg);
 		    TransformVector(local_modelorg, transformed_modelorg);
 
-		    R_RotateBmodel();	// FIXME: don't mess with the frustum,
+		    R_RotateBmodel(e);	// FIXME: don't mess with the frustum,
 		    // make entity passed in
 		}
 

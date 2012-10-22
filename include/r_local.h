@@ -159,7 +159,7 @@ extern void R_Surf16End(void);
 extern void R_EdgeCodeStart(void);
 extern void R_EdgeCodeEnd(void);
 
-extern void R_RotateBmodel(void);
+extern void R_RotateBmodel(entity_t *e);
 
 extern int c_faceclip;
 extern int r_polycount;

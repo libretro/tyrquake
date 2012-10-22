@@ -832,7 +832,7 @@ R_DrawBEntitiesOnList(void)
 		r_pcurrentvertbase = clmodel->vertexes;
 
 		// FIXME: stop transforming twice
-		R_RotateBmodel();
+		R_RotateBmodel(e);
 
 		// calculate dynamic lighting for bmodel if it's not an
 		// instanced model
