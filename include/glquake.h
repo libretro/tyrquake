@@ -305,7 +305,7 @@ void R_DrawBrushModel(entity_t *e);
 void R_DrawWorld(void);
 void R_DrawWorldHull(void); /* Quick hack for now... */
 void R_DrawWaterSurfaces(void);
-void R_RenderBrushPoly(msurface_t *fa); // only gl_rmain.c:R_Mirror
+void R_RenderBrushPoly(entity_t *e, msurface_t *fa);
 void GL_BuildLightmaps(void);
 
 //

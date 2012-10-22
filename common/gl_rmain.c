@@ -1186,7 +1186,7 @@ R_Mirror(void)
     glColor4f(1, 1, 1, r_mirroralpha.value);
     s = cl.worldmodel->textures[mirrortexturenum]->texturechain;
     for (; s; s = s->texturechain)
-	R_RenderBrushPoly(s);
+	R_RenderBrushPoly(currententity, s);
     cl.worldmodel->textures[mirrortexturenum]->texturechain = NULL;
     glDisable(GL_BLEND);
     glColor4f(1, 1, 1, 1);

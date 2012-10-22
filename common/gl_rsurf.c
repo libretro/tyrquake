@@ -628,7 +628,7 @@ R_RenderBrushPoly
 ================
 */
 void
-R_RenderBrushPoly(msurface_t *fa)
+R_RenderBrushPoly(entity_t *e, msurface_t *fa)
 {
     int i;
     texture_t *t;
@@ -644,7 +644,7 @@ R_RenderBrushPoly(msurface_t *fa)
 	GL_SelectTexture(GL_TEXTURE0_ARB);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     }
-    t = R_TextureAnimation(currententity, fa->texinfo->texture);
+    t = R_TextureAnimation(e, fa->texinfo->texture);
     GL_Bind(t->gl_texturenum);
 
     if (fa->flags & SURF_DRAWTURB) {	// warp texture, no lightmaps
@@ -796,7 +796,7 @@ DrawTextureChains(void)
 	    if ((s->flags & SURF_DRAWTURB) && r_wateralpha.value != 1.0)
 		continue;	// draw translucent water later
 	    for (; s; s = s->texturechain)
-		R_RenderBrushPoly(s);
+		R_RenderBrushPoly(currententity, s);
 	}
 	t->texturechain = NULL;
     }
@@ -939,7 +939,7 @@ R_DrawBrushModel(entity_t *e)
 		/* FIXME - hack for dynamic lightmap updates... */
 		qboolean real_mtexable = gl_mtexable;
 		gl_mtexable = false;
-		R_RenderBrushPoly(psurf);
+		R_RenderBrushPoly(e, psurf);
 		gl_mtexable = real_mtexable;
 	    }
 	}
