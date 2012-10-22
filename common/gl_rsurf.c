@@ -753,7 +753,7 @@ DrawTextureChains
 ================
 */
 static void
-DrawTextureChains(void)
+DrawTextureChains(entity_t *e)
 {
     int i;
     msurface_t *s;
@@ -796,7 +796,7 @@ DrawTextureChains(void)
 	    if ((s->flags & SURF_DRAWTURB) && r_wateralpha.value != 1.0)
 		continue;	// draw translucent water later
 	    for (; s; s = s->texturechain)
-		R_RenderBrushPoly(currententity, s);
+		R_RenderBrushPoly(e, s);
 	}
 	t->texturechain = NULL;
     }
@@ -1105,7 +1105,7 @@ R_DrawWorld(void)
 	if (r_drawflat.value) {
 	    DrawFlatTextureChains();
 	} else {
-	    DrawTextureChains();
+	    DrawTextureChains(currententity);
 	    R_BlendLightmaps();
 	}
     }
