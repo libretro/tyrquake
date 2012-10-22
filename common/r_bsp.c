@@ -387,7 +387,7 @@ R_DrawSubmodelPolygons
 ================
 */
 void
-R_DrawSubmodelPolygons(model_t *pmodel, int clipflags)
+R_DrawSubmodelPolygons(entity_t *e, model_t *pmodel, int clipflags)
 {
     int i;
     vec_t dot;
@@ -409,10 +409,10 @@ R_DrawSubmodelPolygons(model_t *pmodel, int clipflags)
 	// draw the polygon
 	if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 	    (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))) {
-	    r_currentkey = ((mleaf_t *)currententity->topnode)->key;
+	    r_currentkey = ((mleaf_t *)e->topnode)->key;
 
 	    // FIXME: use bounding-box-based frustum clipping info?
-	    R_RenderFace(currententity, psurf, clipflags);
+	    R_RenderFace(e, psurf, clipflags);
 	}
     }
 }
