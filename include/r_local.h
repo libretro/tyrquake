@@ -118,7 +118,7 @@ void R_DrawPolyList(void);
 extern qboolean insubmodel;
 
 void R_DrawSprite(void);
-void R_RenderFace(msurface_t *fa, int clipflags);
+void R_RenderFace(entity_t *e, msurface_t *fa, int clipflags);
 void R_RenderPoly(msurface_t *fa, int clipflags);
 void R_RenderBmodelFace(bedge_t *pedges, msurface_t *psurf);
 void R_TransformPlane(mplane_t *p, float *normal, float *dist);

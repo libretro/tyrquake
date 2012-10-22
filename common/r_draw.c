@@ -359,7 +359,7 @@ R_RenderFace
 ================
 */
 void
-R_RenderFace(msurface_t *fa, int clipflags)
+R_RenderFace(entity_t *e, msurface_t *fa, int clipflags)
 {
     int i, lindex;
     unsigned mask;
@@ -397,11 +397,11 @@ R_RenderFace(msurface_t *fa, int clipflags)
     r_nearzi = 0;
     r_nearzionly = false;
     makeleftedge = makerightedge = false;
-    pedges = currententity->model->edges;
+    pedges = e->model->edges;
     r_lastvertvalid = false;
 
     for (i = 0; i < fa->numedges; i++) {
-	lindex = currententity->model->surfedges[fa->firstedge + i];
+	lindex = e->model->surfedges[fa->firstedge + i];
 
 	if (lindex > 0) {
 	    r_pedge = &pedges[lindex];
@@ -504,7 +504,7 @@ R_RenderFace(msurface_t *fa, int clipflags)
     surface_p->flags = fa->flags;
     surface_p->insubmodel = insubmodel;
     surface_p->spanstate = 0;
-    surface_p->entity = currententity;
+    surface_p->entity = e;
     surface_p->key = r_currentkey++;
     surface_p->spans = NULL;
 
