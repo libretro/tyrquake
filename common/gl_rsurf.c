@@ -1105,7 +1105,7 @@ R_DrawWorld(void)
 	if (r_drawflat.value) {
 	    DrawFlatTextureChains();
 	} else {
-	    DrawTextureChains(currententity);
+	    DrawTextureChains(&ent);
 	    R_BlendLightmaps();
 	}
     }
