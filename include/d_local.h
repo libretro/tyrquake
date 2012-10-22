@@ -83,7 +83,7 @@ void D_DrawSkyScans16(espan_t *pspan);
 
 void R_ShowSubDiv(void);
 void (*prealspandrawer) (void);
-surfcache_t *D_CacheSurface(msurface_t *surface, int miplevel);
+surfcache_t *D_CacheSurface(entity_t *e, msurface_t *surface, int miplevel);
 
 #ifdef USE_X86_ASM
 extern void D_PolysetAff8Start(void);

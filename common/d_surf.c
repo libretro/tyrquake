@@ -260,15 +260,14 @@ D_CacheSurface
 ================
 */
 surfcache_t *
-D_CacheSurface(msurface_t *surface, int miplevel)
+D_CacheSurface(entity_t *e, msurface_t *surface, int miplevel)
 {
     surfcache_t *cache;
 
 //
 // if the surface is animating or flashing, flush the cache
 //
-    r_drawsurf.texture = R_TextureAnimation(currententity,
-					    surface->texinfo->texture);
+    r_drawsurf.texture = R_TextureAnimation(e, surface->texinfo->texture);
     r_drawsurf.lightadj[0] = d_lightstylevalue[surface->styles[0]];
     r_drawsurf.lightadj[1] = d_lightstylevalue[surface->styles[1]];
     r_drawsurf.lightadj[2] = d_lightstylevalue[surface->styles[2]];

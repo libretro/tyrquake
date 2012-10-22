@@ -279,7 +279,7 @@ D_DrawSurfaces(void)
 					      * pface->texinfo->mipadjust);
 
 		// FIXME: make this passed in to D_CacheSurface
-		pcurrentcache = D_CacheSurface(pface, miplevel);
+		pcurrentcache = D_CacheSurface(currententity, pface, miplevel);
 
 		cacheblock = (pixel_t *)pcurrentcache->data;
 		cachewidth = pcurrentcache->width;
