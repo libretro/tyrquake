@@ -145,7 +145,7 @@ void R_DrawSolidClippedSubmodelPolygons(model_t *pmodel);
 
 void R_AddPolygonEdges(emitpoint_t *pverts, int numverts, int miplevel);
 surf_t *R_GetSurf(void);
-void R_AliasDrawModel(alight_t *plighting);
+void R_AliasDrawModel(entity_t *e, alight_t *plighting);
 void R_BeginEdgeFrame(void);
 void R_ScanEdges(void);
 void R_InsertNewEdges(edge_t *edgestoadd, edge_t *edgelist);

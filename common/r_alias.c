@@ -700,7 +700,7 @@ R_AliasDrawModel
 ================
 */
 void
-R_AliasDrawModel(alight_t *plighting)
+R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
     finalvert_t finalverts[MAXALIASVERTS +
 			   ((CACHE_SIZE - 1) / sizeof(finalvert_t)) + 1];
@@ -713,36 +713,36 @@ R_AliasDrawModel(alight_t *plighting)
 	(((long)&finalverts[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
     pauxverts = &auxverts[0];
 
-    paliashdr = (aliashdr_t *)Mod_Extradata(currententity->model);
+    paliashdr = (aliashdr_t *)Mod_Extradata(e->model);
     pmdl = (mdl_t *)((byte *)paliashdr + paliashdr->model);
 
-    R_AliasSetupSkin(currententity);
-    R_AliasSetUpTransform(currententity, currententity->trivial_accept);
+    R_AliasSetupSkin(e);
+    R_AliasSetUpTransform(e, e->trivial_accept);
     R_AliasSetupLighting(plighting);
-    R_AliasSetupFrame(currententity);
+    R_AliasSetupFrame(e);
 
-    if (!currententity->colormap)
-	Sys_Error("%s: !currententity->colormap", __func__);
+    if (!e->colormap)
+	Sys_Error("%s: !e->colormap", __func__);
 
-    r_affinetridesc.drawtype = (currententity->trivial_accept == 3) &&
+    r_affinetridesc.drawtype = (e->trivial_accept == 3) &&
 	r_recursiveaffinetriangles;
 
     if (r_affinetridesc.drawtype) {
 	D_PolysetUpdateTables();	// FIXME: precalc...
     } else {
 #ifdef USE_X86_ASM
-	D_Aff8Patch(currententity->colormap);
+	D_Aff8Patch(e->colormap);
 #endif
     }
 
-    acolormap = currententity->colormap;
+    acolormap = e->colormap;
 
-    if (currententity != &cl.viewent)
+    if (e != &cl.viewent)
 	ziscale = ((float)0x8000) * ((float)0x10000);
     else
 	ziscale = ((float)0x8000) * ((float)0x10000) * 3.0;
 
-    if (currententity->trivial_accept)
+    if (e->trivial_accept)
 	R_AliasPrepareUnclippedPoints();
     else
 	R_AliasPreparePoints();

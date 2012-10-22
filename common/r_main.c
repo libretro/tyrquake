@@ -642,7 +642,7 @@ R_DrawEntitiesOnList(void)
 		if (lighting.ambientlight + lighting.shadelight > 192)
 		    lighting.shadelight = 192 - lighting.ambientlight;
 
-		R_AliasDrawModel(&lighting);
+		R_AliasDrawModel(currententity, &lighting);
 	    }
 	    break;
 
@@ -724,7 +724,7 @@ R_DrawViewModel(void)
 
     r_viewlighting.plightvec = lightvec;
 
-    R_AliasDrawModel(&r_viewlighting);
+    R_AliasDrawModel(currententity, &r_viewlighting);
 }
 
 
