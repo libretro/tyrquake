@@ -244,6 +244,7 @@ Translates a skin texture by the per-player color lookup
 void
 R_TranslatePlayerSkin(int playernum)
 {
+    entity_t *e;
     int top, bottom;
     byte translate[256];
     unsigned translate32[256];
@@ -280,8 +281,8 @@ R_TranslatePlayerSkin(int playernum)
     //
     // locate the original skin pixels
     //
-    currententity = &cl_entities[1 + playernum];
-    model = currententity->model;
+    e = currententity = &cl_entities[1 + playernum];
+    model = e->model;
     if (!model)
 	return;			// player doesn't have a model yet
     if (model->type != mod_alias)
@@ -289,14 +290,11 @@ R_TranslatePlayerSkin(int playernum)
 
     paliashdr = (aliashdr_t *)Mod_Extradata(model);
     s = paliashdr->skinwidth * paliashdr->skinheight;
-    if (currententity->skinnum < 0
-	|| currententity->skinnum >= paliashdr->numskins) {
-	Con_Printf("(%d): Invalid player skin #%d\n", playernum,
-		   currententity->skinnum);
+    if (e->skinnum < 0 || e->skinnum >= paliashdr->numskins) {
+	Con_Printf("(%d): Invalid player skin #%d\n", playernum, e->skinnum);
 	original = (byte *)paliashdr + paliashdr->texels[0];
     } else
-	original =
-	    (byte *)paliashdr + paliashdr->texels[currententity->skinnum];
+	original = (byte *)paliashdr + paliashdr->texels[e->skinnum];
     if (s & 3)
 	Sys_Error("%s: s&3", __func__);
 
