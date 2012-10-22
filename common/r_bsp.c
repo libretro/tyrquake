@@ -537,7 +537,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 				    numbtofpolys++;
 				}
 			    } else {
-				R_RenderPoly(surf, clipflags);
+				R_RenderPoly(currententity, surf, clipflags);
 			    }
 			} else {
 			    R_RenderFace(currententity, surf, clipflags);
@@ -558,7 +558,7 @@ R_RecursiveWorldNode(mnode_t *node, int clipflags)
 				    numbtofpolys++;
 				}
 			    } else {
-				R_RenderPoly(surf, clipflags);
+				R_RenderPoly(currententity, surf, clipflags);
 			    }
 			} else {
 			    R_RenderFace(currententity, surf, clipflags);
@@ -602,7 +602,7 @@ R_RenderWorld(void)
 // in that order
     if (r_worldpolysbacktofront) {
 	for (i = numbtofpolys - 1; i >= 0; i--) {
-	    R_RenderPoly(btofpolys[i].psurf, btofpolys[i].clipflags);
+	    R_RenderPoly(currententity, btofpolys[i].psurf, btofpolys[i].clipflags);
 	}
     }
 }

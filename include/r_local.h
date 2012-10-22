@@ -119,7 +119,7 @@ extern qboolean insubmodel;
 
 void R_DrawSprite(void);
 void R_RenderFace(entity_t *e, msurface_t *fa, int clipflags);
-void R_RenderPoly(msurface_t *fa, int clipflags);
+void R_RenderPoly(entity_t *e, msurface_t *fa, int clipflags);
 void R_RenderBmodelFace(entity_t *e, bedge_t *pedges, msurface_t *psurf);
 void R_TransformPlane(mplane_t *p, float *normal, float *dist);
 void R_TransformFrustum(void);

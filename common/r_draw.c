@@ -633,7 +633,7 @@ R_RenderPoly
 ================
 */
 void
-R_RenderPoly(msurface_t *fa, int clipflags)
+R_RenderPoly(entity_t *e, msurface_t *fa, int clipflags)
 {
     int i, lindex, lnumverts, s_axis, t_axis;
     float dist, lastdist, lzi, scale, u, v, frac;
@@ -664,12 +664,12 @@ R_RenderPoly(msurface_t *fa, int clipflags)
 
 // reconstruct the polygon
 // FIXME: these should be precalculated and loaded off disk
-    pedges = currententity->model->edges;
+    pedges = e->model->edges;
     lnumverts = fa->numedges;
     vertpage = 0;
 
     for (i = 0; i < lnumverts; i++) {
-	lindex = currententity->model->surfedges[fa->firstedge + i];
+	lindex = e->model->surfedges[fa->firstedge + i];
 
 	if (lindex > 0) {
 	    r_pedge = &pedges[lindex];
@@ -825,7 +825,7 @@ R_ZDrawSubmodelPolys(model_t *pmodel)
 	if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 	    (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))) {
 	    // FIXME: use bounding-box-based frustum clipping info?
-	    R_RenderPoly(psurf, 15);
+	    R_RenderPoly(currententity, psurf, 15);
 	}
     }
 }
