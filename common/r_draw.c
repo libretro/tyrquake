@@ -805,7 +805,7 @@ R_ZDrawSubmodelPolys
 ================
 */
 void
-R_ZDrawSubmodelPolys(model_t *pmodel)
+R_ZDrawSubmodelPolys(entity_t *e, model_t *pmodel)
 {
     int i, numsurfaces;
     msurface_t *psurf;
@@ -825,7 +825,7 @@ R_ZDrawSubmodelPolys(model_t *pmodel)
 	if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 	    (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))) {
 	    // FIXME: use bounding-box-based frustum clipping info?
-	    R_RenderPoly(currententity, psurf, 15);
+	    R_RenderPoly(e, psurf, 15);
 	}
     }
 }

@@ -192,7 +192,7 @@ typedef struct btofpoly_s {
 extern int numbtofpolys;
 extern btofpoly_t *pbtofpolys;
 
-void R_ZDrawSubmodelPolys(model_t *clmodel);
+void R_ZDrawSubmodelPolys(entity_t *e, model_t *clmodel);
 
 //=========================================================
 // Alias models

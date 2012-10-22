@@ -852,7 +852,7 @@ R_DrawBEntitiesOnList(void)
 		// on at this point, so no clipping to the world tree is
 		// needed, just frustum clipping
 		if (r_drawpolys | r_drawculledpolys) {
-		    R_ZDrawSubmodelPolys(clmodel);
+		    R_ZDrawSubmodelPolys(e, clmodel);
 		} else {
 		    r_pefragtopnode = NULL;
 
