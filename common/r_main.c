@@ -736,7 +736,7 @@ R_BmodelCheckBBox
 =============
 */
 static int
-R_BmodelCheckBBox(model_t *clmodel, float *minmaxs)
+R_BmodelCheckBBox(entity_t *e, model_t *clmodel, float *minmaxs)
 {
     int i, *pindex, clipflags;
     vec3_t acceptpt, rejectpt;
@@ -744,10 +744,9 @@ R_BmodelCheckBBox(model_t *clmodel, float *minmaxs)
 
     clipflags = 0;
 
-    if (currententity->angles[0] || currententity->angles[1]
-	|| currententity->angles[2]) {
+    if (e->angles[0] || e->angles[1] || e->angles[2]) {
 	for (i = 0; i < 4; i++) {
-	    d = DotProduct(currententity->origin, view_clipplanes[i].normal);
+	    d = DotProduct(e->origin, view_clipplanes[i].normal);
 	    d -= view_clipplanes[i].dist;
 
 	    if (d <= -clmodel->radius)
@@ -825,7 +824,7 @@ R_DrawBEntitiesOnList(void)
 		minmaxs[j] = e->origin[j] + clmodel->mins[j];
 		minmaxs[3 + j] = e->origin[j] + clmodel->maxs[j];
 	    }
-	    clipflags = R_BmodelCheckBBox(clmodel, minmaxs);
+	    clipflags = R_BmodelCheckBBox(e, clmodel, minmaxs);
 
 	    if (clipflags != BMODEL_FULLY_CLIPPED) {
 		VectorCopy(e->origin, r_entorigin);
