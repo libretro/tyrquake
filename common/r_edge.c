@@ -86,7 +86,7 @@ R_DrawCulledPolys(void)
     surf_t *s;
     msurface_t *pface;
 
-    e = currententity = &r_worldentity;
+    e = &r_worldentity;
     if (r_worldpolysbacktofront) {
 	for (s = surface_p - 1; s > &surfaces[1]; s--) {
 	    if (!s->spans)

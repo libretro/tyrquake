@@ -63,7 +63,6 @@ extern int intsintable[TURB_TABLE_SIZE];
 extern vec3_t vup, base_vup;
 extern vec3_t vpn, base_vpn;
 extern vec3_t vright, base_vright;
-extern entity_t *currententity;
 
 // FIXME - reasoning behind number choice?
 #define NUMSTACKEDGES		3000

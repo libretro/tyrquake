@@ -157,7 +157,6 @@ typedef struct particle_s {
 extern entity_t r_worldentity;
 extern qboolean r_cache_thrash;	// compatability
 extern vec3_t modelorg, r_entorigin;
-extern entity_t *currententity;
 extern int r_visframecount;	// ??? what difs?
 extern int r_framecount;
 extern int c_brush_polys;

@@ -35,7 +35,6 @@ entity_t r_worldentity;
 qboolean r_cache_thrash;	// compatability
 
 vec3_t modelorg, r_entorigin;
-entity_t *currententity;
 
 int r_visframecount;		// bumped when going to a new PVS
 int r_framecount;		// used for dlight push checking
@@ -674,7 +673,7 @@ R_DrawEntitiesOnList(void)
 
     // draw sprites seperately, because of alpha blending
     for (i = 0; i < cl_numvisedicts; i++) {
-	e = currententity = &cl_visedicts[i];
+	e = &cl_visedicts[i];
 	switch (e->model->type) {
 	case mod_alias:
 	    R_DrawAliasModel(e);
@@ -688,7 +687,7 @@ R_DrawEntitiesOnList(void)
     }
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	e = currententity = &cl_visedicts[i];
+	e = &cl_visedicts[i];
 	switch (e->model->type) {
 	case mod_sprite:
 	    R_DrawSpriteModel(e);
@@ -740,7 +739,7 @@ R_DrawViewModel(void)
     if (cl.stats[STAT_HEALTH] <= 0)
 	return;
 
-    e = currententity = &cl.viewent;
+    e = &cl.viewent;
     if (!e->model)
 	return;
 

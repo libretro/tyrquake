@@ -600,7 +600,7 @@ R_DrawEntitiesOnList(void)
 	return;
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	e = currententity = &cl_visedicts[i];
+	e = &cl_visedicts[i];
 #ifdef NQ_HACK
 	if (e == &cl_entities[cl.viewentity])
 	    continue;		// don't draw the player
@@ -685,7 +685,7 @@ R_DrawViewModel(void)
     if (cl.stats[STAT_HEALTH] <= 0)
 	return;
 
-    e = currententity = &cl.viewent;
+    e = &cl.viewent;
     if (!e->model)
 	return;
 
@@ -811,7 +811,7 @@ R_DrawBEntitiesOnList(void)
     r_dlightframecount = r_framecount;
 
     for (i = 0; i < cl_numvisedicts; i++) {
-	e = currententity = &cl_visedicts[i];
+	e = &cl_visedicts[i];
 
 	switch (e->model->type) {
 	case mod_brush:

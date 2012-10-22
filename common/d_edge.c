@@ -177,7 +177,7 @@ D_DrawSurfaces(void)
     vec3_t world_transformed_modelorg;
     vec3_t local_modelorg;
 
-    e = currententity = &r_worldentity;
+    e = &r_worldentity;
     TransformVector(modelorg, transformed_modelorg);
     VectorCopy(transformed_modelorg, world_transformed_modelorg);
 
@@ -232,7 +232,7 @@ D_DrawSurfaces(void)
 		if (s->insubmodel) {
 		    // FIXME: we don't want to do all this for every polygon!
 		    // TODO: store once at start of frame
-		    e = currententity = s->entity;	//FIXME: make this passed in to
+		    e = s->entity;	//FIXME: make this passed in to
 		    // R_RotateBmodel ()
 		    VectorSubtract(r_origin, e->origin, local_modelorg);
 		    TransformVector(local_modelorg, transformed_modelorg);
@@ -251,7 +251,7 @@ D_DrawSurfaces(void)
 		    // FIXME: we don't want to do this every time!
 		    // TODO: speed up
 		    //
-		    e = currententity = &r_worldentity;
+		    e = &r_worldentity;
 		    VectorCopy(world_transformed_modelorg,
 			       transformed_modelorg);
 		    VectorCopy(base_vpn, vpn);
@@ -264,7 +264,7 @@ D_DrawSurfaces(void)
 		if (s->insubmodel) {
 		    // FIXME: we don't want to do all this for every polygon!
 		    // TODO: store once at start of frame
-		    e = currententity = s->entity;	//FIXME: make this passed in to
+		    e = s->entity;	//FIXME: make this passed in to
 		    // R_RotateBmodel ()
 		    VectorSubtract(r_origin, e->origin, local_modelorg);
 		    TransformVector(local_modelorg, transformed_modelorg);
@@ -295,7 +295,7 @@ D_DrawSurfaces(void)
 		    // FIXME: we don't want to do this every time!
 		    // TODO: speed up
 		    //
-		    e = currententity = &r_worldentity;
+		    e = &r_worldentity;
 		    VectorCopy(world_transformed_modelorg,
 			       transformed_modelorg);
 		    VectorCopy(base_vpn, vpn);

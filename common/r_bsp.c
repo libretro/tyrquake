@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // current entity info
 //
 qboolean insubmodel;
-entity_t *currententity;
 
 // modelorg is the viewpoint reletive to
 // the currently rendering entity
@@ -593,7 +592,7 @@ R_RenderWorld(void)
 
     pbtofpolys = btofpolys;
 
-    e = currententity = &r_worldentity;
+    e = &r_worldentity;
     VectorCopy(r_origin, modelorg);
     clmodel = e->model;
     r_pcurrentvertbase = clmodel->vertexes;
