@@ -609,7 +609,7 @@ R_DrawEntitiesOnList(void)
 	case mod_sprite:
 	    VectorCopy(e->origin, r_entorigin);
 	    VectorSubtract(r_origin, r_entorigin, modelorg);
-	    R_DrawSprite();
+	    R_DrawSprite(e);
 	    break;
 
 	case mod_alias:

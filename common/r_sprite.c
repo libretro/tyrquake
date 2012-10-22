@@ -277,16 +277,16 @@ R_DrawSprite
 ================
 */
 void
-R_DrawSprite(void)
+R_DrawSprite(entity_t *e)
 {
     int i;
     msprite_t *psprite;
     vec3_t tvec;
     float dot, angle, sr, cr;
 
-    psprite = currententity->model->cache.data;
+    psprite = e->model->cache.data;
 
-    r_spritedesc.pspriteframe = R_GetSpriteframe(currententity, psprite);
+    r_spritedesc.pspriteframe = R_GetSpriteframe(e, psprite);
 
     sprite_width = r_spritedesc.pspriteframe->width;
     sprite_height = r_spritedesc.pspriteframe->height;
@@ -356,13 +356,13 @@ R_DrawSprite(void)
 	//  r_spritedesc.vpn)
     } else if (psprite->type == SPR_ORIENTED) {
 	// generate the sprite's axes, according to the sprite's world orientation
-	AngleVectors(currententity->angles, r_spritedesc.vpn,
-		     r_spritedesc.vright, r_spritedesc.vup);
+	AngleVectors(e->angles, r_spritedesc.vpn, r_spritedesc.vright,
+		     r_spritedesc.vup);
     } else if (psprite->type == SPR_VP_PARALLEL_ORIENTED) {
 	// generate the sprite's axes, parallel to the viewplane, but rotated in
 	// that plane around the center according to the sprite entity's roll
 	// angle. So vpn stays the same, but vright and vup rotate
-	angle = currententity->angles[ROLL] * (M_PI * 2 / 360);
+	angle = e->angles[ROLL] * (M_PI * 2 / 360);
 	sr = sin(angle);
 	cr = cos(angle);
 

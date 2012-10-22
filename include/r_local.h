@@ -117,7 +117,7 @@ void R_DrawPolyList(void);
 //
 extern qboolean insubmodel;
 
-void R_DrawSprite(void);
+void R_DrawSprite(entity_t *e);
 void R_RenderFace(entity_t *e, msurface_t *fa, int clipflags);
 void R_RenderPoly(entity_t *e, msurface_t *fa, int clipflags);
 void R_RenderBmodelFace(entity_t *e, bedge_t *pedges, msurface_t *psurf);
