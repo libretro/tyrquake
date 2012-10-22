@@ -869,7 +869,7 @@ R_DrawBEntitiesOnList(void)
 			if (r_pefragtopnode->contents >= 0) {
 			    // not a leaf; has to be clipped to the world BSP
 			    r_clipflags = clipflags;
-			    R_DrawSolidClippedSubmodelPolygons(clmodel);
+			    R_DrawSolidClippedSubmodelPolygons(e, clmodel);
 			} else {
 			    // falls entirely in one leaf, so we just put all
 			    // the edges in the edge list and let 1/z sorting

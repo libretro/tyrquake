@@ -312,7 +312,7 @@ R_DrawSolidClippedSubmodelPolygons
 ================
 */
 void
-R_DrawSolidClippedSubmodelPolygons(model_t *pmodel)
+R_DrawSolidClippedSubmodelPolygons(entity_t *e, model_t *pmodel)
 {
     int i, j, lindex;
     vec_t dot;
@@ -372,7 +372,7 @@ R_DrawSolidClippedSubmodelPolygons(model_t *pmodel)
 		}
 		pbedge[j - 1].pnext = NULL;	// mark end of edges
 
-		R_RecursiveClipBPoly(currententity, pbedge, currententity->topnode, psurf);
+		R_RecursiveClipBPoly(e, pbedge, e->topnode, psurf);
 	    } else {
 		Sys_Error("no edges in bmodel");
 	    }
