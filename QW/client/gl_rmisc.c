@@ -317,8 +317,8 @@ R_TranslatePlayerSkin(int playernum)
     byte *original;
     unsigned pixels[512 * 256];
     unsigned scaled_width, scaled_height;
-    int inwidth;
-    int tinwidth, tinheight;
+    int instride;
+    int inwidth, inheight;
     player_info_t *player;
     char s[512];
 
@@ -366,17 +366,17 @@ R_TranslatePlayerSkin(int playernum)
     // locate the original skin pixels
     //
     // real model width
-    tinwidth = 296;
-    tinheight = 194;
+    inwidth = 296;
+    inheight = 194;
 
     if (!player->skin)
 	Skin_Find(player);
     if ((original = Skin_Cache(player->skin)) != NULL) {
 	//skin data width
-	inwidth = 320;
+	instride = 320;
     } else {
 	original = player_8bit_texels;
-	inwidth = 296;
+	instride = 296;
     }
 
     // because this happens during gameplay, do it fast
@@ -392,7 +392,7 @@ R_TranslatePlayerSkin(int playernum)
     scaled_height = qmin((unsigned)gl_max_size.value, scaled_height);
 
     if (VID_Is8bit()) {		// 8bit texture upload
-	ResampleXlate8(original, tinwidth, tinheight, inwidth,
+	ResampleXlate8(original, inwidth, inheight, instride,
 		       (byte *)pixels, scaled_width, scaled_height,
 		       translate);
 	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
@@ -402,7 +402,7 @@ R_TranslatePlayerSkin(int playernum)
     for (i = 0; i < 256; i++)
 	translate32[i] = d_8to24table[translate[i]];
 
-    ResampleXlate32(original, tinwidth, tinheight, inwidth,
+    ResampleXlate32(original, inwidth, inheight, instride,
 		    pixels, scaled_width, scaled_height,
 		    translate32);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, scaled_width,
