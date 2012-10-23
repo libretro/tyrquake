@@ -235,6 +235,71 @@ R_Init(void)
     glGenTextures(MAX_CLIENTS, playertextures);
 }
 
+
+/*
+ * ===============
+ * ResampleXlate{8,32}
+ * ===============
+ * Resample the source texture while applying colour translation
+ *
+ * The input texture may be a sub-rectangle (assumed to be left aligned) so
+ * input stride is specified separately from input width.
+ */
+static void
+ResampleXlate8(const byte *in,
+	       unsigned inwidth, unsigned inheight, unsigned instride,
+	       byte *out, unsigned outwidth, unsigned outheight,
+	       const byte *xlate)
+{
+    int i, j;
+    const byte *inrow;
+    unsigned frac, fracstep;
+
+    fracstep = inwidth * 0x10000 / outwidth;
+    for (i = 0; i < outheight; i++, out += outwidth) {
+	inrow = in + instride * (i * inheight / outheight);
+	frac = fracstep >> 1;
+	for (j = 0; j < outwidth; j += 4) {
+	    out[j] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 1] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 2] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 3] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	}
+    }
+}
+
+static void
+ResampleXlate32(const byte *in,
+		unsigned inwidth, unsigned inheight, unsigned instride,
+		unsigned *out,
+		unsigned outwidth, unsigned outheight,
+		const unsigned *xlate)
+{
+    int i, j;
+    const byte *inrow;
+    unsigned frac, fracstep;
+
+    fracstep = inwidth * 0x10000 / outwidth;
+    for (i = 0; i < outheight; i++, out += outwidth) {
+	inrow = in + instride * (i * inheight / outheight);
+	frac = fracstep >> 1;
+	for (j = 0; j < outwidth; j += 4) {
+	    out[j] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 1] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 2] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 3] = xlate[inrow[frac >> 16]];
+	    frac += fracstep;
+	}
+    }
+}
+
 /*
 ===============
 R_TranslatePlayerSkin
@@ -248,14 +313,12 @@ R_TranslatePlayerSkin(int playernum)
     int top, bottom;
     byte translate[256];
     unsigned translate32[256];
-    int i, j;
+    int i;
     byte *original;
-    unsigned pixels[512 * 256], *out;
+    unsigned pixels[512 * 256];
     unsigned scaled_width, scaled_height;
     int inwidth;
     int tinwidth, tinheight;
-    byte *inrow;
-    unsigned frac, fracstep;
     player_info_t *player;
     char s[512];
 
@@ -329,26 +392,9 @@ R_TranslatePlayerSkin(int playernum)
     scaled_height = qmin((unsigned)gl_max_size.value, scaled_height);
 
     if (VID_Is8bit()) {		// 8bit texture upload
-	byte *out2;
-
-	out2 = (byte *)pixels;
-	memset(pixels, 0, sizeof(pixels));
-	fracstep = tinwidth * 0x10000 / scaled_width;
-	for (i = 0; i < scaled_height; i++, out2 += scaled_width) {
-	    inrow = original + inwidth * (i * tinheight / scaled_height);
-	    frac = fracstep >> 1;
-	    for (j = 0; j < scaled_width; j += 4) {
-		out2[j] = translate[inrow[frac >> 16]];
-		frac += fracstep;
-		out2[j + 1] = translate[inrow[frac >> 16]];
-		frac += fracstep;
-		out2[j + 2] = translate[inrow[frac >> 16]];
-		frac += fracstep;
-		out2[j + 3] = translate[inrow[frac >> 16]];
-		frac += fracstep;
-	    }
-	}
-
+	ResampleXlate8(original, tinwidth, tinheight, inwidth,
+		       (byte *)pixels, scaled_width, scaled_height,
+		       translate);
 	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
 	return;
     }
@@ -356,23 +402,9 @@ R_TranslatePlayerSkin(int playernum)
     for (i = 0; i < 256; i++)
 	translate32[i] = d_8to24table[translate[i]];
 
-    out = pixels;
-    memset(pixels, 0, sizeof(pixels));
-    fracstep = tinwidth * 0x10000 / scaled_width;
-    for (i = 0; i < scaled_height; i++, out += scaled_width) {
-	inrow = original + inwidth * (i * tinheight / scaled_height);
-	frac = fracstep >> 1;
-	for (j = 0; j < scaled_width; j += 4) {
-	    out[j] = translate32[inrow[frac >> 16]];
-	    frac += fracstep;
-	    out[j + 1] = translate32[inrow[frac >> 16]];
-	    frac += fracstep;
-	    out[j + 2] = translate32[inrow[frac >> 16]];
-	    frac += fracstep;
-	    out[j + 3] = translate32[inrow[frac >> 16]];
-	    frac += fracstep;
-	}
-    }
+    ResampleXlate32(original, tinwidth, tinheight, inwidth,
+		    pixels, scaled_width, scaled_height,
+		    translate32);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, scaled_width,
 		 scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
@@ -380,6 +412,7 @@ R_TranslatePlayerSkin(int playernum)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
+
 
 /*
 ===============
