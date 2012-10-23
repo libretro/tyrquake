@@ -279,8 +279,8 @@ R_TranslatePlayerSkin(int playernum)
 
     top = player->topcolor;
     bottom = player->bottomcolor;
-    top = (top < 0) ? 0 : ((top > 13) ? 13 : top);
-    bottom = (bottom < 0) ? 0 : ((bottom > 13) ? 13 : bottom);
+    top = qclamp(top, 0, 13);
+    bottom = qclamp(bottom, 0, 13);
     top *= 16;
     bottom *= 16;
 

@@ -45,6 +45,9 @@ typedef int fixed16_t;
     (a_ < b_) ? a_ : b_;  \
 })
 
+/* clamp macro with type checking */
+#define qclamp(var,min,max) qmax(qmin(var,max),min)
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846	// matches value in gcc v2 math.h
 #endif
