@@ -224,13 +224,21 @@ R_Init(void)
     Cvar_RegisterVariable(&gl_keeptjunctions);
     Cvar_RegisterVariable(&gl_reporttjunctions);
 
+#ifdef NQ_HACK
     Cvar_RegisterVariable(&gl_doubleeyes);
+#endif
+#ifdef QW_HACK
+    Cvar_RegisterVariable(&r_netgraph);
+#endif
 
     R_InitBubble();
 
     R_InitParticles();
     R_InitParticleTexture();
 
+#ifdef QW_HACK
+    glGenTextures(1, &netgraphtexture);
+#endif
     glGenTextures(MAX_CLIENTS, playertextures);
 }
 
@@ -309,22 +317,59 @@ Translates a skin texture by the per-player color lookup
 void
 R_TranslatePlayerSkin(int playernum)
 {
-    entity_t *e;
     int top, bottom;
     byte translate[256];
     unsigned translate32[256];
-    int i, s;
-    model_t *model;
-    aliashdr_t *paliashdr;
+    int i;
     byte *original;
     unsigned pixels[512 * 256];
     unsigned scaled_width, scaled_height;
-    int inwidth, inheight;
+    int inwidth, inheight, instride;
+
+#ifdef NQ_HACK
+    model_t *model;
+    aliashdr_t *paliashdr;
+    int size;
+    entity_t *e;
+#endif
+#ifdef QW_HACK
+    player_info_t *player;
+    char skin[512];
+#endif
 
     GL_DisableMultitexture();
 
+    /*
+     * Determin top and bottom colours
+     */
+#ifdef NQ_HACK
     top = cl.scores[playernum].colors & 0xf0;
     bottom = (cl.scores[playernum].colors & 15) << 4;
+#endif
+#ifdef QW_HACK
+    player = &cl.players[playernum];
+    if (!player->name[0])
+	return;
+
+    strcpy(skin, Info_ValueForKey(player->userinfo, "skin"));
+    COM_StripExtension(skin, skin);
+    if (player->skin && !strcasecmp(skin, player->skin->name))
+	player->skin = NULL;
+
+    if (player->_topcolor == player->topcolor &&
+	player->_bottomcolor == player->bottomcolor && player->skin)
+	return;
+
+    player->_topcolor = player->topcolor;
+    player->_bottomcolor = player->bottomcolor;
+
+    top = player->topcolor;
+    bottom = player->bottomcolor;
+    top = qclamp(top, 0, 13);
+    bottom = qclamp(bottom, 0, 13);
+    top *= 16;
+    bottom *= 16;
+#endif
 
     for (i = 0; i < 256; i++)
 	translate[i] = i;
@@ -341,9 +386,10 @@ R_TranslatePlayerSkin(int playernum)
 	    translate[BOTTOM_RANGE + i] = bottom + 15 - i;
     }
 
-    //
-    // locate the original skin pixels
-    //
+    /*
+     * Locate the original skin pixels
+     */
+#ifdef NQ_HACK
     e = &cl_entities[1 + playernum];
     model = e->model;
     if (!model)
@@ -352,17 +398,33 @@ R_TranslatePlayerSkin(int playernum)
 	return;			// only translate skins on alias models
 
     paliashdr = (aliashdr_t *)Mod_Extradata(model);
-    s = paliashdr->skinwidth * paliashdr->skinheight;
+    size = paliashdr->skinwidth * paliashdr->skinheight;
     if (e->skinnum < 0 || e->skinnum >= paliashdr->numskins) {
 	Con_Printf("(%d): Invalid player skin #%d\n", playernum, e->skinnum);
 	original = (byte *)paliashdr + paliashdr->texels[0];
     } else
 	original = (byte *)paliashdr + paliashdr->texels[e->skinnum];
-    if (s & 3)
-	Sys_Error("%s: s&3", __func__);
+    if (size & 3)
+	Sys_Error("%s: size & 3", __func__);
 
-    inwidth = paliashdr->skinwidth;
+    inwidth = instride = paliashdr->skinwidth;
     inheight = paliashdr->skinheight;
+#endif
+#ifdef QW_HACK
+    /* Hard coded width from original model */
+    inwidth = 296;
+    inheight = 194;
+
+    if (!player->skin)
+	Skin_Find(player);
+    if ((original = Skin_Cache(player->skin)) != NULL) {
+	/* Skin data width for custom skins */
+	instride = 320;
+    } else {
+	original = player_8bit_texels;
+	instride = inwidth;
+    }
+#endif
 
     // because this happens during gameplay, do it fast
     // instead of sending it through gl_upload 8
@@ -377,7 +439,7 @@ R_TranslatePlayerSkin(int playernum)
     scaled_height = qmin((unsigned)gl_max_size.value, scaled_height);
 
     if (VID_Is8bit()) {		// 8bit texture upload
-	ResampleXlate8(original, inwidth, inheight, inwidth,
+	ResampleXlate8(original, inwidth, inheight, instride,
 		       (byte *)pixels, scaled_width, scaled_height,
 		       translate);
 	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
@@ -387,8 +449,9 @@ R_TranslatePlayerSkin(int playernum)
     for (i = 0; i < 256; i++)
 	translate32[i] = d_8to24table[translate[i]];
 
-    ResampleXlate32(original, inwidth, inheight, inwidth,
-		    pixels, scaled_width, scaled_height, translate32);
+    ResampleXlate32(original, inwidth, inheight, instride,
+		    pixels, scaled_width, scaled_height,
+		    translate32);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, scaled_width,
 		 scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 

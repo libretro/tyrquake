@@ -224,14 +224,21 @@ R_Init(void)
     Cvar_RegisterVariable(&gl_keeptjunctions);
     Cvar_RegisterVariable(&gl_reporttjunctions);
 
+#ifdef NQ_HACK
+    Cvar_RegisterVariable(&gl_doubleeyes);
+#endif
+#ifdef QW_HACK
     Cvar_RegisterVariable(&r_netgraph);
+#endif
 
     R_InitBubble();
 
     R_InitParticles();
     R_InitParticleTexture();
 
+#ifdef QW_HACK
     glGenTextures(1, &netgraphtexture);
+#endif
     glGenTextures(MAX_CLIENTS, playertextures);
 }
 
@@ -317,20 +324,36 @@ R_TranslatePlayerSkin(int playernum)
     byte *original;
     unsigned pixels[512 * 256];
     unsigned scaled_width, scaled_height;
-    int instride;
-    int inwidth, inheight;
+    int inwidth, inheight, instride;
+
+#ifdef NQ_HACK
+    model_t *model;
+    aliashdr_t *paliashdr;
+    int size;
+    entity_t *e;
+#endif
+#ifdef QW_HACK
     player_info_t *player;
-    char s[512];
+    char skin[512];
+#endif
 
     GL_DisableMultitexture();
 
+    /*
+     * Determin top and bottom colours
+     */
+#ifdef NQ_HACK
+    top = cl.scores[playernum].colors & 0xf0;
+    bottom = (cl.scores[playernum].colors & 15) << 4;
+#endif
+#ifdef QW_HACK
     player = &cl.players[playernum];
     if (!player->name[0])
 	return;
 
-    strcpy(s, Info_ValueForKey(player->userinfo, "skin"));
-    COM_StripExtension(s, s);
-    if (player->skin && !strcasecmp(s, player->skin->name))
+    strcpy(skin, Info_ValueForKey(player->userinfo, "skin"));
+    COM_StripExtension(skin, skin);
+    if (player->skin && !strcasecmp(skin, player->skin->name))
 	player->skin = NULL;
 
     if (player->_topcolor == player->topcolor &&
@@ -346,6 +369,7 @@ R_TranslatePlayerSkin(int playernum)
     bottom = qclamp(bottom, 0, 13);
     top *= 16;
     bottom *= 16;
+#endif
 
     for (i = 0; i < 256; i++)
 	translate[i] = i;
@@ -362,22 +386,45 @@ R_TranslatePlayerSkin(int playernum)
 	    translate[BOTTOM_RANGE + i] = bottom + 15 - i;
     }
 
-    //
-    // locate the original skin pixels
-    //
-    // real model width
+    /*
+     * Locate the original skin pixels
+     */
+#ifdef NQ_HACK
+    e = &cl_entities[1 + playernum];
+    model = e->model;
+    if (!model)
+	return;			// player doesn't have a model yet
+    if (model->type != mod_alias)
+	return;			// only translate skins on alias models
+
+    paliashdr = (aliashdr_t *)Mod_Extradata(model);
+    size = paliashdr->skinwidth * paliashdr->skinheight;
+    if (e->skinnum < 0 || e->skinnum >= paliashdr->numskins) {
+	Con_Printf("(%d): Invalid player skin #%d\n", playernum, e->skinnum);
+	original = (byte *)paliashdr + paliashdr->texels[0];
+    } else
+	original = (byte *)paliashdr + paliashdr->texels[e->skinnum];
+    if (size & 3)
+	Sys_Error("%s: size & 3", __func__);
+
+    inwidth = instride = paliashdr->skinwidth;
+    inheight = paliashdr->skinheight;
+#endif
+#ifdef QW_HACK
+    /* Hard coded width from original model */
     inwidth = 296;
     inheight = 194;
 
     if (!player->skin)
 	Skin_Find(player);
     if ((original = Skin_Cache(player->skin)) != NULL) {
-	//skin data width
+	/* Skin data width for custom skins */
 	instride = 320;
     } else {
 	original = player_8bit_texels;
-	instride = 296;
+	instride = inwidth;
     }
+#endif
 
     // because this happens during gameplay, do it fast
     // instead of sending it through gl_upload 8
