@@ -325,10 +325,8 @@ R_TranslatePlayerSkin(int playernum)
     scaled_height = 256 >> (int)gl_playermip.value;
 
     // make sure not still too big
-    scaled_width = gl_max_size.value < scaled_width
-	? gl_max_size.value : scaled_width;
-    scaled_height = gl_max_size.value < scaled_height
-	? gl_max_size.value : scaled_height;
+    scaled_width = qmin((unsigned)gl_max_size.value, scaled_width);
+    scaled_height = qmin((unsigned)gl_max_size.value, scaled_height);
 
     if (VID_Is8bit()) {		// 8bit texture upload
 	byte *out2;
