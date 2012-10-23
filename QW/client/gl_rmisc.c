@@ -270,134 +270,134 @@ R_TranslatePlayerSkin(int playernum)
     if (player->skin && !strcasecmp(s, player->skin->name))
 	player->skin = NULL;
 
-    if (player->_topcolor != player->topcolor ||
-	player->_bottomcolor != player->bottomcolor || !player->skin) {
-	player->_topcolor = player->topcolor;
-	player->_bottomcolor = player->bottomcolor;
+    if (player->_topcolor == player->topcolor &&
+	player->_bottomcolor == player->bottomcolor && player->skin)
+	return;
 
-	top = player->topcolor;
-	bottom = player->bottomcolor;
-	top = (top < 0) ? 0 : ((top > 13) ? 13 : top);
-	bottom = (bottom < 0) ? 0 : ((bottom > 13) ? 13 : bottom);
-	top *= 16;
-	bottom *= 16;
+    player->_topcolor = player->topcolor;
+    player->_bottomcolor = player->bottomcolor;
 
-	for (i = 0; i < 256; i++)
-	    translate[i] = i;
+    top = player->topcolor;
+    bottom = player->bottomcolor;
+    top = (top < 0) ? 0 : ((top > 13) ? 13 : top);
+    bottom = (bottom < 0) ? 0 : ((bottom > 13) ? 13 : bottom);
+    top *= 16;
+    bottom *= 16;
 
-	for (i = 0; i < 16; i++) {
-	    if (top < 128) // the artists made some backwards ranges. sigh.
-		translate[TOP_RANGE + i] = top + i;
-	    else
-		translate[TOP_RANGE + i] = top + 15 - i;
+    for (i = 0; i < 256; i++)
+	translate[i] = i;
 
-	    if (bottom < 128)
-		translate[BOTTOM_RANGE + i] = bottom + i;
-	    else
-		translate[BOTTOM_RANGE + i] = bottom + 15 - i;
-	}
+    for (i = 0; i < 16; i++) {
+	if (top < 128)		// the artists made some backwards ranges.  sigh.
+	    translate[TOP_RANGE + i] = top + i;
+	else
+	    translate[TOP_RANGE + i] = top + 15 - i;
 
-	//
-	// locate the original skin pixels
-	//
-	// real model width
-	tinwidth = 296;
-	tinheight = 194;
+	if (bottom < 128)
+	    translate[BOTTOM_RANGE + i] = bottom + i;
+	else
+	    translate[BOTTOM_RANGE + i] = bottom + 15 - i;
+    }
 
-	if (!player->skin)
-	    Skin_Find(player);
-	if ((original = Skin_Cache(player->skin)) != NULL) {
-	    //skin data width
-	    inwidth = 320;
-	} else {
-	    original = player_8bit_texels;
-	    inwidth = 296;
-	}
+    //
+    // locate the original skin pixels
+    //
+    // real model width
+    tinwidth = 296;
+    tinheight = 194;
 
-	// because this happens during gameplay, do it fast
-	// instead of sending it through gl_upload 8
-	GL_Bind(playertextures[playernum]);
+    if (!player->skin)
+	Skin_Find(player);
+    if ((original = Skin_Cache(player->skin)) != NULL) {
+	//skin data width
+	inwidth = 320;
+    } else {
+	original = player_8bit_texels;
+	inwidth = 296;
+    }
+
+    // because this happens during gameplay, do it fast
+    // instead of sending it through gl_upload 8
+    GL_Bind(playertextures[playernum]);
 
 #if 0
-	s = 320 * 200;
-	byte translated[320 * 200];
+    s = 320 * 200;
+    byte translated[320 * 200];
 
-	for (i = 0; i < s; i += 4) {
-	    translated[i] = translate[original[i]];
-	    translated[i + 1] = translate[original[i + 1]];
-	    translated[i + 2] = translate[original[i + 2]];
-	    translated[i + 3] = translate[original[i + 3]];
-	}
+    for (i = 0; i < s; i += 4) {
+	translated[i] = translate[original[i]];
+	translated[i + 1] = translate[original[i + 1]];
+	translated[i + 2] = translate[original[i + 2]];
+	translated[i + 3] = translate[original[i + 3]];
+    }
 
-	// don't mipmap these, because it takes too long
-	GL_Upload8(translated, paliashdr->skinwidth, paliashdr->skinheight,
-		   false, false, true);
+
+    // don't mipmap these, because it takes too long
+    GL_Upload8(translated, paliashdr->skinwidth, paliashdr->skinheight, false,
+	       true);
 #endif
 
-	// allow users to crunch sizes down
-	scaled_width = 512 >> (int)gl_playermip.value;
-	scaled_height = 256 >> (int)gl_playermip.value;
+    // allow users to crunch sizes down
+    scaled_width = 512 >> (int)gl_playermip.value;
+    scaled_height = 256 >> (int)gl_playermip.value;
 
-	// make sure not still too big
-	scaled_width = gl_max_size.value < scaled_width
-	    ? gl_max_size.value : scaled_width;
-	scaled_height = gl_max_size.value < scaled_height
-	    ? gl_max_size.value : scaled_height;
+    // make sure not still too big
+    scaled_width = gl_max_size.value < scaled_width
+	? gl_max_size.value : scaled_width;
+    scaled_height = gl_max_size.value < scaled_height
+	? gl_max_size.value : scaled_height;
 
-	if (VID_Is8bit()) {	// 8bit texture upload
-	    byte *out2;
+    if (VID_Is8bit()) {		// 8bit texture upload
+	byte *out2;
 
-	    out2 = (byte *)pixels;
-	    memset(pixels, 0, sizeof(pixels));
-	    fracstep = tinwidth * 0x10000 / scaled_width;
-	    for (i = 0; i < scaled_height; i++, out2 += scaled_width) {
-		inrow = original + inwidth * (i * tinheight / scaled_height);
-		frac = fracstep >> 1;
-		for (j = 0; j < scaled_width; j += 4) {
-		    out2[j] = translate[inrow[frac >> 16]];
-		    frac += fracstep;
-		    out2[j + 1] = translate[inrow[frac >> 16]];
-		    frac += fracstep;
-		    out2[j + 2] = translate[inrow[frac >> 16]];
-		    frac += fracstep;
-		    out2[j + 3] = translate[inrow[frac >> 16]];
-		    frac += fracstep;
-		}
-	    }
-
-	    GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
-	    return;
-	}
-
-	for (i = 0; i < 256; i++)
-	    translate32[i] = d_8to24table[translate[i]];
-
-	out = pixels;
+	out2 = (byte *)pixels;
 	memset(pixels, 0, sizeof(pixels));
 	fracstep = tinwidth * 0x10000 / scaled_width;
-	for (i = 0; i < scaled_height; i++, out += scaled_width) {
+	for (i = 0; i < scaled_height; i++, out2 += scaled_width) {
 	    inrow = original + inwidth * (i * tinheight / scaled_height);
 	    frac = fracstep >> 1;
 	    for (j = 0; j < scaled_width; j += 4) {
-		out[j] = translate32[inrow[frac >> 16]];
+		out2[j] = translate[inrow[frac >> 16]];
 		frac += fracstep;
-		out[j + 1] = translate32[inrow[frac >> 16]];
+		out2[j + 1] = translate[inrow[frac >> 16]];
 		frac += fracstep;
-		out[j + 2] = translate32[inrow[frac >> 16]];
+		out2[j + 2] = translate[inrow[frac >> 16]];
 		frac += fracstep;
-		out[j + 3] = translate32[inrow[frac >> 16]];
+		out2[j + 3] = translate[inrow[frac >> 16]];
 		frac += fracstep;
 	    }
 	}
 
-	glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format,
-		     scaled_width, scaled_height, 0, GL_RGBA,
-		     GL_UNSIGNED_BYTE, pixels);
-
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
+	return;
     }
+
+    for (i = 0; i < 256; i++)
+	translate32[i] = d_8to24table[translate[i]];
+
+    out = pixels;
+    memset(pixels, 0, sizeof(pixels));
+    fracstep = tinwidth * 0x10000 / scaled_width;
+    for (i = 0; i < scaled_height; i++, out += scaled_width) {
+	inrow = original + inwidth * (i * tinheight / scaled_height);
+	frac = fracstep >> 1;
+	for (j = 0; j < scaled_width; j += 4) {
+	    out[j] = translate32[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 1] = translate32[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 2] = translate32[inrow[frac >> 16]];
+	    frac += fracstep;
+	    out[j + 3] = translate32[inrow[frac >> 16]];
+	    frac += fracstep;
+	}
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, scaled_width,
+		 scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
 /*
