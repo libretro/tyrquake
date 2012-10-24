@@ -1001,16 +1001,20 @@ HandleEvents(void)
 
 	case MotionNotify:
 	    if (mouse_grab_active) {
+#ifdef USE_XF86DGA
 		if (dga_mouse_active) {
 		    mouse_x += x_event.xmotion.x_root;
 		    mouse_y += x_event.xmotion.y_root;
 		} else {
+#endif
 		    mouse_x = x_event.xmotion.x - (int)(vid.width / 2);
 		    mouse_y = x_event.xmotion.y - (int)(vid.height / 2);
 
 		    if (mouse_x || mouse_y)
 			dowarp = true;
+#ifdef USE_XF86DGA
 		}
+#endif
 	    }
 	    break;
 

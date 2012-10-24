@@ -28,16 +28,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define X_MOUSE_MASK (ButtonPressMask | ButtonReleaseMask | PointerMotionMask)
 
 extern qboolean mouse_available;	// Mouse available for use
-
 extern qboolean mouse_grab_active;
-extern qboolean dga_mouse_active;
 
 extern int mouse_x, mouse_y;
 
 extern cvar_t in_mouse;
-extern cvar_t in_dgamouse;
 extern cvar_t _windowed_mouse;
 extern cvar_t m_filter;
+
+#ifdef USE_XF86DGA
+extern qboolean dga_mouse_active;
+extern cvar_t in_dgamouse;
+#endif
 
 void IN_Init();
 void IN_Shutdown();
