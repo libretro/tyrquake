@@ -51,6 +51,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <ctype.h>
 
+/* Argument completion function for the skin cvar */
+static struct stree_root * CL_Skin_Arg_f(const char *arg);
+
 // FIXME - header hacks
 extern cvar_t cl_hightrack;
 extern cvar_t baseskin;
@@ -99,12 +102,20 @@ cvar_t password = { "password", "", false, true };
 cvar_t spectator = { "spectator", "", false, true };
 cvar_t name = { "name", "unnamed", true, true };
 cvar_t team = { "team", "", true, true };
-cvar_t skin = { "skin", "", true, true };
 cvar_t topcolor = { "topcolor", "0", true, true };
 cvar_t bottomcolor = { "bottomcolor", "0", true, true };
 cvar_t rate = { "rate", "2500", true, true };
 cvar_t noaim = { "noaim", "0", true, true };
 cvar_t msg = { "msg", "1", true, true };
+
+cvar_t skin = {
+    .name = "skin",
+    .string = "",
+    .archive = true,
+    .info = true,
+    .completion = CL_Skin_Arg_f
+};
+
 
 client_static_t cls;
 client_state_t cl;
@@ -1038,6 +1049,22 @@ CL_Windows_f(void)
     SendMessage(mainwindow, WM_SYSKEYUP, VK_TAB, 1 | (0x0F << 16) | (1 << 29));
 }
 #endif
+
+static struct stree_root *
+CL_Skin_Arg_f(const char *arg)
+{
+    struct stree_root *root;
+
+    root = Z_Malloc(sizeof(struct stree_root));
+    if (root) {
+	*root = STREE_ROOT;
+	STree_AllocInit();
+	COM_ScanDir(root, "skins", arg, ".pcx", true);
+    }
+
+    return root;
+}
+
 
 /*
 =================
