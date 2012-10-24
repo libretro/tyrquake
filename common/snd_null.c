@@ -23,3 +23,5 @@ qboolean SNDDMA_Init(void) { return false; }
 int SNDDMA_GetDMAPos(void) { return 0; }
 void SNDDMA_Shutdown(void) { }
 void SNDDMA_Submit(void) { }
+int SNDDMA_LockBuffer(void) { return 0; }
+void SNDDMA_UnlockBuffer(void) { }
