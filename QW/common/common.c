@@ -1194,8 +1194,9 @@ typedef struct pack_s {
 //
 // on disk
 //
+#define MAX_PACKPATH 56
 typedef struct {
-    char name[56];
+    char name[MAX_PACKPATH];
     int filepos, filelen;
 } dpackfile_t;
 
@@ -1451,34 +1452,47 @@ COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 }
 
 static void
-COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *pfx,
-	       const char *ext, qboolean stripext)
+COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
+	       const char *pfx, const char *ext, qboolean stripext)
 {
-    int i, pfx_len, ext_len;
+    int i, path_len, pfx_len, ext_len, len;
     char *pak_f, *fname;
 
+    path_len = path ? strlen(path) : 0;
     pfx_len = pfx ? strlen(pfx) : 0;
     ext_len = ext ? strlen(ext) : 0;
 
     for (i = 0; i < pak->numfiles; i++) {
-	pak_f = strrchr(pak->files[i].name, '/');
-	if (pak_f)
-	    pak_f++;
-	else
-	    pak_f = pak->files[i].name;
+	/* Check the path prefix */
+	pak_f = pak->files[i].name;
+	if (path && path_len) {
+	    if (strncasecmp(pak_f, path, path_len))
+		continue;
+	    if (pak_f[path_len] != '/')
+		continue;
+	    pak_f += path_len + 1;
+	}
 
-	if ((!pfx || !strncasecmp(pak_f, pfx, pfx_len)) &&
-	    (!ext || COM_CheckExtension(pak_f, ext))) {
-	    int len = strlen(pak_f);
-	    if (ext && stripext)
-		len -= ext_len;
-	    fname = Z_Malloc(len + 1);
-	    if (fname) {
-		strncpy(fname, pak_f, len);
-		fname[len] = '\0';
-		STree_InsertAlloc(root, fname, true);
-		Z_Free(fname);
-	    }
+	/* Don't match sub-directories */
+	if (strchr(pak_f, '/'))
+	    continue;
+
+	/* Check the prefix and extension, if set */
+	if (pfx && pfx_len && strncasecmp(pak_f, pfx, pfx_len))
+	    continue;
+	if (ext && ext_len && !COM_CheckExtension(pak_f, ext))
+	    continue;
+
+	/* Ok, we have a match. Add it */
+	len = strlen(pak_f);
+	if (ext && stripext)
+	    len -= ext_len;
+	fname = Z_Malloc(len + 1);
+	if (fname) {
+	    strncpy(fname, pak_f, len);
+	    fname[len] = '\0';
+	    STree_InsertAlloc(root, fname, true);
+	    Z_Free(fname);
 	}
     }
 }
@@ -1502,9 +1516,10 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 
     for (search = com_searchpaths; search; search = search->next) {
 	if (search->pack) {
-	    COM_ScanDirPak(root, search->pack, pfx, ext, stripext);
+	    COM_ScanDirPak(root, search->pack, path, pfx, ext, stripext);
 	} else {
-	    sprintf(fullpath, "%s/%s", search->filename, path);
+	    snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
+	    fullpath[MAX_OSPATH - 1] = '\0';
 	    dir = opendir(fullpath);
 	    if (dir) {
 		COM_ScanDirDir(root, dir, pfx, ext, stripext);
