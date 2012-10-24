@@ -92,15 +92,21 @@ endif
 # Try to guess the location of X11 includes/libs
 # ----------------------------------------------
 
-X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6
+X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6 /opt/X11 /opt/local
 X11BASE_GUESS := $(shell \
 	if [ -e /usr/include/X11/Xlib.h ] && \
-		[ -e /usr/lib/libX11.a ]; then exit 0; fi; \
+		[ -e /usr/lib/libX11.a ] || \
+		[ -e /usr/lib/libX11.la ] || \
+		[ -e /usr/lib/libX11.dylib ]; then exit 0; fi; \
 	if [ -e /usr/local/include/X11/Xlib.h ] && \
-		[ -e /usr/local/lib/libX11.a ]; then exit 0; fi; \
+		[ -e /usr/local/lib/libX11.a ] || \
+		[ -e /usr/local/lib/libX11.la ] || \
+		[ -e /usr/local/lib/libX11.dylib ]; then exit 0; fi; \
 	for DIR in $(X11DIRS); do \
             if [ -e $$DIR/include/X11/Xlib.h ] && \
-		[ -e $$DIR/lib/libX11.a ]; then echo $$DIR; break; fi; \
+		[ -e $$DIR/lib/libX11.a ] || \
+		[ -e $$DIR/lib/libX11.la ] || \
+		[ -e $$DIR/lib/libX11.dylib ]; then echo $$DIR; break; fi; \
 	done )
 
 # ------------------------------------------------------------------------
