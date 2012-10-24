@@ -50,13 +50,33 @@ else
 ifneq (,$(findstring $(SYSNAME),Linux))
 HOST_OS = UNIX
 UNIX = linux
-#UNIX = null
 TOPDIR := $(shell pwd)
 else
 $(error OS type not detected.)
 endif
 endif
 endif
+endif
+
+# Set some driver defaults based on OS
+ifneq (,$(findstring darwin,$(UNIX)))
+CD_TARGET ?= null
+SND_TARGET ?= null
+USE_XF86DGA ?= N
+endif
+ifneq (,$(findstring bsd,$(UNIX)))
+CD_TARGET ?= bsd
+SND_TARGET ?= linux
+USE_XF86DGA ?= Y
+endif
+ifneq (,$(findstring linux,$(UNIX)))
+CD_TARGET ?= linux
+SND_TARGET ?= linux
+USE_XF86DGA ?= Y
+endif
+ifeq ($(TARGET_OS),WIN32)
+CD_TARGET ?= win
+SND_TARGET ?= win
 endif
 
 ifeq ($(TARGET_OS),WIN32)
@@ -410,6 +430,7 @@ $(QWSVDIR)/%.o:		common/%.c	; $(do_cc_o_c)
 # Objects common to all versions of NQ, sources are c code
 NQ_COMMON_C_OBJS = \
 	cd_common.o	\
+	cd_$(CD_TARGET).o \
 	chase.o		\
 	cl_demo.o	\
 	cl_input.o	\
@@ -440,6 +461,7 @@ NQ_COMMON_C_OBJS = \
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
+	snd_$(SND_TARGET).o \
 	sv_main.o	\
 	sv_move.o	\
 	sv_phys.o	\
@@ -456,11 +478,9 @@ NQ_COMMON_ASM_OBJS = \
 
 # Used in both SW and GL versions of NQ on the Win32 platform
 NQ_W32_C_OBJS = \
-	cd_win.o	\
 	conproc.o	\
 	net_win.o	\
 	net_wins.o	\
-	snd_win.o	\
 	sys_win.o
 
 NQ_W32_ASM_OBJS = \
@@ -468,10 +488,8 @@ NQ_W32_ASM_OBJS = \
 
 # Used in both SW and GL versions on NQ on the Unix platform
 NQ_UNIX_C_OBJS = \
-	cd_$(UNIX).o	\
 	net_udp.o	\
 	net_bsd.o	\
-	snd_linux.o	\
 	sys_linux.o	\
 	x11_core.o	\
 	in_x11.o
@@ -674,6 +692,7 @@ QW_SV_SHARED_C_OBJS = \
 QW_COMMON_C_OBJS = \
 	$(QW_SV_SHARED_C_OBJS) \
 	cd_common.o	\
+	cd_$(CD_TARGET).o \
 	cl_cam.o	\
 	cl_demo.o	\
 	cl_ents.o	\
@@ -692,6 +711,7 @@ QW_COMMON_C_OBJS = \
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
+	snd_$(SND_TARGET).o \
 	view.o		\
 	wad.o
 
@@ -700,9 +720,7 @@ QW_COMMON_ASM_OBJS = \
 	snd_mixa.o
 
 QW_W32_C_OBJS = \
-	cd_win.o	\
 	net_wins.o	\
-	snd_win.o	\
 	sys_win.o
 
 QW_W32_ASM_OBJS = \
@@ -713,8 +731,6 @@ QW_UNIX_SV_SHARED_C_OBJS = \
 
 QW_UNIX_C_OBJS = \
 	$(QW_UNIX_SV_SHARED_C_OBJS) \
-	cd_$(UNIX).o	\
-	snd_linux.o	\
 	sys_linux.o	\
 	in_x11.o	\
 	x11_core.o
