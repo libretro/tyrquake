@@ -22,16 +22,16 @@ feel of the game.
 
 Building:
 ---------
-All you should need to do to get a regular build for your system is
-type 'make'. This should build all five executable targets. Windows
-builds can be done using MinGW and Msys on a Windows host, or by cross
-compiling with a suitable MinGW cross compiler. As long as your cross
-compiler is in your path somewhere, "make TARGET_OS=WIN32" should be
-all you need.
+All you should need to do to get a regular build for your system is type
+'make'. This should build all five executable targets and place them in a ./bin
+subdirectory. Windows builds can be done using MinGW and Msys on a Windows host,
+or by cross compiling with a suitable MinGW cross compiler. As long as your
+cross compiler is in your path somewhere, "make TARGET_OS=WIN32" should be all
+you need.
 
-If you're in a hurry and only want to build one target, you can type 'make
-prepare' (this sets up the build directories) followed by 'make <target>' -
-where <target> is the name of the executable you want to build.
+If you're in a hurry and only want to build one target, you can type
+'make bin/<target>' - where <target> is the name of the executable you want to
+build.
 
 To build a debug version or one without the intel assembly, there are options
 you can select by setting Makefile variables:
