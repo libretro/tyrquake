@@ -42,6 +42,11 @@ HOST_OS = UNIX
 UNIX = bsd
 TOPDIR := $(shell pwd)
 else
+ifneq (,$(findstring $(SYSNAME),Darwin))
+HOST_OS = UNIX
+UNIX = darwin
+TOPDIR := $(shell pwd)
+else
 ifneq (,$(findstring $(SYSNAME),Linux))
 HOST_OS = UNIX
 UNIX = linux
@@ -49,6 +54,7 @@ UNIX = linux
 TOPDIR := $(shell pwd)
 else
 $(error OS type not detected.)
+endif
 endif
 endif
 endif
