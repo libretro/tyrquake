@@ -66,6 +66,43 @@ Cvar_FindVar(const char *var_name)
     return ret;
 }
 
+/*
+ * Return a string tree with all possible argument completions of the given
+ * buffer for the given cvar.
+ */
+struct stree_root *
+Cvar_ArgCompletions(const char *name, const char *buf)
+{
+    cvar_t *cvar;
+    struct stree_root *root = NULL;
+
+    cvar = Cvar_FindVar(name);
+    if (cvar && cvar->completion)
+	root = cvar->completion(buf);
+
+    return root;
+}
+
+/*
+ * Call the argument completion function for cvar "name".
+ * Returned result should be Z_Free'd after use.
+ */
+char *
+Cvar_ArgComplete(const char *name, const char *buf)
+{
+    char *result = NULL;
+    struct stree_root *root;
+
+    root = Cvar_ArgCompletions(name, buf);
+    if (root) {
+	result = STree_MaxMatch(root, buf);
+	Z_Free(root);
+    }
+
+    return result;
+}
+
+
 #ifdef NQ_HACK
 /*
  * For NQ/net_dgrm.c, command == CCREQ_RULE_INFO case

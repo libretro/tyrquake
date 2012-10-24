@@ -245,17 +245,23 @@ CompleteCommand(void)
 	    strncpy(cmd, s, len);
 	    cmd[len] = 0;
 
+	    completion = NULL;
 	    if (Cmd_Exists(cmd)) {
 		s += len;
 		while (*s == ' ')
 		    s++;
 		completion = Cmd_ArgComplete(cmd, s);
-		if (completion) {
-		    key_linepos = s - key_lines[edit_line];
-		    strcpy(s, completion);
-		    key_linepos += strlen(completion);
-		    Z_Free(completion);
-		}
+	    } else if (Cvar_FindVar(cmd)) {
+		s += len;
+		while (*s == ' ')
+		    s++;
+		completion = Cvar_ArgComplete(cmd, s);
+	    }
+	    if (completion) {
+		key_linepos = s - key_lines[edit_line];
+		strcpy(s, completion);
+		key_linepos += strlen(completion);
+		Z_Free(completion);
 	    }
 	    Z_Free(cmd);
 	}
@@ -291,8 +297,19 @@ ShowCompletions(void)
 		s += len;
 		while (*s == ' ')
 		    s++;
-
 		root = Cmd_ArgCompletions(cmd, s);
+		if (root && root->entries) {
+		    Con_Printf("%s\n", key_lines[edit_line]);
+		    Con_ShowTree(root);
+		    Z_Free(root);
+		}
+	    } else if (Cvar_FindVar(cmd)) {
+		struct stree_root *root;
+
+		s += len;
+		while (*s == ' ')
+		    s++;
+		root = Cvar_ArgCompletions(cmd, s);
 		if (root && root->entries) {
 		    Con_Printf("%s\n", key_lines[edit_line]);
 		    Con_ShowTree(root);

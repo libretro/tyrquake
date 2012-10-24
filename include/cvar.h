@@ -65,13 +65,21 @@ The user can access cvars from the console in two ways:
 Cvars are restricted from having the same names as commands to keep this
 interface from being ambiguous.
 
-TYR - last argument is a callback function that is called when the value
-      of the cvar is changed.
+Callback is a function that is called when the value of the cvar is changed.
+
 */
 
 struct cvar_s;
 
 typedef void (*cvar_callback) (struct cvar_s *);
+
+/*
+ * Cvar argument completion function.
+ * Pass in the argument string
+ * Returns a string tree of possible completions
+ * Requires STree_AllocInit() prior to calling
+ */
+typedef struct stree_root *(*cvar_arg_f)(const char *);
 
 typedef struct cvar_s {
     char *name;
@@ -90,6 +98,7 @@ typedef struct cvar_s {
     cvar_callback callback;
     unsigned flags;
     struct stree_node stree; /* string tree for cvar names */
+    cvar_arg_f completion;
 } cvar_t;
 
 #define CVAR_DEVELOPER (1U << 0) /* can't set during normal play */
@@ -128,6 +137,9 @@ void Cvar_WriteVariables(FILE *f);
 
 /* */
 cvar_t *Cvar_FindVar(const char *var_name);
+
+char *Cvar_ArgComplete(const char *name, const char *buf);
+struct stree_root *Cvar_ArgCompletions(const char *name, const char *buf);
 
 # ifdef NQ_HACK
 cvar_t *Cvar_NextServerVar(const char *var_name);
