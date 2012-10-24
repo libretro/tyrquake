@@ -321,7 +321,7 @@ SV_SendServerinfo(client_t *client)
     else
 	MSG_WriteByte(&client->message, GAME_COOP);
 
-    sprintf(message, PR_GetString(sv.edicts->v.message));
+    sprintf(message, "%s", PR_GetString(sv.edicts->v.message));
 
     MSG_WriteString(&client->message, message);
 

@@ -1321,7 +1321,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
     ret = MSG_ReadByte();
     if (ret == CCREP_REJECT) {
 	reason = MSG_ReadString();
-	Con_Printf(reason);
+	Con_Printf("%s\n", reason);
 	strncpy(m_return_reason, reason, 31);
 	m_return_reason[31] = 0;
 	goto ErrorReturn;
