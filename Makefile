@@ -125,7 +125,7 @@ MINGW_CROSS_GUESS := $(shell \
 cc-version = $(shell sh $(TOPDIR)/scripts/gcc-version \
               $(if $(1), $(1), $(CC)))
 
-cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
+cc-option = $(shell if $(CC) $(CFLAGS) -Werror $(1) -S -o /dev/null -xc /dev/null \
              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
 
 cc-i386 = $(if $(subst __i386,,$(shell echo __i386 | $(CC) -E -xc - | tail -n 1)),Y,N)
