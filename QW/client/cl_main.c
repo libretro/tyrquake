@@ -1515,7 +1515,8 @@ Host_Init(quakeparms_t *parms)
 
     host_initialized = true;
     Con_Printf("\nClient Version TyrQuake-%s\n\n", stringify(TYR_VERSION));
-    Con_Printf("€ QuakeWorld Initialized ‚\n");
+    Con_Printf("\200\201\201\201\201\201\201 QuakeWorld Initialized "
+	       "\201\201\201\201\201\201\202\n");
 
     /* In case exec of quake.rc fails */
     if (!setjmp(host_abort)) {
