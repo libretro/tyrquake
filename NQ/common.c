@@ -36,14 +36,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-#define NUM_SAFE_ARGVS  7
+#define NUM_SAFE_ARGVS 7
 
 static char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
 static char *argvdummy = " ";
 
-static char *safeargvs[NUM_SAFE_ARGVS] =
-    { "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse",
-    "-dibonly"
+static char *safeargvs[NUM_SAFE_ARGVS] = {
+  "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse", "-dibonly"
 };
 
 cvar_t registered = { "registered", "0" };

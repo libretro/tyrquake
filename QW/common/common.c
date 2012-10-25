@@ -46,15 +46,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #endif
 
-#define NUM_SAFE_ARGVS	6
-
 usercmd_t nullcmd;		// guarenteed to be zero
+
+#define NUM_SAFE_ARGVS 7
 
 static char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
 static char *argvdummy = " ";
 
-static char *safeargvs[NUM_SAFE_ARGVS] =
-    { "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse" };
+static char *safeargvs[NUM_SAFE_ARGVS] = {
+  "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse", "-dibonly"
+};
 
 cvar_t registered = { "registered", "0" };
 
