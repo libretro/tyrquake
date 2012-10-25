@@ -24,14 +24,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 #include <sys/types.h>
 
+#include "quakedef.h"
+#include "host.h"
+
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
 #include "crc.h"
 #include "draw.h"
-#include "host.h"
 #include "net.h"
-#include "quakedef.h"
 #include "shell.h"
 #include "sys.h"
 #include "zone.h"

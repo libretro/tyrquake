@@ -27,9 +27,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifdef SERVERONLY
 #include "qwsvdef.h"
+#include "server.h"
 #else
 #include "quakedef.h"
 #endif
+#include "protocol.h"
 
 #include "cmd.h"
 #include "common.h"
@@ -37,16 +39,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "crc.h"
 #include "draw.h"
 #include "net.h"
-#include "protocol.h"
 #include "shell.h"
 #include "sys.h"
 #include "zone.h"
-
-#ifdef SERVERONLY
-#include "server.h"
-#endif
-
-usercmd_t nullcmd;		// guarenteed to be zero
 
 #define NUM_SAFE_ARGVS 7
 
@@ -368,6 +363,8 @@ FloatNoSwap(float f)
 Handles byte ordering and avoids alignment errors
 ==============================================================================
 */
+
+usercmd_t nullcmd;		// guarenteed to be zero
 
 //
 // writing functions
