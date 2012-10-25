@@ -56,11 +56,7 @@ typedef struct {
 
 #define	MINIMUM_MEMORY	0x550000
 
-#define MAX_NUM_ARGVS	50
-
-
 extern qboolean noclip_anglehack;
-
 
 //
 // host

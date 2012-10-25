@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #include "cmd.h"
+#include "common.h"
 #include "console.h"
 #include "crc.h"
 #include "draw.h"
@@ -45,7 +46,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #endif
 
-#define MAX_NUM_ARGVS	50
 #define NUM_SAFE_ARGVS	6
 
 usercmd_t nullcmd;		// guarenteed to be zero

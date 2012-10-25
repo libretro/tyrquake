@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bothdefs.h"
 #include "shell.h"
 
+#define MAX_NUM_ARGVS 50
+
 #define stringify__(x) #x
 #define stringify(x) stringify__(x)
 
