@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PROTOCOL_H
 
 #include "mathlib.h"
-#include "common.h"
+#include "qtypes.h"
 
 #define	PROTOCOL_VERSION 28
 

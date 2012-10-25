@@ -24,18 +24,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <stdio.h>
 
-#include "qtypes.h"
 #include "bothdefs.h"
+#include "protocol.h"
 #include "shell.h"
 
 #define MAX_NUM_ARGVS 50
 
 #define stringify__(x) #x
 #define stringify(x) stringify__(x)
-
-// FIXME - cannot include protocol.h (cyclic includes)
-//#include "protocol.h" // struct usercmd_s
-struct usercmd_s;
 
 #define	MAX_INFO_STRING	196
 #define	MAX_SERVERINFO_STRING	512
@@ -146,7 +142,6 @@ extern char com_token[1024];
 extern qboolean com_eof;
 
 char *COM_Parse(char *data);
-
 
 extern unsigned com_argc;
 extern char **com_argv;

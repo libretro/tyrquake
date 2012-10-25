@@ -57,7 +57,6 @@ typedef struct link_s {
     struct link_s *prev, *next;
 } link_t;
 
-
 void ClearLink(link_t *l);
 void RemoveLink(link_t *l);
 void InsertLinkBefore(link_t *l, link_t *before);
@@ -172,9 +171,7 @@ byte *COM_LoadTempFile(const char *path);
 byte *COM_LoadHunkFile(const char *path);
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu);
 
-
 extern struct cvar_s registered;
-
 extern qboolean standard_quake, rogue, hipnotic;
 
 #endif /* COMMON_H */
