@@ -1140,6 +1140,40 @@ typedef struct searchpath_s {
 static searchpath_t *com_searchpaths;
 
 /*
+================
+COM_filelength
+================
+*/
+static int
+COM_filelength(FILE *f)
+{
+    int pos;
+    int end;
+
+    pos = ftell(f);
+    fseek(f, 0, SEEK_END);
+    end = ftell(f);
+    fseek(f, pos, SEEK_SET);
+
+    return end;
+}
+
+static int
+COM_FileOpenRead(char *path, FILE **hndl)
+{
+    FILE *f;
+
+    f = fopen(path, "rb");
+    if (!f) {
+	*hndl = NULL;
+	return -1;
+    }
+    *hndl = f;
+
+    return COM_filelength(f);
+}
+
+/*
 ============
 COM_Path_f
 
@@ -1216,26 +1250,26 @@ needed.  This is for the convenience of developers using ISDN from home.
 void
 COM_CopyFile(char *netpath, char *cachepath)
 {
-    int in, out;
+    FILE *in, *out;
     int remaining, count;
     char buf[4096];
 
-    remaining = Sys_FileOpenRead(netpath, &in);
+    remaining = COM_FileOpenRead(netpath, &in);
     COM_CreatePath(cachepath);	// create directories up to the cache file
-    out = Sys_FileOpenWrite(cachepath);
+    out = fopen(cachepath, "wb");
 
     while (remaining) {
 	if (remaining < sizeof(buf))
 	    count = remaining;
 	else
 	    count = sizeof(buf);
-	Sys_FileRead(in, buf, count);
-	Sys_FileWrite(out, buf, count);
+	fread(buf, 1, count, in);
+	fwrite(buf, 1, count, out);
 	remaining -= count;
     }
 
-    Sys_FileClose(in);
-    Sys_FileClose(out);
+    fclose(in);
+    fclose(out);
 }
 
 /*

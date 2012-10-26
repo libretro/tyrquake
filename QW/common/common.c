@@ -1223,7 +1223,7 @@ static searchpath_t *com_base_searchpaths;	// without gamedirs
 COM_filelength
 ================
 */
-int
+static int
 COM_filelength(FILE *f)
 {
     int pos;
@@ -1237,7 +1237,7 @@ COM_filelength(FILE *f)
     return end;
 }
 
-int
+static int
 COM_FileOpenRead(char *path, FILE **hndl)
 {
     FILE *f;
