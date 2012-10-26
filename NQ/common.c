@@ -913,14 +913,14 @@ being registered.
 void
 COM_CheckRegistered(void)
 {
-    int h;
+    FILE *f;
     unsigned short check[128];
     int i;
 
-    COM_OpenFile("gfx/pop.lmp", &h);
+    COM_FOpenFile("gfx/pop.lmp", &f);
     static_registered = 0;
 
-    if (h == -1) {
+    if (!f) {
 	Con_Printf("Playing shareware version.\n");
 	if (com_modified)
 	    Sys_Error
@@ -928,8 +928,8 @@ COM_CheckRegistered(void)
 	return;
     }
 
-    Sys_FileRead(h, check, sizeof(check));
-    COM_CloseFile(h);
+    fread(check, 1, sizeof(check), f);
+    fclose(f);
 
     for (i = 0; i < 128; i++)
 	if (pop[i] != (unsigned short)BigShort(check[i]))
@@ -1170,18 +1170,18 @@ The filename will be prefixed by the current game directory
 void
 COM_WriteFile(const char *filename, const void *data, int len)
 {
-    int handle;
+    FILE *f;
     char name[MAX_OSPATH];
 
     sprintf(name, "%s/%s", com_gamedir, filename);
 
-    handle = Sys_FileOpenWrite(name);
-    if (handle == -1) {
-	Sys_Printf("COM_WriteFile: failed on %s\n", name);
+    f = fopen(name, "wb");
+    if (!f) {
+	Sys_Error("Error opening %s", filename);
 	return;
     }
-    Sys_FileWrite(handle, data, len);
-    Sys_FileClose(handle);
+    fwrite(data, 1, len, f);
+    fclose(f);
 }
 
 
@@ -1444,21 +1444,6 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 
 /*
 ===========
-COM_OpenFile
-
-filename never has a leading slash, but may contain directory walks
-returns a handle and a length
-it may actually be inside a pak file
-===========
-*/
-int
-COM_OpenFile(const char *filename, int *handle)
-{
-    return COM_FindFile(filename, handle, NULL);
-}
-
-/*
-===========
 COM_FOpenFile
 
 If the requested file is inside a packfile, a new FILE * will be opened
@@ -1470,26 +1455,6 @@ COM_FOpenFile(const char *filename, FILE **file)
 {
     return COM_FindFile(filename, NULL, file);
 }
-
-/*
-============
-COM_CloseFile
-
-If it is a pak file handle, don't really close it
-============
-*/
-void
-COM_CloseFile(int h)
-{
-    searchpath_t *s;
-
-    for (s = com_searchpaths; s; s = s->next)
-	if (s->pack && s->pack->handle == h)
-	    return;
-
-    Sys_FileClose(h);
-}
-
 
 /*
 ============
@@ -1507,7 +1472,7 @@ int loadsize;
 byte *
 COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
-    int h;
+    FILE *f;
     byte *buf;
     char base[32];
     int len;
@@ -1515,8 +1480,8 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
     buf = NULL;			// quiet compiler warning
 
 // look for it in the filesystem or pack files
-    len = COM_OpenFile(path, &h);
-    if (h == -1)
+    len = COM_FOpenFile(path, &f);
+    if (!f)
 	return NULL;
 
     if (length)
@@ -1547,8 +1512,8 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
     ((byte *)buf)[len] = 0;
 
     Draw_BeginDisc();
-    Sys_FileRead(h, buf, len);
-    COM_CloseFile(h);
+    fread(buf, 1, len, f);
+    fclose(f);
     Draw_EndDisc();
 
     return buf;
