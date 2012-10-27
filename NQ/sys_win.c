@@ -68,8 +68,7 @@ void Sys_PopFPCW(void);
 
 volatile int sys_checksum;
 
-// TYR - debugging...
-static void printf_sys_error(DWORD err);
+static void Print_Win32SystemError(DWORD err);
 
 void
 Sys_DebugLog(const char *file, const char *fmt, ...)
@@ -420,7 +419,7 @@ Sys_ConsoleInput(void)
 	    DWORD err = GetLastError();
 
 	    printf("GetNumberOfConsoleInputEvents: ");
-	    printf_sys_error(err);
+	    Print_Win32SystemError(err);
 	    Sys_Error("Error getting # of console events");
 	}
 
@@ -523,16 +522,18 @@ SleepUntilInput(int time)
     MsgWaitForMultipleObjects(1, &tevent, FALSE, time, QS_ALLINPUT);
 }
 
-// TYR - used for debugging...
+/*
+ * For debugging - Print a Win32 system error string to stdout
+ */
 static void
-printf_sys_error(DWORD err)
+Print_Win32SystemError(DWORD err)
 {
     static PVOID buf;
 
     if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
 		      | FORMAT_MESSAGE_FROM_SYSTEM,
 		      NULL, err, 0, (LPTSTR)(&buf), 0, NULL)) {
-	printf("System - %s\n", (LPTSTR)buf);
+	printf("%s: %s\n", __func__, (LPTSTR)buf);
 	fflush(stdout);
 	LocalFree(buf);
     }
@@ -672,7 +673,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 	    DWORD err = GetLastError();
 
 	    printf("AllocConsole Failed: ");
-	    printf_sys_error(err);
+	    Print_Win32SystemError(err);
 
 	    // Already have one? - Try free it and get a new one...
 	    // FIXME - Keep current console or get new one...
