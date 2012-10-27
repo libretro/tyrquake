@@ -154,62 +154,6 @@ Sys_mkdir(const char *path)
     mkdir(path, 0777);
 }
 
-int
-Sys_FileOpenRead(const char *path, int *handle)
-{
-    int h;
-    struct stat fileinfo;
-
-
-    h = open(path, O_RDONLY, 0666);
-    *handle = h;
-    if (h == -1)
-	return -1;
-
-    if (fstat(h, &fileinfo) == -1)
-	Sys_Error("Error fstating %s", path);
-
-    return fileinfo.st_size;
-}
-
-int
-Sys_FileOpenWrite(const char *path)
-{
-    int handle;
-
-    umask(0);
-
-    handle = open(path, O_RDWR | O_CREAT | O_TRUNC, 0666);
-
-    if (handle == -1)
-	Sys_Error("Error opening %s: %s", path, strerror(errno));
-
-    return handle;
-}
-
-int
-Sys_FileWrite(int handle, const void *src, int count)
-{
-    return write(handle, src, count);
-}
-
-void
-Sys_FileClose(int handle)
-{
-    close(handle);
-}
-
-void
-Sys_FileSeek(int handle, int position)
-{
-    lseek(handle, position, SEEK_SET);
-}
-
-int
-Sys_FileRead(int handle, void *dest, int count)
-{
-    return read(handle, dest, count);
-}
 
 void
 Sys_DebugLog(const char *file, const char *fmt, ...)
