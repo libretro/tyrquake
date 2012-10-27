@@ -1359,10 +1359,12 @@ COM_CopyFile(char *netpath, char *cachepath)
 
 /*
 ===========
-COM_FindFile
+COM_FOpenFile
 
 Finds the file in the search path.
-Sets com_filesize and one of handle or file
+Sets com_filesize
+If the requested file is inside a packfile, a new FILE * will be opened
+into the file.
 ===========
 */
 int file_from_pak;		// global indicating file came from pack file ZOID
@@ -1410,7 +1412,8 @@ COM_FOpenFile(const char *filename, FILE **file)
 		continue;
 
 	    *file = fopen(netpath, "rb");
-	    return COM_filelength(*file);
+	    com_filesize = COM_filelength(*file);
+	    return com_filesize;
 	}
 
     }

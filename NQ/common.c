@@ -1274,14 +1274,16 @@ COM_CopyFile(char *netpath, char *cachepath)
 
 /*
 ===========
-COM_FindFile
+COM_FOpenFile
 
 Finds the file in the search path.
-Sets com_filesize and one of handle or file
+Sets com_filesize
+If the requested file is inside a packfile, a new FILE * will be opened
+into the file.
 ===========
 */
 int
-COM_FindFile(const char *filename, int *handle, FILE **file)
+COM_FOpenFile(const char *filename, FILE **file)
 {
     searchpath_t *search;
     char netpath[MAX_OSPATH];
@@ -1289,11 +1291,6 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
     pack_t *pak;
     int i;
     int findtime, cachetime;
-
-    if (file && handle)
-	Sys_Error("%s: both handle and file set", __func__);
-    if (!file && !handle)
-	Sys_Error("%s: neither handle or file set", __func__);
 
 //
 // search through the path, one element at a time
@@ -1305,14 +1302,11 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
 	    pak = search->pack;
 	    for (i = 0; i < pak->numfiles; i++)
 		if (!strcmp(pak->files[i].name, filename)) {	// found it!
-		    if (handle) {
-			*handle = pak->handle;
-			Sys_FileSeek(pak->handle, pak->files[i].filepos);
-		    } else {	// open a new file on the pakfile
-			*file = fopen(pak->filename, "rb");
-			if (*file)
-			    fseek(*file, pak->files[i].filepos, SEEK_SET);
-		    }
+		    // open a new file on the pakfile
+		    *file = fopen(pak->filename, "rb");
+		    if (!*file)
+			Sys_Error("Couldn't reopen %s", pak->filename);
+		    fseek(*file, pak->files[i].filepos, SEEK_SET);
 		    com_filesize = pak->files[i].filelen;
 		    return com_filesize;
 		}
@@ -1322,7 +1316,6 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
 		if (strchr(filename, '/') || strchr(filename, '\\'))
 		    continue;
 	    }
-
 	    sprintf(netpath, "%s/%s", search->filename, filename);
 
 	    findtime = Sys_FileTime(netpath);
@@ -1341,31 +1334,20 @@ COM_FindFile(const char *filename, int *handle, FILE **file)
 #else
 		sprintf(cachepath, "%s%s", com_cachedir, netpath);
 #endif
-
 		cachetime = Sys_FileTime(cachepath);
-
 		if (cachetime < findtime)
 		    COM_CopyFile(netpath, cachepath);
 		strcpy(netpath, cachepath);
 	    }
 
-	    com_filesize = Sys_FileOpenRead(netpath, &i);
-	    if (handle)
-		*handle = i;
-	    else {
-		Sys_FileClose(i);
-		*file = fopen(netpath, "rb");
-	    }
+	    *file = fopen(netpath, "rb");
+	    com_filesize = COM_filelength(*file);
 	    return com_filesize;
 	}
-
     }
     Sys_Printf("FindFile: can't find %s\n", filename);
 
-    if (handle)
-	*handle = -1;
-    else
-	*file = NULL;
+    *file = NULL;
     com_filesize = -1;
     return -1;
 }
@@ -1474,20 +1456,6 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 	    }
 	}
     }
-}
-
-/*
-===========
-COM_FOpenFile
-
-If the requested file is inside a packfile, a new FILE * will be opened
-into the file.
-===========
-*/
-int
-COM_FOpenFile(const char *filename, FILE **file)
-{
-    return COM_FindFile(filename, NULL, file);
 }
 
 /*
