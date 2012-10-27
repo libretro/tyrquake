@@ -1006,14 +1006,14 @@ being registered.
 void
 COM_CheckRegistered(void)
 {
-    FILE *h;
+    FILE *f;
     unsigned short check[128];
     int i;
 
-    COM_FOpenFile("gfx/pop.lmp", &h);
+    COM_FOpenFile("gfx/pop.lmp", &f);
     static_registered = 0;
 
-    if (!h) {
+    if (!f) {
 	Con_Printf("Playing shareware version.\n");
 #ifndef SERVERONLY
 // FIXME DEBUG -- only temporary
@@ -1024,8 +1024,8 @@ COM_CheckRegistered(void)
 	return;
     }
 
-    fread(check, 1, sizeof(check), h);
-    fclose(h);
+    fread(check, 1, sizeof(check), f);
+    fclose(f);
 
     for (i = 0; i < 128; i++)
 	if (pop[i] != (unsigned short)BigShort(check[i]))
