@@ -719,7 +719,7 @@ COM_FileExtension
 ============
 */
 char *
-COM_FileExtension(char *in)
+COM_FileExtension(const char *in)
 {
     static char exten[8];
     int i;
