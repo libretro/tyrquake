@@ -1105,7 +1105,6 @@ typedef struct {
 
 typedef struct pack_s {
     char filename[MAX_OSPATH];
-    int handle;
     int numfiles;
     packfile_t *files;
 } pack_t;
@@ -1573,15 +1572,14 @@ COM_LoadPackFile(char *packfile)
     packfile_t *newfiles;
     int numpackfiles;
     pack_t *pack;
-    int packhandle;
+    FILE *packhandle;
     dpackfile_t info[MAX_FILES_IN_PACK];
     unsigned short crc;
 
-    if (Sys_FileOpenRead(packfile, &packhandle) == -1) {
-//              Con_Printf ("Couldn't open %s\n", packfile);
+    if (COM_FileOpenRead(packfile, &packhandle) == -1)
 	return NULL;
-    }
-    Sys_FileRead(packhandle, (void *)&header, sizeof(header));
+
+    fread(&header, 1, sizeof(header), packhandle);
     if (header.id[0] != 'P' || header.id[1] != 'A'
 	|| header.id[2] != 'C' || header.id[3] != 'K')
 	Sys_Error("%s is not a packfile", packfile);
@@ -1598,8 +1596,8 @@ COM_LoadPackFile(char *packfile)
 
     newfiles = Hunk_AllocName(numpackfiles * sizeof(packfile_t), "packfile");
 
-    Sys_FileSeek(packhandle, header.dirofs);
-    Sys_FileRead(packhandle, (void *)info, header.dirlen);
+    fseek(packhandle, header.dirofs, SEEK_SET);
+    fread(&info, 1, header.dirlen, packhandle);
 
 // crc the directory to check for modifications
     CRC_Init(&crc);
@@ -1617,7 +1615,6 @@ COM_LoadPackFile(char *packfile)
 
     pack = Hunk_Alloc(sizeof(pack_t));
     strcpy(pack->filename, packfile);
-    pack->handle = packhandle;
     pack->numfiles = numpackfiles;
     pack->files = newfiles;
 

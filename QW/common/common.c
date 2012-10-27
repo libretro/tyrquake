@@ -1184,7 +1184,6 @@ typedef struct {
 
 typedef struct pack_s {
     char filename[MAX_OSPATH];
-    FILE *handle;
     int numfiles;
     packfile_t *files;
 } pack_t;
@@ -1691,7 +1690,6 @@ COM_LoadPackFile(char *packfile)
 
     pack = Z_Malloc(sizeof(pack_t));
     strcpy(pack->filename, packfile);
-    pack->handle = packhandle;
     pack->numfiles = numpackfiles;
     pack->files = newfiles;
 
@@ -1779,7 +1777,6 @@ COM_Gamedir(const char *dir)
     //
     while (com_searchpaths != com_base_searchpaths) {
 	if (com_searchpaths->pack) {
-	    fclose(com_searchpaths->pack->handle);
 	    Z_Free(com_searchpaths->pack->files);
 	    Z_Free(com_searchpaths->pack);
 	}
