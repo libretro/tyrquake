@@ -362,14 +362,11 @@ Sys_SendKeyEvents(void)
 WinMain
 ==================
 */
-void
+static void
 SleepUntilInput(int time)
 {
-
     MsgWaitForMultipleObjects(1, &tevent, FALSE, time, QS_ALLINPUT);
 }
-
-
 
 /*
 ==================
