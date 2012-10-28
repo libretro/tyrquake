@@ -277,7 +277,7 @@ typedef struct {
 typedef struct {
     int numframes;
     int intervals;
-    maliasgroupframedesc_t frames[1];
+    maliasgroupframedesc_t frames[0];
 } maliasgroup_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!

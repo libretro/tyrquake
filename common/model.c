@@ -1312,8 +1312,7 @@ Mod_LoadAliasGroup(void *pin, int *pframeindex, int numv,
     numframes = LittleLong(pingroup->numframes);
 
     paliasgroup = Hunk_AllocName(sizeof(maliasgroup_t) +
-				 (numframes -
-				  1) * sizeof(paliasgroup->frames[0]),
+				 numframes * sizeof(paliasgroup->frames[0]),
 				 loadname);
 
     paliasgroup->numframes = numframes;
@@ -1409,9 +1408,7 @@ Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize)
 
     numskins = LittleLong(pinskingroup->numskins);
 
-    paliasskingroup = Hunk_AllocName(sizeof(maliasskingroup_t) +
-				     (numskins -
-				      1) *
+    paliasskingroup = Hunk_AllocName(sizeof(maliasskingroup_t) + numskins *
 				     sizeof(paliasskingroup->skindescs[0]),
 				     loadname);
 
@@ -1514,10 +1511,8 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	LittleLong(pinmodel->numtris) * sizeof(mtriangle_t);
 
     pheader = Hunk_AllocName(size, loadname);
-    pmodel = (mdl_t *)((byte *)&pheader[1] +
-		       (LittleLong(pinmodel->numframes) - 1) *
+    pmodel = (mdl_t *)((byte *)&pheader[1] + LittleLong(pinmodel->numframes) *
 		       sizeof(pheader->frames[0]));
-
     mod->flags = LittleLong(pinmodel->flags);
 
 //

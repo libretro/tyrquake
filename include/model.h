@@ -258,13 +258,13 @@ typedef struct {
 typedef struct {
     int numframes;
     int intervals;
-    maliasgroupframedesc_t frames[1];
+    maliasgroupframedesc_t frames[0];
 } maliasgroup_t;
 
 typedef struct {
     int numskins;
     int intervals;
-    maliasskindesc_t skindescs[1];
+    maliasskindesc_t skindescs[0];
 } maliasskingroup_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
@@ -278,7 +278,7 @@ typedef struct {
     int stverts;
     int skindesc;
     int triangles;
-    maliasframedesc_t frames[1];
+    maliasframedesc_t frames[0];
 } aliashdr_t;
 
 //===================================================================
