@@ -114,9 +114,6 @@ typedef struct {
 typedef struct msurface_s {
     int visframe;	// should be drawn when node is crossed
 
-    int dlightframe;
-    unsigned dlightbits;
-
     mplane_t *plane;
     int flags;
 
@@ -132,6 +129,9 @@ typedef struct msurface_s {
     mtexinfo_t *texinfo;
 
 // lighting info
+    int dlightframe;
+    unsigned dlightbits;
+
     byte styles[MAXLIGHTMAPS];
     byte *samples;		// [numstyles*surfsize]
 } msurface_t;
