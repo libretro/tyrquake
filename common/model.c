@@ -1270,20 +1270,14 @@ Mod_LoadAliasFrame(void *pin, int *pframeindex, int numv,
 
     pinframe = (trivertx_t *)(pdaliasframe + 1);
     pframe = Hunk_AllocName(numv * sizeof(*pframe), loadname);
-
     *pframeindex = (byte *)pframe - (byte *)pheader;
 
-    for (j = 0; j < numv; j++) {
-	int k;
-
+    for (i = 0; i < numv; i++) {
 	// these are all byte values, so no need to deal with endianness
-	pframe[j].lightnormalindex = pinframe[j].lightnormalindex;
-
-	for (k = 0; k < 3; k++) {
-	    pframe[j].v[k] = pinframe[j].v[k];
-	}
+	pframe[i].lightnormalindex = pinframe[i].lightnormalindex;
+	for (j = 0; j < 3; j++)
+	    pframe[i].v[j] = pinframe[i].v[j];
     }
-
     pinframe += numv;
 
     return (void *)pinframe;
