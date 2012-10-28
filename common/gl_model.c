@@ -1291,8 +1291,8 @@ static mtriangle_t triangles[MAXALIASTRIS];
 
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
-trivertx_t *poseverts[MAXALIASFRAMES];
-int posenum;
+static trivertx_t *poseverts[MAXALIASFRAMES];
+static int posenum;
 
 #ifdef QW_HACK
 byte player_8bit_texels[320 * 200];
@@ -1718,7 +1718,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     //
     // build the draw lists
     //
-    GL_MakeAliasModelDisplayLists(mod, pheader, triangles, stverts);
+    GL_MakeAliasModelDisplayLists(mod, pheader, triangles, stverts, poseverts);
 
 //
 // move the complete, relocatable alias model to the cache
