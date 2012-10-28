@@ -34,9 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // * pass data from one to the other via model files.      *
 // *********************************************************
 
-#define ALIAS_VERSION	6
-
-#define ALIAS_ONSEAM				0x0020
+#define ALIAS_VERSION 6
+#define ALIAS_ONSEAM 0x0020
 
 // must match definition in spritegn.h
 #ifndef SYNCTYPE_T
