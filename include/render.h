@@ -24,6 +24,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "mathlib.h"
 #include "vid.h"
 
+#ifdef NQ_HACK
+#include "quakedef.h"
+#endif
+#ifdef QW_HACK
+#include "protocol.h"
+#endif
+
 // render.h -- public interface to refresh functions
 
 #define	TOP_RANGE	16	// soldier uniform colors

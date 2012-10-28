@@ -26,26 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 
 #include "mathlib.h"
+#include "qtypes.h"
 
 // *********************************************************
 // * This file must be identical in the modelgen directory *
 // * and in the Quake directory, because it's used to      *
 // * pass data from one to the other via model files.      *
 // *********************************************************
-
-#ifdef INCLUDELIBS
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <string.h>
-
-#include "cmdlib.h"
-#include "scriplib.h"
-#include "trilib.h"
-#include "lbmlib.h"
-
-#endif
 
 #define ALIAS_VERSION	6
 
@@ -134,7 +121,7 @@ typedef struct {
     aliasskintype_t type;
 } daliasskintype_t;
 
+/* little-endian "IDPO" */
 #define IDPOLYHEADER	(('O'<<24)+('P'<<16)+('D'<<8)+'I')
-														// little-endian "IDPO"
 
 #endif /* MODELGEN_H */

@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // world.c -- world query functions
 
 #include "console.h"
+#include "host.h"
 #include "progs.h"
 #include "quakedef.h"
 #include "server.h"

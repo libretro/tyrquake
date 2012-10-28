@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "spritegn.h"
 #include "zone.h"
 
+#ifdef NQ_HACK
+#include "quakedef.h"
+#endif
 #ifdef QW_HACK
 #include "bothdefs.h"
 #endif
