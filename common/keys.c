@@ -748,14 +748,35 @@ Key_Init(void)
     consolekeys[K_RSHIFT] = true;
     consolekeys[K_MWHEELUP] = true;
     consolekeys[K_MWHEELDOWN] = true;
-    consolekeys['`'] = false;
-    consolekeys['~'] = false;
+    //consolekeys['`'] = false;
+    //consolekeys['~'] = false;
 
     for (i = 0; i < K_LAST; i++)
         keyshift[i] = i;
     for (i = 'a'; i <= 'z'; i++)
         keyshift[i] = i - 'a' + 'A';
+
+    keyshift[K_BACKQUOTE] = K_ASCIITILDE;
+    keyshift[K_1] = K_EXCLAIM;
+    keyshift[K_2] = K_AT;
+    keyshift[K_3] = K_HASH;
+    keyshift[K_4] = K_DOLLAR;
+    keyshift[K_5] = K_PERCENT;
+    keyshift[K_6] = K_CARET;
+    keyshift[K_7] = K_AMPERSAND;
+    keyshift[K_8] = K_ASTERISK;
+    keyshift[K_9] = K_LEFTPAREN;
+    keyshift[K_0] = K_RIGHTPAREN;
     keyshift[K_MINUS] = K_UNDERSCORE;
+    keyshift[K_EQUALS] = K_PLUS;
+    keyshift[K_BACKSLASH] = K_BAR;
+    keyshift[K_LEFTBRACKET] = K_BRACELEFT;
+    keyshift[K_RIGHTBRACKET] = K_BRACERIGHT;
+    keyshift[K_SEMICOLON] = K_COLON;
+    keyshift[K_QUOTE] = K_QUOTEDBL;
+    keyshift[K_COMMA] = K_LESS;
+    keyshift[K_PERIOD] = K_GREATER;
+    keyshift[K_SLASH] = K_QUESTION;
 
     menubound[K_ESCAPE] = true;
     for (i = K_F1; i <= K_F15; i++)
