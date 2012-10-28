@@ -34,19 +34,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern unsigned d_8to24table[];
 
 model_t *loadmodel;
-char loadname[MAX_QPATH];	/* for hunk tags */
+static char loadname[MAX_QPATH];	/* for hunk tags */
 static dheader_t *loadheader;
 
-void Mod_LoadSpriteModel(model_t *mod, void *buffer);
-void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
-void Mod_LoadAliasModel(model_t *mod, void *buffer);
-model_t *Mod_LoadModel(model_t *mod, qboolean crash);
+static void Mod_LoadSpriteModel(model_t *mod, void *buffer);
+static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
+static void Mod_LoadAliasModel(model_t *mod, void *buffer);
+static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
 
-byte mod_novis[MAX_MAP_LEAFS / 8];
+static byte mod_novis[MAX_MAP_LEAFS / 8];
 
 #define	MAX_MOD_KNOWN 512
-model_t mod_known[MAX_MOD_KNOWN];
-int mod_numknown;
+static model_t mod_known[MAX_MOD_KNOWN];
+static int mod_numknown;
 
 cvar_t gl_subdivide_size = { "gl_subdivide_size", "128", true };
 
@@ -64,7 +64,7 @@ Mod_Init(void)
 
 /*
 ===============
-Mod_Init
+Mod_Extradata
 
 Caches the data if needed
 ===============
@@ -121,7 +121,7 @@ Mod_PointInLeaf(vec3_t p, model_t *model)
 Mod_DecompressVis
 ===================
 */
-byte *
+static byte *
 Mod_DecompressVis(byte *in, model_t *model)
 {
     static byte decompressed[MAX_MAP_LEAFS / 8];
@@ -198,7 +198,7 @@ Mod_FindName
 
 ==================
 */
-model_t *
+static model_t *
 Mod_FindName(char *name)
 {
     int i;
@@ -252,7 +252,7 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-model_t *
+static model_t *
 Mod_LoadModel(model_t *mod, qboolean crash)
 {
     void *d;
@@ -341,7 +341,7 @@ Mod_ForName(char *name, qboolean crash)
 ===============================================================================
 */
 
-byte *mod_base;
+static byte *mod_base;
 
 
 /*
@@ -349,7 +349,7 @@ byte *mod_base;
 Mod_LoadTextures
 =================
 */
-void
+static void
 Mod_LoadTextures(lump_t *l)
 {
     int i, j, pixels, num, max, altmax;
@@ -494,7 +494,7 @@ Mod_LoadTextures(lump_t *l)
 Mod_LoadLighting
 =================
 */
-void
+static void
 Mod_LoadLighting(lump_t *l)
 {
     if (!l->filelen) {
@@ -511,7 +511,7 @@ Mod_LoadLighting(lump_t *l)
 Mod_LoadVisibility
 =================
 */
-void
+static void
 Mod_LoadVisibility(lump_t *l)
 {
     if (!l->filelen) {
@@ -528,7 +528,7 @@ Mod_LoadVisibility(lump_t *l)
 Mod_LoadEntities
 =================
 */
-void
+static void
 Mod_LoadEntities(lump_t *l)
 {
     if (!l->filelen) {
@@ -545,7 +545,7 @@ Mod_LoadEntities(lump_t *l)
 Mod_LoadVertexes
 =================
 */
-void
+static void
 Mod_LoadVertexes(lump_t *l)
 {
     dvertex_t *in;
@@ -573,7 +573,7 @@ Mod_LoadVertexes(lump_t *l)
 Mod_LoadSubmodels
 =================
 */
-void
+static void
 Mod_LoadSubmodels(lump_t *l)
 {
     dmodel_t *in;
@@ -608,7 +608,7 @@ Mod_LoadSubmodels(lump_t *l)
 Mod_LoadEdges
 =================
 */
-void
+static void
 Mod_LoadEdges(lump_t *l)
 {
     dedge_t *in;
@@ -635,7 +635,7 @@ Mod_LoadEdges(lump_t *l)
 Mod_LoadTexinfo
 =================
 */
-void
+static void
 Mod_LoadTexinfo(lump_t *l)
 {
     texinfo_t *in;
@@ -699,7 +699,7 @@ CalcSurfaceExtents
 Fills in s->texturemins[] and s->extents[]
 ================
 */
-void
+static void
 CalcSurfaceExtents(msurface_t *s)
 {
     float mins[2], maxs[2], val;
@@ -749,7 +749,7 @@ CalcSurfaceExtents(msurface_t *s)
 Mod_LoadFaces
 =================
 */
-void
+static void
 Mod_LoadFaces(lump_t *l)
 {
     dface_t *in;
@@ -812,7 +812,7 @@ Mod_LoadFaces(lump_t *l)
 Mod_SetParent
 =================
 */
-void
+static void
 Mod_SetParent(mnode_t *node, mnode_t *parent)
 {
     node->parent = parent;
@@ -827,7 +827,7 @@ Mod_SetParent(mnode_t *node, mnode_t *parent)
 Mod_LoadNodes
 =================
 */
-void
+static void
 Mod_LoadNodes(lump_t *l)
 {
     int i, j, count, p;
@@ -872,7 +872,7 @@ Mod_LoadNodes(lump_t *l)
 Mod_LoadLeafs
 =================
 */
-void
+static void
 Mod_LoadLeafs(lump_t *l)
 {
     dleaf_t *in;
@@ -946,7 +946,7 @@ Mod_LoadLeafs(lump_t *l)
 Mod_LoadClipnodes
 =================
 */
-void
+static void
 Mod_LoadClipnodes(lump_t *l)
 {
     dclipnode_t *in, *out;
@@ -1000,7 +1000,7 @@ Mod_MakeHull0
 Duplicate the drawing hull structure as a clipping hull
 =================
 */
-void
+static void
 Mod_MakeHull0(void)
 {
     mnode_t *in, *child;
@@ -1036,7 +1036,7 @@ Mod_MakeHull0(void)
 Mod_LoadMarksurfaces
 =================
 */
-void
+static void
 Mod_LoadMarksurfaces(lump_t *l)
 {
     int i, j, count;
@@ -1065,7 +1065,7 @@ Mod_LoadMarksurfaces(lump_t *l)
 Mod_LoadSurfedges
 =================
 */
-void
+static void
 Mod_LoadSurfedges(lump_t *l)
 {
     int i, count;
@@ -1090,7 +1090,7 @@ Mod_LoadSurfedges(lump_t *l)
 Mod_LoadPlanes
 =================
 */
-void
+static void
 Mod_LoadPlanes(lump_t *l)
 {
     int i, j;
@@ -1127,7 +1127,7 @@ Mod_LoadPlanes(lump_t *l)
 RadiusFromBounds
 =================
 */
-float
+static float
 RadiusFromBounds(vec3_t mins, vec3_t maxs)
 {
     int i;
@@ -1146,7 +1146,7 @@ RadiusFromBounds(vec3_t mins, vec3_t maxs)
 Mod_LoadBrushModel
 =================
 */
-void
+static void
 Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 {
     int i, j;
@@ -1303,7 +1303,7 @@ byte player_8bit_texels[320 * 200];
 Mod_LoadAliasFrame
 =================
 */
-void *
+static void *
 Mod_LoadAliasFrame(void *pin, maliasframedesc_t *frame)
 {
     trivertx_t *pinframe;
@@ -1339,7 +1339,7 @@ Mod_LoadAliasFrame(void *pin, maliasframedesc_t *frame)
 Mod_LoadAliasGroup
 =================
 */
-void *
+static void *
 Mod_LoadAliasGroup(void *pin, maliasframedesc_t *frame)
 {
     daliasgroup_t *pingroup;
@@ -1408,7 +1408,7 @@ typedef struct {
 	else if (pos[off] != 255) fdc = pos[off]; \
 }
 
-void
+static void
 Mod_FloodFillSkin(byte *skin, int skinwidth, int skinheight)
 {
     byte fillcolor = *skin;	// assume this is the pixel to fill
@@ -1460,7 +1460,7 @@ Mod_FloodFillSkin(byte *skin, int skinwidth, int skinheight)
 Mod_LoadAllSkins
 ===============
 */
-void *
+static void *
 Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 {
     int i, j, k;
@@ -1553,7 +1553,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 Mod_LoadAliasModel
 =================
 */
-void
+static void
 Mod_LoadAliasModel(model_t *mod, void *buffer)
 {
     int i, j;
@@ -1741,7 +1741,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 Mod_LoadSpriteFrame
 =================
 */
-void *
+static void *
 Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, int framenum)
 {
     dspriteframe_t *pinframe;
@@ -1785,7 +1785,7 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, int framenum)
 Mod_LoadSpriteGroup
 =================
 */
-void *
+static void *
 Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, int framenum)
 {
     dspritegroup_t *pingroup;
@@ -1835,7 +1835,7 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, int framenum)
 Mod_LoadSpriteModel
 =================
 */
-void
+static void
 Mod_LoadSpriteModel(model_t *mod, void *buffer)
 {
     int i;
