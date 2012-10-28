@@ -35,7 +35,6 @@ extern unsigned d_8to24table[];
 
 static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
-static dheader_t *loadheader;
 
 static void Mod_LoadSpriteModel(model_t *mod, void *buffer);
 static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
@@ -1150,9 +1149,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
     dmodel_t *bm;
 
     loadmodel->type = mod_brush;
-
     header = (dheader_t *)buffer;
-    loadheader = header; /* FIXME - cleanup... */
 
     /* swap all the header entries */
     header->version = LittleLong(header->version);
