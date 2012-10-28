@@ -34,9 +34,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static float speedscale;	// for top sky and bottom sky
 static float speedscale2;	// for sky alpha layer using multitexture
 
-msurface_t *warpface;
+static msurface_t *warpface;
 
-void
+static void
 BoundPoly(int numverts, float *verts, vec3_t mins, vec3_t maxs)
 {
     int i, j;
@@ -54,7 +54,7 @@ BoundPoly(int numverts, float *verts, vec3_t mins, vec3_t maxs)
 	}
 }
 
-void
+static void
 SubdividePolygon(int numverts, float *verts)
 {
     int i, j, k;
