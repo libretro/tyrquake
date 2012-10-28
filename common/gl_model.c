@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include <float.h>
+#include <stdint.h>
 
 #include "console.h"
 #include "crc.h"
@@ -368,10 +369,10 @@ Mod_LoadTextures(lump_t *l)
 	if (m->dataofs[i] == -1)
 	    continue;
 	mt = (miptex_t *)((byte *)m + m->dataofs[i]);
-	mt->width = LittleLong(mt->width);
-	mt->height = LittleLong(mt->height);
+	mt->width = (uint32_t)LittleLong(mt->width);
+	mt->height = (uint32_t)LittleLong(mt->height);
 	for (j = 0; j < MIPLEVELS; j++)
-	    mt->offsets[j] = LittleLong(mt->offsets[j]);
+	    mt->offsets[j] = (uint32_t)LittleLong(mt->offsets[j]);
 
 	if ((mt->width & 15) || (mt->height & 15))
 	    Sys_Error("Texture %s is not 16 aligned", mt->name);
@@ -617,8 +618,8 @@ Mod_LoadEdges(lump_t *l)
     loadmodel->numedges = count;
 
     for (i = 0; i < count; i++, in++, out++) {
-	out->v[0] = (unsigned short)LittleShort(in->v[0]);
-	out->v[1] = (unsigned short)LittleShort(in->v[1]);
+	out->v[0] = (uint16_t)LittleShort(in->v[0]);
+	out->v[1] = (uint16_t)LittleShort(in->v[1]);
     }
 }
 
@@ -844,8 +845,8 @@ Mod_LoadNodes(lump_t *l)
 	p = LittleLong(in->planenum);
 	out->plane = loadmodel->planes + p;
 
-	out->firstsurface = (unsigned short)LittleShort(in->firstface);
-	out->numsurfaces = (unsigned short)LittleShort(in->numfaces);
+	out->firstsurface = (uint16_t)LittleShort(in->firstface);
+	out->numsurfaces = (uint16_t)LittleShort(in->numfaces);
 
 	for (j = 0; j < 2; j++) {
 	    p = LittleShort(in->children[j]);
@@ -905,9 +906,9 @@ Mod_LoadLeafs(lump_t *l)
 	p = LittleLong(in->contents);
 	out->contents = p;
 	out->firstmarksurface = loadmodel->marksurfaces +
-	    (unsigned short)LittleShort(in->firstmarksurface);
+	    (uint16_t)LittleShort(in->firstmarksurface);
 	out->nummarksurfaces =
-	    (unsigned short)LittleShort(in->nummarksurfaces);
+	    (uint16_t)LittleShort(in->nummarksurfaces);
 
 	p = LittleLong(in->visofs);
 	if (p == -1)
@@ -1045,7 +1046,7 @@ Mod_LoadMarksurfaces(lump_t *l)
     loadmodel->nummarksurfaces = count;
 
     for (i = 0; i < count; i++) {
-	j = (unsigned short)LittleShort(in[i]);
+	j = (uint16_t)LittleShort(in[i]);
 	if (j >= loadmodel->numsurfaces)
 	    Sys_Error("%s: bad surface number", __func__);
 	out[i] = loadmodel->surfaces + j;
