@@ -197,7 +197,6 @@ SPRITE MODELS
 typedef struct mspriteframe_s {
     int width;
     int height;
-    void *pcachespot;		// remove?
     float up, down, left, right;
     byte pixels[4];
 } mspriteframe_t;
