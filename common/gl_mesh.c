@@ -61,7 +61,7 @@ StripLength
 ================
 */
 static int
-StripLength(aliashdr_t *hdr, int starttri, int startv)
+StripLength(aliashdr_t *hdr, int starttri, int startv, mtriangle_t *tris)
 {
     int m1, m2;
     int j;
@@ -70,7 +70,7 @@ StripLength(aliashdr_t *hdr, int starttri, int startv)
 
     used[starttri] = 2;
 
-    last = &triangles[starttri];
+    last = &tris[starttri];
 
     stripverts[0] = last->vertindex[(startv) % 3];
     stripverts[1] = last->vertindex[(startv + 1) % 3];
@@ -84,7 +84,7 @@ StripLength(aliashdr_t *hdr, int starttri, int startv)
 
     // look for a matching triangle
   nexttri:
-    for (j = starttri + 1, check = &triangles[starttri + 1];
+    for (j = starttri + 1, check = &tris[starttri + 1];
 	 j < hdr->numtris; j++, check++) {
 	if (check->facesfront != last->facesfront)
 	    continue;
@@ -130,7 +130,7 @@ FanLength
 ===========
 */
 static int
-FanLength(aliashdr_t *hdr, int starttri, int startv)
+FanLength(aliashdr_t *hdr, int starttri, int startv, mtriangle_t *tris)
 {
     int m1, m2;
     int j;
@@ -139,7 +139,7 @@ FanLength(aliashdr_t *hdr, int starttri, int startv)
 
     used[starttri] = 2;
 
-    last = &triangles[starttri];
+    last = &tris[starttri];
 
     stripverts[0] = last->vertindex[(startv) % 3];
     stripverts[1] = last->vertindex[(startv + 1) % 3];
@@ -154,7 +154,7 @@ FanLength(aliashdr_t *hdr, int starttri, int startv)
 
     // look for a matching triangle
   nexttri:
-    for (j = starttri + 1, check = &triangles[starttri + 1];
+    for (j = starttri + 1, check = &tris[starttri + 1];
 	 j < hdr->numtris; j++, check++) {
 	if (check->facesfront != last->facesfront)
 	    continue;
@@ -201,7 +201,7 @@ for the model, which holds for all frames
 ================
 */
 static void
-BuildTris(aliashdr_t *hdr)
+BuildTris(aliashdr_t *hdr, mtriangle_t *tris, stvert_t *stverts)
 {
     int i, j, k;
     int startv;
@@ -227,9 +227,9 @@ BuildTris(aliashdr_t *hdr)
 	for (type = 0; type < 2; type++) {
 	    for (startv = 0; startv < 3; startv++) {
 		if (type == 1)
-		    len = StripLength(hdr, i, startv);
+		    len = StripLength(hdr, i, startv, tris);
 		else
-		    len = FanLength(hdr, i, startv);
+		    len = FanLength(hdr, i, startv, tris);
 		if (len > bestlen) {
 		    besttype = type;
 		    bestlen = len;
@@ -258,7 +258,7 @@ BuildTris(aliashdr_t *hdr)
 	    // emit s/t coords into the commands stream
 	    s = stverts[k].s;
 	    t = stverts[k].t;
-	    if (!triangles[besttris[0]].facesfront && stverts[k].onseam)
+	    if (!tris[besttris[0]].facesfront && stverts[k].onseam)
 		s += hdr->skinwidth / 2;	// on back side
 	    s = (s + 0.5) / hdr->skinwidth;
 	    t = (t + 0.5) / hdr->skinheight;
@@ -284,7 +284,8 @@ GL_MakeAliasModelDisplayLists
 ================
 */
 void
-GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr)
+GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
+			      mtriangle_t *tris, stvert_t *stverts)
 {
     int i, j;
     int *cmds;
@@ -314,8 +315,7 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr)
 	// build it from scratch
 	//
 	Con_DPrintf("meshing %s...\n", m->name);
-
-	BuildTris(hdr);		// trifans or lists
+	BuildTris(hdr, tris, stverts);	/* trifans or lists */
 
 	//
 	// save out the cached version
