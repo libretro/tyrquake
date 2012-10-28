@@ -1241,6 +1241,8 @@ ALIAS MODELS
 ==============================================================================
 */
 
+static aliashdr_t *pheader;
+
 /*
 =================
 Mod_LoadAliasFrame
@@ -1249,7 +1251,7 @@ Mod_LoadAliasFrame
 static void *
 Mod_LoadAliasFrame(void *pin, int *pframeindex, int numv,
 		   trivertx_t *pbboxmin, trivertx_t *pbboxmax,
-		   aliashdr_t *pheader, char *name)
+		   char *name)
 {
     trivertx_t *pframe, *pinframe;
     int i, j;
@@ -1296,7 +1298,7 @@ Mod_LoadAliasGroup
 static void *
 Mod_LoadAliasGroup(void *pin, int *pframeindex, int numv,
 		   trivertx_t *pbboxmin, trivertx_t *pbboxmax,
-		   aliashdr_t *pheader, char *name)
+		   char *name)
 {
     daliasgroup_t *pingroup;
     maliasgroup_t *paliasgroup;
@@ -1347,7 +1349,7 @@ Mod_LoadAliasGroup(void *pin, int *pframeindex, int numv,
 				   numv,
 				   &paliasgroup->frames[i].bboxmin,
 				   &paliasgroup->frames[i].bboxmax,
-				   pheader, name);
+				   name);
     }
 
     return ptemp;
@@ -1360,8 +1362,7 @@ Mod_LoadAliasSkin
 =================
 */
 static void *
-Mod_LoadAliasSkin(void *pin, int *pskinindex, int skinsize,
-		  aliashdr_t *pheader)
+Mod_LoadAliasSkin(void *pin, int *pskinindex, int skinsize)
 {
     int i;
     byte *pskin, *pinskin;
@@ -1395,8 +1396,7 @@ Mod_LoadAliasSkinGroup
 =================
 */
 static void *
-Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize,
-		       aliashdr_t *pheader)
+Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize)
 {
     daliasskingroup_t *pinskingroup;
     maliasskingroup_t *paliasskingroup;
@@ -1437,7 +1437,7 @@ Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize,
     for (i = 0; i < numskins; i++) {
 	ptemp = Mod_LoadAliasSkin(ptemp,
 				  &paliasskingroup->skindescs[i].skin,
-				  skinsize, pheader);
+				  skinsize);
     }
 
     return ptemp;
@@ -1455,7 +1455,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     int i;
     mdl_t *pmodel, *pinmodel;
     stvert_t *pstverts, *pinstverts;
-    aliashdr_t *pheader;
     mtriangle_t *ptri;
     dtriangle_t *pintriangles;
     int version, numframes, numskins;
@@ -1588,11 +1587,11 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	if (skintype == ALIAS_SKIN_SINGLE) {
 	    pskintype = (daliasskintype_t *)
 		Mod_LoadAliasSkin(pskintype + 1,
-				  &pskindesc[i].skin, skinsize, pheader);
+				  &pskindesc[i].skin, skinsize);
 	} else {
 	    pskintype = (daliasskintype_t *)
 		Mod_LoadAliasSkinGroup(pskintype + 1,
-				       &pskindesc[i].skin, skinsize, pheader);
+				       &pskindesc[i].skin, skinsize);
 	}
     }
 
@@ -1650,7 +1649,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 				   pmodel->numverts,
 				   &pheader->frames[i].bboxmin,
 				   &pheader->frames[i].bboxmax,
-				   pheader, pheader->frames[i].name);
+				   pheader->frames[i].name);
 	} else {
 	    pframetype = (daliasframetype_t *)
 		Mod_LoadAliasGroup(pframetype + 1,
@@ -1658,7 +1657,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 				   pmodel->numverts,
 				   &pheader->frames[i].bboxmin,
 				   &pheader->frames[i].bboxmax,
-				   pheader, pheader->frames[i].name);
+				   pheader->frames[i].name);
 	}
     }
 
