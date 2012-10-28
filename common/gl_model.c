@@ -265,9 +265,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 //
 // because the world is so huge, load it one piece at a time
 //
-    if (!crash) {
 
-    }
 //
 // load the file
 //
