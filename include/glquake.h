@@ -209,6 +209,7 @@ extern cvar_t gl_reporttjunctions;
 extern cvar_t gl_flashblend;
 extern cvar_t gl_nocolors;
 extern cvar_t gl_finish;
+extern cvar_t gl_subdivide_size;
 
 extern cvar_t _gl_allowgammafallback;
 extern cvar_t _gl_drawhull;
