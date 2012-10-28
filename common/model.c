@@ -39,7 +39,7 @@ static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
 
 static void Mod_LoadSpriteModel(model_t *mod, void *buffer);
-static void Mod_LoadBrushModel(model_t *mod, void *buffer);
+static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
 static void Mod_LoadAliasModel(model_t *mod, void *buffer);
 static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
 
@@ -251,6 +251,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 {
     unsigned *buf;
     byte stackbuf[1024];	// avoid dirtying the cache heap
+    unsigned long size;
 
     if (!mod->needload) {
 	if (mod->type == mod_alias) {
@@ -268,7 +269,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 // load the file
 //
     buf = (unsigned *)COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf),
-					NULL);
+					&size);
     if (!buf) {
 	if (crash)
 	    Sys_Error("%s: %s not found", __func__, mod->name);
@@ -298,7 +299,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 	break;
 
     default:
-	Mod_LoadBrushModel(mod, buf);
+	Mod_LoadBrushModel(mod, buf, size);
 	break;
     }
 
@@ -1111,26 +1112,56 @@ Mod_LoadBrushModel
 =================
 */
 static void
-Mod_LoadBrushModel(model_t *mod, void *buffer)
+Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 {
     int i, j;
     dheader_t *header;
     dmodel_t *bm;
 
     loadmodel->type = mod_brush;
-
     header = (dheader_t *)buffer;
 
-    i = LittleLong(header->version);
-    if (i != BSPVERSION)
-	Sys_Error("%s: %s has wrong version number (%i should be %i)",
-		  __func__, mod->name, i, BSPVERSION);
+    /* swap all the header entries */
+    header->version = LittleLong(header->version);
+    for (i = 0; i < HEADER_LUMPS; i++) {
+	header->lumps[i].fileofs = LittleLong(header->lumps[i].fileofs);
+	header->lumps[i].filelen = LittleLong(header->lumps[i].filelen);
+    }
 
-// swap all the lumps
+    if (header->version != BSPVERSION)
+	Sys_Error("%s: %s has wrong version number (%i should be %i)",
+		  __func__, mod->name, header->version, BSPVERSION);
+
     mod_base = (byte *)header;
 
-    for (i = 0; i < sizeof(dheader_t) / 4; i++)
-	((int *)header)[i] = LittleLong(((int *)header)[i]);
+    /*
+     * Check the lump extents
+     * FIXME - do this more generally... cleanly...?
+     */
+    for (i = 0; i < HEADER_LUMPS; ++i) {
+	int b1 = header->lumps[i].fileofs;
+	int e1 = b1 + header->lumps[i].filelen;
+
+	/*
+	 * Sanity checks
+	 * - begin and end >= 0 (end might overflow).
+	 * - end > begin (again, overflow reqd.)
+	 * - end < size of file.
+	 */
+	if (b1 > e1 || e1 > size || b1 < 0 || e1 < 0)
+	    Sys_Error("%s: bad lump extents in %s", __func__,
+		      loadmodel->name);
+
+	/* Now, check that it doesn't overlap any other lumps */
+	for (j = 0; j < HEADER_LUMPS; ++j) {
+	    int b2 = header->lumps[j].fileofs;
+	    int e2 = b2 + header->lumps[j].filelen;
+
+	    if ((b1 < b2 && e1 > b2) || (b2 < b1 && e2 > b1))
+		Sys_Error("%s: overlapping lumps in %s", __func__,
+			  loadmodel->name);
+	}
+    }
 
 #ifdef QW_HACK
     mod->checksum = 0;
@@ -1153,8 +1184,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
     mod->checksum2 = LittleLong(mod->checksum2);
 #endif
 
-// load into heap
-
+    /* load into heap */
     Mod_LoadVertexes(&header->lumps[LUMP_VERTEXES]);
     Mod_LoadEdges(&header->lumps[LUMP_EDGES]);
     Mod_LoadSurfedges(&header->lumps[LUMP_SURFEDGES]);
