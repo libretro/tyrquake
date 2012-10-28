@@ -250,19 +250,18 @@ Loads a model into the cache
 static model_t *
 Mod_LoadModel(model_t *mod, qboolean crash)
 {
-    void *d;
     unsigned *buf;
     byte stackbuf[1024];	// avoid dirtying the cache heap
     unsigned long size;
 
     if (!mod->needload) {
 	if (mod->type == mod_alias) {
-	    d = Cache_Check(&mod->cache);
-	    if (d)
+	    if (Cache_Check(&mod->cache))
 		return mod;
 	} else
 	    return mod;		// not cached at all
     }
+
 //
 // because the world is so huge, load it one piece at a time
 //
