@@ -774,22 +774,15 @@ Mod_LoadFaces(lump_t *l)
 	else
 	    out->samples = loadmodel->lightdata + i;
 
-	// set the drawing flags flag
-
-	if (!strncmp(out->texinfo->texture->name, "sky", 3))	// sky
-	{
+	/* set the surface drawing flags */
+	if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
 	    out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
-	    continue;
-	}
-
-	if (!strncmp(out->texinfo->texture->name, "*", 1))	// turbulent
-	{
+	} else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
 	    out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
 	    for (i = 0; i < 2; i++) {
 		out->extents[i] = 16384;
 		out->texturemins[i] = -8192;
 	    }
-	    continue;
 	}
     }
 }
