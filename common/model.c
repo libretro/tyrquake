@@ -1190,11 +1190,11 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 
 	mod->firstmodelsurface = bm->firstface;
 	mod->nummodelsurfaces = bm->numfaces;
-	mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
 
 	VectorCopy(bm->maxs, mod->maxs);
 	VectorCopy(bm->mins, mod->mins);
 
+	mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
 	mod->numleafs = bm->visleafs;
 
 	/* duplicate the basic information */
