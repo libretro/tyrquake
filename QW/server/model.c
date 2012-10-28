@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "qwsvdef.h"
 
-model_t *loadmodel;
+static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
 
 static void Mod_LoadBrushModel(model_t *mod, void *buffer);

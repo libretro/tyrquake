@@ -33,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - header hacks
 extern unsigned d_8to24table[];
 
-model_t *loadmodel;
+static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
 static dheader_t *loadheader;
 
@@ -794,14 +794,14 @@ Mod_LoadFaces(lump_t *l)
 	/* set the surface drawing flags */
 	if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
 	    out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
-	    GL_SubdivideSurface(out);
+	    GL_SubdivideSurface(loadmodel, out);
 	} else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
 	    out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
 	    for (i = 0; i < 2; i++) {
 		out->extents[i] = 16384;
 		out->texturemins[i] = -8192;
 	    }
-	    GL_SubdivideSurface(out);
+	    GL_SubdivideSurface(loadmodel, out);
 	}
     }
 }

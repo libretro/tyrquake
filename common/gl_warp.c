@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 
 // FIXME - header hacks
-extern model_t *loadmodel;
 extern cvar_t gl_subdivide_size;
 
 static float speedscale;	// for top sky and bottom sky
@@ -145,7 +144,7 @@ can be done reasonably.
 ================
 */
 void
-GL_SubdivideSurface(msurface_t *fa)
+GL_SubdivideSurface(model_t *m, msurface_t *fa)
 {
     vec3_t verts[64];
     int numverts;
@@ -160,13 +159,11 @@ GL_SubdivideSurface(msurface_t *fa)
     //
     numverts = 0;
     for (i = 0; i < fa->numedges; i++) {
-	lindex = loadmodel->surfedges[fa->firstedge + i];
-
+	lindex = m->surfedges[fa->firstedge + i];
 	if (lindex > 0)
-	    vec = loadmodel->vertexes[loadmodel->edges[lindex].v[0]].position;
+	    vec = m->vertexes[m->edges[lindex].v[0]].position;
 	else
-	    vec =
-		loadmodel->vertexes[loadmodel->edges[-lindex].v[1]].position;
+	    vec = m->vertexes[m->edges[-lindex].v[1]].position;
 	VectorCopy(vec, verts[numverts]);
 	numverts++;
     }
