@@ -244,12 +244,6 @@ typedef struct {
 } maliasframedesc_t;
 
 typedef struct {
-    aliasskintype_t type;
-    void *pcachespot;
-    int skin;
-} maliasskindesc_t;
-
-typedef struct {
     trivertx_t bboxmin;
     trivertx_t bboxmax;
     int frame;
@@ -260,6 +254,12 @@ typedef struct {
     int intervals;
     maliasgroupframedesc_t frames[0];
 } maliasgroup_t;
+
+typedef struct {
+    aliasskintype_t type;
+    void *pcachespot;
+    int skin;
+} maliasskindesc_t;
 
 typedef struct {
     int numskins;
