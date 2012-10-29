@@ -345,8 +345,6 @@ Hunk_Check(void)
 }
 
 
-/* FIXME - unused; Make a console command? */
-#if 0
 /*
  * ==============
  * Hunk_Print
@@ -369,10 +367,10 @@ Hunk_Print(qboolean all)
     sum = 0;
     totalblocks = 0;
 
-    h = (hunk_t *) hunk_base;
-    endlow = (hunk_t *) (hunk_base + hunk_low_used);
-    starthigh = (hunk_t *) (hunk_base + hunk_size - hunk_high_used);
-    endhigh = (hunk_t *) (hunk_base + hunk_size);
+    h = (hunk_t *)hunk_base;
+    endlow = (hunk_t *)(hunk_base + hunk_low_used);
+    starthigh = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
+    endhigh = (hunk_t *)(hunk_base + hunk_size);
 
     Con_Printf("          :%8i total hunk size\n", hunk_size);
     Con_Printf("-------------------------\n");
@@ -398,11 +396,11 @@ Hunk_Print(qboolean all)
 	 * run consistancy checks
 	 */
 	if (h->sentinal != HUNK_SENTINAL)
-	    Sys_Error("%s: trahsed sentinal", __func__);
+	    Sys_Error("%s: trashed sentinal", __func__);
 	if (h->size < 16 || h->size + (byte *)h - hunk_base > hunk_size)
 	    Sys_Error("%s: bad size", __func__);
 
-	next = (hunk_t *) ((byte *)h + h->size);
+	next = (hunk_t *)((byte *)h + h->size);
 	count++;
 	totalblocks++;
 	sum += h->size;
@@ -424,16 +422,28 @@ Hunk_Print(qboolean all)
 	    count = 0;
 	    sum = 0;
 	}
-
 	h = next;
     }
-
     Con_Printf("-------------------------\n");
     Con_Printf("%8i total blocks\n", totalblocks);
-
 }
-#endif
 
+static void
+Hunk_f(void)
+{
+    if (Cmd_Argc() == 2) {
+	if (!strcmp(Cmd_Argv(1), "print")) {
+	    Hunk_Print(false);
+	    return;
+	}
+	if (!strcmp(Cmd_Argv(1), "printall")) {
+	    Hunk_Print(true);
+	    return;
+	}
+    }
+    Con_Printf("Cmd_Argc() == %d\n", Cmd_Argc());
+    Con_Printf("Usage: hunk print|printall\n");
+}
 
 /*
  * ===================
@@ -1027,4 +1037,5 @@ Memory_Init(void *buf, int size)
 
     /* Needs to be added after the zone init... */
     Cmd_AddCommand("flush", Cache_Flush);
+    Cmd_AddCommand("hunk", Hunk_f);
 }
