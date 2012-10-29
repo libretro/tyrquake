@@ -51,6 +51,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.h"
 #include "sys.h"
 
+#ifdef NQ_HACK
+#include "host.h"
+#endif
+
 static float old_mouse_x, old_mouse_y;
 static int ignorenext;
 
