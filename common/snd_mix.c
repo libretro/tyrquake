@@ -248,7 +248,7 @@ SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
 {
     int data;
     int *lscale, *rscale;
-    signed char *sfx;
+    unsigned char *sfx;
     int i;
 
     if (ch->leftvol > 255)
