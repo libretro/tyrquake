@@ -1294,34 +1294,24 @@ byte player_8bit_texels[320 * 200];
 Mod_LoadAliasFrame
 =================
 */
-static void *
-Mod_LoadAliasFrame(void *pin, maliasframedesc_t *frame)
+static void
+Mod_LoadAliasFrame(daliasframe_t *in, maliasframedesc_t *frame)
 {
-    trivertx_t *pinframe;
     int i;
-    daliasframe_t *pdaliasframe;
 
-    pdaliasframe = (daliasframe_t *)pin;
-
-    strcpy(frame->name, pdaliasframe->name);
+    strcpy(frame->name, in->name);
     frame->firstpose = posenum;
     frame->numposes = 1;
 
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about
 	// endianness
-	frame->bboxmin.v[i] = pdaliasframe->bboxmin.v[i];
-	frame->bboxmax.v[i] = pdaliasframe->bboxmax.v[i];
+	frame->bboxmin.v[i] = in->bboxmin.v[i];
+	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
 
-    pinframe = (trivertx_t *)(pdaliasframe + 1);
-
-    poseverts[posenum] = pinframe;
+    poseverts[posenum] = in->verts;
     posenum++;
-
-    pinframe += pheader->numverts;
-
-    return (void *)pinframe;
 }
 
 
@@ -1554,6 +1544,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     int version, numframes;
     int size;
     daliasframetype_t *pframetype;
+    daliasframe_t *frame;
     daliasskintype_t *pskintype;
     int start, end, total;
 
@@ -1690,8 +1681,9 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	frametype = LittleLong(pframetype->type);
 
 	if (frametype == ALIAS_SINGLE) {
-	    pframetype = (daliasframetype_t *)
-		Mod_LoadAliasFrame(pframetype + 1, &pheader->frames[i]);
+	    frame = (daliasframe_t *)(pframetype + 1);
+	    Mod_LoadAliasFrame(frame, &pheader->frames[i]);
+	    pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];
 	} else {
 	    pframetype = (daliasframetype_t *)
 		Mod_LoadAliasGroup(pframetype + 1, &pheader->frames[i]);

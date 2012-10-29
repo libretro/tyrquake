@@ -92,6 +92,7 @@ typedef struct {
     trivertx_t bboxmin;		// lightnormal isn't used
     trivertx_t bboxmax;		// lightnormal isn't used
     char name[16];		// frame name from grabbing
+    trivertx_t verts[0];	// frame verticies (mdl_t->numverts)
 } daliasframe_t;
 
 typedef struct {
