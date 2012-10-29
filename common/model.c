@@ -1291,6 +1291,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv)
     int i, numframes;
     float *poutintervals;
     daliasframe_t *dframe;
+    trivertx_t dummy;
 
     numframes = LittleLong(in->numframes);
     paliasgroup = Hunk_AllocName(sizeof(maliasgroup_t) +
@@ -1319,8 +1320,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv)
     dframe = (daliasframe_t *)&in->intervals[numframes];
     for (i = 0; i < numframes; i++) {
 	Mod_LoadAliasFrame(dframe, &paliasgroup->frames[i].frame, numv,
-			   &paliasgroup->frames[i].bboxmin,
-			   &paliasgroup->frames[i].bboxmax, frame->name);
+			   &dummy, &dummy, frame->name);
 	dframe = (daliasframe_t *)&dframe->verts[numv];
     }
 
