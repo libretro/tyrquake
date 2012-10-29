@@ -1285,14 +1285,12 @@ returns a pointer to the memory location following this frame group
 =================
 */
 static daliasframetype_t *
-Mod_LoadAliasGroup(const daliasgroup_t *in, int *pframeindex, int numv,
-		   trivertx_t *pbboxmin, trivertx_t *pbboxmax,
-		   char *name)
+Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv)
 {
     maliasgroup_t *paliasgroup;
     int i, numframes;
     float *poutintervals;
-    daliasframe_t *frame;
+    daliasframe_t *dframe;
 
     numframes = LittleLong(in->numframes);
     paliasgroup = Hunk_AllocName(sizeof(maliasgroup_t) +
@@ -1302,11 +1300,11 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, int *pframeindex, int numv,
 
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about endianness
-	pbboxmin->v[i] = in->bboxmin.v[i];
-	pbboxmax->v[i] = in->bboxmax.v[i];
+	frame->bboxmin.v[i] = in->bboxmin.v[i];
+	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
 
-    *pframeindex = (byte *)paliasgroup - (byte *)pheader;
+    frame->frame = (byte *)paliasgroup - (byte *)pheader;
     poutintervals = Hunk_AllocName(numframes * sizeof(float), loadname);
     paliasgroup->intervals = (byte *)poutintervals - (byte *)pheader;
 
@@ -1318,15 +1316,15 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, int *pframeindex, int numv,
 	poutintervals++;
     }
 
-    frame = (daliasframe_t *)&in->intervals[numframes];
+    dframe = (daliasframe_t *)&in->intervals[numframes];
     for (i = 0; i < numframes; i++) {
-	Mod_LoadAliasFrame(frame, &paliasgroup->frames[i].frame, numv,
+	Mod_LoadAliasFrame(dframe, &paliasgroup->frames[i].frame, numv,
 			   &paliasgroup->frames[i].bboxmin,
-			   &paliasgroup->frames[i].bboxmax, name);
-	frame = (daliasframe_t *)&frame->verts[numv];
+			   &paliasgroup->frames[i].bboxmax, frame->name);
+	dframe = (daliasframe_t *)&dframe->verts[numv];
     }
 
-    return (daliasframetype_t *)frame;
+    return (daliasframetype_t *)dframe;
 }
 
 
@@ -1623,11 +1621,8 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	    pframetype = (daliasframetype_t *)&frame->verts[pmodel->numverts];
 	} else {
 	    group = (daliasgroup_t *)(pframetype + 1);
-	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i].frame,
-					    pmodel->numverts,
-					    &pheader->frames[i].bboxmin,
-					    &pheader->frames[i].bboxmax,
-					    pheader->frames[i].name);
+	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i],
+					    pmodel->numverts);
 	}
     }
 
