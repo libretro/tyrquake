@@ -1280,54 +1280,45 @@ Mod_LoadAliasFrame(const daliasframe_t *in, int *pframeindex, int numv,
 /*
 =================
 Mod_LoadAliasGroup
+
+returns a pointer to the memory location following this frame group
 =================
 */
-static void *
-Mod_LoadAliasGroup(void *pin, int *pframeindex, int numv,
+static daliasframetype_t *
+Mod_LoadAliasGroup(const daliasgroup_t *in, int *pframeindex, int numv,
 		   trivertx_t *pbboxmin, trivertx_t *pbboxmax,
 		   char *name)
 {
-    daliasgroup_t *pingroup;
     maliasgroup_t *paliasgroup;
     int i, numframes;
-    daliasinterval_t *pin_intervals;
     float *poutintervals;
     daliasframe_t *frame;
 
-    pingroup = (daliasgroup_t *)pin;
-
-    numframes = LittleLong(pingroup->numframes);
-
+    numframes = LittleLong(in->numframes);
     paliasgroup = Hunk_AllocName(sizeof(maliasgroup_t) +
 				 numframes * sizeof(paliasgroup->frames[0]),
 				 loadname);
-
     paliasgroup->numframes = numframes;
 
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about endianness
-	pbboxmin->v[i] = pingroup->bboxmin.v[i];
-	pbboxmax->v[i] = pingroup->bboxmax.v[i];
+	pbboxmin->v[i] = in->bboxmin.v[i];
+	pbboxmax->v[i] = in->bboxmax.v[i];
     }
 
     *pframeindex = (byte *)paliasgroup - (byte *)pheader;
-
-    pin_intervals = (daliasinterval_t *)(pingroup + 1);
-
     poutintervals = Hunk_AllocName(numframes * sizeof(float), loadname);
-
     paliasgroup->intervals = (byte *)poutintervals - (byte *)pheader;
 
     for (i = 0; i < numframes; i++) {
-	*poutintervals = LittleFloat(pin_intervals->interval);
+	*poutintervals = LittleFloat(in->intervals[i].interval);
 	if (*poutintervals <= 0.0)
 	    Sys_Error("%s: interval <= 0", __func__);
 
 	poutintervals++;
-	pin_intervals++;
     }
 
-    frame = (daliasframe_t *)pin_intervals;
+    frame = (daliasframe_t *)&in->intervals[numframes];
     for (i = 0; i < numframes; i++) {
 	Mod_LoadAliasFrame(frame, &paliasgroup->frames[i].frame, numv,
 			   &paliasgroup->frames[i].bboxmin,
@@ -1335,7 +1326,7 @@ Mod_LoadAliasGroup(void *pin, int *pframeindex, int numv,
 	frame = (daliasframe_t *)&frame->verts[numv];
     }
 
-    return frame;
+    return (daliasframetype_t *)frame;
 }
 
 
@@ -1442,6 +1433,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     int size;
     daliasframetype_t *pframetype;
     daliasframe_t *frame;
+    daliasgroup_t *group;
     daliasskintype_t *pskintype;
     maliasskindesc_t *pskindesc;
     int skinsize;
@@ -1630,13 +1622,12 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 			       pheader->frames[i].name);
 	    pframetype = (daliasframetype_t *)&frame->verts[pmodel->numverts];
 	} else {
-	    pframetype = (daliasframetype_t *)
-		Mod_LoadAliasGroup(pframetype + 1,
-				   &pheader->frames[i].frame,
-				   pmodel->numverts,
-				   &pheader->frames[i].bboxmin,
-				   &pheader->frames[i].bboxmax,
-				   pheader->frames[i].name);
+	    group = (daliasgroup_t *)(pframetype + 1);
+	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i].frame,
+					    pmodel->numverts,
+					    &pheader->frames[i].bboxmin,
+					    &pheader->frames[i].bboxmax,
+					    pheader->frames[i].name);
 	}
     }
 

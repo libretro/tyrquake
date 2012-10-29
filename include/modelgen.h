@@ -96,18 +96,19 @@ typedef struct {
 } daliasframe_t;
 
 typedef struct {
+    float interval;
+} daliasinterval_t;
+
+typedef struct {
     int numframes;
     trivertx_t bboxmin;		// lightnormal isn't used
     trivertx_t bboxmax;		// lightnormal isn't used
+    daliasinterval_t intervals[0];	// daliasgroup_t->numframes
 } daliasgroup_t;
 
 typedef struct {
     int numskins;
 } daliasskingroup_t;
-
-typedef struct {
-    float interval;
-} daliasinterval_t;
 
 typedef struct {
     float interval;

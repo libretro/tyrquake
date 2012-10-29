@@ -1318,46 +1318,40 @@ Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
 /*
 =================
 Mod_LoadAliasGroup
+
+returns a pointer to the memory location following this frame group
 =================
 */
-static void *
-Mod_LoadAliasGroup(void *pin, maliasframedesc_t *frame)
+static daliasframetype_t *
+Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
 {
-    daliasgroup_t *pingroup;
     int i, numframes;
-    daliasinterval_t *pin_intervals;
-    void *ptemp;
+    daliasframe_t *dframe;
 
-    pingroup = (daliasgroup_t *)pin;
-
-    numframes = LittleLong(pingroup->numframes);
-
+    numframes = LittleLong(in->numframes);
     frame->firstpose = posenum;
     frame->numposes = numframes;
 
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about endianness
-	frame->bboxmin.v[i] = pingroup->bboxmin.v[i];
-	frame->bboxmin.v[i] = pingroup->bboxmax.v[i];
+	frame->bboxmin.v[i] = in->bboxmin.v[i];
+	frame->bboxmin.v[i] = in->bboxmax.v[i];
     }
 
-    pin_intervals = (daliasinterval_t *)(pingroup + 1);
-
-    frame->interval = LittleFloat(pin_intervals->interval);
-
-    pin_intervals += numframes;
-
-    ptemp = (void *)pin_intervals;
-
+    /*
+     * FIXME: the on-disk format allows for one interval per frame, but here
+     *        the entire frame group gets just one interval. Probably all the
+     *        original quake art assets just use a constant interval.
+     */
+    frame->interval = LittleFloat(in->intervals[0].interval);
+    dframe = (daliasframe_t *)&in->intervals[numframes];
     for (i = 0; i < numframes; i++) {
-	poseverts[posenum] = (trivertx_t *)((daliasframe_t *)ptemp + 1);
+	poseverts[posenum] = dframe->verts;
 	posenum++;
-
-	ptemp =
-	    (trivertx_t *)((daliasframe_t *)ptemp + 1) + pheader->numverts;
+	dframe = (daliasframe_t *)&dframe->verts[pheader->numverts];
     }
 
-    return ptemp;
+    return (daliasframetype_t *)dframe;
 }
 
 //=========================================================
@@ -1545,6 +1539,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     int size;
     daliasframetype_t *pframetype;
     daliasframe_t *frame;
+    daliasgroup_t *group;
     daliasskintype_t *pskintype;
     int start, end, total;
 
@@ -1685,8 +1680,8 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	    Mod_LoadAliasFrame(frame, &pheader->frames[i]);
 	    pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];
 	} else {
-	    pframetype = (daliasframetype_t *)
-		Mod_LoadAliasGroup(pframetype + 1, &pheader->frames[i]);
+	    group = (daliasgroup_t *)(pframetype + 1);
+	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i]);
 	}
     }
 
