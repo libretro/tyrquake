@@ -1276,6 +1276,27 @@ Mod_LoadAliasFrame(const daliasframe_t *in, int *pframeindex, int numv,
     }
 }
 
+/*
+=================
+Mod_LoadAliasGroupFrame
+=================
+*/
+static void
+Mod_LoadAliasGroupFrame(const daliasframe_t *in, int *pframeindex, int numv)
+{
+    trivertx_t *pframe;
+    int i, j;
+
+    pframe = Hunk_AllocName(numv * sizeof(*pframe), loadname);
+    *pframeindex = (byte *)pframe - (byte *)pheader;
+
+    for (i = 0; i < numv; i++) {
+	// these are all byte values, so no need to deal with endianness
+	pframe[i].lightnormalindex = in->verts[i].lightnormalindex;
+	for (j = 0; j < 3; j++)
+	    pframe[i].v[j] = in->verts[i].v[j];
+    }
+}
 
 /*
 =================
@@ -1291,7 +1312,6 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv)
     int i, numframes;
     float *poutintervals;
     daliasframe_t *dframe;
-    trivertx_t dummy;
 
     numframes = LittleLong(in->numframes);
     paliasgroup = Hunk_AllocName(sizeof(maliasgroup_t) +
@@ -1318,9 +1338,9 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv)
     }
 
     dframe = (daliasframe_t *)&in->intervals[numframes];
+    strcpy(frame->name, dframe->name);
     for (i = 0; i < numframes; i++) {
-	Mod_LoadAliasFrame(dframe, &paliasgroup->frames[i].frame, numv,
-			   &dummy, &dummy, frame->name);
+	Mod_LoadAliasGroupFrame(dframe, &paliasgroup->frames[i].frame, numv);
 	dframe = (daliasframe_t *)&dframe->verts[numv];
     }
 
