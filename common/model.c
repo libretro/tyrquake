@@ -1249,7 +1249,7 @@ Mod_LoadAliasFrame
 =================
 */
 static void
-Mod_LoadAliasFrame(daliasframe_t *in, int *pframeindex, int numv,
+Mod_LoadAliasFrame(const daliasframe_t *in, int *pframeindex, int numv,
 		   trivertx_t *pbboxmin, trivertx_t *pbboxmax,
 		   char *name)
 {

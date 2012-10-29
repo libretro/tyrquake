@@ -286,7 +286,7 @@ GL_MakeAliasModelDisplayLists
 void
 GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
 			      mtriangle_t *tris, stvert_t *stverts,
-			      trivertx_t **poseverts)
+			      const trivertx_t **poseverts)
 {
     int i, j;
     int *cmds;

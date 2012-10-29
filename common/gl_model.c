@@ -1282,7 +1282,7 @@ static mtriangle_t triangles[MAXALIASTRIS];
 
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
-static trivertx_t *poseverts[MAXALIASFRAMES];
+static const trivertx_t *poseverts[MAXALIASFRAMES];
 static int posenum;
 
 #ifdef QW_HACK
@@ -1295,7 +1295,7 @@ Mod_LoadAliasFrame
 =================
 */
 static void
-Mod_LoadAliasFrame(daliasframe_t *in, maliasframedesc_t *frame)
+Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
 {
     int i;
 

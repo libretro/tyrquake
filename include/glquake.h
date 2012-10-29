@@ -293,7 +293,7 @@ void R_StoreEfrags(efrag_t **ppefrag);
 //
 void GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
 				   mtriangle_t *tris, stvert_t *stverts,
-				   trivertx_t **poseverts);
+				   const trivertx_t **poseverts);
 
 //
 // gl_rmisc.c
