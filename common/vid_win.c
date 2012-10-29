@@ -82,7 +82,7 @@ static int window_width, window_height;
 RECT window_rect;
 
 static DEVMODE gdevmode;
-static qboolean startwindowed = false, windowed_mode_set = false;
+static qboolean startwindowed = true, windowed_mode_set = false;
 static int firstupdate = 1;
 static qboolean vid_initialized = false, vid_palettized;
 static int lockcount;
@@ -2048,11 +2048,6 @@ VID_Init(unsigned char *palette)
     for (i = 0, ptmp = vid.colormap; i < (1 << (VID_CBITS + 8)); i++, ptmp++) {
 	if (*ptmp == 0)
 	    *ptmp = bestmatch;
-    }
-
-    if (COM_CheckParm("-startwindowed")) {
-	startwindowed = 1;
-	vid_default = windowed_default;
     }
 
     if (hwnd_dialog)
