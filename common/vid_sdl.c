@@ -937,6 +937,13 @@ VID_Update(vrect_t *rects)
     int i, n;
     vrect_t *rect;
 
+    /*
+     * Check for vid_mode changes
+     * FIXME - not sure this is the best place to do this
+     */
+    if ((int)vid_mode.value != vid_modenum)
+	VID_SetMode((int)vid_mode.value, host_basepal);
+
     // Two-pass system, since Quake doesn't do it the SDL way...
 
     // First, count the number of rectangles
