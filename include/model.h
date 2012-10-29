@@ -244,13 +244,9 @@ typedef struct {
 } maliasframedesc_t;
 
 typedef struct {
-    int frame;
-} maliasgroupframedesc_t;
-
-typedef struct {
     int numframes;
     int intervals;
-    maliasgroupframedesc_t frames[0];
+    int frames[0];
 } maliasgroup_t;
 
 typedef struct {

@@ -689,8 +689,7 @@ R_AliasSetupFrame(entity_t *e)
 	    break;
     }
 
-    r_apverts = (trivertx_t *)
-	((byte *)paliashdr + paliasgroup->frames[i].frame);
+    r_apverts = (trivertx_t *)((byte *)paliashdr + paliasgroup->frames[i]);
 }
 
 

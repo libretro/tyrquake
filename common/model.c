@@ -1340,7 +1340,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv)
     dframe = (daliasframe_t *)&in->intervals[numframes];
     strcpy(frame->name, dframe->name);
     for (i = 0; i < numframes; i++) {
-	Mod_LoadAliasGroupFrame(dframe, &paliasgroup->frames[i].frame, numv);
+	Mod_LoadAliasGroupFrame(dframe, &paliasgroup->frames[i], numv);
 	dframe = (daliasframe_t *)&dframe->verts[numv];
     }
 
