@@ -1,8 +1,8 @@
 #
 # TyrQuake Makefile (tested under Linux and MinGW/Msys)
 #
-# By default, all executables will be built. If you want to just build one,
-# just type e.g. "make tyr-quake".
+# By default, all executables will be built and placed in the ./bin
+# subdirectory. If you want to build just one, type e.g. "make bin/tyr-quake".
 # 
 
 TYR_VERSION_MAJOR = 0
