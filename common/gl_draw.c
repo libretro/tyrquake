@@ -845,8 +845,10 @@ refresh window.
 void
 Draw_TileClear(int x, int y, int w, int h)
 {
+    const glpic_t *gl = (glpic_t *)draw_backtile->data;
+
     glColor3f(1, 1, 1);
-    GL_Bind(*(int *)draw_backtile->data);
+    GL_Bind(gl->texnum);
     glBegin(GL_QUADS);
     glTexCoord2f(x / 64.0, y / 64.0);
     glVertex2f(x, y);
