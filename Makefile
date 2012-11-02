@@ -6,7 +6,7 @@
 # 
 
 TYR_VERSION_MAJOR = 0
-TYR_VERSION_MINOR = 61
+TYR_VERSION_MINOR = 62
 TYR_VERSION_BUILD =
 
 TYR_VERSION = $(TYR_VERSION_MAJOR).$(TYR_VERSION_MINOR)$(TYR_VERSION_BUILD)
@@ -24,12 +24,17 @@ USE_SDL          ?= N# New (experimental) SDL video implementation for Win32
 X11BASE          ?= $(X11BASE_GUESS)
 QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 TARGET_OS        ?= $(HOST_OS)
+TARGET_UNIX      ?= $(if $(filter UNIX,$(TARGET_OS)),$(HOST_UNIX),)
 
 # ============================================================================
 
 .PHONY:	default clean
 
 # ============================================================================
+
+# ---------------------------------------
+# Attempt detection of the build host OS
+# ---------------------------------------
 
 SYSNAME := $(shell uname -s)
 TOPDIR := $(shell pwd)
@@ -39,15 +44,15 @@ HOST_OS = WIN32
 else
 ifneq (,$(findstring $(SYSNAME),FreeBSD NetBSD OpenBSD))
 HOST_OS = UNIX
-UNIX = bsd
+HOST_UNIX = bsd
 else
 ifneq (,$(findstring $(SYSNAME),Darwin))
 HOST_OS = UNIX
-UNIX = darwin
+HOST_UNIX = darwin
 else
 ifneq (,$(findstring $(SYSNAME),Linux))
 HOST_OS = UNIX
-UNIX = linux
+HOST_UNIX = linux
 else
 $(error OS type not detected.)
 endif
@@ -55,26 +60,47 @@ endif
 endif
 endif
 
-# Set some driver defaults based on OS
-ifneq (,$(findstring darwin,$(UNIX)))
+# --------------------------------------------------------------------
+# Setup driver options, choosing sensible defaults based on target OS
+# --------------------------------------------------------------------
+
+ifeq ($(TARGET_OS),UNIX)
+EXT =
+VID_TARGET ?= x11
+IN_TARGET ?= x11
+ifeq ($(TARGET_UNIX),darwin)
 CD_TARGET ?= null
 SND_TARGET ?= null
 USE_XF86DGA ?= N
 endif
-ifneq (,$(findstring bsd,$(UNIX)))
+ifeq ($(TARGET_UNIX),bsd)
 CD_TARGET ?= bsd
 SND_TARGET ?= linux
 USE_XF86DGA ?= Y
 endif
-ifneq (,$(findstring linux,$(UNIX)))
+ifeq ($(TARGET_UNIX),linux)
 CD_TARGET ?= linux
 SND_TARGET ?= linux
 USE_XF86DGA ?= Y
 endif
+endif
+
 ifeq ($(TARGET_OS),WIN32)
+EXT = .exe
 CD_TARGET ?= win
 SND_TARGET ?= win
+ifeq ($(USE_SDL),Y)
+VID_TARGET ?= sdl
+IN_TARGET ?= sdl
+else
+VID_TARGET ?= win
+IN_TARGET ?= win
 endif
+endif
+
+# --------------------------------------------------------------
+# Executable file extension and possible cross-compiler options
+# --------------------------------------------------------------
 
 ifeq ($(TARGET_OS),WIN32)
 EXT = .exe
@@ -88,22 +114,16 @@ else
 EXT =
 endif
 
-# Adjust object files and libs for SDL choice
-ifeq ($(USE_SDL),Y)
-VID_WIN = vid_sdl
-VID_WIN_LIBS_NQ = sdl
-VID_WIN_LIBS_QW = sdl
-IN_WIN = in_sdl
-else
-VID_WIN = vid_win
-VID_WIN_LIBS_NQ = mgllt gdi32 ddraw
-VID_WIN_LIBS_QW = mgllt gdi32
-IN_WIN = in_win
-endif
-
 # ============================================================================
 # Helper functions
 # ============================================================================
+
+# ---------------------------------------------------
+# Remove duplicates from a list, preserving ordering
+# ---------------------------------------------------
+# (I wonder if Make optimises the tail recursion here?)
+
+filter-dups = $(if $(1),$(firstword $(1)) $(call filter-dups,$(filter-out $(firstword $(1)),$(1))),)
 
 # ----------------------------------------------
 # Try to guess the location of X11 includes/libs
@@ -153,40 +173,15 @@ cc-option = $(shell if $(CC) $(CFLAGS) -Werror $(1) -S -o /dev/null -xc /dev/nul
 
 cc-i386 = $(if $(subst __i386,,$(shell echo __i386 | $(CC) -E -xc - | tail -n 1)),Y,N)
 
-GCC_VERSION := $(call cc-version)
+GCC_VERSION := $(call cc-version,)
 I386_GUESS  := $(call cc-i386)
 
-# ---------------------
-# Special include dirs
-# ---------------------
+# -------------------------
+# Special include/lib dirs
+# -------------------------
 DX_INC    = $(TOPDIR)/dxsdk/sdk/inc
 ST_INC    = $(TOPDIR)/scitech/include
-
-# --------------
-# Library stuff
-# --------------
-NQ_ST_LIBDIR = scitech/lib/win32/vc
-QW_ST_LIBDIR = scitech/lib/win32/vc
-
-NQ_W32_COMMON_LIBS = wsock32 winmm dxguid
-NQ_W32_SW_LIBS = $(VID_WIN_LIBS_NQ)
-NQ_W32_GL_LIBS = opengl32 comctl32 gdi32
-
-NQ_UNIX_COMMON_LIBS := m X11 Xext Xxf86vm
-ifeq ($(USE_XF86DGA),Y)
-NQ_UNIX_COMMON_LIBS += Xxf86dga
-endif
-NQ_UNIX_GL_LIBS = GL
-
-NQ_W32_SW_LFLAGS  := $(patsubst %,-l%,$(NQ_W32_SW_LIBS) $(NQ_W32_COMMON_LIBS))
-NQ_W32_GL_LFLAGS  := $(patsubst %,-l%,$(NQ_W32_GL_LIBS) $(NQ_W32_COMMON_LIBS))
-NQ_UNIX_SW_LFLAGS := $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS))
-NQ_UNIX_GL_LFLAGS := $(patsubst %,-l%,$(NQ_UNIX_COMMON_LIBS) $(NQ_UNIX_GL_LIBS))
-
-ifneq ($(X11BASE),)
-NQ_UNIX_SW_LFLAGS += -L$(X11BASE)/lib
-NQ_UNIX_GL_LFLAGS += -L$(X11BASE)/lib
-endif
+ST_LIBDIR = scitech/lib/win32/vc
 
 # ---------------------------------------
 # Define some build variables
@@ -195,19 +190,18 @@ endif
 STRIP   ?= strip
 WINDRES ?= windres
 
+CFLAGS ?=
 CFLAGS := $(CFLAGS) -Wall -Wno-trigraphs
 
 ifeq ($(DEBUG),Y)
 CFLAGS += -g
-WINMODE = console
 else
-WINMODE = windows
 ifeq ($(OPTIMIZED_CFLAGS),Y)
 CFLAGS += -O2
 # -funit-at-a-time is buggy for MinGW GCC > 3.2
 # I'm assuming it's fixed for MinGW GCC >= 4.0 when that comes about
 CFLAGS += $(shell if [ $(GCC_VERSION) -lt 0400 ] ;\
-		then echo $(call cc-option,-fno-unit-at-a-time); fi ;)
+		then echo $(call cc-option,-fno-unit-at-a-time,); fi ;)
 CFLAGS += $(call cc-option,-fweb,)
 CFLAGS += $(call cc-option,-frename-registers,)
 CFLAGS += $(call cc-option,-ffast-math,)
@@ -246,9 +240,9 @@ COMMON_CPPFLAGS += -DUSE_X86_ASM
 endif
 
 ifneq ($(X11BASE),)
-COMMON_CPPFLAGS += -I$(X11BASE)/include
+COMMON_CPPFLAGS += -idirafter $(X11BASE)/include
 endif
-COMMON_CPPFLAGS += -I$(TOPDIR)/include
+COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
 
 NQSW_CPPFLAGS := $(COMMON_CPPFLAGS) -DNQ_HACK
 NQGL_CPPFLAGS := $(COMMON_CPPFLAGS) -DNQ_HACK -DGLQUAKE
@@ -256,11 +250,11 @@ QWSW_CPPFLAGS := $(COMMON_CPPFLAGS) -DQW_HACK
 QWGL_CPPFLAGS := $(COMMON_CPPFLAGS) -DQW_HACK -DGLQUAKE
 QWSV_CPPFLAGS := $(COMMON_CPPFLAGS) -DQW_HACK -DSERVERONLY
 
-NQSW_CPPFLAGS += -I$(TOPDIR)/NQ
-NQGL_CPPFLAGS += -I$(TOPDIR)/NQ
-QWSW_CPPFLAGS += -I$(TOPDIR)/QW/client
-QWGL_CPPFLAGS += -I$(TOPDIR)/QW/client
-QWSV_CPPFLAGS += -I$(TOPDIR)/QW/server -I$(TOPDIR)/QW/client
+NQSW_CPPFLAGS += -iquote $(TOPDIR)/NQ
+NQGL_CPPFLAGS += -iquote $(TOPDIR)/NQ
+QWSW_CPPFLAGS += -iquote $(TOPDIR)/QW/client
+QWGL_CPPFLAGS += -iquote $(TOPDIR)/QW/client
+QWSV_CPPFLAGS += -iquote $(TOPDIR)/QW/server -iquote $(TOPDIR)/QW/client
 
 ifeq ($(TARGET_OS),WIN32)
 NQSW_CPPFLAGS += -idirafter $(DX_INC) -idirafter $(ST_INC)
@@ -420,283 +414,86 @@ $(QWSVDIR)/%.o:		QW/server/%.c	; $(do_cc_o_c)
 $(QWSVDIR)/%.o:		QW/common/%.c	; $(do_cc_o_c)
 $(QWSVDIR)/%.o:		common/%.c	; $(do_cc_o_c)
 
-# ----------------------------------------------------------------------------
-# Normal Quake (NQ)
-# ----------------------------------------------------------------------------
+# ----------------------------------
+# Output the build Options: Output
+# ----------------------------------
+$(info Compile Options:)
+$(info .        DEBUG = $(DEBUG))
+$(info .    TARGET_OS = $(TARGET_OS))
+$(info .  TARGET_UNIX = $(TARGET_UNIX))
+$(info .  USE_X86_ASM = $(USE_X86_ASM))
+$(info .    CD_TARGET = $(CD_TARGET))
+$(info .   SND_TARGET = $(SND_TARGET))
+$(info .   VID_TARGET = $(VID_TARGET))
+$(info .    IN_TARGET = $(IN_TARGET))
+$(info .  USE_XF86DGA = $(USE_XF86DGA))
 
-# Objects common to all versions of NQ, sources are c code
-NQ_COMMON_C_OBJS = \
-	cd_common.o	\
-	cd_$(CD_TARGET).o \
-	chase.o		\
-	cl_demo.o	\
-	cl_input.o	\
-	cl_main.o	\
-	cl_parse.o	\
-	cl_tent.o	\
-	cmd.o		\
-	common.o	\
-	console.o	\
-	crc.o		\
-	cvar.o		\
-	host.o		\
-	host_cmd.o	\
-	keys.o		\
-	mathlib.o	\
-	menu.o		\
-	net_dgrm.o	\
-	net_loop.o	\
-	net_main.o	\
-	pr_cmds.o	\
-	pr_edict.o	\
-	pr_exec.o	\
-	r_efrag.o	\
-	r_part.o	\
-	rb_tree.o	\
-	sbar.o		\
-	shell.o		\
-	snd_dma.o	\
-	snd_mem.o	\
-	snd_mix.o	\
-	snd_$(SND_TARGET).o \
-	sv_main.o	\
-	sv_move.o	\
-	sv_phys.o	\
-	sv_user.o	\
-	view.o		\
-	wad.o		\
-	world.o		\
-	zone.o
+# ============================================================================
+# Object Files, libraries and options
+# ============================================================================
+#
+# Provide a set of makefile variables to which we can attach lists of object
+# files, libraries to link against, preprocessor and linker options, etc. The
+# prefixes tell us to which targets the variables apply:
+#
+# Shared lists:
+#  COMMON_ - objects common to all five targets
+#  CL_     - objects common to the four client targets (NQ, QW, SW & GL)
+#  SV_     - objects common to the three server targets (NQ SW&GL, QWSV)
+#  NQCL_   - objects common to the NQ client targets (SW & GL)
+#  QWCL_   - objects common to the QW client targets (SW & GL)
+#  QW_     - objects common to the QW targets (CL & SV)
+#  SW_     - objects common to the software rendering clients
+#  GL_     - objects common to the OpenGL rendering clients
+#
+# Target specific lists:
+#  NQSW_
+#  NQGL_
+#  QWSW_
+#  QWGL_
+#  QWSV_
+#
+# The suffix describes where the list is used
+#  _OBJS     - list of object files used as dependency and for linker
+#  _LIBS     - list of libs to pass to the linker
+#  _CPPFLAGS - C preprocessor flags, e.g. include directories or defines
+#  _LFLAGS   - linker flags, e.g. library directories
+#
+# Then we have configuration options which will alter the content of the lists:
+# - VID_TARGET  - video driver
+# - IN_TARGET   - input driver (usually tied to video driver)
+# - CD_TARGET   - cd audio driver
+# - SND_TARGET  - sound driver
+# - USE_X86_ASM - conditionally replace C code with assembly
+#
+#
+# 1. Set up lists of object files which aren't affected by config options
+# 2. Go through the various config options and append to the appropriate lists
+#
+#
+# TODO: Think about different groupings?
+#       e.g. SW_RENDER_OBJS, GL_RENDER_OBJS, NET_DRIVER_OBJS...
+#
+# --------------------------------------------------------------------------
+# Object File Lists - Static wrt. config options
+# --------------------------------------------------------------------------
 
-NQ_COMMON_ASM_OBJS = \
-	math.o		\
-	snd_mixa.o	\
-	worlda.o
-
-# Used in both SW and GL versions of NQ on the Win32 platform
-NQ_W32_C_OBJS = \
-	conproc.o	\
-	net_win.o	\
-	net_wins.o	\
-	sys_win.o
-
-NQ_W32_ASM_OBJS = \
-	sys_wina.o
-
-# Used in both SW and GL versions on NQ on the Unix platform
-NQ_UNIX_C_OBJS = \
-	net_udp.o	\
-	net_bsd.o	\
-	sys_linux.o	\
-	x11_core.o	\
-	in_x11.o
-
-NQ_UNIX_ASM_OBJS = \
-	sys_dosa.o
-
-# Objects only used in software rendering versions of NQ
-NQ_SW_C_OBJS = \
-	d_edge.o	\
-	d_fill.o	\
-	d_init.o	\
-	d_modech.o	\
-	d_part.o	\
-	d_polyse.o	\
-	d_scan.o	\
-	d_sky.o		\
-	d_sprite.o	\
-	d_surf.o	\
-	d_vars.o	\
-	d_zpoint.o	\
-	draw.o		\
-	model.o		\
-	r_aclip.o	\
-	r_alias.o	\
-	r_bsp.o		\
-	r_draw.o	\
-	r_edge.o	\
-	r_light.o	\
-	r_main.o	\
-	r_misc.o	\
-	r_sky.o		\
-	r_sprite.o	\
-	r_surf.o	\
-	r_vars.o	\
-	screen.o
-
-NQ_SW_ASM_OBJS = \
-	d_draw.o	\
-	d_draw16.o	\
-	d_parta.o	\
-	d_polysa.o	\
-	d_scana.o	\
-	d_spr8.o	\
-	d_varsa.o	\
-	r_aclipa.o	\
-	r_aliasa.o	\
-	r_drawa.o	\
-	r_edgea.o	\
-	r_varsa.o	\
-	surf16.o	\
-	surf8.o
-
-# Objects only used in software rendering versions of NQ on the Win32 Platform
-# Experimenting with an SDL renderer
-NQ_W32_SW_C_OBJS = \
-	$(IN_WIN).o	\
-	$(VID_WIN).o
-
-NQ_W32_SW_ASM_OBJS = \
-	dosasm.o
-
-# Objects only used in software rendering versions of NQ on the Unix Platform
-NQ_UNIX_SW_C_OBJS = \
-	vid_x.o
-
-NQ_UNIX_SW_AMS_OBJS =
-
-# Objects only used in OpenGL rendering versions of NQ
-NQ_GL_C_OBJS = \
-	drawhulls.o	\
-	gl_draw.o	\
-	gl_mesh.o	\
-	gl_model.o	\
-	gl_rlight.o	\
-	gl_rmain.o	\
-	gl_rmisc.o	\
-	gl_rsurf.o	\
-	gl_screen.o	\
-	gl_warp.o
-
-NQ_GL_ASM_OBJS =
-
-# Objects only used in OpenGL rendering versions of NQ on the Win32 Platform
-NQ_W32_GL_C_OBJS = \
-	gl_vidnt.o \
-	in_win.o
-
-NQ_W32_GL_ASM_OBJS =
-
-# Objects only used in OpenGL rendering versions of NQ on the Unix Platform
-NQ_UNIX_GL_C_OBJS = \
-	gl_vidlinuxglx.o
-
-NQ_UNIX_GL_ASM_OBJS =
-
-# Misc objects that don't seem to get used...
-NQ_OTHER_ASM_OBJS = \
-	d_copy.o	\
-	sys_dosa.o
-
-NQ_OTHER_C_OBJS = 
-
-# =========================================================================== #
-
-# Build the list of object files for each particular target
-# (*sigh* - something has to be done about this makefile...)
-
-NQ_W32_SW_OBJS := $(NQ_COMMON_C_OBJS)
-NQ_W32_SW_OBJS += $(NQ_SW_C_OBJS)
-NQ_W32_SW_OBJS += $(NQ_W32_C_OBJS)
-NQ_W32_SW_OBJS += $(NQ_W32_SW_C_OBJS)
-NQ_W32_SW_OBJS += winquake.res
-ifeq ($(USE_X86_ASM),Y)
-NQ_W32_SW_OBJS += $(NQ_COMMON_ASM_OBJS)
-NQ_W32_SW_OBJS += $(NQ_SW_ASM_OBJS)
-NQ_W32_SW_OBJS += $(NQ_W32_ASM_OBJS)
-NQ_W32_SW_OBJS += $(NQ_W32_SW_ASM_OBJS)
-else
-NQ_W32_SW_OBJS += nonintel.o
-endif
-
-NQ_W32_GL_OBJS := $(NQ_COMMON_C_OBJS)
-NQ_W32_GL_OBJS += $(NQ_GL_C_OBJS)
-NQ_W32_GL_OBJS += $(NQ_W32_C_OBJS)
-NQ_W32_GL_OBJS += $(NQ_W32_GL_C_OBJS)
-NQ_W32_GL_OBJS += winquake.res
-ifeq ($(USE_X86_ASM),Y)
-NQ_W32_GL_OBJS += $(NQ_COMMON_ASM_OBJS)
-NQ_W32_GL_OBJS += $(NQ_GL_ASM_OBJS)
-NQ_W32_GL_OBJS += $(NQ_W32_ASM_OBJS)
-NQ_W32_GL_OBJS += $(NQ_W32_GL_ASM_OBJS)
-endif
-
-NQ_UNIX_SW_OBJS := $(NQ_COMMON_C_OBJS)
-NQ_UNIX_SW_OBJS += $(NQ_SW_C_OBJS)
-NQ_UNIX_SW_OBJS += $(NQ_UNIX_C_OBJS)
-NQ_UNIX_SW_OBJS += $(NQ_UNIX_SW_C_OBJS)
-ifeq ($(USE_X86_ASM),Y)
-NQ_UNIX_SW_OBJS += $(NQ_COMMON_ASM_OBJS)
-NQ_UNIX_SW_OBJS += $(NQ_SW_ASM_OBJS)
-NQ_UNIX_SW_OBJS += $(NQ_UNIX_ASM_OBJS)
-NQ_UNIX_SW_OBJS += $(NQ_UNIX_SW_ASM_OBJS)
-else
-NQ_UNIX_SW_OBJS += nonintel.o
-endif
-
-NQ_UNIX_GL_OBJS := $(NQ_COMMON_C_OBJS)
-NQ_UNIX_GL_OBJS += $(NQ_GL_C_OBJS)
-NQ_UNIX_GL_OBJS += $(NQ_UNIX_C_OBJS)
-NQ_UNIX_GL_OBJS += $(NQ_UNIX_GL_C_OBJS)
-ifeq ($(USE_X86_ASM),Y)
-NQ_UNIX_GL_OBJS += $(NQ_COMMON_ASM_OBJS)
-NQ_UNIX_GL_OBJS += $(NQ_GL_ASM_OBJS)
-NQ_UNIX_GL_OBJS += $(NQ_UNIX_ASM_OBJS)
-NQ_UNIX_GL_OBJS += $(NQ_UNIX_GL_ASM_OBJS)
-endif
-
-# ------------------------
-# Now, the build rules...
-# ------------------------
-
-# Win32
-$(BIN_DIR)/tyr-quake.exe:	$(patsubst %,$(NQSWDIR)/%,$(NQ_W32_SW_OBJS))
-	$(call do_cc_link,-m$(WINMODE) -L$(NQ_ST_LIBDIR) $(NQ_W32_SW_LFLAGS))
-	$(call do_strip,$@)
-
-$(BIN_DIR)/tyr-glquake.exe:	$(patsubst %,$(NQGLDIR)/%,$(NQ_W32_GL_OBJS))
-	$(call do_cc_link,-m$(WINMODE) -L$(NQ_ST_LIBDIR) $(NQ_W32_GL_LFLAGS))
-	$(call do_strip,$@)
-
-# Unix
-$(BIN_DIR)/tyr-quake:	$(patsubst %,$(NQSWDIR)/%,$(NQ_UNIX_SW_OBJS))
-	$(call do_cc_link,$(NQ_UNIX_SW_LFLAGS))
-	$(call do_strip,$@)
-
-$(BIN_DIR)/tyr-glquake:	$(patsubst %,$(NQGLDIR)/%,$(NQ_UNIX_GL_OBJS))
-	$(call do_cc_link,$(NQ_UNIX_GL_LFLAGS))
-	$(call do_strip,$@)
-
-
-# ----------------------------------------------------------------------------
-# QuakeWorld (QW) - Client
-# ----------------------------------------------------------------------------
-
-QW_SV_SHARED_C_OBJS = \
+COMMON_OBJS := \
 	cmd.o		\
 	common.o	\
 	crc.o		\
 	cvar.o		\
 	mathlib.o	\
-	md4.o		\
-	net_chan.o	\
-	pmove.o		\
-	pmovetst.o	\
 	rb_tree.o	\
 	shell.o		\
 	zone.o
 
-QW_COMMON_C_OBJS = \
-	$(QW_SV_SHARED_C_OBJS) \
+CL_OBJS := \
 	cd_common.o	\
-	cd_$(CD_TARGET).o \
-	cl_cam.o	\
 	cl_demo.o	\
-	cl_ents.o	\
 	cl_input.o	\
 	cl_main.o	\
 	cl_parse.o	\
-	cl_pred.o	\
 	cl_tent.o	\
 	console.o	\
 	keys.o		\
@@ -704,38 +501,43 @@ QW_COMMON_C_OBJS = \
 	r_efrag.o	\
 	r_part.o	\
 	sbar.o		\
-	skin.o		\
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
-	snd_$(SND_TARGET).o \
 	view.o		\
 	wad.o
 
-QW_COMMON_ASM_OBJS = \
-	math.o		\
-	snd_mixa.o
+SV_OBJS := \
+	pr_cmds.o	\
+	pr_edict.o	\
+	pr_exec.o	\
+	sv_main.o	\
+	sv_move.o	\
+	sv_phys.o	\
+	sv_user.o
 
-QW_W32_C_OBJS = \
-	net_wins.o	\
-	sys_win.o
+NQCL_OBJS := \
+	chase.o		\
+	host.o		\
+	host_cmd.o	\
+	net_dgrm.o	\
+	net_loop.o	\
+	net_main.o	\
+	world.o
 
-QW_W32_ASM_OBJS = \
-	sys_wina.o
+QWCL_OBJS := \
+	cl_cam.o	\
+	cl_ents.o	\
+	cl_pred.o	\
+	skin.o
 
-QW_UNIX_SV_SHARED_C_OBJS = \
-	net_udp.o
+QW_OBJS := \
+	md4.o		\
+	net_chan.o	\
+	pmove.o		\
+	pmovetst.o
 
-QW_UNIX_C_OBJS = \
-	$(QW_UNIX_SV_SHARED_C_OBJS) \
-	sys_linux.o	\
-	in_x11.o	\
-	x11_core.o
-
-QW_UNIX_ASM_OBJS = \
-	sys_dosa.o
-
-QW_SW_C_OBJS = \
+SW_OBJS := \
 	d_edge.o	\
 	d_fill.o	\
 	d_init.o	\
@@ -764,39 +566,11 @@ QW_SW_C_OBJS = \
 	r_vars.o	\
 	screen.o
 
-QW_SW_ASM_OBJS = \
-	d_draw.o	\
-	d_draw16.o	\
-	d_parta.o	\
-	d_polysa.o	\
-	d_scana.o	\
-	d_spr8.o	\
-	d_varsa.o	\
-	r_aclipa.o	\
-	r_aliasa.o	\
-	r_drawa.o	\
-	r_edgea.o	\
-	r_varsa.o	\
-	surf16.o	\
-	surf8.o
-
-QW_W32_SW_C_OBJS = \
-	$(IN_WIN).o	\
-	$(VID_WIN).o
-
-QW_W32_SW_ASM_OBJS =
-
-QW_UNIX_SW_C_OBJS = \
-	vid_x.o
-
-QW_UNIX_SW_ASM_OBJS =
-
-QW_GL_C_OBJS = \
+GL_OBJS := \
 	drawhulls.o	\
 	gl_draw.o	\
 	gl_mesh.o	\
 	gl_model.o	\
-	gl_ngraph.o	\
 	gl_rlight.o	\
 	gl_rmain.o	\
 	gl_rmisc.o	\
@@ -804,199 +578,230 @@ QW_GL_C_OBJS = \
 	gl_screen.o	\
 	gl_warp.o
 
-QW_GL_ASM_OBJS =
+NQSW_OBJS :=
 
-QW_W32_GL_C_OBJS = \
-	gl_vidnt.o \
-	in_win.o
+NQGL_OBJS :=
 
-QW_W32_GL_ASM_OBJS =
+QWSW_OBJS :=
 
-QW_UNIX_GL_C_OBJS = \
-	gl_vidlinuxglx.o
+QWGL_OBJS := \
+	gl_ngraph.o
 
-QW_UNIX_GL_ASM_OBJS =
-
-# ========================================================================== #
-
-# Build the list of object files for each particular target
-# (*sigh* - something has to be done about this makefile...)
-
-QW_W32_SW_OBJS := $(QW_COMMON_C_OBJS)
-QW_W32_SW_OBJS += $(QW_SW_C_OBJS)
-QW_W32_SW_OBJS += $(QW_W32_C_OBJS)
-QW_W32_SW_OBJS += $(QW_W32_SW_C_OBJS)
-QW_W32_SW_OBJS += winquake.res
-ifeq ($(USE_X86_ASM),Y)
-QW_W32_SW_OBJS += $(QW_COMMON_ASM_OBJS)
-QW_W32_SW_OBJS += $(QW_SW_ASM_OBJS)
-QW_W32_SW_OBJS += $(QW_W32_ASM_OBJS)
-QW_W32_SW_OBJS += $(QW_W32_SW_ASM_OBJS)
-else
-QW_W32_SW_OBJS += nonintel.o
-endif
-
-QW_W32_GL_OBJS := $(QW_COMMON_C_OBJS)
-QW_W32_GL_OBJS += $(QW_GL_C_OBJS)
-QW_W32_GL_OBJS += $(QW_W32_C_OBJS)
-QW_W32_GL_OBJS += $(QW_W32_GL_C_OBJS)
-QW_W32_GL_OBJS += winquake.res
-ifeq ($(USE_X86_ASM),Y)
-QW_W32_GL_OBJS += $(QW_COMMON_ASM_OBJS)
-QW_W32_GL_OBJS += $(QW_GL_ASM_OBJS)
-QW_W32_GL_OBJS += $(QW_W32_ASM_OBJS)
-QW_W32_GL_OBJS += $(QW_W32_GL_ASM_OBJS)
-endif
-
-QW_UNIX_SW_OBJS := $(QW_COMMON_C_OBJS)
-QW_UNIX_SW_OBJS += $(QW_SW_C_OBJS)
-QW_UNIX_SW_OBJS += $(QW_UNIX_C_OBJS)
-QW_UNIX_SW_OBJS += $(QW_UNIX_SW_C_OBJS)
-ifeq ($(USE_X86_ASM),Y)
-QW_UNIX_SW_OBJS += $(QW_COMMON_ASM_OBJS)
-QW_UNIX_SW_OBJS += $(QW_SW_ASM_OBJS)
-QW_UNIX_SW_OBJS += $(QW_UNIX_ASM_OBJS)
-QW_UNIX_SW_OBJS += $(QW_UNIX_SW_ASM_OBJS)
-else
-QW_UNIX_SW_OBJS += nonintel.o
-endif
-
-QW_UNIX_GL_OBJS := $(QW_COMMON_C_OBJS)
-QW_UNIX_GL_OBJS += $(QW_GL_C_OBJS)
-QW_UNIX_GL_OBJS += $(QW_UNIX_C_OBJS)
-QW_UNIX_GL_OBJS += $(QW_UNIX_GL_C_OBJS)
-ifeq ($(USE_X86_ASM),Y)
-QW_UNIX_GL_OBJS += $(QW_COMMON_ASM_OBJS)
-QW_UNIX_GL_OBJS += $(QW_GL_ASM_OBJS)
-QW_UNIX_GL_OBJS += $(QW_UNIX_ASM_OBJS)
-QW_UNIX_GL_OBJS += $(QW_UNIX_GL_ASM_OBJS)
-endif
-
-# ---------
-# QW Libs
-# ---------
-QW_W32_COMMON_LIBS = wsock32 dxguid winmm
-QW_W32_SW_LIBS = $(VID_WIN_LIBS_QW)
-QW_W32_GL_LIBS = opengl32 comctl32 gdi32
-
-QW_UNIX_COMMON_LIBS := m X11 Xext Xxf86vm
-ifeq ($(USE_XF86DGA),Y)
-QW_UNIX_COMMON_LIBS += Xxf86dga
-endif
-QW_UNIX_GL_LIBS = GL
-
-QW_W32_SW_LFLAGS  := $(patsubst %,-l%,$(QW_W32_SW_LIBS) $(QW_W32_COMMON_LIBS))
-QW_W32_GL_LFLAGS  := $(patsubst %,-l%,$(QW_W32_GL_LIBS) $(QW_W32_COMMON_LIBS))
-QW_UNIX_SW_LFLAGS := $(patsubst %,-l%,$(QW_UNIX_COMMON_LIBS))
-QW_UNIX_GL_LFLAGS := $(patsubst %,-l%,$(QW_UNIX_COMMON_LIBS) $(QW_UNIX_GL_LIBS))
-
-ifneq ($(X11BASE),)
-QW_UNIX_SW_LFLAGS += -L$(X11BASE)/lib
-QW_UNIX_GL_LFLAGS += -L$(X11BASE)/lib
-endif
-
-# ---------------------
-# build rules
-# --------------------
-
-# Win32
-$(BIN_DIR)/tyr-qwcl.exe:	$(patsubst %,$(QWSWDIR)/%,$(QW_W32_SW_OBJS))
-	$(call do_cc_link,-m$(WINMODE) -L$(QW_ST_LIBDIR) $(QW_W32_SW_LFLAGS))
-	$(call do_strip,$@)
-
-$(BIN_DIR)/tyr-glqwcl.exe:	$(patsubst %,$(QWGLDIR)/%,$(QW_W32_GL_OBJS))
-	$(call do_cc_link,-m$(WINMODE) $(QW_W32_GL_LFLAGS))
-	$(call do_strip,$@)
-
-# Unix
-$(BIN_DIR)/tyr-qwcl:	$(patsubst %,$(QWSWDIR)/%,$(QW_UNIX_SW_OBJS))
-	$(call do_cc_link,$(QW_UNIX_SW_LFLAGS))
-	$(call do_strip,$@)
-
-$(BIN_DIR)/tyr-glqwcl:	$(patsubst %,$(QWGLDIR)/%,$(QW_UNIX_GL_OBJS))
-	$(call do_cc_link,$(QW_UNIX_GL_LFLAGS))
-	$(call do_strip,$@)
-
-UNUSED_OBJS	= cd_audio.o
-
-# --------------------------------------------------------------------------
-# QuakeWorld (QW) - Server
-# --------------------------------------------------------------------------
-
-QWSV_SHARED_OBJS = \
-	cmd.o		\
-	common.o	\
-	crc.o		\
-	cvar.o		\
-	mathlib.o	\
-	md4.o		\
-	net_chan.o	\
-	pmove.o		\
-	pmovetst.o	\
-	rb_tree.o	\
-	shell.o		\
-	zone.o
-
-QWSV_W32_SHARED_OBJS = \
-	net_wins.o
-
-QWSV_UNIX_SHARED_OBJS = \
-	net_udp.o
-
-QWSV_ONLY_OBJS = \
-	model.o		\
-	pr_cmds.o	\
-	pr_edict.o	\
-	pr_exec.o	\
+QWSV_OBJS := \
 	sv_ccmds.o	\
 	sv_ents.o	\
 	sv_init.o	\
-	sv_main.o	\
-	sv_move.o	\
 	sv_nchan.o	\
-	sv_phys.o	\
 	sv_send.o	\
-	sv_user.o	\
 	world.o
 
-QWSV_W32_ONLY_OBJS = \
-	sys_win.o
+# ----------------------------------------------------------------------------
+# Add objects depending whether using x86 assembly
+# ----------------------------------------------------------------------------
 
-QWSV_UNIX_ONLY_OBJS = \
-	sys_unix.o
+ifeq ($(USE_X86_ASM),Y)
+CL_OBJS   += math.o snd_mixa.o
+NQCL_OBJS += worlda.o
+SW_OBJS   += d_draw.o d_draw16.o d_parta.o d_polysa.o d_scana.o d_spr8.o \
+	     d_varsa.o r_aclipa.o r_aliasa.o r_drawa.o r_edgea.o r_varsa.o \
+	     surf8.o surf16.o
+ifeq ($(TARGET_OS),WIN32)
+CL_OBJS += sys_wina.o
+endif
+else
+SW_OBJS += nonintel.o
+endif
 
-QWSV_W32_OBJS = \
-	$(QWSV_SHARED_OBJS) 	\
-	$(QWSV_W32_SHARED_OBJS)	\
-	$(QWSV_ONLY_OBJS)	\
-	$(QWSV_W32_ONLY_OBJS)
+# ----------------------------------------------------------------------------
+# Quick sanity check to make sure the lists have no overlap
+# ----------------------------------------------------------------------------
+dups-only = $(if $(1),$(if $(filter $(firstword $(1)),$(wordlist 2,$(words $(1)),$(1))),$(firstword $(1)),) $(call dups-only,$(filter-out $(firstword $(1)),$(1))),)
+ALL_OBJS := $(COMMON_OBJS) $(CL_OBJS) $(SV_OBJS) $(NQCL_OBJS) $(QWCL_OBJS) \
+	    $(QW_OBJS) $(SW_OBJS) $(GL_OBJS) $(NQSW_OBJS) $(NQGL_OBJS) \
+	    $(QWSW_OBJS) $(QWGL_OBJS) $(QWSV_OBJS))
+MSG_DUP = WARNING: Duplicate words detected in group
+DUPS := $(strip $(call dups-only,$(ALL_OBJS)))
+DUMMY := $(if $(DUPS),$(warning $(MSG_DUP): $(DUPS)),)
 
-QWSV_UNIX_OBJS = \
-	$(QWSV_SHARED_OBJS) 		\
-	$(QWSV_UNIX_SHARED_OBJS)	\
-	$(QWSV_ONLY_OBJS)		\
-	$(QWSV_UNIX_ONLY_OBJS)
+# ----------------------------------------------------------------------------
+# FIXME - Bit of an ugly hack here because I know there is a duplicate model.c
+#         file for QWSV which isn't the same thing as the one used for the sw
+#         clients. Probably the clients should be refactored to have alias and
+#         bsp models in separate modules so the bsp model code can be shared.
+# ----------------------------------------------------------------------------
+QWSV_OBJS += model.o
+
+# ----------------------------------------------------------------------------
+# Target OS Options
+# ----------------------------------------------------------------------------
+
+ifeq ($(TARGET_OS),WIN32)
+COMMON_OBJS += net_wins.o sys_win.o
+CL_OBJS     += winquake.res
+NQCL_OBJS   += conproc.o net_win.o
+COMMON_LIBS += wsock32 winmm dxguid
+GL_LIBS     += opengl32
+ifeq ($(DEBUG),Y)
+CL_LFLAGS += -mconsole
+else
+CL_LFLAGS += -mwindows
+endif
+QWSV_LFLAGS += -mconsole
+endif
+ifeq ($(TARGET_OS),UNIX)
+COMMON_OBJS += net_udp.o
+COMMON_LIBS += m
+CL_OBJS     += sys_linux.o
+NQCL_OBJS   += net_bsd.o
+QWSV_OBJS   += sys_unix.o
+GL_LIBS     += GL
+endif
+
+# ----------------------------------------------------------------------------
+# Driver Options
+#   NOTE: there is some duplication that may happen here, e.g. adding common
+#         libs/objs multiple times. We will strip out duplicates later.
+# ----------------------------------------------------------------------------
 
 # ----------------
-# QWSV Libs
+# 1. CD driver
 # ----------------
-QWSV_W32_LIBS = wsock32 winmm
-QWSV_W32_LFLAGS = -mconsole $(patsubst %,-l%,$(QWSV_W32_LIBS))
-QWSV_UNIX_LIBS = m
-QWSV_UNIX_LFLAGS = $(patsubst %,-l%,$(QWSV_UNIX_LIBS))
 
-# -------------
-# Build rules
-# -------------
+ifeq ($(CD_TARGET),null)
+CL_OBJS += cd_null.o
+endif
+ifeq ($(CD_TARGET),linux)
+CL_OBJS += cd_linux.o
+endif
+ifeq ($(CD_TARGET),bsd)
+CL_OBJS += cd_bsd.o
+endif
+ifeq ($(CD_TARGET),win)
+CL_OBJS += cd_win.o
+endif
 
-# Win32
-$(BIN_DIR)/tyr-qwsv.exe:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_W32_OBJS))
-	$(call do_cc_link,$(QWSV_W32_LFLAGS))
+# ----------------
+# 2. Sound driver
+# ----------------
+
+ifeq ($(SND_TARGET),null)
+CL_OBJS += snd_null.o
+endif
+ifeq ($(SND_TARGET),win)
+CL_OBJS += snd_win.o
+# FIXME - direct sound libs?
+endif
+ifeq ($(SND_TARGET),linux)
+CL_OBJS += snd_linux.o
+endif
+
+# ----------------
+# 3. Video driver
+# ----------------
+
+ifeq ($(VID_TARGET),x11)
+CL_OBJS += x11_core.o
+SW_OBJS += vid_x.o
+GL_OBJS += gl_vidlinuxglx.o
+CL_LIBS += X11 Xext Xxf86vm
+ifeq ($(USE_XF86DGA),Y)
+CL_LIBS += Xxf86dga
+endif
+ifneq ($(X11BASE),)
+CL_LFLAGS += -L$(X11BASE)/lib
+endif
+endif
+ifeq ($(VID_TARGET),win)
+SW_OBJS += vid_win.o
+GL_OBJS += gl_vidnt.o
+CL_LIBS += gdi32
+GL_LIBS += comctl32
+SW_LIBS += mgllt
+SW_LFLAGS += -L$(ST_LIBDIR)
+NQSW_LIBS += ddraw
+endif
+ifeq ($(VID_TARGET),sdl)
+SW_OBJS += vid_sdl.o
+GL_OBJS += vid_sgl.o
+CL_LIBS += SDL
+endif
+
+# ----------------
+# 4. Input driver
+# ----------------
+# TODO: is it worth allowing input and video to be specified separately?
+#       they can be pretty tightly bound...
+
+ifeq ($(IN_TARGET),x11)
+CL_OBJS += x11_core.o in_x11.o
+CL_LIBS += X11
+ifneq ($(X11BASE),)
+CL_LFLAGS += -L$(X11BASE)/lib
+endif
+endif
+ifeq ($(IN_TARGET),win)
+CL_OBJS += in_win.o
+endif
+ifeq ($(IN_TARGET),sdl)
+CL_OBJS += in_sdl.o
+endif
+
+# ----------------------------------------------------------------------------
+# Combining the lists
+# ----------------------------------------------------------------------------
+
+nqsw-list = $(COMMON_$(1)) $(CL_$(1)) $(SV_$(1)) $(NQCL_$(1)) $(SW_$(1)) $(NQSW_$(1))
+nqgl-list = $(COMMON_$(1)) $(CL_$(1)) $(SV_$(1)) $(NQCL_$(1)) $(GL_$(1)) $(NQGL_$(1))
+qwsw-list = $(COMMON_$(1)) $(CL_$(1)) $(QW_$(1)) $(QWCL_$(1)) $(SW_$(1)) $(QWSW_$(1))
+qwgl-list = $(COMMON_$(1)) $(CL_$(1)) $(QW_$(1)) $(QWCL_$(1)) $(GL_$(1)) $(QWGL_$(1))
+qwsv-list = $(COMMON_$(1)) $(SV_$(1)) $(QW_$(1)) $(QWSV_$(1))
+
+ALL_NQSW_OBJS := $(sort $(call nqsw-list,OBJS))
+ALL_NQGL_OBJS := $(sort $(call nqgl-list,OBJS))
+ALL_QWSW_OBJS := $(sort $(call qwsw-list,OBJS))
+ALL_QWGL_OBJS := $(sort $(call qwgl-list,OBJS))
+ALL_QWSV_OBJS := $(sort $(call qwsv-list,OBJS))
+
+ALL_NQSW_LIBS := $(call filter-dups,$(call nqsw-list,LIBS))
+ALL_NQGL_LIBS := $(call filter-dups,$(call nqgl-list,LIBS))
+ALL_QWSW_LIBS := $(call filter-dups,$(call qwsw-list,LIBS))
+ALL_QWGL_LIBS := $(call filter-dups,$(call qwgl-list,LIBS))
+ALL_QWSV_LIBS := $(call filter-dups,$(call qwsv-list,LIBS))
+
+ALL_NQSW_LFLAGS := $(call filter-dups,$(call nqsw-list,LFLAGS))
+ALL_NQGL_LFLAGS := $(call filter-dups,$(call nqgl-list,LFLAGS))
+ALL_QWSW_LFLAGS := $(call filter-dups,$(call qwsw-list,LFLAGS))
+ALL_QWGL_LFLAGS := $(call filter-dups,$(call qwgl-list,LFLAGS))
+ALL_QWSV_LFLAGS := $(call filter-dups,$(call qwsv-list,LFLAGS))
+
+ALL_NQSW_LFLAGS += $(patsubst %,-l%,$(ALL_NQSW_LIBS))
+ALL_NQGL_LFLAGS += $(patsubst %,-l%,$(ALL_NQGL_LIBS))
+ALL_QWSW_LFLAGS += $(patsubst %,-l%,$(ALL_QWSW_LIBS))
+ALL_QWGL_LFLAGS += $(patsubst %,-l%,$(ALL_QWGL_LIBS))
+ALL_QWSV_LFLAGS += $(patsubst %,-l%,$(ALL_QWSV_LIBS))
+
+# ============================================================================
+# Build Rules
+# ============================================================================
+
+$(BIN_DIR)/tyr-quake$(EXT):	$(patsubst %,$(NQSWDIR)/%,$(ALL_NQSW_OBJS))
+	$(call do_cc_link,$(ALL_NQSW_LFLAGS))
 	$(call do_strip,$@)
 
-# Unix
-$(BIN_DIR)/tyr-qwsv:	$(patsubst %,$(QWSVDIR)/%,$(QWSV_UNIX_OBJS))
-	$(call do_cc_link,$(QWSV_UNIX_LFLAGS))
+$(BIN_DIR)/tyr-glquake$(EXT):	$(patsubst %,$(NQGLDIR)/%,$(ALL_NQGL_OBJS))
+	$(call do_cc_link,$(ALL_NQGL_LFLAGS))
+	$(call do_strip,$@)
+
+$(BIN_DIR)/tyr-qwcl$(EXT):	$(patsubst %,$(QWSWDIR)/%,$(ALL_QWSW_OBJS))
+	$(call do_cc_link,$(ALL_QWSW_LFLAGS))
+	$(call do_strip,$@)
+
+$(BIN_DIR)/tyr-glqwcl$(EXT):	$(patsubst %,$(QWGLDIR)/%,$(ALL_QWGL_OBJS))
+	$(call do_cc_link,$(ALL_QWGL_LFLAGS))
+	$(call do_strip,$@)
+
+$(BIN_DIR)/tyr-qwsv$(EXT):	$(patsubst %,$(QWSVDIR)/%,$(ALL_QWSV_OBJS))
+	$(call do_cc_link,$(ALL_QWSV_LFLAGS))
 	$(call do_strip,$@)
 
 # ----------------------------------------------------------------------------
