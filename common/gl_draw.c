@@ -144,6 +144,13 @@ Scrap_AllocBlock(int w, int h, int *x, int *y)
     int best, best2;
     int texnum;
 
+    /*
+     * I'm sure that x & y are always set when we return from this function,
+     * but silence the compiler warning anyway. May as well crash with
+     * these silly values if that happens.
+     */
+    *x = *y = 0x818181;
+
     for (texnum = 0; texnum < MAX_SCRAPS; texnum++) {
 	best = BLOCK_HEIGHT;
 
@@ -167,6 +174,9 @@ Scrap_AllocBlock(int w, int h, int *x, int *y)
 
 	for (i = 0; i < w; i++)
 	    scrap_allocated[texnum][*x + i] = best + h;
+
+	if (*x == 0x818181 || *y == 0x818181)
+	    Sys_Error("%s: block allocation problem", __func__);
 
 	return texnum;
     }
