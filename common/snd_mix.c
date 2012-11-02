@@ -258,7 +258,7 @@ SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
 
     lscale = snd_scaletable[ch->leftvol >> 3];
     rscale = snd_scaletable[ch->rightvol >> 3];
-    sfx = (signed char *)sc->data + ch->pos;
+    sfx = (unsigned char *)sc->data + ch->pos;
 
     for (i = 0; i < count; i++) {
 	data = sfx[i];
