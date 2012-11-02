@@ -41,7 +41,10 @@ static int used[8192];
 
 // the command list holds counts and s/t values that are valid for
 // every frame
-static int commands[8192];
+union {
+    int i;
+    float f;
+} commands[8192];
 static int numcommands;
 
 // all frames will have their vertexes rearranged and expanded
@@ -246,9 +249,9 @@ BuildTris(aliashdr_t *hdr, mtriangle_t *tris, stvert_t *stverts)
 	    used[besttris[j]] = 1;
 
 	if (besttype == 1)
-	    commands[numcommands++] = (bestlen + 2);
+	    commands[numcommands++].i = (bestlen + 2);
 	else
-	    commands[numcommands++] = -(bestlen + 2);
+	    commands[numcommands++].i = -(bestlen + 2);
 
 	for (j = 0; j < bestlen + 2; j++) {
 	    // emit a vertex into the reorder buffer
@@ -263,12 +266,12 @@ BuildTris(aliashdr_t *hdr, mtriangle_t *tris, stvert_t *stverts)
 	    s = (s + 0.5) / hdr->skinwidth;
 	    t = (t + 0.5) / hdr->skinheight;
 
-	    *(float *)&commands[numcommands++] = s;
-	    *(float *)&commands[numcommands++] = t;
+	    commands[numcommands++].f = s;
+	    commands[numcommands++].f = t;
 	}
     }
 
-    commands[numcommands++] = 0;	// end of list marker
+    commands[numcommands++].i = 0;	// end of list marker
 
     Con_DPrintf("%3i tri %3i vert %3i cmd\n", hdr->numtris, numorder,
 		numcommands);
