@@ -112,29 +112,15 @@ R_MakeSky(void)
     for (y = 0; y < SKYSIZE; y++) {
 	baseofs = ((y + yshift) & SKYMASK) * 131;
 
-// FIXME: clean this up
-#ifdef UNALIGNED_OK
 	for (x = 0; x < SKYSIZE; x += 4) {
+	    unsigned bsky, bmask;
+
 	    ofs = baseofs + ((x + xshift) & SKYMASK);
-
-	    // PORT: unaligned dword access to bottommask and bottomsky
-
-	    *pnewsky = (*(pnewsky + (128 / sizeof(unsigned))) &
-			*(unsigned *)&bottommask[ofs]) |
-		*(unsigned *)&bottomsky[ofs];
+	    memcpy(&bsky, &bottomsky[ofs], sizeof(bsky));
+	    memcpy(&bmask, &bottommask[ofs], sizeof(bmask));
+	    *pnewsky = (pnewsky[128 / sizeof(unsigned)] & bmask) | bsky;
 	    pnewsky++;
 	}
-#else
-	for (x = 0; x < SKYSIZE; x++) {
-	    ofs = baseofs + ((x + xshift) & SKYMASK);
-
-	    *(byte *)pnewsky = (*((byte *)pnewsky + 128) &
-				*(byte *)&bottommask[ofs]) |
-		*(byte *)&bottomsky[ofs];
-	    pnewsky = (unsigned *)((byte *)pnewsky + 1);
-	}
-#endif
-
 	pnewsky += 128 / sizeof(unsigned);
     }
 
@@ -165,31 +151,16 @@ R_GenSkyTile(void *pdest)
     for (y = 0; y < SKYSIZE; y++) {
 	baseofs = ((y + yshift) & SKYMASK) * 131;
 
-// FIXME: clean this up
-#ifdef UNALIGNED_OK
 	for (x = 0; x < SKYSIZE; x += 4) {
+	    unsigned bsky, bmask;
+
 	    ofs = baseofs + ((x + xshift) & SKYMASK);
-
-	    // PORT: unaligned dword access to bottommask and bottomsky
-
-	    *pd = (*(pnewsky + (128 / sizeof(unsigned))) &
-		   *(unsigned *)&bottommask[ofs]) |
-		*(unsigned *)&bottomsky[ofs];
+	    memcpy(&bsky, &bottomsky[ofs], sizeof(bsky));
+	    memcpy(&bmask, &bottommask[ofs], sizeof(bmask));
+	    *pd = (pnewsky[128 / sizeof(unsigned)] & bmask) | bsky;
 	    pnewsky++;
 	    pd++;
 	}
-#else
-	for (x = 0; x < SKYSIZE; x++) {
-	    ofs = baseofs + ((x + xshift) & SKYMASK);
-
-	    *(byte *)pd = (*((byte *)pnewsky + 128) &
-			   *(byte *)&bottommask[ofs]) |
-		*(byte *)&bottomsky[ofs];
-	    pnewsky = (unsigned *)((byte *)pnewsky + 1);
-	    pd = (unsigned *)((byte *)pd + 1);
-	}
-#endif
-
 	pnewsky += 128 / sizeof(unsigned);
     }
 }
