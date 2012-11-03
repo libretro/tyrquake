@@ -21,7 +21,7 @@ DEBUG            ?= N# Compile with debug info
 OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
 USE_X86_ASM      ?= $(I386_GUESS)
 USE_SDL          ?= N# New (experimental) SDL video implementation for Win32
-X11BASE          ?= $(X11BASE_GUESS)
+LOCALBASE        ?= /usr/local
 QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 TARGET_OS        ?= $(HOST_OS)
 TARGET_UNIX      ?= $(if $(filter UNIX,$(TARGET_OS)),$(HOST_UNIX),)
@@ -129,22 +129,31 @@ filter-dups = $(if $(1),$(firstword $(1)) $(call filter-dups,$(filter-out $(firs
 # Try to guess the location of X11 includes/libs
 # ----------------------------------------------
 
-X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6 /opt/X11 /opt/local
-X11BASE_GUESS := $(shell \
-	if [ -e /usr/include/X11/Xlib.h ] && \
-		[ -e /usr/lib/libX11.a ] || \
-		[ -e /usr/lib/libX11.la ] || \
-		[ -e /usr/lib/libX11.dylib ]; then exit 0; fi; \
-	if [ -e /usr/local/include/X11/Xlib.h ] && \
-		[ -e /usr/local/lib/libX11.a ] || \
-		[ -e /usr/local/lib/libX11.la ] || \
-		[ -e /usr/local/lib/libX11.dylib ]; then exit 0; fi; \
-	for DIR in $(X11DIRS); do \
-            if [ -e $$DIR/include/X11/Xlib.h ] && \
-		[ -e $$DIR/lib/libX11.a ] || \
-		[ -e $$DIR/lib/libX11.la ] || \
-		[ -e $$DIR/lib/libX11.dylib ]; then echo $$DIR; break; fi; \
+# $(1) - header file to search for
+# $(2) - library name to search for
+# $(3) - list of directories to search in
+IGNORE_DIRS = /usr $(LOCALBASE)
+find-localbase = $(shell \
+	for DIR in $(IGNORE_DIRS); do \
+            if [ -e $$DIR/include/$(1) ] && \
+		[ -e $$DIR/lib/lib$(2).a ] || \
+		[ -e $$DIR/lib/lib$(2).la ] || \
+		[ -e $$DIR/lib/lib$(2).dylib ]; then exit 0; fi; \
+	done; \
+	for DIR in $(3); do \
+            if [ -e $$DIR/include/$(1) ] && \
+		[ -e $$DIR/lib/lib$(2).a ] || \
+		[ -e $$DIR/lib/lib$(2).la ] || \
+		[ -e $$DIR/lib/lib$(2).dylib ]; then echo $$DIR; exit 0; fi; \
 	done )
+
+X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6 /opt/X11 /opt/local
+X11BASE_GUESS := $(call find-localbase,X11/Xlib.h,X11,$(X11DIRS))
+X11BASE ?= $(X11BASE_GUESS)
+
+SDLDIRS = /opt/local
+SDLBASE_GUESS := $(call find-localbase,SDL/SDL.h,SDL,$(SDLDIRS))
+SDLBASE ?= $(SDLBASE_GUESS)
 
 # ------------------------------------------------------------------------
 # Try to guess the MinGW cross compiler executables
@@ -239,8 +248,15 @@ ifeq ($(USE_X86_ASM),Y)
 COMMON_CPPFLAGS += -DUSE_X86_ASM
 endif
 
+ifneq ($(LOCALBASE),)
+COMMON_CPPFLAGS += -idirafter $(LOCALBASE)
+endif
+
 ifneq ($(X11BASE),)
 COMMON_CPPFLAGS += -idirafter $(X11BASE)/include
+endif
+ifneq ($(SDLBASE),)
+COMMON_CPPFLAGS += -idirafter $(SDLBASE)/include
 endif
 COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
 
@@ -724,6 +740,9 @@ ifeq ($(VID_TARGET),sdl)
 SW_OBJS += vid_sdl.o
 GL_OBJS += vid_sgl.o
 CL_LIBS += SDL
+ifneq ($(SDLBASE),)
+CL_LFLAGS += -L$(SDLBASE)/lib
+endif
 endif
 
 # ----------------
