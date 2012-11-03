@@ -730,11 +730,10 @@ endif
 ifeq ($(VID_TARGET),win)
 SW_OBJS += vid_win.o
 GL_OBJS += gl_vidnt.o
-CL_LIBS += gdi32
+SW_LIBS += mgllt gdi32 # gdi32 needs to come after mgllt
+GL_LIBS += gdi32
 GL_LIBS += comctl32
-SW_LIBS += mgllt
 SW_LFLAGS += -L$(ST_LIBDIR)
-NQSW_LIBS += ddraw
 endif
 ifeq ($(VID_TARGET),sdl)
 SW_OBJS += vid_sdl.o
