@@ -237,69 +237,6 @@ default:	all
 
 all:	$(patsubst %,$(BIN_DIR)/%,$(APPS))
 
-COMMON_CPPFLAGS := -DTYR_VERSION=$(TYR_VERSION) -DQBASEDIR="$(QBASEDIR)"
-ifeq ($(DEBUG),Y)
-COMMON_CPPFLAGS += -DDEBUG
-else
-COMMON_CPPFLAGS += -DNDEBUG
-endif
-
-ifeq ($(USE_X86_ASM),Y)
-COMMON_CPPFLAGS += -DUSE_X86_ASM
-endif
-
-ifneq ($(LOCALBASE),)
-COMMON_CPPFLAGS += -idirafter $(LOCALBASE)
-endif
-
-ifneq ($(X11BASE),)
-COMMON_CPPFLAGS += -idirafter $(X11BASE)/include
-endif
-ifneq ($(SDLBASE),)
-COMMON_CPPFLAGS += -idirafter $(SDLBASE)/include
-endif
-COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
-
-NQSW_CPPFLAGS := $(COMMON_CPPFLAGS) -DNQ_HACK
-NQGL_CPPFLAGS := $(COMMON_CPPFLAGS) -DNQ_HACK -DGLQUAKE
-QWSW_CPPFLAGS := $(COMMON_CPPFLAGS) -DQW_HACK
-QWGL_CPPFLAGS := $(COMMON_CPPFLAGS) -DQW_HACK -DGLQUAKE
-QWSV_CPPFLAGS := $(COMMON_CPPFLAGS) -DQW_HACK -DSERVERONLY
-
-NQSW_CPPFLAGS += -iquote $(TOPDIR)/NQ
-NQGL_CPPFLAGS += -iquote $(TOPDIR)/NQ
-QWSW_CPPFLAGS += -iquote $(TOPDIR)/QW/client
-QWGL_CPPFLAGS += -iquote $(TOPDIR)/QW/client
-QWSV_CPPFLAGS += -iquote $(TOPDIR)/QW/server -iquote $(TOPDIR)/QW/client
-
-ifeq ($(TARGET_OS),WIN32)
-NQSW_CPPFLAGS += -idirafter $(DX_INC) -idirafter $(ST_INC)
-NQGL_CPPFLAGS += -idirafter $(DX_INC)
-QWSW_CPPFLAGS += -idirafter $(DX_INC) -idirafter $(ST_INC)
-QWGL_CPPFLAGS += -idirafter $(DX_INC)
-endif
-
-ifeq ($(TARGET_OS),UNIX)
-NQSW_CPPFLAGS += -DELF -DX11
-NQGL_CPPFLAGS += -DELF -DX11
-QWSW_CPPFLAGS += -DELF -DX11
-QWGL_CPPFLAGS += -DELF -DX11 -DGL_EXT_SHARED
-QWSV_CPPFLAGS += -DELF
-endif
-
-ifeq ($(USE_XF86DGA),Y)
-NQSW_CPPFLAGS += -DUSE_XF86DGA
-NQGL_CPPFLAGS += -DUSE_XF86DGA
-QWSW_CPPFLAGS += -DUSE_XF86DGA
-QWGL_CPPFLAGS += -DUSE_XF86DGA
-endif
-
-$(NQSWDIR)/%.o:	CPPFLAGS = $(NQSW_CPPFLAGS)
-$(NQGLDIR)/%.o:	CPPFLAGS = $(NQGL_CPPFLAGS)
-$(QWSWDIR)/%.o:	CPPFLAGS = $(QWSW_CPPFLAGS)
-$(QWGLDIR)/%.o:	CPPFLAGS = $(QWGL_CPPFLAGS)
-$(QWSVDIR)/%.o:	CPPFLAGS = $(QWSV_CPPFLAGS)
-
 # To make warnings more obvious, be less verbose as default
 # Use 'make V=1' to see the full commands
 ifdef V
@@ -390,6 +327,12 @@ DEPFILES = \
 ifneq ($(DEPFILES),)
 -include $(DEPFILES)
 endif
+
+$(NQSWDIR)/%.o:	CPPFLAGS = $(ALL_NQSW_CPPFLAGS)
+$(NQGLDIR)/%.o:	CPPFLAGS = $(ALL_NQGL_CPPFLAGS)
+$(QWSWDIR)/%.o:	CPPFLAGS = $(ALL_QWSW_CPPFLAGS)
+$(QWGLDIR)/%.o:	CPPFLAGS = $(ALL_QWGL_CPPFLAGS)
+$(QWSVDIR)/%.o:	CPPFLAGS = $(ALL_QWSV_CPPFLAGS)
 
 $(NQSWDIR)/%.o:		common/%.S	; $(do_cc_o_c)
 $(NQSWDIR)/%.o:		NQ/%.S		; $(do_cc_o_c)
@@ -612,10 +555,36 @@ QWSV_OBJS := \
 	world.o
 
 # ----------------------------------------------------------------------------
+# Start off the CPPFLAGS, config independent stuff
+# ----------------------------------------------------------------------------
+
+# Defines
+COMMON_CPPFLAGS += -DTYR_VERSION=$(TYR_VERSION) -DQBASEDIR="$(QBASEDIR)"
+NQCL_CPPFLAGS   += -DNQ_HACK
+QW_CPPFLAGS     += -DQW_HACK
+QWSV_CPPFLAGS   += -DSERVERONLY
+GL_CPPFLAGS     += -DGLQUAKE
+ifeq ($(DEBUG),Y)
+COMMON_CPPFLAGS += -DDEBUG
+else
+COMMON_CPPFLAGS += -DNDEBUG
+endif
+
+# Includes
+COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
+ifneq ($(LOCALBASE),)
+COMMON_CPPFLAGS += -idirafter $(LOCALBASE)
+endif
+NQCL_CPPFLAGS   += -iquote $(TOPDIR)/NQ
+QW_CPPFLAGS     += -iquote $(TOPDIR)/QW/client
+QWSV_CPPFLAGS   += -iquote $(TOPDIR)/QW/server
+
+# ----------------------------------------------------------------------------
 # Add objects depending whether using x86 assembly
 # ----------------------------------------------------------------------------
 
 ifeq ($(USE_X86_ASM),Y)
+COMMON_CPPFLAGS += -DUSE_X86_ASM
 CL_OBJS   += math.o snd_mixa.o
 NQCL_OBJS += worlda.o
 SW_OBJS   += d_draw.o d_draw16.o d_parta.o d_polysa.o d_scana.o d_spr8.o \
@@ -665,6 +634,7 @@ endif
 QWSV_LFLAGS += -mconsole
 endif
 ifeq ($(TARGET_OS),UNIX)
+COMMON_CPPFLAGS += -DELF
 COMMON_OBJS += net_udp.o
 COMMON_LIBS += m
 CL_OBJS     += sys_linux.o
@@ -704,6 +674,7 @@ ifeq ($(SND_TARGET),null)
 CL_OBJS += snd_null.o
 endif
 ifeq ($(SND_TARGET),win)
+CL_CPPFLAGS += -idirafter $(DX_INC)
 CL_OBJS += snd_win.o
 # FIXME - direct sound libs?
 endif
@@ -716,18 +687,23 @@ endif
 # ----------------
 
 ifeq ($(VID_TARGET),x11)
+CL_CPPFLAGS += -DX11
 CL_OBJS += x11_core.o
 SW_OBJS += vid_x.o
 GL_OBJS += gl_vidlinuxglx.o
 CL_LIBS += X11 Xext Xxf86vm
 ifeq ($(USE_XF86DGA),Y)
+CL_CPPFLAGS += -DUSE_XF86DGA
 CL_LIBS += Xxf86dga
 endif
 ifneq ($(X11BASE),)
+CL_CPPFLAGS += -idirafter $(X11BASE)/include
 CL_LFLAGS += -L$(X11BASE)/lib
 endif
 endif
 ifeq ($(VID_TARGET),win)
+CL_CPPFLAGS += -idirafter $(DX_INC)
+SW_CPPFLAGS += -idirafter $(ST_INC)
 SW_OBJS += vid_win.o
 GL_OBJS += gl_vidnt.o
 SW_LIBS += mgllt gdi32 # gdi32 needs to come after mgllt
@@ -740,6 +716,7 @@ SW_OBJS += vid_sdl.o
 GL_OBJS += vid_sgl.o
 CL_LIBS += SDL
 ifneq ($(SDLBASE),)
+CL_CPPFLAGS += -idirafter $(SDLBASE)/include
 CL_LFLAGS += -L$(SDLBASE)/lib
 endif
 endif
@@ -773,6 +750,12 @@ nqgl-list = $(COMMON_$(1)) $(CL_$(1)) $(SV_$(1)) $(NQCL_$(1)) $(GL_$(1)) $(NQGL_
 qwsw-list = $(COMMON_$(1)) $(CL_$(1)) $(QW_$(1)) $(QWCL_$(1)) $(SW_$(1)) $(QWSW_$(1))
 qwgl-list = $(COMMON_$(1)) $(CL_$(1)) $(QW_$(1)) $(QWCL_$(1)) $(GL_$(1)) $(QWGL_$(1))
 qwsv-list = $(COMMON_$(1)) $(SV_$(1)) $(QW_$(1)) $(QWSV_$(1))
+
+ALL_NQSW_CPPFLAGS := $(call nqsw-list,CPPFLAGS)
+ALL_NQGL_CPPFLAGS := $(call nqgl-list,CPPFLAGS)
+ALL_QWSW_CPPFLAGS := $(call qwsw-list,CPPFLAGS)
+ALL_QWGL_CPPFLAGS := $(call qwgl-list,CPPFLAGS)
+ALL_QWSV_CPPFLAGS := $(call qwsv-list,CPPFLAGS)
 
 ALL_NQSW_OBJS := $(sort $(call nqsw-list,OBJS))
 ALL_NQGL_OBJS := $(sort $(call nqgl-list,OBJS))
