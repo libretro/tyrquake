@@ -650,12 +650,6 @@ Mod_LoadTexinfo(lump_t *l)
 	    out->mipadjust = 2;
 	else
 	    out->mipadjust = 1;
-#if 0
-	if (len1 + len2 < 0.001)
-	    out->mipadjust = 1;	// don't crash
-	else
-	    out->mipadjust = 1 / floor((len1 + len2) / 2 + 0.1);
-#endif
 
 	miptex = LittleLong(in->miptex);
 	out->flags = LittleLong(in->flags);

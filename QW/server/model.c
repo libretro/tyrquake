@@ -102,9 +102,6 @@ Mod_DecompressVis(byte *in, model_t *model)
     row = (model->numleafs + 7) >> 3;
     out = decompressed;
 
-#if 0
-    memcpy(out, in, row);
-#else
     if (!in) {			// no vis info, so make all visible
 	while (row) {
 	    *out++ = 0xff;
@@ -126,7 +123,6 @@ Mod_DecompressVis(byte *in, model_t *model)
 	    c--;
 	}
     } while (out - decompressed < row);
-#endif
 
     return decompressed;
 }
@@ -569,19 +565,12 @@ Mod_LoadTexinfo(lump_t *l)
     loadmodel->numtexinfo = count;
 
     for (i = 0; i < count; i++, in++, out++) {
-#if 0
-	for (j = 0; j < 8; j++)
-	    out->vecs[0][j] = LittleFloat(in->vecs[0][j]);
-	len1 = Length(in->vecs[0]);
-	len2 = Length(in->vecs[1]);
-#else
 	for (j = 0; j < 4; j++) {
 	    out->vecs[0][j] = LittleFloat(in->vecs[0][j]);
 	    out->vecs[1][j] = LittleFloat(in->vecs[1][j]);
 	}
 	len1 = Length(out->vecs[0]);
 	len2 = Length(out->vecs[1]);
-#endif
 	if (len1 + len2 < 2 /*0.001 */ )
 	    out->mipadjust = 1;
 	else
