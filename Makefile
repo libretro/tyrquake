@@ -573,7 +573,8 @@ endif
 # Includes
 COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
 ifneq ($(LOCALBASE),)
-COMMON_CPPFLAGS += -idirafter $(LOCALBASE)
+COMMON_CPPFLAGS += -idirafter $(LOCALBASE)/include
+COMMON_LFLAGS += -L$(LOCALBASE)/lib
 endif
 NQCL_CPPFLAGS   += -iquote $(TOPDIR)/NQ
 QW_CPPFLAGS     += -iquote $(TOPDIR)/QW/client
