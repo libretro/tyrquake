@@ -586,14 +586,11 @@ QWSV_CPPFLAGS   += -iquote $(TOPDIR)/QW/server
 
 ifeq ($(USE_X86_ASM),Y)
 COMMON_CPPFLAGS += -DUSE_X86_ASM
-CL_OBJS   += math.o snd_mixa.o
+CL_OBJS   += math.o snd_mixa.o sys_wina.o
 NQCL_OBJS += worlda.o
 SW_OBJS   += d_draw.o d_draw16.o d_parta.o d_polysa.o d_scana.o d_spr8.o \
 	     d_varsa.o r_aclipa.o r_aliasa.o r_drawa.o r_edgea.o r_varsa.o \
 	     surf8.o surf16.o
-ifeq ($(TARGET_OS),WIN32)
-CL_OBJS += sys_wina.o
-endif
 else
 SW_OBJS += nonintel.o
 endif
