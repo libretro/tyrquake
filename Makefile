@@ -42,9 +42,13 @@ TOPDIR := $(shell pwd)
 ifneq (,$(findstring MINGW32,$(SYSNAME)))
 HOST_OS = WIN32
 else
-ifneq (,$(findstring $(SYSNAME),FreeBSD NetBSD OpenBSD))
+ifneq (,$(findstring $(SYSNAME),FreeBSD NetBSD))
 HOST_OS = UNIX
 HOST_UNIX = bsd
+else
+ifneq (,$(findstring $(SYSNAME),OpenBSD))
+HOST_OS = UNIX
+HOST_UNIX = openbsd
 else
 ifneq (,$(findstring $(SYSNAME),Darwin))
 HOST_OS = UNIX
@@ -55,6 +59,7 @@ HOST_OS = UNIX
 HOST_UNIX = linux
 else
 $(error OS type not detected.)
+endif
 endif
 endif
 endif
@@ -76,6 +81,11 @@ endif
 ifeq ($(TARGET_UNIX),bsd)
 CD_TARGET ?= bsd
 SND_TARGET ?= linux
+USE_XF86DGA ?= Y
+endif
+ifeq ($(TARGET_UNIX),openbsd)
+CD_TARGET ?= bsd
+SND_TARGET ?= sndio
 USE_XF86DGA ?= Y
 endif
 ifeq ($(TARGET_UNIX),linux)
@@ -678,6 +688,10 @@ CL_OBJS += snd_win.o
 endif
 ifeq ($(SND_TARGET),linux)
 CL_OBJS += snd_linux.o
+endif
+ifeq ($(SND_TARGET),sndio)
+CL_OBJS += snd_sndio.o
+CL_LIBS += sndio
 endif
 
 # ----------------
