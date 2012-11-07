@@ -167,7 +167,6 @@ typedef struct net_landriver_s {
     void (*Listen)(qboolean state);
     int (*OpenSocket)(int port);
     int (*CloseSocket)(int socket);
-    int (*Connect)(int socket, struct qsockaddr *addr);
     int (*CheckNewConnections)(void);
     int (*Read)(int socket, byte *buf, int len, struct qsockaddr *addr);
     int (*Write)(int socket, byte *buf, int len, struct qsockaddr *addr);

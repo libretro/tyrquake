@@ -72,7 +72,6 @@ net_landriver_t net_landrivers[MAX_NET_DRIVERS] = {
 	.Listen			= WINS_Listen,
 	.OpenSocket		= WINS_OpenSocket,
 	.CloseSocket		= WINS_CloseSocket,
-	.Connect		= WINS_Connect,
 	.CheckNewConnections	= WINS_CheckNewConnections,
 	.Read			= WINS_Read,
 	.Write			= WINS_Write,

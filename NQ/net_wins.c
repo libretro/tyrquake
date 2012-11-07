@@ -303,13 +303,6 @@ PartialIPAddress(char *in, struct qsockaddr *hostaddr)
 
 
 int
-WINS_Connect(int socket, struct qsockaddr *addr)
-{
-    return 0;
-}
-
-
-int
 WINS_CheckNewConnections(void)
 {
     char buf[4096];

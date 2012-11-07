@@ -71,7 +71,6 @@ net_landriver_t net_landrivers[MAX_NET_DRIVERS] = {
 	.Listen			= UDP_Listen,
 	.OpenSocket		= UDP_OpenSocket,
 	.CloseSocket		= UDP_CloseSocket,
-	.Connect		= UDP_Connect,
 	.CheckNewConnections	= UDP_CheckNewConnections,
 	.Read			= UDP_Read,
 	.Write			= UDP_Write,

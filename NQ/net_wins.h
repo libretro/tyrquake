@@ -26,7 +26,6 @@ void WINS_Shutdown(void);
 void WINS_Listen(qboolean state);
 int WINS_OpenSocket(int port);
 int WINS_CloseSocket(int socket);
-int WINS_Connect(int socket, struct qsockaddr *addr);
 int WINS_CheckNewConnections(void);
 int WINS_Read(int socket, byte *buf, int len, struct qsockaddr *addr);
 int WINS_Write(int socket, byte *buf, int len, struct qsockaddr *addr);

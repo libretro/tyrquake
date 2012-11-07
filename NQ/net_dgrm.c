@@ -1043,12 +1043,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	NET_FreeQSocket(sock);
 	return NULL;
     }
-    // connect to the client
-    if (driver->Connect(newsock, &clientaddr) == -1) {
-	driver->CloseSocket(newsock);
-	NET_FreeQSocket(sock);
-	return NULL;
-    }
+
     // everything is allocated, just fill in the details
     sock->socket = newsock;
     sock->landriver = driver;
@@ -1232,10 +1227,6 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
     sock->socket = newsock;
     sock->landriver = driver;
 
-    // connect to the host
-    if (driver->Connect(newsock, &sendaddr) == -1)
-	goto ErrorReturn;
-
     // send the connection request
     Con_Printf("trying...\n");
     SCR_UpdateScreen();
@@ -1341,16 +1332,8 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 
     Con_Printf("Connection accepted\n");
     sock->lastMessageTime = SetNetTime();
-
-    // switch the connection to the specified address
-    if (driver->Connect(newsock, &sock->addr) == -1) {
-	reason = "Connect to Game failed";
-	Con_Printf("%s\n", reason);
-	strcpy(m_return_reason, reason);
-	goto ErrorReturn;
-    }
-
     m_return_onerror = false;
+
     return sock;
 
   ErrorReturn:

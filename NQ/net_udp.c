@@ -314,13 +314,6 @@ PartialIPAddress(char *in, struct qsockaddr *hostaddr)
 
 
 int
-UDP_Connect(int socket, struct qsockaddr *addr)
-{
-    return 0;
-}
-
-
-int
 UDP_CheckNewConnections(void)
 {
     unsigned long available;
