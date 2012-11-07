@@ -31,7 +31,6 @@ int WINS_Read(int socket, byte *buf, int len, struct qsockaddr *addr);
 int WINS_Write(int socket, byte *buf, int len, struct qsockaddr *addr);
 int WINS_Broadcast(int socket, byte *buf, int len);
 char *WINS_AddrToString(struct qsockaddr *addr);
-int WINS_StringToAddr(char *string, struct qsockaddr *addr);
 int WINS_GetSocketAddr(int socket, struct qsockaddr *addr);
 int WINS_GetNameFromAddr(struct qsockaddr *addr, char *name);
 int WINS_GetAddrFromName(char *name, struct qsockaddr *addr);

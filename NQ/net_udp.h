@@ -35,7 +35,6 @@ int UDP_Read(int socket, byte *buf, int len, struct qsockaddr *addr);
 int UDP_Write(int socket, byte *buf, int len, struct qsockaddr *addr);
 int UDP_Broadcast(int socket, byte *buf, int len);
 char *UDP_AddrToString(struct qsockaddr *addr);
-int UDP_StringToAddr(char *string, struct qsockaddr *addr);
 int UDP_GetSocketAddr(int socket, struct qsockaddr *addr);
 int UDP_GetNameFromAddr(struct qsockaddr *addr, char *name);
 int UDP_GetAddrFromName(char *name, struct qsockaddr *addr);

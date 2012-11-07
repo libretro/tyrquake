@@ -77,7 +77,6 @@ net_landriver_t net_landrivers[MAX_NET_DRIVERS] = {
 	.Write			= WINS_Write,
 	.Broadcast		= WINS_Broadcast,
 	.AddrToString		= WINS_AddrToString,
-	.StringToAddr		= WINS_StringToAddr,
 	.GetSocketAddr		= WINS_GetSocketAddr,
 	.GetNameFromAddr	= WINS_GetNameFromAddr,
 	.GetAddrFromName	= WINS_GetAddrFromName,

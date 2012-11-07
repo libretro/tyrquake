@@ -172,7 +172,6 @@ typedef struct net_landriver_s {
     int (*Write)(int socket, byte *buf, int len, struct qsockaddr *addr);
     int (*Broadcast)(int socket, byte *buf, int len);
     char *(*AddrToString)(struct qsockaddr *addr);
-    int (*StringToAddr)(char *string, struct qsockaddr *addr);
     int (*GetSocketAddr)(int socket, struct qsockaddr *addr);
     int (*GetNameFromAddr)(struct qsockaddr *addr, char *name);
     int (*GetAddrFromName)(char *name, struct qsockaddr *addr);
