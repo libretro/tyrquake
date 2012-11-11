@@ -499,9 +499,7 @@ R_DrawAliasModel(entity_t *e)
 
     // ZOID: never allow players to go totally black
 #ifdef NQ_HACK
-    i = e - cl_entities;
-    if (i >= 1 && i <= cl.maxclients
-	/* && !strcmp (e->model->name, "progs/player.mdl") */ ) {
+    if (CL_PlayerEntity(e)) {
 #endif
 #ifdef QW_HACK
     if (!strcmp(clmodel->name, "progs/player.mdl")) {
