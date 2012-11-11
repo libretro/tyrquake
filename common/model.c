@@ -879,8 +879,7 @@ Mod_LoadLeafs(lump_t *l)
 
 	out->firstmarksurface = loadmodel->marksurfaces +
 	    (uint16_t)LittleShort(in->firstmarksurface);
-	out->nummarksurfaces =
-	    (uint16_t)LittleShort(in->nummarksurfaces);
+	out->nummarksurfaces = (uint16_t)LittleShort(in->nummarksurfaces);
 
 	p = LittleLong(in->visofs);
 	if (p == -1)
