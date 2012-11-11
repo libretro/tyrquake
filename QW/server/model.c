@@ -572,10 +572,15 @@ Mod_LoadTexinfo(lump_t *l)
 	}
 	len1 = Length(out->vecs[0]);
 	len2 = Length(out->vecs[1]);
-	if (len1 + len2 < 2 /*0.001 */ )
-	    out->mipadjust = 1;
+	len1 = (len1 + len2) / 2;
+	if (len1 < 0.32)
+	    out->mipadjust = 4;
+	else if (len1 < 0.49)
+	    out->mipadjust = 3;
+	else if (len1 < 0.99)
+	    out->mipadjust = 2;
 	else
-	    out->mipadjust = 1 / floor((len1 + len2) / 2);
+	    out->mipadjust = 1;
 
 	miptex = LittleLong(in->miptex);
 	out->flags = LittleLong(in->flags);
