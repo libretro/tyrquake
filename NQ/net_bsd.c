@@ -75,7 +75,6 @@ net_landriver_t net_landrivers[MAX_NET_DRIVERS] = {
 	.Read			= UDP_Read,
 	.Write			= UDP_Write,
 	.Broadcast		= UDP_Broadcast,
-	.AddrToString		= UDP_AddrToString,
 	.GetSocketAddr		= UDP_GetSocketAddr,
 	.GetNameFromAddr	= UDP_GetNameFromAddr,
 	.GetAddrFromName	= UDP_GetAddrFromName,

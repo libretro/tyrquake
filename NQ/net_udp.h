@@ -31,15 +31,14 @@ void UDP_Listen(qboolean state);
 int UDP_OpenSocket(int port);
 int UDP_CloseSocket(int socket);
 int UDP_CheckNewConnections(void);
-int UDP_Read(int socket, byte *buf, int len, struct qsockaddr *addr);
-int UDP_Write(int socket, byte *buf, int len, struct qsockaddr *addr);
-int UDP_Broadcast(int socket, byte *buf, int len);
-char *UDP_AddrToString(struct qsockaddr *addr);
-int UDP_GetSocketAddr(int socket, struct qsockaddr *addr);
-int UDP_GetNameFromAddr(struct qsockaddr *addr, char *name);
-int UDP_GetAddrFromName(char *name, struct qsockaddr *addr);
-int UDP_AddrCompare(struct qsockaddr *addr1, struct qsockaddr *addr2);
-int UDP_GetSocketPort(struct qsockaddr *addr);
-int UDP_SetSocketPort(struct qsockaddr *addr, int port);
+int UDP_Read(int socket, byte *buf, int len, netadr_t *addr);
+int UDP_Write(int socket, const byte *buf, int len, const netadr_t *addr);
+int UDP_Broadcast(int socket, const byte *buf, int len);
+int UDP_GetSocketAddr(int socket, netadr_t *addr);
+int UDP_GetNameFromAddr(const netadr_t *addr, char *name);
+int UDP_GetAddrFromName(const char *name, netadr_t *addr);
+int UDP_AddrCompare(const netadr_t *addr1, const netadr_t *addr2);
+int UDP_GetSocketPort(const netadr_t *addr);
+int UDP_SetSocketPort(netadr_t *addr, int port);
 
 #endif /* NET_UDP_H */

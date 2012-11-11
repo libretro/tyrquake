@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "keys.h"
 #include "menu.h"
+#include "net.h"
 #include "net_dgrm.h"
 #include "quakedef.h"
 #include "server.h"
@@ -56,7 +57,7 @@ static struct {
 
 #ifdef DEBUG
 char *
-StrAddr(struct qsockaddr *addr)
+StrAddr(netadr_t *addr)
 {
     static char buf[34];
     byte *p = (byte *)addr;
@@ -68,8 +69,8 @@ StrAddr(struct qsockaddr *addr)
 }
 #endif
 
-static struct in_addr banAddr = { .s_addr = INADDR_ANY };
-static struct in_addr banMask = { .s_addr = INADDR_NONE };
+static netadr_t banAddr = { .ip.l = INADDR_ANY };
+static netadr_t banMask = { .ip.l = INADDR_NONE };
 
 void
 NET_Ban_f(void)
@@ -92,9 +93,9 @@ NET_Ban_f(void)
 
     switch (Cmd_Argc()) {
     case 1:
-	if (banAddr.s_addr != INADDR_ANY) {
-	    strcpy(addrStr, inet_ntoa(banAddr));
-	    strcpy(maskStr, inet_ntoa(banMask));
+	if (banAddr.ip.l != INADDR_ANY) {
+	    strcpy(addrStr, NET_AdrToString(&banAddr));
+	    strcpy(maskStr, NET_AdrToString(&banMask));
 	    print("Banning %s [%s]\n", addrStr, maskStr);
 	} else
 	    print("Banning not active\n");
@@ -102,15 +103,15 @@ NET_Ban_f(void)
 
     case 2:
 	if (strcasecmp(Cmd_Argv(1), "off") == 0)
-	    banAddr.s_addr = INADDR_ANY;
+	    banAddr.ip.l = INADDR_ANY;
 	else
-	    banAddr.s_addr = inet_addr(Cmd_Argv(1));
-	banMask.s_addr = INADDR_NONE;
+	    banAddr.ip.l = inet_addr(Cmd_Argv(1));
+	banMask.ip.l = INADDR_NONE;
 	break;
 
     case 3:
-	banAddr.s_addr = inet_addr(Cmd_Argv(1));
-	banMask.s_addr = inet_addr(Cmd_Argv(2));
+	banAddr.ip.l = inet_addr(Cmd_Argv(1));
+	banMask.ip.l = inet_addr(Cmd_Argv(2));
 	break;
 
     default:
@@ -283,7 +284,7 @@ Datagram_GetMessage(qsocket_t *sock)
     unsigned int length;
     unsigned int flags;
     int ret = 0;
-    struct qsockaddr readaddr;
+    netadr_t readaddr;
     unsigned int sequence;
     unsigned int count;
 
@@ -477,7 +478,7 @@ struct test_poll_state {
 static void
 Test_Poll(struct test_poll_state *state)
 {
-    struct qsockaddr clientaddr;
+    netadr_t clientaddr;
     int control;
     int len;
     char name[32];
@@ -536,7 +537,7 @@ Test_f(void)
     char *host;
     int i, n;
     int max = MAX_SCOREBOARD;
-    struct qsockaddr sendaddr;
+    netadr_t sendaddr;
     net_landriver_t *driver = NULL;
 
     static struct test_poll_state state = {
@@ -565,8 +566,7 @@ Test_f(void)
 		    continue;
 		driver = hostcache[n].ldriver;
 		max = hostcache[n].maxusers;
-		memcpy(&sendaddr, &hostcache[n].addr,
-		       sizeof(struct qsockaddr));
+		sendaddr = hostcache[n].addr;
 		break;
 	    }
 	if (driver)
@@ -615,7 +615,7 @@ Test_f(void)
 static void
 Test2_Poll(struct test_poll_state *state)
 {
-    struct qsockaddr clientaddr;
+    netadr_t clientaddr;
     int control;
     int len;
     char name[256];
@@ -678,7 +678,7 @@ Test2_f(void)
 {
     char *host;
     int i, n;
-    struct qsockaddr sendaddr;
+    netadr_t sendaddr;
 
     static struct test_poll_state state = {
 	.inProgress	= false,
@@ -705,8 +705,7 @@ Test2_f(void)
 		if (hostcache[n].driver != dgrm_driver)
 		    continue;
 		state.driver = hostcache[n].ldriver;
-		memcpy(&sendaddr, &hostcache[n].addr,
-		       sizeof(struct qsockaddr));
+		sendaddr = hostcache[n].addr;
 		break;
 	    }
 	if (state.driver)
@@ -817,8 +816,10 @@ Datagram_Listen(qboolean state)
 static qsocket_t *
 _Datagram_CheckNewConnections(net_landriver_t *driver)
 {
-    struct qsockaddr clientaddr;
-    struct qsockaddr newaddr;
+    netadr_t clientaddr;
+    netadr_t newaddr;
+    netadr_t testAddr;
+
     int newsock;
     int acceptsock;
     qsocket_t *sock;
@@ -861,7 +862,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_SERVER_INFO);
 	driver->GetSocketAddr(acceptsock, &newaddr);
-	MSG_WriteString(&net_message, driver->AddrToString(&newaddr));
+	MSG_WriteString(&net_message, NET_AdrToString(&newaddr));
 	MSG_WriteString(&net_message, hostname.string);
 	MSG_WriteString(&net_message, sv.name);
 	MSG_WriteByte(&net_message, net_activeconnections);
@@ -968,24 +969,20 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     }
 
     // check for a ban
-    if (clientaddr.sa_family == AF_INET) {
-	struct in_addr testAddr;
-
-	testAddr.s_addr = ((struct sockaddr_in *)&clientaddr)->sin_addr.s_addr;
-	if ((testAddr.s_addr & banMask.s_addr) == banAddr.s_addr) {
-	    SZ_Clear(&net_message);
-	    // save space for the header, filled in later
-	    MSG_WriteLong(&net_message, 0);
-	    MSG_WriteByte(&net_message, CCREP_REJECT);
-	    MSG_WriteString(&net_message, "You have been banned.\n");
-	    *((int *)net_message.data) =
-		BigLong(NETFLAG_CTL |
-			(net_message.cursize & NETFLAG_LENGTH_MASK));
-	    driver->Write(acceptsock, net_message.data, net_message.cursize,
-			  &clientaddr);
-	    SZ_Clear(&net_message);
-	    return NULL;
-	}
+    testAddr.ip.l = clientaddr.ip.l;
+    if ((testAddr.ip.l & banMask.ip.l) == banAddr.ip.l) {
+	SZ_Clear(&net_message);
+	// save space for the header, filled in later
+	MSG_WriteLong(&net_message, 0);
+	MSG_WriteByte(&net_message, CCREP_REJECT);
+	MSG_WriteString(&net_message, "You have been banned.\n");
+	*((int *)net_message.data) =
+	    BigLong(NETFLAG_CTL |
+		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	driver->Write(acceptsock, net_message.data, net_message.cursize,
+		      &clientaddr);
+	SZ_Clear(&net_message);
+	return NULL;
     }
 
     // see if this guy is already connected
@@ -1048,7 +1045,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     sock->socket = newsock;
     sock->landriver = driver;
     sock->addr = clientaddr;
-    strcpy(sock->address, driver->AddrToString(&clientaddr));
+    strcpy(sock->address, NET_AdrToString(&clientaddr));
 
     // send him back the info about the server connection he has been allocated
     SZ_Clear(&net_message);
@@ -1057,7 +1054,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     MSG_WriteByte(&net_message, CCREP_ACCEPT);
     driver->GetSocketAddr(newsock, &newaddr);
     MSG_WriteLong(&net_message, driver->GetSocketPort(&newaddr));
-//      MSG_WriteString(&net_message, driver->AddrToString(&newaddr));
+//      MSG_WriteString(&net_message, NET_AdrToString(&newaddr));
     *((int *)net_message.data) =
 	BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
     driver->Write(acceptsock, net_message.data, net_message.cursize,
@@ -1091,8 +1088,8 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
     int ret;
     int n;
     int i;
-    struct qsockaddr readaddr;
-    struct qsockaddr myaddr;
+    netadr_t readaddr;
+    netadr_t myaddr;
     int control;
 
     driver->GetSocketAddr(driver->controlSock, &myaddr);
@@ -1161,10 +1158,10 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	    strcpy(hostcache[n].name, "*");
 	    strcat(hostcache[n].name, hostcache[n].cname);
 	}
-	memcpy(&hostcache[n].addr, &readaddr, sizeof(struct qsockaddr));
+	hostcache[n].addr = readaddr;
 	hostcache[n].driver = net_driver;
 	hostcache[n].ldriver = driver;
-	strcpy(hostcache[n].cname, driver->AddrToString(&readaddr));
+	strcpy(hostcache[n].cname, NET_AdrToString(&readaddr));
 
 	// check for a name conflict
 	for (i = 0; i < hostCacheCount; i++) {
@@ -1202,8 +1199,8 @@ Datagram_SearchForHosts(qboolean xmit)
 static qsocket_t *
 _Datagram_Connect(char *host, net_landriver_t *driver)
 {
-    struct qsockaddr sendaddr;
-    struct qsockaddr readaddr;
+    netadr_t sendaddr;
+    netadr_t readaddr;
     qsocket_t *sock;
     int newsock;
     int ret;
@@ -1319,7 +1316,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
     }
 
     if (ret == CCREP_ACCEPT) {
-	memcpy(&sock->addr, &sendaddr, sizeof(struct qsockaddr));
+	sock->addr = sendaddr;
 	driver->SetSocketPort(&sock->addr, MSG_ReadLong());
     } else {
 	reason = "Bad Response";

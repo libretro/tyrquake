@@ -18,6 +18,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+/* FIXME - just for the htons() call below */
+#ifdef WIN32
+#include <winsock.h>
+#else
+#include <arpa/inet.h>
+#endif
+
 #include "cmd.h"
 #include "console.h"
 #include "net.h"
@@ -65,6 +72,18 @@ cvar_t hostname = { "hostname", "UNNAMED" };
 
 net_driver_t *net_driver;
 double net_time;
+
+
+const char *
+NET_AdrToString(const netadr_t *a)
+{
+    static char s[64];
+    const byte *b = a->ip.b;
+
+    sprintf(s, "%i.%i.%i.%i:%i", b[0], b[1], b[2], b[3], ntohs(a->port));
+
+    return s;
+}
 
 
 double

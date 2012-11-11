@@ -50,14 +50,14 @@ NetadrToSockadr(netadr_t *a, struct sockaddr_in *s)
     memset(s, 0, sizeof(*s));
     s->sin_family = AF_INET;
 
-    *(int *)&s->sin_addr = *(int *)&a->ip;
+    s->sin_addr.s_addr = a->ip.l;
     s->sin_port = a->port;
 }
 
 static void
 SockadrToNetadr(struct sockaddr_in *s, netadr_t *a)
 {
-    *(int *)&a->ip.l = *(int *)&s->sin_addr;
+    a->ip.l = s->sin_addr.s_addr;
     a->port = s->sin_port;
 }
 
@@ -78,9 +78,9 @@ char *
 NET_AdrToString(netadr_t a)
 {
     static char s[64];
+    const byte *b = a.ip.b;
 
-    sprintf(s, "%i.%i.%i.%i:%i", a.ip.b[0], a.ip.b[1], a.ip.b[2], a.ip.b[3],
-	    ntohs(a.port));
+    sprintf(s, "%i.%i.%i.%i:%i", b[0], b[1], b[2], b[3], ntohs(a.port));
 
     return s;
 }
@@ -127,11 +127,12 @@ NET_StringToAdr(char *s, netadr_t *a)
 	}
 
     if (copy[0] >= '0' && copy[0] <= '9') {
-	*(int *)&sadr.sin_addr = inet_addr(copy);
+	sadr.sin_addr.s_addr = inet_addr(copy);
     } else {
-	if (!(h = gethostbyname(copy)))
+	h = gethostbyname(copy);
+	if (!h)
 	    return 0;
-	*(int *)&sadr.sin_addr = *(int *)h->h_addr_list[0];
+	sadr.sin_addr.s_addr = *(in_addr_t *)h->h_addr_list[0];
     }
 
     SockadrToNetadr(&sadr, a);
