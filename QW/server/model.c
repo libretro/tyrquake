@@ -32,7 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
 
-static void Mod_LoadBrushModel(model_t *mod, void *buffer);
+static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
 static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
 
 static byte mod_novis[MAX_MAP_LEAFS / 8];
@@ -199,6 +199,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
     void *d;
     unsigned *buf;
     byte stackbuf[1024];	// avoid dirtying the cache heap
+    unsigned long size;
 
     if (!mod->needload) {
 	if (mod->type == mod_alias) {
@@ -212,7 +213,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 // load the file
 //
     buf = (unsigned *)COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf),
-					NULL);
+					&size);
     if (!buf) {
 	if (crash)
 	    SV_Error("Mod_NumForName: %s not found", mod->name);
@@ -232,7 +233,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 // call the apropriate loader
     mod->needload = false;
 
-    Mod_LoadBrushModel(mod, buf);
+    Mod_LoadBrushModel(mod, buf, size);
 
     return mod;
 }
@@ -1000,6 +1001,24 @@ Mod_LoadPlanes(lump_t *l)
     }
 }
 
+/*
+=================
+RadiusFromBounds
+=================
+*/
+static float
+RadiusFromBounds(vec3_t mins, vec3_t maxs)
+{
+    int i;
+    vec3_t corner;
+
+    for (i = 0; i < 3; i++) {
+	corner[i] =
+	    fabs(mins[i]) > fabs(maxs[i]) ? fabs(mins[i]) : fabs(maxs[i]);
+    }
+
+    return Length(corner);
+}
 
 /*
 =================
@@ -1007,33 +1026,61 @@ Mod_LoadBrushModel
 =================
 */
 static void
-Mod_LoadBrushModel(model_t *mod, void *buffer)
+Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 {
     int i, j;
     dheader_t *header;
     dmodel_t *bm;
 
     loadmodel->type = mod_brush;
-
     header = (dheader_t *)buffer;
 
-    i = LittleLong(header->version);
-    if (i != BSPVERSION)
-	SV_Error("%s: %s has wrong version number (%i should be %i)", __func__,
-		 mod->name, i, BSPVERSION);
+    /* swap all the header entries */
+    header->version = LittleLong(header->version);
+    for (i = 0; i < HEADER_LUMPS; i++) {
+	header->lumps[i].fileofs = LittleLong(header->lumps[i].fileofs);
+	header->lumps[i].filelen = LittleLong(header->lumps[i].filelen);
+    }
 
-// swap all the lumps
+    if (header->version != BSPVERSION)
+	SV_Error("%s: %s has wrong version number (%i should be %i)",
+		 __func__, mod->name, header->version, BSPVERSION);
+
     mod_base = (byte *)header;
 
-    for (i = 0; i < sizeof(dheader_t) / 4; i++)
-	((int *)header)[i] = LittleLong(((int *)header)[i]);
+    /*
+     * Check the lump extents
+     * FIXME - do this more generally... cleanly...?
+     */
+    for (i = 0; i < HEADER_LUMPS; ++i) {
+	int b1 = header->lumps[i].fileofs;
+	int e1 = b1 + header->lumps[i].filelen;
 
-// load into heap
+	/*
+	 * Sanity checks
+	 * - begin and end >= 0 (end might overflow).
+	 * - end > begin (again, overflow reqd.)
+	 * - end < size of file.
+	 */
+	if (b1 > e1 || e1 > size || b1 < 0 || e1 < 0)
+	    SV_Error("%s: bad lump extents in %s", __func__,
+		     loadmodel->name);
+
+	/* Now, check that it doesn't overlap any other lumps */
+	for (j = 0; j < HEADER_LUMPS; ++j) {
+	    int b2 = header->lumps[j].fileofs;
+	    int e2 = b2 + header->lumps[j].filelen;
+
+	    if ((b1 < b2 && e1 > b2) || (b2 < b1 && e2 > b1))
+		SV_Error("%s: overlapping lumps in %s", __func__,
+			 loadmodel->name);
+	}
+    }
 
     mod->checksum = 0;
     mod->checksum2 = 0;
 
-    // checksum all of the map, except for entities
+// checksum all of the map, except for entities
     for (i = 0; i < HEADER_LUMPS; i++) {
 	const lump_t *l = &header->lumps[i];
 	unsigned int checksum;
@@ -1049,6 +1096,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
     mod->checksum = LittleLong(mod->checksum);
     mod->checksum2 = LittleLong(mod->checksum2);
 
+    /* load into heap */
     Mod_LoadVertexes(&header->lumps[LUMP_VERTEXES]);
     Mod_LoadEdges(&header->lumps[LUMP_EDGES]);
     Mod_LoadSurfedges(&header->lumps[LUMP_SURFEDGES]);
@@ -1068,6 +1116,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
     Mod_MakeHull0();
 
     mod->numframes = 2;		// regular and alternate animation
+    mod->flags = 0;
 
 //
 // set up the submodels (FIXME: this is confusing)
@@ -1087,9 +1136,11 @@ Mod_LoadBrushModel(model_t *mod, void *buffer)
 	VectorCopy(bm->maxs, mod->maxs);
 	VectorCopy(bm->mins, mod->mins);
 
+	mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
 	mod->numleafs = bm->visleafs;
 
-	if (i < mod->numsubmodels - 1) {	// duplicate the basic information
+	/* duplicate the basic information */
+	if (i < mod->numsubmodels - 1) {
 	    char name[10];
 
 	    snprintf(name, sizeof(name), "*%i", i + 1);
