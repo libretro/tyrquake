@@ -74,6 +74,33 @@ entity_t *cl_visedicts;
 static entity_t cl_visedicts_list[MAX_VISEDICTS];
 
 /*
+ * FIXME - horribly hackish because we don't have a way to tell if the
+ *         entity is a player just by looking at it's properties.
+ *
+ * CL_PlayerEntity()
+ * Returns the player number if the entity is a player, 0 otherwise
+ */
+int
+CL_PlayerEntity(entity_t *e)
+{
+    ptrdiff_t offset;
+    int i;
+
+    /* might be a pointer directly into cl_entities... */
+    offset =  e - cl_entities;
+    if (offset >= 1 && offset <= cl.maxclients)
+	return offset;
+
+    /* ...but if not, try to find a match */
+    for (i = 1; i <= cl.maxclients; i++) {
+	if (!memcmp(e, &cl_entities[i], sizeof(entity_t)))
+	    return i;
+    }
+
+    return 0;
+}
+
+/*
 =====================
 CL_ClearState
 

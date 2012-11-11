@@ -564,10 +564,8 @@ R_DrawAliasModel(entity_t *e)
     // seperately for the players.  Heads are just uncolored.
 #ifdef NQ_HACK
     if (e->colormap != vid.colormap && !gl_nocolors.value) {
-	i = e - cl_entities;
-	if (i >= 1 && i <= cl.maxclients
-	    /* && !strcmp (e->model->name, "progs/player.mdl") */
-	    )
+	i = CL_PlayerEntity(e);
+	if (i)
 	    GL_Bind(playertextures[i - 1]);
     }
 #endif

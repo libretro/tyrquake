@@ -270,6 +270,12 @@ extern dlight_t cl_dlights[MAX_DLIGHTS];
 extern entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
 extern beam_t cl_beams[MAX_BEAMS];
 
+/*
+ * CL_PlayerEntity()
+ * Returns the player number if the entity is a player, 0 otherwise
+ */
+int CL_PlayerEntity(entity_t *e);
+
 //=============================================================================
 
 //
