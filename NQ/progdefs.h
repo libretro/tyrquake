@@ -22,6 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PROGDEFS_H
 
 #include "mathlib.h"
-#include "progdefs.q1"
+#include "progdefs-id1.h"
 
 #endif /* PROGDEFS_H */
