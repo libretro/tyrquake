@@ -45,6 +45,9 @@ static ddef_t *pr_globaldefs;
 
 unsigned short pr_crc;
 
+/*
+ * These are the sizes of the types enumerated in etype_t (pr_comp.h)
+ */
 static int type_size[8] = {
     1,				// ev_void
     1,				// ev_string

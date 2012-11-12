@@ -42,8 +42,7 @@ static ddef_t *pr_fielddefs;
 static ddef_t *pr_globaldefs;
 
 /*
- * CHECK - size of types in like in pr_comp.h::etype_t?
- *         note differences from NQ
+ * These are the sizes of the types enumerated in etype_t (pr_comp.h)
  */
 static int type_size[8] = {
     1,				// ev_void
