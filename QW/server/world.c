@@ -26,9 +26,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "world.h"
 
+#ifdef NQ_HACK
+#ifdef GLQUAKE
+#include "gl_model.h"
+#else
+#include "model.h"
+#endif
+#include "quakedef.h"
+#include "host.h"
+#include "sys.h"
+/* FIXME - quick hack to enable merging of NQ/QWSV shared code */
+#define SV_Error Sys_Error
+#endif
+#if defined(QW_HACK) && defined(SERVERONLY)
 #include "model.h"
 #include "qwsvdef.h"
 #include "pmove.h"
+#endif
 
 /*
 
@@ -197,6 +211,7 @@ typedef struct areanode_s {
 static areanode_t sv_areanodes[AREA_NODES];
 static int sv_numareanodes;
 
+#if defined(QW_HACK) && defined(SERVERONLY)
 /*
 ====================
 AddLinksToPmove
@@ -266,6 +281,7 @@ SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs)
 {
     SV_AddLinksToPmove_r(sv_areanodes, mins, maxs);
 }
+#endif
 
 /*
 ===============
@@ -367,7 +383,12 @@ SV_TouchLinks(edict_t *ent, areanode_t *node)
 	 *         (I think it was related to the E2M2 drawbridge bug)
 	 */
 	if (!l || !l->next)
+#ifdef NQ_HACK
+	    Host_Error("%s: encountered NULL link", __func__);
+#endif
+#if defined(QW_HACK) && defined(SERVERONLY)
 	    SV_Error("%s: encountered NULL link", __func__);
+#endif
 
 	next = l->next;
 	touch = EDICT_FROM_AREA(l);
@@ -596,7 +617,17 @@ SV_PointContents
 int
 SV_PointContents(vec3_t p)
 {
+#ifdef NQ_HACK
+    int cont;
+
+    cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
+    if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
+	cont = CONTENTS_WATER;
+    return cont;
+#endif
+#if defined(QW_HACK) && defined(SERVERONLY)
     return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
+#endif
 }
 
 //===========================================================================
@@ -606,7 +637,7 @@ SV_PointContents(vec3_t p)
 SV_TestEntityPosition
 
 A small wrapper around SV_BoxInSolidEntity that never clips against the
-supplied entity.
+supplied entity.  TODO: This could be a lot more efficient?
 ============
 */
 edict_t *
@@ -966,6 +997,7 @@ SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
 
 //=============================================================================
 
+#if defined(QW_HACK) && defined(SERVERONLY)
 /*
 ============
 SV_TestPlayerPosition
@@ -1023,3 +1055,4 @@ SV_TestPlayerPosition(edict_t *ent, vec3_t origin)
 
     return NULL;
 }
+#endif

@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "world.h"
 
+#ifdef NQ_HACK
 #ifdef GLQUAKE
 #include "gl_model.h"
 #else
@@ -36,6 +37,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Sys_Error
+#endif
+#if defined(QW_HACK) && defined(SERVERONLY)
+#include "model.h"
+#include "qwsvdef.h"
+#include "pmove.h"
+#endif
 
 /*
 
@@ -204,6 +211,78 @@ typedef struct areanode_s {
 static areanode_t sv_areanodes[AREA_NODES];
 static int sv_numareanodes;
 
+#if defined(QW_HACK) && defined(SERVERONLY)
+/*
+====================
+AddLinksToPmove
+
+====================
+*/
+static void
+SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
+		     const vec3_t maxs)
+{
+    const link_t *l, *next;
+    const edict_t *check;
+    int pl;
+    int i;
+    physent_t *pe;
+
+    pl = EDICT_TO_PROG(sv_player);
+
+    // touch linked edicts
+    for (l = node->solid_edicts.next; l != &node->solid_edicts; l = next) {
+	next = l->next;
+	check = EDICT_FROM_AREA(l);
+
+	if (check->v.owner == pl)
+	    continue;		// player's own missile
+	if (check->v.solid == SOLID_BSP
+	    || check->v.solid == SOLID_BBOX
+	    || check->v.solid == SOLID_SLIDEBOX) {
+	    if (check == sv_player)
+		continue;
+
+	    for (i = 0; i < 3; i++)
+		if (check->v.absmin[i] > maxs[i]
+		    || check->v.absmax[i] < mins[i])
+		    break;
+	    if (i != 3)
+		continue;
+	    if (pmove.numphysent == MAX_PHYSENTS)
+		return;
+	    pe = &pmove.physents[pmove.numphysent];
+	    pmove.numphysent++;
+
+	    VectorCopy(check->v.origin, pe->origin);
+	    pe->info = NUM_FOR_EDICT(check);
+	    if (check->v.solid == SOLID_BSP)
+		pe->model = sv.models[(int)(check->v.modelindex)];
+	    else {
+		pe->model = NULL;
+		VectorCopy(check->v.mins, pe->mins);
+		VectorCopy(check->v.maxs, pe->maxs);
+	    }
+	}
+    }
+
+// recurse down both sides
+    if (node->axis == -1)
+	return;
+
+    if (maxs[node->axis] > node->dist)
+	SV_AddLinksToPmove_r(node->children[0], mins, maxs);
+    if (mins[node->axis] < node->dist)
+	SV_AddLinksToPmove_r(node->children[1], mins, maxs);
+}
+
+void
+SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs)
+{
+    SV_AddLinksToPmove_r(sv_areanodes, mins, maxs);
+}
+#endif
+
 /*
 ===============
 SV_CreateAreaNode
@@ -304,7 +383,12 @@ SV_TouchLinks(edict_t *ent, areanode_t *node)
 	 *         (I think it was related to the E2M2 drawbridge bug)
 	 */
 	if (!l || !l->next)
+#ifdef NQ_HACK
 	    Host_Error("%s: encountered NULL link", __func__);
+#endif
+#if defined(QW_HACK) && defined(SERVERONLY)
+	    SV_Error("%s: encountered NULL link", __func__);
+#endif
 
 	next = l->next;
 	touch = EDICT_FROM_AREA(l);
@@ -533,12 +617,17 @@ SV_PointContents
 int
 SV_PointContents(vec3_t p)
 {
+#ifdef NQ_HACK
     int cont;
 
     cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
     if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 	cont = CONTENTS_WATER;
     return cont;
+#endif
+#if defined(QW_HACK) && defined(SERVERONLY)
+    return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
+#endif
 }
 
 //===========================================================================
@@ -547,7 +636,8 @@ SV_PointContents(vec3_t p)
 ============
 SV_TestEntityPosition
 
-This could be a lot more efficient...
+A small wrapper around SV_BoxInSolidEntity that never clips against the
+supplied entity.  TODO: This could be a lot more efficient?
 ============
 */
 edict_t *
@@ -904,3 +994,65 @@ SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
 
     return clip.trace;
 }
+
+//=============================================================================
+
+#if defined(QW_HACK) && defined(SERVERONLY)
+/*
+============
+SV_TestPlayerPosition
+
+============
+*/
+edict_t *
+SV_TestPlayerPosition(edict_t *ent, vec3_t origin)
+{
+    hull_t *hull;
+    edict_t *check;
+    vec3_t boxmins, boxmaxs;
+    vec3_t offset;
+    int e;
+
+// check world first
+    hull = &sv.worldmodel->hulls[1];
+    if (SV_HullPointContents(hull, hull->firstclipnode, origin) !=
+	CONTENTS_EMPTY)
+	return sv.edicts;
+
+// check all entities
+    VectorAdd(origin, ent->v.mins, boxmins);
+    VectorAdd(origin, ent->v.maxs, boxmaxs);
+
+    check = NEXT_EDICT(sv.edicts);
+    for (e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check)) {
+	if (check->free)
+	    continue;
+	if (check->v.solid != SOLID_BSP &&
+	    check->v.solid != SOLID_BBOX && check->v.solid != SOLID_SLIDEBOX)
+	    continue;
+
+	if (boxmins[0] > check->v.absmax[0]
+	    || boxmins[1] > check->v.absmax[1]
+	    || boxmins[2] > check->v.absmax[2]
+	    || boxmaxs[0] < check->v.absmin[0]
+	    || boxmaxs[1] < check->v.absmin[1]
+	    || boxmaxs[2] < check->v.absmin[2])
+	    continue;
+
+	if (check == ent)
+	    continue;
+
+	// get the clipping hull
+	hull = SV_HullForEntity(check, ent->v.mins, ent->v.maxs, offset);
+
+	VectorSubtract(origin, offset, offset);
+
+	// test the point
+	if (SV_HullPointContents(hull, hull->firstclipnode, offset) !=
+	    CONTENTS_EMPTY)
+	    return check;
+    }
+
+    return NULL;
+}
+#endif
