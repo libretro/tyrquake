@@ -278,6 +278,9 @@ SV_CreateAreaNode(int depth, vec3_t mins, vec3_t maxs)
     vec3_t size;
     vec3_t mins1, maxs1, mins2, maxs2;
 
+    if (sv_numareanodes == AREA_NODES)
+	SV_Error("%s: sv_numareanodes == AREA_NODES", __func__);
+
     anode = &sv_areanodes[sv_numareanodes];
     sv_numareanodes++;
 
