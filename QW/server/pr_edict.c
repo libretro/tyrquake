@@ -464,6 +464,7 @@ ED_Print(edict_t *ed)
 	return;
     }
 
+    Con_Printf("\nEDICT %i:\n", NUM_FOR_EDICT(ed));
     for (i = 1; i < progs->numfielddefs; i++) {
 	d = &pr_fielddefs[i];
 	name = PR_GetString(d->s_name);
@@ -555,10 +556,8 @@ ED_PrintEdicts(void)
     int i;
 
     Con_Printf("%i entities\n", sv.num_edicts);
-    for (i = 0; i < sv.num_edicts; i++) {
-	Con_Printf("\nEDICT %i:\n", i);
+    for (i = 0; i < sv.num_edicts; i++)
 	ED_PrintNum(i);
-    }
 }
 
 /*
