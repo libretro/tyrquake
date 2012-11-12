@@ -21,17 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef WORLD_H
 #define WORLD_H
 
-// world.h
-
-#include "qtypes.h"
 #include "mathlib.h"
-#include "progs.h"		/* edict_t */
-
-#ifdef GLQUAKE
-# include "gl_model.h"
-#else
-# include "model.h"
-#endif
+#include "progs.h"
+#include "qtypes.h"
 
 typedef struct {
     vec3_t normal;
@@ -92,11 +84,19 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
-// FIXME - comment with purpose.
-//         I just exposed it for chase.c
-qboolean
-         SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
+#if defined(QW_HACK) && defined(SERVERONLY)
+edict_t *SV_TestPlayerPosition(edict_t *ent, vec3_t origin);
+void SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs);
+#endif
+#ifdef NQ_HACK
+// FIXME - needed in chase.c, but doesn't seem like the right interface
+#ifdef GLQUAKE
+# include "gl_model.h"
+#else
+# include "model.h"
+#endif
+qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 			       vec3_t p1, vec3_t p2, trace_t *trace);
-
+#endif
 
 #endif /* WORLD_H */
