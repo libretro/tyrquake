@@ -658,7 +658,7 @@ SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     }
 
     if (num < hull->firstclipnode || num > hull->lastclipnode)
-	SV_Error("SV_RecursiveHullCheck: bad node number");
+	SV_Error("%s: bad node number", __func__);
 
 //
 // find the point distances

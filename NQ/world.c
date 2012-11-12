@@ -27,6 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "world.h"
 
+/* FIXME - quick hack to enable merging of NQ/QWSV shared code */
+#define SV_Error Sys_Error
+
 /*
 
 entities never clip against themselves, or their owner
@@ -142,12 +145,12 @@ SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t offset)
 // decide which clipping hull to use, based on the size
     if (ent->v.solid == SOLID_BSP) {	// explicit hulls in the BSP model
 	if (ent->v.movetype != MOVETYPE_PUSH)
-	    Sys_Error("SOLID_BSP without MOVETYPE_PUSH");
+	    SV_Error("SOLID_BSP without MOVETYPE_PUSH");
 
 	model = sv.models[(int)ent->v.modelindex];
 
 	if (!model || model->type != mod_brush)
-	    Sys_Error("MOVETYPE_PUSH with a non bsp model");
+	    SV_Error("MOVETYPE_PUSH with a non bsp model");
 
 	VectorSubtract(maxs, mins, size);
 	if (size[0] < 3)
@@ -208,7 +211,7 @@ SV_CreateAreaNode(int depth, vec3_t mins, vec3_t maxs)
     vec3_t mins1, maxs1, mins2, maxs2;
 
     if (sv_numareanodes == AREA_NODES)
-	Sys_Error("%s: sv_numareanodes == AREA_NODES", __func__);
+	SV_Error("%s: sv_numareanodes == AREA_NODES", __func__);
 
     anode = &sv_areanodes[sv_numareanodes];
     sv_numareanodes++;
@@ -489,7 +492,7 @@ SV_HullPointContents(hull_t *hull, int num, vec3_t p)
 
     while (num < 0xfff0) {
 	if (num < hull->firstclipnode || num > hull->lastclipnode)
-	    Sys_Error("%s: bad node number (%i)", __func__, num);
+	    SV_Error("%s: bad node number (%i)", __func__, num);
 
 	node = hull->clipnodes + num;
 	plane = hull->planes + node->planenum;
@@ -595,7 +598,7 @@ SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     }
 
     if (num < hull->firstclipnode || num > hull->lastclipnode)
-	Sys_Error("%s: bad node number", __func__);
+	SV_Error("%s: bad node number", __func__);
 
 //
 // find the point distances
@@ -768,7 +771,7 @@ SV_ClipToLinks(areanode_t *node, moveclip_t *clip)
 	if (touch == clip->passedict)
 	    continue;
 	if (touch->v.solid == SOLID_TRIGGER)
-	    Sys_Error("Trigger in clipping list");
+	    SV_Error("Trigger in clipping list");
 
 	if (clip->type == MOVE_NOMONSTERS && touch->v.solid != SOLID_BSP)
 	    continue;
