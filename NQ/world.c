@@ -299,7 +299,10 @@ SV_TouchLinks(edict_t *ent, areanode_t *node)
 
     /* touch linked edicts */
     for (l = node->trigger_edicts.next; l != &node->trigger_edicts; l = next) {
-	/* FIXME - Is this just paranoia? */
+	/*
+	 * FIXME - Just paranoia? Check if this can really happen...
+	 *         (I think it was related to the E2M2 drawbridge bug)
+	 */
 	if (!l || !l->next)
 	    Host_Error("%s: encountered NULL link", __func__);
 
