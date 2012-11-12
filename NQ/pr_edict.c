@@ -66,8 +66,17 @@ static int type_size[8] = {
 
 static qboolean ED_ParseEpair(void *base, ddef_t *key, char *s);
 
-cvar_t nomonsters = { "nomonsters", "0" };
+#define	MAX_FIELD_LEN	64
+#define GEFV_CACHESIZE	2
 
+typedef struct {
+    ddef_t *pcache;
+    char field[MAX_FIELD_LEN];
+} gefv_cache;
+
+static gefv_cache gefvCache[GEFV_CACHESIZE] = { {NULL, ""}, {NULL, ""} };
+
+cvar_t nomonsters = { "nomonsters", "0" };
 static cvar_t gamecfg = { "gamecfg", "0" };
 static cvar_t scratch1 = { "scratch1", "0" };
 static cvar_t scratch2 = { "scratch2", "0" };
@@ -78,16 +87,6 @@ static cvar_t saved1 = { "saved1", "0", true };
 static cvar_t saved2 = { "saved2", "0", true };
 static cvar_t saved3 = { "saved3", "0", true };
 static cvar_t saved4 = { "saved4", "0", true };
-
-#define	MAX_FIELD_LEN	64
-#define GEFV_CACHESIZE	2
-
-typedef struct {
-    ddef_t *pcache;
-    char field[MAX_FIELD_LEN];
-} gefv_cache;
-
-static gefv_cache gefvCache[GEFV_CACHESIZE] = { {NULL, ""}, {NULL, ""} };
 
 /*
 =================
