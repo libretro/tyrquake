@@ -670,26 +670,26 @@ ED_ParseGlobals(char *data)
 	if (com_token[0] == '}')
 	    break;
 	if (!data)
-	    SV_Error("ED_ParseEntity: EOF without closing brace");
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 	strcpy(keyname, com_token);
 
 	// parse value
 	data = COM_Parse(data);
 	if (!data)
-	    SV_Error("ED_ParseEntity: EOF without closing brace");
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 	if (com_token[0] == '}')
-	    SV_Error("ED_ParseEntity: closing brace without data");
+	    SV_Error("%s: closing brace without data", __func__);
 
 	key = ED_FindGlobal(keyname);
 	if (!key) {
-	    Con_Printf("%s is not a global\n", keyname);
+	    Con_Printf("'%s' is not a global\n", keyname);
 	    continue;
 	}
 
 	if (!ED_ParseEpair((void *)pr_globals, key, com_token))
-	    SV_Error("ED_ParseGlobals: parse error");
+	    SV_Error("%s: parse error", __func__);
     }
 }
 
@@ -826,7 +826,7 @@ ED_ParseEdict(char *data, edict_t *ent)
 	if (com_token[0] == '}')
 	    break;
 	if (!data)
-	    SV_Error("ED_ParseEntity: EOF without closing brace");
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 // anglehack is to allow QuakeEd to write single scalar angles
 // and allow them to be turned into vectors. (FIXME...)
@@ -845,10 +845,10 @@ ED_ParseEdict(char *data, edict_t *ent)
 	// parse value
 	data = COM_Parse(data);
 	if (!data)
-	    SV_Error("ED_ParseEntity: EOF without closing brace");
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 	if (com_token[0] == '}')
-	    SV_Error("ED_ParseEntity: closing brace without data");
+	    SV_Error("%s: closing brace without data", __func__);
 
 	init = true;
 
@@ -871,7 +871,7 @@ ED_ParseEdict(char *data, edict_t *ent)
 	}
 
 	if (!ED_ParseEpair((void *)&ent->v, key, com_token))
-	    SV_Error("ED_ParseEdict: parse error");
+	    SV_Error("%s: parse error", __func__);
     }
 
     if (!init)
@@ -914,7 +914,7 @@ ED_LoadFromFile(char *data)
 	if (!data)
 	    break;
 	if (com_token[0] != '{')
-	    SV_Error("ED_LoadFromFile: found %s when expecting {", com_token);
+	    SV_Error("%s: found %s when expecting {", __func__, com_token);
 
 	if (!ent)
 	    ent = EDICT_NUM(0);
@@ -976,7 +976,7 @@ PR_LoadProgs(void)
     if (!progs)
 	progs = (dprograms_t *)COM_LoadHunkFile("progs.dat");
     if (!progs)
-	SV_Error("PR_LoadProgs: couldn't load progs.dat");
+	SV_Error("%s: couldn't load progs.dat", __func__);
     Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
 // add prog crc to the serverinfo
@@ -1037,7 +1037,7 @@ PR_LoadProgs(void)
     for (i = 0; i < progs->numfielddefs; i++) {
 	pr_fielddefs[i].type = LittleShort(pr_fielddefs[i].type);
 	if (pr_fielddefs[i].type & DEF_SAVEGLOBAL)
-	    SV_Error("PR_LoadProgs: pr_fielddefs[i].type & DEF_SAVEGLOBAL");
+	    SV_Error("%s: pr_fielddefs[i].type & DEF_SAVEGLOBAL", __func__);
 	pr_fielddefs[i].ofs = LittleShort(pr_fielddefs[i].ofs);
 	pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
     }
@@ -1077,7 +1077,7 @@ edict_t *
 EDICT_NUM(int n)
 {
     if (n < 0 || n >= MAX_EDICTS)
-	SV_Error("EDICT_NUM: bad number %i", n);
+	SV_Error("%s: bad number %i", __func__, n);
     return (edict_t *)((byte *)sv.edicts + (n) * pr_edict_size);
 }
 
@@ -1090,6 +1090,6 @@ NUM_FOR_EDICT(const edict_t *e)
     b = b / pr_edict_size;
 
     if (b < 0 || b >= sv.num_edicts)
-	SV_Error("NUM_FOR_EDICT: bad pointer");
+	SV_Error("%s: bad pointer", __func__);
     return b;
 }

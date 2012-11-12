@@ -702,7 +702,7 @@ ED_ParseGlobals(char *data)
 	}
 
 	if (!ED_ParseEpair((void *)pr_globals, key, com_token))
-	    Host_Error("ED_ParseGlobals: parse error");
+	    Host_Error("%s: parse error", __func__);
     }
 }
 
@@ -892,7 +892,7 @@ ED_ParseEdict(char *data, edict_t *ent)
 	}
 
 	if (!ED_ParseEpair((void *)&ent->v, key, com_token))
-	    Host_Error("ED_ParseEdict: parse error");
+	    Host_Error("%s: parse error", __func__);
     }
 
     if (!init)
