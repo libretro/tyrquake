@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "mathlib.h"
 #include "model.h"
+#include "pmove.h"
 #include "qwsvdef.h"
 #include "server.h"
 #include "world.h"
@@ -180,9 +181,89 @@ ENTITY AREA CHECKING
 ===============================================================================
 */
 
+typedef struct areanode_s {
+    int axis;			// -1 = leaf node
+    float dist;
+    struct areanode_s *children[2];
+    link_t trigger_edicts;
+    link_t solid_edicts;
+} areanode_t;
 
-areanode_t sv_areanodes[AREA_NODES];
-int sv_numareanodes;
+#define	AREA_DEPTH	4
+#define	AREA_NODES	32
+
+static areanode_t sv_areanodes[AREA_NODES];
+static int sv_numareanodes;
+
+/*
+====================
+AddLinksToPmove
+
+====================
+*/
+static void
+SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
+		     const vec3_t maxs)
+{
+    const link_t *l, *next;
+    edict_t *check;
+    int pl;
+    int i;
+    physent_t *pe;
+
+    pl = EDICT_TO_PROG(sv_player);
+
+    // touch linked edicts
+    for (l = node->solid_edicts.next; l != &node->solid_edicts; l = next) {
+	next = l->next;
+	check = EDICT_FROM_AREA(l);
+
+	if (check->v.owner == pl)
+	    continue;		// player's own missile
+	if (check->v.solid == SOLID_BSP
+	    || check->v.solid == SOLID_BBOX
+	    || check->v.solid == SOLID_SLIDEBOX) {
+	    if (check == sv_player)
+		continue;
+
+	    for (i = 0; i < 3; i++)
+		if (check->v.absmin[i] > maxs[i]
+		    || check->v.absmax[i] < mins[i])
+		    break;
+	    if (i != 3)
+		continue;
+	    if (pmove.numphysent == MAX_PHYSENTS)
+		return;
+	    pe = &pmove.physents[pmove.numphysent];
+	    pmove.numphysent++;
+
+	    VectorCopy(check->v.origin, pe->origin);
+	    pe->info = NUM_FOR_EDICT(check);
+	    if (check->v.solid == SOLID_BSP)
+		pe->model = sv.models[(int)(check->v.modelindex)];
+	    else {
+		pe->model = NULL;
+		VectorCopy(check->v.mins, pe->mins);
+		VectorCopy(check->v.maxs, pe->maxs);
+	    }
+	}
+    }
+
+// recurse down both sides
+    if (node->axis == -1)
+	return;
+
+    if (maxs[node->axis] > node->dist)
+	SV_AddLinksToPmove_r(node->children[0], mins, maxs);
+    if (mins[node->axis] < node->dist)
+	SV_AddLinksToPmove_r(node->children[1], mins, maxs);
+}
+
+void
+SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs)
+{
+    SV_AddLinksToPmove_r(sv_areanodes, mins, maxs);
+}
 
 /*
 ===============

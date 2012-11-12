@@ -1221,78 +1221,6 @@ V_CalcRoll(vec3_t angles, vec3_t velocity)
 
 //============================================================================
 
-vec3_t pmove_mins, pmove_maxs;
-
-/*
-====================
-AddLinksToPmove
-
-====================
-*/
-static void
-SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
-		     const vec3_t maxs)
-{
-    const link_t *l, *next;
-    edict_t *check;
-    int pl;
-    int i;
-    physent_t *pe;
-
-    pl = EDICT_TO_PROG(sv_player);
-
-    // touch linked edicts
-    for (l = node->solid_edicts.next; l != &node->solid_edicts; l = next) {
-	next = l->next;
-	check = EDICT_FROM_AREA(l);
-
-	if (check->v.owner == pl)
-	    continue;		// player's own missile
-	if (check->v.solid == SOLID_BSP
-	    || check->v.solid == SOLID_BBOX
-	    || check->v.solid == SOLID_SLIDEBOX) {
-	    if (check == sv_player)
-		continue;
-
-	    for (i = 0; i < 3; i++)
-		if (check->v.absmin[i] > maxs[i]
-		    || check->v.absmax[i] < mins[i])
-		    break;
-	    if (i != 3)
-		continue;
-	    if (pmove.numphysent == MAX_PHYSENTS)
-		return;
-	    pe = &pmove.physents[pmove.numphysent];
-	    pmove.numphysent++;
-
-	    VectorCopy(check->v.origin, pe->origin);
-	    pe->info = NUM_FOR_EDICT(check);
-	    if (check->v.solid == SOLID_BSP)
-		pe->model = sv.models[(int)(check->v.modelindex)];
-	    else {
-		pe->model = NULL;
-		VectorCopy(check->v.mins, pe->mins);
-		VectorCopy(check->v.maxs, pe->maxs);
-	    }
-	}
-    }
-
-// recurse down both sides
-    if (node->axis == -1)
-	return;
-
-    if (maxs[node->axis] > node->dist)
-	SV_AddLinksToPmove_r(node->children[0], mins, maxs);
-    if (mins[node->axis] < node->dist)
-	SV_AddLinksToPmove_r(node->children[1], mins, maxs);
-}
-
-void
-SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs)
-{
-    SV_AddLinksToPmove_r(sv_areanodes, mins, maxs);
-}
-
 /*
 ================
 AddAllEntsToPmove
@@ -1301,7 +1229,7 @@ For debugging
 ================
 */
 void
-AddAllEntsToPmove(void)
+AddAllEntsToPmove(const vec3_t mins, const vec3_t maxs)
 {
     int e;
     edict_t *check;
@@ -1323,8 +1251,8 @@ AddAllEntsToPmove(void)
 		continue;
 
 	    for (i = 0; i < 3; i++)
-		if (check->v.absmin[i] > pmove_maxs[i]
-		    || check->v.absmax[i] < pmove_mins[i])
+		if (check->v.absmin[i] > maxs[i]
+		    || check->v.absmax[i] < mins[i])
 		    break;
 	    if (i != 3)
 		continue;
@@ -1371,6 +1299,7 @@ SV_RunCmd(usercmd_t *ucmd)
     edict_t *ent;
     int i, n;
     int oldmsec;
+    vec3_t mins, maxs;
 
     cmd = *ucmd;
 
@@ -1437,13 +1366,13 @@ SV_RunCmd(usercmd_t *ucmd)
     movevars.maxspeed = host_client->maxspeed;
 
     for (i = 0; i < 3; i++) {
-	pmove_mins[i] = pmove.origin[i] - 256;
-	pmove_maxs[i] = pmove.origin[i] + 256;
+	mins[i] = pmove.origin[i] - 256;
+	maxs[i] = pmove.origin[i] + 256;
     }
 #if 1
-    SV_AddLinksToPmove(pmove_mins, pmove_maxs);
+    SV_AddLinksToPmove(mins, maxs);
 #else
-    AddAllEntsToPmove();
+    AddAllEntsToPmove(mins, maxs);
 #endif
 
 #if 0

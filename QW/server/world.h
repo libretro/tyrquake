@@ -41,22 +41,9 @@ typedef struct {
 } trace_t;
 
 
-#define	MOVE_NORMAL		0
+#define	MOVE_NORMAL	0
 #define	MOVE_NOMONSTERS	1
 #define	MOVE_MISSILE	2
-
-typedef struct areanode_s {
-    int axis;			// -1 = leaf node
-    float dist;
-    struct areanode_s *children[2];
-    link_t trigger_edicts;
-    link_t solid_edicts;
-} areanode_t;
-
-#define	AREA_DEPTH	4
-#define	AREA_NODES	32
-
-extern areanode_t sv_areanodes[AREA_NODES];
 
 
 void SV_ClearWorld(void);
@@ -99,5 +86,7 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 
 
 edict_t *SV_TestPlayerPosition(edict_t *ent, vec3_t origin);
+
+void SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs);
 
 #endif /* SERVER_WORLD_H */
