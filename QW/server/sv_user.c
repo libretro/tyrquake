@@ -1229,10 +1229,11 @@ AddLinksToPmove
 
 ====================
 */
-void
-AddLinksToPmove(areanode_t *node)
+static void
+SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
+		     const vec3_t maxs)
 {
-    link_t *l, *next;
+    const link_t *l, *next;
     edict_t *check;
     int pl;
     int i;
@@ -1254,8 +1255,8 @@ AddLinksToPmove(areanode_t *node)
 		continue;
 
 	    for (i = 0; i < 3; i++)
-		if (check->v.absmin[i] > pmove_maxs[i]
-		    || check->v.absmax[i] < pmove_mins[i])
+		if (check->v.absmin[i] > maxs[i]
+		    || check->v.absmax[i] < mins[i])
 		    break;
 	    if (i != 3)
 		continue;
@@ -1280,12 +1281,17 @@ AddLinksToPmove(areanode_t *node)
     if (node->axis == -1)
 	return;
 
-    if (pmove_maxs[node->axis] > node->dist)
-	AddLinksToPmove(node->children[0]);
-    if (pmove_mins[node->axis] < node->dist)
-	AddLinksToPmove(node->children[1]);
+    if (maxs[node->axis] > node->dist)
+	SV_AddLinksToPmove_r(node->children[0], mins, maxs);
+    if (mins[node->axis] < node->dist)
+	SV_AddLinksToPmove_r(node->children[1], mins, maxs);
 }
 
+void
+SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs)
+{
+    SV_AddLinksToPmove_r(sv_areanodes, mins, maxs);
+}
 
 /*
 ================
@@ -1435,7 +1441,7 @@ SV_RunCmd(usercmd_t *ucmd)
 	pmove_maxs[i] = pmove.origin[i] + 256;
     }
 #if 1
-    AddLinksToPmove(sv_areanodes);
+    SV_AddLinksToPmove(pmove_mins, pmove_maxs);
 #else
     AddAllEntsToPmove();
 #endif
