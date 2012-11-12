@@ -1083,7 +1083,7 @@ EDICT_NUM(int n)
 }
 
 int
-NUM_FOR_EDICT(edict_t *e)
+NUM_FOR_EDICT(const edict_t *e)
 {
     int b;
 

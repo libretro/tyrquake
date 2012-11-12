@@ -90,7 +90,7 @@ void ED_LoadFromFile(char *data);
 //define NUM_FOR_EDICT(e) (((byte *)(e) - sv.edicts)/pr_edict_size)
 
 edict_t *EDICT_NUM(int n);
-int NUM_FOR_EDICT(edict_t *e);
+int NUM_FOR_EDICT(const edict_t *e);
 
 #define	NEXT_EDICT(e) ((edict_t *)( (byte *)e + pr_edict_size))
 

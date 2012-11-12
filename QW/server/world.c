@@ -206,7 +206,7 @@ SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
 		     const vec3_t maxs)
 {
     const link_t *l, *next;
-    edict_t *check;
+    const edict_t *check;
     int pl;
     int i;
     physent_t *pe;
