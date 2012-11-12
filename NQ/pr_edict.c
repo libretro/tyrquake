@@ -19,17 +19,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_edict.c -- entity dictionary
 
-#include "quakedef.h"
-#include "host.h"
+#include "cmd.h"
+#include "console.h"
+#include "crc.h"
 #include "pr_comp.h"
 #include "progdefs.h"
 #include "progs.h"
 #include "server.h"
-#include "sys.h"
 #include "world.h"
-#include "console.h"
-#include "cmd.h"
-#include "crc.h"
+#include "zone.h"
+
+#include "host.h"
+#include "quakedef.h"
+#include "sys.h"
 
 dprograms_t *progs;
 dfunction_t *pr_functions;

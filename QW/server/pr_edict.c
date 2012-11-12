@@ -23,11 +23,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "crc.h"
 #include "pr_comp.h"
+#include "progdefs.h"
 #include "progs.h"
-#include "qwsvdef.h"
 #include "server.h"
 #include "world.h"
 #include "zone.h"
+
+#include "qwsvdef.h"
 
 dprograms_t *progs;
 dfunction_t *pr_functions;
