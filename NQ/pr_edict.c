@@ -586,11 +586,10 @@ ED_PrintEdict_f(void)
     int i;
 
     i = Q_atoi(Cmd_Argv(1));
-    if (i >= sv.num_edicts) {
+    if (i >= 0 && i < sv.num_edicts)
+	ED_PrintNum(i);
+    else
 	Con_Printf("Bad edict number\n");
-	return;
-    }
-    ED_PrintNum(i);
 }
 
 /*
