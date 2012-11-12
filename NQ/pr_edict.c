@@ -859,7 +859,7 @@ ED_ParseEdict(char *data, edict_t *ent)
 
 	strcpy(keyname, com_token);
 
-	// another hack to fix heynames with trailing spaces
+	// another hack to fix keynames with trailing spaces
 	n = strlen(keyname);
 	while (n && keyname[n - 1] == ' ') {
 	    keyname[n - 1] = 0;

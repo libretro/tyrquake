@@ -815,6 +815,7 @@ ED_ParseEdict(char *data, edict_t *ent)
     qboolean anglehack;
     qboolean init;
     char keyname[256];
+    int n;
 
     init = false;
 
@@ -844,6 +845,13 @@ ED_ParseEdict(char *data, edict_t *ent)
 	    strcpy(com_token, "light_lev");	// hack for single light def
 
 	strcpy(keyname, com_token);
+
+	// another hack to fix keynames with trailing spaces
+	n = strlen(keyname);
+	while (n && keyname[n - 1] == ' ') {
+	    keyname[n - 1] = 0;
+	    n--;
+	}
 
 	// parse value
 	data = COM_Parse(data);
