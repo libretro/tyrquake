@@ -528,12 +528,6 @@ SV_PointContents(vec3_t p)
     return cont;
 }
 
-int
-SV_TruePointContents(vec3_t p)
-{
-    return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
-}
-
 //===========================================================================
 
 /*

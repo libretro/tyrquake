@@ -72,11 +72,9 @@ void SV_LinkEdict(edict_t *ent, qboolean touch_triggers);
 // if touchtriggers, calls prog functions for the intersected triggers
 
 int SV_PointContents(vec3_t p);
-int SV_TruePointContents(vec3_t p);
 
 // returns the CONTENTS_* value from the world at the given point.
 // does not check any entities at all
-// the non-true version remaps the water current contents to content_water
 
 edict_t *SV_TestEntityPosition(edict_t *ent);
 
