@@ -22,11 +22,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bspfile.h"
 #include "console.h"
 #include "mathlib.h"
-#include "model.h"
-#include "pmove.h"
-#include "qwsvdef.h"
+#include "progs.h"
 #include "server.h"
 #include "world.h"
+
+#include "model.h"
+#include "qwsvdef.h"
+#include "pmove.h"
 
 /*
 

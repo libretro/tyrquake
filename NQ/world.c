@@ -19,14 +19,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // world.c -- world query functions
 
+#include "bspfile.h"
 #include "console.h"
-#include "host.h"
+#include "mathlib.h"
 #include "progs.h"
-#include "quakedef.h"
 #include "server.h"
-#include "sys.h"
 #include "world.h"
 
+#ifdef GLQUAKE
+#include "gl_model.h"
+#else
+#include "model.h"
+#endif
+#include "quakedef.h"
+#include "host.h"
+#include "sys.h"
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Sys_Error
 
