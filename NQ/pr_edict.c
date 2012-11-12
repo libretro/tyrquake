@@ -33,6 +33,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "sys.h"
 
+/* FIXME - quick hack to enable merging of NQ/QWSV shared code */
+#define SV_Error Sys_Error
+
 dprograms_t *progs;
 dfunction_t *pr_functions;
 char *pr_strings;
@@ -128,7 +131,7 @@ ED_Alloc(void)
     }
 
     if (i == MAX_EDICTS)
-	Sys_Error("%s: no free edicts", __func__);
+	SV_Error("%s: no free edicts", __func__);
 
     sv.num_edicts++;
     e = EDICT_NUM(i);
@@ -685,17 +688,17 @@ ED_ParseGlobals(char *data)
 	if (com_token[0] == '}')
 	    break;
 	if (!data)
-	    Sys_Error("%s: EOF without closing brace", __func__);
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 	strcpy(keyname, com_token);
 
 	// parse value
 	data = COM_Parse(data);
 	if (!data)
-	    Sys_Error("%s: EOF without closing brace", __func__);
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 	if (com_token[0] == '}')
-	    Sys_Error("%s: closing brace without data", __func__);
+	    SV_Error("%s: closing brace without data", __func__);
 
 	key = ED_FindGlobal(keyname);
 	if (!key) {
@@ -842,7 +845,7 @@ ED_ParseEdict(char *data, edict_t *ent)
 	if (com_token[0] == '}')
 	    break;
 	if (!data)
-	    Sys_Error("%s: EOF without closing brace", __func__);
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 // anglehack is to allow QuakeEd to write single scalar angles
 // and allow them to be turned into vectors. (FIXME...)
@@ -868,10 +871,10 @@ ED_ParseEdict(char *data, edict_t *ent)
 	// parse value
 	data = COM_Parse(data);
 	if (!data)
-	    Sys_Error("%s: EOF without closing brace", __func__);
+	    SV_Error("%s: EOF without closing brace", __func__);
 
 	if (com_token[0] == '}')
-	    Sys_Error("%s: closing brace without data", __func__);
+	    SV_Error("%s: closing brace without data", __func__);
 
 	init = true;
 
@@ -937,7 +940,7 @@ ED_LoadFromFile(char *data)
 	if (!data)
 	    break;
 	if (com_token[0] != '{')
-	    Sys_Error("%s: found %s when expecting {", __func__, com_token);
+	    SV_Error("%s: found %s when expecting {", __func__, com_token);
 
 	if (!ent)
 	    ent = EDICT_NUM(0);
@@ -1008,7 +1011,7 @@ PR_LoadProgs(void)
 
     progs = (dprograms_t *)COM_LoadHunkFile("progs.dat");
     if (!progs)
-	Sys_Error("%s: couldn't load progs.dat", __func__);
+	SV_Error("%s: couldn't load progs.dat", __func__);
     Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
     for (i = 0; i < com_filesize; i++)
@@ -1019,11 +1022,11 @@ PR_LoadProgs(void)
 	((int *)progs)[i] = LittleLong(((int *)progs)[i]);
 
     if (progs->version != PROG_VERSION)
-	Sys_Error("progs.dat has wrong version number (%i should be %i)",
-		  progs->version, PROG_VERSION);
+	SV_Error("progs.dat has wrong version number (%i should be %i)",
+		 progs->version, PROG_VERSION);
     if (progs->crc != PROGHEADER_CRC)
-	Sys_Error("progs.dat system vars have been modified, "
-		  "progdefs.h is out of date");
+	SV_Error("progs.dat system vars have been modified, "
+		 "progdefs.h is out of date");
 
     pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
     pr_strings = (char *)progs + progs->ofs_strings;
@@ -1069,7 +1072,7 @@ PR_LoadProgs(void)
     for (i = 0; i < progs->numfielddefs; i++) {
 	pr_fielddefs[i].type = LittleShort(pr_fielddefs[i].type);
 	if (pr_fielddefs[i].type & DEF_SAVEGLOBAL)
-	    Sys_Error("%s: pr_fielddefs[i].type & DEF_SAVEGLOBAL", __func__);
+	    SV_Error("%s: pr_fielddefs[i].type & DEF_SAVEGLOBAL", __func__);
 	pr_fielddefs[i].ofs = LittleShort(pr_fielddefs[i].ofs);
 	pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
     }
@@ -1109,7 +1112,7 @@ edict_t *
 EDICT_NUM(int n)
 {
     if (n < 0 || n >= sv.max_edicts)
-	Sys_Error("%s: bad number %i", __func__, n);
+	SV_Error("%s: bad number %i", __func__, n);
     return (edict_t *)((byte *)sv.edicts + (n) * pr_edict_size);
 }
 
@@ -1122,6 +1125,6 @@ NUM_FOR_EDICT(const edict_t *e)
     b = b / pr_edict_size;
 
     if (b < 0 || b >= sv.num_edicts)
-	Sys_Error("%s: bad pointer", __func__);
+	SV_Error("%s: bad pointer", __func__);
     return b;
 }
