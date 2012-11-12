@@ -835,11 +835,6 @@ void
 SV_MoveBounds(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 	      vec3_t boxmins, vec3_t boxmaxs)
 {
-#if 0
-// debug to test against everything
-    boxmins[0] = boxmins[1] = boxmins[2] = -FLT_MAX;
-    boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = FLT_MAX;
-#else
     int i;
 
     for (i = 0; i < 3; i++) {
@@ -851,7 +846,6 @@ SV_MoveBounds(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 	    boxmaxs[i] = start[i] + maxs[i] + 1;
 	}
     }
-#endif
 }
 
 /*
