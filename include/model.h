@@ -384,5 +384,6 @@ texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
 
 void Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 			const char *loadname);
+void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 
 #endif /* MODEL_H */

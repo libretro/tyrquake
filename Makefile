@@ -534,7 +534,8 @@ SW_OBJS := \
 	r_sprite.o	\
 	r_surf.o	\
 	r_vars.o	\
-	screen.o
+	screen.o	\
+	sprite_model.o
 
 GL_OBJS := \
 	drawhulls.o	\
