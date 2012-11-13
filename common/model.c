@@ -63,29 +63,6 @@ Mod_Init(void)
 
 /*
 ===============
-Mod_Extradata
-
-Caches the data if needed
-===============
-*/
-void *
-Mod_Extradata(model_t *mod)
-{
-    void *r;
-
-    r = Cache_Check(&mod->cache);
-    if (r)
-	return r;
-
-    Mod_LoadModel(mod, true);
-
-    if (!mod->cache.data)
-	Sys_Error("%s: caching failed", __func__);
-    return mod->cache.data;
-}
-
-/*
-===============
 Mod_PointInLeaf
 ===============
 */
@@ -219,25 +196,6 @@ Mod_FindName(char *name)
     }
 
     return mod;
-}
-
-/*
-==================
-Mod_TouchModel
-
-==================
-*/
-void
-Mod_TouchModel(char *name)
-{
-    model_t *mod;
-
-    mod = Mod_FindName(name);
-
-    if (!mod->needload) {
-	if (mod->type == mod_alias)
-	    Cache_Check(&mod->cache);
-    }
 }
 
 /*
@@ -1232,6 +1190,29 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 //=============================================================================
 
 /*
+===============
+Mod_Extradata
+
+Caches the data if needed
+===============
+*/
+void *
+Mod_Extradata(model_t *mod)
+{
+    void *r;
+
+    r = Cache_Check(&mod->cache);
+    if (r)
+	return r;
+
+    Mod_LoadModel(mod, true);
+
+    if (!mod->cache.data)
+	Sys_Error("%s: caching failed", __func__);
+    return mod->cache.data;
+}
+
+/*
 ================
 Mod_Print
 ================
@@ -1245,4 +1226,23 @@ Mod_Print(void)
     Con_Printf("Cached models:\n");
     for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	Con_Printf("%8p : %s\n", mod->cache.data, mod->name);
+}
+
+/*
+==================
+Mod_TouchModel
+
+==================
+*/
+void
+Mod_TouchModel(char *name)
+{
+    model_t *mod;
+
+    mod = Mod_FindName(name);
+
+    if (!mod->needload) {
+	if (mod->type == mod_alias)
+	    Cache_Check(&mod->cache);
+    }
 }
