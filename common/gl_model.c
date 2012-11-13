@@ -37,7 +37,7 @@ extern unsigned d_8to24table[];
 static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
 
-static void Mod_LoadSpriteModel(model_t *mod, void *buffer);
+static void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
 static void Mod_LoadAliasModel(model_t *mod, void *buffer);
 static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
@@ -297,7 +297,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 	break;
 
     case IDSPRITEHEADER:
-	Mod_LoadSpriteModel(mod, buf);
+	Mod_LoadSpriteModel(mod, buf, loadname);
 	break;
 
     default:
@@ -1720,7 +1720,8 @@ Mod_LoadSpriteFrame
 =================
 */
 static void *
-Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, int framenum)
+Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
+		    int framenum)
 {
     dspriteframe_t *pinframe;
     mspriteframe_t *pspriteframe;
@@ -1749,7 +1750,7 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, int framenum)
     pspriteframe->left = origin[0];
     pspriteframe->right = width + origin[0];
 
-    snprintf(name, sizeof(name), "%s_%i", loadmodel->name, framenum);
+    snprintf(name, sizeof(name), "%s_%i", loadname, framenum);
     pspriteframe->gl_texturenum =
 	GL_LoadTexture(name, width, height, (byte *)(pinframe + 1), true,
 		       true);
@@ -1764,7 +1765,8 @@ Mod_LoadSpriteGroup
 =================
 */
 static void *
-Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, int framenum)
+Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
+		    int framenum)
 {
     dspritegroup_t *pingroup;
     mspritegroup_t *pspritegroup;
@@ -1799,9 +1801,8 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, int framenum)
     ptemp = (void *)pin_intervals;
 
     for (i = 0; i < numframes; i++) {
-	ptemp =
-	    Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i],
-				framenum * 100 + i);
+	ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], loadname,
+				    framenum * 100 + i);
     }
 
     return ptemp;
@@ -1814,7 +1815,7 @@ Mod_LoadSpriteModel
 =================
 */
 static void
-Mod_LoadSpriteModel(model_t *mod, void *buffer)
+Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
 {
     int i;
     int version;
@@ -1867,11 +1868,11 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer)
 	if (frametype == SPR_SINGLE) {
 	    pframetype = (dspriteframetype_t *)
 		Mod_LoadSpriteFrame(pframetype + 1,
-				    &psprite->frames[i].frameptr, i);
+				    &psprite->frames[i].frameptr, loadname, i);
 	} else {
 	    pframetype = (dspriteframetype_t *)
 		Mod_LoadSpriteGroup(pframetype + 1,
-				    &psprite->frames[i].frameptr, i);
+				    &psprite->frames[i].frameptr, loadname, i);
 	}
     }
 
