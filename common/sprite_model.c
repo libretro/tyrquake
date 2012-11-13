@@ -89,7 +89,6 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
     void *ptemp;
 
     pingroup = (dspritegroup_t *)pin;
-
     numframes = LittleLong(pingroup->numframes);
 
     pspritegroup = Hunk_AllocName(sizeof(mspritegroup_t) +
@@ -98,13 +97,9 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
 				  loadname);
 
     pspritegroup->numframes = numframes;
-
     *ppframe = (mspriteframe_t *)pspritegroup;
-
     pin_intervals = (dspriteinterval_t *)(pingroup + 1);
-
     poutintervals = Hunk_AllocName(numframes * sizeof(float), loadname);
-
     pspritegroup->intervals = poutintervals;
 
     for (i = 0; i < numframes; i++) {
