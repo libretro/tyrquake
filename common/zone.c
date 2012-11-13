@@ -451,7 +451,7 @@ Hunk_f(void)
  * ===================
  */
 void *
-Hunk_AllocName(int size, char *name)
+Hunk_AllocName(int size, const char *name)
 {
     hunk_t *h;
 
@@ -547,7 +547,7 @@ Hunk_FreeToHighMark(int mark)
  * ===================
  */
 void *
-Hunk_HighAllocName(int size, char *name)
+Hunk_HighAllocName(int size, const char *name)
 {
     hunk_t *h;
 
@@ -973,7 +973,7 @@ Cache_Check(cache_user_t *c)
  * ==============
  */
 void *
-Cache_Alloc(cache_user_t *c, int size, char *name)
+Cache_Alloc(cache_user_t *c, int size, const char *name)
 {
     cache_system_t *cs;
 
