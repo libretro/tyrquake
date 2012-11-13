@@ -37,20 +37,17 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
 {
     dspriteframe_t *pinframe;
     mspriteframe_t *pspriteframe;
-    int i, width, height, size, origin[2];
-    unsigned short *ppixout;
-    byte *ppixin;
+    int width, height, numpixels, size, origin[2];
 
     pinframe = (dspriteframe_t *)pin;
 
     width = LittleLong(pinframe->width);
     height = LittleLong(pinframe->height);
-    size = width * height;
+    numpixels = width * height;
+    size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
 
-    pspriteframe =
-	Hunk_AllocName(sizeof(mspriteframe_t) + size * r_pixbytes, loadname);
-
-    memset(pspriteframe, 0, sizeof(mspriteframe_t) + size);
+    pspriteframe = Hunk_AllocName(size, loadname);
+    memset(pspriteframe, 0, size);
     *ppframe = pspriteframe;
 
     pspriteframe->width = width;
@@ -63,20 +60,10 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
     pspriteframe->left = origin[0];
     pspriteframe->right = width + origin[0];
 
-    if (r_pixbytes == 1) {
-	memcpy(&pspriteframe->pixels[0], (byte *)(pinframe + 1), size);
-    } else if (r_pixbytes == 2) {
-	ppixin = (byte *)(pinframe + 1);
-	ppixout = (unsigned short *)&pspriteframe->pixels[0];
+    /* Let the renderer process the pixel data as needed */
+    R_SpriteDataStore(pspriteframe, loadname, framenum, (byte *)(pinframe + 1));
 
-	for (i = 0; i < size; i++)
-	    ppixout[i] = d_8to16table[ppixin[i]];
-    } else {
-	Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
-		  r_pixbytes);
-    }
-
-    return (void *)((byte *)pinframe + sizeof(dspriteframe_t) + size);
+    return (byte *)pinframe + sizeof(dspriteframe_t) + numpixels;
 }
 
 

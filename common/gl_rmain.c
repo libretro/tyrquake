@@ -165,6 +165,22 @@ R_RotateForEntity(entity_t *e)
 =============================================================
 */
 
+int R_SpriteDataSize(int numpixels)
+{
+    return sizeof(GLuint);
+}
+
+void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
+		       int framenum, byte *pixels)
+{
+    char name[MAX_QPATH];
+    GLuint *gl_texturenum = (GLuint *)&frame->rdata[0];
+
+    snprintf(name, sizeof(name), "%s_%i", modelname, framenum);
+    *gl_texturenum = GL_LoadTexture(name, frame->width, frame->height, pixels,
+				    true, true);
+}
+
 /*
 ================
 R_GetSpriteFrame
@@ -244,7 +260,7 @@ R_DrawSpriteModel(entity_t *e)
     glColor3f(1, 1, 1);
 
     GL_DisableMultitexture();
-    GL_Bind(frame->gl_texturenum);
+    GL_Bind(*(GLuint *)&frame->rdata[0]);
 
     glEnable(GL_ALPHA_TEST);
     glBegin(GL_QUADS);

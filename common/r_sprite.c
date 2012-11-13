@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_sprite.c
 
 #include "console.h"
+#include "model.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "sys.h"
@@ -30,6 +31,30 @@ static int sprite_width, sprite_height;
 
 spritedesc_t r_spritedesc;
 
+int
+R_SpriteDataSize(int pixels)
+{
+    return pixels * r_pixbytes;
+}
+
+void
+R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
+		  int framenum, byte *pixels)
+{
+    int i, size;
+
+    size = frame->width * frame->height;
+    if (r_pixbytes == 1) {
+	memcpy(&frame->rdata[0], pixels, size);
+    } else if (r_pixbytes == 2) {
+	unsigned short *pixout = (unsigned short *)&frame->rdata[0];
+	for (i = 0; i < size; i++)
+	    pixout[i] = d_8to16table[pixels[i]];
+    } else {
+	Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
+		  r_pixbytes);
+    }
+}
 
 /*
 ================

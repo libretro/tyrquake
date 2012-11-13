@@ -1725,19 +1725,17 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
 {
     dspriteframe_t *pinframe;
     mspriteframe_t *pspriteframe;
-    int width, height, size, origin[2];
-    char name[MAX_QPATH];
+    int width, height, numpixels, size, origin[2];
 
     pinframe = (dspriteframe_t *)pin;
 
     width = LittleLong(pinframe->width);
     height = LittleLong(pinframe->height);
-    size = width * height;
+    numpixels = width * height;
+    size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
 
-    pspriteframe = Hunk_AllocName(sizeof(mspriteframe_t), loadname);
-
-    memset(pspriteframe, 0, sizeof(mspriteframe_t));
-
+    pspriteframe = Hunk_AllocName(size, loadname);
+    memset(pspriteframe, 0, size);
     *ppframe = pspriteframe;
 
     pspriteframe->width = width;
@@ -1750,12 +1748,10 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
     pspriteframe->left = origin[0];
     pspriteframe->right = width + origin[0];
 
-    snprintf(name, sizeof(name), "%s_%i", loadname, framenum);
-    pspriteframe->gl_texturenum =
-	GL_LoadTexture(name, width, height, (byte *)(pinframe + 1), true,
-		       true);
+    /* Let the renderer process the pixel data as needed */
+    R_SpriteDataStore(pspriteframe, loadname, framenum, (byte *)(pinframe + 1));
 
-    return (void *)((byte *)pinframe + sizeof(dspriteframe_t) + size);
+    return (byte *)pinframe + sizeof(dspriteframe_t) + numpixels;
 }
 
 
