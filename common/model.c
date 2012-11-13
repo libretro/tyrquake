@@ -28,15 +28,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.h"
 #include "console.h"
 #include "model.h"
+
+#ifdef SERVERONLY
+#include "qwsvdef.h"
+/* A dummy texture to point to. FIXME - should server care about textures? */
+static texture_t r_notexture_mip_qwsv;
+#else
 #include "quakedef.h"
 #include "sys.h"
-
 #ifdef QW_HACK
 #include "crc.h"
 #endif
-
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Sys_Error
+#endif
 
 static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
@@ -219,11 +224,6 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 	} else
 	    return mod;		// not cached at all
     }
-
-//
-// because the world is so huge, load it one piece at a time
-//
-
 //
 // load the file
 //
@@ -249,6 +249,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
     mod->needload = false;
 
     switch (LittleLong(*(unsigned *)buf)) {
+#ifndef SERVERONLY
     case IDPOLYHEADER:
 	Mod_LoadAliasModel(mod, buf, loadmodel, loadname);
 	break;
@@ -256,7 +257,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
     case IDSPRITEHEADER:
 	Mod_LoadSpriteModel(mod, buf, loadname);
 	break;
-
+#endif
     default:
 	Mod_LoadBrushModel(mod, buf, size);
 	break;
@@ -346,8 +347,10 @@ Mod_LoadTextures(lump_t *l)
 	// the pixels immediately follow the structures
 	memcpy(tx + 1, mt + 1, pixels);
 
+#ifndef SERVERONLY
 	if (!strncmp(mt->name, "sky", 3))
 	    R_InitSky(tx);
+#endif
     }
 
 //
@@ -616,14 +619,22 @@ Mod_LoadTexinfo(lump_t *l)
 	out->flags = LittleLong(in->flags);
 
 	if (!loadmodel->textures) {
+#ifndef SERVERONLY
 	    out->texture = r_notexture_mip;	// checkerboard texture
+#else
+	    out->texture = &r_notexture_mip_qwsv;	// checkerboard texture
+#endif
 	    out->flags = 0;
 	} else {
 	    if (miptex >= loadmodel->numtextures)
 		SV_Error("miptex >= loadmodel->numtextures");
 	    out->texture = loadmodel->textures[miptex];
 	    if (!out->texture) {
+#ifndef SERVERONLY
 		out->texture = r_notexture_mip;	// texture not found
+#else
+		out->texture = &r_notexture_mip_qwsv;	// texture not found
+#endif
 		out->flags = 0;
 	    }
 	}
@@ -1187,7 +1198,12 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
     }
 }
 
-//=============================================================================
+/*
+ * =========================================================================
+ *                          CLIENT ONLY FUNCTIONS
+ * =========================================================================
+ */
+#ifndef SERVERONLY
 
 /*
 ===============
@@ -1246,3 +1262,5 @@ Mod_TouchModel(char *name)
 	    Cache_Check(&mod->cache);
     }
 }
+
+#endif /* !SERVERONLY */

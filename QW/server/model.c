@@ -26,9 +26,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdint.h>
 
 #include "common.h"
+#include "console.h"
 #include "model.h"
-#include "qtypes.h"
+
+#ifdef SERVERONLY
 #include "qwsvdef.h"
+/* A dummy texture to point to. FIXME - should server care about textures? */
+static texture_t r_notexture_mip_qwsv;
+#else
+#include "quakedef.h"
+#include "sys.h"
+#ifdef QW_HACK
+#include "crc.h"
+#endif
+/* FIXME - quick hack to enable merging of NQ/QWSV shared code */
+#define SV_Error Sys_Error
+#endif
 
 static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
@@ -41,9 +54,6 @@ static byte mod_novis[MAX_MAP_LEAFS / 8];
 #define MAX_MOD_KNOWN 512
 static model_t mod_known[MAX_MOD_KNOWN];
 static int mod_numknown;
-
-// A dummy texture to point to... shouldn't even look at textures in server?
-static texture_t r_notexture_mip_qwsv;
 
 /*
 ===============
@@ -147,9 +157,16 @@ Mod_ClearAll(void)
     int i;
     model_t *mod;
 
-    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++) {
 	if (mod->type != mod_alias)
 	    mod->needload = true;
+	/*
+	 * FIXME: sprites use the cache data pointer for their own purposes,
+	 *        bypassing the Cache_Alloc/Free functions.
+	 */
+	if (mod->type == mod_sprite)
+	    mod->cache.data = NULL;
+    }
 }
 
 /*
@@ -185,7 +202,6 @@ Mod_FindName(char *name)
 
     return mod;
 }
-
 
 /*
 ==================
@@ -232,7 +248,20 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 // call the apropriate loader
     mod->needload = false;
 
-    Mod_LoadBrushModel(mod, buf, size);
+    switch (LittleLong(*(unsigned *)buf)) {
+#ifndef SERVERONLY
+    case IDPOLYHEADER:
+	Mod_LoadAliasModel(mod, buf, loadmodel, loadname);
+	break;
+
+    case IDSPRITEHEADER:
+	Mod_LoadSpriteModel(mod, buf, loadname);
+	break;
+#endif
+    default:
+	Mod_LoadBrushModel(mod, buf, size);
+	break;
+    }
 
     return mod;
 }
@@ -317,6 +346,11 @@ Mod_LoadTextures(lump_t *l)
 		mt->offsets[j] + sizeof(texture_t) - sizeof(miptex_t);
 	// the pixels immediately follow the structures
 	memcpy(tx + 1, mt + 1, pixels);
+
+#ifndef SERVERONLY
+	if (!strncmp(mt->name, "sky", 3))
+	    R_InitSky(tx);
+#endif
     }
 
 //
@@ -557,7 +591,7 @@ Mod_LoadTexinfo(lump_t *l)
 
     in = (void *)(mod_base + l->fileofs);
     if (l->filelen % sizeof(*in))
-	SV_Error("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
+	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
     out = Hunk_AllocName(count * sizeof(*out), loadname);
 
@@ -585,14 +619,22 @@ Mod_LoadTexinfo(lump_t *l)
 	out->flags = LittleLong(in->flags);
 
 	if (!loadmodel->textures) {
+#ifndef SERVERONLY
+	    out->texture = r_notexture_mip;	// checkerboard texture
+#else
 	    out->texture = &r_notexture_mip_qwsv;	// checkerboard texture
+#endif
 	    out->flags = 0;
 	} else {
 	    if (miptex >= loadmodel->numtextures)
 		SV_Error("miptex >= loadmodel->numtextures");
 	    out->texture = loadmodel->textures[miptex];
 	    if (!out->texture) {
+#ifndef SERVERONLY
+		out->texture = r_notexture_mip;	// texture not found
+#else
 		out->texture = &r_notexture_mip_qwsv;	// texture not found
+#endif
 		out->flags = 0;
 	    }
 	}
@@ -1079,6 +1121,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 	}
     }
 
+#ifdef QW_HACK
     mod->checksum = 0;
     mod->checksum2 = 0;
 
@@ -1097,6 +1140,7 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
     }
     mod->checksum = LittleLong(mod->checksum);
     mod->checksum2 = LittleLong(mod->checksum2);
+#endif
 
     /* load into heap */
     Mod_LoadVertexes(&header->lumps[LUMP_VERTEXES]);
@@ -1153,3 +1197,70 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 	}
     }
 }
+
+/*
+ * =========================================================================
+ *                          CLIENT ONLY FUNCTIONS
+ * =========================================================================
+ */
+#ifndef SERVERONLY
+
+/*
+===============
+Mod_Extradata
+
+Caches the data if needed
+===============
+*/
+void *
+Mod_Extradata(model_t *mod)
+{
+    void *r;
+
+    r = Cache_Check(&mod->cache);
+    if (r)
+	return r;
+
+    Mod_LoadModel(mod, true);
+
+    if (!mod->cache.data)
+	Sys_Error("%s: caching failed", __func__);
+    return mod->cache.data;
+}
+
+/*
+================
+Mod_Print
+================
+*/
+void
+Mod_Print(void)
+{
+    int i;
+    model_t *mod;
+
+    Con_Printf("Cached models:\n");
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+	Con_Printf("%8p : %s\n", mod->cache.data, mod->name);
+}
+
+/*
+==================
+Mod_TouchModel
+
+==================
+*/
+void
+Mod_TouchModel(char *name)
+{
+    model_t *mod;
+
+    mod = Mod_FindName(name);
+
+    if (!mod->needload) {
+	if (mod->type == mod_alias)
+	    Cache_Check(&mod->cache);
+    }
+}
+
+#endif /* !SERVERONLY */
