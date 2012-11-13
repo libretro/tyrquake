@@ -32,7 +32,8 @@ Mod_LoadSpriteFrame
 =================
 */
 static void *
-Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname)
+Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
+		    int framenum)
 {
     dspriteframe_t *pinframe;
     mspriteframe_t *pspriteframe;
@@ -85,7 +86,8 @@ Mod_LoadSpriteGroup
 =================
 */
 static void *
-Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname)
+Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
+		    int framenum)
 {
     dspritegroup_t *pingroup;
     mspritegroup_t *pspritegroup;
@@ -125,7 +127,8 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname)
     ptemp = (void *)pin_intervals;
 
     for (i = 0; i < numframes; i++) {
-	ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], loadname);
+	ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], loadname,
+				    framenum * 100 + i);
     }
 
     return ptemp;
@@ -192,11 +195,11 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
 	if (frametype == SPR_SINGLE) {
 	    pframetype = (dspriteframetype_t *)
 		Mod_LoadSpriteFrame(pframetype + 1,
-				    &psprite->frames[i].frameptr, loadname);
+				    &psprite->frames[i].frameptr, loadname, i);
 	} else {
 	    pframetype = (dspriteframetype_t *)
 		Mod_LoadSpriteGroup(pframetype + 1,
-				    &psprite->frames[i].frameptr, loadname);
+				    &psprite->frames[i].frameptr, loadname, i);
 	}
     }
 
