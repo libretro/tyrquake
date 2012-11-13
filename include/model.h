@@ -382,4 +382,7 @@ byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
 
+void Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
+			const char *loadname);
+
 #endif /* MODEL_H */

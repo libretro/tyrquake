@@ -507,6 +507,7 @@ QW_OBJS := \
 	pmovetst.o
 
 SW_OBJS := \
+	alias_model.o	\
 	d_edge.o	\
 	d_fill.o	\
 	d_init.o	\
