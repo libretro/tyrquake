@@ -428,4 +428,6 @@ byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
 
+void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
+
 #endif /* GL_MODEL_H */

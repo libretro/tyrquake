@@ -473,6 +473,7 @@ CL_OBJS := \
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
+	sprite_model.o	\
 	view.o		\
 	wad.o
 
@@ -534,8 +535,7 @@ SW_OBJS := \
 	r_sprite.o	\
 	r_surf.o	\
 	r_vars.o	\
-	screen.o	\
-	sprite_model.o
+	screen.o
 
 GL_OBJS := \
 	drawhulls.o	\
