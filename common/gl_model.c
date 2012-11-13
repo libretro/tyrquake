@@ -1856,6 +1856,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
 	Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
 
     mod->numframes = numframes;
+    mod->flags = 0;
 
     pframetype = (dspriteframetype_t *) (pin + 1);
 
