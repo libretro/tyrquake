@@ -788,6 +788,11 @@ Mod_LoadLeafs(lump_t *l)
     if (l->filelen % sizeof(*in))
 	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
+
+    /* FIXME - fail gracefully */
+    if (count > MAX_MAP_LEAFS)
+	SV_Error("%s: model->numleafs > MAX_MAP_LEAFS\n", __func__);
+
     out = Hunk_AllocName(count * sizeof(*out), loadname);
 
     loadmodel->leafs = out;
