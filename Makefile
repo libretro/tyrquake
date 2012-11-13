@@ -619,10 +619,9 @@ DUPS := $(strip $(call dups-only,$(ALL_OBJS)))
 DUMMY := $(if $(DUPS),$(warning $(MSG_DUP): $(DUPS)),)
 
 # ----------------------------------------------------------------------------
-# FIXME - Bit of an ugly hack here because I know there is a duplicate model.c
-#         file for QWSV which isn't the same thing as the one used for the sw
-#         clients. Probably the clients should be refactored to have alias and
-#         bsp models in separate modules so the bsp model code can be shared.
+# FIXME - Bit of a hack here because no way to specify nqsw+qwsw+qwsv. The
+#         common bits should probably be used by the GL clients as well - but
+#         more work to do there.
 # ----------------------------------------------------------------------------
 QWSV_OBJS += model.o
 
