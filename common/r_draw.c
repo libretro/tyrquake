@@ -56,11 +56,6 @@ int intsintable[TURB_TABLE_SIZE];
 mvertex_t r_leftenter, r_leftexit;
 mvertex_t r_rightenter, r_rightexit;
 
-typedef struct {
-    float u, v;
-    int ceilv;
-} evert_t;
-
 int r_emitted;
 float r_nearzi;
 float r_u1, r_v1, r_lzi1;
