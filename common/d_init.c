@@ -35,8 +35,7 @@ float d_scalemip[NUM_MIPS - 1];
 
 static float basemip[NUM_MIPS - 1] = { 1.0, 0.5 * 0.8, 0.25 * 0.8 };
 
-void (*d_drawspans) (espan_t *pspan);
-
+void (*D_DrawSpans)(espan_t *pspan);
 
 /*
 ===============
@@ -146,11 +145,11 @@ D_SetupFrame(void)
 
 #ifdef USE_X86_ASM
     if (d_subdiv16.value)
-	d_drawspans = D_DrawSpans16;
+	D_DrawSpans = D_DrawSpans16;
     else
-	d_drawspans = D_DrawSpans8;
+	D_DrawSpans = D_DrawSpans8;
 #else
-    d_drawspans = D_DrawSpans8;
+    D_DrawSpans = D_DrawSpans8;
 #endif
 }
 
