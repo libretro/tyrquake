@@ -26,16 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static finalvert_t fv[2][8];
 static auxvert_t av[8];
 
-void R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av);
-void R_Alias_clip_top(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
-void R_Alias_clip_bottom(finalvert_t *pfv0, finalvert_t *pfv1,
-			 finalvert_t *out);
-void R_Alias_clip_left(finalvert_t *pfv0, finalvert_t *pfv1,
-		       finalvert_t *out);
-void R_Alias_clip_right(finalvert_t *pfv0, finalvert_t *pfv1,
-			finalvert_t *out);
-
-
 /*
 ================
 R_Alias_clip_z
@@ -43,7 +33,7 @@ R_Alias_clip_z
 pfv0 is the unclipped vertex, pfv1 is the z-clipped vertex
 ================
 */
-void
+static void
 R_Alias_clip_z(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 {
     float scale;
@@ -175,7 +165,7 @@ R_Alias_clip_bottom(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 #endif
 
 
-int
+static int
 R_AliasClip(finalvert_t *in, finalvert_t *out, int flag, int count,
 	    void (*clip) (finalvert_t *pfv0, finalvert_t *pfv1,
 			  finalvert_t *out))

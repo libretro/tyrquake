@@ -253,6 +253,11 @@ extern mvertex_t *r_pcurrentvertbase;
 extern int r_maxvalidedgeoffset;
 
 void R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *pauxverts);
+void R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av);
+void R_Alias_clip_top(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
+void R_Alias_clip_bottom(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
+void R_Alias_clip_left(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
+void R_Alias_clip_right(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
 
 extern float r_time1;
 extern float dp_time1, dp_time2, db_time1, db_time2, rw_time1, rw_time2;
