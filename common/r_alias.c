@@ -32,20 +32,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    clamping */
 #define LIGHT_MIN 5
 
-mtriangle_t *ptriangles;
 affinetridesc_t r_affinetridesc;
+trivertx_t *r_apverts;
 
 void *acolormap;		// FIXME: should go away
 
-trivertx_t *r_apverts;
-
 // TODO: these probably will go away with optimized rasterization
-mdl_t *pmdl;
+static mdl_t *pmdl;
 vec3_t r_plightvec;
 int r_ambientlight;
 float r_shadelight;
-aliashdr_t *paliashdr;
-auxvert_t *pauxverts;
+static aliashdr_t *paliashdr;
 static float ziscale;
 static model_t *pmodel;
 
@@ -76,14 +73,13 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.h"
 };
 
-void R_AliasTransformAndProjectFinalVerts(finalvert_t *fv,
-					  stvert_t *pstverts);
 static void R_AliasSetUpTransform(entity_t *e, int trivial_accept);
-void R_AliasTransformVector(vec3_t in, vec3_t out);
-void R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
-			       trivertx_t *pverts, stvert_t *pstverts);
-void R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av);
+static void R_AliasTransformVector(vec3_t in, vec3_t out);
+static void R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
+				      trivertx_t *pverts, stvert_t *pstverts);
 
+void R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts);
+void R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av);
 
 /*
 ================
@@ -241,7 +237,7 @@ R_AliasCheckBBox(entity_t *e)
 R_AliasTransformVector
 ================
 */
-void
+static void
 R_AliasTransformVector(vec3_t in, vec3_t out)
 {
     out[0] = DotProduct(in, aliastransform[0]) + aliastransform[0][3];
@@ -257,8 +253,8 @@ R_AliasPreparePoints
 General clipped case
 ================
 */
-void
-R_AliasPreparePoints(finalvert_t *pfinalverts)
+static void
+R_AliasPreparePoints(finalvert_t *pfinalverts, auxvert_t *pauxverts)
 {
     int i;
     stvert_t *pstverts;
@@ -310,7 +306,7 @@ R_AliasPreparePoints(finalvert_t *pfinalverts)
 	    r_affinetridesc.ptriangles = ptri;
 	    D_PolysetDraw();
 	} else {		// partially clipped
-	    R_AliasClipTriangle(ptri, pfinalverts);
+	    R_AliasClipTriangle(ptri, pfinalverts, pauxverts);
 	}
     }
 }
@@ -397,7 +393,7 @@ R_AliasSetUpTransform(entity_t *e, int trivial_accept)
 R_AliasTransformFinalVert
 ================
 */
-void
+static void
 R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 			  trivertx_t *pverts, stvert_t *pstverts)
 {
@@ -515,7 +511,7 @@ R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av)
 R_AliasPrepareUnclippedPoints
 ================
 */
-void
+static void
 R_AliasPrepareUnclippedPoints(finalvert_t *pfinalverts)
 {
     stvert_t *pstverts;
@@ -699,6 +695,7 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
     finalvert_t *pfinalverts;
     finalvert_t finalverts[CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t)];
+    auxvert_t *pauxverts;
     auxvert_t auxverts[MAXALIASVERTS];
 
     r_amodels_drawn++;
@@ -739,5 +736,5 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
     if (e->trivial_accept)
 	R_AliasPrepareUnclippedPoints(pfinalverts);
     else
-	R_AliasPreparePoints(pfinalverts);
+	R_AliasPreparePoints(pfinalverts, pauxverts);
 }

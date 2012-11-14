@@ -220,7 +220,7 @@ R_AliasClipTriangle
 ================
 */
 void
-R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts)
+R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *pauxverts)
 {
     int i, k, pingpong;
     mtriangle_t mtri;
