@@ -249,18 +249,14 @@ Alias models are position independent, so the cache manager can move them.
 */
 
 typedef struct {
-    aliasframetype_t type;
+    int firstpose;
+    int numposes;
+    float interval;
     trivertx_t bboxmin;
     trivertx_t bboxmax;
     int frame;
     char name[16];
 } maliasframedesc_t;
-
-typedef struct {
-    int numframes;
-    int intervals;
-    int frames[0];
-} maliasgroup_t;
 
 typedef struct {
     aliasskintype_t type;
@@ -285,8 +281,15 @@ typedef struct {
     int stverts;
     int skindesc;
     int triangles;
+
+    int numposes;
+    int poseverts;
+    int posedata;
+
     maliasframedesc_t frames[0];
 } aliashdr_t;
+
+#define	MAXALIASFRAMES	512
 
 //===================================================================
 

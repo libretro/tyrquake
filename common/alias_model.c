@@ -29,61 +29,37 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static aliashdr_t *pheader;
 
+// a pose is a single set of vertexes.  a frame may be
+// an animating sequence of poses
+static const trivertx_t *poseverts[MAXALIASFRAMES];
+static int posenum;
+
 /*
 =================
 Mod_LoadAliasFrame
 =================
 */
 static void
-Mod_LoadAliasFrame(const daliasframe_t *in, int *pframeindex, int numv,
-		   trivertx_t *pbboxmin, trivertx_t *pbboxmax,
-		   char *name, const char *loadname)
+Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
 {
-    trivertx_t *pframe;
-    int i, j;
+    int i;
 
-    strcpy(name, in->name);
+    strncpy(frame->name, in->name, sizeof(frame->name));
+    frame->name[sizeof(frame->name) - 1] = 0;
+    frame->firstpose = posenum;
+    frame->numposes = 1;
 
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about
 	// endianness
-	pbboxmin->v[i] = in->bboxmin.v[i];
-	pbboxmax->v[i] = in->bboxmax.v[i];
+	frame->bboxmin.v[i] = in->bboxmin.v[i];
+	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
 
-    pframe = Hunk_AllocName(numv * sizeof(*pframe), loadname);
-    *pframeindex = (byte *)pframe - (byte *)pheader;
-
-    for (i = 0; i < numv; i++) {
-	// these are all byte values, so no need to deal with endianness
-	pframe[i].lightnormalindex = in->verts[i].lightnormalindex;
-	for (j = 0; j < 3; j++)
-	    pframe[i].v[j] = in->verts[i].v[j];
-    }
+    poseverts[posenum] = in->verts;
+    posenum++;
 }
 
-/*
-=================
-Mod_LoadAliasGroupFrame
-=================
-*/
-static void
-Mod_LoadAliasGroupFrame(const daliasframe_t *in, int *pframeindex, int numv,
-			const char *loadname)
-{
-    trivertx_t *pframe;
-    int i, j;
-
-    pframe = Hunk_AllocName(numv * sizeof(*pframe), loadname);
-    *pframeindex = (byte *)pframe - (byte *)pheader;
-
-    for (i = 0; i < numv; i++) {
-	// these are all byte values, so no need to deal with endianness
-	pframe[i].lightnormalindex = in->verts[i].lightnormalindex;
-	for (j = 0; j < 3; j++)
-	    pframe[i].v[j] = in->verts[i].v[j];
-    }
-}
 
 /*
 =================
@@ -96,16 +72,12 @@ static daliasframetype_t *
 Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv,
 		   const char *loadname)
 {
-    maliasgroup_t *paliasgroup;
     int i, numframes;
-    float *poutintervals;
     daliasframe_t *dframe;
 
     numframes = LittleLong(in->numframes);
-    paliasgroup = Hunk_AllocName(sizeof(maliasgroup_t) +
-				 numframes * sizeof(paliasgroup->frames[0]),
-				 loadname);
-    paliasgroup->numframes = numframes;
+    frame->firstpose = posenum;
+    frame->numposes = numframes;
 
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about endianness
@@ -113,23 +85,18 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv,
 	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
 
-    frame->frame = (byte *)paliasgroup - (byte *)pheader;
-    poutintervals = Hunk_AllocName(numframes * sizeof(float), loadname);
-    paliasgroup->intervals = (byte *)poutintervals - (byte *)pheader;
-
-    for (i = 0; i < numframes; i++) {
-	*poutintervals = LittleFloat(in->intervals[i].interval);
-	if (*poutintervals <= 0.0)
-	    Sys_Error("%s: interval <= 0", __func__);
-
-	poutintervals++;
-    }
-
+    /*
+     * FIXME? the on-disk format allows for one interval per frame, but here
+     *        the entire frame group gets just one interval. Probably all the
+     *        original quake art assets just use a constant interval.
+     */
+    frame->interval = LittleFloat(in->intervals[0].interval);
     dframe = (daliasframe_t *)&in->intervals[numframes];
-    strcpy(frame->name, dframe->name);
+    strncpy(frame->name, dframe->name, sizeof(frame->name));
+    frame->name[sizeof(frame->name) - 1] = 0;
     for (i = 0; i < numframes; i++) {
-	Mod_LoadAliasGroupFrame(dframe, &paliasgroup->frames[i], numv,
-				loadname);
+	poseverts[posenum] = dframe->verts;
+	posenum++;
 	dframe = (daliasframe_t *)&dframe->verts[numv];
     }
 
@@ -234,7 +201,7 @@ void
 Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 		   const char *loadname)
 {
-    int i;
+    int i, j;
     mdl_t *pmodel, *pinmodel;
     stvert_t *pstverts, *pinstverts;
     mtriangle_t *ptri;
@@ -248,6 +215,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     maliasskindesc_t *pskindesc;
     int skinsize;
     int start, end, total;
+    trivertx_t *verts;
 
 #ifdef QW_HACK
     if (!strcmp(loadmodel->name, "progs/player.mdl") ||
@@ -416,20 +384,13 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     if (numframes < 1)
 	Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
 
+    posenum = 0;
     pframetype = (daliasframetype_t *)&pintriangles[pmodel->numtris];
 
     for (i = 0; i < numframes; i++) {
-	aliasframetype_t frametype;
-
-	frametype = LittleLong(pframetype->type);
-	pheader->frames[i].type = frametype;
-
-	if (frametype == ALIAS_SINGLE) {
+	if (LittleLong(pframetype->type) == ALIAS_SINGLE) {
 	    frame = (daliasframe_t *)(pframetype + 1);
-	    Mod_LoadAliasFrame(frame, &pheader->frames[i].frame,
-			       pmodel->numverts, &pheader->frames[i].bboxmin,
-			       &pheader->frames[i].bboxmax,
-			       pheader->frames[i].name, loadname);
+	    Mod_LoadAliasFrame(frame, &pheader->frames[i]);
 	    pframetype = (daliasframetype_t *)&frame->verts[pmodel->numverts];
 	} else {
 	    group = (daliasgroup_t *)(pframetype + 1);
@@ -437,12 +398,22 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 					    pmodel->numverts, loadname);
 	}
     }
-
+    pheader->numposes = posenum;
     mod->type = mod_alias;
 
 // FIXME: do this right
     mod->mins[0] = mod->mins[1] = mod->mins[2] = -16;
     mod->maxs[0] = mod->maxs[1] = mod->maxs[2] = 16;
+
+    /*
+     * Allocate the verts, copy and setup offsets
+     */
+    pheader->poseverts = pmodel->numverts;
+    verts = Hunk_Alloc(pheader->numposes * pheader->poseverts * sizeof(*verts));
+    pheader->posedata = (byte *)verts - (byte *)pheader;
+    for (i = 0; i < pheader->numposes; i++)
+	for (j = 0; j < pheader->poseverts; j++)
+	    *verts++ = poseverts[i][j];
 
 //
 // move the complete, relocatable alias model to the cache
