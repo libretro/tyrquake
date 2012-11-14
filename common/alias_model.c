@@ -231,16 +231,14 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 
 	snprintf(st, sizeof(st), "%d", (int)crc);
 	Info_SetValueForKey(cls.userinfo,
-			    !strcmp(loadmodel->name,
-				    "progs/player.mdl") ? pmodel_name :
-			    emodel_name, st, MAX_INFO_STRING);
+			    !strcmp(loadmodel->name, "progs/player.mdl") ?
+			    pmodel_name : emodel_name, st, MAX_INFO_STRING);
 
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 	    snprintf(st, sizeof(st), "setinfo %s %d",
-		     !strcmp(loadmodel->name,
-			     "progs/player.mdl") ? pmodel_name : emodel_name,
-		     (int)crc);
+		     !strcmp(loadmodel->name, "progs/player.mdl") ?
+		     pmodel_name : emodel_name, (int)crc);
 	    SZ_Print(&cls.netchan.message, st);
 	}
     }
@@ -259,8 +257,8 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 // allocate space for a working header, plus all the data except the frames,
 // skin and group info
 //
-    size = sizeof(aliashdr_t) + LittleLong(pinmodel->numframes) *
-	sizeof(pheader->frames[0]) +
+    size = sizeof(aliashdr_t) +
+	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]) +
 	sizeof(mdl_t) +
 	LittleLong(pinmodel->numverts) * sizeof(stvert_t) +
 	LittleLong(pinmodel->numtris) * sizeof(mtriangle_t);
@@ -372,7 +370,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 	int j;
 
 	ptri[i].facesfront = LittleLong(pintriangles[i].facesfront);
-
 	for (j = 0; j < 3; j++) {
 	    ptri[i].vertindex[j] = LittleLong(pintriangles[i].vertindex[j]);
 	}

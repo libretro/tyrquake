@@ -1336,7 +1336,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
     }
 
     /*
-     * FIXME: the on-disk format allows for one interval per frame, but here
+     * FIXME? the on-disk format allows for one interval per frame, but here
      *        the entire frame group gets just one interval. Probably all the
      *        original quake art assets just use a constant interval.
      */
