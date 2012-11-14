@@ -34,8 +34,6 @@ ALIAS MODEL DISPLAY LIST GENERATION
 =================================================================
 */
 
-aliashdr_t *paliashdr;
-
 static model_t *aliasmodel;
 static int used[8192];
 
@@ -298,7 +296,6 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
     FILE *f;
 
     aliasmodel = m;
-    paliashdr = hdr;		// (aliashdr_t *)Mod_Extradata (m);
 
     //
     // look for a cached version
@@ -346,16 +343,15 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
 
     // save the data out
 
-    paliashdr->poseverts = numorder;
+    hdr->poseverts = numorder;
 
     cmds = Hunk_Alloc(numcommands * 4);
-    paliashdr->commands = (byte *)cmds - (byte *)paliashdr;
+    hdr->commands = (byte *)cmds - (byte *)hdr;
     memcpy(cmds, commands, numcommands * 4);
 
-    verts = Hunk_Alloc(paliashdr->numposes * paliashdr->poseverts
-		       * sizeof(trivertx_t));
-    paliashdr->posedata = (byte *)verts - (byte *)paliashdr;
-    for (i = 0; i < paliashdr->numposes; i++)
+    verts = Hunk_Alloc(hdr->numposes * hdr->poseverts * sizeof(trivertx_t));
+    hdr->posedata = (byte *)verts - (byte *)hdr;
+    for (i = 0; i < hdr->numposes; i++)
 	for (j = 0; j < numorder; j++)
 	    *verts++ = poseverts[i][vertexorder[j]];
 }
