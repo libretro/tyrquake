@@ -399,4 +399,6 @@ void Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 			const char *loadname);
 void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 
+mspriteframe_t *Mod_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time);
+
 #endif /* MODEL_H */

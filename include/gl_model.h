@@ -430,4 +430,6 @@ texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
 
 void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 
+mspriteframe_t *Mod_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time);
+
 #endif /* GL_MODEL_H */

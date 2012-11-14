@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 #include "common.h"
+#include "console.h"
 #include "sys.h"
 #include "zone.h"
 
@@ -190,4 +191,45 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
     }
 
     mod->type = mod_sprite;
+}
+
+/*
+==================
+Mod_GetSpriteFrame
+==================
+*/
+mspriteframe_t *
+Mod_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time)
+{
+    mspritegroup_t *pspritegroup;
+    mspriteframe_t *pspriteframe;
+    int i, numframes, frame;
+    float *pintervals, fullinterval, targettime;
+
+    frame = e->frame;
+    if ((frame >= psprite->numframes) || (frame < 0)) {
+	Con_Printf("R_DrawSprite: no such frame %d\n", frame);
+	frame = 0;
+    }
+
+    if (psprite->frames[frame].type == SPR_SINGLE) {
+	pspriteframe = psprite->frames[frame].frameptr;
+    } else {
+	pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
+	pintervals = pspritegroup->intervals;
+	numframes = pspritegroup->numframes;
+	fullinterval = pintervals[numframes - 1];
+
+	// when loading in Mod_LoadSpriteGroup, we guaranteed all interval
+	// values are positive, so we don't have to worry about division by 0
+	targettime = time - ((int)(time / fullinterval)) * fullinterval;
+
+	for (i = 0; i < (numframes - 1); i++) {
+	    if (pintervals[i] > targettime)
+		break;
+	}
+	pspriteframe = pspritegroup->frames[i];
+    }
+
+    return pspriteframe;
 }

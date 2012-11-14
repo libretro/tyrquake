@@ -182,48 +182,6 @@ void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
 }
 
 /*
-================
-R_GetSpriteFrame
-================
-*/
-static mspriteframe_t *
-R_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time)
-{
-    mspritegroup_t *pspritegroup;
-    mspriteframe_t *pspriteframe;
-    int i, numframes, frame;
-    float *pintervals, fullinterval, targettime;
-
-    frame = e->frame;
-    if ((frame >= psprite->numframes) || (frame < 0)) {
-	Con_Printf("R_DrawSprite: no such frame %d\n", frame);
-	frame = 0;
-    }
-
-    if (psprite->frames[frame].type == SPR_SINGLE) {
-	pspriteframe = psprite->frames[frame].frameptr;
-    } else {
-	pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
-	pintervals = pspritegroup->intervals;
-	numframes = pspritegroup->numframes;
-	fullinterval = pintervals[numframes - 1];
-
-	// when loading in Mod_LoadSpriteGroup, we guaranteed all interval
-	// values are positive, so we don't have to worry about division by 0
-	targettime = time - ((int)(time / fullinterval)) * fullinterval;
-
-	for (i = 0; i < (numframes - 1); i++) {
-	    if (pintervals[i] > targettime)
-		break;
-	}
-	pspriteframe = pspritegroup->frames[i];
-    }
-
-    return pspriteframe;
-}
-
-
-/*
 =================
 R_DrawSpriteModel
 
@@ -239,7 +197,7 @@ R_DrawSpriteModel(entity_t *e)
     msprite_t *psprite;
 
     psprite = e->model->cache.data;
-    frame = R_GetSpriteFrame(e, psprite, cl.time + e->syncbase);
+    frame = Mod_GetSpriteFrame(e, psprite, cl.time + e->syncbase);
 
     // don't even bother culling, because it's just a single
     // polygon without a surface cache
