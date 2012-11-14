@@ -45,7 +45,6 @@ vec3_t r_plightvec;
 int r_ambientlight;
 float r_shadelight;
 aliashdr_t *paliashdr;
-finalvert_t *pfinalverts;
 auxvert_t *pauxverts;
 static float ziscale;
 static model_t *pmodel;
@@ -259,7 +258,7 @@ General clipped case
 ================
 */
 void
-R_AliasPreparePoints(void)
+R_AliasPreparePoints(finalvert_t *pfinalverts)
 {
     int i;
     stvert_t *pstverts;
@@ -311,7 +310,7 @@ R_AliasPreparePoints(void)
 	    r_affinetridesc.ptriangles = ptri;
 	    D_PolysetDraw();
 	} else {		// partially clipped
-	    R_AliasClipTriangle(ptri);
+	    R_AliasClipTriangle(ptri, pfinalverts);
 	}
     }
 }
@@ -517,20 +516,17 @@ R_AliasPrepareUnclippedPoints
 ================
 */
 void
-R_AliasPrepareUnclippedPoints(void)
+R_AliasPrepareUnclippedPoints(finalvert_t *pfinalverts)
 {
     stvert_t *pstverts;
-    finalvert_t *fv;
 
     pstverts = (stvert_t *)((byte *)paliashdr + paliashdr->stverts);
     r_anumverts = pmdl->numverts;
-// FIXME: just use pfinalverts directly?
-    fv = pfinalverts;
 
-    R_AliasTransformAndProjectFinalVerts(fv, pstverts);
+    R_AliasTransformAndProjectFinalVerts(pfinalverts, pstverts);
 
     if (r_affinetridesc.drawtype)
-	D_PolysetDrawFinalVerts(fv, r_anumverts);
+	D_PolysetDrawFinalVerts(pfinalverts, r_anumverts);
 
     r_affinetridesc.pfinalverts = pfinalverts;
     r_affinetridesc.ptriangles = (mtriangle_t *)
@@ -701,6 +697,7 @@ R_AliasDrawModel
 void
 R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
+    finalvert_t *pfinalverts;
     finalvert_t finalverts[CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t)];
     auxvert_t auxverts[MAXALIASVERTS];
 
@@ -740,7 +737,7 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
 	ziscale = ((float)0x8000) * ((float)0x10000) * 3.0;
 
     if (e->trivial_accept)
-	R_AliasPrepareUnclippedPoints();
+	R_AliasPrepareUnclippedPoints(pfinalverts);
     else
-	R_AliasPreparePoints();
+	R_AliasPreparePoints(pfinalverts);
 }
