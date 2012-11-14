@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef QUAKEDEF_H
 #define QUAKEDEF_H
 
+#include <inttypes.h>
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
@@ -46,6 +47,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 #define CACHE_SIZE	32	// used to align key data structures
+#define CACHE_PAD_ARRAY(elements, type)	\
+    ((elements) + ((CACHE_SIZE - 1) / sizeof(type)) + 1)
+#define CACHE_ALIGN_PTR(dst) ({						\
+	const uintptr_t p = (uintptr_t)&(dst)[0];			\
+	(typeof(&(dst)[0]))((p + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));	\
+})
 
 #define UNUSED(x)	(x = x)	// for pesky compiler / lint warnings
 

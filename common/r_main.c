@@ -908,19 +908,17 @@ R_EdgeDrawing
 static void
 R_EdgeDrawing(void)
 {
-    edge_t ledges[NUMSTACKEDGES + ((CACHE_SIZE - 1) / sizeof(edge_t)) + 1];
-    surf_t lsurfs[NUMSTACKSURFACES + ((CACHE_SIZE - 1) / sizeof(surf_t)) + 1];
+    edge_t ledges[CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t)];
+    surf_t lsurfs[CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t)];
 
     if (auxedges) {
 	r_edges = auxedges;
     } else {
-	r_edges = (edge_t *)
-	    (((long)&ledges[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
+	r_edges = CACHE_ALIGN_PTR(ledges);
     }
 
     if (r_surfsonstack) {
-	surfaces = (surf_t *)
-	    (((long)&lsurfs[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
+	surfaces = CACHE_ALIGN_PTR(lsurfs);
 	surf_max = &surfaces[r_cnumsurfs];
 	// surface 0 doesn't really exist; it's just a dummy because index 0
 	// is used to indicate no edge attached to surface
