@@ -30,16 +30,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FULLY_CLIPPED_CACHED	0x80000000
 #define FRAMECOUNT_MASK		0x7FFFFFFF
 
-unsigned int cacheoffset;
-
 int c_faceclip;			// number of faces clipped
+unsigned int cacheoffset;
 polydesc_t r_polydesc;
-
-
-
-clipplane_t *entity_clipplanes;
 clipplane_t view_clipplanes[4];
-clipplane_t world_clipplanes[16];
 
 medge_t *r_pedge;
 
