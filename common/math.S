@@ -53,6 +53,8 @@ LOutOfRange:
 	movl	$0xFFFFFFFF,%eax
 	ret
 
+#ifndef SERVERONLY
+
 #define	in	4
 #define out	8
 
@@ -98,7 +100,7 @@ C(TransformVector):
 	fstps	(%edx)		// out[0]
 
 	ret
-
+#endif /* !SERVERONLY */
 
 #define EMINS	4+4
 #define EMAXS	4+8
