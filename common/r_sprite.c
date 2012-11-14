@@ -256,15 +256,14 @@ R_GetSpriteframe
 ================
 */
 static mspriteframe_t *
-R_GetSpriteframe(entity_t *e, msprite_t *psprite)
+R_GetSpriteframe(entity_t *e, msprite_t *psprite, float time)
 {
     mspritegroup_t *pspritegroup;
     mspriteframe_t *pspriteframe;
     int i, numframes, frame;
-    float *pintervals, fullinterval, targettime, time;
+    float *pintervals, fullinterval, targettime;
 
     frame = e->frame;
-
     if ((frame >= psprite->numframes) || (frame < 0)) {
 	Con_Printf("R_DrawSprite: no such frame %d\n", frame);
 	frame = 0;
@@ -278,8 +277,6 @@ R_GetSpriteframe(entity_t *e, msprite_t *psprite)
 	numframes = pspritegroup->numframes;
 	fullinterval = pintervals[numframes - 1];
 
-	time = cl.time + e->syncbase;
-
 	// when loading in Mod_LoadSpriteGroup, we guaranteed all interval values
 	// are positive, so we don't have to worry about division by 0
 	targettime = time - ((int)(time / fullinterval)) * fullinterval;
@@ -288,7 +285,6 @@ R_GetSpriteframe(entity_t *e, msprite_t *psprite)
 	    if (pintervals[i] > targettime)
 		break;
 	}
-
 	pspriteframe = pspritegroup->frames[i];
     }
 
@@ -311,7 +307,7 @@ R_DrawSprite(entity_t *e)
 
     psprite = e->model->cache.data;
 
-    r_spritedesc.pspriteframe = R_GetSpriteframe(e, psprite);
+    r_spritedesc.pspriteframe = R_GetSpriteframe(e, psprite, cl.time + e->syncbase);
 
     sprite_width = r_spritedesc.pspriteframe->width;
     sprite_height = r_spritedesc.pspriteframe->height;

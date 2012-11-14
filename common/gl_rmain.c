@@ -187,17 +187,14 @@ R_GetSpriteFrame
 ================
 */
 static mspriteframe_t *
-R_GetSpriteFrame(entity_t *e)
+R_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time)
 {
-    msprite_t *psprite;
     mspritegroup_t *pspritegroup;
     mspriteframe_t *pspriteframe;
     int i, numframes, frame;
-    float *pintervals, fullinterval, targettime, time;
+    float *pintervals, fullinterval, targettime;
 
-    psprite = e->model->cache.data;
     frame = e->frame;
-
     if ((frame >= psprite->numframes) || (frame < 0)) {
 	Con_Printf("R_DrawSprite: no such frame %d\n", frame);
 	frame = 0;
@@ -210,8 +207,6 @@ R_GetSpriteFrame(entity_t *e)
 	pintervals = pspritegroup->intervals;
 	numframes = pspritegroup->numframes;
 	fullinterval = pintervals[numframes - 1];
-
-	time = cl.time + e->syncbase;
 
 	// when loading in Mod_LoadSpriteGroup, we guaranteed all interval
 	// values are positive, so we don't have to worry about division by 0
@@ -243,10 +238,11 @@ R_DrawSpriteModel(entity_t *e)
     vec3_t v_forward, v_right, v_up;
     msprite_t *psprite;
 
+    psprite = e->model->cache.data;
+    frame = R_GetSpriteFrame(e, psprite, cl.time + e->syncbase);
+
     // don't even bother culling, because it's just a single
     // polygon without a surface cache
-    frame = R_GetSpriteFrame(e);
-    psprite = e->model->cache.data;
 
     if (psprite->type == SPR_ORIENTED) {	// bullet marks on walls
 	AngleVectors(e->angles, v_forward, v_right, v_up);
