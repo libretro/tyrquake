@@ -192,6 +192,8 @@ cc-option = $(shell if $(CC) $(CFLAGS) -Werror $(1) -S -o /dev/null -xc /dev/nul
 
 cc-i386 = $(if $(subst __i386,,$(shell echo __i386 | $(CC) -E -xc - | tail -n 1)),Y,N)
 
+libdir-check = $(shell if [ -d "$(1)" ]; then printf -- '-L%s' "$(1)"; fi)
+
 GCC_VERSION := $(call cc-version,)
 I386_GUESS  := $(call cc-i386)
 
@@ -586,7 +588,7 @@ endif
 COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
 ifneq ($(LOCALBASE),)
 COMMON_CPPFLAGS += -idirafter $(LOCALBASE)/include
-COMMON_LFLAGS += -L$(LOCALBASE)/lib
+COMMON_LFLAGS += $(call libdir-check,$(LOCALBASE)/lib)
 endif
 NQCL_CPPFLAGS   += -iquote $(TOPDIR)/NQ
 QW_CPPFLAGS     += -iquote $(TOPDIR)/QW/client
@@ -711,7 +713,7 @@ CL_LIBS += Xxf86dga
 endif
 ifneq ($(X11BASE),)
 CL_CPPFLAGS += -idirafter $(X11BASE)/include
-CL_LFLAGS += -L$(X11BASE)/lib
+CL_LFLAGS += $(call libdir-check,$(X11BASE)/lib)
 endif
 endif
 ifeq ($(VID_TARGET),win)
@@ -722,7 +724,7 @@ GL_OBJS += gl_vidnt.o
 SW_LIBS += mgllt gdi32 # gdi32 needs to come after mgllt
 GL_LIBS += gdi32
 GL_LIBS += comctl32
-SW_LFLAGS += -L$(ST_LIBDIR)
+SW_LFLAGS += $(call libdir-check,$(ST_LIBDIR))
 endif
 ifeq ($(VID_TARGET),sdl)
 SW_OBJS += vid_sdl.o
@@ -730,7 +732,7 @@ GL_OBJS += vid_sgl.o
 CL_LIBS += SDL
 ifneq ($(SDLBASE),)
 CL_CPPFLAGS += -idirafter $(SDLBASE)/include
-CL_LFLAGS += -L$(SDLBASE)/lib
+CL_LFLAGS += $(call libdir-check,$(SDLBASE)/lib);
 endif
 endif
 
@@ -744,7 +746,7 @@ ifeq ($(IN_TARGET),x11)
 CL_OBJS += x11_core.o in_x11.o
 CL_LIBS += X11
 ifneq ($(X11BASE),)
-CL_LFLAGS += -L$(X11BASE)/lib
+CL_LFLAGS += $(call libdir-check,$(X11BASE)/lib)
 endif
 endif
 ifeq ($(IN_TARGET),win)
