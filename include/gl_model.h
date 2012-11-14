@@ -240,7 +240,7 @@ void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
 typedef struct {
     int numframes;
     float *intervals;
-    mspriteframe_t *frames[1];
+    mspriteframe_t *frames[0];	/* variable sized */
 } mspritegroup_t;
 
 typedef struct {
@@ -255,7 +255,7 @@ typedef struct {
     int numframes;
     float beamlength;		// remove?
     void *cachespot;		// remove?
-    mspriteframedesc_t frames[1];
+    mspriteframedesc_t frames[0];	/* variable sized */
 } msprite_t;
 
 #ifdef QW_HACK

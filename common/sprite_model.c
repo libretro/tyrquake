@@ -91,9 +91,8 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
     pingroup = (dspritegroup_t *)pin;
     numframes = LittleLong(pingroup->numframes);
 
-    pspritegroup = Hunk_AllocName(sizeof(mspritegroup_t) +
-				  (numframes -
-				   1) * sizeof(pspritegroup->frames[0]),
+    pspritegroup = Hunk_AllocName(sizeof(*pspritegroup) +
+				  numframes * sizeof(pspritegroup->frames[0]),
 				  loadname);
 
     pspritegroup->numframes = numframes;
@@ -138,7 +137,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
     int size;
     dspriteframetype_t *pframetype;
 
-    pin = (dsprite_t *) buffer;
+    pin = (dsprite_t *)buffer;
 
     version = LittleLong(pin->version);
     if (version != SPRITE_VERSION)
@@ -146,7 +145,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
 		  __func__, mod->name, version, SPRITE_VERSION);
 
     numframes = LittleLong(pin->numframes);
-    size = sizeof(msprite_t) + (numframes - 1) * sizeof(psprite->frames);
+    size = sizeof(*psprite) + numframes * sizeof(psprite->frames[0]);
     psprite = Hunk_AllocName(size, loadname);
     mod->cache.data = psprite;
 
