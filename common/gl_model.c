@@ -30,9 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.h"
 #include "quakedef.h"
 #include "sys.h"
-
-// FIXME - header hacks
-extern unsigned d_8to24table[];
+#include "vid.h"
 
 static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
