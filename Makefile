@@ -522,7 +522,6 @@ SW_OBJS := \
 	d_sprite.o	\
 	d_surf.o	\
 	d_vars.o	\
-	d_zpoint.o	\
 	draw.o		\
 	model.o		\
 	r_aclip.o	\

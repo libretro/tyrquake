@@ -33,9 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 unsigned int cacheoffset;
 
 int c_faceclip;			// number of faces clipped
-
-zpointdesc_t r_zpointdesc;
-
 polydesc_t r_polydesc;
 
 

@@ -111,12 +111,6 @@ typedef struct {
     float nearzi;
 } spritedesc_t;
 
-typedef struct {
-    int u, v;
-    float zi;
-    int color;
-} zpointdesc_t;
-
 extern cvar_t r_drawflat;
 extern int r_framecount;	// sequence # of current frame since Quake started
 extern qboolean r_drawpolys;	// 1 if driver wants clipped polygons
@@ -146,7 +140,6 @@ extern qboolean r_dowarp;
 
 extern affinetridesc_t r_affinetridesc;
 extern spritedesc_t r_spritedesc;
-extern zpointdesc_t r_zpointdesc;
 extern polydesc_t r_polydesc;
 
 extern int d_con_indirect;	// if 0, Quake will draw console directly
@@ -168,7 +161,6 @@ void D_DrawParticle(particle_t *pparticle);
 void D_DrawPoly(void);
 void D_DrawSprite(void);
 void D_DrawSurfaces(void);
-void D_DrawZPoint(void);
 void D_EnableBackBufferAccess(void);
 void D_EndParticles(void);
 void D_Init(void);
