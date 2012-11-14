@@ -54,8 +54,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	(typeof(&(dst)[0]))((p + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));	\
 })
 
-#define UNUSED(x)	(x = x)	// for pesky compiler / lint warnings
-
 #define	MINIMUM_MEMORY		0x550000
 #define	MINIMUM_MEMORY_LEVELPAK	(MINIMUM_MEMORY + 0x100000)
 
