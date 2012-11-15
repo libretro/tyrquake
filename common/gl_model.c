@@ -1332,7 +1332,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
     for (i = 0; i < 3; i++) {
 	// these are byte values, so we don't have to worry about endianness
 	frame->bboxmin.v[i] = in->bboxmin.v[i];
-	frame->bboxmin.v[i] = in->bboxmax.v[i];
+	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
 
     /*
