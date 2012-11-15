@@ -285,7 +285,7 @@ typedef struct {
     int numverts;
     int numtris;
     int numframes;
-    int size;
+    float size;
     int numposes;
     int poseverts;
     int posedata;	// (numposes * poseverts) trivert_t
