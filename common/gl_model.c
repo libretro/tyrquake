@@ -1296,7 +1296,8 @@ Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
 {
     int i;
 
-    strcpy(frame->name, in->name);
+    strncpy(frame->name, in->name, sizeof(frame->name));
+    frame->name[sizeof(frame->name) - 1] = 0;
     frame->firstpose = posenum;
     frame->numposes = 1;
 
@@ -1342,6 +1343,8 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
      */
     frame->interval = LittleFloat(in->intervals[0].interval);
     dframe = (daliasframe_t *)&in->intervals[numframes];
+    strncpy(frame->name, dframe->name, sizeof(frame->name));
+    frame->name[sizeof(frame->name) - 1] = 0;
     for (i = 0; i < numframes; i++) {
 	poseverts[posenum] = dframe->verts;
 	posenum++;
