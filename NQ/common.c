@@ -1466,11 +1466,11 @@ Optionally return length; set null if you don't want it.
 Always appends a 0 byte to the loaded data.
 ============
 */
-cache_user_t *loadcache;
-byte *loadbuf;
-int loadsize;
+static cache_user_t *loadcache;
+static byte *loadbuf;
+static int loadsize;
 
-byte *
+static byte *
 COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
     FILE *f;
