@@ -41,7 +41,6 @@ void *acolormap;		// FIXME: should go away
 vec3_t r_plightvec;
 int r_ambientlight;
 float r_shadelight;
-static aliashdr_t *paliashdr;
 static float ziscale;
 static model_t *pmodel;
 
@@ -72,7 +71,8 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.h"
 };
 
-static void R_AliasSetUpTransform(entity_t *e, int trivial_accept);
+static void R_AliasSetUpTransform(entity_t *e, aliashdr_t *pahdr,
+				  int trivial_accept);
 static void R_AliasTransformVector(vec3_t in, vec3_t out);
 static void R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 				      trivertx_t *pverts, stvert_t *pstverts);
@@ -102,9 +102,9 @@ R_AliasCheckBBox(entity_t *e)
 
     e->trivial_accept = 0;
     pmodel = e->model;
-    paliashdr = pahdr = Mod_Extradata(pmodel);
+    pahdr = Mod_Extradata(pmodel);
 
-    R_AliasSetUpTransform(e, 0);
+    R_AliasSetUpTransform(e, pahdr, 0);
 
 // construct the base bounding box for this frame
     frame = e->frame;
@@ -252,7 +252,8 @@ General clipped case
 ================
 */
 static void
-R_AliasPreparePoints(finalvert_t *pfinalverts, auxvert_t *pauxverts)
+R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
+		     auxvert_t *pauxverts)
 {
     int i;
     stvert_t *pstverts;
@@ -261,8 +262,8 @@ R_AliasPreparePoints(finalvert_t *pfinalverts, auxvert_t *pauxverts)
     mtriangle_t *ptri;
     finalvert_t *pfv[3];
 
-    pstverts = (stvert_t *)((byte *)paliashdr + paliashdr->stverts);
-    r_anumverts = paliashdr->numverts;
+    pstverts = (stvert_t *)((byte *)pahdr + pahdr->stverts);
+    r_anumverts = pahdr->numverts;
     fv = pfinalverts;
     av = pauxverts;
 
@@ -289,8 +290,8 @@ R_AliasPreparePoints(finalvert_t *pfinalverts, auxvert_t *pauxverts)
 //
     r_affinetridesc.numtriangles = 1;
 
-    ptri = (mtriangle_t *)((byte *)paliashdr + paliashdr->triangles);
-    for (i = 0; i < paliashdr->numtris; i++, ptri++) {
+    ptri = (mtriangle_t *)((byte *)pahdr + pahdr->triangles);
+    for (i = 0; i < pahdr->numtris; i++, ptri++) {
 	pfv[0] = &pfinalverts[ptri->vertindex[0]];
 	pfv[1] = &pfinalverts[ptri->vertindex[1]];
 	pfv[2] = &pfinalverts[ptri->vertindex[2]];
@@ -316,7 +317,7 @@ R_AliasSetUpTransform
 ================
 */
 static void
-R_AliasSetUpTransform(entity_t *e, int trivial_accept)
+R_AliasSetUpTransform(entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 {
     int i;
     float rotationmatrix[3][4], t2matrix[3][4];
@@ -333,13 +334,13 @@ R_AliasSetUpTransform(entity_t *e, int trivial_accept)
     angles[YAW] = e->angles[YAW];
     AngleVectors(angles, alias_forward, alias_right, alias_up);
 
-    tmatrix[0][0] = paliashdr->scale[0];
-    tmatrix[1][1] = paliashdr->scale[1];
-    tmatrix[2][2] = paliashdr->scale[2];
+    tmatrix[0][0] = pahdr->scale[0];
+    tmatrix[1][1] = pahdr->scale[1];
+    tmatrix[2][2] = pahdr->scale[2];
 
-    tmatrix[0][3] = paliashdr->scale_origin[0];
-    tmatrix[1][3] = paliashdr->scale_origin[1];
-    tmatrix[2][3] = paliashdr->scale_origin[2];
+    tmatrix[0][3] = pahdr->scale_origin[0];
+    tmatrix[1][3] = pahdr->scale_origin[1];
+    tmatrix[2][3] = pahdr->scale_origin[2];
 
 // TODO: can do this with simple matrix rearrangement
 
@@ -510,12 +511,12 @@ R_AliasPrepareUnclippedPoints
 ================
 */
 static void
-R_AliasPrepareUnclippedPoints(finalvert_t *pfinalverts)
+R_AliasPrepareUnclippedPoints(aliashdr_t *pahdr, finalvert_t *pfinalverts)
 {
     stvert_t *pstverts;
 
-    pstverts = (stvert_t *)((byte *)paliashdr + paliashdr->stverts);
-    r_anumverts = paliashdr->numverts;
+    pstverts = (stvert_t *)((byte *)pahdr + pahdr->stverts);
+    r_anumverts = pahdr->numverts;
 
     R_AliasTransformAndProjectFinalVerts(pfinalverts, pstverts);
 
@@ -523,9 +524,9 @@ R_AliasPrepareUnclippedPoints(finalvert_t *pfinalverts)
 	D_PolysetDrawFinalVerts(pfinalverts, r_anumverts);
 
     r_affinetridesc.pfinalverts = pfinalverts;
-    r_affinetridesc.ptriangles = (mtriangle_t *)
-	((byte *)paliashdr + paliashdr->triangles);
-    r_affinetridesc.numtriangles = paliashdr->numtris;
+    r_affinetridesc.ptriangles = (mtriangle_t *)((byte *)pahdr +
+						 pahdr->triangles);
+    r_affinetridesc.numtriangles = pahdr->numtris;
 
     D_PolysetDraw();
 }
@@ -536,7 +537,7 @@ R_AliasSetupSkin
 ===============
 */
 static void
-R_AliasSetupSkin(entity_t *e)
+R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 {
     int skinnum;
     int i, numskins;
@@ -545,20 +546,17 @@ R_AliasSetupSkin(entity_t *e)
     float skintargettime, skintime;
 
     skinnum = e->skinnum;
-    if ((skinnum >= paliashdr->numskins) || (skinnum < 0)) {
+    if ((skinnum >= pahdr->numskins) || (skinnum < 0)) {
 	Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
 	skinnum = 0;
     }
 
-    pskindesc = ((maliasskindesc_t *)
-		 ((byte *)paliashdr + paliashdr->skindesc)) + skinnum;
-    a_skinwidth = paliashdr->skinwidth;
+    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc)) + skinnum;
+    a_skinwidth = pahdr->skinwidth;
 
     if (pskindesc->type == ALIAS_SKIN_GROUP) {
-	paliasskingroup = (maliasskingroup_t *)((byte *)paliashdr +
-						pskindesc->skin);
-	pskinintervals = (float *)
-	    ((byte *)paliashdr + paliasskingroup->intervals);
+	paliasskingroup = (maliasskingroup_t *)((byte *)pahdr + pskindesc->skin);
+	pskinintervals = (float *)((byte *)pahdr + paliasskingroup->intervals);
 	numskins = paliasskingroup->numskins;
 	fullskininterval = pskinintervals[numskins - 1];
 
@@ -578,10 +576,10 @@ R_AliasSetupSkin(entity_t *e)
     }
 
     r_affinetridesc.pskindesc = pskindesc;
-    r_affinetridesc.pskin = (void *)((byte *)paliashdr + pskindesc->skin);
+    r_affinetridesc.pskin = (void *)((byte *)pahdr + pskindesc->skin);
     r_affinetridesc.skinwidth = a_skinwidth;
     r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
-    r_affinetridesc.skinheight = paliashdr->skinheight;
+    r_affinetridesc.skinheight = pahdr->skinheight;
 
 #ifdef QW_HACK
     if (e->scoreboard) {
@@ -641,31 +639,31 @@ set r_apverts
 =================
 */
 static void
-R_AliasSetupFrame(entity_t *e)
+R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 {
     int frame, pose, numposes;
     float interval;
 
     frame = e->frame;
-    if ((frame >= paliashdr->numframes) || (frame < 0)) {
+    if ((frame >= pahdr->numframes) || (frame < 0)) {
 	Con_DPrintf("%s: no such frame %d\n", __func__, frame);
 	frame = 0;
     }
 
-    pose = paliashdr->frames[frame].firstpose;
-    numposes = paliashdr->frames[frame].numposes;
+    pose = pahdr->frames[frame].firstpose;
+    numposes = pahdr->frames[frame].numposes;
 
 //
 // when loading in Mod_LoadAliasGroup, we guaranteed all interval values
 // are positive, so we don't have to worry about division by 0
 //
     if (numposes > 1) {
-	interval = paliashdr->frames[frame].interval;
+	interval = pahdr->frames[frame].interval;
 	pose += (int)((cl.time + e->syncbase) / interval) % numposes;
     }
 
-    r_apverts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
-    r_apverts += pose * paliashdr->poseverts;
+    r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
+    r_apverts += pose * pahdr->poseverts;
 }
 
 
@@ -677,6 +675,7 @@ R_AliasDrawModel
 void
 R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
+    aliashdr_t *pahdr;
     finalvert_t *pfinalverts;
     finalvert_t finalverts[CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t)];
     auxvert_t *pauxverts;
@@ -688,12 +687,12 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
     pfinalverts = CACHE_ALIGN_PTR(finalverts);
     pauxverts = &auxverts[0];
 
-    paliashdr = (aliashdr_t *)Mod_Extradata(e->model);
+    pahdr = Mod_Extradata(e->model);
 
-    R_AliasSetupSkin(e);
-    R_AliasSetUpTransform(e, e->trivial_accept);
+    R_AliasSetupSkin(e, pahdr);
+    R_AliasSetUpTransform(e, pahdr, e->trivial_accept);
     R_AliasSetupLighting(plighting);
-    R_AliasSetupFrame(e);
+    R_AliasSetupFrame(e, pahdr);
 
     if (!e->colormap)
 	Sys_Error("%s: !e->colormap", __func__);
@@ -717,7 +716,7 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
 	ziscale = ((float)0x8000) * ((float)0x10000) * 3.0;
 
     if (e->trivial_accept)
-	R_AliasPrepareUnclippedPoints(pfinalverts);
+	R_AliasPrepareUnclippedPoints(pahdr, pfinalverts);
     else
-	R_AliasPreparePoints(pfinalverts, pauxverts);
+	R_AliasPreparePoints(pahdr, pfinalverts, pauxverts);
 }
