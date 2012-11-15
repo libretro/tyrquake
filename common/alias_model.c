@@ -202,7 +202,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 		   const char *loadname)
 {
     int i, j;
-    mdl_t *pmodel, *pinmodel;
+    mdl_t *pinmodel;
     stvert_t *pstverts, *pinstverts;
     mtriangle_t *ptri;
     dtriangle_t *pintriangles;
@@ -259,19 +259,15 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 //
     size = sizeof(aliashdr_t) +
 	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]) +
-	sizeof(mdl_t) +
 	LittleLong(pinmodel->numverts) * sizeof(stvert_t) +
 	LittleLong(pinmodel->numtris) * sizeof(mtriangle_t);
 
     pheader = Hunk_AllocName(size, loadname);
-    pmodel = (mdl_t *)((byte *)&pheader[1] + LittleLong(pinmodel->numframes) *
-		       sizeof(pheader->frames[0]));
     mod->flags = LittleLong(pinmodel->flags);
 
 //
 // endian-adjust and copy the data, starting with the alias model header
 //
-    pmodel->boundingradius = LittleFloat(pinmodel->boundingradius);
     pheader->numskins = LittleLong(pinmodel->numskins);
     pheader->skinwidth = LittleLong(pinmodel->skinwidth);
     pheader->skinheight = LittleLong(pinmodel->skinheight);
@@ -301,7 +297,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     for (i = 0; i < 3; i++) {
 	pheader->scale[i] = LittleFloat(pinmodel->scale[i]);
 	pheader->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
-	pmodel->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
     numskins = pheader->numskins;
@@ -309,8 +304,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 
     if (pheader->skinwidth & 0x03)
 	Sys_Error("%s: skinwidth not multiple of 4", __func__);
-
-    pheader->model = (byte *)pmodel - (byte *)pheader;
 
 //
 // load the skins
@@ -346,7 +339,8 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 //
 // set base s and t vertices
 //
-    pstverts = (stvert_t *)&pmodel[1];
+    pstverts = (stvert_t *)((byte *)&pheader[1] + pheader->numframes *
+			    sizeof(pheader->frames[0]));
     pinstverts = (stvert_t *)pskintype;
 
     pheader->stverts = (byte *)pstverts - (byte *)pheader;

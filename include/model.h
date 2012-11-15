@@ -277,7 +277,6 @@ typedef struct mtriangle_s {
 } mtriangle_t;
 
 typedef struct {
-    int model;
     vec3_t scale;
     vec3_t scale_origin;
     int numskins;
