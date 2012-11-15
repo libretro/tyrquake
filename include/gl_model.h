@@ -78,8 +78,8 @@ typedef struct {
 typedef struct mplane_s {
     vec3_t normal;
     float dist;
-    byte type;			// for texture axis selection and fast side tests
-    byte signbits;		// signx + signy<<1 + signz<<1
+    byte type;		// for texture axis selection and fast side tests
+    byte signbits;	// signx + signy<<1 + signz<<1
     byte pad[2];
 } mplane_t;
 
@@ -130,20 +130,21 @@ typedef struct glpoly_s {
 } glpoly_t;
 
 typedef struct msurface_s {
-    int visframe;		// should be drawn when node is crossed
+    int visframe;	// should be drawn when node is crossed
 
     mplane_t *plane;
     int flags;
 
-    int firstedge;		// look up in model->surfedges[], negative numbers
-    int numedges;		// are backwards edges
+    int firstedge;	// look up in model->surfedges[], negative numbers
+    int numedges;	// are backwards edges
 
     short texturemins[2];
     short extents[2];
 
-    int light_s, light_t;	// gl lightmap coordinates
+    int light_s;	// gl lightmap coordinates
+    int light_t;
 
-    glpoly_t *polys;		// multiple if warped
+    glpoly_t *polys;	// multiple if warped
     struct msurface_s *texturechain;
 
     mtexinfo_t *texinfo;
@@ -301,9 +302,9 @@ typedef struct {
     float size;
     int numposes;
     int poseverts;
-    int posedata;		// numposes*poseverts trivert_t
+    int posedata;	// (numposes * poseverts) trivert_t
 
-    int commands;		// gl command list with embedded s/t
+    int commands;	// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK
     int texels[MAX_SKINS];	// only for player skins
@@ -396,8 +397,8 @@ typedef struct model_s {
     char *entities;
 
 #ifdef QW_HACK
-    unsigned checksum;
-    unsigned checksum2;
+    unsigned checksum;		// for world models only
+    unsigned checksum2;		// for world models only
 #endif
 
 //

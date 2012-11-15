@@ -1491,8 +1491,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 	    pinskingroup = (daliasskingroup_t *)pskintype;
 	    groupskins = LittleLong(pinskingroup->numskins);
 	    pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
-
-	    pskintype = (void *)(pinskinintervals + groupskins);
+	    pskintype = (daliasskintype_t *)(pinskinintervals + groupskins);
 
 	    for (j = 0; j < groupskins; j++) {
 		Mod_FloodFillSkin(skin, pheader->skinwidth,
@@ -1518,7 +1517,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 	}
     }
 
-    return (void *)pskintype;
+    return pskintype;
 }
 
 //=========================================================================

@@ -314,9 +314,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
 
     pskintype = (daliasskintype_t *)&pinmodel[1];
-
     pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
-
     pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
 
     for (i = 0; i < numskins; i++) {
@@ -326,13 +324,11 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 	pskindesc[i].type = skintype;
 
 	if (skintype == ALIAS_SKIN_SINGLE) {
-	    pskintype = (daliasskintype_t *)
-		Mod_LoadAliasSkin(pskintype + 1,
-				  &pskindesc[i].skin, skinsize, loadname);
+	    pskintype = Mod_LoadAliasSkin(pskintype + 1, &pskindesc[i].skin,
+					  skinsize, loadname);
 	} else {
-	    pskintype = (daliasskintype_t *)
-		Mod_LoadAliasSkinGroup(pskintype + 1,
-				       &pskindesc[i].skin, skinsize, loadname);
+	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1, &pskindesc[i].skin,
+					       skinsize, loadname);
 	}
     }
 

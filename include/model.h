@@ -288,13 +288,13 @@ typedef struct {
     int size;
     int numposes;
     int poseverts;
-    int posedata;
+    int posedata;	// (numposes * poseverts) trivert_t
 
     int stverts;
     int skindesc;
     int triangles;
 
-    maliasframedesc_t frames[0];
+    maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
 #define	MAXALIASFRAMES	512
