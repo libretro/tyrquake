@@ -1595,7 +1595,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 //
 // endian-adjust and copy the data, starting with the alias model header
 //
-    pheader->boundingradius = LittleFloat(pinmodel->boundingradius);
     pheader->numskins = LittleLong(pinmodel->numskins);
     pheader->skinwidth = LittleLong(pinmodel->skinwidth);
     pheader->skinheight = LittleLong(pinmodel->skinheight);
@@ -1629,7 +1628,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     for (i = 0; i < 3; i++) {
 	pheader->scale[i] = LittleFloat(pinmodel->scale[i]);
 	pheader->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
-	pheader->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
 

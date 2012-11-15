@@ -290,25 +290,19 @@ typedef struct mtriangle_s {
 
 #define	MAX_SKINS	32
 typedef struct {
-    int ident;
-    int version;
     vec3_t scale;
     vec3_t scale_origin;
-    float boundingradius;
-    vec3_t eyeposition;
     int numskins;
     int skinwidth;
     int skinheight;
     int numverts;
     int numtris;
     int numframes;
-    synctype_t synctype;
-    int flags;
     float size;
-
     int numposes;
     int poseverts;
     int posedata;		// numposes*poseverts trivert_t
+
     int commands;		// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK

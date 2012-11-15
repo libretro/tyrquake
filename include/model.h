@@ -286,13 +286,13 @@ typedef struct {
     int numtris;
     int numframes;
     int size;
-    int stverts;
-    int skindesc;
-    int triangles;
-
     int numposes;
     int poseverts;
     int posedata;
+
+    int stverts;
+    int skindesc;
+    int triangles;
 
     maliasframedesc_t frames[0];
 } aliashdr_t;
