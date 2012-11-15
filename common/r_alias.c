@@ -38,7 +38,6 @@ trivertx_t *r_apverts;
 void *acolormap;		// FIXME: should go away
 
 // TODO: these probably will go away with optimized rasterization
-static mdl_t *pmdl;
 vec3_t r_plightvec;
 int r_ambientlight;
 float r_shadelight;
@@ -103,15 +102,14 @@ R_AliasCheckBBox(entity_t *e)
 
     e->trivial_accept = 0;
     pmodel = e->model;
-    pahdr = Mod_Extradata(pmodel);
-    pmdl = (mdl_t *)((byte *)pahdr + pahdr->model);
+    paliashdr = pahdr = Mod_Extradata(pmodel);
 
     R_AliasSetUpTransform(e, 0);
 
 // construct the base bounding box for this frame
     frame = e->frame;
 // TODO: don't repeat this check when drawing?
-    if ((frame >= pmdl->numframes) || (frame < 0)) {
+    if ((frame >= pahdr->numframes) || (frame < 0)) {
 	Con_DPrintf("No such frame %d %s\n", frame, pmodel->name);
 	frame = 0;
     }
@@ -223,7 +221,7 @@ R_AliasCheckBBox(entity_t *e)
     e->trivial_accept = !anyclip & !zclipped;
 
     if (e->trivial_accept) {
-	if (minz > (r_aliastransition + (pmdl->size * r_resfudge))) {
+	if (minz > (r_aliastransition + (pahdr->size * r_resfudge))) {
 	    e->trivial_accept |= 2;
 	}
     }
@@ -264,7 +262,7 @@ R_AliasPreparePoints(finalvert_t *pfinalverts, auxvert_t *pauxverts)
     finalvert_t *pfv[3];
 
     pstverts = (stvert_t *)((byte *)paliashdr + paliashdr->stverts);
-    r_anumverts = pmdl->numverts;
+    r_anumverts = paliashdr->numverts;
     fv = pfinalverts;
     av = pauxverts;
 
@@ -292,7 +290,7 @@ R_AliasPreparePoints(finalvert_t *pfinalverts, auxvert_t *pauxverts)
     r_affinetridesc.numtriangles = 1;
 
     ptri = (mtriangle_t *)((byte *)paliashdr + paliashdr->triangles);
-    for (i = 0; i < pmdl->numtris; i++, ptri++) {
+    for (i = 0; i < paliashdr->numtris; i++, ptri++) {
 	pfv[0] = &pfinalverts[ptri->vertindex[0]];
 	pfv[1] = &pfinalverts[ptri->vertindex[1]];
 	pfv[2] = &pfinalverts[ptri->vertindex[2]];
@@ -335,13 +333,13 @@ R_AliasSetUpTransform(entity_t *e, int trivial_accept)
     angles[YAW] = e->angles[YAW];
     AngleVectors(angles, alias_forward, alias_right, alias_up);
 
-    tmatrix[0][0] = pmdl->scale[0];
-    tmatrix[1][1] = pmdl->scale[1];
-    tmatrix[2][2] = pmdl->scale[2];
+    tmatrix[0][0] = paliashdr->scale[0];
+    tmatrix[1][1] = paliashdr->scale[1];
+    tmatrix[2][2] = paliashdr->scale[2];
 
-    tmatrix[0][3] = pmdl->scale_origin[0];
-    tmatrix[1][3] = pmdl->scale_origin[1];
-    tmatrix[2][3] = pmdl->scale_origin[2];
+    tmatrix[0][3] = paliashdr->scale_origin[0];
+    tmatrix[1][3] = paliashdr->scale_origin[1];
+    tmatrix[2][3] = paliashdr->scale_origin[2];
 
 // TODO: can do this with simple matrix rearrangement
 
@@ -517,7 +515,7 @@ R_AliasPrepareUnclippedPoints(finalvert_t *pfinalverts)
     stvert_t *pstverts;
 
     pstverts = (stvert_t *)((byte *)paliashdr + paliashdr->stverts);
-    r_anumverts = pmdl->numverts;
+    r_anumverts = paliashdr->numverts;
 
     R_AliasTransformAndProjectFinalVerts(pfinalverts, pstverts);
 
@@ -527,7 +525,7 @@ R_AliasPrepareUnclippedPoints(finalvert_t *pfinalverts)
     r_affinetridesc.pfinalverts = pfinalverts;
     r_affinetridesc.ptriangles = (mtriangle_t *)
 	((byte *)paliashdr + paliashdr->triangles);
-    r_affinetridesc.numtriangles = pmdl->numtris;
+    r_affinetridesc.numtriangles = paliashdr->numtris;
 
     D_PolysetDraw();
 }
@@ -547,14 +545,14 @@ R_AliasSetupSkin(entity_t *e)
     float skintargettime, skintime;
 
     skinnum = e->skinnum;
-    if ((skinnum >= pmdl->numskins) || (skinnum < 0)) {
+    if ((skinnum >= paliashdr->numskins) || (skinnum < 0)) {
 	Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
 	skinnum = 0;
     }
 
     pskindesc = ((maliasskindesc_t *)
 		 ((byte *)paliashdr + paliashdr->skindesc)) + skinnum;
-    a_skinwidth = pmdl->skinwidth;
+    a_skinwidth = paliashdr->skinwidth;
 
     if (pskindesc->type == ALIAS_SKIN_GROUP) {
 	paliasskingroup = (maliasskingroup_t *)((byte *)paliashdr +
@@ -583,7 +581,7 @@ R_AliasSetupSkin(entity_t *e)
     r_affinetridesc.pskin = (void *)((byte *)paliashdr + pskindesc->skin);
     r_affinetridesc.skinwidth = a_skinwidth;
     r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
-    r_affinetridesc.skinheight = pmdl->skinheight;
+    r_affinetridesc.skinheight = paliashdr->skinheight;
 
 #ifdef QW_HACK
     if (e->scoreboard) {
@@ -649,7 +647,7 @@ R_AliasSetupFrame(entity_t *e)
     float interval;
 
     frame = e->frame;
-    if ((frame >= pmdl->numframes) || (frame < 0)) {
+    if ((frame >= paliashdr->numframes) || (frame < 0)) {
 	Con_DPrintf("%s: no such frame %d\n", __func__, frame);
 	frame = 0;
     }
@@ -691,7 +689,6 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
     pauxverts = &auxverts[0];
 
     paliashdr = (aliashdr_t *)Mod_Extradata(e->model);
-    pmdl = (mdl_t *)((byte *)paliashdr + paliashdr->model);
 
     R_AliasSetupSkin(e);
     R_AliasSetUpTransform(e, e->trivial_accept);

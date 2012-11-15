@@ -272,42 +272,42 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 // endian-adjust and copy the data, starting with the alias model header
 //
     pmodel->boundingradius = LittleFloat(pinmodel->boundingradius);
-    pmodel->numskins = LittleLong(pinmodel->numskins);
-    pmodel->skinwidth = LittleLong(pinmodel->skinwidth);
-    pmodel->skinheight = LittleLong(pinmodel->skinheight);
+    pheader->numskins = LittleLong(pinmodel->numskins);
+    pheader->skinwidth = LittleLong(pinmodel->skinwidth);
+    pheader->skinheight = LittleLong(pinmodel->skinheight);
 
-    if (pmodel->skinheight > MAX_LBM_HEIGHT)
+    if (pheader->skinheight > MAX_LBM_HEIGHT)
 	Sys_Error("model %s has a skin taller than %d", mod->name,
 		  MAX_LBM_HEIGHT);
 
-    pmodel->numverts = LittleLong(pinmodel->numverts);
+    pheader->numverts = LittleLong(pinmodel->numverts);
 
-    if (pmodel->numverts <= 0)
+    if (pheader->numverts <= 0)
 	Sys_Error("model %s has no vertices", mod->name);
 
-    if (pmodel->numverts > MAXALIASVERTS)
+    if (pheader->numverts > MAXALIASVERTS)
 	Sys_Error("model %s has too many vertices", mod->name);
 
-    pmodel->numtris = LittleLong(pinmodel->numtris);
+    pheader->numtris = LittleLong(pinmodel->numtris);
 
-    if (pmodel->numtris <= 0)
+    if (pheader->numtris <= 0)
 	Sys_Error("model %s has no triangles", mod->name);
 
-    pmodel->numframes = LittleLong(pinmodel->numframes);
-    pmodel->size = LittleFloat(pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
+    pheader->numframes = LittleLong(pinmodel->numframes);
+    pheader->size = LittleFloat(pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
     mod->synctype = LittleLong(pinmodel->synctype);
-    mod->numframes = pmodel->numframes;
+    mod->numframes = pheader->numframes;
 
     for (i = 0; i < 3; i++) {
-	pmodel->scale[i] = LittleFloat(pinmodel->scale[i]);
-	pmodel->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
+	pheader->scale[i] = LittleFloat(pinmodel->scale[i]);
+	pheader->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
 	pmodel->eyeposition[i] = LittleFloat(pinmodel->eyeposition[i]);
     }
 
-    numskins = pmodel->numskins;
-    numframes = pmodel->numframes;
+    numskins = pheader->numskins;
+    numframes = pheader->numframes;
 
-    if (pmodel->skinwidth & 0x03)
+    if (pheader->skinwidth & 0x03)
 	Sys_Error("%s: skinwidth not multiple of 4", __func__);
 
     pheader->model = (byte *)pmodel - (byte *)pheader;
@@ -315,7 +315,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 //
 // load the skins
 //
-    skinsize = pmodel->skinheight * pmodel->skinwidth;
+    skinsize = pheader->skinheight * pheader->skinwidth;
 
     if (numskins < 1)
 	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
@@ -351,7 +351,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 
     pheader->stverts = (byte *)pstverts - (byte *)pheader;
 
-    for (i = 0; i < pmodel->numverts; i++) {
+    for (i = 0; i < pheader->numverts; i++) {
 	pstverts[i].onseam = LittleLong(pinstverts[i].onseam);
 	// put s and t in 16.16 format
 	pstverts[i].s = LittleLong(pinstverts[i].s) << 16;
@@ -361,12 +361,12 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 //
 // set up the triangles
 //
-    ptri = (mtriangle_t *)&pstverts[pmodel->numverts];
-    pintriangles = (dtriangle_t *)&pinstverts[pmodel->numverts];
+    ptri = (mtriangle_t *)&pstverts[pheader->numverts];
+    pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
 
     pheader->triangles = (byte *)ptri - (byte *)pheader;
 
-    for (i = 0; i < pmodel->numtris; i++) {
+    for (i = 0; i < pheader->numtris; i++) {
 	int j;
 
 	ptri[i].facesfront = LittleLong(pintriangles[i].facesfront);
@@ -382,17 +382,17 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 	Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
 
     posenum = 0;
-    pframetype = (daliasframetype_t *)&pintriangles[pmodel->numtris];
+    pframetype = (daliasframetype_t *)&pintriangles[pheader->numtris];
 
     for (i = 0; i < numframes; i++) {
 	if (LittleLong(pframetype->type) == ALIAS_SINGLE) {
 	    frame = (daliasframe_t *)(pframetype + 1);
 	    Mod_LoadAliasFrame(frame, &pheader->frames[i]);
-	    pframetype = (daliasframetype_t *)&frame->verts[pmodel->numverts];
+	    pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];
 	} else {
 	    group = (daliasgroup_t *)(pframetype + 1);
 	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i],
-					    pmodel->numverts, loadname);
+					    pheader->numverts, loadname);
 	}
     }
     pheader->numposes = posenum;
@@ -405,7 +405,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     /*
      * Allocate the verts, copy and setup offsets
      */
-    pheader->poseverts = pmodel->numverts;
+    pheader->poseverts = pheader->numverts;
     verts = Hunk_Alloc(pheader->numposes * pheader->poseverts * sizeof(*verts));
     pheader->posedata = (byte *)verts - (byte *)pheader;
     for (i = 0; i < pheader->numposes; i++)

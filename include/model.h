@@ -278,6 +278,15 @@ typedef struct mtriangle_s {
 
 typedef struct {
     int model;
+    vec3_t scale;
+    vec3_t scale_origin;
+    int numskins;
+    int skinwidth;
+    int skinheight;
+    int numverts;
+    int numtris;
+    int numframes;
+    int size;
     int stverts;
     int skindesc;
     int triangles;
