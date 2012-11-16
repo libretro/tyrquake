@@ -1458,7 +1458,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
     s = pheader->skinwidth * pheader->skinheight;
 
     for (i = 0; i < numskins; i++) {
-	if (pskintype->type == ALIAS_SKIN_SINGLE) {
+	if (LittleLong(pskintype->type) == ALIAS_SKIN_SINGLE) {
 	    Mod_FloodFillSkin(skin, pheader->skinwidth, pheader->skinheight);
 
 #ifdef NQ_HACK
@@ -1631,7 +1631,6 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 	pheader->scale[i] = LittleFloat(pinmodel->scale[i]);
 	pheader->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
     }
-
 
 //
 // load the skins
