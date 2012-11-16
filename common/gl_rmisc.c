@@ -401,9 +401,9 @@ R_TranslatePlayerSkin(int playernum)
     size = paliashdr->skinwidth * paliashdr->skinheight;
     if (e->skinnum < 0 || e->skinnum >= paliashdr->numskins) {
 	Con_Printf("(%d): Invalid player skin #%d\n", playernum, e->skinnum);
-	original = (byte *)paliashdr + paliashdr->texels[0];
+	original = (byte *)paliashdr + GL_Aliashdr(paliashdr)->texels[0];
     } else
-	original = (byte *)paliashdr + paliashdr->texels[e->skinnum];
+	original = (byte *)paliashdr + GL_Aliashdr(paliashdr)->texels[e->skinnum];
     if (size & 3)
 	Sys_Error("%s: size & 3", __func__);
 

@@ -346,7 +346,7 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
     hdr->poseverts = numorder;
 
     cmds = Hunk_Alloc(numcommands * 4);
-    hdr->commands = (byte *)cmds - (byte *)hdr;
+    GL_Aliashdr(hdr)->commands = (byte *)cmds - (byte *)hdr;
     memcpy(cmds, commands, numcommands * 4);
 
     verts = Hunk_Alloc(hdr->numposes * hdr->poseverts * sizeof(trivertx_t));

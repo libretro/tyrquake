@@ -262,7 +262,7 @@ R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
     mtriangle_t *ptri;
     finalvert_t *pfv[3];
 
-    pstverts = (stvert_t *)((byte *)pahdr + pahdr->stverts);
+    pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
     r_anumverts = pahdr->numverts;
     fv = pfinalverts;
     av = pauxverts;
@@ -290,7 +290,7 @@ R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
 //
     r_affinetridesc.numtriangles = 1;
 
-    ptri = (mtriangle_t *)((byte *)pahdr + pahdr->triangles);
+    ptri = (mtriangle_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->triangles);
     for (i = 0; i < pahdr->numtris; i++, ptri++) {
 	pfv[0] = &pfinalverts[ptri->vertindex[0]];
 	pfv[1] = &pfinalverts[ptri->vertindex[1]];
@@ -515,7 +515,7 @@ R_AliasPrepareUnclippedPoints(aliashdr_t *pahdr, finalvert_t *pfinalverts)
 {
     stvert_t *pstverts;
 
-    pstverts = (stvert_t *)((byte *)pahdr + pahdr->stverts);
+    pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
     r_anumverts = pahdr->numverts;
 
     R_AliasTransformAndProjectFinalVerts(pfinalverts, pstverts);
@@ -525,7 +525,7 @@ R_AliasPrepareUnclippedPoints(aliashdr_t *pahdr, finalvert_t *pfinalverts)
 
     r_affinetridesc.pfinalverts = pfinalverts;
     r_affinetridesc.ptriangles = (mtriangle_t *)((byte *)pahdr +
-						 pahdr->triangles);
+						 SW_Aliashdr(pahdr)->triangles);
     r_affinetridesc.numtriangles = pahdr->numtris;
 
     D_PolysetDraw();
@@ -551,7 +551,8 @@ R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 	skinnum = 0;
     }
 
-    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc)) + skinnum;
+    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->skindesc));
+    pskindesc += skinnum;
     a_skinwidth = pahdr->skinwidth;
 
     if (pskindesc->type == ALIAS_SKIN_GROUP) {

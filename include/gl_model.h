@@ -303,14 +303,23 @@ typedef struct {
     int numposes;
     int poseverts;
     int posedata;	// (numposes * poseverts) trivert_t
+    maliasframedesc_t frames[0];	// variable sized
+} aliashdr_t;
 
+typedef struct {
     int commands;	// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK
     int texels[MAX_SKINS];	// only for player skins
 #endif
-    maliasframedesc_t frames[0];	// variable sized
-} aliashdr_t;
+    aliashdr_t ahdr;
+} gl_aliashdr_t;
+
+static inline gl_aliashdr_t *
+GL_Aliashdr(aliashdr_t *h)
+{
+    return container_of(h, gl_aliashdr_t, ahdr);
+}
 
 #define	MAXALIASVERTS	2048
 #define	MAXALIASFRAMES	512

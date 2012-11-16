@@ -201,7 +201,8 @@ void
 Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 		   const char *loadname)
 {
-    int i, j;
+    byte *container;
+    int i, j, pad;
     mdl_t *pinmodel;
     stvert_t *pstverts, *pinstverts;
     mtriangle_t *ptri;
@@ -257,12 +258,15 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 // allocate space for a working header, plus all the data except the frames,
 // skin and group info
 //
-    size = sizeof(aliashdr_t) +
+    pad = offsetof(sw_aliashdr_t, ahdr);
+    size = pad + sizeof(aliashdr_t) +
 	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]) +
 	LittleLong(pinmodel->numverts) * sizeof(stvert_t) +
 	LittleLong(pinmodel->numtris) * sizeof(mtriangle_t);
 
-    pheader = Hunk_AllocName(size, loadname);
+    container = Hunk_AllocName(size, loadname);
+    pheader = (aliashdr_t *)(container + pad);
+
     mod->flags = LittleLong(pinmodel->flags);
 
 //
@@ -315,7 +319,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 
     pskintype = (daliasskintype_t *)&pinmodel[1];
     pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
-    pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
+    SW_Aliashdr(pheader)->skindesc = (byte *)pskindesc - (byte *)pheader;
 
     for (i = 0; i < numskins; i++) {
 	aliasskintype_t skintype;
@@ -339,7 +343,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 			    sizeof(pheader->frames[0]));
     pinstverts = (stvert_t *)pskintype;
 
-    pheader->stverts = (byte *)pstverts - (byte *)pheader;
+    SW_Aliashdr(pheader)->stverts = (byte *)pstverts - (byte *)pheader;
 
     for (i = 0; i < pheader->numverts; i++) {
 	pstverts[i].onseam = LittleLong(pinstverts[i].onseam);
@@ -354,7 +358,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     ptri = (mtriangle_t *)&pstverts[pheader->numverts];
     pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
 
-    pheader->triangles = (byte *)ptri - (byte *)pheader;
+    SW_Aliashdr(pheader)->triangles = (byte *)ptri - (byte *)pheader;
 
     for (i = 0; i < pheader->numtris; i++) {
 	int j;
@@ -408,10 +412,11 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     end = Hunk_LowMark();
     total = end - start;
 
-    Cache_Alloc(&mod->cache, total, loadname);
+    Cache_AllocPadded(&mod->cache, pad, total - pad, loadname);
     if (!mod->cache.data)
 	return;
-    memcpy(mod->cache.data, pheader, total);
+
+    memcpy((byte *)mod->cache.data - pad, container, total);
 
     Hunk_FreeToLowMark(start);
 }

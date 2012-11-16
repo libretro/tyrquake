@@ -1464,7 +1464,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 	    // save 8 bit texels for the player model to remap
 	    //              if (!strcmp(loadmodel->name,"progs/player.mdl")) {
 	    texels = Hunk_AllocName(s, loadname);
-	    pheader->texels[i] = texels - (byte *)pheader;
+	    GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
 	    memcpy(texels, (byte *)(pskintype + 1), s);
 	    //              }
 #endif
@@ -1477,10 +1477,10 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 	    }
 #endif
 	    snprintf(name, sizeof(name), "%s_%i", loadmodel->name, i);
-	    pheader->gl_texturenum[i][0] =
-		pheader->gl_texturenum[i][1] =
-		pheader->gl_texturenum[i][2] =
-		pheader->gl_texturenum[i][3] =
+	    GL_Aliashdr(pheader)->gl_texturenum[i][0] =
+		GL_Aliashdr(pheader)->gl_texturenum[i][1] =
+		GL_Aliashdr(pheader)->gl_texturenum[i][2] =
+		GL_Aliashdr(pheader)->gl_texturenum[i][3] =
 		GL_LoadTexture(name, pheader->skinwidth,
 			       pheader->skinheight, (byte *)(pskintype + 1),
 			       true, false);
@@ -1499,12 +1499,12 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 #ifdef NQ_HACK
 		if (j == 0) {
 		    texels = Hunk_AllocName(s, loadname);
-		    pheader->texels[i] = texels - (byte *)pheader;
+		    GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
 		    memcpy(texels, (byte *)(pskintype), s);
 		}
 #endif
 		snprintf(name, sizeof(name), "%s_%i_%i", loadmodel->name, i, j);
-		pheader->gl_texturenum[i][j & 3] =
+		GL_Aliashdr(pheader)->gl_texturenum[i][j & 3] =
 		    GL_LoadTexture(name, pheader->skinwidth,
 				   pheader->skinheight, (byte *)(pskintype),
 				   true, false);
@@ -1512,8 +1512,8 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 	    }
 	    k = j;
 	    for ( /* */ ; j < 4; j++)
-		pheader->gl_texturenum[i][j & 3] =
-		    pheader->gl_texturenum[i][j - k];
+		GL_Aliashdr(pheader)->gl_texturenum[i][j & 3] =
+		    GL_Aliashdr(pheader)->gl_texturenum[i][j - k];
 	}
     }
 
@@ -1530,7 +1530,8 @@ Mod_LoadAliasModel
 static void
 Mod_LoadAliasModel(model_t *mod, void *buffer)
 {
-    int i, j;
+    byte *container;
+    int i, j, pad;
     mdl_t *pinmodel;
     stvert_t *pinstverts;
     dtriangle_t *pintriangles;
@@ -1585,9 +1586,12 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 // allocate space for a working header, plus all the data except the frames,
 // skin and group info
 //
-    size = sizeof(aliashdr_t)
-	+ LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
-    pheader = Hunk_AllocName(size, loadname);
+    pad = offsetof(gl_aliashdr_t, ahdr);
+    size = pad + sizeof(aliashdr_t) +
+	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
+
+    container = Hunk_AllocName(size, loadname);
+    pheader = (aliashdr_t *)(container + pad);
 
     mod->flags = LittleLong(pinmodel->flags);
 
@@ -1701,10 +1705,11 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     end = Hunk_LowMark();
     total = end - start;
 
-    Cache_Alloc(&mod->cache, total, loadname);
+    Cache_AllocPadded(&mod->cache, pad, total - pad, loadname);
     if (!mod->cache.data)
 	return;
-    memcpy(mod->cache.data, pheader, total);
+
+    memcpy((byte *)mod->cache.data - pad, container, total);
 
     Hunk_FreeToLowMark(start);
 }

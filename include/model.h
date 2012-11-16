@@ -289,13 +289,21 @@ typedef struct {
     int numposes;
     int poseverts;
     int posedata;	// (numposes * poseverts) trivert_t
+    maliasframedesc_t frames[0];	// variable sized
+} aliashdr_t;
 
+typedef struct {
     int stverts;
     int skindesc;
     int triangles;
+    aliashdr_t ahdr;
+} sw_aliashdr_t;
 
-    maliasframedesc_t frames[0];	// variable sized
-} aliashdr_t;
+static inline sw_aliashdr_t *
+SW_Aliashdr(aliashdr_t *h)
+{
+    return container_of(h, sw_aliashdr_t, ahdr);
+}
 
 #define	MAXALIASFRAMES	512
 

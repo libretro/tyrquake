@@ -288,7 +288,7 @@ GL_DrawAliasFrame(aliashdr_t *paliashdr, int posenum)
 
     verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
     verts += posenum * paliashdr->poseverts;
-    order = (int *)((byte *)paliashdr + paliashdr->commands);
+    order = (int *)((byte *)paliashdr + GL_Aliashdr(paliashdr)->commands);
 
     while (1) {
 	// get the vertex count and primitive type
@@ -336,7 +336,7 @@ GL_DrawAliasShadow(entity_t *e, aliashdr_t *paliashdr, int posenum)
 
     verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
     verts += posenum * paliashdr->poseverts;
-    order = (int *)((byte *)paliashdr + paliashdr->commands);
+    order = (int *)((byte *)paliashdr + GL_Aliashdr(paliashdr)->commands);
 
     while (1) {
 	// get the vertex count and primitive type
@@ -526,7 +526,7 @@ R_DrawAliasModel(entity_t *e)
     }
 
     anim = (int)(cl.time * 10) & 3;
-    GL_Bind(paliashdr->gl_texturenum[e->skinnum][anim]);
+    GL_Bind(GL_Aliashdr(paliashdr)->gl_texturenum[e->skinnum][anim]);
 
     // we can't dynamically colormap textures, so they are cached
     // seperately for the players.  Heads are just uncolored.
