@@ -415,4 +415,3 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 
     Hunk_FreeToLowMark(start);
 }
-

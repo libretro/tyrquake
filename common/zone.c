@@ -672,6 +672,18 @@ typedef struct cache_system_s {
 static cache_system_t cache_head;
 static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom);
 
+static inline cache_system_t *
+Cache_System(cache_user_t *c)
+{
+    return (cache_system_t *)((byte *)c->data - c->pad) - 1;
+}
+
+static inline void *
+Cache_Data(cache_system_t *c)
+{
+    return (byte *)(c + 1) + c->user->pad;
+}
+
 /*
  * ===========
  * Cache_Move
@@ -681,6 +693,7 @@ static void
 Cache_Move(cache_system_t *c)
 {
     cache_system_t *new;
+    int pad;
 
     /* we are clearing up space at the bottom, so only allocate it late */
     new = Cache_TryAlloc(c->size, true);
@@ -688,8 +701,10 @@ Cache_Move(cache_system_t *c)
 	memcpy(new + 1, c + 1, c->size - sizeof(cache_system_t));
 	new->user = c->user;
 	memcpy(new->name, c->name, sizeof(new->name));
+	pad = c->user->pad;
 	Cache_Free(c->user);
-	new->user->data = (void *)(new + 1);
+	new->user->pad = pad;
+	new->user->data = Cache_Data(new);
     } else {
 	/* tough luck... */
 	Cache_Free(c->user);
@@ -931,12 +946,12 @@ Cache_Free(cache_user_t *c)
     if (!c->data)
 	Sys_Error("%s: not allocated", __func__);
 
-    cs = ((cache_system_t *) c->data) - 1;
-
+    cs = Cache_System(c);
     cs->prev->next = cs->next;
     cs->next->prev = cs->prev;
     cs->next = cs->prev = NULL;
 
+    c->pad = 0;
     c->data = NULL;
 
     Cache_UnlinkLRU(cs);
@@ -957,7 +972,7 @@ Cache_Check(cache_user_t *c)
     if (!c->data)
 	return NULL;
 
-    cs = ((cache_system_t *) c->data) - 1;
+    cs = Cache_System(c);
 
     /* move to head of LRU */
     Cache_UnlinkLRU(cs);
@@ -975,6 +990,17 @@ Cache_Check(cache_user_t *c)
 void *
 Cache_Alloc(cache_user_t *c, int size, const char *name)
 {
+    return Cache_AllocPadded(c, 0, size, name);
+}
+
+/*
+ * ==============
+ * Cache_AllocPadded
+ * ==============
+ */
+void *
+Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name)
+{
     cache_system_t *cs;
 
     if (c->data)
@@ -983,18 +1009,19 @@ Cache_Alloc(cache_user_t *c, int size, const char *name)
     if (size <= 0)
 	Sys_Error("%s: size %i", __func__, size);
 
-    size = (size + sizeof(cache_system_t) + 15) & ~15;
+    size = (size + pad + sizeof(cache_system_t) + 15) & ~15;
 
     /* find memory for it */
     while (1) {
 	cs = Cache_TryAlloc(size, false);
 	if (cs) {
 	    strncpy(cs->name, name, sizeof(cs->name) - 1);
-	    c->data = (void *)(cs + 1);
 	    cs->user = c;
+	    c->pad = pad;
+	    c->data = Cache_Data(cs);
 	    break;
 	}
-	/* free the least recently used cahedat */
+	/* free the least recently used cache data */
 	if (cache_head.lru_prev == &cache_head)
 	    Sys_Error("%s: out of memory", __func__);
 	/* not enough memory at all */

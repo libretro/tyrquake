@@ -111,21 +111,35 @@ void Hunk_Check(void);
 
 typedef struct cache_user_s {
     void *data;
+    int pad;
 } cache_user_t;
 
 void Cache_Flush(void);
 
+/*
+ * Cache_Check
+ * - returns the cached data + saved offset, and moves to the head of
+ *   the LRU list if present, otherwise returns NULL
+ */
 void *Cache_Check(cache_user_t *c);
 
-// returns the cached data, and moves to the head of the LRU list
-// if present, otherwise returns NULL
-
-void Cache_Free(cache_user_t *c);
-
+/*
+ * Cache_Alloc
+ * - Returns NULL if all purgable data was tossed and there still
+ *   wasn't enough room. Otherwise returns a pointer to the cached
+ *   data requested.
+ */
 void *Cache_Alloc(cache_user_t *c, int size, const char *name);
 
-// Returns NULL if all purgable data was tossed and there still
-// wasn't enough room.
+/*
+ * Cache_AllocPadded
+ * - Same as Cache_Alloc, but pad the allocation with space before the returned
+ *   pointer for extra data to be accessed via e.g. container_of(x).
+ *
+ */
+void *Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name);
+
+void Cache_Free(cache_user_t *c);
 
 void Cache_Report(void);
 
