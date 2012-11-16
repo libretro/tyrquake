@@ -191,6 +191,41 @@ Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize,
     return ptemp;
 }
 
+/*
+===============
+Mod_LoadAllSkins
+===============
+*/
+static void *
+Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
+		 const char *loadname)
+{
+    int i, skinsize;
+    maliasskindesc_t *pskindesc;
+
+    if (numskins < 1)
+	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
+    if (pheader->skinwidth & 0x03)
+	Sys_Error("%s: skinwidth not multiple of 4", __func__);
+
+    skinsize = pheader->skinheight * pheader->skinwidth;
+    pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
+    SW_Aliashdr(pheader)->skindesc = (byte *)pskindesc - (byte *)pheader;
+
+    for (i = 0; i < numskins; i++) {
+	aliasskintype_t skintype = LittleLong(pskintype->type);
+	pskindesc[i].type = skintype;
+	if (skintype == ALIAS_SKIN_SINGLE) {
+	    pskintype = Mod_LoadAliasSkin(pskintype + 1, &pskindesc[i].skin,
+					  skinsize, loadname);
+	} else {
+	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1,
+					       &pskindesc[i].skin, skinsize,
+					       loadname);
+	}
+    }
+    return pskintype;
+}
 
 /*
 =================
@@ -207,14 +242,12 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
     stvert_t *pstverts, *pinstverts;
     mtriangle_t *ptri;
     dtriangle_t *pintriangles;
-    int version, numframes, numskins;
+    int version, numframes;
     int size;
     daliasframetype_t *pframetype;
     daliasframe_t *frame;
     daliasgroup_t *group;
     daliasskintype_t *pskintype;
-    maliasskindesc_t *pskindesc;
-    int skinsize;
     int start, end, total;
     trivertx_t *verts;
 
@@ -303,38 +336,11 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 	pheader->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
     }
 
-    numskins = pheader->numskins;
-    numframes = pheader->numframes;
-
-    if (pheader->skinwidth & 0x03)
-	Sys_Error("%s: skinwidth not multiple of 4", __func__);
-
 //
 // load the skins
 //
-    skinsize = pheader->skinheight * pheader->skinwidth;
-
-    if (numskins < 1)
-	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
-
     pskintype = (daliasskintype_t *)&pinmodel[1];
-    pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
-    SW_Aliashdr(pheader)->skindesc = (byte *)pskindesc - (byte *)pheader;
-
-    for (i = 0; i < numskins; i++) {
-	aliasskintype_t skintype;
-
-	skintype = LittleLong(pskintype->type);
-	pskindesc[i].type = skintype;
-
-	if (skintype == ALIAS_SKIN_SINGLE) {
-	    pskintype = Mod_LoadAliasSkin(pskintype + 1, &pskindesc[i].skin,
-					  skinsize, loadname);
-	} else {
-	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1, &pskindesc[i].skin,
-					       skinsize, loadname);
-	}
-    }
+    pskintype = Mod_LoadAllSkins(pheader->numskins, pskintype, loadname);
 
 //
 // set base s and t vertices
@@ -372,6 +378,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 //
 // load the frames
 //
+    numframes = pheader->numframes;
     if (numframes < 1)
 	Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
 
