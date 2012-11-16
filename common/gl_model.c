@@ -1321,7 +1321,8 @@ returns a pointer to the memory location following this frame group
 =================
 */
 static daliasframetype_t *
-Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
+Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
+		   const char *loadname)
 {
     int i, numframes;
     daliasframe_t *dframe;
@@ -1558,16 +1559,14 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 
 	snprintf(st, sizeof(st), "%d", (int)crc);
 	Info_SetValueForKey(cls.userinfo,
-			    !strcmp(loadmodel->name,
-				    "progs/player.mdl") ? pmodel_name :
-			    emodel_name, st, MAX_INFO_STRING);
+			    !strcmp(loadmodel->name, "progs/player.mdl") ?
+			    pmodel_name : emodel_name, st, MAX_INFO_STRING);
 
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 	    snprintf(st, sizeof(st), "setinfo %s %d",
-		     !strcmp(loadmodel->name,
-			     "progs/player.mdl") ? pmodel_name : emodel_name,
-		     (int)crc);
+		     !strcmp(loadmodel->name, "progs/player.mdl") ?
+		     pmodel_name : emodel_name, (int)crc);
 	    SZ_Print(&cls.netchan.message, st);
 	}
     }
@@ -1672,22 +1671,17 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     pframetype = (daliasframetype_t *)&pintriangles[pheader->numtris];
 
     for (i = 0; i < numframes; i++) {
-	aliasframetype_t frametype;
-
-	frametype = LittleLong(pframetype->type);
-
-	if (frametype == ALIAS_SINGLE) {
+	if (LittleLong(pframetype->type) == ALIAS_SINGLE) {
 	    frame = (daliasframe_t *)(pframetype + 1);
 	    Mod_LoadAliasFrame(frame, &pheader->frames[i]);
 	    pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];
 	} else {
 	    group = (daliasgroup_t *)(pframetype + 1);
-	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i]);
+	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i],
+					    loadname);
 	}
     }
-
     pheader->numposes = posenum;
-
     mod->type = mod_alias;
 
 // FIXME: do this right

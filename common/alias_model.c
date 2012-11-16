@@ -69,7 +69,7 @@ returns a pointer to the memory location following this frame group
 =================
 */
 static daliasframetype_t *
-Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv,
+Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
 		   const char *loadname)
 {
     int i, numframes;
@@ -97,7 +97,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame, int numv,
     for (i = 0; i < numframes; i++) {
 	poseverts[posenum] = dframe->verts;
 	posenum++;
-	dframe = (daliasframe_t *)&dframe->verts[numv];
+	dframe = (daliasframe_t *)&dframe->verts[pheader->numverts];
     }
 
     return (daliasframetype_t *)dframe;
@@ -386,7 +386,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 	} else {
 	    group = (daliasgroup_t *)(pframetype + 1);
 	    pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i],
-					    pheader->numverts, loadname);
+					    loadname);
 	}
     }
     pheader->numposes = posenum;
