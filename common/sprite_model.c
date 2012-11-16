@@ -171,7 +171,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
     mod->numframes = numframes;
     mod->flags = 0;
 
-    pframetype = (dspriteframetype_t *) (pin + 1);
+    pframetype = (dspriteframetype_t *)(pin + 1);
 
     for (i = 0; i < numframes; i++) {
 	spriteframetype_t frametype;

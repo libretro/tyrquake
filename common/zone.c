@@ -107,7 +107,7 @@ Z_Free(void *ptr)
     if (!ptr)
 	Sys_Error("%s: NULL pointer", __func__);
 
-    block = (memblock_t *) ((byte *)ptr - sizeof(memblock_t));
+    block = (memblock_t *)((byte *)ptr - sizeof(memblock_t));
     if (block->id != ZONEID)
 	Sys_Error("%s: freed a pointer without ZONEID", __func__);
     if (block->tag == 0)
@@ -196,7 +196,7 @@ Z_TagMalloc(int size, int tag)
     extra = base->size - size;
     if (extra > MINFRAGMENT) {
 	/* there will be a free fragment after the allocated block */
-	new = (memblock_t *) ((byte *)base + size);
+	new = (memblock_t *)((byte *)base + size);
 	new->size = extra;
 	new->tag = 0;		/* free block */
 	new->prev = base;
@@ -335,12 +335,12 @@ Hunk_Check(void)
 {
     hunk_t *h;
 
-    for (h = (hunk_t *) hunk_base; (byte *)h != hunk_base + hunk_low_used;) {
+    for (h = (hunk_t *)hunk_base; (byte *)h != hunk_base + hunk_low_used;) {
 	if (h->sentinal != HUNK_SENTINAL)
 	    Sys_Error("%s: trashed sentinal", __func__);
 	if (h->size < 16 || h->size + (byte *)h - hunk_base > hunk_size)
 	    Sys_Error("%s: bad size", __func__);
-	h = (hunk_t *) ((byte *)h + h->size);
+	h = (hunk_t *)((byte *)h + h->size);
     }
 }
 
@@ -475,7 +475,7 @@ Hunk_AllocName(int size, const char *name)
 #endif
     }
 
-    h = (hunk_t *) (hunk_base + hunk_low_used);
+    h = (hunk_t *)(hunk_base + hunk_low_used);
     hunk_low_used += size;
 
     Cache_FreeLow(hunk_low_used);
@@ -572,7 +572,7 @@ Hunk_HighAllocName(int size, const char *name)
     hunk_high_used += size;
     Cache_FreeHigh(hunk_high_used);
 
-    h = (hunk_t *) (hunk_base + hunk_size - hunk_high_used);
+    h = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
 
     memset(h, 0, size);
     h->size = size;
@@ -788,7 +788,7 @@ Cache_TryAlloc(int size, qboolean nobottom)
 	if (hunk_size - hunk_high_used - hunk_low_used < size)
 	    Sys_Error("%s: %i is greater then free hunk", __func__, size);
 
-	new = (cache_system_t *) (hunk_base + hunk_low_used);
+	new = (cache_system_t *)(hunk_base + hunk_low_used);
 	memset(new, 0, sizeof(*new));
 	new->size = size;
 
@@ -800,7 +800,7 @@ Cache_TryAlloc(int size, qboolean nobottom)
     }
 
     /* search from the bottom up for space */
-    new = (cache_system_t *) (hunk_base + hunk_low_used);
+    new = (cache_system_t *)(hunk_base + hunk_low_used);
     cs = cache_head.next;
 
     do {
@@ -821,7 +821,7 @@ Cache_TryAlloc(int size, qboolean nobottom)
 	}
 
 	/* continue looking */
-	new = (cache_system_t *) ((byte *)cs + cs->size);
+	new = (cache_system_t *)((byte *)cs + cs->size);
 	cs = cs->next;
 
     } while (cs != &cache_head);

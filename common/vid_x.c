@@ -207,7 +207,7 @@ st2_fixup(XImage *framebuf, int x, int y, int width, int height)
 	// Duff's Device
 	count = width;
 	n = (count + 7) / 8;
-	dest = ((PIXEL16 *) src) + x + width - 1;
+	dest = ((PIXEL16 *)src) + x + width - 1;
 	src += x + width - 1;
 
 	switch (count % 8) {
@@ -254,7 +254,7 @@ st3_fixup(XImage * framebuf, int x, int y, int width, int height)
 	// Duff's Device
 	count = width;
 	n = (count + 7) / 8;
-	dest = ((PIXEL24 *) src) + x + width - 1;
+	dest = ((PIXEL24 *)src) + x + width - 1;
 	src += x + width - 1;
 
 	switch (count % 8) {

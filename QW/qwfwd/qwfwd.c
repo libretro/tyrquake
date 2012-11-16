@@ -206,7 +206,7 @@ main(int argc, char *argv[])
 	/* Wait up to two minutes. */
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
-	retval = select(i1, &rfds, (fd_set *) 0, (fd_set *) 0, &tv);
+	retval = select(i1, &rfds, (fd_set *)0, (fd_set *)0, &tv);
 	if (retval > 0) {
 	    if (FD_ISSET(s, &rfds)) {
 		alen = sizeof(fsin);

@@ -80,7 +80,7 @@ W_LoadWadFile(const char *filename)
     if (!wad_base)
 	Sys_Error("%s: couldn't load %s", __func__, filename);
 
-    header = (wadinfo_t *) wad_base;
+    header = (wadinfo_t *)wad_base;
 
     if (header->identification[0] != 'W'
 	|| header->identification[1] != 'A'
@@ -90,7 +90,7 @@ W_LoadWadFile(const char *filename)
 
     wad_numlumps = LittleLong(header->numlumps);
     infotableofs = LittleLong(header->infotableofs);
-    wad_lumps = (lumpinfo_t *) (wad_base + infotableofs);
+    wad_lumps = (lumpinfo_t *)(wad_base + infotableofs);
 
     for (i = 0, lump_p = wad_lumps; i < wad_numlumps; i++, lump_p++) {
 	lump_p->filepos = LittleLong(lump_p->filepos);
