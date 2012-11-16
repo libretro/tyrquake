@@ -29,6 +29,10 @@ typedef unsigned char byte;
 
 typedef enum { false, true } qboolean;
 
+#ifndef offsetof
+#define offsetof(type, member)  __builtin_offsetof (type, member)
+#endif
+
 /**
  * container_of - cast a member of a structure out to the containing structure
  * @ptr:        the pointer to the member.
