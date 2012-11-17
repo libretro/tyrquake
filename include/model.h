@@ -234,7 +234,6 @@ typedef struct {
     int maxheight;
     int numframes;
     float beamlength;		// remove?
-    void *cachespot;		// remove?
     mspriteframedesc_t frames[0];	/* variable sized */
 } msprite_t;
 
@@ -259,7 +258,6 @@ typedef struct {
 
 typedef struct {
     aliasskintype_t type;
-    void *pcachespot;
     int skin;
 } maliasskindesc_t;
 
