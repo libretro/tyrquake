@@ -308,7 +308,7 @@ typedef struct {
 
 typedef struct {
     int commands;	// gl command list with embedded s/t
-    int gl_texturenum[MAX_SKINS][4];
+    GLuint gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK
     int texels[MAX_SKINS];	// only for player skins
 #endif
