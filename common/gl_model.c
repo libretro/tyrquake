@@ -1344,7 +1344,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
     frame->name[sizeof(frame->name) - 1] = 0;
     for (i = 0; i < numframes; i++) {
 	poseverts[posenum] = dframe->verts;
-	poseintervals[i] = LittleFloat(in->intervals[i].interval);
+	poseintervals[posenum] = LittleFloat(in->intervals[i].interval);
 	if (poseintervals[posenum] <= 0)
 	    Sys_Error("%s: interval <= 0", __func__);
 	posenum++;
