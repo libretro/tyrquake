@@ -154,10 +154,8 @@ Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize,
     float *poutskinintervals;
     void *ptemp;
 
-    pinskingroup = (daliasskingroup_t *)pin;
-
+    pinskingroup = pin;
     numskins = LittleLong(pinskingroup->numskins);
-
     paliasskingroup = Hunk_AllocName(sizeof(maliasskingroup_t) + numskins *
 				     sizeof(paliasskingroup->skindescs[0]),
 				     loadname);
