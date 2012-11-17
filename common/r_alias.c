@@ -664,7 +664,7 @@ R_AliasSetupFrame(const entity_t *e, aliashdr_t *pahdr)
 	intervals += pose;
 	fullinterval = intervals[numposes - 1];
 	time = cl.time + e->syncbase;
-	targettime = time - (int)(time / fullinterval) % numposes;
+	targettime = time - (int)(time / fullinterval) * fullinterval;
 	for (i = 0; i < numposes - 1; i++) {
 	    if (intervals[i] > targettime)
 		break;
