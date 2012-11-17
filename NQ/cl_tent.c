@@ -32,8 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 # include "model.h"
 #endif
 
-int num_temp_entities;
-entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
 beam_t cl_beams[MAX_BEAMS];
 
 sfx_t *cl_sfx_wizhit;
@@ -266,20 +264,18 @@ CL_ParseTEnt(void)
 CL_NewTempEntity
 =================
 */
-entity_t *
+static entity_t *
 CL_NewTempEntity(void)
 {
     entity_t *ent;
 
     if (cl_numvisedicts == MAX_VISEDICTS)
 	return NULL;
-    if (num_temp_entities == MAX_TEMP_ENTITIES)
-	return NULL;
-    ent = &cl_temp_entities[num_temp_entities];
-    memset(ent, 0, sizeof(*ent));
-    num_temp_entities++;
-    cl_visedicts[cl_numvisedicts] = *ent;
+
+    ent = &cl_visedicts[cl_numvisedicts];
     cl_numvisedicts++;
+
+    memset(ent, 0, sizeof(*ent));
 
     ent->colormap = vid.colormap;
     return ent;
@@ -301,8 +297,6 @@ CL_UpdateTEnts(void)
     entity_t *ent;
     float yaw, pitch;
     float forward;
-
-    num_temp_entities = 0;
 
 // update lightning
     for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++) {
@@ -340,6 +334,7 @@ CL_UpdateTEnts(void)
 	    ent = CL_NewTempEntity();
 	    if (!ent)
 		return;
+
 	    VectorCopy(org, ent->origin);
 	    ent->model = b->model;
 	    ent->angles[0] = pitch;
@@ -351,5 +346,4 @@ CL_UpdateTEnts(void)
 	    d -= 30;
 	}
     }
-
 }

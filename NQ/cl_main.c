@@ -124,7 +124,6 @@ CL_ClearState(void)
     memset(cl_entities, 0, sizeof(cl_entities));
     memset(cl_dlights, 0, sizeof(cl_dlights));
     memset(cl_lightstyle, 0, sizeof(cl_lightstyle));
-    memset(cl_temp_entities, 0, sizeof(cl_temp_entities));
     memset(cl_beams, 0, sizeof(cl_beams));
 
 //
@@ -660,7 +659,6 @@ CL_RelinkEntities(void)
 	    cl_numvisedicts++;
 	}
     }
-
 }
 
 
