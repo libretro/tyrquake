@@ -29,11 +29,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static aliashdr_t *pheader;
 
+/* FIXME - get rid of these static limits by doing two passes? */
+
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
 static const trivertx_t *poseverts[MAXALIASFRAMES];
 static float poseintervals[MAXALIASFRAMES];
 static int posenum;
+
+#define MAXALIASSKINS 256
+
+// a skin may be an animating set 1 or more textures
+static float skinintervals[MAXALIASSKINS];
+static byte *skindata[MAXALIASSKINS];
+static int skinnum;
 
 /*
 =================
@@ -105,87 +114,37 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
 
 /*
 =================
-Mod_LoadAliasSkin
-=================
-*/
-static void *
-Mod_LoadAliasSkin(void *pin, int *pskinindex, int skinsize,
-		  const char *loadname)
-{
-    int i;
-    byte *pskin, *pinskin;
-    unsigned short *pusskin;
-
-    pskin = Hunk_AllocName(skinsize * r_pixbytes, loadname);
-    pinskin = (byte *)pin;
-    *pskinindex = (byte *)pskin - (byte *)pheader;
-
-    if (r_pixbytes == 1) {
-	memcpy(pskin, pinskin, skinsize);
-    } else if (r_pixbytes == 2) {
-	pusskin = (unsigned short *)pskin;
-
-	for (i = 0; i < skinsize; i++)
-	    pusskin[i] = d_8to16table[pinskin[i]];
-    } else {
-	Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
-		  r_pixbytes);
-    }
-
-    pinskin += skinsize;
-
-    return ((void *)pinskin);
-}
-
-
-/*
-=================
 Mod_LoadAliasSkinGroup
 =================
 */
 static void *
-Mod_LoadAliasSkinGroup(void *pin, int *pskinindex, int skinsize,
-		       const char *loadname)
+Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
 {
     daliasskingroup_t *pinskingroup;
-    maliasskingroup_t *paliasskingroup;
-    int i, numskins;
     daliasskininterval_t *pinskinintervals;
-    float *poutskinintervals;
-    void *ptemp;
+    byte *pdata;
+    int i;
 
     pinskingroup = pin;
-    numskins = LittleLong(pinskingroup->numskins);
-    paliasskingroup = Hunk_AllocName(sizeof(maliasskingroup_t) + numskins *
-				     sizeof(paliasskingroup->skindescs[0]),
-				     loadname);
-
-    paliasskingroup->numskins = numskins;
-
-    *pskinindex = (byte *)paliasskingroup - (byte *)pheader;
+    pskindesc->firstframe = skinnum;
+    pskindesc->numframes = LittleLong(pinskingroup->numskins);
     pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
-    poutskinintervals = Hunk_AllocName(numskins * sizeof(float), loadname);
 
-    paliasskingroup->intervals = (byte *)poutskinintervals - (byte *)pheader;
-
-    for (i = 0; i < numskins; i++) {
-	*poutskinintervals = LittleFloat(pinskinintervals->interval);
-	if (*poutskinintervals <= 0)
+    for (i = 0; i < pskindesc->numframes; i++) {
+	skinintervals[skinnum] = LittleFloat(pinskinintervals->interval);
+	if (skinintervals[skinnum] <= 0)
 	    Sys_Error("%s: interval <= 0", __func__);
-
-	poutskinintervals++;
+	skinnum++;
 	pinskinintervals++;
     }
 
-    ptemp = (void *)pinskinintervals;
-
-    for (i = 0; i < numskins; i++) {
-	ptemp = Mod_LoadAliasSkin(ptemp,
-				  &paliasskingroup->skindescs[i].skin,
-				  skinsize, loadname);
+    pdata = (byte *)pinskinintervals;
+    for (i = pskindesc->firstframe; i < pskindesc->numframes; i++) {
+	skindata[i] = pdata;
+	pdata += skinsize;
     }
 
-    return ptemp;
+    return pdata;
 }
 
 /*
@@ -197,8 +156,10 @@ static void *
 Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
 		 const char *loadname)
 {
-    int i, skinsize;
+    int i, j, skinsize;
     maliasskindesc_t *pskindesc;
+    float *pskinintervals;
+    byte *pskindata;
 
     if (numskins < 1)
 	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
@@ -209,18 +170,42 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
     pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
     SW_Aliashdr(pheader)->skindesc = (byte *)pskindesc - (byte *)pheader;
 
+    skinnum = 0;
     for (i = 0; i < numskins; i++) {
 	aliasskintype_t skintype = LittleLong(pskintype->type);
-	pskindesc[i].type = skintype;
 	if (skintype == ALIAS_SKIN_SINGLE) {
-	    pskintype = Mod_LoadAliasSkin(pskintype + 1, &pskindesc[i].skin,
-					  skinsize, loadname);
+	    pskindesc[i].firstframe = skinnum;
+	    pskindesc[i].numframes = 1;
+	    skindata[skinnum] = (byte *)(pskintype + 1);
+	    skinintervals[skinnum] = 999.0f;
+	    skinnum++;
+	    pskintype = (daliasskintype_t *)((byte *)(pskintype + 1) + skinsize);
 	} else {
-	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1,
-					       &pskindesc[i].skin, skinsize,
-					       loadname);
+	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1, pskindesc + i,
+					       skinsize);
 	}
     }
+
+    pskinintervals = Hunk_Alloc(skinnum * sizeof(float));
+    pheader->skinintervals = (byte *)pskinintervals - (byte *)pheader;
+    memcpy(pskinintervals, skinintervals, skinnum * sizeof(float));
+
+    pskindata = Hunk_Alloc(skinnum * skinsize * r_pixbytes);
+    pheader->skindata = (byte *)pskindata - (byte *)pheader;
+    for (i = 0; i < skinnum; i++) {
+	if (r_pixbytes == 1) {
+	    memcpy(pskindata, skindata[i], skinsize);
+	} else if (r_pixbytes == 2) {
+	    unsigned short *pusskin = (unsigned short *)pskindata;
+	    for (j = 0; j < skinsize; j++)
+		pusskin[j] = d_8to16table[skindata[i][j]];
+	} else {
+	    Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
+		      r_pixbytes);
+	}
+	pskindata += skinsize * r_pixbytes;
+    }
+
     return pskintype;
 }
 

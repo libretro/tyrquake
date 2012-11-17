@@ -46,8 +46,6 @@ static model_t *pmodel;
 
 static vec3_t alias_forward, alias_right, alias_up;
 
-static maliasskindesc_t *pskindesc;
-
 int r_amodels_drawn;
 int a_skinwidth;
 int r_anumverts;
@@ -540,10 +538,11 @@ static void
 R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 {
     int skinnum;
-    int i, numskins;
-    maliasskingroup_t *paliasskingroup;
-    float *pskinintervals, fullskininterval;
-    float skintargettime, skintime;
+    int i, frame, numframes, skinbytes;
+    maliasskindesc_t *pskindesc;
+    float *pskinintervals, fullinterval;
+    float targettime, time;
+    byte *pdata;
 
     skinnum = e->skinnum;
     if ((skinnum >= pahdr->numskins) || (skinnum < 0)) {
@@ -555,28 +554,31 @@ R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
     pskindesc += skinnum;
     a_skinwidth = pahdr->skinwidth;
 
-    if (pskindesc->type == ALIAS_SKIN_GROUP) {
-	paliasskingroup = (maliasskingroup_t *)((byte *)pahdr + pskindesc->skin);
-	pskinintervals = (float *)((byte *)pahdr + paliasskingroup->intervals);
-	numskins = paliasskingroup->numskins;
-	fullskininterval = pskinintervals[numskins - 1];
+    frame = pskindesc->firstframe;
+    numframes = pskindesc->numframes;
 
-	skintime = cl.time + e->syncbase;
-
-	// when loading in Mod_LoadAliasSkinGroup, we guaranteed all interval
-	// values are positive, so we don't have to worry about division by 0
-	skintargettime = skintime -
-	    ((int)(skintime / fullskininterval)) * fullskininterval;
-
-	for (i = 0; i < (numskins - 1); i++) {
-	    if (pskinintervals[i] > skintargettime)
+    /*
+     * when loading in Mod_LoadAliasSkinGroup, we guaranteed all interval
+     * values are positive, so we don't have to worry about division by 0
+     */
+    if (numframes > 1) {
+	pskinintervals = (float *)((byte *)pahdr + pahdr->skinintervals);
+	pskinintervals += frame;
+	fullinterval = pskinintervals[numframes - 1];
+	time = cl.time + e->syncbase;
+	targettime = time - ((int)(time / fullinterval)) *  fullinterval;
+	for (i = 0; i < numframes - 1; i++) {
+	    if (pskinintervals[i] > targettime)
 		break;
 	}
-
-	pskindesc = &paliasskingroup->skindescs[i];
+	frame += i;
     }
 
-    r_affinetridesc.pskin = (void *)((byte *)pahdr + pskindesc->skin);
+    skinbytes = pahdr->skinwidth * pahdr->skinheight * r_pixbytes;
+    pdata = (byte *)pahdr + pahdr->skindata;
+    pdata += (frame - pskindesc->firstframe) * skinbytes;
+
+    r_affinetridesc.pskin = pdata;
     r_affinetridesc.skinwidth = a_skinwidth;
     r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
     r_affinetridesc.skinheight = pahdr->skinheight;

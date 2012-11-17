@@ -257,15 +257,9 @@ typedef struct {
 } maliasframedesc_t;
 
 typedef struct {
-    aliasskintype_t type;
-    int skin;
+    int firstframe;
+    int numframes;
 } maliasskindesc_t;
-
-typedef struct {
-    int numskins;
-    int intervals;
-    maliasskindesc_t skindescs[0];
-} maliasskingroup_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct mtriangle_s {
@@ -277,6 +271,8 @@ typedef struct {
     vec3_t scale;
     vec3_t scale_origin;
     int numskins;
+    int skinintervals;
+    int skindata;
     int skinwidth;
     int skinheight;
     int numverts;
@@ -286,7 +282,7 @@ typedef struct {
     int numposes;
     int poseintervals;
     int poseverts;
-    int posedata;	// (numposes * poseverts) trivert_t
+    int posedata;	// (numposes * poseverts) trivertx_t
     maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
