@@ -505,7 +505,7 @@ R_DrawAliasModel(entity_t *e)
     //
     // locate the proper data
     //
-    paliashdr = (aliashdr_t *)Mod_Extradata(e->model);
+    paliashdr = Mod_Extradata(e->model);
 
     c_alias_polys += paliashdr->numtris;
 
