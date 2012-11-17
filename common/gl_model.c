@@ -1280,6 +1280,7 @@ static mtriangle_t triangles[MAXALIASTRIS];
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
 static const trivertx_t *poseverts[MAXALIASFRAMES];
+static float poseintervals[MAXALIASFRAMES];
 static int posenum;
 
 #ifdef QW_HACK
@@ -1309,6 +1310,7 @@ Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
     }
 
     poseverts[posenum] = in->verts;
+    poseintervals[posenum] = 999.0f; /* unused, but make problems obvious */
     posenum++;
 }
 
@@ -1337,17 +1339,14 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
 	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
 
-    /*
-     * FIXME? the on-disk format allows for one interval per frame, but here
-     *        the entire frame group gets just one interval. Probably all the
-     *        original quake art assets just use a constant interval.
-     */
-    frame->interval = LittleFloat(in->intervals[0].interval);
     dframe = (daliasframe_t *)&in->intervals[numframes];
     strncpy(frame->name, dframe->name, sizeof(frame->name));
     frame->name[sizeof(frame->name) - 1] = 0;
     for (i = 0; i < numframes; i++) {
 	poseverts[posenum] = dframe->verts;
+	poseintervals[i] = LittleFloat(in->intervals[i].interval);
+	if (poseintervals[posenum] <= 0)
+	    Sys_Error("%s: interval <= 0", __func__);
 	posenum++;
 	dframe = (daliasframe_t *)&dframe->verts[pheader->numverts];
     }
@@ -1543,6 +1542,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
     daliasgroup_t *group;
     daliasskintype_t *pskintype;
     int start, end, total;
+    float *intervals;
 
 #ifdef QW_HACK
     /* Checksumming models - QW only... */
@@ -1686,6 +1686,14 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 // FIXME: do this right
     mod->mins[0] = mod->mins[1] = mod->mins[2] = -16;
     mod->maxs[0] = mod->maxs[1] = mod->maxs[2] = 16;
+
+    /*
+     * Save the frame intervals
+     */
+    intervals = Hunk_Alloc(pheader->numposes * sizeof(float));
+    GL_Aliashdr(pheader)->poseintervals = (byte *)intervals - (byte *)pheader;
+    for (i = 0; i < pheader->numposes; i++)
+	intervals[i] = poseintervals[i];
 
     //
     // build the draw lists

@@ -387,25 +387,34 @@ R_SetupAliasFrame
 =================
 */
 static void
-R_SetupAliasFrame(int frame, aliashdr_t *paliashdr)
+R_SetupAliasFrame(const entity_t *e, aliashdr_t *pahdr)
 {
-    int pose, numposes;
-    float interval;
+    int i, frame, pose, numposes;
+    float time, targettime, fullinterval, *intervals;
 
-    if ((frame >= paliashdr->numframes) || (frame < 0)) {
-	Con_DPrintf("R_AliasSetupFrame: no such frame %d\n", frame);
+    frame = e->frame;
+    if ((frame >= pahdr->numframes) || (frame < 0)) {
+	Con_DPrintf("%s: no such frame %d\n", __func__, frame);
 	frame = 0;
     }
 
-    pose = paliashdr->frames[frame].firstpose;
-    numposes = paliashdr->frames[frame].numposes;
+    pose = pahdr->frames[frame].firstpose;
+    numposes = pahdr->frames[frame].numposes;
 
     if (numposes > 1) {
-	interval = paliashdr->frames[frame].interval;
-	pose += (int)(cl.time / interval) % numposes;
+	intervals = (float *)((byte *)pahdr + GL_Aliashdr(pahdr)->poseintervals);
+	intervals += pose;
+	fullinterval = intervals[numposes - 1];
+	time = cl.time + e->syncbase;
+	targettime = time - (int)(time / fullinterval) % numposes;
+	for (i = 0; i < numposes - 1; i++) {
+	    if (intervals[i] > targettime)
+		break;
+	}
+	pose += i;
     }
 
-    GL_DrawAliasFrame(paliashdr, pose);
+    GL_DrawAliasFrame(pahdr, pose);
 }
 
 
@@ -556,7 +565,7 @@ R_DrawAliasModel(entity_t *e)
     if (gl_affinemodels.value)
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
 
-    R_SetupAliasFrame(e->frame, paliashdr);
+    R_SetupAliasFrame(e, paliashdr);
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 

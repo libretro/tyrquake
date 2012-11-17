@@ -275,7 +275,6 @@ Alias models are position independent, so the cache manager can move them.
 typedef struct {
     int firstpose;
     int numposes;
-    float interval;
     trivertx_t bboxmin;
     trivertx_t bboxmax;
     int frame;
@@ -307,6 +306,7 @@ typedef struct {
 } aliashdr_t;
 
 typedef struct {
+    int poseintervals;
     int commands;	// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK
