@@ -640,7 +640,7 @@ set r_apverts
 =================
 */
 static void
-R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
+R_AliasSetupFrame(const entity_t *e, aliashdr_t *pahdr)
 {
     int i, frame, pose, numposes;
     float time, targettime, fullinterval, *intervals;
