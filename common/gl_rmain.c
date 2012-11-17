@@ -402,7 +402,7 @@ R_SetupAliasFrame(const entity_t *e, aliashdr_t *pahdr)
     numposes = pahdr->frames[frame].numposes;
 
     if (numposes > 1) {
-	intervals = (float *)((byte *)pahdr + GL_Aliashdr(pahdr)->poseintervals);
+	intervals = (float *)((byte *)pahdr + pahdr->poseintervals);
 	intervals += pose;
 	fullinterval = intervals[numposes - 1];
 	time = cl.time + e->syncbase;

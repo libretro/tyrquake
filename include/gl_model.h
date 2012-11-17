@@ -300,13 +300,13 @@ typedef struct {
     int numframes;
     float size;
     int numposes;
+    int poseintervals;
     int poseverts;
     int posedata;	// (numposes * poseverts) trivert_t
     maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
 typedef struct {
-    int poseintervals;
     int commands;	// gl command list with embedded s/t
     int gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK

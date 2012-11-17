@@ -286,13 +286,13 @@ typedef struct {
     int numframes;
     float size;
     int numposes;
+    int poseintervals;
     int poseverts;
     int posedata;	// (numposes * poseverts) trivert_t
     maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
 typedef struct {
-    int poseintervals;	// FIXME -> make common to GL and move to aliashdr_t
     int stverts;
     int skindesc;
     int triangles;

@@ -659,7 +659,7 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 // are positive, so we don't have to worry about division by 0
 //
     if (numposes > 1) {
-	intervals = (float *)((byte *)pahdr + SW_Aliashdr(pahdr)->poseintervals);
+	intervals = (float *)((byte *)pahdr + pahdr->poseintervals);
 	intervals += pose;
 	fullinterval = intervals[numposes - 1];
 	time = cl.time + e->syncbase;

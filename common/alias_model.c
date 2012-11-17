@@ -407,7 +407,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
      * Save the frame intervals
      */
     intervals = Hunk_Alloc(pheader->numposes * sizeof(float));
-    SW_Aliashdr(pheader)->poseintervals = (byte *)intervals - (byte *)pheader;
+    pheader->poseintervals = (byte *)intervals - (byte *)pheader;
     for (i = 0; i < pheader->numposes; i++)
 	intervals[i] = poseintervals[i];
 
