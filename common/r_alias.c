@@ -642,8 +642,8 @@ set r_apverts
 static void
 R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 {
-    int frame, pose, numposes;
-    float interval;
+    int i, frame, pose, numposes;
+    float time, targettime, fullinterval, *intervals;
 
     frame = e->frame;
     if ((frame >= pahdr->numframes) || (frame < 0)) {
@@ -659,8 +659,16 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 // are positive, so we don't have to worry about division by 0
 //
     if (numposes > 1) {
-	interval = pahdr->frames[frame].interval;
-	pose += (int)((cl.time + e->syncbase) / interval) % numposes;
+	intervals = (float *)((byte *)pahdr + SW_Aliashdr(pahdr)->poseintervals);
+	intervals += pose;
+	fullinterval = intervals[numposes - 1];
+	time = cl.time + e->syncbase;
+	targettime = time - (int)(time / fullinterval) % numposes;
+	for (i = 0; i < numposes - 1; i++) {
+	    if (intervals[i] > targettime)
+		break;
+	}
+	pose += i;
     }
 
     r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);

@@ -251,7 +251,6 @@ Alias models are position independent, so the cache manager can move them.
 typedef struct {
     int firstpose;
     int numposes;
-    float interval;
     trivertx_t bboxmin;
     trivertx_t bboxmax;
     int frame;
@@ -293,6 +292,7 @@ typedef struct {
 } aliashdr_t;
 
 typedef struct {
+    int poseintervals;	// FIXME -> make common to GL and move to aliashdr_t
     int stverts;
     int skindesc;
     int triangles;
