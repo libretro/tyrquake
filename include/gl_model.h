@@ -280,6 +280,11 @@ typedef struct {
     char name[16];
 } maliasframedesc_t;
 
+typedef struct {
+    int firstframe;
+    int numframes;
+} maliasskindesc_t;
+
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct mtriangle_s {
     int facesfront;
@@ -292,6 +297,8 @@ typedef struct {
     vec3_t scale;
     vec3_t scale_origin;
     int numskins;
+    int skinintervals;
+    int skindata;
     int skinwidth;
     int skinheight;
     int numverts;
@@ -301,13 +308,13 @@ typedef struct {
     int numposes;
     int poseintervals;
     int poseverts;
-    int posedata;	// (numposes * poseverts) trivert_t
+    int posedata;	// (numposes * poseverts) trivertx_t
     maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
 typedef struct {
+    int skindesc;
     int commands;	// gl command list with embedded s/t
-    GLuint gl_texturenum[MAX_SKINS][4];
 #ifdef NQ_HACK
     int texels[MAX_SKINS];	// only for player skins
 #endif

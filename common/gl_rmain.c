@@ -379,6 +379,52 @@ GL_DrawAliasShadow(entity_t *e, aliashdr_t *paliashdr, int posenum)
 }
 
 
+/*
+===============
+R_AliasSetupSkin
+===============
+*/
+static void
+R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
+{
+    int skinnum;
+    int i, frame, numframes;
+    maliasskindesc_t *pskindesc;
+    float *pskinintervals, fullinterval;
+    float targettime, time;
+    GLuint *glt;
+
+    skinnum = e->skinnum;
+    if ((skinnum >= pahdr->numskins) || (skinnum < 0)) {
+	Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
+	skinnum = 0;
+    }
+
+    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + GL_Aliashdr(pahdr)->skindesc));
+    pskindesc += skinnum;
+    frame = pskindesc->firstframe;
+    numframes = pskindesc->numframes;
+
+    /*
+     * when loading in Mod_LoadAliasSkinGroup, we guaranteed all interval
+     * values are positive, so we don't have to worry about division by 0
+     */
+    if (numframes > 1) {
+	pskinintervals = (float *)((byte *)pahdr + pahdr->skinintervals);
+	pskinintervals += frame;
+	fullinterval = pskinintervals[numframes - 1];
+	time = cl.time + e->syncbase;
+	targettime = time - ((int)(time / fullinterval)) *  fullinterval;
+	for (i = 0; i < numframes - 1; i++) {
+	    if (pskinintervals[i] > targettime)
+		break;
+	}
+	frame += i;
+    }
+
+    glt = (GLuint *)((byte *)pahdr + pahdr->skindata);
+    GL_Bind(glt[frame]);
+}
 
 /*
 =================
@@ -435,7 +481,6 @@ R_DrawAliasModel(entity_t *e)
     vec3_t mins, maxs;
     aliashdr_t *paliashdr;
     float an;
-    int anim;
 
     clmodel = e->model;
 
@@ -534,8 +579,7 @@ R_DrawAliasModel(entity_t *e)
 		 paliashdr->scale[2]);
     }
 
-    anim = (int)(cl.time * 10) & 3;
-    GL_Bind(GL_Aliashdr(paliashdr)->gl_texturenum[e->skinnum][anim]);
+    R_AliasSetupSkin(e, paliashdr);
 
     // we can't dynamically colormap textures, so they are cached
     // seperately for the players.  Heads are just uncolored.

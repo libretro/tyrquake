@@ -1283,6 +1283,13 @@ static const trivertx_t *poseverts[MAXALIASFRAMES];
 static float poseintervals[MAXALIASFRAMES];
 static int posenum;
 
+#define MAXALIASSKINS 256
+
+// a skin may be an animating set 1 or more textures
+static float skinintervals[MAXALIASSKINS];
+static byte *skindata[MAXALIASSKINS];
+static int skinnum;
+
 #ifdef QW_HACK
 byte player_8bit_texels[320 * 200];
 #endif
@@ -1430,6 +1437,42 @@ Mod_FloodFillSkin(byte *skin, int skinwidth, int skinheight)
     }
 }
 
+
+/*
+=================
+Mod_LoadAliasSkinGroup
+=================
+*/
+static void *
+Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
+{
+    daliasskingroup_t *pinskingroup;
+    daliasskininterval_t *pinskinintervals;
+    byte *pdata;
+    int i;
+
+    pinskingroup = pin;
+    pskindesc->firstframe = skinnum;
+    pskindesc->numframes = LittleLong(pinskingroup->numskins);
+    pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
+
+    for (i = 0; i < pskindesc->numframes; i++) {
+	skinintervals[skinnum] = LittleFloat(pinskinintervals->interval);
+	if (skinintervals[skinnum] <= 0)
+	    Sys_Error("%s: interval <= 0", __func__);
+	skinnum++;
+	pinskinintervals++;
+    }
+
+    pdata = (byte *)pinskinintervals;
+    for (i = pskindesc->firstframe; i < pskindesc->numframes; i++) {
+	skindata[i] = pdata;
+	pdata += skinsize;
+    }
+
+    return pdata;
+}
+
 /*
 ===============
 Mod_LoadAllSkins
@@ -1438,83 +1481,71 @@ Mod_LoadAllSkins
 static void *
 Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 {
-    int i, j, k;
+    int i, skinsize;
+    maliasskindesc_t *pskindesc;
+    float *pskinintervals;
+    byte *pskindata;
+    GLuint *glt;
     char name[32];
-    int s;
-    byte *skin;
 #ifdef NQ_HACK
     byte *texels;
 #endif
-    daliasskingroup_t *pinskingroup;
-    int groupskins;
-    daliasskininterval_t *pinskinintervals;
-
-    skin = (byte *)(pskintype + 1);
 
     if (numskins < 1 || numskins > MAX_SKINS)
 	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
+    if (pheader->skinwidth & 0x03)
+	Sys_Error("%s: skinwidth not multiple of 4", __func__);
 
-    s = pheader->skinwidth * pheader->skinheight;
+    skinsize = pheader->skinwidth * pheader->skinheight;
+    pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
+    GL_Aliashdr(pheader)->skindesc = (byte *)pskindesc - (byte *)pheader;
 
+    skinnum = 0;
     for (i = 0; i < numskins; i++) {
-	if (LittleLong(pskintype->type) == ALIAS_SKIN_SINGLE) {
-	    Mod_FloodFillSkin(skin, pheader->skinwidth, pheader->skinheight);
+	aliasskintype_t skintype = LittleLong(pskintype->type);
+	if (skintype == ALIAS_SKIN_SINGLE) {
+	    pskindesc[i].firstframe = skinnum;
+	    pskindesc[i].numframes = 1;
+	    skindata[skinnum] = (byte *)(pskintype + 1);
+	    skinintervals[skinnum] = 999.0f;
+	    skinnum++;
+	    pskintype = (daliasskintype_t *)((byte *)(pskintype + 1) + skinsize);
+	} else {
+	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1, pskindesc + i,
+					       skinsize);
+	}
+    }
+
+    pskinintervals = Hunk_Alloc(skinnum * sizeof(float));
+    pheader->skinintervals = (byte *)pskinintervals - (byte *)pheader;
+    memcpy(pskinintervals, skinintervals, skinnum * sizeof(float));
+
+    pskindata = Hunk_Alloc(skinnum * sizeof(GLuint));
+    pheader->skindata = (byte *)pskindata - (byte *)pheader;
+    glt = (GLuint *)pskindata;
+
+    for (i = 0; i < skinnum; i++) {
+	Mod_FloodFillSkin(skindata[i], pheader->skinwidth, pheader->skinheight);
 
 #ifdef NQ_HACK
-	    // save 8 bit texels for the player model to remap
-	    //              if (!strcmp(loadmodel->name,"progs/player.mdl")) {
-	    texels = Hunk_AllocName(s, loadname);
-	    GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
-	    memcpy(texels, (byte *)(pskintype + 1), s);
-	    //              }
+	// save 8 bit texels for the player model to remap
+	//	if (!strcmp(loadmodel->name,"progs/player.mdl")) {
+	texels = Hunk_AllocName(skinsize, loadname);
+	GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
+	memcpy(texels, skindata[i], skinsize);
+	//	}
 #endif
 #ifdef QW_HACK
-	    // save 8 bit texels for the player model to remap
-	    if (!strcmp(loadmodel->name, "progs/player.mdl")) {
-		if (s > sizeof(player_8bit_texels))
-		    Sys_Error("Player skin too large");
-		memcpy(player_8bit_texels, (byte *)(pskintype + 1), s);
-	    }
-#endif
-	    snprintf(name, sizeof(name), "%s_%i", loadmodel->name, i);
-	    GL_Aliashdr(pheader)->gl_texturenum[i][0] =
-		GL_Aliashdr(pheader)->gl_texturenum[i][1] =
-		GL_Aliashdr(pheader)->gl_texturenum[i][2] =
-		GL_Aliashdr(pheader)->gl_texturenum[i][3] =
-		GL_LoadTexture(name, pheader->skinwidth,
-			       pheader->skinheight, (byte *)(pskintype + 1),
-			       true, false);
-	    pskintype = (daliasskintype_t *)((byte *)(pskintype + 1) + s);
-	} else {
-	    // animating skin group.  yuck.
-	    pskintype++;
-	    pinskingroup = (daliasskingroup_t *)pskintype;
-	    groupskins = LittleLong(pinskingroup->numskins);
-	    pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
-	    pskintype = (daliasskintype_t *)(pinskinintervals + groupskins);
-
-	    for (j = 0; j < groupskins; j++) {
-		Mod_FloodFillSkin(skin, pheader->skinwidth,
-				  pheader->skinheight);
-#ifdef NQ_HACK
-		if (j == 0) {
-		    texels = Hunk_AllocName(s, loadname);
-		    GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
-		    memcpy(texels, (byte *)(pskintype), s);
-		}
-#endif
-		snprintf(name, sizeof(name), "%s_%i_%i", loadmodel->name, i, j);
-		GL_Aliashdr(pheader)->gl_texturenum[i][j & 3] =
-		    GL_LoadTexture(name, pheader->skinwidth,
-				   pheader->skinheight, (byte *)(pskintype),
-				   true, false);
-		pskintype = (daliasskintype_t *)((byte *)(pskintype) + s);
-	    }
-	    k = j;
-	    for ( /* */ ; j < 4; j++)
-		GL_Aliashdr(pheader)->gl_texturenum[i][j & 3] =
-		    GL_Aliashdr(pheader)->gl_texturenum[i][j - k];
+	// save 8 bit texels for the player model to remap
+	if (!strcmp(loadmodel->name, "progs/player.mdl")) {
+	    if (skinsize > sizeof(player_8bit_texels))
+		Sys_Error("Player skin too large");
+	    memcpy(player_8bit_texels, skindata[i], skinsize);
 	}
+#endif
+	snprintf(name, sizeof(name), "%s_%i", loadmodel->name, i);
+	glt[i] = GL_LoadTexture(name, pheader->skinwidth, pheader->skinheight,
+				skindata[i], true, false);
     }
 
     return pskintype;
