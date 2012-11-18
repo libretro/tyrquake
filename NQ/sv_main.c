@@ -82,7 +82,7 @@ SV_Protocol_f(void)
 	}
 	Con_Printf("sv_protocol is %d (%s)\n", sv_protocol, name);
     } else if (Cmd_Argc() == 2) {
-	if (!strcmp(Cmd_Argv(1), "list")) {
+	if (!strcasecmp(Cmd_Argv(1), "list")) {
 	    Con_Printf("Version  Name  Description\n"
 		       "-------  ----  -----------\n");
 	    for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
@@ -95,7 +95,7 @@ SV_Protocol_f(void)
 		if (sv_protocols[i].version == v) {
 		    sv_protocol = v;
 		    return;
-		} else if (!strcmp(sv_protocols[i].name, Cmd_Argv(1))) {
+		} else if (!strcasecmp(sv_protocols[i].name, Cmd_Argv(1))) {
 		    sv_protocol = sv_protocols[i].version;
 		    return;
 		}
