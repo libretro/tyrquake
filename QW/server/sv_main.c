@@ -1605,9 +1605,8 @@ SV_InitNet(void)
 /*
  * Model Loader Functions
  */
-
 static model_loader_t SV_Model_Loader = {
-    .Aliashdr_Padding = NULL /* does not load alias models */
+    NULL, /* Does not load alias models */
 };
 
 /*

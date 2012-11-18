@@ -302,6 +302,7 @@ SW_Aliashdr(aliashdr_t *h)
 
 typedef struct model_loader {
     int (*Aliashdr_Padding)(void);
+    void *(*LoadSkinData)(const char *, aliashdr_t *, int, byte **);
 } model_loader_t;
 
 #define	MAXALIASFRAMES	512

@@ -153,10 +153,11 @@ Mod_LoadAllSkins
 ===============
 */
 static void *
-Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
+Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
+		 int numskins, daliasskintype_t *pskintype,
 		 const char *loadname)
 {
-    int i, j, skinsize;
+    int i, skinsize;
     maliasskindesc_t *pskindesc;
     float *pskinintervals;
     byte *pskindata;
@@ -190,21 +191,9 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
     pheader->skinintervals = (byte *)pskinintervals - (byte *)pheader;
     memcpy(pskinintervals, skinintervals, skinnum * sizeof(float));
 
-    pskindata = Hunk_Alloc(skinnum * skinsize * r_pixbytes);
+    /* Hand off saving the skin data to the loader */
+    pskindata = loader->LoadSkinData(loadmodel->name, pheader, skinnum, skindata);
     pheader->skindata = (byte *)pskindata - (byte *)pheader;
-    for (i = 0; i < skinnum; i++) {
-	if (r_pixbytes == 1) {
-	    memcpy(pskindata, skindata[i], skinsize);
-	} else if (r_pixbytes == 2) {
-	    unsigned short *pusskin = (unsigned short *)pskindata;
-	    for (j = 0; j < skinsize; j++)
-		pusskin[j] = d_8to16table[skindata[i][j]];
-	} else {
-	    Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
-		      r_pixbytes);
-	}
-	pskindata += skinsize * r_pixbytes;
-    }
 
     return pskintype;
 }
@@ -323,7 +312,8 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 // load the skins
 //
     pskintype = (daliasskintype_t *)&pinmodel[1];
-    pskintype = Mod_LoadAllSkins(pheader->numskins, pskintype, loadname);
+    pskintype = Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
+				 pskintype, loadname);
 
 //
 // set base s and t vertices

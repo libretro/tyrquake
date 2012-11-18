@@ -1370,81 +1370,6 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
 
 /*
 =================
-Mod_FloodFillSkin
-
-Fill background pixels so mipmapping doesn't have haloes - Ed
-=================
-*/
-
-typedef struct {
-    short x, y;
-} floodfill_t;
-
-// must be a power of 2
-#define FLOODFILL_FIFO_SIZE 0x1000
-#define FLOODFILL_FIFO_MASK (FLOODFILL_FIFO_SIZE - 1)
-
-#define FLOODFILL_STEP( off, dx, dy ) \
-{ \
-	if (pos[off] == fillcolor) \
-	{ \
-		pos[off] = 255; \
-		fifo[inpt].x = x + (dx), fifo[inpt].y = y + (dy); \
-		inpt = (inpt + 1) & FLOODFILL_FIFO_MASK; \
-	} \
-	else if (pos[off] != 255) fdc = pos[off]; \
-}
-
-static void
-Mod_FloodFillSkin(byte *skin, int skinwidth, int skinheight)
-{
-    byte fillcolor = *skin;	// assume this is the pixel to fill
-    floodfill_t fifo[FLOODFILL_FIFO_SIZE];
-    int inpt = 0, outpt = 0;
-    int filledcolor = -1;
-    int i;
-
-    if (filledcolor == -1) {
-	filledcolor = 0;
-	// attempt to find opaque black
-	for (i = 0; i < 256; ++i)
-	    if (d_8to24table[i] == (255 << 0))	// alpha 1.0
-	    {
-		filledcolor = i;
-		break;
-	    }
-    }
-    // can't fill to filled color or to transparent color (used as visited marker)
-    if ((fillcolor == filledcolor) || (fillcolor == 255)) {
-	//printf( "not filling skin from %d to %d\n", fillcolor, filledcolor );
-	return;
-    }
-
-    fifo[inpt].x = 0, fifo[inpt].y = 0;
-    inpt = (inpt + 1) & FLOODFILL_FIFO_MASK;
-
-    while (outpt != inpt) {
-	int x = fifo[outpt].x, y = fifo[outpt].y;
-	int fdc = filledcolor;
-	byte *pos = &skin[x + skinwidth * y];
-
-	outpt = (outpt + 1) & FLOODFILL_FIFO_MASK;
-
-	if (x > 0)
-	    FLOODFILL_STEP(-1, -1, 0);
-	if (x < skinwidth - 1)
-	    FLOODFILL_STEP(1, 1, 0);
-	if (y > 0)
-	    FLOODFILL_STEP(-skinwidth, 0, -1);
-	if (y < skinheight - 1)
-	    FLOODFILL_STEP(skinwidth, 0, 1);
-	skin[x + skinwidth * y] = fdc;
-    }
-}
-
-
-/*
-=================
 Mod_LoadAliasSkinGroup
 =================
 */
@@ -1484,18 +1409,14 @@ Mod_LoadAllSkins
 ===============
 */
 static void *
-Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
+Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
+		 int numskins, daliasskintype_t *pskintype,
 		 const char *loadname)
 {
     int i, skinsize;
     maliasskindesc_t *pskindesc;
     float *pskinintervals;
     byte *pskindata;
-    GLuint *glt;
-    char name[32];
-#ifdef NQ_HACK
-    byte *texels;
-#endif
 
     if (numskins < 1 || numskins > MAX_SKINS)
 	Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
@@ -1526,33 +1447,9 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
     pheader->skinintervals = (byte *)pskinintervals - (byte *)pheader;
     memcpy(pskinintervals, skinintervals, skinnum * sizeof(float));
 
-    pskindata = Hunk_Alloc(skinnum * sizeof(GLuint));
+    /* Hand off saving the skin data to the loader */
+    pskindata = loader->LoadSkinData(loadmodel->name, pheader, skinnum, skindata);
     pheader->skindata = (byte *)pskindata - (byte *)pheader;
-    glt = (GLuint *)pskindata;
-
-    for (i = 0; i < skinnum; i++) {
-	Mod_FloodFillSkin(skindata[i], pheader->skinwidth, pheader->skinheight);
-
-#ifdef NQ_HACK
-	// save 8 bit texels for the player model to remap
-	if (!strcmp(loadmodel->name,"progs/player.mdl")) {
-	    texels = Hunk_AllocName(skinsize, loadname);
-	    GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
-	    memcpy(texels, skindata[i], skinsize);
-	}
-#endif
-#ifdef QW_HACK
-	// save 8 bit texels for the player model to remap
-	if (!strcmp(loadmodel->name, "progs/player.mdl")) {
-	    if (skinsize > sizeof(player_8bit_texels))
-		Sys_Error("Player skin too large");
-	    memcpy(player_8bit_texels, skindata[i], skinsize);
-	}
-#endif
-	snprintf(name, sizeof(name), "%s_%i", loadmodel->name, i);
-	glt[i] = GL_LoadTexture(name, pheader->skinwidth, pheader->skinheight,
-				skindata[i], true, false);
-    }
 
     return pskintype;
 }
@@ -1674,7 +1571,8 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 // load the skins
 //
     pskintype = (daliasskintype_t *)&pinmodel[1];
-    pskintype = Mod_LoadAllSkins(pheader->numskins, pskintype, loadname);
+    pskintype = Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
+				 pskintype, loadname);
 
 //
 // load base s and t vertices

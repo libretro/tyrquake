@@ -277,8 +277,120 @@ static int lastposenum;
  */
 static int GL_Aliashdr_Padding(void) { return offsetof(gl_aliashdr_t, ahdr); }
 
+/*
+=================
+Mod_FloodFillSkin
+
+Fill background pixels so mipmapping doesn't have haloes - Ed
+=================
+*/
+
+typedef struct {
+    short x, y;
+} floodfill_t;
+
+// must be a power of 2
+#define FLOODFILL_FIFO_SIZE 0x1000
+#define FLOODFILL_FIFO_MASK (FLOODFILL_FIFO_SIZE - 1)
+
+#define FLOODFILL_STEP( off, dx, dy ) \
+{ \
+	if (pos[off] == fillcolor) \
+	{ \
+		pos[off] = 255; \
+		fifo[inpt].x = x + (dx), fifo[inpt].y = y + (dy); \
+		inpt = (inpt + 1) & FLOODFILL_FIFO_MASK; \
+	} \
+	else if (pos[off] != 255) fdc = pos[off]; \
+}
+
+static void
+GL_FloodFillSkin(byte *skin, int skinwidth, int skinheight)
+{
+    byte fillcolor = *skin;	// assume this is the pixel to fill
+    floodfill_t fifo[FLOODFILL_FIFO_SIZE];
+    int inpt = 0, outpt = 0;
+    int filledcolor = -1;
+    int i;
+
+    if (filledcolor == -1) {
+	filledcolor = 0;
+	// attempt to find opaque black
+	for (i = 0; i < 256; ++i)
+	    if (d_8to24table[i] == (255 << 0))	// alpha 1.0
+	    {
+		filledcolor = i;
+		break;
+	    }
+    }
+    // can't fill to filled color or to transparent color (used as visited marker)
+    if ((fillcolor == filledcolor) || (fillcolor == 255)) {
+	//printf( "not filling skin from %d to %d\n", fillcolor, filledcolor );
+	return;
+    }
+
+    fifo[inpt].x = 0, fifo[inpt].y = 0;
+    inpt = (inpt + 1) & FLOODFILL_FIFO_MASK;
+
+    while (outpt != inpt) {
+	int x = fifo[outpt].x, y = fifo[outpt].y;
+	int fdc = filledcolor;
+	byte *pos = &skin[x + skinwidth * y];
+
+	outpt = (outpt + 1) & FLOODFILL_FIFO_MASK;
+
+	if (x > 0)
+	    FLOODFILL_STEP(-1, -1, 0);
+	if (x < skinwidth - 1)
+	    FLOODFILL_STEP(1, 1, 0);
+	if (y > 0)
+	    FLOODFILL_STEP(-skinwidth, 0, -1);
+	if (y < skinheight - 1)
+	    FLOODFILL_STEP(skinwidth, 0, 1);
+	skin[x + skinwidth * y] = fdc;
+    }
+}
+
+static void *
+GL_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
+		byte **skindata)
+{
+    int i, skinsize;
+    GLuint *glt;
+    char loadname[MAX_QPATH];	/* for hunk tags */
+    char name[32];
+
+    COM_FileBase(modelname, loadname);
+    skinsize = ahdr->skinwidth * ahdr->skinheight;
+    glt = Hunk_Alloc(skinnum * sizeof(GLuint));
+    for (i = 0; i < skinnum; i++) {
+	GL_FloodFillSkin(skindata[i], ahdr->skinwidth, ahdr->skinheight);
+
+	// save 8 bit texels for the player model to remap
+	if (!strcmp(modelname, "progs/player.mdl")) {
+#ifdef NQ_HACK
+	    byte *texels = Hunk_AllocName(skinsize, loadname);
+	    GL_Aliashdr(ahdr)->texels[i] = texels - (byte *)ahdr;
+	    memcpy(texels, skindata[i], skinsize);
+#endif
+#ifdef QW_HACK
+	    if (skinsize > sizeof(player_8bit_texels))
+		Sys_Error("Player skin too large");
+	    memcpy(player_8bit_texels, skindata[i], skinsize);
+#endif
+	}
+	snprintf(name, sizeof(name), "%s_%i", loadname, i);
+	name[sizeof(name) - 1] = 0;
+	glt[i] = GL_LoadTexture(name, ahdr->skinwidth, ahdr->skinheight,
+				skindata[i], true, false);
+    }
+
+    return glt;
+}
+
 static model_loader_t GL_Model_Loader = {
-    .Aliashdr_Padding = GL_Aliashdr_Padding
+    .Aliashdr_Padding = GL_Aliashdr_Padding,
+    .LoadSkinData = GL_LoadSkinData
 };
 
 const model_loader_t *
