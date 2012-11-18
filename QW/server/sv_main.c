@@ -1602,6 +1602,13 @@ SV_InitNet(void)
 //      NET_StringToAdr ("192.246.40.70:27000", &idmaster_adr);
 }
 
+/*
+ * Model Loader Functions
+ */
+
+static model_loader_t SV_Model_Loader = {
+    .Aliashdr_Padding = NULL /* does not load alias models */
+};
 
 /*
 ====================
@@ -1631,7 +1638,7 @@ SV_Init(quakeparms_t *parms)
     COM_Init();
 
     PR_Init();
-    Mod_Init();
+    Mod_Init(&SV_Model_Loader);
 
     SV_InitNet();
 

@@ -36,7 +36,9 @@ static model_t *loadmodel;
 static char loadname[MAX_QPATH];	/* for hunk tags */
 
 static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
-static void Mod_LoadAliasModel(model_t *mod, void *buffer);
+static void Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod,
+			       void *buffer, const model_t *loadmodel,
+			       const char *loadname);
 static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
 
 static byte mod_novis[MAX_MAP_LEAFS / 8];
@@ -47,16 +49,19 @@ static int mod_numknown;
 
 cvar_t gl_subdivide_size = { "gl_subdivide_size", "128", true };
 
+static const model_loader_t *mod_loader;
+
 /*
 ===============
 Mod_Init
 ===============
 */
 void
-Mod_Init(void)
+Mod_Init(const model_loader_t *loader)
 {
     Cvar_RegisterVariable(&gl_subdivide_size);
     memset(mod_novis, 0xff, sizeof(mod_novis));
+    mod_loader = loader;
 }
 
 /*
@@ -290,7 +295,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 
     switch (LittleLong(*(unsigned *)buf)) {
     case IDPOLYHEADER:
-	Mod_LoadAliasModel(mod, buf);
+	Mod_LoadAliasModel(mod_loader, mod, buf, loadmodel, loadname);
 	break;
 
     case IDSPRITEHEADER:
@@ -1479,7 +1484,8 @@ Mod_LoadAllSkins
 ===============
 */
 static void *
-Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
+Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
+		 const char *loadname)
 {
     int i, skinsize;
     maliasskindesc_t *pskindesc;
@@ -1559,7 +1565,8 @@ Mod_LoadAliasModel
 =================
 */
 static void
-Mod_LoadAliasModel(model_t *mod, void *buffer)
+Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
+		   const model_t *loadmodel, const char *loadname)
 {
     byte *container;
     int i, j, pad;
@@ -1616,7 +1623,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 // allocate space for a working header, plus all the data except the frames,
 // skin and group info
 //
-    pad = offsetof(gl_aliashdr_t, ahdr);
+    pad = loader->Aliashdr_Padding();
     size = pad + sizeof(aliashdr_t) +
 	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
 
@@ -1667,7 +1674,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer)
 // load the skins
 //
     pskintype = (daliasskintype_t *)&pinmodel[1];
-    pskintype = Mod_LoadAllSkins(pheader->numskins, pskintype);
+    pskintype = Mod_LoadAllSkins(pheader->numskins, pskintype, loadname);
 
 //
 // load base s and t vertices

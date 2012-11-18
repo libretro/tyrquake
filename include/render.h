@@ -31,6 +31,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "protocol.h"
 #endif
 
+#ifdef GLQUAKE
+#include "gl_model.h"
+#else
+#include "model.h"
+#endif
+
 // render.h -- public interface to refresh functions
 
 #define	TOP_RANGE	16	// soldier uniform colors
@@ -168,6 +174,11 @@ void R_PushDlights(void);
 void R_InitParticles(void);
 void R_ClearParticles(void);
 void R_DrawParticles(void);
+
+/*
+ * The renderer supplies callbacks to the model loader
+ */
+const model_loader_t *R_ModelLoader(void);
 
 //
 // surface cache related

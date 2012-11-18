@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_alias.c: routines for setting up to draw alias models
 
 #include "console.h"
+#include "model.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "sys.h"
@@ -77,6 +78,21 @@ static void R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 
 void R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts);
 void R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av);
+
+/*
+ * Model Loader Functions
+ */
+static int SW_Aliashdr_Padding(void) { return offsetof(sw_aliashdr_t, ahdr); }
+
+static model_loader_t SW_Model_Loader = {
+    .Aliashdr_Padding = SW_Aliashdr_Padding
+};
+
+const model_loader_t *
+R_ModelLoader(void)
+{
+    return &SW_Model_Loader;
+}
 
 /*
 ================

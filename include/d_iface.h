@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "mathlib.h"
 #include "model.h"
 #include "qtypes.h"
+#include "vid.h"
 
 // d_iface.h: interface header file for rasterization driver modules
 

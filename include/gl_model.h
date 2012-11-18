@@ -25,10 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "bspfile.h"
 #include "modelgen.h"
-#include "render.h"
 #include "spritegn.h"
 #include "zone.h"
 
+#ifdef NQ_HACK
+#include "quakedef.h"
+#endif
 #ifdef QW_HACK
 #include "bothdefs.h"
 #endif
@@ -177,7 +179,9 @@ typedef struct mnode_s {
     unsigned short numsurfaces;
 } mnode_t;
 
-
+/* forward decls; can't include render.h/glquake.h */
+typedef struct efrag_s efrag_t;
+typedef struct entity_s entity_t;
 
 typedef struct mleaf_s {
 // common with node
@@ -327,6 +331,10 @@ GL_Aliashdr(aliashdr_t *h)
     return container_of(h, gl_aliashdr_t, ahdr);
 }
 
+typedef struct model_loader {
+    int (*Aliashdr_Padding)(void);
+} model_loader_t;
+
 #define	MAXALIASVERTS	2048
 #define	MAXALIASFRAMES	512
 #define	MAXALIASTRIS	4096
@@ -425,7 +433,7 @@ typedef struct model_s {
 
 //============================================================================
 
-void Mod_Init(void);
+void Mod_Init(const model_loader_t *loader);
 void Mod_ClearAll(void);
 model_t *Mod_ForName(char *name, qboolean crash);
 void *Mod_Extradata(model_t *mod);	// handles caching

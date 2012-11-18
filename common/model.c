@@ -35,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static texture_t r_notexture_mip_qwsv;
 #else
 #include "quakedef.h"
+#include "render.h"
 #include "sys.h"
 #ifdef QW_HACK
 #include "crc.h"
@@ -55,15 +56,18 @@ static byte mod_novis[MAX_MAP_LEAFS / 8];
 static model_t mod_known[MAX_MOD_KNOWN];
 static int mod_numknown;
 
+static const model_loader_t *mod_loader;
+
 /*
 ===============
 Mod_Init
 ===============
 */
 void
-Mod_Init(void)
+Mod_Init(const model_loader_t *loader)
 {
     memset(mod_novis, 0xff, sizeof(mod_novis));
+    mod_loader = loader;
 }
 
 /*
@@ -251,7 +255,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
     switch (LittleLong(*(unsigned *)buf)) {
 #ifndef SERVERONLY
     case IDPOLYHEADER:
-	Mod_LoadAliasModel(mod, buf, loadmodel, loadname);
+	Mod_LoadAliasModel(mod_loader, mod, buf, loadmodel, loadname);
 	break;
 
     case IDSPRITEHEADER:

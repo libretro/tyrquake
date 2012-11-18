@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "bspfile.h"
 #include "modelgen.h"
-#include "render.h"
 #include "spritegn.h"
 #include "zone.h"
 
@@ -156,7 +155,9 @@ typedef struct mnode_s {
     unsigned short numsurfaces;
 } mnode_t;
 
-
+/* forward decls; can't include render.h/glquake.h */
+typedef struct efrag_s efrag_t;
+typedef struct entity_s entity_t;
 
 typedef struct mleaf_s {
 // common with node
@@ -299,6 +300,10 @@ SW_Aliashdr(aliashdr_t *h)
     return container_of(h, sw_aliashdr_t, ahdr);
 }
 
+typedef struct model_loader {
+    int (*Aliashdr_Padding)(void);
+} model_loader_t;
+
 #define	MAXALIASFRAMES	512
 
 //===================================================================
@@ -395,7 +400,7 @@ typedef struct model_s {
 
 //============================================================================
 
-void Mod_Init(void);
+void Mod_Init(const model_loader_t *loader);
 void Mod_ClearAll(void);
 model_t *Mod_ForName(char *name, qboolean crash);
 void *Mod_Extradata(model_t *mod);	// handles caching
@@ -408,7 +413,8 @@ byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
 
-void Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
+void Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod,
+			void *buffer, const model_t *loadmodel,
 			const char *loadname);
 void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 

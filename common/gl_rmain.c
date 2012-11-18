@@ -271,6 +271,22 @@ static float *shadedots = r_avertexnormal_dots[0];
 
 static int lastposenum;
 
+
+/*
+ * Model Loader Functions
+ */
+static int GL_Aliashdr_Padding(void) { return offsetof(gl_aliashdr_t, ahdr); }
+
+static model_loader_t GL_Model_Loader = {
+    .Aliashdr_Padding = GL_Aliashdr_Padding
+};
+
+const model_loader_t *
+R_ModelLoader(void)
+{
+    return &GL_Model_Loader;
+}
+
 /*
 =============
 GL_DrawAliasFrame

@@ -166,7 +166,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
     if (pheader->skinwidth & 0x03)
 	Sys_Error("%s: skinwidth not multiple of 4", __func__);
 
-    skinsize = pheader->skinheight * pheader->skinwidth;
+    skinsize = pheader->skinwidth * pheader->skinheight;
     pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
     pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
 
@@ -215,8 +215,8 @@ Mod_LoadAliasModel
 =================
 */
 void
-Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
-		   const char *loadname)
+Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
+		   const model_t *loadmodel, const char *loadname)
 {
     byte *container;
     int i, j, pad;
@@ -274,7 +274,7 @@ Mod_LoadAliasModel(model_t *mod, void *buffer, const model_t *loadmodel,
 // allocate space for a working header, plus all the data except the frames,
 // skin and group info
 //
-    pad = offsetof(sw_aliashdr_t, ahdr);
+    pad = loader->Aliashdr_Padding();
     size = pad + sizeof(aliashdr_t) +
 	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]) +
 	LittleLong(pinmodel->numverts) * sizeof(stvert_t) +

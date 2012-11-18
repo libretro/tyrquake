@@ -40,8 +40,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifdef GLQUAKE
 #include "gl_model.h"
+#include "glquake.h"
 #else
 #include "r_local.h"
+#include "render.h"
 #endif
 
 /*
@@ -830,7 +832,7 @@ Host_Init(quakeparms_t *parms)
     Con_Init();
     M_Init();
     PR_Init();
-    Mod_Init();
+    Mod_Init(R_ModelLoader());
     NET_Init();
     SV_Init();
 
