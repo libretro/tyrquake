@@ -297,6 +297,7 @@ typedef struct {
     vec3_t scale;
     vec3_t scale_origin;
     int numskins;
+    int skindesc;
     int skinintervals;
     int skindata;
     int skinwidth;
@@ -313,7 +314,6 @@ typedef struct {
 } aliashdr_t;
 
 typedef struct {
-    int skindesc;
     int commands;	// gl command list with embedded s/t
 #ifdef NQ_HACK
     int texels[MAX_SKINS];	// only for player skins

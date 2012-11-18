@@ -271,6 +271,7 @@ typedef struct {
     vec3_t scale;
     vec3_t scale_origin;
     int numskins;
+    int skindesc;
     int skinintervals;
     int skindata;
     int skinwidth;
@@ -288,7 +289,6 @@ typedef struct {
 
 typedef struct {
     int stverts;
-    int skindesc;
     int triangles;
     aliashdr_t ahdr;
 } sw_aliashdr_t;

@@ -550,7 +550,7 @@ R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 	skinnum = 0;
     }
 
-    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->skindesc));
+    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
     pskindesc += skinnum;
     a_skinwidth = pahdr->skinwidth;
 

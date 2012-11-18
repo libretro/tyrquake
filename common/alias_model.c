@@ -168,7 +168,7 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype,
 
     skinsize = pheader->skinheight * pheader->skinwidth;
     pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
-    SW_Aliashdr(pheader)->skindesc = (byte *)pskindesc - (byte *)pheader;
+    pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
 
     skinnum = 0;
     for (i = 0; i < numskins; i++) {
