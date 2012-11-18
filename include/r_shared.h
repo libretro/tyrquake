@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "d_iface.h"
 #include "mathlib.h"
+#include "render.h"
 
 // FIXME: clean up and move into d_iface.h
 

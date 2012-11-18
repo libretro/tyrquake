@@ -180,8 +180,8 @@ typedef struct mnode_s {
 } mnode_t;
 
 /* forward decls; can't include render.h/glquake.h */
-typedef struct efrag_s efrag_t;
-typedef struct entity_s entity_t;
+struct efrag_s;
+struct entity_s;
 
 typedef struct mleaf_s {
 // common with node
@@ -194,7 +194,7 @@ typedef struct mleaf_s {
 
 // leaf specific
     byte *compressed_vis;
-    efrag_t *efrags;
+    struct efrag_s *efrags;
 
     msurface_t **firstmarksurface;
     int nummarksurfaces;
@@ -445,10 +445,10 @@ mleaf_t *Mod_PointInLeaf(float *p, model_t *model);
 byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
 
 // FIXME - surely this doesn't belong here?
-texture_t *R_TextureAnimation(entity_t *e, texture_t *base);
+texture_t *R_TextureAnimation(struct entity_s *e, texture_t *base);
 
 void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 
-mspriteframe_t *Mod_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time);
+mspriteframe_t *Mod_GetSpriteFrame(struct entity_s *e, msprite_t *psprite, float time);
 
 #endif /* GL_MODEL_H */
