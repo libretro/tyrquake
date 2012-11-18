@@ -59,12 +59,11 @@ static struct {
 char *
 StrAddr(netadr_t *addr)
 {
-    static char buf[34];
-    byte *p = (byte *)addr;
-    int n;
+    static char buf[32];
 
-    for (n = 0; n < 16; n++)
-	sprintf(buf + n * 2, "%02x", *p++);
+    sprintf(buf, "%d.%d.%d.%d:%d",
+	    addr->ip.b[0], addr->ip.b[1], addr->ip.b[2], addr->ip.b[3],
+	    ntohs(addr->port));
     return buf;
 }
 #endif
