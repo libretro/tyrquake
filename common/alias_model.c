@@ -139,8 +139,8 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
     }
 
     pdata = (byte *)pinskinintervals;
-    for (i = pskindesc->firstframe; i < pskindesc->numframes; i++) {
-	skindata[i] = pdata;
+    for (i = 0; i < pskindesc->numframes; i++) {
+	skindata[pskindesc->firstframe + i] = pdata;
 	pdata += skinsize;
     }
 
