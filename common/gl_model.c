@@ -1529,11 +1529,11 @@ Mod_LoadAllSkins(int numskins, daliasskintype_t *pskintype)
 
 #ifdef NQ_HACK
 	// save 8 bit texels for the player model to remap
-	//	if (!strcmp(loadmodel->name,"progs/player.mdl")) {
-	texels = Hunk_AllocName(skinsize, loadname);
-	GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
-	memcpy(texels, skindata[i], skinsize);
-	//	}
+	if (!strcmp(loadmodel->name,"progs/player.mdl")) {
+	    texels = Hunk_AllocName(skinsize, loadname);
+	    GL_Aliashdr(pheader)->texels[i] = texels - (byte *)pheader;
+	    memcpy(texels, skindata[i], skinsize);
+	}
 #endif
 #ifdef QW_HACK
 	// save 8 bit texels for the player model to remap
