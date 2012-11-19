@@ -390,7 +390,8 @@ GL_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 
 static model_loader_t GL_Model_Loader = {
     .Aliashdr_Padding = GL_Aliashdr_Padding,
-    .LoadSkinData = GL_LoadSkinData
+    .LoadSkinData = GL_LoadSkinData,
+    .LoadMeshData = GL_LoadMeshData
 };
 
 const model_loader_t *

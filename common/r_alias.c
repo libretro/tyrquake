@@ -111,9 +111,50 @@ SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
     return ret;
 }
 
+static void
+SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
+		const stvert_t *stverts, const trivertx_t **verts)
+{
+    int i;
+    trivertx_t *pverts;
+    stvert_t *pstverts;
+    mtriangle_t *ptris;
+
+    /*
+     * Save the pose vertex data
+     */
+    hdr->poseverts = hdr->numverts;
+    pverts = Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
+    hdr->posedata = (byte *)pverts - (byte *)hdr;
+    for (i = 0; i < hdr->numposes; i++) {
+	memcpy(pverts, verts[i], hdr->numverts * sizeof(*pverts));
+	pverts += hdr->numverts;
+    }
+
+    /*
+     * Save the s/t verts
+     * => put s and t in 16.16 format
+     */
+    pstverts = Hunk_Alloc(hdr->numverts * sizeof(*pstverts));
+    SW_Aliashdr(hdr)->stverts = (byte *)pstverts - (byte *)hdr;
+    for (i = 0; i < hdr->numverts; i++) {
+	pstverts[i].onseam = stverts[i].onseam;
+	pstverts[i].s = stverts[i].s << 16;
+	pstverts[i].t = stverts[i].t << 16;
+    }
+
+    /*
+     * Save the triangle data
+     */
+    ptris = Hunk_Alloc(hdr->numtris * sizeof(*ptris));
+    SW_Aliashdr(hdr)->triangles = (byte *)ptris - (byte *)hdr;
+    memcpy(ptris, tris, hdr->numtris * sizeof(*ptris));
+}
+
 static model_loader_t SW_Model_Loader = {
     .Aliashdr_Padding = SW_Aliashdr_Padding,
-    .LoadSkinData = SW_LoadSkinData
+    .LoadSkinData = SW_LoadSkinData,
+    .LoadMeshData = SW_LoadMeshData
 };
 
 const model_loader_t *

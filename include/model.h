@@ -300,12 +300,9 @@ SW_Aliashdr(aliashdr_t *h)
     return container_of(h, sw_aliashdr_t, ahdr);
 }
 
-typedef struct model_loader {
-    int (*Aliashdr_Padding)(void);
-    void *(*LoadSkinData)(const char *, aliashdr_t *, int, byte **);
-} model_loader_t;
-
+#define	MAXALIASVERTS	2048
 #define	MAXALIASFRAMES	512
+#define	MAXALIASTRIS	4096
 
 //===================================================================
 
@@ -398,6 +395,13 @@ typedef struct model_s {
     cache_user_t cache;		// only access through Mod_Extradata
 
 } model_t;
+
+typedef struct model_loader {
+    int (*Aliashdr_Padding)(void);
+    void *(*LoadSkinData)(const char *, aliashdr_t *, int, byte **);
+    void (*LoadMeshData)(const model_t *, aliashdr_t *hdr, const mtriangle_t *,
+			 const stvert_t *, const trivertx_t **);
+} model_loader_t;
 
 //============================================================================
 

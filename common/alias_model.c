@@ -31,6 +31,9 @@ static aliashdr_t *pheader;
 
 /* FIXME - get rid of these static limits by doing two passes? */
 
+static stvert_t stverts[MAXALIASVERTS];
+static mtriangle_t triangles[MAXALIASTRIS];
+
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
 static const trivertx_t *poseverts[MAXALIASFRAMES];
@@ -210,8 +213,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     byte *container;
     int i, j, pad;
     mdl_t *pinmodel;
-    stvert_t *pstverts, *pinstverts;
-    mtriangle_t *ptri;
+    stvert_t *pinstverts;
     dtriangle_t *pintriangles;
     int version, numframes;
     int size;
@@ -220,7 +222,6 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     daliasgroup_t *group;
     daliasskintype_t *pskintype;
     int start, end, total;
-    trivertx_t *verts;
     float *intervals;
 
 #ifdef QW_HACK
@@ -265,9 +266,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 //
     pad = loader->Aliashdr_Padding();
     size = pad + sizeof(aliashdr_t) +
-	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]) +
-	LittleLong(pinmodel->numverts) * sizeof(stvert_t) +
-	LittleLong(pinmodel->numtris) * sizeof(mtriangle_t);
+	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
 
     container = Hunk_AllocName(size, loadname);
     pheader = (aliashdr_t *)(container + pad);
@@ -318,34 +317,21 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 //
 // set base s and t vertices
 //
-    pstverts = (stvert_t *)((byte *)&pheader[1] + pheader->numframes *
-			    sizeof(pheader->frames[0]));
     pinstverts = (stvert_t *)pskintype;
-
-    SW_Aliashdr(pheader)->stverts = (byte *)pstverts - (byte *)pheader;
-
     for (i = 0; i < pheader->numverts; i++) {
-	pstverts[i].onseam = LittleLong(pinstverts[i].onseam);
-	// put s and t in 16.16 format
-	pstverts[i].s = LittleLong(pinstverts[i].s) << 16;
-	pstverts[i].t = LittleLong(pinstverts[i].t) << 16;
+	stverts[i].onseam = LittleLong(pinstverts[i].onseam);
+	stverts[i].s = LittleLong(pinstverts[i].s);
+	stverts[i].t = LittleLong(pinstverts[i].t);
     }
 
 //
 // set up the triangles
 //
-    ptri = (mtriangle_t *)&pstverts[pheader->numverts];
     pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
-
-    SW_Aliashdr(pheader)->triangles = (byte *)ptri - (byte *)pheader;
-
     for (i = 0; i < pheader->numtris; i++) {
-	int j;
-
-	ptri[i].facesfront = LittleLong(pintriangles[i].facesfront);
-	for (j = 0; j < 3; j++) {
-	    ptri[i].vertindex[j] = LittleLong(pintriangles[i].vertindex[j]);
-	}
+	triangles[i].facesfront = LittleLong(pintriangles[i].facesfront);
+	for (j = 0; j < 3; j++)
+	    triangles[i].vertindex[j] = LittleLong(pintriangles[i].vertindex[j]);
     }
 
 //
@@ -385,14 +371,9 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 	intervals[i] = poseintervals[i];
 
     /*
-     * Save the pose vertex data
+     * Save the mesh data (verts, stverts, triangles)
      */
-    pheader->poseverts = pheader->numverts;
-    verts = Hunk_Alloc(pheader->numposes * pheader->poseverts * sizeof(*verts));
-    pheader->posedata = (byte *)verts - (byte *)pheader;
-    for (i = 0; i < pheader->numposes; i++)
-	for (j = 0; j < pheader->poseverts; j++)
-	    *verts++ = poseverts[i][j];
+    loader->LoadMeshData(loadmodel, pheader, triangles, stverts, poseverts);
 
 //
 // move the complete, relocatable alias model to the cache

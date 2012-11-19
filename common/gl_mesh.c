@@ -34,7 +34,6 @@ ALIAS MODEL DISPLAY LIST GENERATION
 =================================================================
 */
 
-static model_t *aliasmodel;
 static int used[8192];
 
 // the command list holds counts and s/t values that are valid for
@@ -62,11 +61,11 @@ StripLength
 ================
 */
 static int
-StripLength(aliashdr_t *hdr, int starttri, int startv, mtriangle_t *tris)
+StripLength(aliashdr_t *hdr, int starttri, int startv, const mtriangle_t *tris)
 {
+    const mtriangle_t *last, *check;
     int m1, m2;
     int j;
-    mtriangle_t *last, *check;
     int k;
 
     used[starttri] = 2;
@@ -131,11 +130,11 @@ FanLength
 ===========
 */
 static int
-FanLength(aliashdr_t *hdr, int starttri, int startv, mtriangle_t *tris)
+FanLength(aliashdr_t *hdr, int starttri, int startv, const mtriangle_t *tris)
 {
+    const mtriangle_t *last, *check;
     int m1, m2;
     int j;
-    mtriangle_t *last, *check;
     int k;
 
     used[starttri] = 2;
@@ -202,7 +201,7 @@ for the model, which holds for all frames
 ================
 */
 static void
-BuildTris(aliashdr_t *hdr, mtriangle_t *tris, stvert_t *stverts)
+BuildTris(aliashdr_t *hdr, const mtriangle_t *tris, const stvert_t *stverts)
 {
     int i, j, k;
     int startv;
@@ -285,9 +284,8 @@ GL_MakeAliasModelDisplayLists
 ================
 */
 void
-GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
-			      mtriangle_t *tris, stvert_t *stverts,
-			      const trivertx_t **poseverts)
+GL_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
+		const stvert_t *stverts, const trivertx_t **poseverts)
 {
     int i, j;
     int *cmds;
@@ -295,13 +293,11 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
     char cache[MAX_QPATH];
     FILE *f;
 
-    aliasmodel = m;
-
     //
     // look for a cached version
     //
     sprintf(cache, "%s/glquake/", com_gamedir);
-    COM_StripExtension(m->name + strlen("progs/"), cache + strlen(cache));
+    COM_StripExtension(model->name + strlen("progs/"), cache + strlen(cache));
     strcat(cache, ".ms2");
 
     f = fopen(cache, "rb");
@@ -315,7 +311,7 @@ GL_MakeAliasModelDisplayLists(model_t *m, aliashdr_t *hdr,
 	//
 	// build it from scratch
 	//
-	Con_DPrintf("meshing %s...\n", m->name);
+	Con_DPrintf("meshing %s...\n", model->name);
 	BuildTris(hdr, tris, stverts);	/* trifans or lists */
 
 	//

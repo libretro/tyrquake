@@ -1589,13 +1589,10 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 // load triangle lists
 //
     pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
-
     for (i = 0; i < pheader->numtris; i++) {
 	triangles[i].facesfront = LittleLong(pintriangles[i].facesfront);
-
 	for (j = 0; j < 3; j++) {
-	    triangles[i].vertindex[j] =
-		LittleLong(pintriangles[i].vertindex[j]);
+	    triangles[i].vertindex[j] = LittleLong(pintriangles[i].vertindex[j]);
 	}
     }
 
@@ -1631,10 +1628,10 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     for (i = 0; i < pheader->numposes; i++)
 	intervals[i] = poseintervals[i];
 
-    //
-    // build the draw lists
-    //
-    GL_MakeAliasModelDisplayLists(mod, pheader, triangles, stverts, poseverts);
+    /*
+     * Save the mesh data (verts, stverts, triangles)
+     */
+    loader->LoadMeshData(mod, pheader, triangles, stverts, poseverts);
 
 //
 // move the complete, relocatable alias model to the cache
