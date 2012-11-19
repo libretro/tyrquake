@@ -20,12 +20,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_efrag.c
 
 #include "console.h"
+#include "model.h"
 #include "quakedef.h"
 #include "sys.h"
 
 #ifdef GLQUAKE
 #include "glquake.h"
-#include "gl_model.h"
 #else
 #include "r_local.h"
 #endif

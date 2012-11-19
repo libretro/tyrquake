@@ -20,21 +20,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <float.h>
 
-#include "quakedef.h"
-#include "host.h"
-#include "progs.h"
+#include "cmd.h"
 #include "console.h"
-#include "server.h"
+#include "host.h"
+#include "model.h"
+#include "progs.h"
 #include "protocol.h"
+#include "quakedef.h"
+#include "server.h"
 #include "sys.h"
 #include "world.h"
-#include "cmd.h"
-
-#ifdef GLQUAKE
-# include "gl_model.h"
-#else
-# include "model.h"
-#endif
 
 #define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 

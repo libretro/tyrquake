@@ -18,26 +18,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include "quakedef.h"
+#include "client.h"
+#include "cmd.h"
+#include "console.h"
 #include "host.h"
 #include "keys.h"
-#include "client.h"
-#include "sys.h"
-#include "cmd.h"
-#include "server.h"
-#include "console.h"
 #include "menu.h"
+#include "model.h"
 #include "net.h"
-#include "zone.h"
-#include "screen.h"
 #include "protocol.h"
+#include "quakedef.h"
+#include "screen.h"
+#include "server.h"
+#include "sys.h"
 #include "world.h"
-
-#ifdef GLQUAKE
-# include "gl_model.h"
-#else
-# include "model.h"
-#endif
+#include "zone.h"
 
 int current_skill;
 

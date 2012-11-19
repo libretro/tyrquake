@@ -22,18 +22,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <math.h>
 
 #include "mathlib.h"
+#include "model.h"
 #include "sys.h"
 
 #ifdef SERVERONLY
 #include "qwsvdef.h"
 #else
 #include "quakedef.h"
-#endif
-
-#ifdef GLQUAKE
-#include "gl_model.h"
-#else
-#include "model.h"
 #endif
 
 vec3_t vec3_origin = { 0, 0, 0 };

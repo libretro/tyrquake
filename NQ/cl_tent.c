@@ -19,18 +19,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cl_tent.c -- client side temporary entities
 
-#include "quakedef.h"
 #include "client.h"
-#include "sound.h"
-#include "protocol.h"
 #include "console.h"
+#include "model.h"
+#include "protocol.h"
+#include "quakedef.h"
+#include "sound.h"
 #include "sys.h"
-
-#ifdef GLQUAKE
-# include "gl_model.h"
-#else
-# include "model.h"
-#endif
 
 beam_t cl_beams[MAX_BEAMS];
 

@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #include "client.h"
-#include "gl_model.h"
+#include "model.h"
 #include "protocol.h"
 
 #ifndef APIENTRY

@@ -21,12 +21,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef CLIENT_PMOVE_H
 #define CLIENT_PMOVE_H
 
+#include "model.h"
 #include "protocol.h"
 
-#ifdef GLQUAKE
-#include "gl_model.h"
-#else
-#include "model.h"
+#ifndef GLQUAKE
 #include "d_iface.h"
 #endif
 

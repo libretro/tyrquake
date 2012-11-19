@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "input.h"
 #include "keys.h"
 #include "menu.h"
+#include "model.h"
 #include "pmove.h"
 #include "quakedef.h"
 #include "sbar.h"
@@ -34,10 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "view.h"
 
-#ifdef GLQUAKE
-#include "gl_model.h"
-#else
-#include "model.h"
+#ifndef GLQUAKE
 #include "d_iface.h"
 #endif
 

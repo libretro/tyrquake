@@ -22,24 +22,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bspfile.h"
 #include "console.h"
 #include "mathlib.h"
+#include "model.h"
 #include "progs.h"
 #include "server.h"
 #include "world.h"
 
 #ifdef NQ_HACK
-#ifdef GLQUAKE
-#include "gl_model.h"
-#else
-#include "model.h"
-#endif
-#include "quakedef.h"
 #include "host.h"
+#include "quakedef.h"
 #include "sys.h"
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Sys_Error
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-#include "model.h"
 #include "qwsvdef.h"
 #include "pmove.h"
 #endif

@@ -90,11 +90,7 @@ void SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs);
 #endif
 #ifdef NQ_HACK
 // FIXME - needed in chase.c, but doesn't seem like the right interface
-#ifdef GLQUAKE
-# include "gl_model.h"
-#else
-# include "model.h"
-#endif
+#include "model.h"
 qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 			       vec3_t p1, vec3_t p2, trace_t *trace);
 #endif

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define RENDER_H
 
 #include "mathlib.h"
+#include "model.h"
 #include "vid.h"
 
 #ifdef NQ_HACK
@@ -29,12 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #ifdef QW_HACK
 #include "protocol.h"
-#endif
-
-#ifdef GLQUAKE
-#include "gl_model.h"
-#else
-#include "model.h"
 #endif
 
 // render.h -- public interface to refresh functions
