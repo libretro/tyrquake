@@ -339,13 +339,13 @@ GL_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 
     // save the data out
 
-    hdr->poseverts = numorder;
+    hdr->numverts = numorder;
 
     cmds = Hunk_Alloc(numcommands * 4);
     GL_Aliashdr(hdr)->commands = (byte *)cmds - (byte *)hdr;
     memcpy(cmds, commands, numcommands * 4);
 
-    verts = Hunk_Alloc(hdr->numposes * hdr->poseverts * sizeof(trivertx_t));
+    verts = Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(trivertx_t));
     hdr->posedata = (byte *)verts - (byte *)hdr;
     for (i = 0; i < hdr->numposes; i++)
 	for (j = 0; j < numorder; j++)

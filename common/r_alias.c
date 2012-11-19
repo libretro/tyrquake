@@ -123,7 +123,6 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
     /*
      * Save the pose vertex data
      */
-    hdr->poseverts = hdr->numverts;
     pverts = Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
     hdr->posedata = (byte *)pverts - (byte *)hdr;
     for (i = 0; i < hdr->numposes; i++) {
@@ -758,7 +757,7 @@ R_AliasSetupFrame(const entity_t *e, aliashdr_t *pahdr)
     }
 
     r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
-    r_apverts += pose * pahdr->poseverts;
+    r_apverts += pose * pahdr->numverts;
 }
 
 

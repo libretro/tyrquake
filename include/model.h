@@ -320,8 +320,7 @@ typedef struct {
     float size;
     int numposes;
     int poseintervals;
-    int poseverts;
-    int posedata;	// (numposes * poseverts) trivertx_t
+    int posedata;	// (numposes * numverts) trivertx_t
     maliasframedesc_t frames[0];	// variable sized
 } aliashdr_t;
 
