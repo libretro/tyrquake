@@ -455,6 +455,7 @@ COMMON_OBJS := \
 	crc.o		\
 	cvar.o		\
 	mathlib.o	\
+	model.o		\
 	rb_tree.o	\
 	shell.o		\
 	zone.o
@@ -523,7 +524,6 @@ SW_OBJS := \
 	d_surf.o	\
 	d_vars.o	\
 	draw.o		\
-	model.o		\
 	r_aclip.o	\
 	r_alias.o	\
 	r_bsp.o		\
@@ -542,7 +542,6 @@ GL_OBJS := \
 	drawhulls.o	\
 	gl_draw.o	\
 	gl_mesh.o	\
-	gl_model.o	\
 	gl_rlight.o	\
 	gl_rmain.o	\
 	gl_rmisc.o	\
@@ -625,7 +624,6 @@ DUMMY := $(if $(DUPS),$(warning $(MSG_DUP): $(DUPS)),)
 #         common bits should probably be used by the GL clients as well - but
 #         more work to do there.
 # ----------------------------------------------------------------------------
-QWSV_OBJS += model.o
 ifeq ($(USE_X86_ASM),Y)
 QWSV_OBJS += worlda.o
 endif

@@ -27,7 +27,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "common.h"
 #include "console.h"
+
+#ifdef GLQUAKE
+#include "glquake.h"
+#include "gl_model.h"
+#else
 #include "model.h"
+#endif
 
 #ifdef SERVERONLY
 #include "qwsvdef.h"
@@ -56,6 +62,13 @@ static byte mod_novis[MAX_MAP_LEAFS / 8];
 static model_t mod_known[MAX_MOD_KNOWN];
 static int mod_numknown;
 
+#ifdef GLQUAKE
+cvar_t gl_subdivide_size = { "gl_subdivide_size", "128", true };
+#ifdef QW_HACK
+byte player_8bit_texels[320 * 200];
+#endif
+#endif
+
 static const model_loader_t *mod_loader;
 
 /*
@@ -66,6 +79,9 @@ Mod_Init
 void
 Mod_Init(const model_loader_t *loader)
 {
+#ifdef GLQUAKE
+    Cvar_RegisterVariable(&gl_subdivide_size);
+#endif
     memset(mod_novis, 0xff, sizeof(mod_novis));
     mod_loader = loader;
 }
@@ -354,6 +370,15 @@ Mod_LoadTextures(lump_t *l)
 #ifndef SERVERONLY
 	if (!strncmp(mt->name, "sky", 3))
 	    R_InitSky(tx);
+#ifdef GLQUAKE
+	else {
+	    texture_mode = GL_LINEAR_MIPMAP_NEAREST;	//_LINEAR;
+	    tx->gl_texturenum =
+		GL_LoadTexture(mt->name, tx->width, tx->height,
+			       (byte *)(tx + 1), true, false);
+	    texture_mode = GL_LINEAR;
+	}
+#endif
 #endif
     }
 
@@ -747,12 +772,18 @@ Mod_LoadFaces(lump_t *l)
 	/* set the surface drawing flags */
 	if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
 	    out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
+#ifdef GLQUAKE
+	    GL_SubdivideSurface(loadmodel, out);
+#endif
 	} else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
 	    out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
 	    for (i = 0; i < 2; i++) {
 		out->extents[i] = 16384;
 		out->texturemins[i] = -8192;
 	    }
+#ifdef GLQUAKE
+	    GL_SubdivideSurface(loadmodel, out);
+#endif
 	}
     }
 }
@@ -866,6 +897,30 @@ Mod_LoadLeafs(lump_t *l)
 
 	for (j = 0; j < 4; j++)
 	    out->ambient_sound_level[j] = in->ambient_level[j];
+
+#ifdef GLQUAKE
+	// FIXME - gl underwater warp
+	// this warping is ugly, these ifdefs are ugly - get rid of it all?
+	if (out->contents != CONTENTS_EMPTY) {
+	    for (j = 0; j < out->nummarksurfaces; j++)
+		out->firstmarksurface[j]->flags |= SURF_UNDERWATER;
+	}
+
+#ifdef QW_HACK
+	{
+	    char s[80];
+	    snprintf(s, sizeof(s), "maps/%s.bsp",
+		     Info_ValueForKey(cl.serverinfo, "map"));
+	    s[sizeof(s) - 1] = 0;
+	    if (strcmp(s, loadmodel->name)) {
+#endif
+		for (j = 0; j < out->nummarksurfaces; j++)
+		    out->firstmarksurface[j]->flags |= SURF_DONTWARP;
+#ifdef QW_HACK
+	    }
+	}
+#endif
+#endif
     }
 }
 
