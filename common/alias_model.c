@@ -171,7 +171,7 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
     byte *pskindata;
 
     if (numskins < 1
-#ifdef GLQUAKE
+#if defined(GLQUAKE) && defined(NQ_HACK)
 	|| numskins > MAX_SKINS
 #endif
 	)
