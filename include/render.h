@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef RENDER_H
 #define RENDER_H
 
+#include "cvar.h"
 #include "mathlib.h"
 #include "model.h"
 #include "vid.h"
@@ -86,9 +87,19 @@ typedef struct entity_s {
 // FIXME: could turn these into a union
     int trivial_accept;
     struct mnode_s *topnode;	// for bmodels, first world node
-    //  that splits bmodel, or NULL if
-    //  not split
+				//  that splits bmodel, or NULL if
+				//  not split
+
+    /* Alias model lerping */
+    short previouspose;
+    short currentpose;
+    short previousframe;
+    short currentframe;
+    float previousframetime;
+    float currentframetime;
 } entity_t;
+
+extern cvar_t r_lerpmodels;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct {

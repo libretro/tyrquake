@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_alias.c: routines for setting up to draw alias models
 
 #include "console.h"
+#include "cvar.h"
 #include "model.h"
 #include "quakedef.h"
 #include "r_local.h"
@@ -57,6 +58,11 @@ typedef struct {
     int index0;
     int index1;
 } aedge_t;
+
+#ifdef NQ_HACK
+/* incomplete support - default to off and don't save to config */
+cvar_t r_lerpmodels = { "r_lerpmodels", "0", false };
+#endif
 
 static aedge_t aedges[12] = {
     {0, 1}, {1, 2}, {2, 3}, {3, 0},
@@ -717,6 +723,36 @@ R_AliasSetupLighting(alight_t *plighting)
     r_plightvec[2] = DotProduct(plighting->plightvec, alias_up);
 }
 
+#ifdef NQ_HACK
+static trivertx_t *
+R_AliasBlendPoseVerts(const entity_t *e, aliashdr_t *hdr, float blend)
+{
+    static trivertx_t blendverts[MAXALIASVERTS];
+    trivertx_t *poseverts, *pv1, *pv2, *light;
+    int i, blend0, blend1;
+
+#define SHIFT 22
+    blend1 = blend * (1 << SHIFT);
+    blend0 = (1 << SHIFT) - blend1;
+
+    poseverts = (trivertx_t *)((byte *)hdr + hdr->posedata);
+    pv1 = poseverts + e->previouspose * hdr->numverts;
+    pv2 = poseverts + e->currentpose * hdr->numverts;
+    light = (blend < 0.5f) ? pv1 : pv2;
+    poseverts = blendverts;
+
+    for (i = 0; i < hdr->numverts; i++, poseverts++, pv1++, pv2++, light++) {
+	poseverts->v[0] = (pv1->v[0] * blend0 + pv2->v[0] * blend1) >> SHIFT;
+	poseverts->v[1] = (pv1->v[1] * blend0 + pv2->v[1] * blend1) >> SHIFT;
+	poseverts->v[2] = (pv1->v[2] * blend0 + pv2->v[2] * blend1) >> SHIFT;
+	poseverts->lightnormalindex = light->lightnormalindex;
+    }
+#undef SHIFT
+
+    return blendverts;
+}
+#endif
+
 /*
 =================
 R_AliasSetupFrame
@@ -725,7 +761,7 @@ set r_apverts
 =================
 */
 static void
-R_AliasSetupFrame(const entity_t *e, aliashdr_t *pahdr)
+R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 {
     int i, frame, pose, numposes;
     float time, targettime, fullinterval, *intervals;
@@ -756,8 +792,35 @@ R_AliasSetupFrame(const entity_t *e, aliashdr_t *pahdr)
 	pose += i;
     }
 
-    r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
-    r_apverts += pose * pahdr->numverts;
+#ifdef NQ_HACK
+    if (r_lerpmodels.value) {
+	float delta, time, blend;
+
+	/* A few quick sanity checks to abort lerping */
+	if (!e->currentframe || !e->previousframe)
+	    goto nolerp;
+	if (e->currentframetime < e->previousframetime)
+	    goto nolerp;
+	if (e->currentframetime - e->previousframetime > 1.0f)
+	    goto nolerp;
+
+	delta = e->currentframetime - e->previousframetime;
+	time = cl.time - e->currentframetime;
+	blend = (time > delta) ? 1.0f : ((delta - time) / delta);
+	blend = 1.0f - blend;
+
+	// Totally broken for framegroups, but just for a test...
+	e->currentpose = e->currentframe;
+	e->previouspose = e->previousframe;
+
+	r_apverts = R_AliasBlendPoseVerts(e, pahdr, blend);
+    } else
+    nolerp:
+#endif
+    {
+	r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
+	r_apverts += pose * pahdr->numverts;
+    }
 }
 
 

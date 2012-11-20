@@ -234,6 +234,7 @@ R_Init(void)
     Cvar_RegisterVariable(&r_ambient);
     Cvar_RegisterVariable(&r_numsurfs);
     Cvar_RegisterVariable(&r_numedges);
+    Cvar_RegisterVariable(&r_lerpmodels);
 
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);

@@ -449,6 +449,16 @@ CL_ParseUpdate(int bits)
     else
 	ent->frame = ent->baseline.frame;
 
+    /* LERPING INFO */
+    if (ent->currentframe != ent->frame) {
+	/* TODO: invalidate things when they fall off the
+	   currententities list or haven't been updated for a while */
+	ent->previousframe = ent->currentframe;
+	ent->previousframetime = ent->currentframetime;
+	ent->currentframe = ent->frame;
+	ent->currentframetime = cl.time;
+    }
+
     if (bits & U_COLORMAP)
 	i = MSG_ReadByte();
     else
