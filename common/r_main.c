@@ -906,6 +906,7 @@ R_DrawBEntitiesOnList(void)
 R_EdgeDrawing
 ================
 */
+ __attribute__((noinline))
 static void
 R_EdgeDrawing(void)
 {
