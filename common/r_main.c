@@ -234,8 +234,9 @@ R_Init(void)
     Cvar_RegisterVariable(&r_ambient);
     Cvar_RegisterVariable(&r_numsurfs);
     Cvar_RegisterVariable(&r_numedges);
+#ifdef NQ_HACK
     Cvar_RegisterVariable(&r_lerpmodels);
-
+#endif
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);
 
