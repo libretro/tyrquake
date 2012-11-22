@@ -806,8 +806,7 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 
 	delta = e->currentframetime - e->previousframetime;
 	time = cl.time - e->currentframetime;
-	blend = (time > delta) ? 1.0f : ((delta - time) / delta);
-	blend = 1.0f - blend;
+	blend = qclamp(time / delta, 0.0f, 1.0f);
 
 	// Totally broken for framegroups, but just for a test...
 	e->currentpose = e->currentframe;
