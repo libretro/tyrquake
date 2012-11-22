@@ -482,4 +482,6 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 
 mspriteframe_t *Mod_GetSpriteFrame(struct entity_s *e, msprite_t *psprite, float time);
 
+int Mod_FindInterval(const float *intervals, int numintervals, float time);
+
 #endif /* MODEL_H */

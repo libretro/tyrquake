@@ -517,10 +517,9 @@ static void
 R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 {
     int skinnum;
-    int i, frame, numframes;
+    int frame, numframes;
     maliasskindesc_t *pskindesc;
-    float *pskinintervals, fullinterval;
-    float targettime, time;
+    float *intervals;
     GLuint *glt;
 
     skinnum = e->skinnum;
@@ -534,21 +533,9 @@ R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
     frame = pskindesc->firstframe;
     numframes = pskindesc->numframes;
 
-    /*
-     * when loading in Mod_LoadAliasSkinGroup, we guaranteed all interval
-     * values are positive, so we don't have to worry about division by 0
-     */
     if (numframes > 1) {
-	pskinintervals = (float *)((byte *)pahdr + pahdr->skinintervals);
-	pskinintervals += frame;
-	fullinterval = pskinintervals[numframes - 1];
-	time = cl.time + e->syncbase;
-	targettime = time - ((int)(time / fullinterval)) *  fullinterval;
-	for (i = 0; i < numframes - 1; i++) {
-	    if (pskinintervals[i] > targettime)
-		break;
-	}
-	frame += i;
+	intervals = (float *)((byte *)pahdr + pahdr->skinintervals) + frame;
+	frame += Mod_FindInterval(intervals, numframes, cl.time + e->syncbase);
     }
 
     glt = (GLuint *)((byte *)pahdr + pahdr->skindata);
@@ -564,8 +551,8 @@ R_SetupAliasFrame
 static void
 R_SetupAliasFrame(const entity_t *e, aliashdr_t *pahdr)
 {
-    int i, frame, pose, numposes;
-    float time, targettime, fullinterval, *intervals;
+    int frame, pose, numposes;
+    float *intervals;
 
     frame = e->frame;
     if ((frame >= pahdr->numframes) || (frame < 0)) {
@@ -577,16 +564,8 @@ R_SetupAliasFrame(const entity_t *e, aliashdr_t *pahdr)
     numposes = pahdr->frames[frame].numposes;
 
     if (numposes > 1) {
-	intervals = (float *)((byte *)pahdr + pahdr->poseintervals);
-	intervals += pose;
-	fullinterval = intervals[numposes - 1];
-	time = cl.time + e->syncbase;
-	targettime = time - (int)(time / fullinterval) % numposes;
-	for (i = 0; i < numposes - 1; i++) {
-	    if (intervals[i] > targettime)
-		break;
-	}
-	pose += i;
+	intervals = (float *)((byte *)pahdr + pahdr->poseintervals) + pose;
+	pose += Mod_FindInterval(intervals, numposes, cl.time + e->syncbase);
     }
 
     GL_DrawAliasFrame(pahdr, pose);

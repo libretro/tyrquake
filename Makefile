@@ -472,6 +472,7 @@ CL_OBJS := \
 	keys.o		\
 	menu.o		\
 	r_efrag.o	\
+	r_model.o	\
 	r_part.o	\
 	sbar.o		\
 	snd_dma.o	\
