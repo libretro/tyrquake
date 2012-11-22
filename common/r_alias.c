@@ -306,8 +306,16 @@ R_AliasCheckBBox(entity_t *e)
     if (allclip)
 	return false;		// trivial reject off one side
 
-    e->trivial_accept = !anyclip & !zclipped;
+#ifdef NQ_HACK
+    /*
+     * FIXME - Trivial accept not safe while lerping unless we check
+     *         the bbox of both src and dst frames
+     */
+    if (r_lerpmodels.value)
+	return true;
+#endif
 
+    e->trivial_accept = !anyclip & !zclipped;
     if (e->trivial_accept) {
 	if (minz > (r_aliastransition + (pahdr->size * r_resfudge))) {
 	    e->trivial_accept |= 2;
