@@ -1099,12 +1099,12 @@ C(D_PolysetDraw):
 	testl	%eax,%eax
 	jz	C(D_DrawNonSubdiv)
 
-	pushl	%ebp				// preserve caller stack frame pointer
+	pushl	%ebp		// preserve caller stack frame pointer
 
 //	lnumtriangles = r_affinetridesc.numtriangles;
 	movl	C(r_affinetridesc)+atd_numtriangles,%ebp
 
-	pushl	%esi				// preserve register variables
+	pushl	%esi		// preserve register variables
 	shll	$4,%ebp
 
 	pushl	%ebx
@@ -1113,11 +1113,11 @@ C(D_PolysetDraw):
 
 	pushl	%edi
 
-//	mtriangle_t		*ptri;
-//	finalvert_t		*pfv, *index0, *index1, *index2;
-//	int				i;
-//	int				lnumtriangles;
-//	int				s0, s1, s2;
+//	mtriangle_t	*ptri;
+//	finalvert_t	*pfv, *index0, *index1, *index2;
+//	int		i;
+//	int		lnumtriangles;
+//	int		s0, s1, s2;
 
 //	pfv = r_affinetridesc.pfinalverts;
 	movl	C(r_affinetridesc)+atd_pfinalverts,%edi
@@ -1464,16 +1464,16 @@ LSkip2:
 
 .globl C(D_PolysetDrawFinalVerts)
 C(D_PolysetDrawFinalVerts):
-	pushl	%ebp				// preserve caller stack frame pointer
+	pushl	%ebp		// preserve caller stack frame pointer
 	pushl	%ebx
 
-//	int		i, z;
+//	int	i, z;
 //	short	*zbuf;
 
 	movl	numverts(%esp),%ecx
 	movl	fv(%esp),%ebx
 
-	pushl	%esi				// preserve register variables
+	pushl	%esi		// preserve register variables
 	pushl	%edi
 
 LFVLoop:
