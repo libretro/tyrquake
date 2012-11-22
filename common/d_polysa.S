@@ -28,12 +28,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_ifacea.h"
 
 // !!! if this is changed, it must be changed in d_polyse.c too !!!
-#define DPS_MAXSPANS	(MAXHEIGHT+1)
+#define DPS_MAXSPANS (MAXHEIGHT+1)
 			// 1 extra for spanpackage that marks end
-
-//#define SPAN_SIZE	(((DPS_MAXSPANS + 1 + ((CACHE_SIZE - 1) / spanpackage_t_size)) + 1) * spanpackage_t_size)
-#define SPAN_SIZE ((1024+1+1+1)*32)
-
+#define DPS_CACHE_PAD (((CACHE_SIZE - 1) / spanpackage_t_size) + 1)
+#define SPAN_SIZE ((DPS_MAXSPANS + DPS_CACHE_PAD + 1) * spanpackage_t_size)
+			// 1 extra because of cache line pretouching
 	.data
 	.align	4
 
@@ -1080,9 +1079,9 @@ C(D_Aff8Patch):
 .globl C(D_PolysetDraw)
 C(D_PolysetDraw):
 
-//	spanpackage_t	spans[DPS_MAXSPANS + 1 +
-//			((CACHE_SIZE - 1) / sizeof(spanpackage_t)) + 1];
-//						// one extra because of cache line pretouching
+//	spanpackage_t spans[DPS_MAXSPANS + 1 +
+//			    ((CACHE_SIZE - 1) / sizeof(spanpackage_t)) + 1];
+//		// one extra because of cache line pretouching
 //
 //	a_spans = (spanpackage_t *)
 //			(((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
