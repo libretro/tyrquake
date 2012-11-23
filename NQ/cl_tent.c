@@ -37,13 +37,13 @@ typedef struct {
 
 static beam_t cl_beams[MAX_BEAMS];
 
-sfx_t *cl_sfx_wizhit;
-sfx_t *cl_sfx_knighthit;
-sfx_t *cl_sfx_tink1;
-sfx_t *cl_sfx_ric1;
-sfx_t *cl_sfx_ric2;
-sfx_t *cl_sfx_ric3;
-sfx_t *cl_sfx_r_exp3;
+static sfx_t *cl_sfx_wizhit;
+static sfx_t *cl_sfx_knighthit;
+static sfx_t *cl_sfx_tink1;
+static sfx_t *cl_sfx_ric1;
+static sfx_t *cl_sfx_ric2;
+static sfx_t *cl_sfx_ric3;
+static sfx_t *cl_sfx_r_exp3;
 
 /*
 =================
