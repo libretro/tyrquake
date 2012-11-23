@@ -780,8 +780,6 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 	float delta, time, blend;
 
 	/* A few quick sanity checks to abort lerping */
-	if (!e->currentframe || !e->previousframe)
-	    goto nolerp;
 	if (e->currentframetime < e->previousframetime)
 	    goto nolerp;
 	if (e->currentframetime - e->previousframetime > 1.0f)
