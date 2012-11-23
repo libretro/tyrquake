@@ -109,6 +109,8 @@ CL_ClearState(void)
     if (!sv.active)
 	Host_ClearMemory();
 
+    CL_ClearTEnts();
+
 // wipe the entire cl structure
     memset(&cl, 0, sizeof(cl));
 
@@ -119,7 +121,6 @@ CL_ClearState(void)
     memset(cl_entities, 0, sizeof(cl_entities));
     memset(cl_dlights, 0, sizeof(cl_dlights));
     memset(cl_lightstyle, 0, sizeof(cl_lightstyle));
-    memset(cl_beams, 0, sizeof(cl_beams));
 
 //
 // allocate the efrags and chain together into a free list

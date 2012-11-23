@@ -27,7 +27,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 
-beam_t cl_beams[MAX_BEAMS];
+#define	MAX_BEAMS	24
+typedef struct {
+    int entity;
+    struct model_s *model;
+    float endtime;
+    vec3_t start, end;
+} beam_t;
+
+static beam_t cl_beams[MAX_BEAMS];
 
 sfx_t *cl_sfx_wizhit;
 sfx_t *cl_sfx_knighthit;
@@ -56,10 +64,21 @@ CL_InitTEnts(void)
 
 /*
 =================
-CL_ParseBeam
+CL_ClearTEnts
 =================
 */
 void
+CL_ClearTEnts(void)
+{
+    memset(&cl_beams, 0, sizeof(cl_beams));
+}
+
+/*
+=================
+CL_ParseBeam
+=================
+*/
+static void
 CL_ParseBeam(model_t *m)
 {
     int ent;
