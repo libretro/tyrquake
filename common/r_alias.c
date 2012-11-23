@@ -785,22 +785,43 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 	if (e->currentframetime - e->previousframetime > 1.0f)
 	    goto nolerp;
 
-	delta = e->currentframetime - e->previousframetime;
-	time = cl.time - e->currentframetime;
+	if (numposes > 1) {
+	    /* FIXME - merge with Mod_FindInterval? */
+	    int i;
+	    float fullinterval, targettime;
+	    fullinterval = intervals[numposes - 1];
+	    time = cl.time + e->syncbase;
+	    targettime = time - (int)(time / fullinterval) * fullinterval;
+	    for (i = 0; i < numposes - 1; i++)
+		if (intervals[i] > targettime)
+		    break;
+
+	    e->currentpose = pahdr->frames[e->currentframe].firstpose + i;
+	    if (i == 0) {
+		e->previouspose = pahdr->frames[e->currentframe].firstpose;
+		e->previouspose += numposes - 1;
+		time = targettime;
+		delta = intervals[0];
+	    } else {
+		e->previouspose = e->currentpose - 1;
+		time = targettime - intervals[i - 1];
+		delta = intervals[i] - intervals[i - 1];
+	    }
+	} else {
+	    e->currentpose = pahdr->frames[e->currentframe].firstpose;
+	    e->previouspose = pahdr->frames[e->previousframe].firstpose;
+	    time = cl.time - e->currentframetime;
+	    delta = e->currentframetime - e->previousframetime;
+	}
 	blend = qclamp(time / delta, 0.0f, 1.0f);
-
-	// Totally broken for framegroups, but just for a test...
-	e->currentpose = e->currentframe;
-	e->previouspose = e->previousframe;
-
 	r_apverts = R_AliasBlendPoseVerts(e, pahdr, blend);
-    } else
-    nolerp:
-#endif
-    {
-	r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
-	r_apverts += pose * pahdr->numverts;
+
+	return;
     }
+ nolerp:
+#endif
+    r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
+    r_apverts += pose * pahdr->numverts;
 }
 
 
