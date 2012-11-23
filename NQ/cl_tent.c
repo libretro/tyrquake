@@ -47,7 +47,7 @@ static sfx_t *cl_sfx_r_exp3;
 
 /*
 =================
-CL_ParseTEnt
+CL_InitTEnts
 =================
 */
 void
