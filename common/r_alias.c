@@ -369,7 +369,6 @@ R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
 	    fv->flags |= ALIAS_Z_CLIP;
 	else {
 	    R_AliasProjectFinalVert(fv, av);
-
 	    if (fv->v[0] < r_refdef.aliasvrect.x)
 		fv->flags |= ALIAS_LEFT_CLIP;
 	    if (fv->v[1] < r_refdef.aliasvrect.y)
@@ -523,7 +522,6 @@ R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 
     fv->v[4] = temp;
 }
-
 
 #ifndef USE_X86_ASM
 

@@ -539,19 +539,24 @@ CL_RelinkEntities(void)
 
 	VectorCopy(ent->origin, oldorg);
 
-	if (ent->forcelink) {	// the entity was not updated in the last message
-	    // so move to the final spot
+	if (ent->forcelink) {
+	    /*
+	     * the entity was not updated in the last message
+	     * so move to the final spot
+	     */
 	    VectorCopy(ent->msg_origins[0], ent->origin);
 	    VectorCopy(ent->msg_angles[0], ent->angles);
-	} else {		// if the delta is large, assume a teleport and don't lerp
+	} else {
 	    f = frac;
 	    for (j = 0; j < 3; j++) {
 		delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
 		if (delta[j] > 100 || delta[j] < -100)
-		    f = 1;	// assume a teleportation, not a motion
+		    f = 1;	/* assume a teleport and don't lerp */
 	    }
 
-	    // interpolate the origin and angles
+	    /*
+	     * interpolate the origin and angles
+	     */
 	    for (j = 0; j < 3; j++) {
 		ent->origin[j] = ent->msg_origins[1][j] + f * delta[j];
 
