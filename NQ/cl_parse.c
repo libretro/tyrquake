@@ -727,6 +727,12 @@ CL_ParseStatic(void)
     ent->skinnum = ent->baseline.skinnum;
     ent->effects = ent->baseline.effects;
 
+    /* Initilise frames for model lerp */
+    ent->currentframe = ent->baseline.frame;
+    ent->previousframe = ent->baseline.frame;
+    ent->currentframetime = cl.time;
+    ent->previousframetime = cl.time;
+
     VectorCopy(ent->baseline.origin, ent->origin);
     VectorCopy(ent->baseline.angles, ent->angles);
     R_AddEfrags(ent);
