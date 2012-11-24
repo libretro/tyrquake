@@ -20,19 +20,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
-#include "screen.h"
-#include "quakedef.h"
-#include "r_local.h"
-#include "host.h"
-#include "wad.h"
-#include "draw.h"
-#include "keys.h"
-#include "sys.h"
-#include "sbar.h"
+#include "client.h"
 #include "cmd.h"
 #include "console.h"
-#include "sound.h"
+#include "draw.h"
+#include "host.h"
+#include "keys.h"
 #include "menu.h"
+#include "quakedef.h"
+#include "r_local.h"
+#include "sbar.h"
+#include "screen.h"
+#include "sound.h"
+#include "sys.h"
+#include "wad.h"
 
 // only the refresh window will be updated unless these variables are flagged
 int scr_copytop;
@@ -559,21 +560,6 @@ SCR_DrawConsole(void)
 ==============================================================================
 */
 
-typedef struct {
-    char manufacturer;
-    char version;
-    char encoding;
-    char bits_per_pixel;
-    unsigned short xmin, ymin, xmax, ymax;
-    unsigned short hres, vres;
-    unsigned char palette[48];
-    char reserved;
-    char color_planes;
-    unsigned short bytes_per_line;
-    unsigned short palette_type;
-    char filler[58];
-    unsigned char data;		// unbounded
-} pcx_t;
 
 /*
 ==============
