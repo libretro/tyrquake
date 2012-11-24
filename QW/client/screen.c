@@ -673,7 +673,7 @@ SCR_ScreenShot_f(void)
 	    break;		// file doesn't exist
     }
     if (i == 100) {
-	Con_Printf("SCR_ScreenShot_f: Couldn't create a PCX");
+	Con_Printf("%s: Couldn't create a PCX file", __func__);
 	return;
     }
 //
