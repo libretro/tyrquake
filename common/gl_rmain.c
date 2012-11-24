@@ -155,13 +155,13 @@ R_CullBox(vec3_t mins, vec3_t maxs)
 
 
 void
-R_RotateForEntity(entity_t *e)
+R_RotateForEntity(vec3_t origin, vec3_t angles)
 {
-    glTranslatef(e->origin[0], e->origin[1], e->origin[2]);
+    glTranslatef(origin[0], origin[1], origin[2]);
 
-    glRotatef(e->angles[1], 0, 0, 1);
-    glRotatef(-e->angles[0], 0, 1, 0);
-    glRotatef(e->angles[2], 1, 0, 0);
+    glRotatef(angles[1], 0, 0, 1);
+    glRotatef(-angles[0], 0, 1, 0);
+    glRotatef(angles[2], 1, 0, 0);
 }
 
 /*
@@ -772,7 +772,7 @@ R_AliasDrawModel(entity_t *e)
     //
     GL_DisableMultitexture();
     glPushMatrix();
-    R_RotateForEntity(e);
+    R_RotateForEntity(e->origin, e->angles);
 
 #ifdef NQ_HACK
     if (!strcmp(clmodel->name, "progs/eyes.mdl") && gl_doubleeyes.value) {
@@ -834,7 +834,7 @@ R_AliasDrawModel(entity_t *e)
 
     if (r_shadows.value) {
 	glPushMatrix();
-	R_RotateForEntity(e);
+	R_RotateForEntity(e->origin, e->angles);
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glColor4f(0, 0, 0, 0.5);

@@ -899,7 +899,7 @@ R_DrawBrushModel(entity_t *e)
 
     glPushMatrix();
     e->angles[0] = -e->angles[0];	// stupid quake bug
-    R_RotateForEntity(e);
+    R_RotateForEntity(e->origin, e->angles);
     e->angles[0] = -e->angles[0];	// stupid quake bug
 
     if (!r_drawflat.value) {
