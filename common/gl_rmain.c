@@ -174,11 +174,12 @@ void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
 		       int framenum, byte *pixels)
 {
     char name[MAX_QPATH];
-    GLuint *gl_texturenum = (GLuint *)&frame->rdata[0];
+    GLuint gl_texturenum;
 
     snprintf(name, sizeof(name), "%s_%i", modelname, framenum);
-    *gl_texturenum = GL_LoadTexture(name, frame->width, frame->height, pixels,
-				    true, true);
+    gl_texturenum = GL_LoadTexture(name, frame->width, frame->height, pixels,
+				   true, true);
+    memcpy(frame->rdata, &gl_texturenum, sizeof(gl_texturenum));
 }
 
 /*
@@ -195,6 +196,7 @@ R_DrawSpriteModel(entity_t *e)
     float *up, *right;
     vec3_t v_forward, v_right, v_up;
     msprite_t *psprite;
+    GLuint gltex;
 
     psprite = e->model->cache.data;
     frame = Mod_GetSpriteFrame(e, psprite, cl.time + e->syncbase);
@@ -213,8 +215,9 @@ R_DrawSpriteModel(entity_t *e)
 
     glColor3f(1, 1, 1);
 
+    memcpy(&gltex, frame->rdata, sizeof(gltex));
     GL_DisableMultitexture();
-    GL_Bind(*(GLuint *)&frame->rdata[0]);
+    GL_Bind(gltex);
 
     glEnable(GL_ALPHA_TEST);
     glBegin(GL_QUADS);
