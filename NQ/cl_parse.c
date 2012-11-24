@@ -443,7 +443,7 @@ CL_ParseUpdate(int bits)
     else
 	ent->frame = ent->baseline.frame;
 
-    /* LERPING INFO */
+    /* ANIMATION LERPING INFO */
     if (ent->currentframe != ent->frame) {
 	/* TODO: invalidate things when they fall off the
 	   currententities list or haven't been updated for a while */
@@ -518,6 +518,30 @@ CL_ParseUpdate(int bits)
 	ent->msg_angles[0][2] = MSG_ReadAngle();
     else
 	ent->msg_angles[0][2] = ent->baseline.angles[2];
+
+    /* MOVEMENT LERP INFO - could I just extend baseline instead? */
+    if (!VectorCompare(ent->msg_origins[0], ent->currentorigin)) {
+	if (ent->currentorigintime) {
+	    VectorCopy(ent->currentorigin, ent->previousorigin);
+	    ent->previousorigintime = ent->currentorigintime;
+	} else {
+	    VectorCopy(ent->msg_origins[0], ent->previousorigin);
+	    ent->previousorigintime = cl.mtime[0];
+	}
+	VectorCopy(ent->msg_origins[0], ent->currentorigin);
+	ent->currentorigintime = cl.mtime[0];
+    }
+    if (!VectorCompare(ent->msg_angles[0], ent->currentangles)) {
+	if (ent->currentanglestime) {
+	    VectorCopy(ent->currentangles, ent->previousangles);
+	    ent->previousanglestime = ent->currentanglestime;
+	} else {
+	    VectorCopy(ent->msg_angles[0], ent->previousangles);
+	    ent->previousanglestime = cl.mtime[0];
+	}
+	VectorCopy(ent->msg_angles[0], ent->currentangles);
+	ent->currentanglestime = cl.mtime[0];
+    }
 
     if (bits & U_NOLERP)
 	ent->forcelink = true;
@@ -726,6 +750,14 @@ CL_ParseStatic(void)
     ent->previousframe = ent->baseline.frame;
     ent->currentframetime = cl.time;
     ent->previousframetime = cl.time;
+
+    /* Initialise movelerp data */
+    ent->previousorigintime = cl.time;
+    ent->currentorigintime = cl.time;
+    VectorCopy(ent->baseline.origin, ent->previousorigin);
+    VectorCopy(ent->baseline.origin, ent->currentorigin);
+    VectorCopy(ent->baseline.angles, ent->previousangles);
+    VectorCopy(ent->baseline.angles, ent->currentangles);
 
     VectorCopy(ent->baseline.origin, ent->origin);
     VectorCopy(ent->baseline.angles, ent->angles);

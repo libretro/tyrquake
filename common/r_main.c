@@ -236,6 +236,7 @@ R_Init(void)
     Cvar_RegisterVariable(&r_numedges);
 #ifdef NQ_HACK
     Cvar_RegisterVariable(&r_lerpmodels);
+    Cvar_RegisterVariable(&r_lerpmove);
 #endif
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);
@@ -615,7 +616,25 @@ R_DrawEntitiesOnList(void)
 	    break;
 
 	case mod_alias:
-	    VectorCopy(e->origin, r_entorigin);
+#ifdef NQ_HACK
+	    if (r_lerpmove.value) {
+		float delta = e->currentorigintime - e->previousorigintime;
+		float frac = qclamp((cl.time - e->currentorigintime) / delta, 0.0, 1.0);
+		vec3_t lerpvec;
+
+		/* FIXME - ugly hack to skip the viewent (weapon) */
+		if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+		    goto nolerp;
+		//if (delta > 0.5)
+		//goto nolerp;
+		VectorSubtract(e->currentorigin, e->previousorigin, lerpvec);
+		VectorMA(e->previousorigin, frac, lerpvec, r_entorigin);
+	    } else
+	    nolerp:
+#endif
+	    {
+		VectorCopy(e->origin, r_entorigin);
+	    }
 	    VectorSubtract(r_origin, r_entorigin, modelorg);
 
 	    // see if the bounding box lets us trivially reject, also sets

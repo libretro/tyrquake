@@ -536,6 +536,13 @@ CL_RelinkEntities(void)
 // if the object wasn't included in the last packet, remove it
 	if (ent->msgtime != cl.mtime[0]) {
 	    ent->model = NULL;
+	    /* Reset lerp info as well */
+	    ent->previousframe = 0;
+	    ent->currentframe = 0;
+	    ent->previousorigintime = 0;
+	    ent->currentorigintime = 0;
+	    ent->previousanglestime = 0;
+	    ent->currentanglestime = 0;
 	    continue;
 	}
 
@@ -561,7 +568,6 @@ CL_RelinkEntities(void)
 	     */
 	    for (j = 0; j < 3; j++) {
 		ent->origin[j] = ent->msg_origins[1][j] + f * delta[j];
-
 		d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
 		if (d > 180)
 		    d -= 360;
@@ -569,7 +575,6 @@ CL_RelinkEntities(void)
 		    d += 360;
 		ent->angles[j] = ent->msg_angles[1][j] + f * d;
 	    }
-
 	}
 
 // rotate binary objects locally

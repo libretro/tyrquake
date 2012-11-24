@@ -97,9 +97,18 @@ typedef struct entity_s {
     short currentframe;
     float previousframetime;
     float currentframetime;
+    vec3_t previousorigin;
+    vec3_t currentorigin;
+    float previousorigintime;
+    float currentorigintime;
+    vec3_t previousangles;
+    vec3_t currentangles;
+    float previousanglestime;
+    float currentanglestime;
 } entity_t;
 
 extern cvar_t r_lerpmodels;
+extern cvar_t r_lerpmove;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct {

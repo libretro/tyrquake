@@ -60,8 +60,12 @@ typedef struct {
 } aedge_t;
 
 #ifdef NQ_HACK
-/* incomplete support - default to off and don't save to config */
+/*
+ * incomplete model interpolation support
+ * -> default to off and don't save to config for now
+ */
 cvar_t r_lerpmodels = { "r_lerpmodels", "0", false };
+cvar_t r_lerpmove = { "r_lerpmove", "0", false };
 #endif
 
 static aedge_t aedges[12] = {
@@ -424,9 +428,33 @@ R_AliasSetUpTransform(entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 // TODO: should use a look-up table
 // TODO: could cache lazily, stored in the entity
 
-    angles[ROLL] = e->angles[ROLL];
-    angles[PITCH] = -e->angles[PITCH];
-    angles[YAW] = e->angles[YAW];
+#ifdef NQ_HACK
+    if (r_lerpmove.value && e->previousanglestime != e->currentanglestime) {
+	float delta = e->currentanglestime - e->previousanglestime;
+	float frac = qclamp((cl.time - e->currentanglestime) / delta, 0.0, 1.0);
+	vec3_t lerpvec;
+
+	/* FIXME - ugly hack to skip the viewent (weapon) */
+	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	    goto nolerp;
+
+	VectorSubtract(e->currentangles, e->previousangles, lerpvec);
+	for (i = 0; i < 3; i++) {
+	    if (lerpvec[i] > 180.0f)
+		lerpvec[i] -= 360.0f;
+	    else if (lerpvec[i] < -180.0f)
+		lerpvec[i] += 360.0f;
+	}
+	VectorMA(e->previousangles, frac, lerpvec, angles);
+	angles[PITCH] = -angles[PITCH];
+    } else
+    nolerp:
+#endif
+    {
+	angles[ROLL] = e->angles[ROLL];
+	angles[PITCH] = -e->angles[PITCH];
+	angles[YAW] = e->angles[YAW];
+    }
     AngleVectors(angles, alias_forward, alias_right, alias_up);
 
     tmatrix[0][0] = pahdr->scale[0];
@@ -781,6 +809,9 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 	if (e->currentframetime < e->previousframetime)
 	    goto nolerp;
 	if (e->currentframetime - e->previousframetime > 1.0f)
+	    goto nolerp;
+	/* FIXME - ugly hack to skip the viewent (weapon) */
+	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
 	    goto nolerp;
 
 	if (numposes > 1) {
