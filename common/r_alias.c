@@ -687,7 +687,7 @@ R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 
     skinbytes = pahdr->skinwidth * pahdr->skinheight * r_pixbytes;
     pdata = (byte *)pahdr + pahdr->skindata;
-    pdata += (frame - pskindesc->firstframe) * skinbytes;
+    pdata += frame * skinbytes;
 
     r_affinetridesc.pskin = pdata;
     r_affinetridesc.skinwidth = a_skinwidth;
