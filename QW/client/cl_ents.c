@@ -161,8 +161,6 @@ CL_ParseDelta
 Can go from either a baseline or a previous packet_entity
 ==================
 */
-int bitcounts[32];		/// just for protocol profiling
-
 static void
 CL_ParseDelta(entity_state_t *from, entity_state_t *to, int bits)
 {
@@ -178,11 +176,6 @@ CL_ParseDelta(entity_state_t *from, entity_state_t *to, int bits)
 	i = MSG_ReadByte();
 	bits |= i;
     }
-    // count the bits for net profiling
-    for (i = 0; i < 16; i++)
-	if (bits & (1 << i))
-	    bitcounts[i]++;
-
     to->flags = bits;
 
     if (bits & U_MODEL)

@@ -371,8 +371,6 @@ If an entities model or origin changes from frame to frame, it must be
 relinked.  Other attributes can change without relinking.
 ==================
 */
-// FIXME - is this 16 == MAX_CLIENTS?
-int bitcounts[16];
 
 void
 CL_ParseUpdate(int bits)
@@ -406,10 +404,6 @@ CL_ParseUpdate(int bits)
 	num = MSG_ReadByte();
 
     ent = CL_EntityNum(num);
-
-    for (i = 0; i < 16; i++)
-	if (bits & (1 << i))
-	    bitcounts[i]++;
 
     if (ent->msgtime != cl.mtime[1])
 	forcelink = true;	// no previous frame to lerp from
