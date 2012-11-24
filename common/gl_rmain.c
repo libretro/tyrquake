@@ -581,11 +581,11 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 
 /*
 =================
-R_DrawAliasModel
+R_AliasDrawModel
 =================
 */
 static void
-R_DrawAliasModel(entity_t *e)
+R_AliasDrawModel(entity_t *e)
 {
     int i;
     int lnum;
@@ -809,7 +809,7 @@ R_DrawEntitiesOnList(void)
 	e = &cl_visedicts[i];
 	switch (e->model->type) {
 	case mod_alias:
-	    R_DrawAliasModel(e);
+	    R_AliasDrawModel(e);
 	    break;
 	case mod_brush:
 	    R_DrawBrushModel(e);
@@ -906,7 +906,7 @@ R_DrawViewModel(void)
 
     // hack the depth range to prevent view model from poking into walls
     glDepthRange(gldepthmin, gldepthmin + 0.3 * (gldepthmax - gldepthmin));
-    R_DrawAliasModel(e);
+    R_AliasDrawModel(e);
     glDepthRange(gldepthmin, gldepthmax);
 }
 
