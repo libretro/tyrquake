@@ -82,7 +82,6 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
-static float oldscreensize, oldfov;
 static float oldsbar;
 
 cvar_t scr_viewsize = { "viewsize", "100", true };
@@ -1012,7 +1011,7 @@ needs almost the entire 256k of stack space!
 void
 SCR_UpdateScreen(void)
 {
-    static float oldscr_viewsize;
+    static float old_viewsize, old_fov;
     vrect_t vrect;
 
     if (scr_skipupdate || block_drawing)
@@ -1034,20 +1033,16 @@ SCR_UpdateScreen(void)
     if (!scr_initialized || !con_initialized)
 	return;			// not initialized yet
 
-    if (scr_viewsize.value != oldscr_viewsize) {
-	oldscr_viewsize = scr_viewsize.value;
-	vid.recalc_refdef = 1;
-    }
 //
 // check for vid changes
 //
-    if (oldfov != scr_fov.value) {
-	oldfov = scr_fov.value;
+    if (old_fov != scr_fov.value) {
+	old_fov = scr_fov.value;
 	vid.recalc_refdef = true;
     }
 
-    if (oldscreensize != scr_viewsize.value) {
-	oldscreensize = scr_viewsize.value;
+    if (old_viewsize != scr_viewsize.value) {
+	old_viewsize = scr_viewsize.value;
 	vid.recalc_refdef = true;
     }
 
@@ -1056,10 +1051,9 @@ SCR_UpdateScreen(void)
 	vid.recalc_refdef = true;
     }
 
-    if (vid.recalc_refdef) {
-	// something changed, so reorder the screen
+    if (vid.recalc_refdef)
 	SCR_CalcRefdef();
-    }
+
 //
 // do 3D refresh drawing, and then update the screen
 //

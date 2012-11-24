@@ -86,8 +86,6 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
-static float oldscreensize, oldfov;
-
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 cvar_t scr_conspeed = { "scr_conspeed", "300" };
@@ -848,6 +846,8 @@ needs almost the entire 256k of stack space!
 void
 SCR_UpdateScreen(void)
 {
+    static float old_viewsize, old_fov;
+
     if (block_drawing)
 	return;
 
@@ -877,13 +877,13 @@ SCR_UpdateScreen(void)
     //
     // determine size of refresh window
     //
-    if (oldfov != scr_fov.value) {
-	oldfov = scr_fov.value;
+    if (old_fov != scr_fov.value) {
+	old_fov = scr_fov.value;
 	vid.recalc_refdef = true;
     }
 
-    if (oldscreensize != scr_viewsize.value) {
-	oldscreensize = scr_viewsize.value;
+    if (old_viewsize != scr_viewsize.value) {
+	old_viewsize = scr_viewsize.value;
 	vid.recalc_refdef = true;
     }
 
