@@ -133,6 +133,7 @@ cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
  * -> default to off and don't save to config for now
  */
 cvar_t r_lerpmodels = { "r_lerpmodels", "0", false };
+cvar_t r_lerpmove = { "r_lerpmove", "0", false };
 #endif
 
 /*
@@ -688,28 +689,77 @@ static void
 R_AliasDrawModel(entity_t *e)
 {
     int i;
-    int lnum;
+    int lnum, shadequant;
     vec3_t dist;
     float add;
     model_t *clmodel;
     vec3_t mins, maxs;
     aliashdr_t *paliashdr;
     float an;
+    vec3_t lerp_origin, lerp_angles;
+
+#ifdef NQ_HACK
+    /* Origin LERP */
+    if (r_lerpmove.value) {
+	float delta = e->currentorigintime - e->previousorigintime;
+	float frac = qclamp((cl.time - e->currentorigintime) / delta, 0.0, 1.0);
+	vec3_t lerpvec;
+
+	/* FIXME - ugly hack to skip the viewent (weapon) */
+	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	    goto nolerp_origin;
+	//if (delta > 0.5)
+	//goto nolerp;
+	VectorSubtract(e->currentorigin, e->previousorigin, lerpvec);
+	VectorMA(e->previousorigin, frac, lerpvec, lerp_origin);
+    } else {
+ nolerp_origin:
+	VectorCopy(e->origin, lerp_origin);
+    }
+
+    /* Angles lerp */
+    if (r_lerpmove.value && e->previousanglestime != e->currentanglestime) {
+	float delta = e->currentanglestime - e->previousanglestime;
+	float frac = qclamp((cl.time - e->currentanglestime) / delta, 0.0, 1.0);
+	vec3_t lerpvec;
+
+	/* FIXME - ugly hack to skip the viewent (weapon) */
+	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	    goto nolerp_angles;
+
+	VectorSubtract(e->currentangles, e->previousangles, lerpvec);
+	for (i = 0; i < 3; i++) {
+	    if (lerpvec[i] > 180.0f)
+		lerpvec[i] -= 360.0f;
+	    else if (lerpvec[i] < -180.0f)
+		lerpvec[i] += 360.0f;
+	}
+	VectorMA(e->previousangles, frac, lerpvec, lerp_angles);
+	//angles[PITCH] = -angles[PITCH];
+    } else {
+    nolerp_angles:
+	VectorCopy(e->angles, lerp_angles);
+    }
+#endif
+#ifdef QW_HACK
+    VectorCopy(e->origin, lerp_origin);
+    VectorCopy(e->angles, lerp_angles);
+#endif
 
     clmodel = e->model;
 
-    VectorAdd(e->origin, clmodel->mins, mins);
-    VectorAdd(e->origin, clmodel->maxs, maxs);
+    VectorAdd(lerp_origin, clmodel->mins, mins);
+    VectorAdd(lerp_origin, clmodel->maxs, maxs);
 
     if (R_CullBox(mins, maxs))
 	return;
 
-    VectorCopy(e->origin, r_entorigin);
+    VectorCopy(lerp_origin, r_entorigin);
 
     //
     // get lighting information
     //
-    ambientlight = shadelight = R_LightPoint(e->origin);
+    ambientlight = shadelight = R_LightPoint(lerp_origin);
 
     // allways give the gun some light
     if (e == &cl.viewent && ambientlight < 24)
@@ -717,7 +767,7 @@ R_AliasDrawModel(entity_t *e)
 
     for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
 	if (cl_dlights[lnum].die >= cl.time) {
-	    VectorSubtract(e->origin, cl_dlights[lnum].origin, dist);
+	    VectorSubtract(lerp_origin, cl_dlights[lnum].origin, dist);
 	    add = cl_dlights[lnum].radius - Length(dist);
 
 	    if (add > 0) {
@@ -749,12 +799,11 @@ R_AliasDrawModel(entity_t *e)
 	ambientlight = shadelight = 256;
     }
 
-    shadedots =
-	r_avertexnormal_dots[((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0)))
-			     & (SHADEDOT_QUANT - 1)];
-    shadelight = shadelight / 200.0;
+    shadequant = (int)(lerp_angles[1] * (SHADEDOT_QUANT / 360.0));
+    shadedots =	r_avertexnormal_dots[shadequant & (SHADEDOT_QUANT - 1)];
+    shadelight /= 200.0;
 
-    an = e->angles[1] / 180 * M_PI;
+    an = lerp_angles[1] / 180 * M_PI;
     shadevector[0] = cos(-an);
     shadevector[1] = sin(-an);
     shadevector[2] = 1;
@@ -772,7 +821,7 @@ R_AliasDrawModel(entity_t *e)
     //
     GL_DisableMultitexture();
     glPushMatrix();
-    R_RotateForEntity(e->origin, e->angles);
+    R_RotateForEntity(lerp_origin, lerp_angles);
 
 #ifdef NQ_HACK
     if (!strcmp(clmodel->name, "progs/eyes.mdl") && gl_doubleeyes.value) {
@@ -834,7 +883,7 @@ R_AliasDrawModel(entity_t *e)
 
     if (r_shadows.value) {
 	glPushMatrix();
-	R_RotateForEntity(e->origin, e->angles);
+	R_RotateForEntity(lerp_origin, lerp_angles);
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glColor4f(0, 0, 0, 0.5);
