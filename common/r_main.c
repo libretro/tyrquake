@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // r_main.c
 
+#include <stdint.h>
+
 #include "cmd.h"
 #include "console.h"
 #include "quakedef.h"
@@ -1092,26 +1094,14 @@ void
 R_RenderView(void)
 {
     int dummy;
-#if 0
-    /*
-     * FIXME - This check fails with "gcc-3.4 -O2" I don't really understand
-     * fully, but the placement of stack vs. globals/statics must be different
-     * somehow...
-     */
-    int delta;
 
-    delta = (byte *)&dummy - r_stack_start;
-    if (delta < -10000 || delta > 10000)
-	Sys_Error("%s: called without enough stack (delta: %d)", __func__,
-		  delta);
-#endif
     if (Hunk_LowMark() & 3)
 	Sys_Error("Hunk is missaligned");
 
-    if ((long)(&dummy) & 3)
+    if ((intptr_t)(&dummy) & 3)
 	Sys_Error("Stack is missaligned");
 
-    if ((long)(&r_warpbuffer) & 3)
+    if ((intptr_t)(&r_warpbuffer) & 3)
 	Sys_Error("Globals are missaligned");
 
     R_RenderView_();
