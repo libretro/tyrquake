@@ -128,6 +128,14 @@ cvar_t gl_doubleeyes = { "gl_doubleeyes", "1" };
 
 cvar_t _gl_allowgammafallback = { "_gl_allowgammafallback", "1" };
 
+#ifdef NQ_HACK
+/*
+ * incomplete model interpolation support
+ * -> default to off and don't save to config for now
+ */
+cvar_t r_lerpmodels = { "r_lerpmodels", "0", false };
+#endif
+
 /*
 =================
 R_CullBox
@@ -409,21 +417,63 @@ GL_AliasDrawModel
 =============
 */
 static void
-GL_AliasDrawModel(entity_t *e)
+GL_AliasDrawModel(entity_t *e, float blend)
 {
     float l;
     aliashdr_t *pahdr;
-    trivertx_t *verts;
+    trivertx_t *vertbase, *verts1;
     int *order;
     int count;
 
     lastposenum = e->currentpose;
 
     pahdr = Mod_Extradata(e->model);
-    verts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
-    verts += e->currentpose * pahdr->numverts;
+    vertbase = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
+    verts1 = vertbase + e->currentpose * pahdr->numverts;
     order = (int *)((byte *)pahdr + GL_Aliashdr(pahdr)->commands);
 
+#ifdef NQ_HACK
+    if (r_lerpmodels.value && blend != 1.0f) {
+	trivertx_t *light;
+	trivertx_t *verts0 = vertbase + e->previouspose * pahdr->numverts;
+	float blend0 = 1.0f - blend;
+	light = (blend < 0.5f) ? verts0 : verts1;
+
+	while (1) {
+	    // get the vertex count and primitive type
+	    count = *order++;
+	    if (!count)
+		break;		// done
+	    if (count < 0) {
+		count = -count;
+		glBegin(GL_TRIANGLE_FAN);
+	    } else
+		glBegin(GL_TRIANGLE_STRIP);
+
+	    do {
+		vec3_t glv;
+
+		// texture coordinates come from the draw list
+		glTexCoord2f(((float *)order)[0], ((float *)order)[1]);
+		order += 2;
+
+		// normals and vertexes come from the frame list
+		l = shadedots[light->lightnormalindex] * shadelight;
+		glColor3f(l, l, l);
+		glv[0] = verts0->v[0] * blend0 + verts1->v[0] * blend;
+		glv[1] = verts0->v[1] * blend0 + verts1->v[1] * blend;
+		glv[2] = verts0->v[2] * blend0 + verts1->v[2] * blend;
+		glVertex3f(glv[0], glv[1], glv[2]);
+		verts0++;
+		verts1++;
+		light++;
+	    } while (--count);
+
+	    glEnd();
+	}
+	return;
+    }
+#endif
     while (1) {
 	// get the vertex count and primitive type
 	count = *order++;
@@ -441,10 +491,10 @@ GL_AliasDrawModel(entity_t *e)
 	    order += 2;
 
 	    // normals and vertexes come from the frame list
-	    l = shadedots[verts->lightnormalindex] * shadelight;
+	    l = shadedots[verts1->lightnormalindex] * shadelight;
 	    glColor3f(l, l, l);
-	    glVertex3f(verts->v[0], verts->v[1], verts->v[2]);
-	    verts++;
+	    glVertex3f(verts1->v[0], verts1->v[1], verts1->v[2]);
+	    verts1++;
 	} while (--count);
 
 	glEnd();
@@ -572,9 +622,60 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 	intervals = (float *)((byte *)pahdr + pahdr->poseintervals) + pose;
 	pose += Mod_FindInterval(intervals, numposes, cl.time + e->syncbase);
     }
-    e->currentpose = pose;
 
-    GL_AliasDrawModel(e);
+#ifdef NQ_HACK
+    if (r_lerpmodels.value) {
+	float delta, time, blend;
+
+	/* A few quick sanity checks to abort lerping */
+	if (e->currentframetime < e->previousframetime)
+	    goto nolerp;
+	if (e->currentframetime - e->previousframetime > 1.0f)
+	    goto nolerp;
+	/* FIXME - ugly hack to skip the viewent (weapon) */
+	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	    goto nolerp;
+
+	if (numposes > 1) {
+	    /* FIXME - merge with Mod_FindInterval? */
+	    int i;
+	    float fullinterval, targettime;
+	    fullinterval = intervals[numposes - 1];
+	    time = cl.time + e->syncbase;
+	    targettime = time - (int)(time / fullinterval) * fullinterval;
+	    for (i = 0; i < numposes - 1; i++)
+		if (intervals[i] > targettime)
+		    break;
+
+	    e->currentpose = pahdr->frames[e->currentframe].firstpose + i;
+	    if (i == 0) {
+		e->previouspose = pahdr->frames[e->currentframe].firstpose;
+		e->previouspose += numposes - 1;
+		time = targettime;
+		delta = intervals[0];
+	    } else {
+		e->previouspose = e->currentpose - 1;
+		time = targettime - intervals[i - 1];
+		delta = intervals[i] - intervals[i - 1];
+	    }
+	} else {
+	    e->currentpose = pahdr->frames[e->currentframe].firstpose;
+	    e->previouspose = pahdr->frames[e->previousframe].firstpose;
+	    time = cl.time - e->currentframetime;
+	    delta = e->currentframetime - e->previousframetime;
+	}
+	blend = qclamp(time / delta, 0.0f, 1.0f);
+
+	GL_AliasDrawModel(e, blend);
+
+	return;
+    }
+ nolerp:
+#endif
+    e->currentpose = pose;
+    e->previouspose = pose;
+
+    GL_AliasDrawModel(e, 1.0f);
 }
 
 
