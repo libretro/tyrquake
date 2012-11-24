@@ -405,22 +405,24 @@ R_ModelLoader(void)
 
 /*
 =============
-GL_DrawAliasFrame
+GL_AliasDrawModel
 =============
 */
 static void
-GL_DrawAliasFrame(aliashdr_t *paliashdr, int posenum)
+GL_AliasDrawModel(entity_t *e)
 {
     float l;
+    aliashdr_t *pahdr;
     trivertx_t *verts;
     int *order;
     int count;
 
-    lastposenum = posenum;
+    lastposenum = e->currentpose;
 
-    verts = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
-    verts += posenum * paliashdr->numverts;
-    order = (int *)((byte *)paliashdr + GL_Aliashdr(paliashdr)->commands);
+    pahdr = Mod_Extradata(e->model);
+    verts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
+    verts += e->currentpose * pahdr->numverts;
+    order = (int *)((byte *)pahdr + GL_Aliashdr(pahdr)->commands);
 
     while (1) {
 	// get the vertex count and primitive type
@@ -547,12 +549,12 @@ R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
 
 /*
 =================
-R_SetupAliasFrame
+R_AliasSetupFrame
 
 =================
 */
 static void
-R_SetupAliasFrame(const entity_t *e, aliashdr_t *pahdr)
+R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 {
     int frame, pose, numposes;
     float *intervals;
@@ -570,8 +572,9 @@ R_SetupAliasFrame(const entity_t *e, aliashdr_t *pahdr)
 	intervals = (float *)((byte *)pahdr + pahdr->poseintervals) + pose;
 	pose += Mod_FindInterval(intervals, numposes, cl.time + e->syncbase);
     }
+    e->currentpose = pose;
 
-    GL_DrawAliasFrame(pahdr, pose);
+    GL_AliasDrawModel(e);
 }
 
 
@@ -720,7 +723,7 @@ R_DrawAliasModel(entity_t *e)
     if (gl_affinemodels.value)
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
 
-    R_SetupAliasFrame(e, paliashdr);
+    R_AliasSetupFrame(e, paliashdr);
 
     glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 
