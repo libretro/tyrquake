@@ -70,7 +70,7 @@ static entity_t cl_visedicts_list[MAX_VISEDICTS];
 
 /*
  * FIXME - horribly hackish because we don't have a way to tell if the
- *         entity is a player just by looking at it's properties.
+ *         entity is a player just by looking at it's properties/pointer.
  *
  * CL_PlayerEntity()
  * Returns the player number if the entity is a player, 0 otherwise
@@ -88,7 +88,8 @@ CL_PlayerEntity(entity_t *e)
 
     /* ...but if not, try to find a match */
     for (i = 1; i <= cl.maxclients; i++) {
-	if (!memcmp(e, &cl_entities[i], sizeof(entity_t)))
+	/* Compare just the top of the struct, up to the lerp info */
+	if (!memcmp(e, &cl_entities[i], offsetof(entity_t, previouspose)))
 	    return i;
     }
 
