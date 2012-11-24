@@ -347,10 +347,8 @@ Keybinding command
 void
 SCR_SizeUp_f(void)
 {
-    if (scr_viewsize.value < 120) {
-	Cvar_SetValue("viewsize", scr_viewsize.value + 10);
-	vid.recalc_refdef = 1;
-    }
+    Cvar_SetValue("viewsize", scr_viewsize.value + 10);
+    vid.recalc_refdef = 1;
 }
 
 
