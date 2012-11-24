@@ -34,8 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 entity_t r_worldentity;
 qboolean r_cache_thrash;	// compatability
 
-vec3_t modelorg, r_entorigin;
-
+vec3_t r_entorigin;
 int r_visframecount;		// bumped when going to a new PVS
 int r_framecount;		// used for dlight push checking
 
@@ -706,7 +705,6 @@ R_AliasDrawModel(entity_t *e)
 	return;
 
     VectorCopy(e->origin, r_entorigin);
-    VectorSubtract(r_origin, r_entorigin, modelorg);
 
     //
     // get lighting information

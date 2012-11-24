@@ -845,6 +845,9 @@ DrawFlatTextureChains(void)
     glColor3f(1, 1, 1);
 }
 
+/* Used by R_RecursiveWorldNode */
+static vec3_t bmodelorg;
+
 /*
 =================
 R_DrawBrushModel
@@ -880,16 +883,16 @@ R_DrawBrushModel(entity_t *e)
     if (R_CullBox(mins, maxs))
 	return;
 
-    VectorSubtract(r_refdef.vieworg, e->origin, modelorg);
+    VectorSubtract(r_refdef.vieworg, e->origin, bmodelorg);
     if (rotated) {
 	vec3_t temp;
 	vec3_t forward, right, up;
 
-	VectorCopy(modelorg, temp);
+	VectorCopy(bmodelorg, temp);
 	AngleVectors(e->angles, forward, right, up);
-	modelorg[0] = DotProduct(temp, forward);
-	modelorg[1] = -DotProduct(temp, right);
-	modelorg[2] = DotProduct(temp, up);
+	bmodelorg[0] = DotProduct(temp, forward);
+	bmodelorg[1] = -DotProduct(temp, right);
+	bmodelorg[2] = DotProduct(temp, up);
     }
 
     psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
@@ -927,7 +930,7 @@ R_DrawBrushModel(entity_t *e)
     for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++) {
 	/* find which side of the node we are on */
 	pplane = psurf->plane;
-	dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
+	dot = DotProduct(bmodelorg, pplane->normal) - pplane->dist;
 
 	/* draw the polygon */
 	if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
@@ -1012,10 +1015,10 @@ R_RecursiveWorldNode(mnode_t *node)
     case PLANE_X:
     case PLANE_Y:
     case PLANE_Z:
-	dot = modelorg[plane->type - PLANE_X] - plane->dist;
+	dot = bmodelorg[plane->type - PLANE_X] - plane->dist;
 	break;
     default:
-	dot = DotProduct(modelorg, plane->normal) - plane->dist;
+	dot = DotProduct(bmodelorg, plane->normal) - plane->dist;
 	break;
     }
 
@@ -1072,7 +1075,7 @@ R_DrawWorld(void)
     memset(&ent, 0, sizeof(ent));
     ent.model = cl.worldmodel;
 
-    VectorCopy(r_refdef.vieworg, modelorg);
+    VectorCopy(r_refdef.vieworg, bmodelorg);
 
     currenttexture = -1;
 
