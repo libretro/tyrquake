@@ -37,19 +37,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // refresh list
-// this is double buffered so the last frame
-// can be scanned for oldorigins of trailing objects
 int cl_numvisedicts;
-entity_t *cl_visedicts;
-static int cl_oldnumvisedicts;
-static entity_t *cl_oldvisedicts;
-static entity_t cl_visedicts_list[2][MAX_VISEDICTS];
+entity_t cl_visedicts[MAX_VISEDICTS];
 
 static struct predicted_player {
     int flags;
     qboolean active;
     vec3_t origin;		// predicted origin
 } predicted_players[MAX_CLIENTS];
+
+typedef struct visedict_info_s {
+    int keynum;
+    vec3_t origin;
+} visedict_info_t;
+
+/*
+ * This containse saved visedicts from the last frame so it
+ * can be scanned for old origins of trailing objects
+ */
+static visedict_info_t saved_visedicts[MAX_VISEDICTS];
+static int num_saved_visedicts;
 
 //============================================================
 
@@ -484,13 +491,13 @@ CL_LinkPacketEntities(void)
 	    continue;
 
 	// scan the old entity display list for a matching
-	for (i = 0; i < cl_oldnumvisedicts; i++) {
-	    if (cl_oldvisedicts[i].keynum == ent->keynum) {
-		VectorCopy(cl_oldvisedicts[i].origin, old_origin);
+	for (i = 0; i < num_saved_visedicts; i++) {
+	    if (saved_visedicts[i].keynum == ent->keynum) {
+		VectorCopy(saved_visedicts[i].origin, old_origin);
 		break;
 	    }
 	}
-	if (i == cl_oldnumvisedicts)
+	if (i == num_saved_visedicts)
 	    continue;		// not in last message
 
 	for (i = 0; i < 3; i++)
@@ -1042,16 +1049,18 @@ Made up of: clients, packet_entities, nails, and tents
 void
 CL_EmitEntities(void)
 {
+    int i;
+
     if (cls.state != ca_active)
 	return;
     if (!cl.validsequence)
 	return;
 
-    cl_oldnumvisedicts = cl_numvisedicts;
-    cl_oldvisedicts =
-	cl_visedicts_list[(cls.netchan.incoming_sequence - 1) & 1];
-    cl_visedicts = cl_visedicts_list[cls.netchan.incoming_sequence & 1];
-
+    for (i = 0; i < cl_numvisedicts; i++) {
+	saved_visedicts[i].keynum = cl_visedicts[i].keynum;
+	VectorCopy(cl_visedicts[i].origin, saved_visedicts[i].origin);
+    }
+    num_saved_visedicts = cl_numvisedicts;
     cl_numvisedicts = 0;
 
     CL_LinkPlayers();

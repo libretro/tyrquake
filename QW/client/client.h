@@ -379,7 +379,7 @@ void CL_BeginServerConnect(void);
 
 #define MAX_VISEDICTS 256
 extern int cl_numvisedicts;
-extern entity_t *cl_visedicts;
+extern entity_t cl_visedicts[];
 
 extern char emodel_name[];
 extern char pmodel_name[];
