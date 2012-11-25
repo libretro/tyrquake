@@ -358,12 +358,16 @@ CL_UpdateTEnts(void)
 	    VectorMA(org, 30, dist, org);
 	    d -= 30;
 
-	    /* Initilise frames for model lerp */
+	    /* Initilise model lerp info */
 	    ent->frame = 0;
 	    ent->currentframe = 0;
 	    ent->previousframe = 0;
 	    ent->currentframetime = cl.time;
 	    ent->previousframetime = cl.time;
+	    VectorCopy(ent->origin, ent->currentorigin);
+	    VectorCopy(ent->origin, ent->previousorigin);
+	    ent->currentorigintime = cl.time;
+	    ent->previousorigintime = cl.time;
 	}
     }
 }
