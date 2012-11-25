@@ -434,8 +434,8 @@ R_AliasSetUpTransform(const entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 	float frac = qclamp((cl.time - e->currentanglestime) / delta, 0.0, 1.0);
 	vec3_t lerpvec;
 
-	/* FIXME - ugly hack to skip the viewent (weapon) */
-	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	/* FIXME - hack to skip the viewent (weapon) */
+	if (e == &cl.viewent)
 	    goto nolerp;
 
 	VectorSubtract(e->currentangles, e->previousangles, lerpvec);
@@ -810,8 +810,8 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 	    goto nolerp;
 	if (e->currentframetime - e->previousframetime > 1.0f)
 	    goto nolerp;
-	/* FIXME - ugly hack to skip the viewent (weapon) */
-	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	/* FIXME - hack to skip the viewent (weapon) */
+	if (e == &cl.viewent)
 	    goto nolerp;
 
 	if (numposes > 1) {

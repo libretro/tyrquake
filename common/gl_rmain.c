@@ -632,8 +632,8 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 	    goto nolerp;
 	if (e->currentframetime - e->previousframetime > 1.0f)
 	    goto nolerp;
-	/* FIXME - ugly hack to skip the viewent (weapon) */
-	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	/* FIXME - hack to skip the viewent (weapon) */
+	if (e == &cl.viewent)
 	    goto nolerp;
 
 	if (numposes > 1) {
@@ -705,11 +705,10 @@ R_AliasDrawModel(entity_t *e)
 	float frac = qclamp((cl.time - e->currentorigintime) / delta, 0.0, 1.0);
 	vec3_t lerpvec;
 
-	/* FIXME - ugly hack to skip the viewent (weapon) */
-	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	/* FIXME - hack to skip the viewent (weapon) */
+	if (e == &cl.viewent)
 	    goto nolerp_origin;
-	//if (delta > 0.5)
-	//goto nolerp;
+
 	VectorSubtract(e->currentorigin, e->previousorigin, lerpvec);
 	VectorMA(e->previousorigin, frac, lerpvec, lerp_origin);
     } else {
@@ -723,8 +722,8 @@ R_AliasDrawModel(entity_t *e)
 	float frac = qclamp((cl.time - e->currentanglestime) / delta, 0.0, 1.0);
 	vec3_t lerpvec;
 
-	/* FIXME - ugly hack to skip the viewent (weapon) */
-	if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+	/* FIXME - hack to skip the viewent (weapon) */
+	if (e == &cl.viewent)
 	    goto nolerp_angles;
 
 	VectorSubtract(e->currentangles, e->previousangles, lerpvec);

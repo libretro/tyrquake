@@ -611,11 +611,10 @@ R_DrawEntitiesOnList(void)
 		float frac = qclamp((cl.time - e->currentorigintime) / delta, 0.0, 1.0);
 		vec3_t lerpvec;
 
-		/* FIXME - ugly hack to skip the viewent (weapon) */
-		if (!memcmp(e, &cl.viewent, offsetof(entity_t, previouspose)))
+		/* FIXME - hack to skip the viewent (weapon) */
+		if (e == &cl.viewent)
 		    goto nolerp;
-		//if (delta > 0.5)
-		//goto nolerp;
+
 		VectorSubtract(e->currentorigin, e->previousorigin, lerpvec);
 		VectorMA(e->previousorigin, frac, lerpvec, r_entorigin);
 	    } else
