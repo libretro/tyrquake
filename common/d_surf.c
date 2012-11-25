@@ -299,14 +299,6 @@ D_CacheSurface(entity_t *e, msurface_t *surface, int miplevel)
     r_drawsurf.rowbytes = r_drawsurf.surfwidth;
     r_drawsurf.surfheight = surface->extents[1] >> miplevel;
 
-    // TYR - finding a bug...
-    if (r_drawsurf.surfwidth * r_drawsurf.surfheight == 0) {
-	printf("Error coming up...\n"
-	       "  surface->extents[0] == %hi\n"
-	       "  surface->extents[1] == %hi\n"
-	       "  miplevel == %i\n",
-	       surface->extents[0], surface->extents[1], miplevel);
-    }
 //
 // allocate memory if needed
 //
