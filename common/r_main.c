@@ -353,16 +353,17 @@ R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
 {
     int h;
     float size;
-    qboolean full = false;
+    qboolean full;
 
-    if (scr_viewsize.value >= 100.0) {
-	size = 100.0;
-	full = true;
-    } else {
-	size = scr_viewsize.value;
-	full = false;
-    }
+#ifdef NQ_HACK
+    full = (scr_viewsize.value >= 120.0f);
+#endif
+#ifdef QW_HACK
+    full = (!cl_sbar.value && scr_viewsize.value >= 100.0f);
+#endif
+    size = qmin(scr_viewsize.value, 100.0f);
 
+    /* Hide the status bar during intermission */
     if (cl.intermission) {
 	full = true;
 	size = 100.0;
@@ -370,33 +371,19 @@ R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
     }
     size /= 100.0;
 
-#ifdef NQ_HACK
     if (full)
-#endif
-#ifdef QW_HACK
-    if (!cl_sbar.value && full)
-#endif
 	h = pvrectin->height;
     else
 	h = pvrectin->height - lineadj;
 
-    if (full)
-	pvrect->width = pvrectin->width;
-    else
-	pvrect->width = pvrectin->width * size;
-
+    pvrect->width = pvrectin->width * size;
     if (pvrect->width < 96) {
 	size = 96.0 / pvrectin->width;
 	pvrect->width = 96;	// min for icons
     }
     pvrect->width &= ~7;
     pvrect->height = pvrectin->height * size;
-#ifdef NQ_HACK
     if (!full) {
-#endif
-#ifdef QW_HACK
-    if (cl_sbar.value || !full) {
-#endif
 	if (pvrect->height > pvrectin->height - lineadj)
 	    pvrect->height = pvrectin->height - lineadj;
     } else if (pvrect->height > pvrectin->height)
