@@ -200,7 +200,7 @@ Mod_GetSpriteFrame
 ==================
 */
 mspriteframe_t *
-Mod_GetSpriteFrame(entity_t *e, msprite_t *psprite, float time)
+Mod_GetSpriteFrame(const entity_t *e, msprite_t *psprite, float time)
 {
     mspritegroup_t *pspritegroup;
     mspriteframe_t *pspriteframe;

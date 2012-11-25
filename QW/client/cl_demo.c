@@ -391,7 +391,7 @@ CL_Record_f(void)
     byte buf_data[MAX_MSGLEN];
     int n, i, j;
     char *s;
-    entity_t *ent;
+    const entity_t *ent;
     entity_state_t *es, blankes;
     player_info_t *player;
     int seq = 1;

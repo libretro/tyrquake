@@ -333,7 +333,7 @@ R_TranslatePlayerSkin(int playernum)
     model_t *model;
     aliashdr_t *paliashdr;
     int size;
-    entity_t *e;
+    const entity_t *e;
 #endif
 #ifdef QW_HACK
     player_info_t *player;

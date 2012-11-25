@@ -746,7 +746,7 @@ R_BmodelCheckBBox
 =============
 */
 static int
-R_BmodelCheckBBox(entity_t *e, model_t *clmodel, float *minmaxs)
+R_BmodelCheckBBox(const entity_t *e, model_t *clmodel, float *minmaxs)
 {
     int i, *pindex, clipflags;
     vec3_t acceptpt, rejectpt;

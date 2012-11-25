@@ -473,14 +473,15 @@ mleaf_t *Mod_PointInLeaf(float *p, model_t *model);
 byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
 
 // FIXME - surely this doesn't belong here?
-texture_t *R_TextureAnimation(struct entity_s *e, texture_t *base);
+texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);
 
 void Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod,
 			void *buffer, const model_t *loadmodel,
 			const char *loadname);
 void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname);
 
-mspriteframe_t *Mod_GetSpriteFrame(struct entity_s *e, msprite_t *psprite, float time);
+mspriteframe_t *Mod_GetSpriteFrame(const struct entity_s *e,
+				   msprite_t *psprite, float time);
 
 int Mod_FindInterval(const float *intervals, int numintervals, float time);
 

@@ -273,7 +273,7 @@ void GL_Set2D(void);
 // gl_rmain.c
 //
 qboolean R_CullBox(vec3_t mins, vec3_t maxs);
-void R_RotateForEntity(vec3_t origin, vec3_t angles);
+void R_RotateForEntity(const vec3_t origin, const vec3_t angles);
 
 /*
  * The renderer supplies callbacks to the model loader
@@ -307,11 +307,11 @@ void R_InitBubble(void);
 //
 // gl_rsurf.c
 //
-void R_DrawBrushModel(entity_t *e);
+void R_DrawBrushModel(const entity_t *e);
 void R_DrawWorld(void);
 void R_DrawWorldHull(void); /* Quick hack for now... */
 void R_DrawWaterSurfaces(void);
-void R_RenderBrushPoly(entity_t *e, msurface_t *fa);
+void R_RenderBrushPoly(const entity_t *e, msurface_t *fa);
 void GL_BuildLightmaps(void);
 
 //

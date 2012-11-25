@@ -170,7 +170,7 @@ D_DrawSurfaces
 void
 D_DrawSurfaces(void)
 {
-    entity_t *e;
+    const entity_t *e;
     surf_t *s;
     msurface_t *pface;
     surfcache_t *pcurrentcache;

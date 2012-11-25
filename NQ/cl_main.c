@@ -75,7 +75,7 @@ entity_t cl_visedicts[MAX_VISEDICTS];
  * Returns the player number if the entity is a player, 0 otherwise
  */
 int
-CL_PlayerEntity(entity_t *e)
+CL_PlayerEntity(const entity_t *e)
 {
     ptrdiff_t offset;
     int i;
@@ -302,7 +302,7 @@ CL_PrintEntities_f
 void
 CL_PrintEntities_f(void)
 {
-    entity_t *ent;
+    const entity_t *ent;
     int i;
 
     for (i = 0, ent = cl_entities; i < cl.num_entities; i++, ent++) {

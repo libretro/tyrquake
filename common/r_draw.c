@@ -345,7 +345,7 @@ R_RenderFace
 ================
 */
 void
-R_RenderFace(entity_t *e, msurface_t *fa, int clipflags)
+R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
 {
     int i, lindex;
     unsigned mask;
@@ -515,7 +515,7 @@ R_RenderBmodelFace
 ================
 */
 void
-R_RenderBmodelFace(entity_t *e, bedge_t *pedges, msurface_t *psurf)
+R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf)
 {
     int i;
     unsigned mask;
@@ -619,7 +619,7 @@ R_RenderPoly
 ================
 */
 void
-R_RenderPoly(entity_t *e, msurface_t *fa, int clipflags)
+R_RenderPoly(const entity_t *e, msurface_t *fa, int clipflags)
 {
     int i, lindex, lnumverts, s_axis, t_axis;
     float dist, lastdist, lzi, scale, u, v, frac;
@@ -791,7 +791,7 @@ R_ZDrawSubmodelPolys
 ================
 */
 void
-R_ZDrawSubmodelPolys(entity_t *e, model_t *pmodel)
+R_ZDrawSubmodelPolys(const entity_t *e, model_t *pmodel)
 {
     int i, numsurfaces;
     msurface_t *psurf;

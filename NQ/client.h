@@ -265,7 +265,7 @@ extern entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
  * CL_PlayerEntity()
  * Returns the player number if the entity is a player, 0 otherwise
  */
-int CL_PlayerEntity(entity_t *e);
+int CL_PlayerEntity(const entity_t *e);
 
 //=============================================================================
 

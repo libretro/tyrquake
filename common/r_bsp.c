@@ -78,7 +78,7 @@ R_RotateBmodel
 ================
 */
 void
-R_RotateBmodel(entity_t *e)
+R_RotateBmodel(const entity_t *e)
 {
     float angle, s, c, temp1[3][3], temp2[3][3], temp3[3][3];
 
@@ -157,7 +157,7 @@ R_RecursiveClipBPoly
 ================
 */
 static void
-R_RecursiveClipBPoly(entity_t *e, bedge_t *pedges, mnode_t *pnode,
+R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pnode,
 		     msurface_t *psurf)
 {
     bedge_t *psideedges[2], *pnextedge, *ptedge;
@@ -311,7 +311,7 @@ R_DrawSolidClippedSubmodelPolygons
 ================
 */
 void
-R_DrawSolidClippedSubmodelPolygons(entity_t *e, model_t *pmodel)
+R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel)
 {
     int i, j, lindex;
     vec_t dot;
@@ -386,7 +386,7 @@ R_DrawSubmodelPolygons
 ================
 */
 void
-R_DrawSubmodelPolygons(entity_t *e, model_t *pmodel, int clipflags)
+R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags)
 {
     int i;
     vec_t dot;
@@ -423,7 +423,7 @@ R_RecursiveWorldNode
 ================
 */
 static void
-R_RecursiveWorldNode(entity_t *e, mnode_t *node, int clipflags)
+R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 {
     int i, c, side, *pindex;
     vec3_t acceptpt, rejectpt;

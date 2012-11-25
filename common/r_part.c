@@ -88,7 +88,7 @@ float partstep = 0.01;
 float timescale = 0.01;
 
 void
-R_EntityParticles(entity_t *ent)
+R_EntityParticles(const entity_t *ent)
 {
     int i;
     particle_t *p;

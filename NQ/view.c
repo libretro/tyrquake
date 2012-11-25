@@ -321,7 +321,7 @@ V_ParseDamage(void)
     vec3_t from;
     int i;
     vec3_t forward, right, up;
-    entity_t *ent;
+    const entity_t *ent;
     float side;
     float count;
 
@@ -694,7 +694,7 @@ V_BoundOffsets
 void
 V_BoundOffsets(void)
 {
-    entity_t *ent;
+    const entity_t *ent;
 
     ent = &cl_entities[cl.viewentity];
 

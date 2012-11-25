@@ -255,7 +255,7 @@ R_DrawSprite
 ================
 */
 void
-R_DrawSprite(entity_t *e)
+R_DrawSprite(const entity_t *e)
 {
     int i;
     msprite_t *psprite;

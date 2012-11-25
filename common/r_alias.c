@@ -80,9 +80,9 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.h"
 };
 
-static void R_AliasSetUpTransform(entity_t *e, aliashdr_t *pahdr,
+static void R_AliasSetUpTransform(const entity_t *e, aliashdr_t *pahdr,
 				  int trivial_accept);
-static void R_AliasTransformVector(vec3_t in, vec3_t out);
+static void R_AliasTransformVector(const vec3_t in, vec3_t out);
 static void R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
 				      trivertx_t *pverts, stvert_t *pstverts);
 
@@ -336,7 +336,7 @@ R_AliasTransformVector
 ================
 */
 static void
-R_AliasTransformVector(vec3_t in, vec3_t out)
+R_AliasTransformVector(const vec3_t in, vec3_t out)
 {
     out[0] = DotProduct(in, aliastransform[0]) + aliastransform[0][3];
     out[1] = DotProduct(in, aliastransform[1]) + aliastransform[1][3];
@@ -416,7 +416,7 @@ R_AliasSetUpTransform
 ================
 */
 static void
-R_AliasSetUpTransform(entity_t *e, aliashdr_t *pahdr, int trivial_accept)
+R_AliasSetUpTransform(const entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 {
     int i;
     float rotationmatrix[3][4], t2matrix[3][4];
@@ -659,7 +659,7 @@ R_AliasSetupSkin
 ===============
 */
 static void
-R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
+R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 {
     int skinnum;
     int frame, numframes, skinbytes;

@@ -260,7 +260,7 @@ Returns the proper texture for a given time and base texture
 ===============
 */
 texture_t *
-R_TextureAnimation(entity_t *e, texture_t *base)
+R_TextureAnimation(const entity_t *e, texture_t *base)
 {
     int reletive;
     int count;
@@ -628,7 +628,7 @@ R_RenderBrushPoly
 ================
 */
 void
-R_RenderBrushPoly(entity_t *e, msurface_t *fa)
+R_RenderBrushPoly(const entity_t *e, msurface_t *fa)
 {
     int i;
     texture_t *t;
@@ -753,7 +753,7 @@ DrawTextureChains
 ================
 */
 static void
-DrawTextureChains(entity_t *e)
+DrawTextureChains(const entity_t *e)
 {
     int i;
     msurface_t *s;
@@ -854,10 +854,10 @@ R_DrawBrushModel
 =================
 */
 void
-R_DrawBrushModel(entity_t *e)
+R_DrawBrushModel(const entity_t *e)
 {
     int i, k;
-    vec3_t mins, maxs;
+    vec3_t mins, maxs, angles_bug;
     msurface_t *psurf;
     float dot;
     mplane_t *pplane;
@@ -898,9 +898,10 @@ R_DrawBrushModel(entity_t *e)
     psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
 
     glPushMatrix();
-    e->angles[0] = -e->angles[0];	// stupid quake bug
-    R_RotateForEntity(e->origin, e->angles);
-    e->angles[0] = -e->angles[0];	// stupid quake bug
+    /* Stupid bug means pitch is reversed for entities */
+    VectorCopy(e->angles, angles_bug);
+    angles_bug[PITCH] = -angles_bug[PITCH];
+    R_RotateForEntity(e->origin, angles_bug);
 
     if (!r_drawflat.value) {
 	/*

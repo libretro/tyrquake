@@ -83,7 +83,7 @@ R_DrawCulledPolys
 void
 R_DrawCulledPolys(void)
 {
-    entity_t *e;
+    const entity_t *e;
     surf_t *s;
     msurface_t *pface;
 

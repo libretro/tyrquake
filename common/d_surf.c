@@ -264,7 +264,7 @@ D_CacheSurface
 ================
 */
 surfcache_t *
-D_CacheSurface(entity_t *e, msurface_t *surface, int miplevel)
+D_CacheSurface(const entity_t *e, msurface_t *surface, int miplevel)
 {
     surfcache_t *cache;
 

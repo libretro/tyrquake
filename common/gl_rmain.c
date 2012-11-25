@@ -156,7 +156,7 @@ R_CullBox(vec3_t mins, vec3_t maxs)
 
 
 void
-R_RotateForEntity(vec3_t origin, vec3_t angles)
+R_RotateForEntity(const vec3_t origin, const vec3_t angles)
 {
     glTranslatef(origin[0], origin[1], origin[2]);
 
@@ -197,7 +197,7 @@ R_DrawSpriteModel
 =================
 */
 static void
-R_DrawSpriteModel(entity_t *e)
+R_DrawSpriteModel(const entity_t *e)
 {
     vec3_t point;
     mspriteframe_t *frame;
@@ -417,7 +417,7 @@ GL_AliasDrawModel
 =============
 */
 static void
-GL_AliasDrawModel(entity_t *e, float blend)
+GL_AliasDrawModel(const entity_t *e, float blend)
 {
     float l;
     aliashdr_t *pahdr;
@@ -507,7 +507,7 @@ GL_DrawAliasShadow
 =============
 */
 static void
-GL_DrawAliasShadow(entity_t *e, aliashdr_t *paliashdr, int posenum)
+GL_DrawAliasShadow(const entity_t *e, aliashdr_t *paliashdr, int posenum)
 {
     trivertx_t *verts;
     int *order;
@@ -569,7 +569,7 @@ R_AliasSetupSkin
 ===============
 */
 static void
-R_AliasSetupSkin(entity_t *e, aliashdr_t *pahdr)
+R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 {
     int skinnum;
     int frame, numframes;
