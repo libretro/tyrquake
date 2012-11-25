@@ -75,7 +75,7 @@ CL_PredictUsercmd
 ==============
 */
 void
-CL_PredictUsercmd(player_state_t * from, player_state_t * to, usercmd_t *u,
+CL_PredictUsercmd(player_state_t *from, player_state_t *to, usercmd_t *u,
 		  qboolean spectator)
 {
     // split up very long moves
