@@ -261,7 +261,7 @@ CL_ParseServerInfo(void)
 	Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
 	return;
     }
-    cl.scores = Hunk_AllocName(cl.maxclients * sizeof(*cl.scores), "scores");
+    cl.players = Hunk_AllocName(cl.maxclients * sizeof(*cl.players), "players");
 
 // parse gametype
     cl.gametype = MSG_ReadByte();
@@ -462,7 +462,7 @@ CL_ParseUpdate(int bits)
     else {
 	if (i > cl.maxclients)
 	    Sys_Error("i >= cl.maxclients");
-	ent->colormap = cl.scores[i - 1].translations;
+	ent->colormap = cl.players[i - 1].translations;
     }
 
 #ifdef GLQUAKE
@@ -696,11 +696,11 @@ CL_NewTranslation(int slot)
 
     if (slot > cl.maxclients)
 	Sys_Error("%s: slot > cl.maxclients", __func__);
-    dest = cl.scores[slot].translations;
+    dest = cl.players[slot].translations;
     source = vid.colormap;
-    memcpy(dest, vid.colormap, sizeof(cl.scores[slot].translations));
-    top = cl.scores[slot].colors & 0xf0;
-    bottom = (cl.scores[slot].colors & 15) << 4;
+    memcpy(dest, vid.colormap, sizeof(cl.players[slot].translations));
+    top = cl.players[slot].colors & 0xf0;
+    bottom = (cl.players[slot].colors & 15) << 4;
 #ifdef GLQUAKE
     R_TranslatePlayerSkin(slot);
 #endif
@@ -934,7 +934,7 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
 		Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
-	    strcpy(cl.scores[i].name, MSG_ReadString());
+	    strcpy(cl.players[i].name, MSG_ReadString());
 	    break;
 
 	case svc_updatefrags:
@@ -942,7 +942,7 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
 		Host_Error("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
-	    cl.scores[i].frags = MSG_ReadShort();
+	    cl.players[i].frags = MSG_ReadShort();
 	    break;
 
 	case svc_updatecolors:
@@ -950,7 +950,7 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
 		Host_Error("%s: svc_updatecolors > MAX_SCOREBOARD", __func__);
-	    cl.scores[i].colors = MSG_ReadByte();
+	    cl.players[i].colors = MSG_ReadByte();
 	    CL_NewTranslation(i);
 	    break;
 

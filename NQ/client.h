@@ -57,13 +57,13 @@ typedef struct {
 } lightstyle_t;
 
 #define	MAX_SCOREBOARDNAME 32
-typedef struct {
+typedef struct player_info_s {
     char name[MAX_SCOREBOARDNAME];
     float entertime;
     int frags;
     int colors;			// two 4 bit fields
     byte translations[VID_GRADES * 256];
-} scoreboard_t;
+} player_info_t;
 
 typedef struct {
     int destcolor[3];
@@ -207,7 +207,7 @@ typedef struct {
     int cdtrack, looptrack;	// cd audio
 
 // frag scoreboard
-    scoreboard_t *scores;	// [cl.maxclients]
+    player_info_t *players;	// [cl.maxclients]
 
     int protocol;		/* Active network protocol version */
 

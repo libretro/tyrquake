@@ -346,8 +346,8 @@ R_TranslatePlayerSkin(int playernum)
      * Determin top and bottom colours
      */
 #ifdef NQ_HACK
-    top = cl.scores[playernum].colors & 0xf0;
-    bottom = (cl.scores[playernum].colors & 15) << 4;
+    top = cl.players[playernum].colors & 0xf0;
+    bottom = (cl.players[playernum].colors & 15) << 4;
 #endif
 #ifdef QW_HACK
     player = &cl.players[playernum];
