@@ -1431,6 +1431,7 @@ R_Mirror(void)
     r_refdef.viewangles[1] = atan2(vpn[1], vpn[0]) / M_PI * 180;
     r_refdef.viewangles[2] = -r_refdef.viewangles[2];
 
+    /* Add the player to visedicts they can see their reflection */
     ent = &cl_entities[cl.viewentity];
     if (cl_numvisedicts < MAX_VISEDICTS) {
 	cl_visedicts[cl_numvisedicts] = *ent;
