@@ -270,7 +270,7 @@ CL_ParsePacketEntities(qboolean delta)
     packet_entities_t *oldp, *newp, dummy;
     int oldindex, newindex;
     int word, newnum, oldnum;
-    qboolean full;
+    qboolean full, old_ok;
     byte from;
 
     newpacket = cls.netchan.incoming_sequence & UPDATE_MASK;
@@ -322,10 +322,10 @@ CL_ParsePacketEntities(qboolean delta)
 	    }
 	    break;
 	}
+
 	newnum = word & 511;
-	oldnum =
-	    oldindex >=
-	    oldp->num_entities ? 9999 : oldp->entities[oldindex].number;
+	old_ok = oldindex < oldp->num_entities;
+	oldnum = old_ok ? oldp->entities[oldindex].number : 9999;
 
 	while (newnum > oldnum) {
 	    if (full) {
@@ -339,9 +339,8 @@ CL_ParsePacketEntities(qboolean delta)
 	    newp->entities[newindex] = oldp->entities[oldindex];
 	    newindex++;
 	    oldindex++;
-	    oldnum =
-		oldindex >=
-		oldp->num_entities ? 9999 : oldp->entities[oldindex].number;
+	    old_ok = oldindex < oldp->num_entities;
+	    oldnum = old_ok ? oldp->entities[oldindex].number : 9999;
 	}
 
 	if (newnum < oldnum) {	// new from baseline
