@@ -289,13 +289,15 @@ CL_ParsePacketEntities(qboolean delta)
 
     full = false;
     if (oldpacket != -1) {
-	if (cls.netchan.outgoing_sequence - oldpacket >= UPDATE_BACKUP - 1) {	// we can't use this, it is too old
+	if (cls.netchan.outgoing_sequence - oldpacket >= UPDATE_BACKUP - 1) {
+	    /* we can't use this, it is too old */
 	    FlushEntityPacket();
 	    return;
 	}
 	cl.validsequence = cls.netchan.incoming_sequence;
 	oldp = &cl.frames[oldpacket & UPDATE_MASK].packet_entities;
-    } else {			// this is a full update that we can start delta compressing from now
+    } else {
+	/* this is a full update that we can start delta compressing from now */
 	oldp = &dummy;
 	dummy.num_entities = 0;
 	cl.validsequence = cls.netchan.incoming_sequence;
@@ -312,7 +314,8 @@ CL_ParsePacketEntities(qboolean delta)
 	    Host_EndGame("msg_badread in packetentities");
 
 	if (!word) {
-	    while (oldindex < oldp->num_entities) {	// copy all the rest of the entities from the old packet
+	    while (oldindex < oldp->num_entities) {
+		/* copy all the rest of the entities from the old packet */
 		if (newindex >= MAX_PACKET_ENTITIES)
 		    Host_EndGame("%s: newindex == MAX_PACKET_ENTITIES",
 				 __func__);
@@ -333,7 +336,7 @@ CL_ParsePacketEntities(qboolean delta)
 		FlushEntityPacket();
 		return;
 	    }
-	    // copy one of the old entities over to the new packet unchanged
+	    /* copy one of the old entities over to the new packet unchanged */
 	    if (newindex >= MAX_PACKET_ENTITIES)
 		Host_EndGame("%s: newindex == MAX_PACKET_ENTITIES", __func__);
 	    newp->entities[newindex] = oldp->entities[oldindex];
@@ -343,7 +346,8 @@ CL_ParsePacketEntities(qboolean delta)
 	    oldnum = old_ok ? oldp->entities[oldindex].number : 9999;
 	}
 
-	if (newnum < oldnum) {	// new from baseline
+	/* new from baseline */
+	if (newnum < oldnum) {
 	    if (word & U_REMOVE) {
 		if (full) {
 		    cl.validsequence = 0;
@@ -361,7 +365,8 @@ CL_ParsePacketEntities(qboolean delta)
 	    continue;
 	}
 
-	if (newnum == oldnum) {	// delta from previous
+	/* delta from previous */
+	if (newnum == oldnum) {
 	    if (full) {
 		cl.validsequence = 0;
 		Con_Printf("WARNING: delta on full update");
@@ -377,7 +382,6 @@ CL_ParsePacketEntities(qboolean delta)
 	}
 
     }
-
     newp->num_entities = newindex;
 }
 
