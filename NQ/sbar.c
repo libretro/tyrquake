@@ -596,7 +596,7 @@ Sbar_DrawInventory(void)
     for (i = 0; i < 7; i++) {
 	if (cl.stats[STAT_ITEMS] & (IT_SHOTGUN << i)) {
 	    time = cl.item_gettime[i];
-	    flashon = (int)((cl.time - time) * 10);
+	    flashon = qmax((int)((cl.time - time) * 10), 0);
 	    if (flashon >= 10) {
 		if (cl.stats[STAT_ACTIVEWEAPON] == (IT_SHOTGUN << i))
 		    flashon = 1;
