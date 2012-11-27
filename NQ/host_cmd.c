@@ -541,7 +541,8 @@ Host_Loadgame_f(void)
     FILE *f;
     char mapname[MAX_QPATH];
     float time, tfloat;
-    char str[32768], *start;
+    char str[32768];
+    const char *start;
     int i, r;
     edict_t *ent;
     int entnum;
@@ -676,31 +677,31 @@ Host_Name_f
 void
 Host_Name_f(void)
 {
-    char *newName;
+    char new_name[16];
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("\"name\" is \"%s\"\n", cl_name.string);
 	return;
     }
     if (Cmd_Argc() == 2)
-	newName = Cmd_Argv(1);
+	strncpy(new_name, Cmd_Argv(1), sizeof(new_name));
     else
-	newName = Cmd_Args();
-    newName[15] = 0;
+	strncpy(new_name, Cmd_Args(), sizeof(new_name));
+    new_name[sizeof(new_name) - 1] = 0;
 
     if (cmd_source == src_command) {
-	if (strcmp(cl_name.string, newName) == 0)
+	if (strcmp(cl_name.string, new_name) == 0)
 	    return;
-	Cvar_Set("_cl_name", newName);
+	Cvar_Set("_cl_name", new_name);
 	if (cls.state >= ca_connected)
 	    Cmd_ForwardToServer();
 	return;
     }
 
     if (host_client->name[0] && strcmp(host_client->name, "unconnected"))
-	if (strcmp(host_client->name, newName) != 0)
-	    Con_Printf("%s renamed to %s\n", host_client->name, newName);
-    strcpy(host_client->name, newName);
+	if (strcmp(host_client->name, new_name) != 0)
+	    Con_Printf("%s renamed to %s\n", host_client->name, new_name);
+    strcpy(host_client->name, new_name);
     host_client->edict->v.netname = PR_SetString(host_client->name);
 
 // send notification to all clients
@@ -724,8 +725,9 @@ Host_Say(qboolean teamonly)
 {
     client_t *client;
     client_t *save;
-    int j;
-    char *p;
+    int i;
+    size_t len, space;
+    const char *p;
     char text[64];
     qboolean fromServer = false;
 
@@ -744,26 +746,26 @@ Host_Say(qboolean teamonly)
 
     save = host_client;
 
-    p = Cmd_Args();
-// remove quotes if present
-    if (*p == '"') {
-	p++;
-	p[strlen(p) - 1] = 0;
-    }
 // turn on color set 1
     if (!fromServer)
 	sprintf(text, "%c%s: ", 1, save->name);
     else
 	sprintf(text, "%c<%s> ", 1, hostname.string);
 
-    j = sizeof(text) - 2 - strlen(text);	// -2 for /n and null terminator
-    if (strlen(p) > j)
-	p[j] = 0;
-
-    strcat(text, p);
+    len = strlen(text);
+    space = sizeof(text) - len - 2; // -2 for \n and null terminator
+    p = Cmd_Args();
+    if (*p == '"') {
+	/* remove quotes */
+	strncat(text, p + 1, qmin(strlen(p) - 2, space));
+	text[len + qmin(strlen(p) - 2, space)] = 0;
+    } else {
+	strncat(text, p, space);
+	text[len + qmin(strlen(p), space)] = 0;
+    }
     strcat(text, "\n");
 
-    for (j = 0, client = svs.clients; j < svs.maxclients; j++, client++) {
+    for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++) {
 	if (!client || !client->active || !client->spawned)
 	    continue;
 	if (teamplay.value && teamonly
@@ -797,8 +799,8 @@ Host_Tell_f(void)
 {
     client_t *client;
     client_t *save;
-    int j;
-    char *p;
+    int i, len, space;
+    const char *p;
     char text[64];
 
     if (cmd_source == src_command) {
@@ -812,23 +814,21 @@ Host_Tell_f(void)
     strcpy(text, host_client->name);
     strcat(text, ": ");
 
+    len = strlen(text);
+    space = sizeof(text) - len - 2; // -2 for \n and null terminator
     p = Cmd_Args();
-
-// remove quotes if present
     if (*p == '"') {
-	p++;
-	p[strlen(p) - 1] = 0;
+	/* remove quotes */
+	strncat(text, p + 1, qmin((int)strlen(p) - 2, space));
+	text[len + qmin((int)strlen(p) - 2, space)] = 0;
+    } else {
+	strncat(text, p, space);
+	text[len + qmin((int)strlen(p), space)] = 0;
     }
-// check length & truncate if necessary
-    j = sizeof(text) - 2 - strlen(text);	// -2 for /n and null terminator
-    if (strlen(p) > j)
-	p[j] = 0;
-
-    strcat(text, p);
     strcat(text, "\n");
 
     save = host_client;
-    for (j = 0, client = svs.clients; j < svs.maxclients; j++, client++) {
+    for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++) {
 	if (!client->active || !client->spawned)
 	    continue;
 	if (strcasecmp(client->name, Cmd_Argv(1)))
@@ -1121,8 +1121,8 @@ Kicks a user off of the server
 void
 Host_Kick_f(void)
 {
-    char *who;
-    char *message = NULL;
+    const char *who;
+    const char *message = NULL;
     client_t *save;
     int i;
     qboolean byNumber = false;
@@ -1205,7 +1205,7 @@ Host_Give_f
 void
 Host_Give_f(void)
 {
-    char *t;
+    const char *t;
     int v;
     eval_t *val;
 

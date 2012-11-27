@@ -352,7 +352,7 @@ Creates a new command that executes a command string (possibly ; seperated)
 */
 
 char *
-CopyString(char *in)
+Cmd_CopyString(const char *in)
 {
     char *out;
 
@@ -380,7 +380,8 @@ Cmd_Alias_f(void)
     cmdalias_t *a;
     char cmd[1024];
     int i, c;
-    char *s;
+    const char *s;
+    char *newval;
     size_t cmd_len;
     struct stree_node *node;
 
@@ -430,7 +431,9 @@ Cmd_Alias_f(void)
     }
     strcat(cmd, "\n");
 
-    a->value = CopyString(cmd);
+    newval = Z_Malloc(strlen(cmd) + 1);
+    strcpy(newval, cmd);
+    a->value = newval;
 }
 
 /*
@@ -453,9 +456,9 @@ static DECLARE_STREE_ROOT(cmd_tree);
 
 #define	MAX_ARGS		80
 static int cmd_argc;
-static char *cmd_argv[MAX_ARGS];
-static char *cmd_null_string = "";
-static char *cmd_args = NULL;
+static const char *cmd_argv[MAX_ARGS];
+static const char *cmd_null_string = "";
+static const char *cmd_args = NULL;
 
 #ifdef NQ_HACK
 cmd_source_t cmd_source;
@@ -500,7 +503,7 @@ Cmd_Argc(void)
 Cmd_Argv
 ============
 */
-char *
+const char *
 Cmd_Argv(int arg)
 {
     if (arg >= cmd_argc)
@@ -515,7 +518,7 @@ Cmd_Args
 Returns a single string containing argv(1) to argv(argc()-1)
 ============
 */
-char *
+const char *
 Cmd_Args(void)
 {
     // FIXME - check necessary?
@@ -533,9 +536,10 @@ Parses the given string into command line tokens.
 ============
 */
 void
-Cmd_TokenizeString(char *text)
+Cmd_TokenizeString(const char *text)
 {
     int i;
+    char *arg;
 
 // clear the args from the last string
     for (i = 0; i < cmd_argc; i++)
@@ -566,12 +570,12 @@ Cmd_TokenizeString(char *text)
 	    return;
 
 	if (cmd_argc < MAX_ARGS) {
-	    cmd_argv[cmd_argc] = Z_Malloc(strlen(com_token) + 1);
-	    strcpy(cmd_argv[cmd_argc], com_token);
+	    arg = Z_Malloc(strlen(com_token) + 1);
+	    strcpy(arg, com_token);
+	    cmd_argv[cmd_argc] = arg;
 	    cmd_argc++;
 	}
     }
-
 }
 
 static struct cmd_function_s *

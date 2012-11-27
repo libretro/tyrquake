@@ -111,7 +111,7 @@ typedef struct cvar_s {
 void Cvar_RegisterVariable(cvar_t *variable);
 
 /* equivelant to "<name> <variable>" typed at the console */
-void Cvar_Set(char *var_name, char *value);
+void Cvar_Set(const char *var_name, const char *value);
 
 /* expands value to a string and calls Cvar_Set */
 void Cvar_SetValue(char *var_name, float value);

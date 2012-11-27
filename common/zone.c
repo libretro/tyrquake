@@ -100,14 +100,14 @@ Z_ClearZone(memzone_t *zone, int size)
  * ========================
  */
 void
-Z_Free(void *ptr)
+Z_Free(const void *ptr)
 {
     memblock_t *block, *other;
 
     if (!ptr)
 	Sys_Error("%s: NULL pointer", __func__);
 
-    block = (memblock_t *)((byte *)ptr - sizeof(memblock_t));
+    block = (memblock_t *)((const byte *)ptr - sizeof(memblock_t));
     if (block->id != ZONEID)
 	Sys_Error("%s: freed a pointer without ZONEID", __func__);
     if (block->tag == 0)

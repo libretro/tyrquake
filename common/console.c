@@ -743,7 +743,7 @@ void
 Con_Maplist_f()
 {
     struct stree_root st_root = STREE_ROOT;
-    char *pfx = NULL;
+    const char *pfx = NULL;
 
     if (Cmd_Argc() == 2)
 	pfx = Cmd_Argv(1);

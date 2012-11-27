@@ -89,7 +89,7 @@ Zone block
 
 void Memory_Init(void *buf, int size);
 
-void Z_Free(void *ptr);
+void Z_Free(const void *ptr);
 void *Z_Malloc(int size);	// returns 0 filled memory
 void *Z_Realloc(void *ptr, int size);
 

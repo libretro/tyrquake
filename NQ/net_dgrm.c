@@ -533,7 +533,7 @@ Test_Poll(struct test_poll_state *state)
 static void
 Test_f(void)
 {
-    char *host;
+    const char *host;
     int i, n;
     int max = MAX_SCOREBOARD;
     netadr_t sendaddr;
@@ -675,7 +675,7 @@ Test2_Poll(struct test_poll_state *state)
 static void
 Test2_f(void)
 {
-    char *host;
+    const char *host;
     int i, n;
     netadr_t sendaddr;
 

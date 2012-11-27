@@ -639,7 +639,8 @@ SV_BeginDownload_f
 void
 SV_BeginDownload_f(void)
 {
-    char *name;
+    char lname[MAX_OSPATH], *p;
+    const char *name;
 
     name = Cmd_Argv(1);
 // hacked by zoid to allow more conrol over download
@@ -670,27 +671,22 @@ SV_BeginDownload_f(void)
 	host_client->download = NULL;
     }
     // lowercase name (needed for casesen file systems)
-    {
-	char *p;
+    for (p = lname; *name; p++, name++)
+	*p = (char)tolower(*name);
 
-	for (p = name; *p; p++)
-	    *p = (char)tolower(*p);
-    }
-
-
-    host_client->downloadsize = COM_FOpenFile(name, &host_client->download);
+    host_client->downloadsize = COM_FOpenFile(lname, &host_client->download);
     host_client->downloadcount = 0;
 
     if (!host_client->download
 	// special check for maps, if it came from a pak file, don't allow
 	// download  ZOID
-	|| (strncmp(name, "maps/", 5) == 0 && file_from_pak)) {
+	|| (strncmp(lname, "maps/", 5) == 0 && file_from_pak)) {
 	if (host_client->download) {
 	    fclose(host_client->download);
 	    host_client->download = NULL;
 	}
 
-	Sys_Printf("Couldn't download %s to %s\n", name, host_client->name);
+	Sys_Printf("Couldn't download %s to %s\n", lname, host_client->name);
 	ClientReliableWrite_Begin(host_client, svc_download, 4);
 	ClientReliableWrite_Short(host_client, -1);
 	ClientReliableWrite_Byte(host_client, 0);
@@ -698,7 +694,7 @@ SV_BeginDownload_f(void)
     }
 
     SV_NextDownload_f();
-    Sys_Printf("Downloading %s to %s\n", name, host_client->name);
+    Sys_Printf("Downloading %s to %s\n", lname, host_client->name);
 }
 
 //=============================================================================
@@ -712,8 +708,9 @@ void
 SV_Say(qboolean team)
 {
     client_t *client;
-    int j, tmp;
-    char *p;
+    int i, tmp;
+    size_t len, space;
+    const char *p;
     char text[2048];
     char t1[32], *t2;
 
@@ -761,19 +758,22 @@ SV_Say(qboolean team)
 	host_client->whensaid[host_client->whensaidhead] = realtime;
     }
 
+    len = strlen(text);
+    space = sizeof(text) - len - 2; // -2 for \n and null terminator
     p = Cmd_Args();
-
     if (*p == '"') {
-	p++;
-	p[strlen(p) - 1] = 0;
+	/* remove quotes */
+	strncat(text, p + 1, qmin(strlen(p) - 2, space));
+	text[len + qmin(strlen(p) - 2, space)] = 0;
+    } else {
+	strncat(text, p, space);
+	text[len + qmin(strlen(p), space)] = 0;
     }
-
-    strcat(text, p);
     strcat(text, "\n");
 
     Sys_Printf("%s", text);
 
-    for (j = 0, client = svs.clients; j < MAX_CLIENTS; j++, client++) {
+    for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
 	if (client->state != cs_spawned)
 	    continue;
 	if (host_client->spectator && !sv_spectalk.value)

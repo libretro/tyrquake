@@ -242,7 +242,7 @@ SV_Give_f
 void
 SV_Give_f(void)
 {
-    char *t;
+    const char *t;
     int v;
 
     if (!sv_allow_cheats) {
@@ -501,24 +501,30 @@ void
 SV_ConSay_f(void)
 {
     client_t *client;
-    int j;
-    char *p;
+    int i;
+    size_t len, space;
+    const char *p;
     char text[1024];
 
     if (Cmd_Argc() < 2)
 	return;
 
     strcpy(text, "console: ");
+
+    len = strlen(text);
+    space = sizeof(text) - len - 2; // -2 for \n and null terminator
     p = Cmd_Args();
-
     if (*p == '"') {
-	p++;
-	p[strlen(p) - 1] = 0;
+	/* remove quotes */
+	strncat(text, p + 1, qmin(strlen(p) - 2, space));
+	text[len + qmin(strlen(p) - 2, space)] = 0;
+    } else {
+	strncat(text, p, space);
+	text[len + qmin(strlen(p), space)] = 0;
     }
+    strcat(text, "\n");
 
-    strcat(text, p);
-
-    for (j = 0, client = svs.clients; j < MAX_CLIENTS; j++, client++) {
+    for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
 	if (client->state != cs_spawned)
 	    continue;
 	SV_ClientPrintf(client, PRINT_CHAT, "%s\n", text);
@@ -538,7 +544,7 @@ SV_Heartbeat_f(void)
 }
 
 void
-SV_SendServerInfoChange(char *key, char *value)
+SV_SendServerInfoChange(const char *key, const char *value)
 {
     if (!sv.state)
 	return;
@@ -555,12 +561,9 @@ SV_Serverinfo_f
   Examine or change the serverinfo string
 ===========
 */
-char *CopyString(char *s);
 void
 SV_Serverinfo_f(void)
 {
-    cvar_t *var;
-
     if (Cmd_Argc() == 1) {
 	Con_Printf("Server info settings:\n");
 	Info_Print(svs.info);
@@ -580,12 +583,9 @@ SV_Serverinfo_f(void)
 			MAX_SERVERINFO_STRING);
 
     // if this is a cvar, change it too
-    var = Cvar_FindVar(Cmd_Argv(1));
-    if (var) {
-	Z_Free(var->string);	// free the old value string
-	var->string = CopyString(Cmd_Argv(2));
-	var->value = Q_atof(var->string);
-    }
+    // FIXME - double cvar search just to avoid a Con_Printf
+    if (Cvar_FindVar(Cmd_Argv(1)))
+	Cvar_Set(Cmd_Argv(1), Cmd_Argv(2));
 
     SV_SendServerInfoChange(Cmd_Argv(1), Cmd_Argv(2));
 }
@@ -598,7 +598,6 @@ SV_Serverinfo_f
   Examine or change the serverinfo string
 ===========
 */
-char *CopyString(char *s);
 void
 SV_Localinfo_f(void)
 {
@@ -653,7 +652,7 @@ Sets the fake *gamedir to a different directory.
 void
 SV_Gamedir(void)
 {
-    char *dir;
+    const char *dir;
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("Current *gamedir: %s\n",
@@ -751,7 +750,7 @@ char gamedirfile[MAX_OSPATH];
 void
 SV_Gamedir_f(void)
 {
-    char *dir;
+    const char *dir;
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("Current gamedir: %s\n", com_gamedir);

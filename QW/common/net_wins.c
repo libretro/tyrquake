@@ -98,7 +98,7 @@ NET_BaseAdrToString(netadr_t a)
  * =============
  */
 qboolean
-NET_StringToAdr(char *s, netadr_t *a)
+NET_StringToAdr(const char *s, netadr_t *a)
 {
     struct hostent *h;
     struct sockaddr_in sadr;

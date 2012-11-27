@@ -130,8 +130,8 @@ qboolean Cmd_Alias_Exists(char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
 int Cmd_Argc(void);
-char *Cmd_Argv(int arg);
-char *Cmd_Args(void);
+const char *Cmd_Argv(int arg);
+const char *Cmd_Args(void);
 
 // The functions that execute commands get their parameters with these
 // functions. Cmd_Argv () will return an empty string, not a NULL
@@ -142,7 +142,7 @@ int Cmd_CheckParm(char *parm);
 // Returns the position (1 to argc-1) in the command's argument list
 // where the given parameter apears, or 0 if not present
 
-void Cmd_TokenizeString(char *text);
+void Cmd_TokenizeString(const char *text);
 
 // Takes a null terminated string.  Does not need to be /n terminated.
 // breaks the string up into arg tokens.

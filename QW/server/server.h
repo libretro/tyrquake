@@ -401,6 +401,7 @@ void SV_Physics_Client(edict_t *ent);
 void SV_ExecuteUserCommand(char *s);
 void SV_InitOperatorCommands(void);
 void SV_SendServerinfo(client_t *client);
+void SV_SendServerInfoChange(const char *key, const char *value);
 void SV_ExtractFromUserinfo(client_t *cl);
 
 //

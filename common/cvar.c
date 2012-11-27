@@ -35,7 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef SERVERONLY
 #include "qwsvdef.h"
 #include "server.h"
-void SV_SendServerInfoChange(char *key, char *value);	// FIXME
 #else
 #ifdef QW_HACK
 #include "quakedef.h"
@@ -169,7 +168,7 @@ Cvar_Set
 ============
 */
 void
-Cvar_Set(char *var_name, char *value)
+Cvar_Set(const char *var_name, const char *value)
 {
     cvar_t *var;
     qboolean changed;

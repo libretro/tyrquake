@@ -769,8 +769,8 @@ connectionless packets.
 static void
 SV_ConnectionlessPacket(void)
 {
-    char *s;
-    char *c;
+    const char *s;
+    const char *c;
 
     MSG_BeginReading();
     MSG_ReadLong();		// skip the -1 marker
@@ -867,11 +867,11 @@ StringToFilter
 =================
 */
 static qboolean
-StringToFilter(char *in, ipfilter_t *f)
+StringToFilter(const char *in, ipfilter_t *f)
 {
     char num[4];
     int i, j, b;
-    char *s = in;
+    const char *s = in;
 
     for (i = 0; i < 4; i++) {
 	f->addr.b[i] = 0;

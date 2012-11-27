@@ -309,7 +309,7 @@ CL_Connect_f
 void
 CL_Connect_f(void)
 {
-    char *server;
+    const char *server;
 
     if (Cmd_Argc() != 2) {
 	Con_Printf("usage: connect <server>\n");
@@ -615,7 +615,7 @@ CL_FullInfo_f(void)
     char key[512];
     char value[512];
     char *o;
-    char *s;
+    const char *s;
 
     if (Cmd_Argc() != 2) {
 	Con_Printf("fullinfo <complete info string>\n");
@@ -694,7 +694,8 @@ CL_Packet_f(void)
 {
     char send[2048];
     int i, l;
-    char *in, *out;
+    const char *in;
+    char *out;
     netadr_t adr;
 
     if (Cmd_Argc() != 3) {

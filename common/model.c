@@ -194,7 +194,7 @@ Mod_FindName
 ==================
 */
 static model_t *
-Mod_FindName(char *name)
+Mod_FindName(const char *name)
 {
     int i;
     model_t *mod;
@@ -292,7 +292,7 @@ Loads in a model for the given name
 ==================
 */
 model_t *
-Mod_ForName(char *name, qboolean crash)
+Mod_ForName(const char *name, qboolean crash)
 {
     model_t *mod;
 
