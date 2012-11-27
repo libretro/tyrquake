@@ -61,8 +61,9 @@ extern vec3_t vec3_origin;
 extern int nanmask;
 
 #define	IS_NAN(x) ({ \
+	float *_x = &(x);		\
 	int tmp;			\
-	memcpy(&tmp, &x, sizeof(int));	\
+	memcpy(&tmp, _x, sizeof(int));	\
 	((tmp & nanmask) == nanmask);	\
 })
 
