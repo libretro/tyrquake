@@ -546,8 +546,8 @@ WinMain
 */
 HINSTANCE global_hInstance;
 int global_nCmdShow;
-char *argv[MAX_NUM_ARGVS];
-static char *empty_string = "";
+const char *argv[MAX_NUM_ARGVS];
+static const char *empty_string = "";
 HWND hwnd_dialog;
 
 

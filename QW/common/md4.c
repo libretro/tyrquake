@@ -304,7 +304,7 @@ Com_BlockChecksum(void *buffer, int length)
 }
 
 void
-Com_BlockFullChecksum(void *buffer, int len, unsigned char *outbuf)
+Com_BlockFullChecksum(void *buffer, int len, unsigned char outbuf[16])
 {
     MD4_CTX ctx;
 

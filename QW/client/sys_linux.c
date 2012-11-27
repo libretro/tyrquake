@@ -182,7 +182,7 @@ Sys_LowFPPrecision(void)
 #endif
 
 int
-main(int c, char **v)
+main(int c, const char **v)
 {
     double time, oldtime, newtime;
     quakeparms_t parms;

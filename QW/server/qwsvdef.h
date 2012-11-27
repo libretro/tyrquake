@@ -46,7 +46,7 @@ typedef struct {
     char *basedir;
     char *cachedir;		// for development over ISDN lines
     int argc;
-    char **argv;
+    const char **argv;
     void *membase;
     int memsize;
 } quakeparms_t;

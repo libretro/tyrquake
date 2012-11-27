@@ -217,7 +217,7 @@ main
 =============
 */
 int
-main(int argc, char *argv[])
+main(int argc, const char *argv[])
 {
     double time, oldtime, newtime;
     quakeparms_t parms;

@@ -129,11 +129,11 @@ extern qboolean com_eof;
 char *COM_Parse(char *data);
 
 extern unsigned com_argc;
-extern char **com_argv;
+extern const char **com_argv;
 
-unsigned COM_CheckParm(char *parm);
-void COM_Init(char *path);
-void COM_InitArgv(int argc, char **argv);
+unsigned COM_CheckParm(const char *parm);
+void COM_Init(const char *path);
+void COM_InitArgv(int argc, const char **argv);
 
 const char *COM_SkipPath(const char *pathname);
 void COM_StripExtension(const char *in, char *out);

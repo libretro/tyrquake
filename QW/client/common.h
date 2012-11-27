@@ -101,12 +101,12 @@ void MSG_WriteByte(sizebuf_t *sb, int c);
 void MSG_WriteShort(sizebuf_t *sb, int c);
 void MSG_WriteLong(sizebuf_t *sb, int c);
 void MSG_WriteFloat(sizebuf_t *sb, float f);
-void MSG_WriteString(sizebuf_t *sb, char *s);
+void MSG_WriteString(sizebuf_t *sb, const char *s);
 void MSG_WriteCoord(sizebuf_t *sb, float f);
 void MSG_WriteAngle(sizebuf_t *sb, float f);
 void MSG_WriteAngle16(sizebuf_t *sb, float f);
-void MSG_WriteDeltaUsercmd(sizebuf_t *sb, struct usercmd_s *from,
-			   struct usercmd_s *cmd);
+void MSG_WriteDeltaUsercmd(sizebuf_t *sb, const struct usercmd_s *from,
+			   const struct usercmd_s *cmd);
 
 extern int msg_readcount;
 extern qboolean msg_badread;	// set if a read goes beyond end of message
@@ -124,7 +124,7 @@ char *MSG_ReadStringLine(void);
 float MSG_ReadCoord(void);
 float MSG_ReadAngle(void);
 float MSG_ReadAngle16(void);
-void MSG_ReadDeltaUsercmd(struct usercmd_s *from, struct usercmd_s *cmd);
+void MSG_ReadDeltaUsercmd(const struct usercmd_s *from, struct usercmd_s *cmd);
 
 //============================================================================
 
@@ -139,13 +139,13 @@ extern qboolean com_eof;
 char *COM_Parse(char *data);
 
 extern unsigned com_argc;
-extern char **com_argv;
+extern const char **com_argv;
 
-unsigned COM_CheckParm(char *parm);
-void COM_AddParm(char *parm);
+unsigned COM_CheckParm(const char *parm);
+void COM_AddParm(const char *parm);
 
 void COM_Init(void);
-void COM_InitArgv(int argc, char **argv);
+void COM_InitArgv(int argc, const char **argv);
 
 const char *COM_SkipPath(const char *pathname);
 void COM_StripExtension(const char *in, char *out);
@@ -175,24 +175,27 @@ byte *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 byte *COM_LoadTempFile(const char *path);
 byte *COM_LoadHunkFile(const char *path);
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu);
-void COM_CreatePath(char *path);
+void COM_CreatePath(const char *path);
 void COM_Gamedir(const char *dir);
 
 extern struct cvar_s registered;
 extern qboolean standard_quake, rogue, hipnotic;
 
-char *Info_ValueForKey(char *s, char *key);
-void Info_RemoveKey(char *s, char *key);
+char *Info_ValueForKey(char *s, const char *key);
+void Info_RemoveKey(char *s, const char *key);
 void Info_RemovePrefixedKeys(char *start, char prefix);
-void Info_SetValueForKey(char *s, char *key, char *value, int maxsize);
-void Info_SetValueForStarKey(char *s, char *key, char *value, int maxsize);
-void Info_Print(char *s);
+void Info_SetValueForKey(char *s, const char *key, const char *value,
+			 int maxsize);
+void Info_SetValueForStarKey(char *s, const char *key, const char *value,
+			     int maxsize);
+void Info_Print(const char *s);
 
-unsigned Com_BlockChecksum(void *buffer, int length);
-void Com_BlockFullChecksum(void *buffer, int len, unsigned char *outbuf);
-byte COM_BlockSequenceCheckByte(byte *base, int length, int sequence,
+unsigned Com_BlockChecksum(const void *buffer, int length);
+void Com_BlockFullChecksum(const void *buffer, int len,
+			   unsigned char outbuf[16]);
+byte COM_BlockSequenceCheckByte(const byte *base, int length, int sequence,
 				unsigned mapchecksum);
-byte COM_BlockSequenceCRCByte(byte *base, int length, int sequence);
+byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence);
 
 int build_number(void);
 

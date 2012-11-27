@@ -39,10 +39,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_SAFE_ARGVS 7
 
-static char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
-static char *argvdummy = " ";
+static const char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
+static const char *argvdummy = " ";
 
-static char *safeargvs[NUM_SAFE_ARGVS] = {
+static const char *safeargvs[NUM_SAFE_ARGVS] = {
   "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse", "-dibonly"
 };
 
@@ -806,7 +806,7 @@ COM_CheckExtension(const char *path, const char *extn)
 
 char com_token[1024];
 unsigned com_argc;
-char **com_argv;
+const char **com_argv;
 
 /*
 ==============
@@ -886,7 +886,7 @@ where the given parameter apears, or 0 if not present
 ================
 */
 unsigned
-COM_CheckParm(char *parm)
+COM_CheckParm(const char *parm)
 {
     unsigned i;
 
@@ -948,7 +948,7 @@ COM_InitArgv
 ================
 */
 void
-COM_InitArgv(int argc, char **argv)
+COM_InitArgv(int argc, const char **argv)
 {
     qboolean safe;
     int i, j, n;
@@ -1010,7 +1010,7 @@ COM_Init
 ================
 */
 void
-COM_Init(char *basedir)
+COM_Init(const char *basedir)
 {
     union {
 	byte b[2];
@@ -1158,7 +1158,7 @@ COM_filelength(FILE *f)
 }
 
 static int
-COM_FileOpenRead(char *path, FILE **hndl)
+COM_FileOpenRead(const char *path, FILE **hndl)
 {
     FILE *f;
 
@@ -1564,8 +1564,8 @@ Loads the header and directory, adding the files at the beginning
 of the list so they override previous pack files.
 =================
 */
-pack_t *
-COM_LoadPackFile(char *packfile)
+static pack_t *
+COM_LoadPackFile(const char *packfile)
 {
     dpackheader_t header;
     int i;
@@ -1632,7 +1632,7 @@ then loads and adds pak1.pak pak2.pak ...
 ================
 */
 static void
-COM_AddGameDirectory(char *base, char *dir)
+COM_AddGameDirectory(const char *base, const char *dir)
 {
     int i;
     searchpath_t *search;
