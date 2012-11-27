@@ -68,9 +68,9 @@ extern int nanmask;
 })
 
 #define DotProduct(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
-#define VectorSubtract(a,b,c) {c[0]=a[0]-b[0];c[1]=a[1]-b[1];c[2]=a[2]-b[2];}
-#define VectorAdd(a,b,c) {c[0]=a[0]+b[0];c[1]=a[1]+b[1];c[2]=a[2]+b[2];}
-#define VectorCopy(a,b) {b[0]=a[0];b[1]=a[1];b[2]=a[2];}
+#define VectorSubtract(a,b,c) do {c[0]=a[0]-b[0];c[1]=a[1]-b[1];c[2]=a[2]-b[2];} while (0)
+#define VectorAdd(a,b,c) do {c[0]=a[0]+b[0];c[1]=a[1]+b[1];c[2]=a[2]+b[2];} while (0)
+#define VectorCopy(a,b) do {b[0]=a[0];b[1]=a[1];b[2]=a[2];} while (0)
 
 void VectorMA(const vec3_t veca, const float scale, const vec3_t vecb,
 	      vec3_t vecc);

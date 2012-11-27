@@ -762,8 +762,8 @@ CL_AddFlagModels(entity_t *ent, int team)
 	    ent->origin[i] - f * v_forward[i] + 22 * v_right[i];
     newent->origin[2] -= 16;
 
-    VectorCopy(ent->angles, newent->angles)
-	newent->angles[2] -= 45;
+    VectorCopy(ent->angles, newent->angles);
+    newent->angles[2] -= 45;
 }
 
 /*

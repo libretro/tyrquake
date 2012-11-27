@@ -764,7 +764,7 @@ SpectatorMove(void)
     // friction
     speed = Length(pmove.velocity);
     if (speed < 1) {
-	VectorCopy(vec3_origin, pmove.velocity)
+	VectorCopy(vec3_origin, pmove.velocity);
     } else {
 	drop = 0;
 
