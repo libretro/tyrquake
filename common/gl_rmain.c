@@ -149,6 +149,7 @@ R_CullBox(vec3_t mins, vec3_t maxs)
     int i;
 
     for (i = 0; i < 4; i++)
+	/* Not using macro since frustum planes generally not axis aligned */
 	if (BoxOnPlaneSide(mins, maxs, &frustum[i]) == 2)
 	    return true;
     return false;
