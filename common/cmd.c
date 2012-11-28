@@ -131,7 +131,7 @@ FIXME: actually change the command buffer to do less copying
 ============
 */
 void
-Cbuf_InsertText(char *text)
+Cbuf_InsertText(const char *text)
 {
     char *temp;
     int templen;
@@ -631,13 +631,13 @@ Cmd_Exists
 ============
 */
 qboolean
-Cmd_Exists(char *cmd_name)
+Cmd_Exists(const char *cmd_name)
 {
     return Cmd_FindCommand(cmd_name) != NULL;
 }
 
 qboolean
-Cmd_Alias_Exists(char *cmd_name)
+Cmd_Alias_Exists(const char *cmd_name)
 {
     return Cmd_Alias_Find(cmd_name) != NULL;
 }
@@ -743,10 +743,10 @@ FIXME: lookupnoadd the token to speed search?
 */
 void
 #ifdef NQ_HACK
-Cmd_ExecuteString(char *text, cmd_source_t src)
+Cmd_ExecuteString(const char *text, cmd_source_t src)
 #endif
 #ifdef QW_HACK
-Cmd_ExecuteString(char *text)
+Cmd_ExecuteString(const char *text)
 #endif
 {
     cmd_function_t *cmd;
@@ -806,7 +806,7 @@ Cmd_ArgCompletions(const char *name, const char *buf)
  * Call the argument completion function for cmd "name".
  * Returned result should be Z_Free'd after use.
  */
-char *
+const char *
 Cmd_ArgComplete(const char *name, const char *buf)
 {
     char *result = NULL;
@@ -831,7 +831,7 @@ where the given parameter apears, or 0 if not present
 ================
 */
 int
-Cmd_CheckParm(char *parm)
+Cmd_CheckParm(const char *parm)
 {
     int i;
 
@@ -862,7 +862,7 @@ Cmd_CommandCompletions(const char *buf)
     return root;
 }
 
-char *
+const char *
 Cmd_CommandComplete(const char *buf)
 {
     struct stree_root *root;

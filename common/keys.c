@@ -219,9 +219,8 @@ CheckForCommand(void)
 void
 CompleteCommand(void)
 {
-    char *cmd;
-    char *s;
-    char *completion;
+    const char *cmd, *completion;
+    char *s, *newcmd;
     int len;
 
     s = GetCommandPos(key_lines[edit_line] + 1);
@@ -241,21 +240,21 @@ CompleteCommand(void)
 	cmd = strchr(s, ' ');
 	if (cmd) {
 	    len = cmd - s;
-	    cmd = Z_Malloc(len + 1);
-	    strncpy(cmd, s, len);
-	    cmd[len] = 0;
+	    newcmd = Z_Malloc(len + 1);
+	    strncpy(newcmd, s, len);
+	    newcmd[len] = 0;
 
 	    completion = NULL;
-	    if (Cmd_Exists(cmd)) {
+	    if (Cmd_Exists(newcmd)) {
 		s += len;
 		while (*s == ' ')
 		    s++;
-		completion = Cmd_ArgComplete(cmd, s);
-	    } else if (Cvar_FindVar(cmd)) {
+		completion = Cmd_ArgComplete(newcmd, s);
+	    } else if (Cvar_FindVar(newcmd)) {
 		s += len;
 		while (*s == ' ')
 		    s++;
-		completion = Cvar_ArgComplete(cmd, s);
+		completion = Cvar_ArgComplete(newcmd, s);
 	    }
 	    if (completion) {
 		key_linepos = s - key_lines[edit_line];

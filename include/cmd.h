@@ -52,7 +52,7 @@ void Cbuf_AddText(const char *text);
 // as new commands are generated from the console or keybindings,
 // the text is added to the end of the command buffer.
 
-void Cbuf_InsertText(char *text);
+void Cbuf_InsertText(const char *text);
 
 // when a command wants to issue other commands immediately, the text is
 // inserted at the beginning of the buffer, before any remaining unexecuted
@@ -101,32 +101,32 @@ extern cmd_source_t cmd_source;
  * Parses a single line of text into arguments and tries to execute it.
  * The text can come from the command buffer, a remote client, or stdin.
  */
-void Cmd_ExecuteString(char *text, cmd_source_t src);
+void Cmd_ExecuteString(const char *text, cmd_source_t src);
 #endif
 #ifdef QW_HACK
 /*
  * Parses a single line of text into arguments and tries to execute it as if
  * it was typed at the console
  */
-void Cmd_ExecuteString(char *text);
+void Cmd_ExecuteString(const char *text);
 #endif
 
 void Cmd_Init(void);
 
 void Cmd_AddCommand(const char *cmd_name, xcommand_t function);
 void Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion);
-char *Cmd_ArgComplete(const char *name, const char *buf);
+const char *Cmd_ArgComplete(const char *name, const char *buf);
 struct stree_root *Cmd_ArgCompletions(const char *name, const char *buf);
 
 struct stree_root *Cmd_CommandCompletions(const char *buf);
-char *Cmd_CommandComplete(const char *buf);
+const char *Cmd_CommandComplete(const char *buf);
 
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory
 
-qboolean Cmd_Exists(char *cmd_name);
-qboolean Cmd_Alias_Exists(char *cmd_name);
+qboolean Cmd_Exists(const char *cmd_name);
+qboolean Cmd_Alias_Exists(const char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
 int Cmd_Argc(void);
@@ -137,7 +137,7 @@ const char *Cmd_Args(void);
 // functions. Cmd_Argv () will return an empty string, not a NULL
 // if arg > argc, so string operations are allways safe.
 
-int Cmd_CheckParm(char *parm);
+int Cmd_CheckParm(const char *parm);
 
 // Returns the position (1 to argc-1) in the command's argument list
 // where the given parameter apears, or 0 if not present
@@ -154,7 +154,7 @@ void Cmd_ForwardToServer(void);
 // so when they are typed in at the console, they will need to be forwarded.
 
 #ifdef NQ_HACK
-void Cmd_Print(char *text);
+void Cmd_Print(const char *text);
 
 // used by command functions to send output to either the graphics console or
 // passed as a print message to the client
