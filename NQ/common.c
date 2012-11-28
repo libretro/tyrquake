@@ -669,14 +669,13 @@ SZ_Write(sizebuf_t *buf, const void *data, int length)
 void
 SZ_Print(sizebuf_t *buf, const char *data)
 {
-    int len;
+    size_t len = strlen(data);
 
-    len = strlen(data) + 1;
-
-    if (buf->data[buf->cursize - 1])
-	memcpy(SZ_GetSpace(buf, len), data, len);	// no trailing 0
+    /* If buf->data has a trailing zero, overwrite it */
+    if (!buf->cursize || buf->data[buf->cursize - 1])
+	memcpy(SZ_GetSpace(buf, len + 1), data, len + 1);
     else
-	memcpy(SZ_GetSpace(buf, len - 1) - 1, data, len);	// write over trailing 0
+	memcpy(SZ_GetSpace(buf, len) - 1, data, len + 1);
 }
 
 
