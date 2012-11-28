@@ -282,6 +282,8 @@ void Key_SetBinding(knum_t keynum, char *binding);
 void Key_ClearStates(void);
 void Key_ClearTyping(void);
 
+char *Key_KeynumToString(int keynum);
+
 #define MAXCMDLINE 256
 extern char key_lines[32][MAXCMDLINE];
 extern int edit_line;

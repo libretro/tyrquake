@@ -417,9 +417,6 @@ int CL_ReadFromServer(void);
 void CL_WriteToServer(usercmd_t *cmd);
 void CL_BaseMove(usercmd_t *cmd);
 
-
-char *Key_KeynumToString(int keynum);
-
 //
 // cl_demo.c
 //
