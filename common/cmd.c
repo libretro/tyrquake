@@ -350,16 +350,6 @@ Creates a new command that executes a command string (possibly ; seperated)
 ===============
 */
 
-char *
-Cmd_CopyString(const char *in)
-{
-    char *out;
-
-    out = Z_Malloc(strlen(in) + 1);
-    strcpy(out, in);
-    return out;
-}
-
 static struct cmdalias_s *
 Cmd_Alias_Find(const char *name)
 {
