@@ -18,21 +18,33 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // common.h -- general definitions
-// FIXME - split this up better?
 
 #ifndef COMMON_H
 #define COMMON_H
 
 #include <stdio.h>
 
-#include "quakedef.h"
 #include "qtypes.h"
 #include "shell.h"
+
+#ifdef NQ_HACK
+#include "quakedef.h"
+#endif
+#ifdef QW_HACK
+#include "bothdefs.h"
+#include "protocol.h"
+#endif
 
 #define MAX_NUM_ARGVS 50
 
 #define stringify__(x) #x
 #define stringify(x) stringify__(x)
+
+#ifdef QW_HACK
+#define	MAX_INFO_STRING 196
+#define	MAX_SERVERINFO_STRING 512
+#define	MAX_LOCALINFO_STRING 32768
+#endif
 
 //============================================================================
 
@@ -44,8 +56,10 @@ typedef struct sizebuf_s {
     int cursize;
 } sizebuf_t;
 
+#ifdef NQ_HACK
 void SZ_Alloc(sizebuf_t *buf, int startsize);
 void SZ_Free(sizebuf_t *buf);
+#endif
 void SZ_Clear(sizebuf_t *buf);
 void SZ_Write(sizebuf_t *buf, const void *data, int length);
 void SZ_Print(sizebuf_t *buf, const char *data); // strcats onto the sizebuf
@@ -92,6 +106,10 @@ extern float (*LittleFloat) (float l);
 
 //============================================================================
 
+#ifdef QW_HACK
+extern struct usercmd_s nullcmd;
+#endif
+
 void MSG_WriteChar(sizebuf_t *sb, int c);
 void MSG_WriteByte(sizebuf_t *sb, int c);
 void MSG_WriteShort(sizebuf_t *sb, int c);
@@ -100,20 +118,35 @@ void MSG_WriteFloat(sizebuf_t *sb, float f);
 void MSG_WriteString(sizebuf_t *sb, const char *s);
 void MSG_WriteCoord(sizebuf_t *sb, float f);
 void MSG_WriteAngle(sizebuf_t *sb, float f);
+#ifdef QW_HACK
+void MSG_WriteAngle16(sizebuf_t *sb, float f);
+void MSG_WriteDeltaUsercmd(sizebuf_t *sb, const struct usercmd_s *from,
+			   const struct usercmd_s *cmd);
+#endif
 
 extern int msg_readcount;
 extern qboolean msg_badread;	// set if a read goes beyond end of message
 
 void MSG_BeginReading(void);
+#ifdef QW_HACK
+int MSG_GetReadCount(void);
+#endif
 int MSG_ReadChar(void);
 int MSG_ReadByte(void);
 int MSG_ReadShort(void);
 int MSG_ReadLong(void);
 float MSG_ReadFloat(void);
 char *MSG_ReadString(void);
+#ifdef QW_HACK
+char *MSG_ReadStringLine(void);
+#endif
 
 float MSG_ReadCoord(void);
 float MSG_ReadAngle(void);
+#ifdef QW_HACK
+float MSG_ReadAngle16(void);
+void MSG_ReadDeltaUsercmd(const struct usercmd_s *from, struct usercmd_s *cmd);
+#endif
 
 //============================================================================
 
@@ -131,6 +164,10 @@ extern unsigned com_argc;
 extern const char **com_argv;
 
 unsigned COM_CheckParm(const char *parm);
+#ifdef QW_HACK
+void COM_AddParm(const char *parm);
+#endif
+
 void COM_Init(void);
 void COM_InitArgv(int argc, const char **argv);
 
@@ -162,8 +199,34 @@ byte *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 byte *COM_LoadTempFile(const char *path);
 byte *COM_LoadHunkFile(const char *path);
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu);
+#ifdef QW_HACK
+void COM_CreatePath(const char *path);
+void COM_Gamedir(const char *dir);
+#endif
 
 extern struct cvar_s registered;
 extern qboolean standard_quake, rogue, hipnotic;
+
+#ifdef QW_HACK
+char *Info_ValueForKey(char *s, const char *key);
+void Info_RemoveKey(char *s, const char *key);
+void Info_RemovePrefixedKeys(char *start, char prefix);
+void Info_SetValueForKey(char *s, const char *key, const char *value,
+			 int maxsize);
+void Info_SetValueForStarKey(char *s, const char *key, const char *value,
+			     int maxsize);
+void Info_Print(const char *s);
+
+unsigned Com_BlockChecksum(const void *buffer, int length);
+void Com_BlockFullChecksum(const void *buffer, int len,
+			   unsigned char outbuf[16]);
+byte COM_BlockSequenceCheckByte(const byte *base, int length, int sequence,
+				unsigned mapchecksum);
+byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence);
+
+int build_number(void);
+
+extern char gamedirfile[];
+#endif
 
 #endif /* COMMON_H */
