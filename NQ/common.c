@@ -106,13 +106,6 @@ The game directory can never be changed while quake is executing.  This is a
 precacution against having a malicious server instruct clients to write files
 over areas they shouldn't.
 
-FIXME:
-The file "parms.txt" will be read out of the game directory and appended to
-the current command line arguments to allow different games to initialize
-startup parms differently.  This could be used to add a "-sspeed 22050" for
-the high quality sound edition.  Because they are added at the end, they will
-not override an explicit setting on the original command line.
-
 */
 
 //============================================================================
@@ -1625,10 +1618,6 @@ COM_AddGameDirectory(const char *base, const char *dir)
 	search->next = com_searchpaths;
 	com_searchpaths = search;
     }
-
-//
-// add the contents of the parms.txt file to the end of the command line
-//
 }
 
 
