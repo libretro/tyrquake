@@ -634,6 +634,7 @@ void
 SZ_Clear(sizebuf_t *buf)
 {
     buf->cursize = 0;
+    buf->overflowed = false;
 }
 
 static void *
