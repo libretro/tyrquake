@@ -623,7 +623,7 @@ M_Keys_Draw(void)
 {
     int i;
     int keys[2];
-    char *name;
+    const char *name;
     int x, y;
     qpic_t *p;
 
