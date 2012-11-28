@@ -34,7 +34,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "protocol.h"
 #endif
 
-void Cmd_ForwardToServer(void);
 #if defined(QW_HACK) && !defined(SERVERONLY)
 static void Cmd_ForwardToServer_f(void);
 #endif
