@@ -545,7 +545,7 @@ the given string.  Single ascii characters return themselves, while
 the K_* names are matched up.
 ===================
 */
-int
+static int
 Key_StringToKeynum(const char *str)
 {
     keyname_t *kn;
