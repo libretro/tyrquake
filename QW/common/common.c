@@ -1531,7 +1531,7 @@ static int loadsize;
 static byte *
 COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
-    FILE *h;
+    FILE *f;
     byte *buf;
     char base[32];
     int len;
@@ -1539,8 +1539,8 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
     buf = NULL;			// quiet compiler warning
 
 // look for it in the filesystem or pack files
-    len = com_filesize = COM_FOpenFile(path, &h);
-    if (!h)
+    len = com_filesize = COM_FOpenFile(path, &f);
+    if (!f)
 	return NULL;
 
     if (length)
@@ -1572,8 +1572,8 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 #ifndef SERVERONLY
     Draw_BeginDisc();
 #endif
-    fread(buf, 1, len, h);
-    fclose(h);
+    fread(buf, 1, len, f);
+    fclose(f);
 #ifndef SERVERONLY
     Draw_EndDisc();
 #endif
