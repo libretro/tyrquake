@@ -110,11 +110,6 @@ The game directory can never be changed while quake is executing.  This is a
 precacution against having a malicious server instruct clients to write files
 over areas they shouldn't.
 
-The "cache directory" is only used during development to save network
-bandwidth, especially over ISDN / T1 lines.  If there is a cache directory
-specified, when a file is found by the normal search path, it will be mirrored
-into the cache directory, then opened there.
-
 */
 
 //============================================================================
@@ -1349,42 +1344,6 @@ COM_CreatePath(const char *path)
     }
 }
 
-
-/*
-===========
-COM_CopyFile
-
-Copies a file over from the net to the local cache, creating any directories
-needed.  This is for the convenience of developers using ISDN from home.
-===========
-*/
-void
-COM_CopyFile(char *netpath, char *cachepath)
-{
-    FILE *in, *out;
-    int remaining, count;
-    char buf[4096];
-
-    remaining = COM_FileOpenRead(netpath, &in);
-    COM_CreatePath(cachepath);	// create directories up to the cache file
-    out = fopen(cachepath, "wb");
-    if (!out)
-	Sys_Error("Error opening %s", cachepath);
-
-    while (remaining) {
-	if (remaining < sizeof(buf))
-	    count = remaining;
-	else
-	    count = sizeof(buf);
-	fread(buf, 1, count, in);
-	fwrite(buf, 1, count, out);
-	remaining -= count;
-    }
-
-    fclose(in);
-    fclose(out);
-}
-
 /*
 ===========
 COM_FOpenFile
@@ -1401,7 +1360,7 @@ int
 COM_FOpenFile(const char *filename, FILE **file)
 {
     searchpath_t *search;
-    char netpath[MAX_OSPATH];
+    char fullpath[MAX_OSPATH];
     pack_t *pak;
     int i;
     int findtime;
@@ -1433,22 +1392,21 @@ COM_FOpenFile(const char *filename, FILE **file)
 		if (strchr(filename, '/') || strchr(filename, '\\'))
 		    continue;
 	    }
-	    sprintf(netpath, "%s/%s", search->filename, filename);
-
-	    findtime = Sys_FileTime(netpath);
+	    sprintf(fullpath, "%s/%s", search->filename, filename);
+	    findtime = Sys_FileTime(fullpath);
 	    if (findtime == -1)
 		continue;
 
-	    *file = fopen(netpath, "rb");
+	    *file = fopen(fullpath, "rb");
 	    com_filesize = COM_filelength(*file);
 	    return com_filesize;
 	}
-
     }
-    Sys_Printf("FindFile: can't find %s\n", filename);
 
+    Sys_Printf("FindFile: can't find %s\n", filename);
     *file = NULL;
     com_filesize = -1;
+
     return -1;
 }
 

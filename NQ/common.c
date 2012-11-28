@@ -106,11 +106,6 @@ The game directory can never be changed while quake is executing.  This is a
 precacution against having a malicious server instruct clients to write files
 over areas they shouldn't.
 
-The "cache directory" is only used during development to save network
-bandwidth, especially over ISDN / T1 lines.  If there is a cache directory
-specified, when a file is found by the normal search path, it will be mirrored
-into the cache directory, then opened there.
-
 FIXME:
 The file "parms.txt" will be read out of the game directory and appended to
 the current command line arguments to allow different games to initialize
@@ -1138,7 +1133,6 @@ typedef struct {
 
 #define MAX_FILES_IN_PACK 2048
 
-char com_cachedir[MAX_OSPATH];
 char com_gamedir[MAX_OSPATH];
 char com_basedir[MAX_OSPATH];
 
@@ -1256,40 +1250,6 @@ COM_CreatePath(const char *path)
     }
 }
 
-
-/*
-===========
-COM_CopyFile
-
-Copies a file over from the net to the local cache, creating any directories
-needed.  This is for the convenience of developers using ISDN from home.
-===========
-*/
-void
-COM_CopyFile(char *netpath, char *cachepath)
-{
-    FILE *in, *out;
-    int remaining, count;
-    char buf[4096];
-
-    remaining = COM_FileOpenRead(netpath, &in);
-    COM_CreatePath(cachepath);	// create directories up to the cache file
-    out = fopen(cachepath, "wb");
-
-    while (remaining) {
-	if (remaining < sizeof(buf))
-	    count = remaining;
-	else
-	    count = sizeof(buf);
-	fread(buf, 1, count, in);
-	fwrite(buf, 1, count, out);
-	remaining -= count;
-    }
-
-    fclose(in);
-    fclose(out);
-}
-
 /*
 ===========
 COM_FOpenFile
@@ -1304,11 +1264,10 @@ int
 COM_FOpenFile(const char *filename, FILE **file)
 {
     searchpath_t *search;
-    char netpath[MAX_OSPATH];
-    char cachepath[MAX_OSPATH];
+    char fullpath[MAX_OSPATH];
     pack_t *pak;
     int i;
-    int findtime, cachetime;
+    int findtime;
 
 //
 // search through the path, one element at a time
@@ -1334,39 +1293,21 @@ COM_FOpenFile(const char *filename, FILE **file)
 		if (strchr(filename, '/') || strchr(filename, '\\'))
 		    continue;
 	    }
-	    sprintf(netpath, "%s/%s", search->filename, filename);
-
-	    findtime = Sys_FileTime(netpath);
+	    sprintf(fullpath, "%s/%s", search->filename, filename);
+	    findtime = Sys_FileTime(fullpath);
 	    if (findtime == -1)
 		continue;
 
-	    // see if the file needs to be updated in the cache
-	    if (!com_cachedir[0])
-		strcpy(cachepath, netpath);
-	    else {
-#if defined(_WIN32)
-		if ((strlen(netpath) < 2) || (netpath[1] != ':'))
-		    sprintf(cachepath, "%s%s", com_cachedir, netpath);
-		else
-		    sprintf(cachepath, "%s%s", com_cachedir, netpath + 2);
-#else
-		sprintf(cachepath, "%s%s", com_cachedir, netpath);
-#endif
-		cachetime = Sys_FileTime(cachepath);
-		if (cachetime < findtime)
-		    COM_CopyFile(netpath, cachepath);
-		strcpy(netpath, cachepath);
-	    }
-
-	    *file = fopen(netpath, "rb");
+	    *file = fopen(fullpath, "rb");
 	    com_filesize = COM_filelength(*file);
 	    return com_filesize;
 	}
     }
-    Sys_Printf("FindFile: can't find %s\n", filename);
 
+    Sys_Printf("FindFile: can't find %s\n", filename);
     *file = NULL;
     com_filesize = -1;
+
     return -1;
 }
 
@@ -1715,22 +1656,6 @@ COM_InitFilesystem(void)
 	strcpy(com_basedir, com_argv[i + 1]);
     else
 	strcpy(com_basedir, host_parms.basedir);
-
-//
-// -cachedir <path>
-// Overrides the system supplied cache directory (NULL or /qcache)
-// -cachedir - will disable caching.
-//
-    i = COM_CheckParm("-cachedir");
-    if (i && i < com_argc - 1) {
-	if (com_argv[i + 1][0] == '-')
-	    com_cachedir[0] = 0;
-	else
-	    strcpy(com_cachedir, com_argv[i + 1]);
-    } else if (host_parms.cachedir)
-	strcpy(com_cachedir, host_parms.cachedir);
-    else
-	com_cachedir[0] = 0;
 
 //
 // start up with GAMENAME by default (id1)
