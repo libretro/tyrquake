@@ -1236,14 +1236,21 @@ COM_CreatePath
 ============
 */
 void
-COM_CreatePath(char *path)
+COM_CreatePath(const char *path)
 {
+    char part[MAX_OSPATH];
     char *ofs;
 
-    for (ofs = path + 1; *ofs; ofs++) {
+    if (!path || !path[0])
+	return;
+
+    strncpy(part, path, sizeof(part));
+    part[MAX_OSPATH - 1] = 0;
+
+    for (ofs = part + 1; *ofs; ofs++) {
 	if (*ofs == '/') {	// create the directory
 	    *ofs = 0;
-	    Sys_mkdir(path);
+	    Sys_mkdir(part);
 	    *ofs = '/';
 	}
     }
