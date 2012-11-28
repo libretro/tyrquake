@@ -816,8 +816,10 @@ COM_Parse
 Parse a token out of a string
 ==============
 */
-const char *
-COM_Parse(const char *data)
+static const char single_chars[] = "{})(':";
+
+static const char *
+COM_Parse_(const char *data, qboolean split_single_chars)
 {
     int c;
     int len;
@@ -856,7 +858,7 @@ COM_Parse(const char *data)
 	}
     }
 // parse single characters
-    if (c == '{' || c == '}' || c == ')' || c == '(' || c == '\'' || c == ':') {
+    if (split_single_chars && strchr(single_chars, c)) {
 	com_token[len] = c;
 	len++;
 	com_token[len] = 0;
@@ -868,8 +870,7 @@ COM_Parse(const char *data)
 	data++;
 	len++;
 	c = *data;
-	if (c == '{' || c == '}' || c == ')' || c == '(' || c == '\''
-	    || c == ':')
+	if (split_single_chars && strchr(single_chars, c))
 	    break;
     } while (c > 32);
 
@@ -877,6 +878,16 @@ COM_Parse(const char *data)
     return data;
 }
 
+const char *
+COM_Parse(const char *data)
+{
+#ifdef NQ_HACK
+    return COM_Parse_(data, true);
+#endif
+#ifdef QW_HACK
+    return COM_Parse_(data, false);
+#endif
+}
 
 /*
 ================

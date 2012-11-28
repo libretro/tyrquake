@@ -919,8 +919,10 @@ COM_Parse
 Parse a token out of a string
 ==============
 */
-const char *
-COM_Parse(const char *data)
+static const char single_chars[] = "{})(':";
+
+static const char *
+COM_Parse_(const char *data, qboolean split_single_chars)
 {
     int c;
     int len;
@@ -958,18 +960,37 @@ COM_Parse(const char *data)
 	    len++;
 	}
     }
+// parse single characters
+    if (split_single_chars && strchr(single_chars, c)) {
+	com_token[len] = c;
+	len++;
+	com_token[len] = 0;
+	return data + 1;
+    }
 // parse a regular word
     do {
 	com_token[len] = c;
 	data++;
 	len++;
 	c = *data;
+	if (split_single_chars && strchr(single_chars, c))
+	    break;
     } while (c > 32);
 
     com_token[len] = 0;
     return data;
 }
 
+const char *
+COM_Parse(const char *data)
+{
+#ifdef NQ_HACK
+    return COM_Parse_(data, true);
+#endif
+#ifdef QW_HACK
+    return COM_Parse_(data, false);
+#endif
+}
 
 /*
 ================
