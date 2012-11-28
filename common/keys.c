@@ -262,7 +262,7 @@ CompleteCommand(void)
 		key_linepos += strlen(completion);
 		Z_Free(completion);
 	    }
-	    Z_Free(cmd);
+	    Z_Free(newcmd);
 	}
     }
 }
