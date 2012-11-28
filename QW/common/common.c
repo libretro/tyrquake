@@ -61,6 +61,7 @@ qboolean msg_suppress_1 = 0;
 
 static void COM_InitFilesystem(void);
 static void COM_Path_f(void);
+static void *SZ_GetSpace(sizebuf_t *buf, int length);
 
 // if a packfile directory differs from this, it is assumed to be hacked
 #define PAK0_COUNT		339
@@ -739,7 +740,7 @@ SZ_Clear(sizebuf_t *buf)
     buf->overflowed = false;
 }
 
-void *
+static void *
 SZ_GetSpace(sizebuf_t *buf, int length)
 {
     void *data;
