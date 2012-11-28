@@ -1649,7 +1649,7 @@ COM_InitFilesystem(void)
 
 //
 // -basedir <path>
-// Overrides the system supplied base directory (under GAMENAME)
+// Overrides the system supplied base directory (under id1)
 //
     i = COM_CheckParm("-basedir");
     if (i && i < com_argc - 1)
@@ -1658,10 +1658,10 @@ COM_InitFilesystem(void)
 	strcpy(com_basedir, host_parms.basedir);
 
 //
-// start up with GAMENAME by default (id1)
+// start up with id1 by default
 //
-    COM_AddGameDirectory(com_basedir, GAMENAME);
-    COM_AddGameDirectory(home, ".tyrquake/" GAMENAME);
+    COM_AddGameDirectory(com_basedir, "id1");
+    COM_AddGameDirectory(home, ".tyrquake/" "id1");
 
     if (COM_CheckParm("-rogue")) {
 	COM_AddGameDirectory(com_basedir, "rogue");
