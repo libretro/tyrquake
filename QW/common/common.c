@@ -25,6 +25,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 #include <sys/types.h>
 
+#ifdef NQ_HACK
+#include "quakedef.h"
+#include "host.h"
+#endif
+#ifdef QW_HACK
 #ifdef SERVERONLY
 #include "qwsvdef.h"
 #include "server.h"
@@ -32,6 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #endif
 #include "protocol.h"
+#endif
 
 #include "cmd.h"
 #include "common.h"
@@ -53,6 +59,9 @@ static const char *safeargvs[NUM_SAFE_ARGVS] = {
 };
 
 cvar_t registered = { "registered", "0" };
+#ifdef NQ_HACK
+static cvar_t cmdline = { "cmdline", "0", false, true };
+#endif
 
 static qboolean com_modified;		// set true if using non-id files
 static int static_registered = 1;	// only for startup check, then set
@@ -65,11 +74,19 @@ static void *SZ_GetSpace(sizebuf_t *buf, int length);
 
 // if a packfile directory differs from this, it is assumed to be hacked
 #define PAK0_COUNT		339
-#define PAK0_CRC		52883
+#define NQ_PAK0_CRC		32981
+#define QW_PAK0_CRC		52883
+
+#ifdef NQ_HACK
+#define CMDLINE_LENGTH	256
+static char com_cmdline[CMDLINE_LENGTH];
+#endif
 
 qboolean standard_quake = true, rogue, hipnotic;
 
+#ifdef QW_HACK
 char gamedirfile[MAX_OSPATH];
+#endif
 
 /* FIXME - remove this and checks like it; no need to be registered... */
 // this graphic needs to be in the pak file to use registered features
@@ -360,7 +377,9 @@ Handles byte ordering and avoids alignment errors
 ==============================================================================
 */
 
+#ifdef QW_HACK
 usercmd_t nullcmd;		// guarenteed to be zero
+#endif
 
 //
 // writing functions
@@ -460,6 +479,7 @@ MSG_WriteAngle(sizebuf_t *sb, float f)
     MSG_WriteByte(sb, (int)(f * 256 / 360) & 255);
 }
 
+#ifdef QW_HACK
 void
 MSG_WriteAngle16(sizebuf_t *sb, float f)
 {
@@ -515,7 +535,7 @@ MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
 	MSG_WriteByte(buf, cmd->impulse);
     MSG_WriteByte(buf, cmd->msec);
 }
-
+#endif /* QW_HACK */
 
 //
 // reading functions
@@ -530,11 +550,13 @@ MSG_BeginReading(void)
     msg_badread = false;
 }
 
+#ifdef QW_HACK
 int
 MSG_GetReadCount(void)
 {
     return msg_readcount;
 }
+#endif
 
 // returns -1 and sets msg_badread if no more characters are available
 int
@@ -647,6 +669,7 @@ MSG_ReadString(void)
     return string;
 }
 
+#ifdef QW_HACK
 char *
 MSG_ReadStringLine(void)
 {
@@ -666,6 +689,7 @@ MSG_ReadStringLine(void)
 
     return string;
 }
+#endif
 
 float
 MSG_ReadCoord(void)
@@ -683,6 +707,7 @@ MSG_ReadAngle(void)
     return MSG_ReadChar() * (360.0 / 256);
 }
 
+#ifdef QW_HACK
 float
 MSG_ReadAngle16(void)
 {
@@ -724,9 +749,30 @@ MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
 // read time to run command
     move->msec = MSG_ReadByte();
 }
-
+#endif /* QW_HACK */
 
 //===========================================================================
+
+#ifdef NQ_HACK
+void
+SZ_Alloc(sizebuf_t *buf, int startsize)
+{
+    if (startsize < 256)
+	startsize = 256;
+    buf->data = Hunk_AllocName(startsize, "sizebuf");
+    buf->maxsize = startsize;
+    buf->cursize = 0;
+}
+
+void
+SZ_Free(sizebuf_t *buf)
+{
+//      Z_Free (buf->data);
+//      buf->data = NULL;
+//      buf->maxsize = 0;
+    buf->cursize = 0;
+}
+#endif
 
 void
 SZ_Clear(sizebuf_t *buf)
@@ -1033,11 +1079,16 @@ COM_CheckRegistered(void)
     if (!f) {
 	Con_Printf("Playing shareware version.\n");
 #ifndef SERVERONLY
-// FIXME DEBUG -- only temporary
 	if (com_modified)
-	    Sys_Error
-		("You must have the registered version to play QuakeWorld");
+#ifdef NQ_HACK
+	    Sys_Error("You must have the registered version "
+		      "to use modified games");
 #endif
+#ifdef QW_HACK
+	    Sys_Error("You must have the registered version "
+		      "to play QuakeWorld");
+#endif
+#endif /* SERVERONLY */
 	return;
     }
 
@@ -1048,6 +1099,9 @@ COM_CheckRegistered(void)
 	if (pop[i] != (unsigned short)BigShort(check[i]))
 	    Sys_Error("Corrupted data file.");
 
+#ifdef NQ_HACK
+    Cvar_Set("cmdline", com_cmdline);
+#endif
     Cvar_Set("registered", "1");
     static_registered = 1;
     Con_Printf("Playing registered version.\n");
@@ -1064,6 +1118,24 @@ COM_InitArgv(int argc, const char **argv)
 {
     qboolean safe;
     int i;
+#ifdef NQ_HACK
+    int j, n;
+
+// reconstitute the command line for the cmdline externally visible cvar
+    n = 0;
+    for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++) {
+	i = 0;
+	while ((n < (CMDLINE_LENGTH - 1)) && argv[j][i]) {
+	    com_cmdline[n++] = argv[j][i++];
+	}
+
+	if (n < (CMDLINE_LENGTH - 1))
+	    com_cmdline[n++] = ' ';
+	else
+	    break;
+    }
+    com_cmdline[n] = 0;
+#endif
 
     safe = false;
 
@@ -1085,6 +1157,18 @@ COM_InitArgv(int argc, const char **argv)
 
     largv[com_argc] = argvdummy;
     com_argv = largv;
+
+#ifdef NQ_HACK
+    if (COM_CheckParm("-rogue")) {
+	rogue = true;
+	standard_quake = false;
+    }
+
+    if (COM_CheckParm("-hipnotic")) {
+	hipnotic = true;
+	standard_quake = false;
+    }
+#endif
 }
 
 /*
@@ -1094,12 +1178,13 @@ COM_AddParm
 Adds the given string at the end of the current argument list
 ================
 */
+#ifdef QW_HACK
 void
 COM_AddParm(const char *parm)
 {
     largv[com_argc++] = parm;
 }
-
+#endif
 
 /*
 ================
@@ -1136,6 +1221,9 @@ COM_Init(void)
     }
 
     Cvar_RegisterVariable(&registered);
+#ifdef NQ_HACK
+    Cvar_RegisterVariable(&cmdline);
+#endif
     Cmd_AddCommand("path", COM_Path_f);
 
     COM_InitFilesystem();
@@ -1232,7 +1320,9 @@ typedef struct searchpath_s {
 } searchpath_t;
 
 static searchpath_t *com_searchpaths;
+#ifdef QW_HACK
 static searchpath_t *com_base_searchpaths;	// without gamedirs
+#endif
 
 /*
 ================
@@ -1281,8 +1371,10 @@ COM_Path_f(void)
 
     Con_Printf("Current search path:\n");
     for (s = com_searchpaths; s; s = s->next) {
+#ifdef QW_HACK
 	if (s == com_base_searchpaths)
 	    Con_Printf("----------\n");
+#endif
 	if (s->pack)
 	    Con_Printf("%s (%i files)\n", s->pack->filename,
 		       s->pack->numfiles);
@@ -1354,7 +1446,7 @@ If the requested file is inside a packfile, a new FILE * will be opened
 into the file.
 ===========
 */
-int file_from_pak;		// global indicating file came from pack file ZOID
+int file_from_pak;	// global indicating file came from pack file
 
 int
 COM_FOpenFile(const char *filename, FILE **file)
@@ -1521,6 +1613,7 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 COM_LoadFile
 
 Filename are reletive to the quake directory.
+Optionally return length; set null if you don't want it.
 Always appends a 0 byte to the loaded data.
 ============
 */
@@ -1568,7 +1661,8 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
     if (!buf)
 	Sys_Error("%s: not enough space for %s", __func__, path);
 
-    ((byte *)buf)[len] = 0;
+    buf[len] = 0;
+
 #ifndef SERVERONLY
     Draw_BeginDisc();
 #endif
@@ -1601,6 +1695,7 @@ COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
 }
 
 // uses temp hunk if larger than bufsize
+// length is size of loaded file in bytes
 byte *
 COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 		  unsigned long *length)
@@ -1654,19 +1749,29 @@ COM_LoadPackFile(const char *packfile)
     if (numpackfiles != PAK0_COUNT)
 	com_modified = true;	// not the original file
 
+#ifdef NQ_HACK
+    newfiles = Hunk_AllocName(numpackfiles * sizeof(packfile_t), "packfile");
+#endif
+#ifdef QW_HACK
     newfiles = Z_Malloc(numpackfiles * sizeof(packfile_t));
+#endif
 
     fseek(packhandle, header.dirofs, SEEK_SET);
     fread(&info, 1, header.dirlen, packhandle);
 
 // crc the directory to check for modifications
-    crc = CRC_Block((byte *)info, header.dirlen);
-
-//      CRC_Init (&crc);
-//      for (i=0 ; i<header.dirlen ; i++)
-//              CRC_ProcessByte (&crc, ((byte *)info)[i]);
-    if (crc != PAK0_CRC)
+#ifdef NQ_HACK
+    CRC_Init(&crc);
+    for (i = 0; i < header.dirlen; i++)
+	CRC_ProcessByte(&crc, ((byte *)info)[i]);
+    if (crc != NQ_PAK0_CRC)
 	com_modified = true;
+#endif
+#ifdef QW_HACK
+    crc = CRC_Block((byte *)info, header.dirlen);
+    if (crc != QW_PAK0_CRC)
+	com_modified = true;
+#endif
 
 // parse the directory
     for (i = 0; i < numpackfiles; i++) {
@@ -1675,7 +1780,12 @@ COM_LoadPackFile(const char *packfile)
 	newfiles[i].filelen = LittleLong(info[i].filelen);
     }
 
+#ifdef NQ_HACK
+    pack = Hunk_Alloc(sizeof(pack_t));
+#endif
+#ifdef QW_HACK
     pack = Z_Malloc(sizeof(pack_t));
+#endif
     strcpy(pack->filename, packfile);
     pack->numfiles = numpackfiles;
     pack->files = newfiles;
@@ -1700,14 +1810,18 @@ COM_AddGameDirectory(const char *base, const char *dir)
     searchpath_t *search;
     pack_t *pak;
     char pakfile[MAX_OSPATH];
-    char *p;
 
     if (!base)
 	return;
 
     strcpy(com_gamedir, va("%s/%s", base, dir));
-    p = strrchr(com_gamedir, '/');
-    strcpy(gamedirfile, ++p);
+#ifdef QW_HACK
+    {
+	char *p;
+	p = strrchr(com_gamedir, '/');
+	strcpy(gamedirfile, ++p);
+    }
+#endif
 
 //
 // add the directory to the search path
@@ -1741,6 +1855,7 @@ Sets the gamedir and path to a different directory.
 FIXME - if home dir is available, should we create ~/.tyrquake/gamedir ??
 ================
 */
+#ifdef QW_HACK
 void
 COM_Gamedir(const char *dir)
 {
@@ -1804,6 +1919,7 @@ COM_Gamedir(const char *dir)
 	com_searchpaths = search;
     }
 }
+#endif
 
 /*
 ================
@@ -1815,6 +1931,9 @@ COM_InitFilesystem(void)
 {
     int i;
     char *home;
+#ifdef NQ_HACK
+    searchpath_t *search;
+#endif
 
     home = getenv("HOME");
 
@@ -1833,8 +1952,32 @@ COM_InitFilesystem(void)
 //
     COM_AddGameDirectory(com_basedir, "id1");
     COM_AddGameDirectory(home, ".tyrquake/id1");
+
+#ifdef NQ_HACK
+    if (COM_CheckParm("-rogue")) {
+	COM_AddGameDirectory(com_basedir, "rogue");
+	COM_AddGameDirectory(home, ".tyrquake/rogue");
+    }
+    if (COM_CheckParm("-hipnotic")) {
+	COM_AddGameDirectory(com_basedir, "hipnotic");
+	COM_AddGameDirectory(home, ".tyrquake/hipnotic");
+    }
+
+//
+// -game <gamedir>
+// Adds basedir/gamedir as an override game
+//
+    i = COM_CheckParm("-game");
+    if (i && i < com_argc - 1) {
+	com_modified = true;
+	COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
+	COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
+    }
+#endif
+#ifdef QW_HACK
     COM_AddGameDirectory(com_basedir, "qw");
     COM_AddGameDirectory(home, ".tyrquake/qw");
+#endif
 
     /* If home is available, create the game directory */
     if (home) {
@@ -1842,12 +1985,40 @@ COM_InitFilesystem(void)
 	Sys_mkdir(com_gamedir);
     }
 
+//
+// -path <dir or packfile> [<dir or packfile>] ...
+// Fully specifies the exact search path, overriding the generated one
+//
+#ifdef NQ_HACK
+    i = COM_CheckParm("-path");
+    if (i) {
+	com_modified = true;
+	com_searchpaths = NULL;
+	while (++i < com_argc) {
+	    if (!com_argv[i] || com_argv[i][0] == '+'
+		|| com_argv[i][0] == '-')
+		break;
+
+	    search = Hunk_Alloc(sizeof(searchpath_t));
+	    if (!strcmp(COM_FileExtension(com_argv[i]), "pak")) {
+		search->pack = COM_LoadPackFile(com_argv[i]);
+		if (!search->pack)
+		    Sys_Error("Couldn't load packfile: %s", com_argv[i]);
+	    } else
+		strcpy(search->filename, com_argv[i]);
+	    search->next = com_searchpaths;
+	    com_searchpaths = search;
+	}
+    }
+#endif
+#ifdef QW_HACK
     // any set gamedirs will be freed up to here
     com_base_searchpaths = com_searchpaths;
+#endif
 }
 
-
-
+// FIXME - everything below is QW only... move it?
+#ifdef QW_HACK
 /*
 =====================================================================
 
@@ -2274,3 +2445,4 @@ build_number(void)
 
     return b;
 }
+#endif /* QW_HACK */
