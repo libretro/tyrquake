@@ -1682,8 +1682,8 @@ COM_InitFilesystem
 static void
 COM_InitFilesystem(void)
 {
+    int i;
     char *home;
-    int i, j;
     searchpath_t *search;
 
     home = getenv("HOME");
@@ -1698,12 +1698,6 @@ COM_InitFilesystem(void)
     else
 	strcpy(com_basedir, host_parms.basedir);
 
-    j = strlen(com_basedir);
-
-    if (j > 0) {
-	if ((com_basedir[j - 1] == '\\') || (com_basedir[j - 1] == '/'))
-	    com_basedir[j - 1] = 0;
-    }
 //
 // -cachedir <path>
 // Overrides the system supplied cache directory (NULL or /qcache)
@@ -1754,7 +1748,7 @@ COM_InitFilesystem(void)
 
 //
 // -path <dir or packfile> [<dir or packfile>] ...
-// Fully specifies the exact serach path, overriding the generated one
+// Fully specifies the exact search path, overriding the generated one
 //
     i = COM_CheckParm("-path");
     if (i) {
