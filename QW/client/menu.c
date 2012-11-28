@@ -580,7 +580,7 @@ M_FindKeysForCommand(const char *command, int *twokeys)
     int count;
     int j;
     int l;
-    char *b;
+    const char *b;
 
     twokeys[0] = twokeys[1] = -1;
     l = strlen(command);
@@ -604,7 +604,7 @@ M_UnbindCommand(const char *const command)
 {
     int j;
     int l;
-    char *b;
+    const char *b;
 
     l = strlen(command);
 

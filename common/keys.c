@@ -57,7 +57,7 @@ keydest_t key_dest;
 
 int key_count;			// incremented every key event
 
-char *keybindings[K_LAST];
+const char *keybindings[K_LAST];
 qboolean consolekeys[K_LAST];	// if true, can't be rebound while in console
 qboolean menubound[K_LAST];	// if true, can't be rebound while in menu
 int keyshift[K_LAST];		// key to map to if shift held down in console
@@ -601,6 +601,8 @@ Key_SetBinding
 void
 Key_SetBinding(knum_t keynum, const char *binding)
 {
+    char *newbinding;
+
     if (keynum == -1)
 	return;
 
@@ -612,8 +614,9 @@ Key_SetBinding(knum_t keynum, const char *binding)
 
     if (binding) {
 	/* allocate memory for new binding */
-	keybindings[keynum] = Z_Malloc(strlen(binding) + 1);
-	strcpy(keybindings[keynum], binding);
+	newbinding = Z_Malloc(strlen(binding) + 1);
+	strcpy(newbinding, binding);
+	keybindings[keynum] = newbinding;
     }
 }
 
@@ -800,7 +803,7 @@ Should NOT be called during an interrupt!
 void
 Key_Event(knum_t key, qboolean down)
 {
-    char *kb;
+    const char *kb;
     char cmd[1024];
 
     keydown[key] = down;

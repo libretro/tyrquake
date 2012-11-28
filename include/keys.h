@@ -266,7 +266,7 @@ typedef enum {
 } keydest_t;
 
 extern keydest_t key_dest;
-extern char *keybindings[K_LAST];
+extern const char *keybindings[K_LAST];
 extern int key_repeats[K_LAST];
 extern int key_count;		// incremented every key event
 extern int key_lastpress;
