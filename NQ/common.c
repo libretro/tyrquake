@@ -1011,7 +1011,7 @@ COM_Init
 ================
 */
 void
-COM_Init(const char *basedir)
+COM_Init(void)
 {
     union {
 	byte b[2];
