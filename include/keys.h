@@ -278,7 +278,7 @@ extern qboolean chat_team;
 void Key_Event(knum_t key, qboolean down);
 void Key_Init(void);
 void Key_WriteBindings(FILE *f);
-void Key_SetBinding(knum_t keynum, char *binding);
+void Key_SetBinding(knum_t keynum, const char *binding);
 void Key_ClearStates(void);
 void Key_ClearTyping(void);
 

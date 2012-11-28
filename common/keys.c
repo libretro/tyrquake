@@ -599,7 +599,7 @@ Key_SetBinding
 ===================
 */
 void
-Key_SetBinding(knum_t keynum, char *binding)
+Key_SetBinding(knum_t keynum, const char *binding)
 {
     if (keynum == -1)
 	return;
