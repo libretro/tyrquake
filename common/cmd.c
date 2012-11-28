@@ -42,7 +42,7 @@ static void Cmd_ForwardToServer_f(void);
 
 typedef struct cmdalias_s {
     char name[MAX_ALIAS_NAME];
-    char *value;
+    const char *value;
     struct stree_node stree;
 } cmdalias_t;
 
