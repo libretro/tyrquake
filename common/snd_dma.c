@@ -120,7 +120,8 @@ S_SoundInfo_f(void)
 	return;
     }
 
-    Con_Printf("%5d stereo\n", shm->channels - 1);
+    Con_Printf("%5d channels (%s)\n", shm->channels,
+	       shm->channels == 1 ? "mono" : "stereo");
     Con_Printf("%5d samples\n", shm->samples);
     Con_Printf("%5d samplepos\n", shm->samplepos);
     Con_Printf("%5d samplebits\n", shm->samplebits);
