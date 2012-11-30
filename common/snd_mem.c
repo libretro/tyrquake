@@ -201,7 +201,7 @@ GetLittleLong(void)
 }
 
 static void
-FindNextChunk(char *name)
+FindNextChunk(char *name, char *filename)
 {
     while (1) {
 	/* Need at least 8 bytes for a chunk */
@@ -213,8 +213,8 @@ FindNextChunk(char *name)
 	data_p = last_chunk + 4;
 	iff_chunk_len = GetLittleLong();
 	if (iff_chunk_len < 0 || iff_chunk_len > iff_end - data_p) {
-	    Con_DPrintf("Bad \"%s\" chunk length (%d) in wav file\n",
-			name, iff_chunk_len);
+	    Con_DPrintf("Bad \"%s\" chunk length (%d) in wav file %s\n",
+			name, iff_chunk_len, filename);
 	    data_p = NULL;
 	    return;
 	}
@@ -226,10 +226,10 @@ FindNextChunk(char *name)
 }
 
 static void
-FindChunk(char *name)
+FindChunk(char *name, char *filename)
 {
     last_chunk = iff_data;
-    FindNextChunk(name);
+    FindNextChunk(name, filename);
 }
 
 #if 0
@@ -272,7 +272,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     iff_end = wav + wavlength;
 
 // find "RIFF" chunk
-    FindChunk("RIFF");
+    FindChunk("RIFF", name);
     if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4))) {
 	Con_Printf("Missing RIFF/WAVE chunks\n");
 	return &info;
@@ -281,7 +281,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     iff_data = data_p + 12;
 // DumpChunks ();
 
-    FindChunk("fmt ");
+    FindChunk("fmt ", name);
     if (!data_p) {
 	Con_Printf("Missing fmt chunk\n");
 	return &info;
@@ -299,14 +299,14 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     info.width = GetLittleShort() / 8;
 
 // get cue chunk
-    FindChunk("cue ");
+    FindChunk("cue ", name);
     if (data_p) {
 	data_p += 32;
 	info.loopstart = GetLittleLong();
 //              Con_Printf("loopstart=%d\n", sfx->loopstart);
 
 	// if the next chunk is a LIST chunk, look for a cue length marker
-	FindNextChunk("LIST");
+	FindNextChunk("LIST", name);
 	if (data_p) {
 	    /* this is not a proper parse, but it works with cooledit... */
 	    if (!strncmp((char *)data_p + 28, "mark", 4)) {
@@ -320,7 +320,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
 	info.loopstart = -1;
 
 // find data chunk
-    FindChunk("data");
+    FindChunk("data", name);
     if (!data_p) {
 	Con_Printf("Missing data chunk\n");
 	return &info;
