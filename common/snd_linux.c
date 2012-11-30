@@ -202,9 +202,8 @@ SNDDMA_Init(void)
 // memory map the dma buffer
 // MAP_FILE required for some other unicies (HP-UX is one I think)
 
-    shm->buffer = (unsigned char *)mmap(NULL, info.fragstotal
-					* info.fragsize, PROT_WRITE,
-					MAP_FILE | MAP_SHARED, audio_fd, 0);
+    shm->buffer = mmap(NULL, info.fragstotal * info.fragsize, PROT_WRITE,
+		       MAP_FILE | MAP_SHARED, audio_fd, 0);
 
     if (!shm->buffer || shm->buffer == (unsigned char *)MAP_FAILED) {
 	perror(snd_dev);
