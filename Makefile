@@ -698,6 +698,14 @@ ifeq ($(SND_TARGET),sndio)
 CL_OBJS += snd_sndio.o
 CL_LIBS += sndio
 endif
+ifeq ($(SND_TARGET),sdl)
+CL_OBJS += snd_sdl.o
+CL_LIBS += SDL
+ifneq ($(SDLBASE),)
+CL_CPPFLAGS += -idirafter $(SDLBASE)/include
+CL_LFLAGS += $(call libdir-check,$(SDLBASE)/lib)
+endif
+endif
 
 # ----------------
 # 3. Video driver
