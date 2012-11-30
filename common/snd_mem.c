@@ -34,7 +34,7 @@ typedef struct {
     int dataofs;		// chunk starts this many bytes from file start
 } wavinfo_t;
 
-static wavinfo_t *GetWavinfo(char *name, byte *wav, int wavlength);
+static wavinfo_t *GetWavinfo(const char *name, const byte *wav, int wavlength);
 
 /*
 ================
@@ -42,7 +42,7 @@ ResampleSfx
 ================
 */
 static void
-ResampleSfx(sfx_t *sfx, int inrate, int inwidth, byte *data)
+ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
 {
     int outcount;
     int srcsample;
@@ -169,10 +169,10 @@ WAV loading
 */
 
 
-static byte *data_p;
-static byte *iff_end;
-static byte *last_chunk;
-static byte *iff_data;
+static const byte *data_p;
+static const byte *iff_end;
+static const byte *last_chunk;
+static const byte *iff_data;
 static int iff_chunk_len;
 
 
@@ -201,7 +201,7 @@ GetLittleLong(void)
 }
 
 static void
-FindNextChunk(char *name, char *filename)
+FindNextChunk(const char *name, const char *filename)
 {
     while (1) {
 	/* Need at least 8 bytes for a chunk */
@@ -226,7 +226,7 @@ FindNextChunk(char *name, char *filename)
 }
 
 static void
-FindChunk(char *name, char *filename)
+FindChunk(const char *name, const char *filename)
 {
     last_chunk = iff_data;
     FindNextChunk(name, filename);
@@ -256,7 +256,7 @@ GetWavinfo
 ============
 */
 static wavinfo_t *
-GetWavinfo(char *name, byte *wav, int wavlength)
+GetWavinfo(const char *name, const byte *wav, int wavlength)
 {
     static wavinfo_t info;
     int i;

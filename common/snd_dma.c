@@ -254,7 +254,7 @@ S_Shutdown(void)
  * ==================
  */
 static sfx_t *
-S_FindName(char *name)
+S_FindName(const char *name)
 {
     int i;
     sfx_t *sfx;
@@ -287,7 +287,7 @@ S_FindName(char *name)
  * ==================
  */
 void
-S_TouchSound(char *name)
+S_TouchSound(const char *name)
 {
     sfx_t *sfx;
 
@@ -304,7 +304,7 @@ S_TouchSound(char *name)
  * ==================
  */
 sfx_t *
-S_PrecacheSound(char *name)
+S_PrecacheSound(const char *name)
 {
     sfx_t *sfx;
 
@@ -879,7 +879,7 @@ S_SoundList(void)
 
 
 void
-S_LocalSound(char *sound)
+S_LocalSound(const char *sound)
 {
     sfx_t *sfx;
 
