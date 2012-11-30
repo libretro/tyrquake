@@ -25,16 +25,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 
-int cache_full_cycle;
+typedef struct {
+    int rate;
+    int width;
+    int channels;
+    int loopstart;
+    int samples;
+    int dataofs;		// chunk starts this many bytes from file start
+} wavinfo_t;
 
-byte *S_Alloc(int size);
+static wavinfo_t GetWavinfo(char *name, byte *wav, int wavlength);
 
 /*
 ================
 ResampleSfx
 ================
 */
-void
+static void
 ResampleSfx(sfx_t *sfx, int inrate, int inwidth, byte *data)
 {
     int outcount;
@@ -162,14 +169,14 @@ WAV loading
 */
 
 
-byte *data_p;
-byte *iff_end;
-byte *last_chunk;
-byte *iff_data;
-int iff_chunk_len;
+static byte *data_p;
+static byte *iff_end;
+static byte *last_chunk;
+static byte *iff_data;
+static int iff_chunk_len;
 
 
-short
+static short
 GetLittleShort(void)
 {
     short val = 0;
@@ -180,7 +187,7 @@ GetLittleShort(void)
     return val;
 }
 
-int
+static int
 GetLittleLong(void)
 {
     int val = 0;
@@ -193,7 +200,7 @@ GetLittleLong(void)
     return val;
 }
 
-void
+static void
 FindNextChunk(char *name)
 {
     while (1) {
@@ -211,11 +218,6 @@ FindNextChunk(char *name)
 	    data_p = NULL;
 	    return;
 	}
-#if 0
-	if (iff_chunk_len > 1024*1024)
-	    Sys_Error ("%s: %i length is past the 1 meg sanity limit",
-		       __func__, iff_chunk_len);
-#endif
 	last_chunk = data_p + ((iff_chunk_len + 1) & ~1);
 	data_p -= 8;
 	if (!strncmp((char *)data_p, name, 4))
@@ -223,7 +225,7 @@ FindNextChunk(char *name)
     }
 }
 
-void
+static void
 FindChunk(char *name)
 {
     last_chunk = iff_data;
@@ -253,7 +255,7 @@ DumpChunks(void)
 GetWavinfo
 ============
 */
-wavinfo_t
+static wavinfo_t
 GetWavinfo(char *name, byte *wav, int wavlength)
 {
     wavinfo_t info;
