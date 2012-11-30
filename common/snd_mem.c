@@ -34,7 +34,7 @@ typedef struct {
     int dataofs;		// chunk starts this many bytes from file start
 } wavinfo_t;
 
-static wavinfo_t GetWavinfo(char *name, byte *wav, int wavlength);
+static wavinfo_t *GetWavinfo(char *name, byte *wav, int wavlength);
 
 /*
 ================
@@ -107,7 +107,7 @@ S_LoadSound(sfx_t *s)
 {
     char namebuffer[256];
     byte *data;
-    wavinfo_t info;
+    wavinfo_t *info;
     int len;
     float stepscale;
     sfxcache_t *sc;
@@ -133,27 +133,27 @@ S_LoadSound(sfx_t *s)
     }
 
     info = GetWavinfo(s->name, data, com_filesize);
-    if (info.channels != 1) {
+    if (info->channels != 1) {
 	Con_Printf("%s is a stereo sample\n", s->name);
 	return NULL;
     }
 
-    stepscale = (float)info.rate / shm->speed;
-    len = info.samples / stepscale;
+    stepscale = (float)info->rate / shm->speed;
+    len = info->samples / stepscale;
 
-    len = len * info.width * info.channels;
+    len = len * info->width * info->channels;
 
     sc = Cache_Alloc(&s->cache, len + sizeof(sfxcache_t), s->name);
     if (!sc)
 	return NULL;
 
-    sc->length = info.samples;
-    sc->loopstart = info.loopstart;
-    sc->speed = info.rate;
-    sc->width = info.width;
-    sc->stereo = info.channels;
+    sc->length = info->samples;
+    sc->loopstart = info->loopstart;
+    sc->speed = info->rate;
+    sc->width = info->width;
+    sc->stereo = info->channels;
 
-    ResampleSfx(s, sc->speed, sc->width, data + info.dataofs);
+    ResampleSfx(s, sc->speed, sc->width, data + info->dataofs);
 
     return sc;
 }
@@ -255,10 +255,10 @@ DumpChunks(void)
 GetWavinfo
 ============
 */
-static wavinfo_t
+static wavinfo_t *
 GetWavinfo(char *name, byte *wav, int wavlength)
 {
-    wavinfo_t info;
+    static wavinfo_t info;
     int i;
     int format;
     int samples;
@@ -266,7 +266,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     memset(&info, 0, sizeof(info));
 
     if (!wav)
-	return info;
+	return &info;
 
     iff_data = wav;
     iff_end = wav + wavlength;
@@ -275,7 +275,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     FindChunk("RIFF");
     if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4))) {
 	Con_Printf("Missing RIFF/WAVE chunks\n");
-	return info;
+	return &info;
     }
 // get "fmt " chunk
     iff_data = data_p + 12;
@@ -284,13 +284,13 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     FindChunk("fmt ");
     if (!data_p) {
 	Con_Printf("Missing fmt chunk\n");
-	return info;
+	return &info;
     }
     data_p += 8;
     format = GetLittleShort();
     if (format != 1) {
 	Con_Printf("Microsoft PCM format only\n");
-	return info;
+	return &info;
     }
 
     info.channels = GetLittleShort();
@@ -323,7 +323,7 @@ GetWavinfo(char *name, byte *wav, int wavlength)
     FindChunk("data");
     if (!data_p) {
 	Con_Printf("Missing data chunk\n");
-	return info;
+	return &info;
     }
 
     data_p += 4;
@@ -337,5 +337,5 @@ GetWavinfo(char *name, byte *wav, int wavlength)
 
     info.dataofs = data_p - wav;
 
-    return info;
+    return &info;
 }
