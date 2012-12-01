@@ -159,7 +159,7 @@ SNDDMA_GetDMAPos(void)
 	return 0;
 
     SDL_LockAudio();
-    shm->samplepos = rpos / (shm->channels * (shm->samplebits / 8));
+    shm->samplepos = rpos / (shm->samplebits / 8);
     SDL_UnlockAudio();
 
     return shm->samplepos;
