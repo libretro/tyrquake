@@ -39,11 +39,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "sys.h"
 
+#ifdef NQ_HACK
+#include "client.h"
+#include "host.h"
+
+qboolean isDedicated;
+#endif
+
 static qboolean noconinput = false;
 static qboolean nostdout = false;
-
-// set for entity display
-//static cvar_t sys_linerefresh = { "sys_linerefresh", "0" };
 
 // =======================================================================
 // General routines
@@ -63,7 +67,6 @@ Sys_Printf(const char *fmt, ...)
     if (nostdout)
 	return;
 
-    // FIXME - compare with NQ + use ctype functions?
     for (p = (unsigned char *)text; *p; p++) {
 	if ((*p > 128 || *p < 32) && *p != 10 && *p != 13 && *p != 9)
 	    printf("[%02x]", *p);
@@ -78,6 +81,7 @@ Sys_Quit(void)
     Host_Shutdown();
     fcntl(STDIN_FILENO, F_SETFL,
 	  fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
+    fflush(stdout);
     exit(0);
 }
 
@@ -126,7 +130,6 @@ Sys_FileTime(const char *path)
     return buf.st_mtime;
 }
 
-
 void
 Sys_mkdir(const char *path)
 {
@@ -169,6 +172,35 @@ Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
+#ifdef NQ_HACK
+char *
+Sys_ConsoleInput(void)
+{
+    static char text[256];
+    int len;
+    fd_set fdset;
+    struct timeval timeout;
+
+    if (cls.state == ca_dedicated) {
+	FD_ZERO(&fdset);
+	FD_SET(STDIN_FILENO, &fdset);	// stdin
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 0;
+	if (select(STDIN_FILENO + 1, &fdset, NULL, NULL, &timeout) == -1
+	    || !FD_ISSET(STDIN_FILENO, &fdset))
+	    return NULL;
+
+	len = read(STDIN_FILENO, text, sizeof(text));
+	if (len < 1)
+	    return NULL;
+	text[len - 1] = 0;	// rip off the /n and terminate
+
+	return text;
+    }
+    return NULL;
+}
+#endif
+
 #ifndef USE_X86_ASM
 void
 Sys_HighFPPrecision(void)
@@ -203,8 +235,6 @@ main(int c, const char **v)
 	parms.memsize = (int)(Q_atof(com_argv[j + 1]) * 1024 * 1024);
     parms.membase = malloc(parms.memsize);
     parms.basedir = stringify(QBASEDIR);
-// caching is disabled by default, use -cachedir to enable
-//      parms.cachedir = cachedir;
 
     if (COM_CheckParm("-noconinput"))
 	noconinput = true;
@@ -217,21 +247,45 @@ main(int c, const char **v)
 	fcntl(STDIN_FILENO, F_SETFL,
 	      fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     if (!nostdout)
-	printf("Linux QuakeWorld -- Version TyrQuake-%s\n",
-	       stringify(TYR_VERSION));
+#ifdef NQ_HACK
+	printf("Quake -- TyrQuake Version %s\n", stringify(TYR_VERSION));
+#endif
+#ifdef QW_HACK
+	printf("QuakeWorld -- TyrQuake Version %s\n", stringify(TYR_VERSION));
+#endif
 
     Sys_Init();
-
     Host_Init(&parms);
 
+#ifdef NQ_HACK
+    oldtime = Sys_DoubleTime() - 0.1;
+#endif
+#ifdef QW_HACK
     oldtime = Sys_DoubleTime();
+#endif
     while (1) {
 // find time spent rendering last frame
 	newtime = Sys_DoubleTime();
 	time = newtime - oldtime;
 
-	Host_Frame(time);
+#ifdef NQ_HACK
+	if (cls.state == ca_dedicated) {
+	    if (time < sys_ticrate.value) {
+		usleep(1);
+		continue;	// not time to run a server only tic yet
+	    }
+	    time = sys_ticrate.value;
+	}
+	if (time > sys_ticrate.value * 2)
+	    oldtime = newtime;
+	else
+	    oldtime += time;
+#endif
+#ifdef QW_HACK
 	oldtime = newtime;
+#endif
+
+	Host_Frame(time);
     }
 }
 

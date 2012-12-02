@@ -663,52 +663,7 @@ endif
 # ----------------------------------------------------------------------------
 
 # ----------------
-# 1. CD driver
-# ----------------
-
-ifeq ($(CD_TARGET),null)
-CL_OBJS += cd_null.o
-endif
-ifeq ($(CD_TARGET),linux)
-CL_OBJS += cd_linux.o
-endif
-ifeq ($(CD_TARGET),bsd)
-CL_OBJS += cd_bsd.o
-endif
-ifeq ($(CD_TARGET),win)
-CL_OBJS += cd_win.o
-endif
-
-# ----------------
-# 2. Sound driver
-# ----------------
-
-ifeq ($(SND_TARGET),null)
-CL_OBJS += snd_null.o
-endif
-ifeq ($(SND_TARGET),win)
-CL_CPPFLAGS += -idirafter $(DX_INC)
-CL_OBJS += snd_win.o
-# FIXME - direct sound libs?
-endif
-ifeq ($(SND_TARGET),linux)
-CL_OBJS += snd_linux.o
-endif
-ifeq ($(SND_TARGET),sndio)
-CL_OBJS += snd_sndio.o
-CL_LIBS += sndio
-endif
-ifeq ($(SND_TARGET),sdl)
-CL_OBJS += snd_sdl.o
-CL_LIBS += SDL
-ifneq ($(SDLBASE),)
-CL_CPPFLAGS += -idirafter $(SDLBASE)/include
-CL_LFLAGS += $(call libdir-check,$(SDLBASE)/lib)
-endif
-endif
-
-# ----------------
-# 3. Video driver
+# 1. Video driver
 # ----------------
 
 ifeq ($(VID_TARGET),x11)
@@ -747,7 +702,7 @@ endif
 endif
 
 # ----------------
-# 4. Input driver
+# 2. Input driver
 # ----------------
 # TODO: is it worth allowing input and video to be specified separately?
 #       they can be pretty tightly bound...
@@ -764,6 +719,51 @@ CL_OBJS += in_win.o
 endif
 ifeq ($(IN_TARGET),sdl)
 CL_OBJS += in_sdl.o
+endif
+
+# ----------------
+# 3. CD driver
+# ----------------
+
+ifeq ($(CD_TARGET),null)
+CL_OBJS += cd_null.o
+endif
+ifeq ($(CD_TARGET),linux)
+CL_OBJS += cd_linux.o
+endif
+ifeq ($(CD_TARGET),bsd)
+CL_OBJS += cd_bsd.o
+endif
+ifeq ($(CD_TARGET),win)
+CL_OBJS += cd_win.o
+endif
+
+# ----------------
+# 4. Sound driver
+# ----------------
+
+ifeq ($(SND_TARGET),null)
+CL_OBJS += snd_null.o
+endif
+ifeq ($(SND_TARGET),win)
+CL_CPPFLAGS += -idirafter $(DX_INC)
+CL_OBJS += snd_win.o
+# FIXME - direct sound libs?
+endif
+ifeq ($(SND_TARGET),linux)
+CL_OBJS += snd_linux.o
+endif
+ifeq ($(SND_TARGET),sndio)
+CL_OBJS += snd_sndio.o
+CL_LIBS += sndio
+endif
+ifeq ($(SND_TARGET),sdl)
+CL_OBJS += snd_sdl.o
+CL_LIBS += SDL
+ifneq ($(SDLBASE),)
+CL_CPPFLAGS += -idirafter $(SDLBASE)/include
+CL_LFLAGS += $(call libdir-check,$(SDLBASE)/lib)
+endif
 endif
 
 # ----------------------------------------------------------------------------
