@@ -788,7 +788,8 @@ S_Update_(void)
 
     /* check to make sure that we haven't overshot */
     if (paintedtime < soundtime) {
-	/* Con_Printf ("S_Update_ : overflow\n"); */
+	/* FIXME - handle init & wrap properly and report actual overflow */
+	//Con_DPrintf("%s: overflow\n", __func__);
 	paintedtime = soundtime;
     }
     /* mix ahead of current position */
