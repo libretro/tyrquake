@@ -303,7 +303,6 @@ GetWavinfo(const char *name, const byte *wav, int wavlength)
     if (data_p) {
 	data_p += 32;
 	info.loopstart = GetLittleLong();
-//              Con_Printf("loopstart=%d\n", sfx->loopstart);
 
 	// if the next chunk is a LIST chunk, look for a cue length marker
 	FindNextChunk("LIST", name);
@@ -313,7 +312,6 @@ GetWavinfo(const char *name, const byte *wav, int wavlength)
 		data_p += 24;
 		i = GetLittleLong();	// samples in loop
 		info.samples = info.loopstart + i;
-//                              Con_Printf("looped length: %i\n", i);
 	    }
 	}
     } else
