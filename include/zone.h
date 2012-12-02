@@ -121,7 +121,7 @@ void Cache_Flush(void);
  * - returns the cached data + saved offset, and moves to the head of
  *   the LRU list if present, otherwise returns NULL
  */
-void *Cache_Check(cache_user_t *c);
+void *Cache_Check(const cache_user_t *c);
 
 /*
  * Cache_Alloc

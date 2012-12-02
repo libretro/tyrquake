@@ -673,13 +673,13 @@ static cache_system_t cache_head;
 static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom);
 
 static inline cache_system_t *
-Cache_System(cache_user_t *c)
+Cache_System(const cache_user_t *c)
 {
     return (cache_system_t *)((byte *)c->data - c->pad) - 1;
 }
 
 static inline void *
-Cache_Data(cache_system_t *c)
+Cache_Data(const cache_system_t *c)
 {
     return (byte *)(c + 1) + c->user->pad;
 }
@@ -965,7 +965,7 @@ Cache_Free(cache_user_t *c)
  * ==============
  */
 void *
-Cache_Check(cache_user_t *c)
+Cache_Check(const cache_user_t *c)
 {
     cache_system_t *cs;
 
