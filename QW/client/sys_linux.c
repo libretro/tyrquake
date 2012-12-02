@@ -42,9 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static qboolean noconinput = false;
 static qboolean nostdout = false;
 
-// set for entity display
-//static cvar_t sys_linerefresh = { "sys_linerefresh", "0" };
-
 // =======================================================================
 // General routines
 // =======================================================================

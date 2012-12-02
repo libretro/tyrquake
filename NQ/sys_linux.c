@@ -47,10 +47,6 @@ qboolean isDedicated;
 static qboolean noconinput = false;
 static qboolean nostdout = false;
 
-// FIXME - Used in NQ, not QW... why?
-// set for entity display
-cvar_t sys_linerefresh = { "sys_linerefresh", "0" };
-
 // =======================================================================
 // General routines
 // =======================================================================
@@ -179,13 +175,6 @@ Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-/* FIXME - Unused only in QW? */
-static void
-Sys_LineRefresh(void)
-{
-}
-
-
 // FIXME - need this at all? (see QW)
 char *
 Sys_ConsoleInput(void)
@@ -293,10 +282,6 @@ main(int c, const char **v)
 	    oldtime += time;
 
 	Host_Frame(time);
-
-// graphic debugging aids
-	if (sys_linerefresh.value)
-	    Sys_LineRefresh();
     }
 }
 
