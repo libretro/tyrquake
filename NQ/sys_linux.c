@@ -18,31 +18,33 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include <unistd.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <limits.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <sys/ipc.h>
-#include <sys/stat.h>
+#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <sys/wait.h>
+#include <sys/ipc.h>
 #include <sys/mman.h>
-#include <errno.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-#include "client.h"
 #include "common.h"
-#include "host.h"
 #include "quakedef.h"
 #include "sys.h"
 
+#ifdef NQ_HACK
+#include "client.h"
+#include "host.h"
+
 qboolean isDedicated;
+#endif
 
 static qboolean noconinput = false;
 static qboolean nostdout = false;
@@ -65,7 +67,6 @@ Sys_Printf(const char *fmt, ...)
     if (nostdout)
 	return;
 
-    // FIXME - compare with NQ + use ctype functions?
     for (p = (unsigned char *)text; *p; p++) {
 	if ((*p > 128 || *p < 32) && *p != 10 && *p != 13 && *p != 9)
 	    printf("[%02x]", *p);
@@ -109,7 +110,6 @@ Sys_Error(const char *error, ...)
 
     Host_Shutdown();
     exit(1);
-
 }
 
 /*
@@ -130,13 +130,11 @@ Sys_FileTime(const char *path)
     return buf.st_mtime;
 }
 
-
 void
 Sys_mkdir(const char *path)
 {
     mkdir(path, 0777);
 }
-
 
 void
 Sys_DebugLog(const char *file, const char *fmt, ...)
@@ -148,7 +146,6 @@ Sys_DebugLog(const char *file, const char *fmt, ...)
     va_start(argptr, fmt);
     vsnprintf(data, sizeof(data), fmt, argptr);
     va_end(argptr);
-//    fd = open(file, O_WRONLY | O_BINARY | O_CREAT | O_APPEND, 0666);
     fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
     write(fd, data, strlen(data));
     close(fd);
@@ -175,7 +172,7 @@ Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-// FIXME - need this at all? (see QW)
+#ifdef NQ_HACK
 char *
 Sys_ConsoleInput(void)
 {
@@ -202,6 +199,7 @@ Sys_ConsoleInput(void)
     }
     return NULL;
 }
+#endif
 
 #ifndef USE_X86_ASM
 void
@@ -230,27 +228,16 @@ main(int c, const char **v)
     parms.argc = com_argc;
     parms.argv = com_argv;
 
-#ifdef GLQUAKE
     parms.memsize = 16 * 1024 * 1024;
-#else
-    parms.memsize = 8 * 1024 * 1024;
-#endif
 
     j = COM_CheckParm("-mem");
     if (j)
 	parms.memsize = (int)(Q_atof(com_argv[j + 1]) * 1024 * 1024);
     parms.membase = malloc(parms.memsize);
     parms.basedir = stringify(QBASEDIR);
-// caching is disabled by default, use -cachedir to enable
-//      parms.cachedir = cachedir;
 
-    fcntl(STDIN_FILENO, F_SETFL,
-	  fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
-
-    Host_Init(&parms);
-
-    Sys_Init();
-
+    if (COM_CheckParm("-noconinput"))
+	noconinput = true;
     if (COM_CheckParm("-nostdout"))
 	nostdout = true;
 
@@ -260,14 +247,28 @@ main(int c, const char **v)
 	fcntl(STDIN_FILENO, F_SETFL,
 	      fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
     if (!nostdout)
-	printf("TyrQuake -- Version %s\n", stringify(TYR_VERSION));
+#ifdef NQ_HACK
+	printf("Quake -- TyrQuake Version %s\n", stringify(TYR_VERSION));
+#endif
+#ifdef QW_HACK
+	printf("QuakeWorld -- TyrQuake Version %s\n", stringify(TYR_VERSION));
+#endif
 
+    Sys_Init();
+    Host_Init(&parms);
+
+#ifdef NQ_HACK
     oldtime = Sys_DoubleTime() - 0.1;
+#endif
+#ifdef QW_HACK
+    oldtime = Sys_DoubleTime();
+#endif
     while (1) {
 // find time spent rendering last frame
 	newtime = Sys_DoubleTime();
 	time = newtime - oldtime;
 
+#ifdef NQ_HACK
 	if (cls.state == ca_dedicated) {
 	    if (time < sys_ticrate.value) {
 		usleep(1);
@@ -275,11 +276,14 @@ main(int c, const char **v)
 	    }
 	    time = sys_ticrate.value;
 	}
-
 	if (time > sys_ticrate.value * 2)
 	    oldtime = newtime;
 	else
 	    oldtime += time;
+#endif
+#ifdef QW_HACK
+	oldtime = newtime;
+#endif
 
 	Host_Frame(time);
     }
