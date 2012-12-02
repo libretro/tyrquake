@@ -133,8 +133,8 @@ SNDDMA_Init(void)
     shm->samplepos = 0;
     shm->submission_chunk = 1;
 
-    /* Make room for enough samples to feed the double buffer */
-    shm->samples = obtained.samples * obtained.channels * 4;
+    /* Allow enough buffer for ~0.5s of mix ahead */
+    shm->samples = obtained.samples * obtained.channels * 8;
     sdl_buflen = shm->samples * (shm->samplebits / 8);
 
     shm->buffer = Hunk_AllocName(sdl_buflen, "shm->buffer");
