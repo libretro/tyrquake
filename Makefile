@@ -75,7 +75,7 @@ VID_TARGET ?= x11
 IN_TARGET ?= x11
 ifeq ($(TARGET_UNIX),darwin)
 CD_TARGET ?= null
-SND_TARGET ?= null
+SND_TARGET ?= sdl
 USE_XF86DGA ?= N
 endif
 ifeq ($(TARGET_UNIX),bsd)
