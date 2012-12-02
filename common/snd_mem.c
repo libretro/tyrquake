@@ -84,7 +84,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
 	    srcsample = samplefrac >> 8;
 	    samplefrac += fracstep;
 	    if (inwidth == 2)
-		sample = LittleShort(((short *)data)[srcsample]);
+		sample = LittleShort(((const short *)data)[srcsample]);
 	    else
 		sample = (int)((unsigned char)(data[srcsample]) - 128) << 8;
 	    if (sc->width == 2)
@@ -220,7 +220,7 @@ FindNextChunk(const char *name, const char *filename)
 	}
 	last_chunk = data_p + ((iff_chunk_len + 1) & ~1);
 	data_p -= 8;
-	if (!strncmp((char *)data_p, name, 4))
+	if (!strncmp((const char *)data_p, name, 4))
 	    return;
     }
 }
