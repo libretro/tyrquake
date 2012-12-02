@@ -151,7 +151,6 @@ FanLength(aliashdr_t *hdr, int starttri, int startv, const mtriangle_t *tris)
     m1 = last->vertindex[(startv + 0) % 3];
     m2 = last->vertindex[(startv + 2) % 3];
 
-
     // look for a matching triangle
   nexttri:
     for (j = starttri + 1, check = &tris[starttri + 1];
@@ -277,6 +276,48 @@ BuildTris(aliashdr_t *hdr, const mtriangle_t *tris, const stvert_t *stverts)
     alltris += hdr->numtris;
 }
 
+static void
+GL_MeshSwapCommands(void)
+{
+    int i;
+
+    for (i = 0; i < numcommands; i++)
+	commands[i].i = LittleLong(commands[i].i);
+    for (i = 0; i < numorder; i++)
+	vertexorder[i] = LittleLong(vertexorder[i]);
+}
+
+/*
+ * Do minimal checks on any cached data loaded to at least ensure we
+ * don't crash when trying to render the model.
+ */
+static qboolean
+GL_MeshVerifyCommands(const aliashdr_t *hdr, const model_t *model)
+{
+    int i, length, verts;
+
+    if (numcommands < 0 || numcommands >= 8192)
+	return false;
+    if (numorder < 0 || numorder >= 8192)
+	return false;
+
+    for (i = 0; i < numorder; i++)
+	if (vertexorder[i] < 0 || vertexorder[i] >= hdr->numverts)
+	    return false;
+
+    i = 0, verts = 0;
+    while (i < numcommands) {
+	length = commands[i].i;
+	if (length < 0)
+	    length = -length;
+	verts += length;
+	i += 1 + length * 2;
+    }
+    if (i != numcommands || verts != numorder)
+	return false;
+
+    return true;
+}
 
 /*
 ================
@@ -287,11 +328,12 @@ void
 GL_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 		const stvert_t *stverts, const trivertx_t **poseverts)
 {
-    int i, j;
+    int i, j, tmp;
     int *cmds;
     trivertx_t *verts;
     char cache[MAX_QPATH];
     FILE *f;
+    qboolean cached = false;
 
     //
     // look for a cached version
@@ -302,12 +344,27 @@ GL_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 
     f = fopen(cache, "rb");
     if (f) {
+	cached = true;
 	fread(&numcommands, 4, 1, f);
 	fread(&numorder, 4, 1, f);
-	fread(&commands, numcommands * sizeof(commands[0]), 1, f);
-	fread(&vertexorder, numorder * sizeof(vertexorder[0]), 1, f);
+	numcommands = LittleLong(numcommands);
+	numorder = LittleLong(numorder);
+	if (numcommands < 0 || numcommands > 8192)
+	    cached = false;
+	if (numorder < 0 || numorder > 8192)
+	    cached = false;
+	if (cached) {
+	    fread(&commands, numcommands * sizeof(commands[0]), 1, f);
+	    fread(&vertexorder, numorder * sizeof(vertexorder[0]), 1, f);
+	    GL_MeshSwapCommands();
+	    cached = GL_MeshVerifyCommands(hdr, model);
+	}
 	fclose(f);
-    } else {
+	if (!cached)
+	    Con_DPrintf("bad cached commands for mesh %s\n", model->name);
+    }
+
+    if (!cached) {
 	//
 	// build it from scratch
 	//
@@ -328,17 +385,19 @@ GL_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 	}
 
 	if (f) {
-	    fwrite(&numcommands, 4, 1, f);
-	    fwrite(&numorder, 4, 1, f);
+	    tmp = LittleLong(numcommands);
+	    fwrite(&tmp, 4, 1, f);
+	    tmp = LittleLong(numorder);
+	    fwrite(&tmp, 4, 1, f);
+	    GL_MeshSwapCommands();
 	    fwrite(&commands, numcommands * sizeof(commands[0]), 1, f);
 	    fwrite(&vertexorder, numorder * sizeof(vertexorder[0]), 1, f);
+	    GL_MeshSwapCommands();
 	    fclose(f);
 	}
     }
 
-
-    // save the data out
-
+    // save the data out to the in-memory model
     hdr->numverts = numorder;
 
     cmds = Hunk_Alloc(numcommands * 4);
