@@ -834,9 +834,8 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 
     SZ_Clear(&net_message);
 
-    len =
-	driver->Read(acceptsock, net_message.data, net_message.maxsize,
-		     &clientaddr);
+    len = driver->Read(acceptsock, net_message.data, net_message.maxsize,
+		       &clientaddr);
     if (len < sizeof(int))
 	return NULL;
     net_message.cursize = len;
@@ -1108,9 +1107,8 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	SZ_Clear(&net_message);
     }
 
-    while ((ret =
-	    driver->Read(driver->controlSock, net_message.data,
-			 net_message.maxsize, &readaddr)) > 0) {
+    while ((ret = driver->Read(driver->controlSock, net_message.data,
+			       net_message.maxsize, &readaddr)) > 0) {
 	if (ret < sizeof(int))
 	    continue;
 	net_message.cursize = ret;
@@ -1244,9 +1242,8 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 		     &sendaddr);
 	SZ_Clear(&net_message);
 	do {
-	    ret =
-		driver->Read(newsock, net_message.data, net_message.maxsize,
-			    &readaddr);
+	    ret = driver->Read(newsock, net_message.data, net_message.maxsize,
+			       &readaddr);
 	    // if we got something, validate it
 	    if (ret > 0) {
 		// is it from the right place?
@@ -1284,8 +1281,8 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 		    continue;
 		}
 	    }
-	}
-	while (ret == 0 && (SetNetTime() - start_time) < 2.5);
+	} while (ret == 0 && (SetNetTime() - start_time) < 2.5);
+
 	if (ret)
 	    break;
 	Con_Printf("still trying...\n");

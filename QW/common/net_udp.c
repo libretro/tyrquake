@@ -176,9 +176,8 @@ NET_SendPacket(int length, void *data, netadr_t to)
 
     NetadrToSockadr(&to, &addr);
 
-    ret =
-	sendto(net_socket, data, length, 0, (struct sockaddr *)&addr,
-	       sizeof(addr));
+    ret = sendto(net_socket, data, length, 0, (struct sockaddr *)&addr,
+		 sizeof(addr));
     if (ret == -1) {
 	if (errno == EWOULDBLOCK)
 	    return;
