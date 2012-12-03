@@ -183,9 +183,8 @@ typedef struct net_landriver_s {
     int (*SetSocketPort)(netadr_t *addr, int port);
 } net_landriver_t;
 
-#define	MAX_NET_DRIVERS		8
 extern int net_numlandrivers;
-extern net_landriver_t net_landrivers[MAX_NET_DRIVERS];
+extern net_landriver_t net_landrivers[];
 
 typedef struct net_driver_s {
     char *name;
@@ -206,7 +205,7 @@ typedef struct net_driver_s {
 } net_driver_t;
 
 extern int net_numdrivers;
-extern net_driver_t net_drivers[MAX_NET_DRIVERS];
+extern net_driver_t net_drivers[];
 
 extern int DEFAULTnet_hostport;
 extern int net_hostport;

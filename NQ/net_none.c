@@ -17,28 +17,29 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-#include "quakedef.h"
 
+#include "net.h"
 #include "net_loop.h"
 
-net_driver_t net_drivers[MAX_NET_DRIVERS] = {
+net_driver_t net_drivers[] = {
     {
-     "Loopback",
-     false,
-     Loop_Init,
-     Loop_Listen,
-     Loop_SearchForHosts,
-     Loop_Connect,
-     Loop_CheckNewConnections,
-     Loop_GetMessage,
-     Loop_SendMessage,
-     Loop_SendUnreliableMessage,
-     Loop_CanSendMessage,
-     Loop_CanSendUnreliableMessage,
-     Loop_Close,
-     Loop_Shutdown}
+	.name				= "Loopback",
+	.initialized			= false,
+	.Init				= Loop_Init,
+	.Listen				= Loop_Listen,
+	.SearchForHosts			= Loop_SearchForHosts,
+	.Connect			= Loop_Connect,
+	.CheckNewConnections		= Loop_CheckNewConnections,
+	.QGetMessage			= Loop_GetMessage,
+	.QSendMessage			= Loop_SendMessage,
+	.SendUnreliableMessage		= Loop_SendUnreliableMessage,
+	.CanSendMessage			= Loop_CanSendMessage,
+	.CanSendUnreliableMessage	= Loop_CanSendUnreliableMessage,
+	.Close				= Loop_Close,
+	.Shutdown			= Loop_Shutdown
+    }
 };
 int net_numdrivers = 1;
 
-net_landriver_t net_landrivers[MAX_NET_DRIVERS];
+net_landriver_t net_landrivers[0];
 int net_numlandrivers = 0;
