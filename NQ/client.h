@@ -77,7 +77,7 @@ typedef struct {
 
 #define	NUM_CSHIFTS	4
 
-#define	MAX_EFRAGS	640
+#define	MAX_EFRAGS	4096
 
 #define	MAX_MAPSTRING	2048
 #define	MAX_DEMOS	8
@@ -249,7 +249,7 @@ extern cvar_t m_side;
 
 
 #define	MAX_TEMP_ENTITIES	64	// lightning bolts, etc
-#define	MAX_STATIC_ENTITIES	128	// torches, etc
+#define	MAX_STATIC_ENTITIES	1024	// torches, etc
 
 extern client_state_t cl;
 
