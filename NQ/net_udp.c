@@ -349,7 +349,7 @@ UDP_CheckNewConnections(void)
 
 
 int
-UDP_Read(int socket, byte *buf, int len, netadr_t *addr)
+UDP_Read(int socket, void *buf, int len, netadr_t *addr)
 {
     struct sockaddr_in saddr;
     socklen_t addrlen = sizeof(saddr);
@@ -379,7 +379,7 @@ UDP_MakeSocketBroadcastCapable(int socket)
 
 
 int
-UDP_Broadcast(int socket, const byte *buf, int len)
+UDP_Broadcast(int socket, const void *buf, int len)
 {
     int ret;
 
@@ -398,7 +398,7 @@ UDP_Broadcast(int socket, const byte *buf, int len)
 
 
 int
-UDP_Write(int socket, const byte *buf, int len, const netadr_t *addr)
+UDP_Write(int socket, const void *buf, int len, const netadr_t *addr)
 {
     struct sockaddr_in saddr;
     int ret;

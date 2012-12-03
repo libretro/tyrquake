@@ -156,7 +156,7 @@ Datagram_SendMessage(qsocket_t *sock, sizebuf_t *data)
 
     sock->canSend = false;
 
-    if (sock->landriver->Write(sock->socket, (byte *)&packetBuffer, packetLen,
+    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
 			       &sock->addr) == -1)
 	return -1;
 
@@ -188,7 +188,7 @@ SendMessageNext(qsocket_t *sock)
 
     sock->sendNext = false;
 
-    if (sock->landriver->Write(sock->socket, (byte *)&packetBuffer, packetLen,
+    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
 			       &sock->addr) == -1)
 	return -1;
 
@@ -221,7 +221,7 @@ ReSendMessage(qsocket_t *sock)
 
     sock->sendNext = false;
 
-    if (sock->landriver->Write(sock->socket, (byte *)&packetBuffer, packetLen,
+    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
 			       &sock->addr) == -1)
 	return -1;
 
@@ -268,7 +268,7 @@ Datagram_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
     packetBuffer.sequence = BigLong(sock->unreliableSendSequence++);
     memcpy(packetBuffer.data, data->data, data->cursize);
 
-    if (sock->landriver->Write(sock->socket, (byte *)&packetBuffer, packetLen,
+    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
 			       &sock->addr) == -1)
 	return -1;
 
@@ -292,7 +292,7 @@ Datagram_GetMessage(qsocket_t *sock)
 	    ReSendMessage(sock);
 
     while (1) {
-	length = sock->landriver->Read(sock->socket, (byte *)&packetBuffer,
+	length = sock->landriver->Read(sock->socket, &packetBuffer,
 				       NET_DATAGRAMSIZE, &readaddr);
 #if 0
 	/* for testing packet loss effects */
@@ -381,8 +381,8 @@ Datagram_GetMessage(qsocket_t *sock)
 	if (flags & NETFLAG_DATA) {
 	    packetBuffer.length = BigLong(NET_HEADERSIZE | NETFLAG_ACK);
 	    packetBuffer.sequence = BigLong(sequence);
-	    sock->landriver->Write(sock->socket, (byte *)&packetBuffer,
-				   NET_HEADERSIZE, &readaddr);
+	    sock->landriver->Write(sock->socket, &packetBuffer, NET_HEADERSIZE,
+				   &readaddr);
 
 	    if (sequence != sock->receiveSequence) {
 		receivedDuplicateCount++;

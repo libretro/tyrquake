@@ -173,9 +173,9 @@ typedef struct net_landriver_s {
     int (*OpenSocket)(int port);
     int (*CloseSocket)(int socket);
     int (*CheckNewConnections)(void);
-    int (*Read)(int socket, byte *buf, int len, netadr_t *addr);
-    int (*Write)(int socket, const byte *buf, int len, const netadr_t *addr);
-    int (*Broadcast)(int socket, const byte *buf, int len);
+    int (*Read)(int socket, void *buf, int len, netadr_t *addr);
+    int (*Write)(int socket, const void *buf, int len, const netadr_t *addr);
+    int (*Broadcast)(int socket, const void *buf, int len);
     int (*GetSocketAddr)(int socket, netadr_t *addr);
     int (*GetNameFromAddr)(const netadr_t *addr, char *name);
     int (*GetAddrFromName)(const char *name, netadr_t *addr);

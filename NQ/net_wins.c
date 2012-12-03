@@ -336,7 +336,7 @@ WINS_CheckNewConnections(void)
 
 
 int
-WINS_Read(int socket, byte *buf, int len, netadr_t *addr)
+WINS_Read(int socket, void *buf, int len, netadr_t *addr)
 {
     struct sockaddr_in saddr;
     int addrlen = sizeof(saddr);
@@ -371,7 +371,7 @@ WINS_MakeSocketBroadcastCapable(int socket)
 
 
 int
-WINS_Broadcast(int socket, const byte *buf, int len)
+WINS_Broadcast(int socket, const void *buf, int len)
 {
     int ret;
 
@@ -390,7 +390,7 @@ WINS_Broadcast(int socket, const byte *buf, int len)
 
 
 int
-WINS_Write(int socket, const byte *buf, int len, const netadr_t *addr)
+WINS_Write(int socket, const void *buf, int len, const netadr_t *addr)
 {
     struct sockaddr_in saddr;
     int ret;
