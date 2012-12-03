@@ -36,5 +36,6 @@ int WINS_GetAddrFromName(const char *name, netadr_t *addr);
 int WINS_AddrCompare(const netadr_t *addr1, const netadr_t *addr2);
 int WINS_GetSocketPort(const netadr_t *addr);
 int WINS_SetSocketPort(netadr_t *addr, int port);
+int WINS_GetDefaultMTU(void);
 
 #endif /* NET_WINS_H */

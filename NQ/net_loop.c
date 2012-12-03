@@ -88,6 +88,7 @@ Loop_Connect(char *host)
     loop_client->receiveMessageLength = 0;
     loop_client->sendMessageLength = 0;
     loop_client->canSend = true;
+    loop_client->mtu = Loop_GetDefaultMTU();
 
     if (!loop_server) {
 	if ((loop_server = NET_NewQSocket()) == NULL) {
@@ -99,6 +100,7 @@ Loop_Connect(char *host)
     loop_server->receiveMessageLength = 0;
     loop_server->sendMessageLength = 0;
     loop_server->canSend = true;
+    loop_server->mtu = Loop_GetDefaultMTU();
 
     loop_client->driverdata = (void *)loop_server;
     loop_server->driverdata = (void *)loop_client;
@@ -257,4 +259,10 @@ Loop_Close(qsocket_t *sock)
 	loop_client = NULL;
     else
 	loop_server = NULL;
+}
+
+int
+Loop_GetDefaultMTU(void)
+{
+    return MAX_DATAGRAM;
 }

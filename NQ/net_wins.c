@@ -492,3 +492,9 @@ WINS_SetSocketPort(netadr_t *addr, int port)
     addr->port = htons(port);
     return 0;
 }
+
+int
+WINS_GetDefaultMTU(void)
+{
+    return 1400;
+}

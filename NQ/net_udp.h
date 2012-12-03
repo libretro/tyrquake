@@ -40,5 +40,6 @@ int UDP_GetAddrFromName(const char *name, netadr_t *addr);
 int UDP_AddrCompare(const netadr_t *addr1, const netadr_t *addr2);
 int UDP_GetSocketPort(const netadr_t *addr);
 int UDP_SetSocketPort(netadr_t *addr, int port);
+int UDP_GetDefaultMTU(void);
 
 #endif /* NET_UDP_H */

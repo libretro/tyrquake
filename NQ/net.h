@@ -140,6 +140,7 @@ typedef struct qsocket_s {
     struct net_driver_s *driver;
     struct net_landriver_s *landriver;
     int socket;
+    int mtu;
     void *driverdata;
 
     unsigned int ackSequence;
@@ -181,6 +182,7 @@ typedef struct net_landriver_s {
     int (*AddrCompare)(const netadr_t *addr1, const netadr_t *addr2);
     int (*GetSocketPort)(const netadr_t *addr);
     int (*SetSocketPort)(netadr_t *addr, int port);
+    int (*GetDefaultMTU)(void);
 } net_landriver_t;
 
 extern int net_numlandrivers;

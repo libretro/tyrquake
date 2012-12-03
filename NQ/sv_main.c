@@ -827,7 +827,7 @@ SV_SendClientDatagram(client_t *client)
     sizebuf_t msg;
 
     msg.data = buf;
-    msg.maxsize = sizeof(buf);
+    msg.maxsize = client->netconnection->mtu;
     msg.cursize = 0;
 
     MSG_WriteByte(&msg, svc_time);
