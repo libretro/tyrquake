@@ -350,7 +350,7 @@ main(int argc, const char **argv)
 	SV_Frame(time);
     }
 
-    return true;
+    return 0;
 }
 
 #ifndef USE_X86_ASM

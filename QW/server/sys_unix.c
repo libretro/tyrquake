@@ -282,4 +282,6 @@ main(int argc, const char *argv[])
 	if (sys_extrasleep.value)
 	    usleep(sys_extrasleep.value);
     }
+
+    return 0;
 }

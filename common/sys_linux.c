@@ -287,6 +287,8 @@ main(int c, const char **v)
 
 	Host_Frame(time);
     }
+
+    return 0;
 }
 
 

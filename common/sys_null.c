@@ -155,4 +155,6 @@ main(int argc, char **argv)
     while (1) {
 	Host_Frame(0.1);
     }
+
+    return 0;
 }
