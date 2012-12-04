@@ -18,21 +18,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef NET_WINS_H
-#define NET_WINS_H
+#include "common.h"
+#include "net.h"
 
-int WINS_Init(void);
-void WINS_Shutdown(void);
-void WINS_Listen(qboolean state);
-int WINS_OpenSocket(int port);
-int WINS_CloseSocket(int socket);
-int WINS_CheckNewConnections(void);
-int WINS_Read(int socket, void *buf, int len, netadr_t *addr);
-int WINS_Write(int socket, const void *buf, int len, const netadr_t *addr);
-int WINS_Broadcast(int socket, const void *buf, int len);
-int WINS_GetSocketAddr(int socket, netadr_t *addr);
-int WINS_GetNameFromAddr(const netadr_t *addr, char *name);
-int WINS_GetAddrFromName(const char *name, netadr_t *addr);
-int WINS_GetDefaultMTU(void);
+int
+NET_AddrCompare(const netadr_t *addr1, const netadr_t *addr2)
+{
+    if (addr1->ip.l != addr2->ip.l || addr1->port != addr2->port)
+	return -1;
 
-#endif /* NET_WINS_H */
+    return 0;
+}
+
+int
+NET_GetSocketPort(const netadr_t *addr)
+{
+    return (unsigned short)BigShort(addr->port);
+}
+
+int
+NET_SetSocketPort(netadr_t *addr, int port)
+{
+    addr->port = (unsigned short)BigShort(port);
+    return 0;
+}

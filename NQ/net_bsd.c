@@ -76,9 +76,6 @@ net_landriver_t net_landrivers[] = {
 	.GetSocketAddr		= UDP_GetSocketAddr,
 	.GetNameFromAddr	= UDP_GetNameFromAddr,
 	.GetAddrFromName	= UDP_GetAddrFromName,
-	.AddrCompare		= UDP_AddrCompare,
-	.GetSocketPort		= UDP_GetSocketPort,
-	.SetSocketPort		= UDP_SetSocketPort,
 	.GetDefaultMTU		= UDP_GetDefaultMTU
     }
 };

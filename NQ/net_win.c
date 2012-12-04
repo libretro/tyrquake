@@ -78,9 +78,6 @@ net_landriver_t net_landrivers[] = {
 	.GetSocketAddr		= WINS_GetSocketAddr,
 	.GetNameFromAddr	= WINS_GetNameFromAddr,
 	.GetAddrFromName	= WINS_GetAddrFromName,
-	.AddrCompare		= WINS_AddrCompare,
-	.GetSocketPort		= WINS_GetSocketPort,
-	.SetSocketPort		= WINS_SetSocketPort,
 	.GetDefaultMTU		= WINS_GetDefaultMTU
     }
 };

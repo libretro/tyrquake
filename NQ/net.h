@@ -179,9 +179,6 @@ typedef struct net_landriver_s {
     int (*GetSocketAddr)(int socket, netadr_t *addr);
     int (*GetNameFromAddr)(const netadr_t *addr, char *name);
     int (*GetAddrFromName)(const char *name, netadr_t *addr);
-    int (*AddrCompare)(const netadr_t *addr1, const netadr_t *addr2);
-    int (*GetSocketPort)(const netadr_t *addr);
-    int (*SetSocketPort)(netadr_t *addr, int port);
     int (*GetDefaultMTU)(void);
 } net_landriver_t;
 
@@ -224,6 +221,9 @@ qsocket_t *NET_NewQSocket(void);
 void NET_FreeQSocket(qsocket_t *);
 double SetNetTime(void);
 
+int NET_AddrCompare(const netadr_t *addr1, const netadr_t *addr2);
+int NET_GetSocketPort(const netadr_t *addr);
+int NET_SetSocketPort(netadr_t *addr, int port);
 
 #define HOSTCACHESIZE	8
 

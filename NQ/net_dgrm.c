@@ -307,7 +307,7 @@ Datagram_GetMessage(qsocket_t *sock)
 	    return -1;
 	}
 
-	if (sock->landriver->AddrCompare(&readaddr, &sock->addr) != 0) {
+	if (NET_AddrCompare(&readaddr, &sock->addr) != 0) {
 #ifdef DEBUG
 	    Con_DPrintf("Forged packet received\n");
 	    Con_DPrintf("Expected: %s\n", StrAddr(&sock->addr));
@@ -987,7 +987,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     for (s = net_activeSockets; s; s = s->next) {
 	if (s->driver != net_driver)
 	    continue;
-	ret = driver->AddrCompare(&clientaddr, &s->addr);
+	ret = NET_AddrCompare(&clientaddr, &s->addr);
 	if (ret >= 0) {
 	    // is this a duplicate connection reqeust?
 	    if (ret == 0 && net_time - s->connecttime < 2.0) {
@@ -997,7 +997,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 		MSG_WriteLong(&net_message, 0);
 		MSG_WriteByte(&net_message, CCREP_ACCEPT);
 		driver->GetSocketAddr(s->socket, &newaddr);
-		MSG_WriteLong(&net_message, driver->GetSocketPort(&newaddr));
+		MSG_WriteLong(&net_message, NET_GetSocketPort(&newaddr));
 		*((int *)net_message.data) =
 		    BigLong(NETFLAG_CTL |
 			    (net_message.cursize & NETFLAG_LENGTH_MASK));
@@ -1052,8 +1052,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     MSG_WriteLong(&net_message, 0);
     MSG_WriteByte(&net_message, CCREP_ACCEPT);
     driver->GetSocketAddr(newsock, &newaddr);
-    MSG_WriteLong(&net_message, driver->GetSocketPort(&newaddr));
-//      MSG_WriteString(&net_message, NET_AdrToString(&newaddr));
+    MSG_WriteLong(&net_message, NET_GetSocketPort(&newaddr));
     *((int *)net_message.data) =
 	BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
     driver->Write(acceptsock, net_message.data, net_message.cursize,
@@ -1114,7 +1113,7 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	net_message.cursize = ret;
 
 	// don't answer our own query
-	if (driver->AddrCompare(&readaddr, &myaddr) >= 0)
+	if (NET_AddrCompare(&readaddr, &myaddr) >= 0)
 	    continue;
 
 	// is the cache full?
@@ -1137,7 +1136,7 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	driver->GetAddrFromName(MSG_ReadString(), &readaddr);
 	// search the cache for this server
 	for (n = 0; n < hostCacheCount; n++)
-	    if (driver->AddrCompare(&readaddr, &hostcache[n].addr) == 0)
+	    if (NET_AddrCompare(&readaddr, &hostcache[n].addr) == 0)
 		break;
 
 	// is it already there?
@@ -1247,7 +1246,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 	    // if we got something, validate it
 	    if (ret > 0) {
 		// is it from the right place?
-		if (sock->landriver->AddrCompare(&readaddr, &sendaddr) != 0) {
+		if (NET_AddrCompare(&readaddr, &sendaddr) != 0) {
 #ifdef DEBUG
 		    Con_Printf("wrong reply address\n");
 		    Con_Printf("Expected: %s\n", StrAddr(&sendaddr));
@@ -1315,7 +1314,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 
     if (ret == CCREP_ACCEPT) {
 	sock->addr = sendaddr;
-	driver->SetSocketPort(&sock->addr, MSG_ReadLong());
+	NET_SetSocketPort(&sock->addr, MSG_ReadLong());
     } else {
 	reason = "Bad Response";
 	Con_Printf("%s\n", reason);

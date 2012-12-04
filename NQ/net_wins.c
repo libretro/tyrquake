@@ -470,30 +470,6 @@ WINS_GetAddrFromName(const char *name, netadr_t *addr)
 
 
 int
-WINS_AddrCompare(const netadr_t *addr1, const netadr_t *addr2)
-{
-    if (addr1->ip.l != addr2->ip.l || addr1->port != addr2->port)
-	return -1;
-
-    return 0;
-}
-
-
-int
-WINS_GetSocketPort(const netadr_t *addr)
-{
-    return ntohs(addr->port);
-}
-
-
-int
-WINS_SetSocketPort(netadr_t *addr, int port)
-{
-    addr->port = htons(port);
-    return 0;
-}
-
-int
 WINS_GetDefaultMTU(void)
 {
     return 1400;

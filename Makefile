@@ -495,6 +495,7 @@ NQCL_OBJS := \
 	chase.o		\
 	host.o		\
 	host_cmd.o	\
+	net_common.o	\
 	net_dgrm.o	\
 	net_loop.o	\
 	net_main.o	\
