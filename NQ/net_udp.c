@@ -272,62 +272,6 @@ UDP_CloseSocket(int socket)
 }
 
 
-/*
- * ============
- * PartialIPAddress
- *
- * this lets you type only as much of the net address as required,
- * using the local network components to fill in the rest
- * ============
- */
-static int
-PartialIPAddress(const char *in, netadr_t *hostaddr)
-{
-    char buff[256];
-    char *b;
-    int addr;
-    int num;
-    int mask;
-    int run;
-    int port;
-
-    buff[0] = '.';
-    b = buff;
-    strcpy(buff + 1, in);
-    if (buff[1] == '.')
-	b++;
-
-    addr = 0;
-    mask = -1;
-    while (*b == '.') {
-	b++;
-	num = 0;
-	run = 0;
-	while (!(*b < '0' || *b > '9')) {
-	    num = num * 10 + *b++ - '0';
-	    if (++run > 3)
-		return -1;
-	}
-	if ((*b < '0' || *b > '9') && *b != '.' && *b != ':' && *b != 0)
-	    return -1;
-	if (num < 0 || num > 255)
-	    return -1;
-	mask <<= 8;
-	addr = (addr << 8) + num;
-    }
-
-    if (*b++ == ':')
-	port = Q_atoi(b);
-    else
-	port = net_hostport;
-
-    hostaddr->port = htons((short)port);
-    hostaddr->ip.l = (myAddr.ip.l & htonl(mask)) | htonl(addr);
-
-    return 0;
-}
-
-
 int
 UDP_CheckNewConnections(void)
 {
@@ -462,7 +406,7 @@ UDP_GetAddrFromName(const char *name, netadr_t *addr)
     struct hostent *hostentry;
 
     if (name[0] >= '0' && name[0] <= '9')
-	return PartialIPAddress(name, addr);
+	return NET_PartialIPAddress(name, &myAddr, addr);
 
     hostentry = gethostbyname(name);
     if (!hostentry)

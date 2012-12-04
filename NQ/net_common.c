@@ -39,6 +39,61 @@ NET_GetSocketPort(const netadr_t *addr)
 int
 NET_SetSocketPort(netadr_t *addr, int port)
 {
-    addr->port = (unsigned short)BigShort(port);
+    addr->port = BigShort(port);
+    return 0;
+}
+
+/*
+ * ============
+ * PartialIPAddress
+ *
+ * this lets you type only as much of the net address as required,
+ * using the local network components to fill in the rest
+ * ============
+ */
+int
+NET_PartialIPAddress(const char *in, const netadr_t *myaddr, netadr_t *addr)
+{
+    char buff[256];
+    char *b;
+    int ip;
+    int num;
+    int mask;
+    int run;
+    int port;
+
+    buff[0] = '.';
+    b = buff;
+    strcpy(buff + 1, in);
+    if (buff[1] == '.')
+	b++;
+
+    ip = 0;
+    mask = -1;
+    while (*b == '.') {
+	b++;
+	num = 0;
+	run = 0;
+	while (!(*b < '0' || *b > '9')) {
+	    num = num * 10 + *b++ - '0';
+	    if (++run > 3)
+		return -1;
+	}
+	if ((*b < '0' || *b > '9') && *b != '.' && *b != ':' && *b != 0)
+	    return -1;
+	if (num < 0 || num > 255)
+	    return -1;
+	mask <<= 8;
+	ip = (ip << 8) + num;
+    }
+
+    if (*b++ == ':')
+	port = Q_atoi(b);
+    else
+	port = net_hostport;
+
+    addr->port = BigShort(port);
+    addr->ip.l = (myaddr->ip.l & BigLong(mask)) | BigLong(ip);
+
     return 0;
 }

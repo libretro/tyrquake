@@ -224,6 +224,8 @@ double SetNetTime(void);
 int NET_AddrCompare(const netadr_t *addr1, const netadr_t *addr2);
 int NET_GetSocketPort(const netadr_t *addr);
 int NET_SetSocketPort(netadr_t *addr, int port);
+int NET_PartialIPAddress(const char *in, const netadr_t *myaddr, netadr_t *addr);
+
 
 #define HOSTCACHESIZE	8
 
