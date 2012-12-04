@@ -55,9 +55,9 @@ static netadr_t broadcastaddr;
  *		 to only listen on a particular address. Set on the
  *		 command line using the "-ip" option.
  */
-static struct in_addr myAddr;
-static struct in_addr localAddr;
-static struct in_addr bindAddr;
+static netadr_t myAddr;
+static netadr_t localAddr;
+static netadr_t bindAddr;
 static char ifname[IFNAMSIZ];
 
 
@@ -86,7 +86,6 @@ udp_scan_iface(int sock)
     char buf[8192];
     int i, n;
     struct sockaddr_in *iaddr;
-    struct in_addr addr;
 
     if (COM_CheckParm("-noifscan"))
 	return -1;
@@ -107,9 +106,8 @@ udp_scan_iface(int sock)
 	    continue;
 	iaddr = (struct sockaddr_in *)&ifr[i].ifr_addr;
 	Con_DPrintf("%s: %s\n", ifr[i].ifr_name, inet_ntoa(iaddr->sin_addr));
-	addr.s_addr = iaddr->sin_addr.s_addr;
-	if (addr.s_addr != htonl(INADDR_LOOPBACK)) {
-	    myAddr.s_addr = addr.s_addr;
+	if (iaddr->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
+	    SockadrToNetadr(iaddr, &myAddr);
 	    strcpy (ifname, ifr[i].ifr_name);
 	    return 0;
 	}
@@ -121,17 +119,19 @@ udp_scan_iface(int sock)
 int
 UDP_Init(void)
 {
-    int i, err;
-    struct hostent *local;
+    int i;
+    int err;
     char buff[MAXHOSTNAMELEN];
-    netadr_t addr;
     char *colon;
+    struct hostent *local;
+    netadr_t addr;
+    const struct sockaddr_in *iaddr;
 
     if (COM_CheckParm("-noudp"))
 	return -1;
 
-    /* determine my name & address */
-    myAddr.s_addr = htonl(INADDR_LOOPBACK);
+    /* determine my name & address, default to loopback */
+    myAddr.ip.l = htonl(INADDR_LOOPBACK);
     err = gethostname(buff, MAXHOSTNAMELEN);
     if (err) {
 	Con_Printf("%s: WARNING: gethostname failed (%s)\n", __func__,
@@ -145,31 +145,32 @@ UDP_Init(void)
 	} else if (local->h_addrtype != AF_INET) {
 	    Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
 	} else {
-	    myAddr = *(struct in_addr *)local->h_addr_list[0];
+	    iaddr = (const struct sockaddr_in *)local->h_addr_list[0];
+	    SockadrToNetadr(iaddr, &myAddr);
 	}
     }
 
     i = COM_CheckParm("-ip");
     if (i && i < com_argc - 1) {
-	bindAddr.s_addr = inet_addr(com_argv[i + 1]);
-	if (bindAddr.s_addr == INADDR_NONE)
+	bindAddr.ip.l = inet_addr(com_argv[i + 1]);
+	if (bindAddr.ip.l == INADDR_NONE)
 	    Sys_Error("%s: %s is not a valid IP address", __func__,
 		      com_argv[i + 1]);
 	Con_Printf("Binding to IP Interface Address of %s\n", com_argv[i + 1]);
     } else {
-	bindAddr.s_addr = INADDR_NONE;
+	bindAddr.ip.l = INADDR_NONE;
     }
 
     i = COM_CheckParm("-localip");
     if (i && i < com_argc - 1) {
-	localAddr.s_addr = inet_addr(com_argv[i + 1]);
-	if (localAddr.s_addr == INADDR_NONE)
+	localAddr.ip.l = inet_addr(com_argv[i + 1]);
+	if (localAddr.ip.l == INADDR_NONE)
 	    Sys_Error("%s: %s is not a valid IP address", __func__,
 		      com_argv[i + 1]);
 	Con_Printf("Advertising %s as the local IP in response packets\n",
 		   com_argv[i + 1]);
     } else {
-	localAddr.s_addr = INADDR_NONE;
+	localAddr.ip.l = INADDR_NONE;
     }
 
     net_controlsocket = UDP_OpenSocket(0);
@@ -181,13 +182,13 @@ UDP_Init(void)
 
     /* myAddr may resolve to 127.0.0.1, see if we can do any better */
     memset (ifname, 0, sizeof(ifname));
-    if (myAddr.s_addr == htonl(INADDR_LOOPBACK)) {
+    if (myAddr.ip.l == htonl(INADDR_LOOPBACK)) {
 	if (udp_scan_iface(net_controlsocket) == 0)
-	    Con_Printf ("UDP, Local address: %s (%s)\n", inet_ntoa(myAddr),
-			ifname);
+	    Con_Printf ("UDP, Local address: %s (%s)\n",
+			NET_AdrToString(&myAddr), ifname);
     }
     if (ifname[0] == 0) {
-	Con_Printf ("UDP, Local address: %s\n", inet_ntoa(myAddr));
+	Con_Printf ("UDP, Local address: %s\n", NET_AdrToString(&myAddr));
     }
 
     broadcastaddr.ip.l = INADDR_BROADCAST;
@@ -246,8 +247,8 @@ UDP_OpenSocket(int port)
 	goto ErrorReturn;
 
     address.sin_family = AF_INET;
-    if (bindAddr.s_addr != INADDR_NONE)
-	address.sin_addr.s_addr = bindAddr.s_addr;
+    if (bindAddr.ip.l != INADDR_NONE)
+	address.sin_addr.s_addr = bindAddr.ip.l;
     else
 	address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons((unsigned short)port);
@@ -321,7 +322,7 @@ PartialIPAddress(const char *in, netadr_t *hostaddr)
 	port = net_hostport;
 
     hostaddr->port = htons((short)port);
-    hostaddr->ip.l = (myAddr.s_addr & htonl(mask)) | htonl(addr);
+    hostaddr->ip.l = (myAddr.ip.l & htonl(mask)) | htonl(addr);
 
     return 0;
 }
@@ -426,12 +427,12 @@ UDP_GetSocketAddr(int socket, netadr_t *addr)
      * specific IP for various reasons, so allow the "default" address
      * returned by the OS to be overridden.
      */
-    if (localAddr.s_addr != INADDR_NONE)
-	saddr.sin_addr.s_addr = localAddr.s_addr;
+    if (localAddr.ip.l != INADDR_NONE)
+	saddr.sin_addr.s_addr = localAddr.ip.l;
     else {
 	struct in_addr a = saddr.sin_addr;
 	if (!a.s_addr || a.s_addr == htonl(INADDR_LOOPBACK))
-	    saddr.sin_addr.s_addr = myAddr.s_addr;
+	    saddr.sin_addr.s_addr = myAddr.ip.l;
     }
     SockadrToNetadr(&saddr, addr);
 
