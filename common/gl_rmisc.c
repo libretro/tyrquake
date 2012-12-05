@@ -391,7 +391,7 @@ R_TranslatePlayerSkin(int playernum)
     if (model->type != mod_alias)
 	return;			// only translate skins on alias models
 
-    paliashdr = (aliashdr_t *)Mod_Extradata(model);
+    paliashdr = Mod_Extradata(model);
     size = paliashdr->skinwidth * paliashdr->skinheight;
     if (e->skinnum < 0 || e->skinnum >= paliashdr->numskins) {
 	Con_Printf("(%d): Invalid player skin #%d\n", playernum, e->skinnum);
