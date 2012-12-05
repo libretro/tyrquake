@@ -537,6 +537,23 @@ MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
 }
 #endif /* QW_HACK */
 
+#ifdef NQ_HACK
+/*
+ * Write the current message length to the start of the buffer (in big
+ * endian format) with the control flag set.
+ */
+void
+MSG_WriteControlHeader(sizebuf_t *sb)
+{
+    int c = NETFLAG_CTL | (sb->cursize & NETFLAG_LENGTH_MASK);
+
+    sb->data[0] = c >> 24;
+    sb->data[1] = (c >> 16) & 0xff;
+    sb->data[2] = (c >> 8) & 0xff;
+    sb->data[3] = c & 0xff;
+}
+#endif
+
 //
 // reading functions
 //
@@ -750,6 +767,32 @@ MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
     move->msec = MSG_ReadByte();
 }
 #endif /* QW_HACK */
+
+#ifdef NQ_HACK
+/*
+ * Read back the message control header
+ * Essentially this is MSG_ReadLong, but big-endian byte order.
+ */
+int
+MSG_ReadControlHeader(void)
+{
+    int c;
+
+    if (msg_readcount + 4 > net_message.cursize) {
+	msg_badread = true;
+	return -1;
+    }
+
+    c = (net_message.data[msg_readcount] << 24)
+	+ (net_message.data[msg_readcount + 1] << 16)
+	+ (net_message.data[msg_readcount + 2] << 8)
+	+ net_message.data[msg_readcount + 3];
+
+    msg_readcount += 4;
+
+    return c;
+}
+#endif
 
 //===========================================================================
 

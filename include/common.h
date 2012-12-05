@@ -123,6 +123,9 @@ void MSG_WriteAngle16(sizebuf_t *sb, float f);
 void MSG_WriteDeltaUsercmd(sizebuf_t *sb, const struct usercmd_s *from,
 			   const struct usercmd_s *cmd);
 #endif
+#ifdef NQ_HACK
+void MSG_WriteControlHeader(sizebuf_t *sb);
+#endif
 
 extern int msg_readcount;
 extern qboolean msg_badread;	// set if a read goes beyond end of message
@@ -146,6 +149,9 @@ float MSG_ReadAngle(void);
 #ifdef QW_HACK
 float MSG_ReadAngle16(void);
 void MSG_ReadDeltaUsercmd(const struct usercmd_s *from, struct usercmd_s *cmd);
+#endif
+#ifdef NQ_HACK
+int MSG_ReadControlHeader(void);
 #endif
 
 //============================================================================

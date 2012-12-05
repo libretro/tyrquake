@@ -496,8 +496,7 @@ Test_Poll(struct test_poll_state *state)
 	net_message.cursize = len;
 
 	MSG_BeginReading();
-	control = BigLong(*((int *)net_message.data));
-	MSG_ReadLong();
+	control = MSG_ReadControlHeader();
 	if (control == -1)
 	    break;
 	if ((control & (~NETFLAG_LENGTH_MASK)) != NETFLAG_CTL)
@@ -600,9 +599,7 @@ Test_f(void)
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREQ_PLAYER_INFO);
 	MSG_WriteByte(&net_message, n);
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(state.socket, net_message.data, net_message.cursize,
 		      &sendaddr);
     }
@@ -630,8 +627,7 @@ Test2_Poll(struct test_poll_state *state)
     net_message.cursize = len;
 
     MSG_BeginReading();
-    control = BigLong(*((int *)net_message.data));
-    MSG_ReadLong();
+    control = MSG_ReadControlHeader();
     if (control == -1)
 	goto Error;
     if ((control & (~NETFLAG_LENGTH_MASK)) != NETFLAG_CTL)
@@ -654,8 +650,7 @@ Test2_Poll(struct test_poll_state *state)
     MSG_WriteLong(&net_message, 0);
     MSG_WriteByte(&net_message, CCREQ_RULE_INFO);
     MSG_WriteString(&net_message, name);
-    *((int *)net_message.data) =
-	BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+    MSG_WriteControlHeader(&net_message);
     state->driver->Write(state->socket, net_message.data, net_message.cursize,
 			 &clientaddr);
     SZ_Clear(&net_message);
@@ -736,8 +731,7 @@ Test2_f(void)
     MSG_WriteLong(&net_message, 0);
     MSG_WriteByte(&net_message, CCREQ_RULE_INFO);
     MSG_WriteString(&net_message, "");
-    *((int *)net_message.data) =
-	BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+    MSG_WriteControlHeader(&net_message);
     state.driver->Write(state.socket, net_message.data, net_message.cursize,
 			&sendaddr);
     SZ_Clear(&net_message);
@@ -841,8 +835,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     net_message.cursize = len;
 
     MSG_BeginReading();
-    control = BigLong(*((int *)net_message.data));
-    MSG_ReadLong();
+    control = MSG_ReadControlHeader();
     if (control == -1)
 	return NULL;
     if ((control & (~NETFLAG_LENGTH_MASK)) != NETFLAG_CTL)
@@ -866,9 +859,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	MSG_WriteByte(&net_message, net_activeconnections);
 	MSG_WriteByte(&net_message, svs.maxclients);
 	MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(acceptsock, net_message.data, net_message.cursize,
 		      &clientaddr);
 	SZ_Clear(&net_message);
@@ -905,9 +896,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	MSG_WriteLong(&net_message,
 		      (int)(net_time - client->netconnection->connecttime));
 	MSG_WriteString(&net_message, client->netconnection->address);
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(acceptsock, net_message.data, net_message.cursize,
 		      &clientaddr);
 	SZ_Clear(&net_message);
@@ -935,9 +924,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	    MSG_WriteString(&net_message, var->name);
 	    MSG_WriteString(&net_message, var->string);
 	}
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(acceptsock, net_message.data, net_message.cursize,
 		      &clientaddr);
 	SZ_Clear(&net_message);
@@ -957,9 +944,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_REJECT);
 	MSG_WriteString(&net_message, "Incompatible version.\n");
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(acceptsock, net_message.data, net_message.cursize,
 		      &clientaddr);
 	SZ_Clear(&net_message);
@@ -974,9 +959,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_REJECT);
 	MSG_WriteString(&net_message, "You have been banned.\n");
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(acceptsock, net_message.data, net_message.cursize,
 		      &clientaddr);
 	SZ_Clear(&net_message);
@@ -998,9 +981,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 		MSG_WriteByte(&net_message, CCREP_ACCEPT);
 		driver->GetSocketAddr(s->socket, &newaddr);
 		MSG_WriteLong(&net_message, NET_GetSocketPort(&newaddr));
-		*((int *)net_message.data) =
-		    BigLong(NETFLAG_CTL |
-			    (net_message.cursize & NETFLAG_LENGTH_MASK));
+		MSG_WriteControlHeader(&net_message);
 		driver->Write(acceptsock, net_message.data,
 			      net_message.cursize, &clientaddr);
 		SZ_Clear(&net_message);
@@ -1024,9 +1005,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_REJECT);
 	MSG_WriteString(&net_message, "Server is full.\n");
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(acceptsock, net_message.data, net_message.cursize,
 		      &clientaddr);
 	SZ_Clear(&net_message);
@@ -1053,8 +1032,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     MSG_WriteByte(&net_message, CCREP_ACCEPT);
     driver->GetSocketAddr(newsock, &newaddr);
     MSG_WriteLong(&net_message, NET_GetSocketPort(&newaddr));
-    *((int *)net_message.data) =
-	BigLong(NETFLAG_CTL | (net_message.cursize & NETFLAG_LENGTH_MASK));
+    MSG_WriteControlHeader(&net_message);
     driver->Write(acceptsock, net_message.data, net_message.cursize,
 		  &clientaddr);
     SZ_Clear(&net_message);
@@ -1098,9 +1076,7 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	MSG_WriteByte(&net_message, CCREQ_SERVER_INFO);
 	MSG_WriteString(&net_message, "QUAKE");
 	MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Broadcast(driver->controlSock, net_message.data,
 			  net_message.cursize);
 	SZ_Clear(&net_message);
@@ -1121,8 +1097,7 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	    continue;
 
 	MSG_BeginReading();
-	control = BigLong(*((int *)net_message.data));
-	MSG_ReadLong();
+	control = MSG_ReadControlHeader();
 	if (control == -1)
 	    continue;
 	if ((control & (~NETFLAG_LENGTH_MASK)) != NETFLAG_CTL)
@@ -1234,9 +1209,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 	MSG_WriteByte(&net_message, CCREQ_CONNECT);
 	MSG_WriteString(&net_message, "QUAKE");
 	MSG_WriteByte(&net_message, NET_PROTOCOL_VERSION);
-	*((int *)net_message.data) =
-	    BigLong(NETFLAG_CTL |
-		    (net_message.cursize & NETFLAG_LENGTH_MASK));
+	MSG_WriteControlHeader(&net_message);
 	driver->Write(newsock, net_message.data, net_message.cursize,
 		     &sendaddr);
 	SZ_Clear(&net_message);
@@ -1261,12 +1234,10 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 		    ret = 0;
 		    continue;
 		}
-
 		net_message.cursize = ret;
-		MSG_BeginReading();
 
-		control = BigLong(*((int *)net_message.data));
-		MSG_ReadLong();
+		MSG_BeginReading();
+		control = MSG_ReadControlHeader();
 		if (control == -1) {
 		    ret = 0;
 		    continue;
