@@ -94,11 +94,10 @@ typedef struct player_info_s {
     byte pl;
 
     // skin information
-    int topcolor;
-    int bottomcolor;
-
-    int _topcolor;
-    int _bottomcolor;
+    byte topcolor;
+    byte bottomcolor;
+    byte _topcolor;
+    byte _bottomcolor;
 
     int spectator;
     byte translations[VID_GRADES * 256];

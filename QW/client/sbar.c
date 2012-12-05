@@ -482,13 +482,13 @@ Sbar_SortTeams(void)
 	    }
 }
 
-int
+static int
 Sbar_ColorForMap(int m)
 {
-    m = (m < 0) ? 0 : ((m > 13) ? 13 : m);
+    m = qclamp(m, 0, 13) * 16;
 
-    m *= 16;
-    return m < 128 ? m + 8 : m + 8;
+    //return m < 128 ? m + 8 : m + 8;
+    return m + 8;
 }
 
 
@@ -653,13 +653,8 @@ Sbar_DrawFrags(void)
 	    continue;
 
 	// draw background
-	top = s->topcolor;
-	bottom = s->bottomcolor;
-	top = (top < 0) ? 0 : ((top > 13) ? 13 : top);
-	bottom = (bottom < 0) ? 0 : ((bottom > 13) ? 13 : bottom);
-
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(s->topcolor);
+	bottom = Sbar_ColorForMap(s->bottomcolor);
 
 //              Draw_Fill (xofs + x*8 + 10, y, 28, 4, top);
 //              Draw_Fill (xofs + x*8 + 10, y+4, 28, 3, bottom);
@@ -1103,10 +1098,8 @@ Sbar_DeathmatchOverlay(int start)
 	Draw_String(x + 64, y, num);
 
 	// draw background
-	top = s->topcolor;
-	bottom = s->bottomcolor;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(s->topcolor);
+	bottom = Sbar_ColorForMap(s->bottomcolor);
 
 	if (largegame)
 	    Draw_Fill(x + 104, y + 1, 40, 3, top);
@@ -1214,10 +1207,8 @@ Sbar_MiniDeathmatchOverlay(void)
 	    continue;
 
 	// draw ping
-	top = s->topcolor;
-	bottom = s->bottomcolor;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(s->topcolor);
+	bottom = Sbar_ColorForMap(s->bottomcolor);
 
 	Draw_Fill(x, y + 1, 40, 3, top);
 	Draw_Fill(x, y + 4, 40, 4, bottom);

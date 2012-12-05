@@ -441,10 +441,13 @@ Sbar_SortFrags(void)
 	    }
 }
 
-int
+static int
 Sbar_ColorForMap(int m)
 {
-    return m < 128 ? m + 8 : m + 8;
+    m = qclamp(m, 0, 13) * 16;
+
+    //return m < 128 ? m + 8 : m + 8;
+    return m + 8;
 }
 
 /*
@@ -456,7 +459,6 @@ void
 Sbar_UpdateScoreboard(void)
 {
     int i, k;
-    int top, bottom;
     player_info_t *p;
 
     Sbar_SortFrags();
@@ -469,10 +471,8 @@ Sbar_UpdateScoreboard(void)
 	p = &cl.players[k];
 	sprintf(&scoreboardtext[i][1], "%3i %s", p->frags, p->name);
 
-	top = p->colors & 0xf0;
-	bottom = (p->colors & 15) << 4;
-	scoreboardtop[i] = Sbar_ColorForMap(top);
-	scoreboardbottom[i] = Sbar_ColorForMap(bottom);
+	scoreboardtop[i] = Sbar_ColorForMap(p->topcolor);
+	scoreboardbottom[i] = Sbar_ColorForMap(p->bottomcolor);
     }
 }
 
@@ -547,10 +547,8 @@ Sbar_DrawScoreboard(void)
 	    continue;
 
 	// draw background
-	top = p->colors & 0xf0;
-	bottom = (p->colors & 15) << 4;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(p->topcolor);
+	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(x * 8 + 10 + ((vid.width - 320) >> 1),
 		  y + vid.height - SBAR_HEIGHT, 28, 4, top);
@@ -776,10 +774,8 @@ Sbar_DrawFrags(void)
 	    continue;
 
 	// draw background
-	top = p->colors & 0xf0;
-	bottom = (p->colors & 15) << 4;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(p->topcolor);
+	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(xofs + x * 8 + 10, y, 28, 4, top);
 	Draw_Fill(xofs + x * 8 + 10, y + 4, 28, 3, bottom);
@@ -825,10 +821,8 @@ Sbar_DrawFace(void)
 
 	p = &cl.players[cl.viewentity - 1];
 	// draw background
-	top = p->colors & 0xf0;
-	bottom = (p->colors & 15) << 4;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(p->topcolor);
+	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	if (cl.gametype == GAME_DEATHMATCH)
 	    xofs = 113;
@@ -1074,10 +1068,8 @@ Sbar_DeathmatchOverlay(void)
 	    continue;
 
 	// draw background
-	top = p->colors & 0xf0;
-	bottom = (p->colors & 15) << 4;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(p->topcolor);
+	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(x, y, 40, 4, top);
 	Draw_Fill(x, y + 4, 40, 4, bottom);
@@ -1172,10 +1164,8 @@ Sbar_MiniDeathmatchOverlay(void)
 	    continue;
 
 	// draw background
-	top = p->colors & 0xf0;
-	bottom = (p->colors & 15) << 4;
-	top = Sbar_ColorForMap(top);
-	bottom = Sbar_ColorForMap(bottom);
+	top = Sbar_ColorForMap(p->topcolor);
+	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(x, y + 1, 40, 3, top);
 	Draw_Fill(x, y + 4, 40, 4, bottom);

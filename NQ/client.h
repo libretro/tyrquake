@@ -61,7 +61,8 @@ typedef struct player_info_s {
     char name[MAX_SCOREBOARDNAME];
     float entertime;
     int frags;
-    int colors;			// two 4 bit fields
+    byte topcolor;
+    byte bottomcolor;
     byte translations[VID_GRADES * 256];
 } player_info_t;
 

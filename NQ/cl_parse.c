@@ -699,8 +699,8 @@ CL_NewTranslation(int slot)
     dest = cl.players[slot].translations;
     source = vid.colormap;
     memcpy(dest, vid.colormap, sizeof(cl.players[slot].translations));
-    top = cl.players[slot].colors & 0xf0;
-    bottom = (cl.players[slot].colors & 15) << 4;
+    top = cl.players[slot].topcolor;
+    bottom = cl.players[slot].bottomcolor;
 #ifdef GLQUAKE
     R_TranslatePlayerSkin(slot);
 #endif
@@ -822,6 +822,7 @@ CL_ParseServerMessage(void)
 {
     int cmd;
     int i;
+    byte colors;
 
 //
 // if recording demos, copy the message out
@@ -950,7 +951,9 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
 		Host_Error("%s: svc_updatecolors > MAX_SCOREBOARD", __func__);
-	    cl.players[i].colors = MSG_ReadByte();
+	    colors = MSG_ReadByte();
+	    cl.players[i].topcolor = (colors & 0xf0) >> 4;
+	    cl.players[i].bottomcolor = colors & 0x0f;
 	    CL_NewTranslation(i);
 	    break;
 

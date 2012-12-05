@@ -328,6 +328,7 @@ R_TranslatePlayerSkin(int playernum)
     unsigned pixels[512 * 256];
     unsigned scaled_width, scaled_height;
     int inwidth, inheight, instride;
+    player_info_t *player;
 
 #ifdef NQ_HACK
     model_t *model;
@@ -336,7 +337,6 @@ R_TranslatePlayerSkin(int playernum)
     const entity_t *e;
 #endif
 #ifdef QW_HACK
-    player_info_t *player;
     char skin[512];
 #endif
 
@@ -345,12 +345,8 @@ R_TranslatePlayerSkin(int playernum)
     /*
      * Determin top and bottom colours
      */
-#ifdef NQ_HACK
-    top = cl.players[playernum].colors & 0xf0;
-    bottom = (cl.players[playernum].colors & 15) << 4;
-#endif
-#ifdef QW_HACK
     player = &cl.players[playernum];
+#ifdef QW_HACK
     if (!player->name[0])
 	return;
 
@@ -365,14 +361,9 @@ R_TranslatePlayerSkin(int playernum)
 
     player->_topcolor = player->topcolor;
     player->_bottomcolor = player->bottomcolor;
-
-    top = player->topcolor;
-    bottom = player->bottomcolor;
-    top = qclamp(top, 0, 13);
-    bottom = qclamp(bottom, 0, 13);
-    top *= 16;
-    bottom *= 16;
 #endif
+    top = qclamp((int)player->topcolor, 0, 13) * 16;
+    bottom = qclamp((int)player->bottomcolor, 0, 13) * 16;
 
     for (i = 0; i < 256; i++)
 	translate[i] = i;
