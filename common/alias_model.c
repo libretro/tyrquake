@@ -338,8 +338,14 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
     for (i = 0; i < pheader->numtris; i++) {
 	triangles[i].facesfront = LittleLong(pintriangles[i].facesfront);
-	for (j = 0; j < 3; j++)
+	for (j = 0; j < 3; j++) {
 	    triangles[i].vertindex[j] = LittleLong(pintriangles[i].vertindex[j]);
+	    if (triangles[i].vertindex[j] < 0 ||
+		triangles[i].vertindex[j] >= pheader->numverts)
+		Sys_Error("%s: invalid vertex index (%d of %d) in %s\n",
+			  __func__, triangles[i].vertindex[j],
+			  pheader->numverts, mod->name);
+	}
     }
 
 //
