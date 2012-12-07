@@ -161,10 +161,6 @@ X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6 /opt/X11 /opt/
 X11BASE_GUESS := $(call find-localbase,X11/Xlib.h,X11,$(X11DIRS))
 X11BASE ?= $(X11BASE_GUESS)
 
-SDLDIRS = /opt/local
-SDLBASE_GUESS := $(call find-localbase,SDL/SDL.h,SDL,$(SDLDIRS))
-SDLBASE ?= $(SDLBASE_GUESS)
-
 # ------------------------------------------------------------------------
 # Try to guess the MinGW cross compiler executables
 # - I've seen i386-mingw32msvc, i586-mingw32msvc (Debian) and now
@@ -693,13 +689,10 @@ GL_LIBS += comctl32
 SW_LFLAGS += $(call libdir-check,$(ST_LIBDIR))
 endif
 ifeq ($(VID_TARGET),sdl)
-SW_OBJS += vid_sdl.o
-GL_OBJS += vid_sgl.o
-CL_LIBS += SDL
-ifneq ($(SDLBASE),)
-CL_CPPFLAGS += -idirafter $(SDLBASE)/include
-CL_LFLAGS += $(call libdir-check,$(SDLBASE)/lib);
-endif
+SW_OBJS += vid_sdl.o sdl_common.o
+GL_OBJS += vid_sgl.o sdl_common.o
+CL_CPPFLAGS += $(shell sdl2-config --cflags)
+CL_LFLAGS += $(shell sdl2-config --libs)
 endif
 
 # ----------------
@@ -719,7 +712,7 @@ ifeq ($(IN_TARGET),win)
 CL_OBJS += in_win.o
 endif
 ifeq ($(IN_TARGET),sdl)
-CL_OBJS += in_sdl.o
+CL_OBJS += in_sdl.o sdl_common.o
 endif
 
 # ----------------
@@ -759,12 +752,9 @@ CL_OBJS += snd_sndio.o
 CL_LIBS += sndio
 endif
 ifeq ($(SND_TARGET),sdl)
-CL_OBJS += snd_sdl.o
-CL_LIBS += SDL
-ifneq ($(SDLBASE),)
-CL_CPPFLAGS += -idirafter $(SDLBASE)/include
-CL_LFLAGS += $(call libdir-check,$(SDLBASE)/lib)
-endif
+CL_OBJS += snd_sdl.o sdl_common.o
+CL_CPPFLAGS += $(shell sdl2-config --cflags)
+CL_LFLAGS += $(shell sdl2-config --libs)
 endif
 
 # ----------------------------------------------------------------------------

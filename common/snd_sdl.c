@@ -18,11 +18,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include <stdio.h>
-#include <SDL/SDL_audio.h>
-#include <SDL/SDL_byteorder.h>
+
+#include "SDL.h"
+#include "SDL_audio.h"
+#include "SDL_endian.h"
 
 #include "console.h"
 #include "quakedef.h"
+#include "sdl_common.h"
 #include "sound.h"
 #include "sys.h"
 
@@ -90,6 +93,13 @@ SNDDMA_Init(void)
     desired.samples = 512; /* FIXME ~= rate * _s_mixahead / 2 ? */
     desired.callback = paint_audio;
 
+    /* Init the SDL Audio Sub-system */
+    Q_SDL_InitOnce();
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+	Con_Printf("Couldn't init SDL audio: %s\n", SDL_GetError());
+	return false;
+    }
+
     /* Open the audio device */
     if (SDL_OpenAudio(&desired, &obtained) < 0) {
 	Con_Printf("Couldn't open SDL audio: %s\n", SDL_GetError());
@@ -123,8 +133,6 @@ SNDDMA_Init(void)
 	break;
     }
 
-    SDL_PauseAudio(0);
-
     /* Fill the audio DMA information block */
     shm = &the_shm;
     shm->samplebits = (obtained.format & 0xFF);
@@ -148,6 +156,11 @@ SNDDMA_Init(void)
 
     rpos = wpos = 0;
     snd_inited = 1;
+
+    /* FIXME - hack because sys_win does this differently */
+    snd_blocked = 0;
+
+    SDL_PauseAudio(0);
 
     return true;
 }
@@ -211,7 +224,7 @@ void SNDDMA_Submit(void)
     SDL_UnlockAudio();
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 void
 S_BlockSound(void)
 {

@@ -19,7 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include <stdlib.h>
-#include <SDL/SDL.h>
+
+#include "SDL.h"
 
 #include "cdaudio.h"
 #include "cmd.h"
@@ -34,12 +35,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "menu.h"
 #include "quakedef.h"
 #include "screen.h"
+#include "sdl_common.h"
 #include "sound.h"
 #include "sys.h"
 #include "vid.h"
 #include "view.h"
 #include "wad.h"
+
+#ifdef _WIN32
 #include "winquake.h"
+#endif
 
 #ifdef NQ_HACK
 #include "host.h"
@@ -51,12 +56,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME: evil hack to get full DirectSound support with SDL
 #ifdef _WIN32
 #include <windows.h>
-#include <SDL/SDL_syswm.h>
 HWND mainwindow;
+qboolean DDActive = false;
 #endif
 
-SDL_Surface *screen = NULL;
-
+static SDL_Renderer *renderer = NULL;
+static SDL_Texture *texture = NULL;
 
 /* ------------------------------------------------------------------------- */
 
@@ -77,22 +82,32 @@ unsigned short d_8to16table[256];
 unsigned d_8to24table[256];
 viddef_t vid; /* global video state */
 
+#ifdef _WIN32
 static HICON hIcon;
-qboolean DDActive; /* FIXME - remove this from SDL driver! */
+RECT window_rect;
+#endif
+
 int window_center_x, window_center_y;
 static int window_x, window_y;
-RECT window_rect;
 
 /* Placeholders */
 void VID_ForceLockState(int lk) { }
 int VID_ForceUnlockedAndReturnState(void) { return 0; }
 void VID_Shutdown(void) { }
-void VID_ShiftPalette(unsigned char *palette) { }
+
+static qboolean palette_changed;
+
+void
+VID_ShiftPalette(unsigned char *palette)
+{
+    VID_SetPalette(palette);
+}
+
 void VID_SetDefaultMode(void) { }
 static qboolean VID_SetWindowedMode(int modenum) { return true; }
 static qboolean VID_FullScreenMode(int modenum) { return true; }
 
-#define MAX_MODE_LIST	80
+#define MAX_MODE_LIST	200
 #define VID_ROW_SIZE	3
 
 #define VID_MODE_NONE			(-1)
@@ -161,6 +176,7 @@ typedef struct {
     int modenum;
     int fullscreen;
     int bpp;
+    int refresh;
     char modedesc[13];
 } vmode_t;
 
@@ -201,69 +217,59 @@ InitMode(vmode_t *mode, int num, int fullscreen, int width, int height)
     mode->bpp = 8;
     mode->width = width;
     mode->height = height;
-    snprintf(mode->modedesc, 13, "%dx%d", width, height);
-    mode->modedesc[12] = 0;
+    snprintf(mode->modedesc, sizeof(mode->modedesc), "%dx%d", width, height);
+    mode->modedesc[sizeof(mode->modedesc) - 1] = 0;
 }
 
 static void
 VID_InitModeList(void)
 {
-    int i;
-    SDL_Rect **modes;
-    Uint32 flags = SDL_SWSURFACE | SDL_HWPALETTE;
-    SDL_PixelFormat fmt = {
-	.palette = NULL,
-	.BitsPerPixel = 8,
-	.BytesPerPixel = 1
-    };
+    int i, err;
+    int displays, sdlmodes;
+    SDL_DisplayMode mode;
+
+    displays = SDL_GetNumVideoDisplays();
+    if (displays < 1)
+	Sys_Error("%s: no displays found (%s)", __func__, SDL_GetError());
+
+    /* FIXME - allow use of more than one display */
+    sdlmodes = SDL_GetNumDisplayModes(1);
+
+    printf("%s: %d modes on display 1\n", __func__, sdlmodes);
 
     nummodes = 0;
 
-    /*
-     * Check availability of windowed video modes
-     * Usually any mode is allowed, but the API allows for systems where only
-     * specific modes are possible.
-     */
-    modes = SDL_ListModes(&fmt, flags);
-    if (modes == (SDL_Rect **)-1) {
-	InitMode(&modelist[0], 0, 0, 320, 240);
-	InitMode(&modelist[1], 1, 0, 640, 480);
-	InitMode(&modelist[2], 2, 0, 800, 600);
-	InitMode(&modelist[3], 3, 0, 1024, 768);
-	InitMode(&modelist[4], 4, 0, 1280, 960);
-	nummodes = 5;
-    } else {
-	for (i = 0; modes[i] && i < NUM_WINDOWED_MODES; i++) {
-	    if (modes[i]->h > MAXHEIGHT)
-		continue;
-	    InitMode(modelist + nummodes, nummodes, 0, modes[i]->w, modes[i]->h);
-	    nummodes++;
-	}
-	/* FIXME - still kind of broken due to hard coded constants */
-	while (i < NUM_WINDOWED_MODES) {
-	    InitMode(modelist + nummodes, nummodes, 0, 0, 0);
-	    strcpy(modelist[nummodes].modedesc, "<N/A>");
-	    nummodes++;
-	}
-    }
+    InitMode(&modelist[0], 0, 0, 320, 240);
+    InitMode(&modelist[1], 1, 0, 640, 480);
+    InitMode(&modelist[2], 2, 0, 800, 600);
+    InitMode(&modelist[3], 3, 0, 1024, 768);
+    InitMode(&modelist[4], 4, 0, 1280, 960);
+    nummodes = 5;
 
-    /* Get available fullscreen modes */
-    modes = SDL_ListModes(&fmt, SDL_FULLSCREEN | flags);
-    if (!modes)
-	Sys_Error("No fullscreen video modes available?");
-    for (i = 0; modes[i]; i++) {
-	if (modes[i]->h > MAXHEIGHT)
+    /*
+     * Check availability of fullscreen modes
+     */
+    for (i = 0; i < sdlmodes && nummodes < MAX_MODE_LIST; i++) {
+	err = SDL_GetDisplayMode(1, i, &mode);
+	if (err)
+	    Sys_Error("%s: couldn't get mode %d info (%s)",
+		      __func__, i, SDL_GetError());
+
+	printf("%s: checking mode %i: %dx%d, %s\n", __func__,
+	       i, mode.w, mode.h, SDL_GetPixelFormatName(mode.format));
+
+	if (mode.format != SDL_PIXELFORMAT_RGB888 || mode.h > MAXHEIGHT)
 	    continue;
+
 	modelist[nummodes].modenum = nummodes;
 	modelist[nummodes].fullscreen = 1;
 	modelist[nummodes].bpp = 8;
-	modelist[nummodes].width = modes[i]->w;
-	modelist[nummodes].height = modes[i]->h;
-	sprintf(modelist[nummodes].modedesc, "%dx%d", modes[i]->w, modes[i]->h);
+	modelist[nummodes].width = mode.w;
+	modelist[nummodes].height = mode.h;
+	modelist[nummodes].refresh = mode.refresh_rate;
+	sprintf(modelist[nummodes].modedesc, "%dx%d", mode.w, mode.h);
 	nummodes++;
     }
-
-    //Sys_Error("Not fully implemented...\n%s", txtbuf);
 }
 
 static int vid_line;
@@ -721,7 +727,7 @@ VID_GetModeDescription2(int mode)
     pv = VID_GetModePtr(mode);
 
     if (modelist[mode].fullscreen) {
-	sprintf(pinfo, "%4d x %4d fullscreen", pv->width, pv->height);
+	sprintf(pinfo, "%4d x %4d @ %dHz", pv->width, pv->height, pv->refresh);
     } else {
 	sprintf(pinfo, "%4d x %4d windowed", pv->width, pv->height);
     }
@@ -801,6 +807,7 @@ VID_UpdateWindowStatus
 static void
 VID_UpdateWindowStatus(void)
 {
+#ifdef _WIN32
     window_rect.left = window_x;
     window_rect.top = window_y;
     window_rect.right = window_x + window_width;
@@ -809,6 +816,7 @@ VID_UpdateWindowStatus(void)
     window_center_y = (window_rect.top + window_rect.bottom) / 2;
 
     IN_UpdateClipCursor();
+#endif
 }
 
 static int
@@ -821,16 +829,32 @@ VID_SetMode(int modenum, unsigned char *palette)
     mode = VID_GetModePtr(modenum);
     w = mode->width;
     h = mode->height;
-    flags = SDL_SWSURFACE | SDL_HWPALETTE;
+    flags = SDL_WINDOW_SHOWN;
     if (mode->fullscreen)
-	flags |= SDL_FULLSCREEN;
+	flags |= SDL_WINDOW_FULLSCREEN;
 
-    /*
-     * Placeholder code - just set one video mode for now
-     */
-    screen = SDL_SetVideoMode(w, h, 8, flags);
-    if (!screen)
-	Sys_Error("VID: Couldn't set video mode: %s", SDL_GetError());
+    if (renderer)
+	SDL_DestroyRenderer(renderer);
+    if (sdl_window)
+	SDL_DestroyWindow(sdl_window);
+
+    sdl_window = SDL_CreateWindow("TyrQuake",
+				  SDL_WINDOWPOS_UNDEFINED,
+				  SDL_WINDOWPOS_UNDEFINED,
+				  w, h, flags);
+    if (!sdl_window)
+	Sys_Error("%s: Unable to create window: %s", __func__, SDL_GetError());
+
+    renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer)
+	Sys_Error("%s: Unable to create renderer: %s", __func__, SDL_GetError());
+
+    texture = SDL_CreateTexture(renderer,
+				SDL_PIXELFORMAT_RGB888,
+				SDL_TEXTUREACCESS_STREAMING,
+				w, h);
+    if (!texture)
+	Sys_Error("%s: Unable to create texture: %s", __func__, SDL_GetError());
 
     //VID_InitGamma(palette);
     VID_SetPalette(palette);
@@ -841,13 +865,16 @@ VID_SetMode(int modenum, unsigned char *palette)
     vid.maxwarpwidth = WARP_WIDTH;
     vid.maxwarpheight = WARP_HEIGHT;
     vid.aspect = ((float)vid.height / (float)vid.width) * (320.0 / 240.0);
-    vid.buffer = vid.conbuffer = vid.direct = screen->pixels;
-    vid.rowbytes = vid.conrowbytes = screen->pitch;
 
     vid.colormap = host_colormap;
     vid.fullbright = 256 - LittleLong(*((int *)vid.colormap + 2048));
 
     VID_AllocBuffers(vid.width, vid.height);
+
+    // In-memory buffer which we upload via SDL texture
+    vid.buffer = vid.conbuffer = vid.direct = Hunk_HighAllocName(vid.width * vid.height, "vidbuf");
+    vid.rowbytes = vid.conrowbytes = vid.width;
+
     D_InitCaches(vid_surfcache, vid_surfcachesize);
 
     window_width = vid.width;
@@ -859,9 +886,11 @@ VID_SetMode(int modenum, unsigned char *palette)
 
     vid.recalc_refdef = 1;
 
+#ifdef _WIN32
     mainwindow=GetActiveWindow();
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)hIcon);
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hIcon);
+#endif
 
     return true;
 }
@@ -878,15 +907,20 @@ int VGA_width, VGA_height, VGA_rowbytes, VGA_bufferrowbytes = 0;
 void
 VID_SetPalette(unsigned char *palette)
 {
-    SDL_Color colors[256];
-    int i;
+    unsigned i, r, g, b;
+    SDL_PixelFormat *fmt;
 
+    fmt = SDL_AllocFormat(SDL_PIXELFORMAT_RGB888);
     for (i = 0; i < 256; i++) {
-	colors[i].r = *palette++;
-	colors[i].g = *palette++;
-	colors[i].b = *palette++;
+	r = palette[0];
+	g = palette[1];
+	b = palette[2];
+	palette += 3;
+	d_8to24table[i] = SDL_MapRGB(fmt, r, g, b);
     }
-    SDL_SetColors(screen, colors, 0, 256);
+    SDL_FreeFormat(fmt);
+
+    palette_changed = true;
 }
 
 static void
@@ -897,19 +931,22 @@ do_screen_buffer(void)
 void
 VID_Init(unsigned char *palette) /* (byte *palette, byte *colormap) */
 {
-    Uint32 flags;
-
-    // Load the SDL library
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
+    /*
+     * Init SDL and the video subsystem
+     */
+    Q_SDL_InitOnce();
+    if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 	Sys_Error("VID: Couldn't load SDL: %s", SDL_GetError());
 
     VID_InitModeList();
 
     VID_SetMode(0, palette);
 
+#ifdef _WIN32
     mainwindow=GetActiveWindow();
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)hIcon);
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hIcon);
+#endif
 
     vid_menudrawfn = VID_MenuDraw;
     vid_menukeyfn = VID_MenuKey;
@@ -933,63 +970,132 @@ VID_Init(unsigned char *palette) /* (byte *palette, byte *colormap) */
 void
 VID_Update(vrect_t *rects)
 {
-    SDL_Rect *sdlrects;
-    int i, n;
+    SDL_Rect subrect;
+    int i;
     vrect_t *rect;
+    vrect_t fullrect;
+    byte *src;
+    unsigned *dst;
+    int pitch;
+    int height;
+    int err;
 
     /*
      * Check for vid_mode changes
-     * FIXME - not sure this is the best place to do this
      */
-    if ((int)vid_mode.value != vid_modenum)
+    if ((int)vid_mode.value != vid_modenum) {
 	VID_SetMode((int)vid_mode.value, host_basepal);
-
-    // Two-pass system, since Quake doesn't do it the SDL way...
-
-    // First, count the number of rectangles
-    n = 0;
-    for (rect = rects; rect; rect = rect->pnext)
-	++n;
-
-    // Second, copy them to SDL rectangles and update
-    if (!(sdlrects = (SDL_Rect *)calloc(1, n * sizeof(SDL_Rect))))
-	Sys_Error("Out of memory!");
-    i = 0;
-    for (rect = rects; rect; rect = rect->pnext) {
-	sdlrects[i].x = rect->x;
-	sdlrects[i].y = rect->y;
-	sdlrects[i].w = rect->width;
-	sdlrects[i].h = rect->height;
-	i++;
+	/* FIXME - not the right place! redraw the scene to buffer first */
+	return;
     }
-    SDL_UpdateRects(screen, n, sdlrects);
+
+    /*
+     * If the palette changed, refresh the whole screen
+     */
+    if (palette_changed) {
+	palette_changed = false;
+	fullrect.x = 0;
+	fullrect.y = 0;
+	fullrect.width = vid.width;
+	fullrect.height = vid.height;
+	fullrect.pnext = NULL;
+	rects = &fullrect;
+    }
+
+    for (rect = rects; rect; rect = rect->pnext) {
+	subrect.x = rect->x;
+	subrect.y = rect->y;
+	subrect.w = rect->width;
+	subrect.h = rect->height;
+
+	err = SDL_LockTexture(texture, &subrect, (void **)&dst, &pitch);
+	if (err)
+	    Sys_Error("%s: unable to lock texture (%s)",
+		      __func__, SDL_GetError());
+	src = vid.buffer + rect->y * vid.width + rect->x;
+	height = subrect.h;
+	while (height--) {
+	    for (i = 0; i < rect->width; i++)
+		dst[i] = d_8to24table[src[i]];
+	    dst += pitch / sizeof(*dst);
+	    src += vid.width;
+	}
+	SDL_UnlockTexture(texture);
+    }
+    err = SDL_RenderCopy(renderer, texture, NULL, NULL);
+    if (err)
+	Sys_Error("%s: unable to render texture (%s)", __func__, SDL_GetError());
+    SDL_RenderPresent(renderer);
 }
 
 void
 D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height)
 {
-    Uint8 *offset;
+    int err, i;
+    byte *src;
+    unsigned *dst;
+    int pitch;
+    SDL_Rect subrect;
 
-    if (!screen)
+    if (!texture || !renderer)
 	return;
-    if (x < 0)
-	x = screen->w + x - 1;
-    offset = (Uint8 *)screen->pixels + y * screen->pitch + x;
+
+    subrect.x = (x < 0) ? vid.width + x - 1 : x;
+    subrect.y = y;
+    subrect.w = width;
+    subrect.h = height;
+
+    err = SDL_LockTexture(texture, &subrect, (void **)&dst, &pitch);
+    if (err)
+	Sys_Error("%s: unable to lock texture (%s)", __func__, SDL_GetError());
+    src = pbitmap;
     while (height--) {
-	memcpy(offset, pbitmap, width);
-	offset += screen->pitch;
-	pbitmap += width;
+	for (i = 0; i < width; i++)
+	    dst[i] = d_8to24table[src[i]];
+	dst += pitch / sizeof(*dst);
+	src += width;
     }
+    SDL_UnlockTexture(texture);
+
+    err = SDL_RenderCopy(renderer, texture, NULL, NULL);
+    if (err)
+	Sys_Error("%s: unable to render texture (%s)", __func__, SDL_GetError());
+    SDL_RenderPresent(renderer);
 }
 
 void
 D_EndDirectRect(int x, int y, int width, int height)
 {
-    if (!screen)
+    int err, i;
+    byte *src;
+    unsigned *dst;
+    int pitch;
+    SDL_Rect subrect;
+
+    if (!texture || !renderer)
 	return;
-    if (x < 0)
-	x = screen->w + x - 1;
-    SDL_UpdateRect(screen, x, y, width, height);
+
+    subrect.x = (x < 0) ? vid.width + x - 1 : x;
+    subrect.y = y;
+    subrect.w = width;
+    subrect.h = height;
+
+    err = SDL_LockTexture(texture, &subrect, (void **)&dst, &pitch);
+    if (err)
+	Sys_Error("%s: unable to lock texture (%s)", __func__, SDL_GetError());
+    src = vid.buffer + y * vid.width + subrect.x;
+    while (height--) {
+	for (i = 0; i < width; i++)
+	    dst[i] = d_8to24table[src[i]];
+	dst += pitch / sizeof(*dst);
+	src += vid.width;
+    }
+    SDL_UnlockTexture(texture);
+
+    err = SDL_RenderCopy(renderer, texture, NULL, NULL);
+    if (err)
+	Sys_Error("%s: unable to render texture (%s)", __func__, SDL_GetError());
+    SDL_RenderPresent(renderer);
 }
 
 void
@@ -1001,3 +1107,10 @@ void
 VID_UnlockBuffer(void)
 {
 }
+
+#ifndef _WIN32
+void
+Sys_SendKeyEvents(void)
+{
+}
+#endif

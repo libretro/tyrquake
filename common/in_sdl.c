@@ -18,7 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#include <SDL/SDL.h>
+#include "SDL.h"
 
 #include "cdaudio.h"
 #include "common.h"
@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "input.h"
 #include "keys.h"
 #include "mathlib.h"
+#include "sdl_common.h"
 #include "sound.h"
 #include "sys.h"
 #include "vid.h"
@@ -71,14 +72,17 @@ IN_ProcessEvents(void)
 	// Ugly key repeat handling. Should use a key_dest callback...
 	if (old_key_dest != key_dest) {
 	    old_key_dest = key_dest;
+#if 0 // KeyRepeat API changed? (repeat attribute on SDL_KeyboardEvent)
 	    if (key_dest == key_game)
 		SDL_EnableKeyRepeat(0, SDL_DEFAULT_REPEAT_INTERVAL);
 	    else
 		SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
 				    SDL_DEFAULT_REPEAT_INTERVAL);
+#endif
 	}
 
 	switch (event.type) {
+#if 0 // ACTIVEEVENT disappeared??
 	case SDL_ACTIVEEVENT:
 	    if (event.active.state == SDL_APPINPUTFOCUS) {
 		if (event.active.gain)
@@ -87,7 +91,7 @@ IN_ProcessEvents(void)
 		    event_focusout ();
 	    }
 	    break;
-
+#endif
 	case SDL_KEYDOWN:
 	case SDL_KEYUP:
 	    sym = event.key.keysym.sym;
@@ -310,34 +314,34 @@ IN_ProcessEvents(void)
 	    case SDLK_DELETE:
 		ksym = K_DEL;
 		break;
-	    case SDLK_KP0:
+	    case SDLK_KP_0:
 		ksym = K_KP0;
 		break;
-	    case SDLK_KP1:
+	    case SDLK_KP_1:
 		ksym = K_KP1;
 		break;
-	    case SDLK_KP2:
+	    case SDLK_KP_2:
 		ksym = K_KP2;
 		break;
-	    case SDLK_KP3:
+	    case SDLK_KP_3:
 		ksym = K_KP3;
 		break;
-	    case SDLK_KP4:
+	    case SDLK_KP_4:
 		ksym = K_KP4;
 		break;
-	    case SDLK_KP5:
+	    case SDLK_KP_5:
 		ksym = K_KP5;
 		break;
-	    case SDLK_KP6:
+	    case SDLK_KP_6:
 		ksym = K_KP6;
 		break;
-	    case SDLK_KP7:
+	    case SDLK_KP_7:
 		ksym = K_KP7;
 		break;
-	    case SDLK_KP8:
+	    case SDLK_KP_8:
 		ksym = K_KP8;
 		break;
-	    case SDLK_KP9:
+	    case SDLK_KP_9:
 		ksym = K_KP9;
 		break;
 	    case SDLK_KP_PERIOD:
@@ -433,13 +437,13 @@ IN_ProcessEvents(void)
 	    case SDLK_F15:
 		ksym = K_F15;
 		break;
-	    case SDLK_NUMLOCK:
+	    case SDLK_NUMLOCKCLEAR:
 		ksym = K_NUMLOCK;
 		break;
 	    case SDLK_CAPSLOCK:
 		ksym = K_CAPSLOCK;
 		break;
-	    case SDLK_SCROLLOCK:
+	    case SDLK_SCROLLLOCK:
 		ksym = K_SCROLLOCK;
 		break;
 	    case SDLK_RSHIFT:
@@ -460,6 +464,7 @@ IN_ProcessEvents(void)
 	    case SDLK_LALT:
 		ksym = K_LALT;
 		break;
+#if 0 // these keycodes now missing?
 	    case SDLK_RMETA:
 		ksym = K_RMETA;
 		break;
@@ -472,38 +477,44 @@ IN_ProcessEvents(void)
 	    case SDLK_RSUPER:
 		ksym = K_RSUPER;
 		break;
+#endif
 	    case SDLK_MODE:
 		ksym = K_MODE;
 		break;
+#if 0 // these keycodes now missing?
 	    case SDLK_COMPOSE:
 		ksym = K_COMPOSE;
 		break;
+#endif
 	    case SDLK_HELP:
 		ksym = K_HELP;
 		break;
+#if 0 // these keycodes now missing?
 	    case SDLK_PRINT:
 		ksym = K_PRINT;
 		break;
+#endif
 	    case SDLK_SYSREQ:
 		ksym = K_SYSREQ;
 		break;
+#if 0 // these keycodes now missing?
 	    case SDLK_BREAK:
 		ksym = K_BREAK;
 		break;
+#endif
 	    case SDLK_MENU:
 		ksym = K_MENU;
 		break;
 	    case SDLK_POWER:
 		ksym = K_POWER;
 		break;
+#if 0 // these keycodes now missing?
 	    case SDLK_EURO:
 		ksym = K_EURO;
 		break;
+#endif
 	    case SDLK_UNDO:
 		ksym = K_UNDO;
-		break;
-	    case SDLK_LAST:
-		ksym = K_LAST;
 		break;
 	    default:
 #if 0
@@ -575,14 +586,20 @@ IN_LL_Grab_Input(int grab)
 
     if ((input_grabbed && grab) || (!input_grabbed && !grab))
 	return;
+#if 0 // API changed...
     input_grabbed = (SDL_GRAB_ON == SDL_WM_GrabInput(grab ? SDL_GRAB_ON
 						     : SDL_GRAB_OFF));
+#endif
 }
 
 void
 IN_Init(void)
 {
+    Q_SDL_InitOnce();
+
+#if 0
     SDL_EnableUNICODE(1); // Enable UNICODE translation for keyboard input
+#endif
     if (COM_CheckParm("-nomouse"))
 	return;
 
