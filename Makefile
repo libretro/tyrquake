@@ -98,13 +98,14 @@ endif
 ifeq ($(TARGET_OS),WIN32)
 EXT = .exe
 CD_TARGET ?= win
-SND_TARGET ?= win
 ifeq ($(USE_SDL),Y)
 VID_TARGET ?= sdl
 IN_TARGET ?= sdl
+SND_TARGET ?= sdl
 else
 VID_TARGET ?= win
 IN_TARGET ?= win
+SND_TARGET ?= win
 endif
 endif
 
