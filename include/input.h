@@ -57,4 +57,7 @@ void IN_ClearStates(void);
 void IN_Accumulate(void);
 // save accumulated mouse movement (used in S_ExtraUpdate(), _WIN32 only)
 
+/* FIXME - hack to allow SDL input to pass back key events... */
+void IN_ProcessEvents(void);
+
 #endif /* INPUT_H */

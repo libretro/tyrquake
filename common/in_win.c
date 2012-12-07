@@ -1168,3 +1168,6 @@ IN_JoyMove(usercmd_t *cmd)
     if (cl.viewangles[PITCH] < -70.0)
 	cl.viewangles[PITCH] = -70.0;
 }
+
+/* FIXME */
+void IN_ProcessEvents(void) { }

@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #include "common.h"
 #include "console.h"
+#include "input.h"
 #include "quakedef.h"
 #include "resource.h"
 #include "screen.h"
@@ -345,6 +346,13 @@ Sys_SendKeyEvents(void)
 	TranslateMessage(&msg);
 	DispatchMessage(&msg);
     }
+
+    /*
+     * FIXME - hack to fix hang in SDL on "are you sure you want to
+     * start a new game?" screen. Other platforms (X) have defined
+     * Sys_SendKeyEvents in their vid_* files instead.
+     */
+    IN_ProcessEvents();
 }
 
 

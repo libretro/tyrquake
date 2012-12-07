@@ -60,7 +60,7 @@ event_focusin(void)
 }
 
 void
-IN_LL_ProcessEvents(void)
+IN_ProcessEvents(void)
 {
     SDL_Event event;
     int sym, state, but;
@@ -608,5 +608,5 @@ void IN_Move(usercmd_t *cmd)
 }
 void IN_Commands(void)
 {
-    IN_LL_ProcessEvents();
+    IN_ProcessEvents();
 }
