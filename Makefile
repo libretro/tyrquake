@@ -196,7 +196,7 @@ I386_GUESS  := $(call cc-i386)
 # -------------------------
 # Special include/lib dirs
 # -------------------------
-DX_INC    = $(TOPDIR)/dxsdk/sdk/inc
+DX_INC    = $(TOPDIR)/wine-dx
 ST_INC    = $(TOPDIR)/scitech/include
 ST_LIBDIR = scitech/lib/win32/vc
 
