@@ -260,7 +260,9 @@ VID_InitModeList(void)
 	printf("%s: checking mode %i: %dx%d, %s\n", __func__,
 	       i, mode.w, mode.h, SDL_GetPixelFormatName(mode.format));
 
-	if (mode.format != SDL_PIXELFORMAT_RGB888 || mode.h > MAXHEIGHT)
+	if (mode.h > MAXHEIGHT)
+	    continue;
+	if (SDL_PIXELLAYOUT(mode.format) != SDL_PACKEDLAYOUT_8888)
 	    continue;
 
 	modelist[nummodes].modenum = nummodes;
