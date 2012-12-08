@@ -233,9 +233,10 @@ VID_InitModeList(void)
 	Sys_Error("%s: no displays found (%s)", __func__, SDL_GetError());
 
     /* FIXME - allow use of more than one display */
-    sdlmodes = SDL_GetNumDisplayModes(1);
-
-    printf("%s: %d modes on display 1\n", __func__, sdlmodes);
+    sdlmodes = SDL_GetNumDisplayModes(0);
+    if (sdlmodes < 0)
+	Con_SafePrintf("%s: error enumerating SDL display modes (%s)\n",
+		       __func__, SDL_GetError());
 
     nummodes = 0;
 
@@ -248,9 +249,10 @@ VID_InitModeList(void)
 
     /*
      * Check availability of fullscreen modes
+     * (default to display 0 for now)
      */
     for (i = 0; i < sdlmodes && nummodes < MAX_MODE_LIST; i++) {
-	err = SDL_GetDisplayMode(1, i, &mode);
+	err = SDL_GetDisplayMode(0, i, &mode);
 	if (err)
 	    Sys_Error("%s: couldn't get mode %d info (%s)",
 		      __func__, i, SDL_GetError());
