@@ -646,11 +646,9 @@ QWSV_LFLAGS += -mconsole
 endif
 ifeq ($(TARGET_OS),UNIX)
 COMMON_CPPFLAGS += -DELF
-COMMON_OBJS += net_udp.o
+COMMON_OBJS += net_udp.o sys_unix.o
 COMMON_LIBS += m
-CL_OBJS     += sys_linux.o
 NQCL_OBJS   += net_bsd.o
-QWSV_OBJS   += sys_unix.o
 GL_LIBS     += GL
 endif
 
