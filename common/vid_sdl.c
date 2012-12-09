@@ -62,6 +62,7 @@ qboolean DDActive = false;
 
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
+static SDL_PixelFormat *sdl_format = NULL;
 
 /* ------------------------------------------------------------------------- */
 
@@ -178,6 +179,7 @@ typedef struct {
     int bpp;
     int refresh;
     char modedesc[13];
+    typeof(SDL_PIXELFORMAT_UNKNOWN) format;
 } vmode_t;
 
 static vmode_t modelist[MAX_MODE_LIST];
@@ -214,7 +216,8 @@ InitMode(vmode_t *mode, int num, int fullscreen, int width, int height)
 {
     mode->modenum = num;
     mode->fullscreen = fullscreen;
-    mode->bpp = 8;
+    mode->bpp = 32;
+    mode->format = SDL_PIXELFORMAT_RGB888;
     mode->width = width;
     mode->height = height;
     snprintf(mode->modedesc, sizeof(mode->modedesc), "%dx%d", width, height);
@@ -262,15 +265,20 @@ VID_InitModeList(void)
 
 	if (mode.h > MAXHEIGHT)
 	    continue;
-	if (SDL_PIXELLAYOUT(mode.format) != SDL_PACKEDLAYOUT_8888)
+
+	if (SDL_PIXELTYPE(mode.format) == SDL_PIXELTYPE_PACKED32)
+	    modelist[nummodes].bpp = 32;
+	else if (SDL_PIXELTYPE(mode.format) == SDL_PIXELTYPE_PACKED16)
+	    modelist[nummodes].bpp = 16;
+	else
 	    continue;
 
 	modelist[nummodes].modenum = nummodes;
 	modelist[nummodes].fullscreen = 1;
-	modelist[nummodes].bpp = 8;
 	modelist[nummodes].width = mode.w;
 	modelist[nummodes].height = mode.h;
 	modelist[nummodes].refresh = mode.refresh_rate;
+	modelist[nummodes].format = mode.format;
 	sprintf(modelist[nummodes].modedesc, "%dx%d", mode.w, mode.h);
 	nummodes++;
     }
@@ -731,7 +739,8 @@ VID_GetModeDescription2(int mode)
     pv = VID_GetModePtr(mode);
 
     if (modelist[mode].fullscreen) {
-	sprintf(pinfo, "%4d x %4d @ %dHz", pv->width, pv->height, pv->refresh);
+	sprintf(pinfo, "%4d x %4d x %2d @ %3dHz", pv->width, pv->height,
+		pv->bpp, pv->refresh);
     } else {
 	sprintf(pinfo, "%4d x %4d windowed", pv->width, pv->height);
     }
@@ -841,6 +850,10 @@ VID_SetMode(int modenum, unsigned char *palette)
 	SDL_DestroyRenderer(renderer);
     if (sdl_window)
 	SDL_DestroyWindow(sdl_window);
+    if (sdl_format)
+	SDL_FreeFormat(sdl_format);
+
+    sdl_format = SDL_AllocFormat(mode->format);
 
     sdl_window = SDL_CreateWindow("TyrQuake",
 				  SDL_WINDOWPOS_UNDEFINED,
@@ -854,7 +867,7 @@ VID_SetMode(int modenum, unsigned char *palette)
 	Sys_Error("%s: Unable to create renderer: %s", __func__, SDL_GetError());
 
     texture = SDL_CreateTexture(renderer,
-				SDL_PIXELFORMAT_RGB888,
+				mode->format,
 				SDL_TEXTUREACCESS_STREAMING,
 				w, h);
     if (!texture)
@@ -912,17 +925,30 @@ void
 VID_SetPalette(unsigned char *palette)
 {
     unsigned i, r, g, b;
-    SDL_PixelFormat *fmt;
 
-    fmt = SDL_AllocFormat(SDL_PIXELFORMAT_RGB888);
-    for (i = 0; i < 256; i++) {
-	r = palette[0];
-	g = palette[1];
-	b = palette[2];
-	palette += 3;
-	d_8to24table[i] = SDL_MapRGB(fmt, r, g, b);
+    switch (SDL_PIXELTYPE(sdl_format->format)) {
+    case SDL_PIXELTYPE_PACKED32:
+	for (i = 0; i < 256; i++) {
+	    r = palette[0];
+	    g = palette[1];
+	    b = palette[2];
+	    palette += 3;
+	    d_8to24table[i] = SDL_MapRGB(sdl_format, r, g, b);
+	}
+	break;
+    case SDL_PIXELTYPE_PACKED16:
+	for (i = 0; i < 256; i++) {
+	    r = palette[0];
+	    g = palette[1];
+	    b = palette[2];
+	    palette += 3;
+	    d_8to16table[i] = SDL_MapRGB(sdl_format, r, g, b);
+	}
+	break;
+    default:
+	Sys_Error("%s: unsupported pixel format (%s)", __func__,
+		  SDL_GetPixelFormatName(sdl_format->format));
     }
-    SDL_FreeFormat(fmt);
 
     palette_changed = true;
 }
@@ -979,7 +1005,9 @@ VID_Update(vrect_t *rects)
     vrect_t *rect;
     vrect_t fullrect;
     byte *src;
-    unsigned *dst;
+    void *dst;
+    Uint32 *dst32;
+    Uint16 *dst16;
     int pitch;
     int height;
     int err;
@@ -1018,11 +1046,28 @@ VID_Update(vrect_t *rects)
 		      __func__, SDL_GetError());
 	src = vid.buffer + rect->y * vid.width + rect->x;
 	height = subrect.h;
-	while (height--) {
-	    for (i = 0; i < rect->width; i++)
-		dst[i] = d_8to24table[src[i]];
-	    dst += pitch / sizeof(*dst);
-	    src += vid.width;
+	switch (SDL_PIXELTYPE(sdl_format->format)) {
+	case SDL_PIXELTYPE_PACKED32:
+	    dst32 = dst;
+	    while (height--) {
+		for (i = 0; i < rect->width; i++)
+		    dst32[i] = d_8to24table[src[i]];
+		dst32 += pitch / sizeof(*dst32);
+		src += vid.width;
+	    }
+	    break;
+	case SDL_PIXELTYPE_PACKED16:
+	    dst16 = dst;
+	    while (height--) {
+		for (i = 0; i < rect->width; i++)
+		    dst16[i] = d_8to16table[src[i]];
+		dst16 += pitch / sizeof(*dst16);
+		src += vid.width;
+	    }
+	    break;
+	default:
+	    Sys_Error("%s: unsupported pixel format (%s)", __func__,
+		      SDL_GetPixelFormatName(sdl_format->format));
 	}
 	SDL_UnlockTexture(texture);
     }
