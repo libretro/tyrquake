@@ -67,8 +67,6 @@ void MaskExceptions(void);
 void Sys_PushFPCW_SetHigh(void);
 void Sys_PopFPCW(void);
 
-volatile int sys_checksum;
-
 static void Print_Win32SystemError(DWORD err);
 
 void
@@ -85,30 +83,6 @@ Sys_DebugLog(const char *file, const char *fmt, ...)
     write(fd, data, strlen(data));
     close(fd);
 };
-
-/*
-================
-Sys_PageIn
-================
-*/
-void
-Sys_PageIn(void *ptr, int size)
-{
-    byte *x;
-    int m, n;
-
-// touch all the memory to make sure it's there. The 16-page skip is to
-// keep Win 95 from thinking we're trying to page ourselves in (we are
-// doing that, of course, but there's no reason we shouldn't)
-    x = (byte *)ptr;
-
-    for (n = 0; n < 4; n++) {
-	for (m = 0; m < (size - 16 * 0x1000); m += 4) {
-	    sys_checksum += *(int *)&x[m];
-	    sys_checksum += *(int *)&x[m + 16 * 0x1000];
-	}
-    }
-}
 
 /*
 ===============================================================================
@@ -668,8 +642,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 
     if (!parms.membase)
 	Sys_Error("Not enough memory free; check disk space");
-
-    Sys_PageIn(parms.membase, parms.memsize);
 
     tevent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
