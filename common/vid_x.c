@@ -645,10 +645,7 @@ VID_Init(unsigned char *palette)
 			  vid.width, vid.height, 0,	// borderwidth
 			  x_visinfo->depth,
 			  InputOutput, x_vis, mask, &attr);
-    XStoreName(x_disp, x_win, "xquake");
-
-    //if (x_visinfo->class != TrueColor)
-    //XFreeColormap(x_disp, tmpcmap);
+    XStoreName(x_disp, x_win, "Tyr-Quake");
 
     if (x_visinfo->depth == 8) {
 	// create and upload the palette

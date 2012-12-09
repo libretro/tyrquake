@@ -986,6 +986,7 @@ VID_Init(unsigned char *palette)
     x_win = XCreateWindow(x_disp, root, 0, 0, width, height,
 			  0, visinfo->depth, InputOutput,
 			  visinfo->visual, mask, &attr);
+    XStoreName(x_disp, x_win, "Tyr-GLQuake");
     XMapWindow(x_disp, x_win);
 
     if (vidmode_active) {
