@@ -63,6 +63,7 @@ qboolean DDActive = false;
 static SDL_Renderer *renderer = NULL;
 static SDL_Texture *texture = NULL;
 static SDL_PixelFormat *sdl_format = NULL;
+static SDL_PixelFormat *sdl_desktop_format = NULL;
 
 /* ------------------------------------------------------------------------- */
 
@@ -216,8 +217,8 @@ InitMode(vmode_t *mode, int num, int fullscreen, int width, int height)
 {
     mode->modenum = num;
     mode->fullscreen = fullscreen;
-    mode->bpp = 32;
-    mode->format = SDL_PIXELFORMAT_RGB888;
+    mode->bpp = sdl_desktop_format->BitsPerPixel;
+    mode->format = sdl_desktop_format->format;
     mode->width = width;
     mode->height = height;
     snprintf(mode->modedesc, sizeof(mode->modedesc), "%dx%d", width, height);
@@ -961,12 +962,24 @@ do_screen_buffer(void)
 void
 VID_Init(unsigned char *palette) /* (byte *palette, byte *colormap) */
 {
+    int err;
+    SDL_DisplayMode desktop_mode;
+
     /*
      * Init SDL and the video subsystem
      */
     Q_SDL_InitOnce();
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 	Sys_Error("VID: Couldn't load SDL: %s", SDL_GetError());
+
+    err = SDL_GetDesktopDisplayMode(0, &desktop_mode);
+    if (err)
+	Sys_Error("%s: Unable to query desktop display mode (%s)",
+		  __func__, SDL_GetError());
+    sdl_desktop_format = SDL_AllocFormat(desktop_mode.format);
+    if (!sdl_desktop_format)
+	Sys_Error("%s: Unable to allocate desktop pixel format (%s)",
+		  __func__, SDL_GetError());
 
     VID_InitModeList();
 
