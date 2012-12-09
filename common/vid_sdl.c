@@ -95,7 +95,17 @@ static int window_x, window_y;
 /* Placeholders */
 void VID_ForceLockState(int lk) { }
 int VID_ForceUnlockedAndReturnState(void) { return 0; }
-void VID_Shutdown(void) { }
+void VID_Shutdown(void)
+{
+    if (renderer)
+	SDL_DestroyRenderer(renderer);
+    if (sdl_window)
+	SDL_DestroyWindow(sdl_window);
+    if (sdl_format)
+	SDL_FreeFormat(sdl_format);
+    if (sdl_desktop_format)
+	SDL_FreeFormat(sdl_desktop_format);
+}
 
 static qboolean palette_changed;
 
