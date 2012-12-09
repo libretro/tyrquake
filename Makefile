@@ -681,7 +681,7 @@ ifeq ($(VID_TARGET),win)
 CL_CPPFLAGS += -idirafter $(DX_INC)
 SW_CPPFLAGS += -idirafter $(ST_INC)
 SW_OBJS += vid_win.o
-GL_OBJS += gl_vidnt.o
+GL_OBJS += vid_wgl.o
 SW_LIBS += mgllt gdi32 # gdi32 needs to come after mgllt
 GL_LIBS += gdi32
 GL_LIBS += comctl32
