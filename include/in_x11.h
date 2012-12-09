@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define X_KEY_MASK (KeyPressMask | KeyReleaseMask)
 #define X_MOUSE_MASK (ButtonPressMask | ButtonReleaseMask | PointerMotionMask)
 
-extern qboolean mouse_available;	// Mouse available for use
 extern qboolean mouse_grab_active;
 
 extern int mouse_x, mouse_y;

@@ -1073,16 +1073,6 @@ Force_CenterView_f(void)
     cl.viewangles[PITCH] = 0;
 }
 
-/*
-===========
-IN_Commands
-===========
-*/
-void
-IN_Commands(void)
-{
-}
-
 void
 VID_UnlockBuffer()
 {

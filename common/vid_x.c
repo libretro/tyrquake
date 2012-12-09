@@ -1181,28 +1181,6 @@ D_EndDirectRect(int x, int y, int width, int height)
 }
 
 void
-IN_Commands(void)
-{
-    if (!mouse_available)
-	return;
-
-    // FIXME - Need this consistant, robust
-
-    // If we have the mouse, but are not in the game...
-    if (mouse_grab_active && key_dest != key_game && !vidmode_active) {
-	IN_UngrabMouse();
-	IN_UngrabKeyboard();
-    }
-    // If we don't have the mouse, but we're in the game and we want it...
-    if (!mouse_grab_active && key_dest == key_game &&
-	(_windowed_mouse.value || vidmode_active)) {
-	IN_GrabKeyboard();
-	IN_GrabMouse();
-	IN_CenterMouse();
-    }
-}
-
-void
 VID_LockBuffer(void)
 {
 }

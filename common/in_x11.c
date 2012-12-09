@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.h"
 #include "console.h"
 #include "in_x11.h"
+#include "keys.h"
 #include "quakedef.h"
 #include "x11_core.h"
 #include "vid.h"
@@ -34,9 +35,7 @@ static qboolean dga_available = false;
 qboolean dga_mouse_active = false;
 #endif
 
-// FIXME - make static when possible
-qboolean mouse_available = false;	// Mouse available for use
-
+static qboolean mouse_available = false;	// Mouse available for use
 static qboolean keyboard_grab_active = false;
 qboolean mouse_grab_active = false;
 
@@ -315,4 +314,26 @@ void
 IN_Move(usercmd_t *cmd)
 {
     IN_MouseMove(cmd);
+}
+
+void
+IN_Commands(void)
+{
+    if (!mouse_available)
+	return;
+
+    // FIXME - Need this consistant, robust
+
+    // If we have the mouse, but are not in the game...
+    if (mouse_grab_active && key_dest != key_game && !VID_IsFullScreen()) {
+	IN_UngrabMouse();
+	IN_UngrabKeyboard();
+    }
+    // If we don't have the mouse, but we're in the game and we want it...
+    if (!mouse_grab_active && key_dest == key_game &&
+	(_windowed_mouse.value || VID_IsFullScreen())) {
+	IN_GrabKeyboard();
+	IN_GrabMouse();
+	IN_CenterMouse();
+    }
 }
