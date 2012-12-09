@@ -42,7 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "x11_core.h"
 #include "in_x11.h"
 
-#include "client.h"
 #include "common.h"
 #include "console.h"
 #include "d_local.h"
@@ -55,7 +54,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 #endif
 
-static float old_mouse_x, old_mouse_y;
 static int ignorenext;
 
 typedef struct {
@@ -1202,52 +1200,6 @@ IN_Commands(void)
 	IN_GrabMouse();
 	IN_CenterMouse();
     }
-}
-
-// FIXME - is this target independent?
-static void
-IN_MouseMove(usercmd_t *cmd)
-{
-    if (!mouse_available)
-	return;
-
-    if (m_filter.value) {
-	mouse_x = (mouse_x + old_mouse_x) * 0.5;
-	mouse_y = (mouse_y + old_mouse_y) * 0.5;
-    }
-
-    old_mouse_x = mouse_x;
-    old_mouse_y = mouse_y;
-
-    mouse_x *= sensitivity.value;
-    mouse_y *= sensitivity.value;
-
-    if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
-	cmd->sidemove += m_side.value * mouse_x;
-    else
-	cl.viewangles[YAW] -= m_yaw.value * mouse_x;
-    if (in_mlook.state & 1)
-	V_StopPitchDrift();
-
-    if ((in_mlook.state & 1) && !(in_strafe.state & 1)) {
-	cl.viewangles[PITCH] += m_pitch.value * mouse_y;
-	if (cl.viewangles[PITCH] > 80)
-	    cl.viewangles[PITCH] = 80;
-	if (cl.viewangles[PITCH] < -70)
-	    cl.viewangles[PITCH] = -70;
-    } else {
-	if ((in_strafe.state & 1) && noclip_anglehack)
-	    cmd->upmove -= m_forward.value * mouse_y;
-	else
-	    cmd->forwardmove -= m_forward.value * mouse_y;
-    }
-    mouse_x = mouse_y = 0.0;
-}
-
-void
-IN_Move(usercmd_t *cmd)
-{
-    IN_MouseMove(cmd);
 }
 
 void

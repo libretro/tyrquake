@@ -18,9 +18,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "client.h"
 #include "common.h"
 #include "console.h"
 #include "in_x11.h"
+#include "quakedef.h"
 #include "x11_core.h"
 #include "vid.h"
 #include "sys.h"
@@ -39,8 +41,7 @@ static qboolean keyboard_grab_active = false;
 qboolean mouse_grab_active = false;
 
 int mouse_x, mouse_y;
-
-//static int old_mouse_x, old_mouse_y;
+static int old_mouse_x, old_mouse_y;
 
 static void
 windowed_mouse_f(struct cvar_s *var)
@@ -270,9 +271,8 @@ IN_Shutdown(void)
     mouse_available = 0;
 }
 
-#if 0
-void
-IN_MouseMove (usercmd_t *cmd)
+static void
+IN_MouseMove(usercmd_t *cmd)
 {
     if (!mouse_available)
 	return;
@@ -310,4 +310,9 @@ IN_MouseMove (usercmd_t *cmd)
     }
     mouse_x = mouse_y = 0;
 }
-#endif
+
+void
+IN_Move(usercmd_t *cmd)
+{
+    IN_MouseMove(cmd);
+}
