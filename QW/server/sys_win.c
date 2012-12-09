@@ -17,18 +17,29 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-#include <windows.h>
+
 #include <conio.h>
 #include <direct.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <windows.h>
 
-#include "qwsvdef.h"
 #include "common.h"
 #include "console.h"
-#include "server.h"
 #include "sys.h"
 
-static cvar_t sys_nostdout = { "sys_nostdout", "0" };
+#ifdef SERVERONLY
+#include "qwsvdef.h"
+#include "server.h"
+#else
+#include "client.h"
+#include "input.h"
+#include "quakedef.h"
+#include "resource.h"
+#include "screen.h"
+#include "winquake.h"
+#endif
 
 static double timer_pfreq;
 static int timer_lowshift;
@@ -36,40 +47,72 @@ static unsigned int timer_oldtime;
 static qboolean timer_fallback;
 static DWORD timer_fallback_start;
 
+#ifdef SERVERONLY
+static cvar_t sys_nostdout = { "sys_nostdout", "0" };
+#else
+#define MINIMUM_WIN_MEMORY	0x0c00000
+#define MAXIMUM_WIN_MEMORY	0x1000000
+
+#define PAUSE_SLEEP	50	// sleep time on pause or minimization
+#define NOT_FOCUS_SLEEP	20	// sleep time when not focus
+
+int starttime;
+qboolean ActiveApp;
+qboolean WinNT;
+HWND hwnd_dialog;		// startup dialog box
+static HANDLE qwclsemaphore;
+static HANDLE tevent;
+#endif
+
 void MaskExceptions(void);
 void Sys_PopFPCW(void);
 void Sys_PushFPCW_SetHigh(void);
 
-/*
-================
-Sys_FileTime
-================
-*/
+#ifndef SERVERONLY
+void
+Sys_DebugLog(const char *file, const char *fmt, ...)
+{
+    va_list argptr;
+    static char data[MAX_PRINTMSG];
+    int fd;
+
+    va_start(argptr, fmt);
+    vsnprintf(data, sizeof(data), fmt, argptr);
+    va_end(argptr);
+    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    write(fd, data, strlen(data));
+    close(fd);
+};
+#endif
+
 int
 Sys_FileTime(const char *path)
 {
     FILE *f;
+    int ret;
 
+#ifndef SERVERONLY
+    int t = VID_ForceUnlockedAndReturnState();
+#endif
     f = fopen(path, "rb");
     if (f) {
 	fclose(f);
-	return 1;
+	ret = 1;
+    } else {
+	ret = -1;
     }
+#ifndef SERVERONLY
+    VID_ForceLockState(t);
+#endif
 
-    return -1;
+    return ret;
 }
 
-/*
-================
-Sys_mkdir
-================
-*/
 void
 Sys_mkdir(const char *path)
 {
     _mkdir(path);
 }
-
 
 static void
 Sys_InitTimers(void)
@@ -111,34 +154,6 @@ Sys_InitTimers(void)
     Sys_PopFPCW();
 }
 
-
-/*
-================
-Sys_Error
-================
-*/
-void
-Sys_Error(const char *error, ...)
-{
-    va_list argptr;
-    char text[MAX_PRINTMSG];
-
-    va_start(argptr, error);
-    vsnprintf(text, sizeof(text), error, argptr);
-    va_end(argptr);
-
-//    MessageBox(NULL, text, "Error", 0 /* MB_OK */ );
-    printf("ERROR: %s\n", text);
-
-    exit(1);
-}
-
-
-/*
-================
-Sys_DoubleTime
-================
-*/
 double
 Sys_DoubleTime(void)
 {
@@ -189,6 +204,88 @@ Sys_DoubleTime(void)
     return curtime;
 }
 
+void
+Sys_Error(const char *error, ...)
+{
+    va_list argptr;
+    char text[MAX_PRINTMSG];
+
+#ifndef SERVERONLY
+    Host_Shutdown();
+#endif
+
+    va_start(argptr, error);
+    vsnprintf(text, sizeof(text), error, argptr);
+    va_end(argptr);
+
+#ifndef SERVERONLY
+    MessageBox(NULL, text, "Error", 0 /* MB_OK */ );
+    CloseHandle(qwclsemaphore);
+#else
+    printf("ERROR: %s\n", text);
+#endif
+
+    exit(1);
+}
+
+void
+Sys_Printf(const char *fmt, ...)
+{
+    va_list argptr;
+
+#ifdef SERVERONLY
+    if (sys_nostdout.value)
+	return;
+#endif
+    va_start(argptr, fmt);
+    vprintf(fmt, argptr);
+    va_end(argptr);
+}
+
+void
+Sys_Quit(void)
+{
+#ifndef SERVERONLY
+    VID_ForceUnlockedAndReturnState();
+
+    Host_Shutdown();
+    if (tevent)
+	CloseHandle(tevent);
+
+    if (qwclsemaphore)
+	CloseHandle(qwclsemaphore);
+#endif
+
+    exit(0);
+}
+
+#ifndef USE_X86_ASM
+void Sys_SetFPCW(void) {}
+void Sys_PushFPCW_SetHigh(void) {}
+void Sys_PopFPCW(void) {}
+void MaskExceptions(void) {}
+#endif
+
+/*
+ * ===========================================================================
+ * QW SERVER ONLY
+ * ===========================================================================
+ */
+#ifdef SERVERONLY
+
+/*
+ * ================
+ * Server Sys_Init
+ * ================
+ * Quake calls this so the system can register variables before
+ * host_hunklevel is marked
+ */
+void
+Sys_Init(void)
+{
+    Cvar_RegisterVariable(&sys_nostdout);
+    Sys_InitTimers();
+}
 
 /*
 ================
@@ -237,58 +334,11 @@ Sys_ConsoleInput(void)
     return NULL;
 }
 
-
 /*
-================
-Sys_Printf
-================
-*/
-void
-Sys_Printf(const char *fmt, ...)
-{
-    va_list argptr;
-
-    if (sys_nostdout.value)
-	return;
-
-    va_start(argptr, fmt);
-    vprintf(fmt, argptr);
-    va_end(argptr);
-}
-
-/*
-================
-Sys_Quit
-================
-*/
-void
-Sys_Quit(void)
-{
-    exit(0);
-}
-
-
-/*
-=============
-Sys_Init
-
-Quake calls this so the system can register variables before host_hunklevel
-is marked
-=============
-*/
-void
-Sys_Init(void)
-{
-    Cvar_RegisterVariable(&sys_nostdout);
-    Sys_InitTimers();
-}
-
-/*
-==================
-main
-
-==================
-*/
+ * ==================
+ * Server main()
+ * ==================
+ */
 int
 main(int argc, const char **argv)
 {
@@ -353,24 +403,280 @@ main(int argc, const char **argv)
     return 0;
 }
 
+#endif /* SERVERONLY */
+
+/*
+ * ===========================================================================
+ * QW CLIENT ONLY
+ * ===========================================================================
+ */
+#ifndef SERVERONLY
+
+void
+Sys_Sleep(void)
+{
+}
+
+void
+Sys_SendKeyEvents(void)
+{
+    MSG msg;
+
+    while (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) {
+	// we always update if there are any event, even if we're paused
+	scr_skipupdate = 0;
+
+	if (!GetMessage(&msg, NULL, 0, 0))
+	    Sys_Quit();
+	TranslateMessage(&msg);
+	DispatchMessage(&msg);
+    }
+
+    /*
+     * FIXME - hack to fix hang in SDL on "are you sure you want to
+     * start a new game?" screen. Other platforms (X) have defined
+     * Sys_SendKeyEvents in their vid_* files instead.
+     */
+    IN_ProcessEvents();
+}
+
+/*
+ * ================
+ * Client Sys_Init
+ * ================
+ */
+void
+Sys_Init(void)
+{
+    OSVERSIONINFO vinfo;
+
+    // allocate a named semaphore on the client so the
+    // front end can tell if it is alive
+
+    // mutex will fail if semephore already exists
+    qwclsemaphore = CreateMutex(NULL,		/* Security attributes */
+				0,		/* owner       */
+				"qwcl");	/* Semaphore name      */
+    if (!qwclsemaphore)
+	Sys_Error("QWCL is already running on this system");
+    CloseHandle(qwclsemaphore);
+
+    qwclsemaphore = CreateSemaphore(NULL,	/* Security attributes */
+				    0,		/* Initial count       */
+				    1,		/* Maximum count       */
+				    "qwcl");	/* Semaphore name      */
+
+    MaskExceptions();
+    Sys_SetFPCW();
+
+    // make sure the timer is high precision, otherwise
+    // NT gets 18ms resolution
+    timeBeginPeriod(1);
+
+    vinfo.dwOSVersionInfoSize = sizeof(vinfo);
+    if (!GetVersionEx(&vinfo))
+	Sys_Error("Couldn't get OS info");
+
+    if ((vinfo.dwMajorVersion < 4) ||
+	(vinfo.dwPlatformId == VER_PLATFORM_WIN32s)) {
+	Sys_Error("QuakeWorld requires at least Win95 or NT 4.0");
+    }
+
+    if (vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT)
+	WinNT = true;
+    else
+	WinNT = false;
+}
+
+static void
+SleepUntilInput(int time)
+{
+    MsgWaitForMultipleObjects(1, &tevent, FALSE, time, QS_ALLINPUT);
+}
+
+/*
+==================
+WinMain
+==================
+*/
+HINSTANCE global_hInstance;
+int global_nCmdShow;
+const char *argv[MAX_NUM_ARGVS];
+static const char *empty_string = "";
+HWND hwnd_dialog;
+
+
+int WINAPI
+WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
+	int nCmdShow)
+{
+    quakeparms_t parms;
+    double time, oldtime, newtime;
+    MEMORYSTATUS lpBuffer;
+    static char cwd[1024];
+    int t;
+    RECT rect;
+
+    /* previous instances do not exist in Win32 */
+    if (hPrevInstance)
+	return 0;
+
+    global_hInstance = hInstance;
+    global_nCmdShow = nCmdShow;
+
+    lpBuffer.dwLength = sizeof(MEMORYSTATUS);
+    GlobalMemoryStatus(&lpBuffer);
+
+    if (!GetCurrentDirectory(sizeof(cwd), cwd))
+	Sys_Error("Couldn't determine current directory");
+
+    if (cwd[strlen(cwd) - 1] == '/')
+	cwd[strlen(cwd) - 1] = 0;
+
+    parms.basedir = cwd;
+    parms.cachedir = NULL;
+
+    parms.argc = 1;
+    argv[0] = empty_string;
+
+    while (*lpCmdLine && (parms.argc < MAX_NUM_ARGVS)) {
+	while (*lpCmdLine && ((*lpCmdLine <= 32) || (*lpCmdLine > 126)))
+	    lpCmdLine++;
+
+	if (*lpCmdLine) {
+	    argv[parms.argc] = lpCmdLine;
+	    parms.argc++;
+
+	    while (*lpCmdLine && ((*lpCmdLine > 32) && (*lpCmdLine <= 126)))
+		lpCmdLine++;
+
+	    if (*lpCmdLine) {
+		*lpCmdLine = 0;
+		lpCmdLine++;
+	    }
+
+	}
+    }
+
+    parms.argv = argv;
+
+    COM_InitArgv(parms.argc, parms.argv);
+
+    parms.argc = com_argc;
+    parms.argv = com_argv;
+
+    hwnd_dialog =
+	CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, NULL);
+
+    if (hwnd_dialog) {
+	if (GetWindowRect(hwnd_dialog, &rect)) {
+	    if (rect.left > (rect.top * 2)) {
+		SetWindowPos(hwnd_dialog, 0,
+			     (rect.left / 2) -
+			     ((rect.right - rect.left) / 2), rect.top, 0, 0,
+			     SWP_NOZORDER | SWP_NOSIZE);
+	    }
+	}
+
+	ShowWindow(hwnd_dialog, SW_SHOWDEFAULT);
+	UpdateWindow(hwnd_dialog);
+	SetForegroundWindow(hwnd_dialog);
+    }
+
+    /*
+     * FIXME - size this more appropriately for modern systems & content
+     *
+     * take the greater of all the available memory or half the total memory,
+     * but at least 8 Mb and no more than 16 Mb, unless they explicitly
+     * request otherwise
+     */
+    parms.memsize = lpBuffer.dwAvailPhys;
+
+    if (parms.memsize < MINIMUM_WIN_MEMORY)
+	parms.memsize = MINIMUM_WIN_MEMORY;
+
+    if (parms.memsize < (lpBuffer.dwTotalPhys >> 1))
+	parms.memsize = lpBuffer.dwTotalPhys >> 1;
+
+    if (parms.memsize > MAXIMUM_WIN_MEMORY)
+	parms.memsize = MAXIMUM_WIN_MEMORY;
+
+    if (COM_CheckParm("-heapsize")) {
+	t = COM_CheckParm("-heapsize") + 1;
+
+	if (t < com_argc)
+	    parms.memsize = Q_atoi(com_argv[t]) * 1024;
+    }
+
+    parms.membase = malloc(parms.memsize);
+    if (!parms.membase)
+	Sys_Error("Not enough memory free; check disk space");
+
+    tevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+    if (!tevent)
+	Sys_Error("Couldn't create event");
+
+    Sys_Init();
+    Sys_InitTimers();
+
+// because sound is off until we become active
+    S_BlockSound();
+
+    Sys_Printf("Host_Init\n");
+    Host_Init(&parms);
+
+    oldtime = Sys_DoubleTime();
+
+    /* main window message loop */
+    while (1) {
+	/*
+	 * yield the CPU for a little while when paused, minimized,
+	 * or not the focus
+	 */
+	if ((cl.paused && (!ActiveApp && !DDActive)) || !window_visible()
+	    || block_drawing) {
+	    SleepUntilInput(PAUSE_SLEEP);
+	    scr_skipupdate = 1;	/* no point in bothering to draw */
+	} else if (!ActiveApp && !DDActive) {
+	    SleepUntilInput(NOT_FOCUS_SLEEP);
+	}
+
+	newtime = Sys_DoubleTime();
+	time = newtime - oldtime;
+	Host_Frame(time);
+	oldtime = newtime;
+    }
+
+    /* return success of application */
+    return TRUE;
+}
+
+/*
+================
+Sys_MakeCodeWriteable
+================
+*/
+void
+Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
+{
+    DWORD dummy;
+    BOOL success;
+
+    success = VirtualProtect((LPVOID)startaddr, length, PAGE_READWRITE, &dummy);
+    if (!success)
+	Sys_Error("Protection change failed");
+}
+
 #ifndef USE_X86_ASM
 void
-Sys_SetFPCW(void)
+Sys_HighFPPrecision(void)
 {
 }
 
 void
-Sys_PushFPCW_SetHigh(void)
-{
-}
-
-void
-Sys_PopFPCW(void)
-{
-}
-
-void
-MaskExceptions(void)
+Sys_LowFPPrecision(void)
 {
 }
 #endif
+
+#endif /* !SERVERONLY */
