@@ -53,8 +53,8 @@ static qboolean timer_fallback;
 static DWORD timer_fallback_start;
 
 void MaskExceptions(void);
-void Sys_PopFPCW(void);
 void Sys_PushFPCW_SetHigh(void);
+void Sys_PopFPCW(void);
 
 #ifdef SERVERONLY
 static cvar_t sys_nostdout = { "sys_nostdout", "0" };
@@ -206,6 +206,79 @@ Sys_DoubleTime(void)
     return curtime;
 }
 
+/*
+ * FIXME - NQ/QW Sys_Error are different enough to duplicate for now
+ */
+#ifdef NQ_HACK
+void
+Sys_Error(const char *error, ...)
+{
+    va_list argptr;
+    char text[MAX_PRINTMSG];
+    char text2[MAX_PRINTMSG];
+    char *text3 = "Press Enter to exit\n";
+    char *text4 = "***********************************\n";
+    char *text5 = "\n";
+    DWORD dummy;
+    double starttime;
+    static int in_sys_error0 = 0;
+    static int in_sys_error1 = 0;
+    static int in_sys_error2 = 0;
+    static int in_sys_error3 = 0;
+
+    if (!in_sys_error3) {
+	in_sys_error3 = 1;
+	VID_ForceUnlockedAndReturnState();
+    }
+
+    va_start(argptr, error);
+    vsnprintf(text, sizeof(text), error, argptr);
+    va_end(argptr);
+
+    if (isDedicated) {
+	snprintf(text2, sizeof(text2), "ERROR: %s\n", text);
+	if (text2[sizeof(text2) - 2])
+	    strcpy(text2 + sizeof(text2) - 2, "\n"); /* in case we truncated */
+	WriteFile(houtput, text5, strlen(text5), &dummy, NULL);
+	WriteFile(houtput, text4, strlen(text4), &dummy, NULL);
+	WriteFile(houtput, text2, strlen(text2), &dummy, NULL);
+	WriteFile(houtput, text3, strlen(text3), &dummy, NULL);
+	WriteFile(houtput, text4, strlen(text4), &dummy, NULL);
+
+	starttime = Sys_DoubleTime();
+	sc_return_on_enter = true;	// so Enter will get us out of here
+
+	while (!Sys_ConsoleInput() &&
+	       ((Sys_DoubleTime() - starttime) < CONSOLE_ERROR_TIMEOUT)) {
+	}
+    } else {
+	// switch to windowed so the message box is visible, unless we already
+	// tried that and failed
+	if (!in_sys_error0) {
+	    in_sys_error0 = 1;
+	    VID_SetDefaultMode();
+	    MessageBox(NULL, text, "Quake Error",
+		       MB_OK | MB_SETFOREGROUND | MB_ICONSTOP);
+	} else {
+	    MessageBox(NULL, text, "Double Quake Error",
+		       MB_OK | MB_SETFOREGROUND | MB_ICONSTOP);
+	}
+    }
+
+    if (!in_sys_error1) {
+	in_sys_error1 = 1;
+	Host_Shutdown();
+    }
+// shut down QHOST hooks if necessary
+    if (!in_sys_error2) {
+	in_sys_error2 = 1;
+	DeinitConProc();
+    }
+
+    exit(1);
+}
+#endif
+#ifdef QW_HACK
 void
 Sys_Error(const char *error, ...)
 {
@@ -229,12 +302,24 @@ Sys_Error(const char *error, ...)
 
     exit(1);
 }
+#endif
 
 void
 Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
+#ifdef NQ_HACK
+    char text[MAX_PRINTMSG];
+    DWORD dummy;
 
+    if (isDedicated) {
+	va_start(argptr, fmt);
+	vsnprintf(text, sizeof(text), fmt, argptr);
+	va_end(argptr);
+	WriteFile(houtput, text, strlen(text), &dummy, NULL);
+	return;
+    }
+#endif
 #ifdef SERVERONLY
     if (sys_nostdout.value)
 	return;
@@ -249,13 +334,21 @@ Sys_Quit(void)
 {
 #ifndef SERVERONLY
     VID_ForceUnlockedAndReturnState();
-
     Host_Shutdown();
     if (tevent)
 	CloseHandle(tevent);
 
+#ifdef NQ_HACK
+    if (isDedicated)
+	FreeConsole();
+
+// shut down QHOST hooks if necessary
+    DeinitConProc();
+#endif
+#ifdef QW_HACK
     if (qwclsemaphore)
 	CloseHandle(qwclsemaphore);
+#endif
 #endif
 
     exit(0);
@@ -270,30 +363,88 @@ void MaskExceptions(void) {}
 
 /*
  * ===========================================================================
- * QW SERVER ONLY
+ * NQ/QW SERVER SHARED
+ *
+ * Console input for QWSV and NQ in dedicated mode. Not very similar
+ * right now because NQ needs to operate as both a GUI and console
+ * application.
  * ===========================================================================
  */
-#ifdef SERVERONLY
-
-/*
- * ================
- * Server Sys_Init
- * ================
- * Quake calls this so the system can register variables before
- * host_hunklevel is marked
- */
-void
-Sys_Init(void)
+#ifdef NQ_HACK
+char *
+Sys_ConsoleInput(void)
 {
-    Cvar_RegisterVariable(&sys_nostdout);
-    Sys_InitTimers();
-}
+    static char text[256];
+    static int len;
+    INPUT_RECORD recs[1024];
+    DWORD dummy;
+    int ch;
+    DWORD numread, numevents;
 
-/*
-================
-Sys_ConsoleInput
-================
-*/
+    if (!isDedicated)
+	return NULL;
+
+    for (;;) {
+	if (!GetNumberOfConsoleInputEvents(hinput, &numevents)) {
+	    DWORD err = GetLastError();
+
+	    printf("GetNumberOfConsoleInputEvents: ");
+	    Print_Win32SystemError(err);
+	    Sys_Error("Error getting # of console events");
+	}
+
+	if (numevents <= 0)
+	    break;
+
+	if (!ReadConsoleInput(hinput, recs, 1, &numread))
+	    Sys_Error("Error reading console input");
+
+	if (numread != 1)
+	    Sys_Error("Couldn't read console input");
+
+	if (recs[0].EventType == KEY_EVENT) {
+	    if (!recs[0].Event.KeyEvent.bKeyDown) {
+		ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
+
+		switch (ch) {
+		case '\r':
+		    WriteFile(houtput, "\r\n", 2, &dummy, NULL);
+		    if (len) {
+			text[len] = 0;
+			len = 0;
+			return text;
+		    } else if (sc_return_on_enter) {
+			/*
+			 * special case to allow exiting from the error
+			 * handler on Enter
+			 */
+			text[0] = '\r';
+			len = 0;
+			return text;
+		    }
+		    break;
+		case '\b':
+		    WriteFile(houtput, "\b \b", 3, &dummy, NULL);
+		    if (len) {
+			len--;
+		    }
+		    break;
+		default:
+		    if (ch >= ' ') {
+			WriteFile(houtput, &ch, 1, &dummy, NULL);
+			text[len] = ch;
+			len = (len + 1) & 0xff;
+		    }
+		    break;
+		}
+	    }
+	}
+    }
+
+    return NULL;
+}
+#endif
+#ifdef SERVERONLY
 char *
 Sys_ConsoleInput(void)
 {
@@ -334,6 +485,28 @@ Sys_ConsoleInput(void)
     }
 
     return NULL;
+}
+#endif
+
+/*
+ * ===========================================================================
+ * QW SERVER ONLY
+ * ===========================================================================
+ */
+#ifdef SERVERONLY
+
+/*
+ * ================
+ * Server Sys_Init
+ * ================
+ * Quake calls this so the system can register variables before
+ * host_hunklevel is marked
+ */
+void
+Sys_Init(void)
+{
+    Cvar_RegisterVariable(&sys_nostdout);
+    Sys_InitTimers();
 }
 
 /*
@@ -409,7 +582,7 @@ main(int argc, const char **argv)
 
 /*
  * ===========================================================================
- * QW CLIENT ONLY
+ * NQ/QW CLIENT ONLY
  * ===========================================================================
  */
 #ifndef SERVERONLY
@@ -432,6 +605,9 @@ Sys_DebugLog(const char *file, const char *fmt, ...)
 void
 Sys_Sleep(void)
 {
+#ifdef NQ_HACK
+    Sleep(1);
+#endif
 }
 
 void
@@ -467,10 +643,11 @@ Sys_Init(void)
 {
     OSVERSIONINFO vinfo;
 
-    // allocate a named semaphore on the client so the
-    // front end can tell if it is alive
-
-    // mutex will fail if semephore already exists
+#ifdef QW_HACK
+    /*
+     * Allocate a named semaphore on the client so the front end can tell
+     * if it is alive. Mutex will fail if semephore already exists
+     */
     qwclsemaphore = CreateMutex(NULL,		/* Security attributes */
 				0,		/* owner       */
 				"qwcl");	/* Semaphore name      */
@@ -489,6 +666,7 @@ Sys_Init(void)
     // make sure the timer is high precision, otherwise
     // NT gets 18ms resolution
     timeBeginPeriod(1);
+#endif
 
     vinfo.dwOSVersionInfoSize = sizeof(vinfo);
     if (!GetVersionEx(&vinfo))
@@ -496,7 +674,7 @@ Sys_Init(void)
 
     if ((vinfo.dwMajorVersion < 4) ||
 	(vinfo.dwPlatformId == VER_PLATFORM_WIN32s)) {
-	Sys_Error("QuakeWorld requires at least Win95 or NT 4.0");
+	Sys_Error("TyrQuake requires at least Win95 or NT 4.0");
     }
 
     if (vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT)
@@ -582,30 +760,37 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     parms.argc = com_argc;
     parms.argv = com_argv;
 
-    hwnd_dialog =
-	CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, NULL);
+#ifdef NQ_HACK
+    isDedicated = (COM_CheckParm("-dedicated") != 0);
+    if (!isDedicated) {
+#endif
+	hwnd_dialog =
+	    CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, NULL);
 
-    if (hwnd_dialog) {
-	if (GetWindowRect(hwnd_dialog, &rect)) {
-	    if (rect.left > (rect.top * 2)) {
-		SetWindowPos(hwnd_dialog, 0,
-			     (rect.left / 2) -
-			     ((rect.right - rect.left) / 2), rect.top, 0, 0,
-			     SWP_NOZORDER | SWP_NOSIZE);
+	if (hwnd_dialog) {
+	    if (GetWindowRect(hwnd_dialog, &rect)) {
+		if (rect.left > (rect.top * 2)) {
+		    SetWindowPos(hwnd_dialog, 0,
+				 (rect.left / 2) -
+				 ((rect.right - rect.left) / 2), rect.top, 0,
+				 0, SWP_NOZORDER | SWP_NOSIZE);
+		}
 	    }
-	}
 
-	ShowWindow(hwnd_dialog, SW_SHOWDEFAULT);
-	UpdateWindow(hwnd_dialog);
-	SetForegroundWindow(hwnd_dialog);
+	    ShowWindow(hwnd_dialog, SW_SHOWDEFAULT);
+	    UpdateWindow(hwnd_dialog);
+	    SetForegroundWindow(hwnd_dialog);
+	}
+#ifdef NQ_HACK
     }
+#endif
 
     /*
      * FIXME - size this more appropriately for modern systems & content
      *
-     * take the greater of all the available memory or half the total memory,
-     * but at least 8 Mb and no more than 16 Mb, unless they explicitly
-     * request otherwise
+     * Take the greater of all the available memory or half the total
+     * memory, but at least MINIMUM_WIN_MEMORY and no more than
+     * MAXIMUM_WIN_MEMORY, unless explicitly requested otherwise
      */
     parms.memsize = lpBuffer.dwAvailPhys;
 
@@ -633,6 +818,62 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     if (!tevent)
 	Sys_Error("Couldn't create event");
 
+#ifdef NQ_HACK
+    if (isDedicated) {
+	if (!AllocConsole()) {
+	    DWORD err = GetLastError();
+
+	    printf("AllocConsole Failed: ");
+	    Print_Win32SystemError(err);
+
+	    // Already have one? - Try free it and get a new one...
+	    // FIXME - Keep current console or get new one...
+	    FreeConsole();
+	    if (!AllocConsole()) {
+		err = GetLastError();
+		printf("AllocConsole (2nd try): Error %i\n", (int)err);
+		fflush(stdout);
+
+		// FIXME - might not have stdout or stderr here for Sys_Error.
+		Sys_Error("Couldn't create dedicated server console");
+	    }
+	}
+	// FIXME - these can fail...
+	// FIXME - the whole console creation thing is pretty screwy...
+	// FIXME - well, at least from cygwin rxvt it sucks...
+	hinput = GetStdHandle(STD_INPUT_HANDLE);
+	if (!hinput) {
+	    DWORD err = GetLastError();
+	    printf("GetStdHandle(STD_INPUT_HANDLE): Error %i\n", (int)err);
+	    fflush(stdout);
+	}
+	houtput = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (!hinput) {
+	    DWORD err = GetLastError();
+	    printf("GetStdHandle(STD_OUTPUT_HANDLE): Error %i\n", (int)err);
+	    fflush(stdout);
+	}
+	// give QHOST a chance to hook into the console
+	// FIXME - What is QHOST?
+	if ((t = COM_CheckParm("-HFILE")) > 0) {
+	    if (t < com_argc)
+		hFile = (HANDLE)Q_atoi(com_argv[t + 1]);
+	}
+
+	if ((t = COM_CheckParm("-HPARENT")) > 0) {
+	    if (t < com_argc)
+		heventParent = (HANDLE)Q_atoi(com_argv[t + 1]);
+	}
+
+	if ((t = COM_CheckParm("-HCHILD")) > 0) {
+	    if (t < com_argc)
+		heventChild = (HANDLE)Q_atoi(com_argv[t + 1]);
+	}
+
+	InitConProc(hFile, heventParent, heventChild);
+    }
+#endif
+
     Sys_Init();
     Sys_InitTimers();
 
@@ -646,6 +887,22 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 
     /* main window message loop */
     while (1) {
+#ifdef NQ_HACK
+	if (isDedicated) {
+	    newtime = Sys_DoubleTime();
+	    time = newtime - oldtime;
+
+	    while (time < sys_ticrate.value) {
+		Sys_Sleep();
+		newtime = Sys_DoubleTime();
+		time = newtime - oldtime;
+	    }
+
+	    Host_Frame(time);
+	    oldtime = newtime;
+	    continue;
+	}
+#endif
 	/*
 	 * yield the CPU for a little while when paused, minimized,
 	 * or not the focus
@@ -685,14 +942,26 @@ Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
 }
 
 #ifndef USE_X86_ASM
-void
-Sys_HighFPPrecision(void)
-{
-}
+void Sys_HighFPPrecision(void) {}
+void Sys_LowFPPrecision(void) {}
+#endif
 
-void
-Sys_LowFPPrecision(void)
+#ifdef NQ_HACK
+/*
+ * For debugging - Print a Win32 system error string to stdout
+ */
+static void
+Print_Win32SystemError(DWORD err)
 {
+    static PVOID buf;
+
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
+		      | FORMAT_MESSAGE_FROM_SYSTEM,
+		      NULL, err, 0, (LPTSTR)(&buf), 0, NULL)) {
+	printf("%s: %s\n", __func__, (LPTSTR)buf);
+	fflush(stdout);
+	LocalFree(buf);
+    }
 }
 #endif
 

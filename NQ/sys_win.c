@@ -17,36 +17,34 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sys_win.c -- Win32 system interface code
 
+#include <conio.h>
 #include <direct.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <windows.h>
 
-#include "client.h"
 #include "common.h"
-#include "conproc.h"
 #include "console.h"
+#include "sys.h"
+
+#ifdef NQ_HACK
+#include "conproc.h"
 #include "host.h"
+#endif
+
+#ifndef SERVERONLY
+#include "client.h"
 #include "input.h"
 #include "quakedef.h"
 #include "resource.h"
 #include "screen.h"
-#include "sys.h"
 #include "winquake.h"
-
-#define MINIMUM_WIN_MEMORY	0x0C00000 /* 12 MB */
-#define MAXIMUM_WIN_MEMORY	0x2000000 /* 32 MB */
-
-#define CONSOLE_ERROR_TIMEOUT	60.0	// # of seconds to wait on Sys_Error
-					// running dedicated before exiting
-
-#define PAUSE_SLEEP	50	// sleep time on pause or minimization
-#define NOT_FOCUS_SLEEP	20	// sleep time when not focus
-
-qboolean ActiveApp;
-qboolean WinNT;
+#else
+#include "qwsvdef.h"
+#include "server.h"
+#endif
 
 static double timer_pfreq;
 static int timer_lowshift;
@@ -54,63 +52,62 @@ static unsigned int timer_oldtime;
 static qboolean timer_fallback;
 static DWORD timer_fallback_start;
 
-qboolean isDedicated;
-static qboolean sc_return_on_enter = false;
-static HANDLE hinput, houtput;
-
-static HANDLE tevent;
-static HANDLE hFile;
-static HANDLE heventParent;
-static HANDLE heventChild;
-
 void MaskExceptions(void);
 void Sys_PushFPCW_SetHigh(void);
 void Sys_PopFPCW(void);
 
+#ifdef SERVERONLY
+static cvar_t sys_nostdout = { "sys_nostdout", "0" };
+#else
+#define MINIMUM_WIN_MEMORY 0x0c00000 /* 12MB */
+#define MAXIMUM_WIN_MEMORY 0x2000000 /* 32MB */
+
+#define PAUSE_SLEEP	50	// sleep time on pause or minimization
+#define NOT_FOCUS_SLEEP	20	// sleep time when not focus
+
+qboolean ActiveApp;
+qboolean WinNT;
+static HANDLE tevent;
+
+#ifdef NQ_HACK
+qboolean isDedicated;
+static qboolean sc_return_on_enter = false;
+static HANDLE hinput, houtput;
+static HANDLE hFile;
+static HANDLE heventParent;
+static HANDLE heventChild;
+
 static void Print_Win32SystemError(DWORD err);
+#define CONSOLE_ERROR_TIMEOUT	60.0	// # of seconds to wait on Sys_Error
+					// running dedicated before exiting
+#endif
+#ifdef QW_HACK
+static HANDLE qwclsemaphore;
+#endif
+#endif /* !SERVERONLY */
 
-void
-Sys_DebugLog(const char *file, const char *fmt, ...)
-{
-    va_list argptr;
-    static char data[MAX_PRINTMSG];
-    int fd;
-
-    va_start(argptr, fmt);
-    vsnprintf(data, sizeof(data), fmt, argptr);
-    va_end(argptr);
-    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
-    write(fd, data, strlen(data));
-    close(fd);
-};
-
-/*
-===============================================================================
-
-FILE IO
-
-===============================================================================
-*/
 
 int
 Sys_FileTime(const char *path)
 {
     FILE *f;
-    int t, retval;
+    int ret;
 
-    t = VID_ForceUnlockedAndReturnState();
-
+#ifndef SERVERONLY
+    int t = VID_ForceUnlockedAndReturnState();
+#endif
     f = fopen(path, "rb");
-
     if (f) {
 	fclose(f);
-	retval = 1;
+	ret = 1;
     } else {
-	retval = -1;
+	ret = -1;
     }
-
+#ifndef SERVERONLY
     VID_ForceLockState(t);
-    return retval;
+#endif
+
+    return ret;
 }
 
 void
@@ -118,31 +115,6 @@ Sys_mkdir(const char *path)
 {
     _mkdir(path);
 }
-
-
-/*
-===============================================================================
-
-SYSTEM IO
-
-===============================================================================
-*/
-
-/*
-================
-Sys_MakeCodeWriteable
-================
-*/
-void
-Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
-{
-    DWORD flOldProtect;
-
-    if (!VirtualProtect
-	((LPVOID)startaddr, length, PAGE_READWRITE, &flOldProtect))
-	Sys_Error("Protection change failed");
-}
-
 
 static void
 Sys_InitTimers(void)
@@ -184,33 +156,60 @@ Sys_InitTimers(void)
     Sys_PopFPCW();
 }
 
-/*
-================
-Sys_Init
-================
-*/
-void
-Sys_Init(void)
+double
+Sys_DoubleTime(void)
 {
-    OSVERSIONINFO vinfo;
+    static double curtime = 0.0;
+    static double lastcurtime = 0.0;
+    static int sametimecount;
 
-    vinfo.dwOSVersionInfoSize = sizeof(vinfo);
+    LARGE_INTEGER pcount;
+    unsigned int temp, t2;
+    double time;
 
-    if (!GetVersionEx(&vinfo))
-	Sys_Error("Couldn't get OS info");
-
-    if ((vinfo.dwMajorVersion < 4) ||
-	(vinfo.dwPlatformId == VER_PLATFORM_WIN32s)) {
-	Sys_Error("TyrQuake requires at least Win95 or NT 4.0");
+    if (timer_fallback) {
+	DWORD now = timeGetTime();
+	if (now < timer_fallback_start)	/* wrapped */
+	    return (now + (LONG_MAX - timer_fallback_start)) / 1000.0;
+	return (now - timer_fallback_start) / 1000.0;
     }
 
-    if (vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT)
-	WinNT = true;
-    else
-	WinNT = false;
+    Sys_PushFPCW_SetHigh();
+
+    QueryPerformanceCounter(&pcount);
+
+    temp = (unsigned int)pcount.LowPart >> timer_lowshift;
+    temp |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
+
+    /* check for turnover or backward time */
+    if ((temp <= timer_oldtime) && ((timer_oldtime - temp) < 0x10000000)) {
+	timer_oldtime = temp;	/* so we don't get stuck */
+    } else {
+	t2 = temp - timer_oldtime;
+	time = (double)t2 * timer_pfreq;
+	timer_oldtime = temp;
+	curtime += time;
+	if (curtime == lastcurtime) {
+	    sametimecount++;
+	    if (sametimecount > 100000) {
+		curtime += 1.0;
+		sametimecount = 0;
+	    }
+	} else {
+	    sametimecount = 0;
+	}
+	lastcurtime = curtime;
+    }
+
+    Sys_PopFPCW();
+
+    return curtime;
 }
 
-
+/*
+ * FIXME - NQ/QW Sys_Error are different enough to duplicate for now
+ */
+#ifdef NQ_HACK
 void
 Sys_Error(const char *error, ...)
 {
@@ -278,11 +277,38 @@ Sys_Error(const char *error, ...)
 
     exit(1);
 }
+#endif
+#ifdef QW_HACK
+void
+Sys_Error(const char *error, ...)
+{
+    va_list argptr;
+    char text[MAX_PRINTMSG];
+
+#ifndef SERVERONLY
+    Host_Shutdown();
+#endif
+
+    va_start(argptr, error);
+    vsnprintf(text, sizeof(text), error, argptr);
+    va_end(argptr);
+
+#ifndef SERVERONLY
+    MessageBox(NULL, text, "Error", 0 /* MB_OK */ );
+    CloseHandle(qwclsemaphore);
+#else
+    printf("ERROR: %s\n", text);
+#endif
+
+    exit(1);
+}
+#endif
 
 void
 Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
+#ifdef NQ_HACK
     char text[MAX_PRINTMSG];
     DWORD dummy;
 
@@ -290,91 +316,61 @@ Sys_Printf(const char *fmt, ...)
 	va_start(argptr, fmt);
 	vsnprintf(text, sizeof(text), fmt, argptr);
 	va_end(argptr);
-
 	WriteFile(houtput, text, strlen(text), &dummy, NULL);
-    } else {
-	va_start(argptr, fmt);
-	vprintf(fmt, argptr);
-	va_end(argptr);
+	return;
     }
+#endif
+#ifdef SERVERONLY
+    if (sys_nostdout.value)
+	return;
+#endif
+    va_start(argptr, fmt);
+    vprintf(fmt, argptr);
+    va_end(argptr);
 }
 
 void
 Sys_Quit(void)
 {
+#ifndef SERVERONLY
     VID_ForceUnlockedAndReturnState();
-
     Host_Shutdown();
-
     if (tevent)
 	CloseHandle(tevent);
 
+#ifdef NQ_HACK
     if (isDedicated)
 	FreeConsole();
 
 // shut down QHOST hooks if necessary
     DeinitConProc();
+#endif
+#ifdef QW_HACK
+    if (qwclsemaphore)
+	CloseHandle(qwclsemaphore);
+#endif
+#endif
 
     exit(0);
 }
 
+#ifndef USE_X86_ASM
+void Sys_SetFPCW(void) {}
+void Sys_PushFPCW_SetHigh(void) {}
+void Sys_PopFPCW(void) {}
+void MaskExceptions(void) {}
+#endif
 
 /*
-================
-Sys_DoubleTime
-================
-*/
-double
-Sys_DoubleTime(void)
-{
-    static double curtime = 0.0;
-    static double lastcurtime = 0.0;
-    static int sametimecount;
-
-    LARGE_INTEGER pcount;
-    unsigned int temp, t2;
-    double time;
-
-    if (timer_fallback) {
-	DWORD now = timeGetTime();
-	if (now < timer_fallback_start)	/* wrapped */
-	    return (now + (LONG_MAX - timer_fallback_start)) / 1000.0;
-	return (now - timer_fallback_start) / 1000.0;
-    }
-
-    Sys_PushFPCW_SetHigh();
-
-    QueryPerformanceCounter(&pcount);
-
-    temp = (unsigned int)pcount.LowPart >> timer_lowshift;
-    temp |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
-
-    /* check for turnover or backward time */
-    if ((temp <= timer_oldtime) && ((timer_oldtime - temp) < 0x10000000)) {
-	timer_oldtime = temp;	/* so we don't get stuck */
-    } else {
-	t2 = temp - timer_oldtime;
-	time = (double)t2 * timer_pfreq;
-	timer_oldtime = temp;
-	curtime += time;
-	if (curtime == lastcurtime) {
-	    sametimecount++;
-	    if (sametimecount > 100000) {
-		curtime += 1.0;
-		sametimecount = 0;
-	    }
-	} else {
-	    sametimecount = 0;
-	}
-	lastcurtime = curtime;
-    }
-
-    Sys_PopFPCW();
-
-    return curtime;
-}
-
-
+ * ===========================================================================
+ * NQ/QW SERVER SHARED
+ *
+ * Console input for QWSV and NQ in dedicated mode. Not very similar
+ * right now because NQ needs to operate as both a GUI and console
+ * application.
+ * ===========================================================================
+ */
+#ifdef NQ_HACK
 char *
 Sys_ConsoleInput(void)
 {
@@ -387,7 +383,6 @@ Sys_ConsoleInput(void)
 
     if (!isDedicated)
 	return NULL;
-
 
     for (;;) {
 	if (!GetNumberOfConsoleInputEvents(hinput, &numevents)) {
@@ -414,36 +409,33 @@ Sys_ConsoleInput(void)
 		switch (ch) {
 		case '\r':
 		    WriteFile(houtput, "\r\n", 2, &dummy, NULL);
-
 		    if (len) {
 			text[len] = 0;
 			len = 0;
 			return text;
 		    } else if (sc_return_on_enter) {
-			// special case to allow exiting from the error handler on Enter
+			/*
+			 * special case to allow exiting from the error
+			 * handler on Enter
+			 */
 			text[0] = '\r';
 			len = 0;
 			return text;
 		    }
-
 		    break;
-
 		case '\b':
 		    WriteFile(houtput, "\b \b", 3, &dummy, NULL);
 		    if (len) {
 			len--;
 		    }
 		    break;
-
 		default:
 		    if (ch >= ' ') {
 			WriteFile(houtput, &ch, 1, &dummy, NULL);
 			text[len] = ch;
 			len = (len + 1) & 0xff;
 		    }
-
 		    break;
-
 		}
 	    }
 	}
@@ -451,13 +443,172 @@ Sys_ConsoleInput(void)
 
     return NULL;
 }
+#endif
+#ifdef SERVERONLY
+char *
+Sys_ConsoleInput(void)
+{
+    static char text[256];
+    static int len;
+    int c;
+
+    // read a line out
+    while (_kbhit()) {
+	c = _getch();
+	putch(c);
+	if (c == '\r') {
+	    text[len] = 0;
+	    putch('\n');
+	    len = 0;
+	    return text;
+	}
+	if (c == 8) {
+	    if (len) {
+		putch(' ');
+		putch(c);
+		len--;
+		text[len] = 0;
+	    }
+	    continue;
+	}
+	text[len] = c;
+	len++;
+	if (len == sizeof(text)) {
+	    /* buffer is full */
+	    len = 0;
+	    text[0] = '\0';
+	    fprintf (stderr, "\nConsole input too long!\n");
+	    return text;
+	} else {
+	    text[len] = 0;
+	}
+    }
+
+    return NULL;
+}
+#endif
+
+/*
+ * ===========================================================================
+ * QW SERVER ONLY
+ * ===========================================================================
+ */
+#ifdef SERVERONLY
+
+/*
+ * ================
+ * Server Sys_Init
+ * ================
+ * Quake calls this so the system can register variables before
+ * host_hunklevel is marked
+ */
+void
+Sys_Init(void)
+{
+    Cvar_RegisterVariable(&sys_nostdout);
+    Sys_InitTimers();
+}
+
+/*
+ * ==================
+ * Server main()
+ * ==================
+ */
+int
+main(int argc, const char **argv)
+{
+    quakeparms_t parms;
+    double newtime, time, oldtime;
+
+    // static char cwd[1024];
+    struct timeval timeout;
+    fd_set fdset;
+    int t;
+
+    COM_InitArgv(argc, argv);
+
+    parms.argc = com_argc;
+    parms.argv = com_argv;
+
+    parms.memsize = 16 * 1024 * 1024;
+
+    if ((t = COM_CheckParm("-heapsize")) != 0 && t + 1 < com_argc)
+	parms.memsize = Q_atoi(com_argv[t + 1]) * 1024;
+
+    if ((t = COM_CheckParm("-mem")) != 0 && t + 1 < com_argc)
+	parms.memsize = Q_atoi(com_argv[t + 1]) * 1024 * 1024;
+
+    parms.membase = malloc(parms.memsize);
+
+    if (!parms.membase)
+	Sys_Error("Insufficient memory.");
+
+    parms.basedir = ".";
+    parms.cachedir = NULL;
+
+    SV_Init(&parms);
+
+// run one frame immediately for first heartbeat
+    SV_Frame(0.1);
+
+//
+// main loop
+//
+    oldtime = Sys_DoubleTime() - 0.1;
+    while (1) {
+	// select on the net socket and stdin
+	// the only reason we have a timeout at all is so that if the last
+	// connected client times out, the message would not otherwise
+	// be printed until the next event.
+	FD_ZERO(&fdset);
+	FD_SET(net_socket, &fdset);
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 100;
+	if (select(net_socket + 1, &fdset, NULL, NULL, &timeout) == -1)
+	    continue;
+
+	// find time passed since last cycle
+	newtime = Sys_DoubleTime();
+	time = newtime - oldtime;
+	oldtime = newtime;
+
+	SV_Frame(time);
+    }
+
+    return 0;
+}
+
+#endif /* SERVERONLY */
+
+/*
+ * ===========================================================================
+ * NQ/QW CLIENT ONLY
+ * ===========================================================================
+ */
+#ifndef SERVERONLY
+
+void
+Sys_DebugLog(const char *file, const char *fmt, ...)
+{
+    va_list argptr;
+    static char data[MAX_PRINTMSG];
+    int fd;
+
+    va_start(argptr, fmt);
+    vsnprintf(data, sizeof(data), fmt, argptr);
+    va_end(argptr);
+    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    write(fd, data, strlen(data));
+    close(fd);
+};
 
 void
 Sys_Sleep(void)
 {
+#ifdef NQ_HACK
     Sleep(1);
+#endif
 }
-
 
 void
 Sys_SendKeyEvents(void)
@@ -470,7 +621,6 @@ Sys_SendKeyEvents(void)
 
 	if (!GetMessage(&msg, NULL, 0, 0))
 	    Sys_Quit();
-
 	TranslateMessage(&msg);
 	DispatchMessage(&msg);
     }
@@ -483,42 +633,60 @@ Sys_SendKeyEvents(void)
     IN_ProcessEvents();
 }
 
-
 /*
-==============================================================================
+ * ================
+ * Client Sys_Init
+ * ================
+ */
+void
+Sys_Init(void)
+{
+    OSVERSIONINFO vinfo;
 
- WINDOWS CRAP
+#ifdef QW_HACK
+    /*
+     * Allocate a named semaphore on the client so the front end can tell
+     * if it is alive. Mutex will fail if semephore already exists
+     */
+    qwclsemaphore = CreateMutex(NULL,		/* Security attributes */
+				0,		/* owner       */
+				"qwcl");	/* Semaphore name      */
+    if (!qwclsemaphore)
+	Sys_Error("QWCL is already running on this system");
+    CloseHandle(qwclsemaphore);
 
-==============================================================================
-*/
+    qwclsemaphore = CreateSemaphore(NULL,	/* Security attributes */
+				    0,		/* Initial count       */
+				    1,		/* Maximum count       */
+				    "qwcl");	/* Semaphore name      */
 
+    MaskExceptions();
+    Sys_SetFPCW();
 
-/*
-==================
-WinMain
-==================
-*/
+    // make sure the timer is high precision, otherwise
+    // NT gets 18ms resolution
+    timeBeginPeriod(1);
+#endif
+
+    vinfo.dwOSVersionInfoSize = sizeof(vinfo);
+    if (!GetVersionEx(&vinfo))
+	Sys_Error("Couldn't get OS info");
+
+    if ((vinfo.dwMajorVersion < 4) ||
+	(vinfo.dwPlatformId == VER_PLATFORM_WIN32s)) {
+	Sys_Error("TyrQuake requires at least Win95 or NT 4.0");
+    }
+
+    if (vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT)
+	WinNT = true;
+    else
+	WinNT = false;
+}
+
 static void
 SleepUntilInput(int time)
 {
     MsgWaitForMultipleObjects(1, &tevent, FALSE, time, QS_ALLINPUT);
-}
-
-/*
- * For debugging - Print a Win32 system error string to stdout
- */
-static void
-Print_Win32SystemError(DWORD err)
-{
-    static PVOID buf;
-
-    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
-		      | FORMAT_MESSAGE_FROM_SYSTEM,
-		      NULL, err, 0, (LPTSTR)(&buf), 0, NULL)) {
-	printf("%s: %s\n", __func__, (LPTSTR)buf);
-	fflush(stdout);
-	LocalFree(buf);
-    }
 }
 
 /*
@@ -543,7 +711,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     static char cwd[1024];
     int t;
     RECT rect;
-    DWORD err;
 
     /* previous instances do not exist in Win32 */
     if (hPrevInstance)
@@ -593,9 +760,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     parms.argc = com_argc;
     parms.argv = com_argv;
 
+#ifdef NQ_HACK
     isDedicated = (COM_CheckParm("-dedicated") != 0);
-
     if (!isDedicated) {
+#endif
 	hwnd_dialog =
 	    CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, NULL);
 
@@ -613,9 +781,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 	    UpdateWindow(hwnd_dialog);
 	    SetForegroundWindow(hwnd_dialog);
 	}
+#ifdef NQ_HACK
     }
+#endif
 
     /*
+     * FIXME - size this more appropriately for modern systems & content
+     *
      * Take the greater of all the available memory or half the total
      * memory, but at least MINIMUM_WIN_MEMORY and no more than
      * MAXIMUM_WIN_MEMORY, unless explicitly requested otherwise
@@ -639,15 +811,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     }
 
     parms.membase = malloc(parms.memsize);
-
     if (!parms.membase)
 	Sys_Error("Not enough memory free; check disk space");
 
     tevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-
     if (!tevent)
 	Sys_Error("Couldn't create event");
 
+#ifdef NQ_HACK
     if (isDedicated) {
 	if (!AllocConsole()) {
 	    DWORD err = GetLastError();
@@ -672,13 +843,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 	// FIXME - well, at least from cygwin rxvt it sucks...
 	hinput = GetStdHandle(STD_INPUT_HANDLE);
 	if (!hinput) {
-	    err = GetLastError();
+	    DWORD err = GetLastError();
 	    printf("GetStdHandle(STD_INPUT_HANDLE): Error %i\n", (int)err);
 	    fflush(stdout);
 	}
 	houtput = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (!hinput) {
-	    err = GetLastError();
+	    DWORD err = GetLastError();
 	    printf("GetStdHandle(STD_OUTPUT_HANDLE): Error %i\n", (int)err);
 	    fflush(stdout);
 	}
@@ -701,6 +872,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 
 	InitConProc(hFile, heventParent, heventChild);
     }
+#endif
 
     Sys_Init();
     Sys_InitTimers();
@@ -715,6 +887,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 
     /* main window message loop */
     while (1) {
+#ifdef NQ_HACK
 	if (isDedicated) {
 	    newtime = Sys_DoubleTime();
 	    time = newtime - oldtime;
@@ -724,20 +897,26 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 		newtime = Sys_DoubleTime();
 		time = newtime - oldtime;
 	    }
-	} else {
-	    // yield the CPU for a little while when paused, minimized, or not the focus
-	    if ((cl.paused && (!ActiveApp && !DDActive)) || !window_visible()
-		|| block_drawing) {
-		SleepUntilInput(PAUSE_SLEEP);
-		scr_skipupdate = 1;	// no point in bothering to draw
-	    } else if (!ActiveApp && !DDActive) {
-		SleepUntilInput(NOT_FOCUS_SLEEP);
-	    }
 
-	    newtime = Sys_DoubleTime();
-	    time = newtime - oldtime;
+	    Host_Frame(time);
+	    oldtime = newtime;
+	    continue;
+	}
+#endif
+	/*
+	 * yield the CPU for a little while when paused, minimized,
+	 * or not the focus
+	 */
+	if ((cl.paused && (!ActiveApp && !DDActive)) || !window_visible()
+	    || block_drawing) {
+	    SleepUntilInput(PAUSE_SLEEP);
+	    scr_skipupdate = 1;	/* no point in bothering to draw */
+	} else if (!ActiveApp && !DDActive) {
+	    SleepUntilInput(NOT_FOCUS_SLEEP);
 	}
 
+	newtime = Sys_DoubleTime();
+	time = newtime - oldtime;
 	Host_Frame(time);
 	oldtime = newtime;
     }
@@ -746,34 +925,44 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
     return TRUE;
 }
 
+/*
+================
+Sys_MakeCodeWriteable
+================
+*/
+void
+Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length)
+{
+    DWORD dummy;
+    BOOL success;
+
+    success = VirtualProtect((LPVOID)startaddr, length, PAGE_READWRITE, &dummy);
+    if (!success)
+	Sys_Error("Protection change failed");
+}
+
 #ifndef USE_X86_ASM
-void
-Sys_HighFPPrecision(void)
-{
-}
+void Sys_HighFPPrecision(void) {}
+void Sys_LowFPPrecision(void) {}
+#endif
 
-void
-Sys_LowFPPrecision(void)
+#ifdef NQ_HACK
+/*
+ * For debugging - Print a Win32 system error string to stdout
+ */
+static void
+Print_Win32SystemError(DWORD err)
 {
-}
+    static PVOID buf;
 
-void
-Sys_SetFPCW(void)
-{
-}
-
-void
-Sys_PushFPCW_SetHigh(void)
-{
-}
-
-void
-Sys_PopFPCW(void)
-{
-}
-
-void
-MaskExceptions(void)
-{
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
+		      | FORMAT_MESSAGE_FROM_SYSTEM,
+		      NULL, err, 0, (LPTSTR)(&buf), 0, NULL)) {
+	printf("%s: %s\n", __func__, (LPTSTR)buf);
+	fflush(stdout);
+	LocalFree(buf);
+    }
 }
 #endif
+
+#endif /* !SERVERONLY */
