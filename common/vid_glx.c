@@ -116,13 +116,13 @@ qboolean isPermedia = false;
 void
 D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height)
 {
-// direct drawing of the "accessing disk" icon isn't supported under Linux
+// direct drawing of the "accessing disk" icon isn't supported under GLX
 }
 
 void
 D_EndDirectRect(int x, int y, int width, int height)
 {
-// direct drawing of the "accessing disk" icon isn't supported under Linux
+// direct drawing of the "accessing disk" icon isn't supported under GLX
 }
 
 // XLateKey - Transform from X key symbols to Quake's symbols

@@ -668,7 +668,7 @@ ifeq ($(VID_TARGET),x11)
 CL_CPPFLAGS += -DX11
 CL_OBJS += x11_core.o
 SW_OBJS += vid_x.o
-GL_OBJS += gl_vidlinuxglx.o
+GL_OBJS += vid_glx.o
 CL_LIBS += X11 Xext Xxf86vm
 ifeq ($(USE_XF86DGA),Y)
 CL_CPPFLAGS += -DUSE_XF86DGA
