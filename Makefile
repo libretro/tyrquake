@@ -80,7 +80,7 @@ USE_XF86DGA ?= N
 endif
 ifeq ($(TARGET_UNIX),bsd)
 CD_TARGET ?= bsd
-SND_TARGET ?= linux
+SND_TARGET ?= oss
 USE_XF86DGA ?= Y
 endif
 ifeq ($(TARGET_UNIX),openbsd)
@@ -90,7 +90,7 @@ USE_XF86DGA ?= Y
 endif
 ifeq ($(TARGET_UNIX),linux)
 CD_TARGET ?= linux
-SND_TARGET ?= linux
+SND_TARGET ?= oss
 USE_XF86DGA ?= Y
 endif
 endif
@@ -745,8 +745,8 @@ CL_CPPFLAGS += -idirafter $(DX_INC)
 CL_OBJS += snd_win.o
 # FIXME - direct sound libs?
 endif
-ifeq ($(SND_TARGET),linux)
-CL_OBJS += snd_linux.o
+ifeq ($(SND_TARGET),oss)
+CL_OBJS += snd_oss.o
 endif
 ifeq ($(SND_TARGET),sndio)
 CL_OBJS += snd_sndio.o
