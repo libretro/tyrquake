@@ -29,16 +29,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "sys.h"
 
-#ifdef SERVERONLY
-#include "qwsvdef.h"
-#include "server.h"
-#else
+#ifdef NQ_HACK
+#include "conproc.h"
+#include "host.h"
+#endif
+
+#ifndef SERVERONLY
 #include "client.h"
 #include "input.h"
 #include "quakedef.h"
 #include "resource.h"
 #include "screen.h"
 #include "winquake.h"
+#else
+#include "qwsvdef.h"
+#include "server.h"
 #endif
 
 static double timer_pfreq;
@@ -47,43 +52,40 @@ static unsigned int timer_oldtime;
 static qboolean timer_fallback;
 static DWORD timer_fallback_start;
 
-#ifdef SERVERONLY
-static cvar_t sys_nostdout = { "sys_nostdout", "0" };
-#else
-#define MINIMUM_WIN_MEMORY	0x0c00000
-#define MAXIMUM_WIN_MEMORY	0x1000000
-
-#define PAUSE_SLEEP	50	// sleep time on pause or minimization
-#define NOT_FOCUS_SLEEP	20	// sleep time when not focus
-
-int starttime;
-qboolean ActiveApp;
-qboolean WinNT;
-HWND hwnd_dialog;		// startup dialog box
-static HANDLE qwclsemaphore;
-static HANDLE tevent;
-#endif
-
 void MaskExceptions(void);
 void Sys_PopFPCW(void);
 void Sys_PushFPCW_SetHigh(void);
 
-#ifndef SERVERONLY
-void
-Sys_DebugLog(const char *file, const char *fmt, ...)
-{
-    va_list argptr;
-    static char data[MAX_PRINTMSG];
-    int fd;
+#ifdef SERVERONLY
+static cvar_t sys_nostdout = { "sys_nostdout", "0" };
+#else
+#define MINIMUM_WIN_MEMORY 0x0c00000 /* 12MB */
+#define MAXIMUM_WIN_MEMORY 0x2000000 /* 32MB */
 
-    va_start(argptr, fmt);
-    vsnprintf(data, sizeof(data), fmt, argptr);
-    va_end(argptr);
-    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
-    write(fd, data, strlen(data));
-    close(fd);
-};
+#define PAUSE_SLEEP	50	// sleep time on pause or minimization
+#define NOT_FOCUS_SLEEP	20	// sleep time when not focus
+
+qboolean ActiveApp;
+qboolean WinNT;
+static HANDLE tevent;
+
+#ifdef NQ_HACK
+qboolean isDedicated;
+static qboolean sc_return_on_enter = false;
+static HANDLE hinput, houtput;
+static HANDLE hFile;
+static HANDLE heventParent;
+static HANDLE heventChild;
+
+static void Print_Win32SystemError(DWORD err);
+#define CONSOLE_ERROR_TIMEOUT	60.0	// # of seconds to wait on Sys_Error
+					// running dedicated before exiting
 #endif
+#ifdef QW_HACK
+static HANDLE qwclsemaphore;
+#endif
+#endif /* !SERVERONLY */
+
 
 int
 Sys_FileTime(const char *path)
@@ -411,6 +413,21 @@ main(int argc, const char **argv)
  * ===========================================================================
  */
 #ifndef SERVERONLY
+
+void
+Sys_DebugLog(const char *file, const char *fmt, ...)
+{
+    va_list argptr;
+    static char data[MAX_PRINTMSG];
+    int fd;
+
+    va_start(argptr, fmt);
+    vsnprintf(data, sizeof(data), fmt, argptr);
+    va_end(argptr);
+    fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    write(fd, data, strlen(data));
+    close(fd);
+};
 
 void
 Sys_Sleep(void)
