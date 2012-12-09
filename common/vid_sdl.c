@@ -162,8 +162,6 @@ static cvar_t block_switch = { "block_switch", "0", true };
 static cvar_t vid_window_x = { "vid_window_x", "0", true };
 static cvar_t vid_window_y = { "vid_window_y", "0", true };
 
-cvar_t _windowed_mouse = { "_windowed_mouse", "0", true };
-
 typedef struct {
     int width;
     int height;
@@ -849,6 +847,14 @@ VID_SetMode(int modenum, unsigned char *palette)
     vmode_t *mode;
     int w, h;
     Uint32 flags;
+    qboolean mouse_grab;
+
+    /* FIXME - hack to reset mouse grabs */
+    mouse_grab = _windowed_mouse.value;
+    if (mouse_grab) {
+	_windowed_mouse.value = 0;
+	_windowed_mouse.callback(&_windowed_mouse);
+    }
 
     mode = VID_GetModePtr(modenum);
     w = mode->width;
@@ -919,6 +925,12 @@ VID_SetMode(int modenum, unsigned char *palette)
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)hIcon);
     SendMessage(mainwindow, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)hIcon);
 #endif
+
+    /* FIXME - hack to reset mouse grabs */
+    if (mouse_grab) {
+	_windowed_mouse.value = 1;
+	_windowed_mouse.callback(&_windowed_mouse);
+    }
 
     return true;
 }
@@ -1010,7 +1022,6 @@ VID_Init(unsigned char *palette) /* (byte *palette, byte *colormap) */
     Cvar_RegisterVariable(&_vid_wait_override);
     Cvar_RegisterVariable(&_vid_default_mode);
     Cvar_RegisterVariable(&_vid_default_mode_win);
-    Cvar_RegisterVariable(&_windowed_mouse);
     Cvar_RegisterVariable(&vid_fullscreen_mode);
     Cvar_RegisterVariable(&vid_windowed_mode);
     Cvar_RegisterVariable(&block_switch);

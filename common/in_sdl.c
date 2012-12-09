@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "cdaudio.h"
 #include "common.h"
+#include "console.h"
 #include "cvar.h"
 #include "input.h"
 #include "keys.h"
@@ -33,8 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 cvar_t in_snd_block = { "in_snd_block", "0" };
 
-static qboolean in_mouse_avail;
-static int in_mouse_x, in_mouse_y;
+static qboolean mouse_available;
+static int mouse_x, mouse_y;
 static keydest_t old_key_dest = key_none;
 static int have_focus = 1;
 
@@ -566,8 +567,8 @@ IN_ProcessEvents(void)
 	    break;
 
 	case SDL_MOUSEMOTION:
-	    in_mouse_x += event.motion.xrel;
-	    in_mouse_y += event.motion.yrel;
+	    mouse_x += event.motion.xrel;
+	    mouse_y += event.motion.yrel;
 	    break;
 
 	case SDL_QUIT:
@@ -579,40 +580,106 @@ IN_ProcessEvents(void)
     }
 }
 
-void
-IN_LL_Grab_Input(int grab)
+static void
+IN_GrabMouse(int grab)
 {
-    static int input_grabbed = 0;
+    SDL_bool mouse_grabbed;
+    int err;
 
-    if ((input_grabbed && grab) || (!input_grabbed && !grab))
+    SDL_SetWindowGrab(sdl_window, grab ? SDL_TRUE : SDL_FALSE);
+    mouse_grabbed = SDL_GetWindowGrab(sdl_window);
+    if ((mouse_grabbed && !grab) || (!mouse_grabbed && grab))
+	Con_Printf("%s: grab failed? (%s)\n", __func__, SDL_GetError());
+
+    SDL_SetRelativeMouseMode(mouse_grabbed);
+    err = SDL_ShowCursor(mouse_grabbed ? 0 : 1);
+    if (err < 0)
+	Con_Printf("Unable to %s the mouse cursor (%s)\n",
+		   mouse_grabbed ? "hide" : "unhide", SDL_GetError());
+}
+
+static void
+windowed_mouse_f(struct cvar_s *var)
+{
+    if (var->value) {
+	Con_DPrintf("Callback: _windowed_mouse ON\n");
+	IN_GrabMouse(true);
+    } else {
+	Con_DPrintf("Callback: _windowed_mouse OFF\n");
+	IN_GrabMouse(false);
+    }
+}
+
+cvar_t m_filter = { "m_filter", "0" };
+cvar_t _windowed_mouse = { "_windowed_mouse", "0", true, false, 0,
+			   windowed_mouse_f };
+
+// FIXME - is this target independent?
+static void
+IN_MouseMove(usercmd_t *cmd)
+{
+    static float old_mouse_x, old_mouse_y;
+
+    if (!mouse_available)
 	return;
-#if 0 // API changed...
-    input_grabbed = (SDL_GRAB_ON == SDL_WM_GrabInput(grab ? SDL_GRAB_ON
-						     : SDL_GRAB_OFF));
-#endif
+
+    if (m_filter.value) {
+	mouse_x = (mouse_x + old_mouse_x) * 0.5;
+	mouse_y = (mouse_y + old_mouse_y) * 0.5;
+    }
+
+    old_mouse_x = mouse_x;
+    old_mouse_y = mouse_y;
+
+    mouse_x *= sensitivity.value;
+    mouse_y *= sensitivity.value;
+
+    if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
+	cmd->sidemove += m_side.value * mouse_x;
+    else
+	cl.viewangles[YAW] -= m_yaw.value * mouse_x;
+    if (in_mlook.state & 1)
+	V_StopPitchDrift();
+
+    if ((in_mlook.state & 1) && !(in_strafe.state & 1)) {
+	cl.viewangles[PITCH] += m_pitch.value * mouse_y;
+	if (cl.viewangles[PITCH] > 80)
+	    cl.viewangles[PITCH] = 80;
+	if (cl.viewangles[PITCH] < -70)
+	    cl.viewangles[PITCH] = -70;
+    } else {
+	if ((in_strafe.state & 1) && noclip_anglehack)
+	    cmd->upmove -= m_forward.value * mouse_y;
+	else
+	    cmd->forwardmove -= m_forward.value * mouse_y;
+    }
+    mouse_x = mouse_y = 0.0;
 }
 
 void
 IN_Init(void)
 {
     Q_SDL_InitOnce();
-
 #if 0
     SDL_EnableUNICODE(1); // Enable UNICODE translation for keyboard input
 #endif
-    if (COM_CheckParm("-nomouse"))
-	return;
 
-    in_mouse_x = in_mouse_y = 0.0;
-    in_mouse_avail = 1;
+    mouse_x = mouse_y = 0.0;
+    mouse_available = !COM_CheckParm("-nomouse");
 
     Cvar_RegisterVariable(&in_snd_block);
+    Cvar_RegisterVariable(&m_filter);
+    Cvar_RegisterVariable(&_windowed_mouse);
 }
 
 void
 IN_Shutdown(void)
 {
-    in_mouse_avail = 0;
+    mouse_available = 0;
+
+    if (sdl_window)
+	SDL_SetWindowGrab(sdl_window, SDL_FALSE);
+    SDL_ShowCursor(1);
 }
 
 /* Possibly don't need these? */
@@ -620,7 +687,7 @@ void IN_Accumulate(void) { }
 void IN_UpdateClipCursor(void) { }
 void IN_Move(usercmd_t *cmd)
 {
-    //IN_MouseMove(cmd);
+    IN_MouseMove(cmd);
     //IN_JoyMove(cmd);
 }
 void IN_Commands(void)
