@@ -162,6 +162,12 @@ X11DIRS = /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6 /opt/X11 /opt/
 X11BASE_GUESS := $(call find-localbase,X11/Xlib.h,X11,$(X11DIRS))
 X11BASE ?= $(X11BASE_GUESS)
 
+OGLDIRS = /opt/local /opt/X11
+OGLBASE_GUESS := $(call find-localbase,GL/GL.h,GL,$(OGLDIRS))
+OGLBASE ?= $(OGLBASE_GUESS)
+
+$(info OGLBASE = $(OGLBASE))
+
 # ------------------------------------------------------------------------
 # Try to guess the MinGW cross compiler executables
 # - I've seen i386-mingw32msvc, i586-mingw32msvc (Debian) and now
@@ -583,10 +589,10 @@ endif
 
 # Includes
 COMMON_CPPFLAGS += -iquote $(TOPDIR)/include
-ifneq ($(LOCALBASE),)
-COMMON_CPPFLAGS += -idirafter $(LOCALBASE)/include
-COMMON_LFLAGS += $(call libdir-check,$(LOCALBASE)/lib)
-endif
+COMMON_CPPFLAGS += $(if $(LOCALBASE),-idirafter $(LOCALBASE)/include,)
+COMMON_LFLAGS   += $(if $(LOCALBASE),$(call libdir-check,$(LOCALBASE)/lib,),)
+GL_CPPFLAGS     += $(if $(OGLBASE),-idirafter $(OGLBASE)/include,)
+GL_LFLAGS       += $(if $(OGLBASE),$(call libdir-check,$(OGLBASE)/lib,),)
 NQCL_CPPFLAGS   += -iquote $(TOPDIR)/NQ
 QW_CPPFLAGS     += -iquote $(TOPDIR)/QW/client
 QWSV_CPPFLAGS   += -iquote $(TOPDIR)/QW/server
