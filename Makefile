@@ -166,8 +166,6 @@ OGLDIRS = /opt/local /opt/X11
 OGLBASE_GUESS := $(call find-localbase,GL/GL.h,GL,$(OGLDIRS))
 OGLBASE ?= $(OGLBASE_GUESS)
 
-$(info OGLBASE = $(OGLBASE))
-
 # ------------------------------------------------------------------------
 # Try to guess the MinGW cross compiler executables
 # - I've seen i386-mingw32msvc, i586-mingw32msvc (Debian) and now
