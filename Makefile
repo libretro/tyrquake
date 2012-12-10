@@ -78,12 +78,16 @@ endif
 
 ifeq ($(TARGET_OS),UNIX)
 EXT =
+ifeq ($(TARGET_UNIX),darwin)
+VID_TARGET ?= sdl
+IN_TARGET ?= sdl
+SND_TARGET ?= sdl
+CD_TARGET ?= null
+USE_XF86DGA ?= N
+else
+# All other unix can default to X11
 VID_TARGET ?= x11
 IN_TARGET ?= x11
-ifeq ($(TARGET_UNIX),darwin)
-CD_TARGET ?= null
-SND_TARGET ?= sdl
-USE_XF86DGA ?= N
 endif
 ifeq ($(TARGET_UNIX),bsd)
 CD_TARGET ?= bsd
