@@ -20,7 +20,7 @@ BIN_DIR          ?= bin
 DEBUG            ?= N# Compile with debug info
 OPTIMIZED_CFLAGS ?= Y# Enable compiler optimisations (if DEBUG != Y)
 USE_X86_ASM      ?= $(I386_GUESS)
-USE_SDL          ?= N# New (experimental) SDL video implementation for Win32
+USE_SDL          ?= N# New (experimental) SDL video/sound/input targets
 LOCALBASE        ?= /usr/local
 QBASEDIR         ?= .# Default basedir for quake data files (Linux/BSD only)
 TARGET_OS        ?= $(HOST_OS)
@@ -69,6 +69,13 @@ endif
 # Setup driver options, choosing sensible defaults based on target OS
 # --------------------------------------------------------------------
 
+# USE_SDL -> shortcut to select all SDL targets
+ifeq ($(USE_SDL),Y)
+VID_TARGET ?= sdl
+IN_TARGET ?= sdl
+SND_TARGET ?= sdl
+endif
+
 ifeq ($(TARGET_OS),UNIX)
 EXT =
 VID_TARGET ?= x11
@@ -98,15 +105,9 @@ endif
 ifeq ($(TARGET_OS),WIN32)
 EXT = .exe
 CD_TARGET ?= win
-ifeq ($(USE_SDL),Y)
-VID_TARGET ?= sdl
-IN_TARGET ?= sdl
-SND_TARGET ?= sdl
-else
 VID_TARGET ?= win
 IN_TARGET ?= win
 SND_TARGET ?= win
-endif
 endif
 
 # --------------------------------------------------------------
