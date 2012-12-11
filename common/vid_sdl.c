@@ -991,7 +991,8 @@ VID_Init(unsigned char *palette) /* (byte *palette, byte *colormap) */
      * Init SDL and the video subsystem
      */
     Q_SDL_InitOnce();
-    if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
+    err = SDL_InitSubSystem(SDL_INIT_VIDEO);
+    if (err < 0)
 	Sys_Error("VID: Couldn't load SDL: %s", SDL_GetError());
 
     err = SDL_GetDesktopDisplayMode(0, &desktop_mode);
