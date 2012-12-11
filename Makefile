@@ -598,9 +598,10 @@ NQCL_CPPFLAGS   += -iquote $(TOPDIR)/NQ
 QW_CPPFLAGS     += -iquote $(TOPDIR)/QW/client
 QWSV_CPPFLAGS   += -iquote $(TOPDIR)/QW/server
 
-# Darwin makes OpenGL a bit more of a pain...
-# => if ($TARGET_UNIX == darwin && $VID_TARGET != x11)...
-ifeq ($(filter-out darwin,$(TARGET_UNIX))$(filter x11,$(VID_TARGET)),)
+# If we are on OSX (Darwin) and this is not the GLX target, we will link with
+# "-framework OpenGL" instead. Otherwise, link with libGL as normal
+# => if ($TARGET_OS == UNIX && $TARGET_UNIX == darwin && $VID_TARGET != x11)...
+ifeq ($(filter-out UNIX,$(TARGET_OS))$(filter-out darwin,$(TARGET_UNIX))$(filter x11,$(VID_TARGET)),)
 GL_CPPFLAGS     += -DAPPLE_OPENGL
 GL_LFLAGS       += -framework OpenGL
 else
@@ -666,7 +667,7 @@ COMMON_CPPFLAGS += -DELF
 COMMON_OBJS += net_udp.o sys_unix.o
 COMMON_LIBS += m
 NQCL_OBJS   += net_bsd.o
-# If we are on darwin and this is not the GLX target, we will link with
+# If we are on OSX (Darwin) and this is not the GLX target, we will link with
 # "-framework OpenGL" instead. Otherwise, link with libGL as normal
 # => if ($TARGET_UNIX != darwin || $VID_TARGET == x11)...
 ifneq ($(filter-out darwin,$(TARGET_UNIX))$(filter x11,$(VID_TARGET)),)
