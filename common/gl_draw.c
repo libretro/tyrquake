@@ -39,11 +39,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.h"
 #endif
 
-// FIXME - GL Header hacks for missing define on MinGW 3.1.0-1
-#if defined(_WIN32) && !defined(GL_COLOR_INDEX8_EXT)
-#define GL_COLOR_INDEX8_EXT 0x80E5
-#endif
-
 static cvar_t gl_nobind = { "gl_nobind", "0" };
 static cvar_t gl_picmip = { "gl_picmip", "0" };
 static cvar_t gl_constretch = { "gl_constretch", "0", true };
@@ -1043,36 +1038,6 @@ GL_ResampleTexture(const unsigned *in, int inwidth, int inheight,
 
 /*
 ================
-GL_Resample8BitTexture -- JACK
-================
-*/
-static void
-GL_Resample8BitTexture(const unsigned char *in, int inwidth, int inheight,
-		       unsigned char *out, int outwidth, int outheight)
-{
-    int i, j;
-    const unsigned char *inrow;
-    unsigned frac, fracstep;
-
-    fracstep = inwidth * 0x10000 / outwidth;
-    for (i = 0; i < outheight; i++, out += outwidth) {
-	inrow = in + inwidth * (i * inheight / outheight);
-	frac = fracstep >> 1;
-	for (j = 0; j < outwidth; j += 4) {
-	    out[j] = inrow[frac >> 16];
-	    frac += fracstep;
-	    out[j + 1] = inrow[frac >> 16];
-	    frac += fracstep;
-	    out[j + 2] = inrow[frac >> 16];
-	    frac += fracstep;
-	    out[j + 3] = inrow[frac >> 16];
-	    frac += fracstep;
-	}
-    }
-}
-
-/*
-================
 GL_MipMap
 
 Operates in place, quartering the size of the texture
@@ -1093,41 +1058,6 @@ GL_MipMap(byte *in, int width, int height)
 	    out[1] = (in[1] + in[5] + in[width + 1] + in[width + 5]) >> 2;
 	    out[2] = (in[2] + in[6] + in[width + 2] + in[width + 6]) >> 2;
 	    out[3] = (in[3] + in[7] + in[width + 3] + in[width + 7]) >> 2;
-	}
-    }
-}
-
-/*
-================
-GL_MipMap8Bit
-
-Mipping for 8 bit textures
-================
-*/
-static void
-GL_MipMap8Bit(byte *in, int width, int height)
-{
-    int i, j;
-    unsigned short r, g, b;
-    byte *out, *at1, *at2, *at3, *at4;
-
-    height >>= 1;
-    out = in;
-    for (i = 0; i < height; i++, in += width) {
-	for (j = 0; j < width; j += 2, out += 1, in += 2) {
-	    at1 = (byte *)(d_8to24table + in[0]);
-	    at2 = (byte *)(d_8to24table + in[1]);
-	    at3 = (byte *)(d_8to24table + in[width + 0]);
-	    at4 = (byte *)(d_8to24table + in[width + 1]);
-
-	    r = (at1[0] + at2[0] + at3[0] + at4[0]);
-	    r >>= 5;
-	    g = (at1[1] + at2[1] + at3[1] + at4[1]);
-	    g >>= 5;
-	    b = (at1[2] + at2[2] + at3[2] + at4[2]);
-	    b >>= 5;
-
-	    out[0] = d_15to8table[(r << 0) + (g << 5) + (b << 10)];
 	}
     }
 }
@@ -1202,69 +1132,6 @@ GL_Upload32(const unsigned *data, int width, int height, qboolean mipmap,
     }
 }
 
-void
-GL_Upload8_EXT(const byte *data, int width, int height, qboolean mipmap)
-{
-    static unsigned char scaled[1024 * 512];	// [512*256];
-    int scaled_width, scaled_height;
-
-    for (scaled_width = 1; scaled_width < width; scaled_width <<= 1);
-    for (scaled_height = 1; scaled_height < height; scaled_height <<= 1);
-
-    scaled_width >>= (int)gl_picmip.value;
-    scaled_height >>= (int)gl_picmip.value;
-
-    if (scaled_width > gl_max_size.value)
-	scaled_width = gl_max_size.value;
-    if (scaled_height > gl_max_size.value)
-	scaled_height = gl_max_size.value;
-
-    if (scaled_width * scaled_height > sizeof(scaled))
-	Sys_Error("%s: too big", __func__);
-
-    if (scaled_width == width && scaled_height == height) {
-	if (!mipmap) {
-	    glTexImage2D(GL_TEXTURE_2D, 0, GL_COLOR_INDEX8_EXT, scaled_width,
-			 scaled_height, 0, GL_COLOR_INDEX, GL_UNSIGNED_BYTE,
-			 data);
-	    goto done;
-	}
-	memcpy(scaled, data, width * height);
-    } else
-	GL_Resample8BitTexture(data, width, height, scaled, scaled_width,
-			       scaled_height);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_COLOR_INDEX8_EXT, scaled_width,
-		 scaled_height, 0, GL_COLOR_INDEX, GL_UNSIGNED_BYTE, scaled);
-    if (mipmap) {
-	int miplevel;
-
-	miplevel = 0;
-	while (scaled_width > 1 || scaled_height > 1) {
-	    GL_MipMap8Bit((byte *)scaled, scaled_width, scaled_height);
-	    scaled_width >>= 1;
-	    scaled_height >>= 1;
-	    if (scaled_width < 1)
-		scaled_width = 1;
-	    if (scaled_height < 1)
-		scaled_height = 1;
-	    miplevel++;
-	    glTexImage2D(GL_TEXTURE_2D, miplevel, GL_COLOR_INDEX8_EXT,
-			 scaled_width, scaled_height, 0, GL_COLOR_INDEX,
-			 GL_UNSIGNED_BYTE, scaled);
-	}
-    }
-  done:
-
-    if (mipmap) {
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
-    } else {
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_max);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
-    }
-}
-
 /*
 ===============
 GL_Upload8
@@ -1304,10 +1171,6 @@ GL_Upload8(const byte *data, int width, int height, qboolean mipmap,
 	}
     }
 
-    if (VID_Is8bit() && !alpha && (data != scrap_texels[0])) {
-	GL_Upload8_EXT(data, width, height, mipmap);
-	return;
-    }
     GL_Upload32(trans, width, height, mipmap, alpha);
 }
 

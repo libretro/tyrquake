@@ -247,47 +247,20 @@ R_Init(void)
 
 
 /*
- * ===============
- * ResampleXlate{8,32}
- * ===============
+ * ================
+ * ResampleXlate
+ * ================
  * Resample the source texture while applying colour translation
  *
  * The input texture may be a sub-rectangle (assumed to be left aligned) so
  * input stride is specified separately from input width.
  */
 static void
-ResampleXlate8(const byte *in,
-	       unsigned inwidth, unsigned inheight, unsigned instride,
-	       byte *out, unsigned outwidth, unsigned outheight,
-	       const byte *xlate)
-{
-    int i, j;
-    const byte *inrow;
-    unsigned frac, fracstep;
-
-    fracstep = inwidth * 0x10000 / outwidth;
-    for (i = 0; i < outheight; i++, out += outwidth) {
-	inrow = in + instride * (i * inheight / outheight);
-	frac = fracstep >> 1;
-	for (j = 0; j < outwidth; j += 4) {
-	    out[j] = xlate[inrow[frac >> 16]];
-	    frac += fracstep;
-	    out[j + 1] = xlate[inrow[frac >> 16]];
-	    frac += fracstep;
-	    out[j + 2] = xlate[inrow[frac >> 16]];
-	    frac += fracstep;
-	    out[j + 3] = xlate[inrow[frac >> 16]];
-	    frac += fracstep;
-	}
-    }
-}
-
-static void
-ResampleXlate32(const byte *in,
-		unsigned inwidth, unsigned inheight, unsigned instride,
-		unsigned *out,
-		unsigned outwidth, unsigned outheight,
-		const unsigned *xlate)
+ResampleXlate(const byte *in,
+	      unsigned inwidth, unsigned inheight, unsigned instride,
+	      unsigned *out,
+	      unsigned outwidth, unsigned outheight,
+	      const unsigned *xlate)
 {
     int i, j;
     const byte *inrow;
@@ -321,8 +294,7 @@ void
 R_TranslatePlayerSkin(int playernum)
 {
     int top, bottom;
-    byte translate[256];
-    unsigned translate32[256];
+    unsigned translate[256];
     int i;
     byte *original;
     unsigned pixels[512 * 256];
@@ -366,18 +338,19 @@ R_TranslatePlayerSkin(int playernum)
     bottom = qclamp((int)player->bottomcolor, 0, 13) * 16;
 
     for (i = 0; i < 256; i++)
-	translate[i] = i;
+	translate[i] = d_8to24table[i];
 
     for (i = 0; i < 16; i++) {
-	if (top < 128)		// the artists made some backwards ranges.  sigh.
-	    translate[TOP_RANGE + i] = top + i;
+	/* the artists made some backwards ranges */
+	if (top < 128)
+	    translate[TOP_RANGE + i] = d_8to24table[top + i];
 	else
-	    translate[TOP_RANGE + i] = top + 15 - i;
+	    translate[TOP_RANGE + i] = d_8to24table[top + 15 - i];
 
 	if (bottom < 128)
-	    translate[BOTTOM_RANGE + i] = bottom + i;
+	    translate[BOTTOM_RANGE + i] = d_8to24table[bottom + i];
 	else
-	    translate[BOTTOM_RANGE + i] = bottom + 15 - i;
+	    translate[BOTTOM_RANGE + i] = d_8to24table[bottom + 15 - i];
     }
 
     /*
@@ -432,20 +405,8 @@ R_TranslatePlayerSkin(int playernum)
     scaled_width = qmin((unsigned)gl_max_size.value, scaled_width);
     scaled_height = qmin((unsigned)gl_max_size.value, scaled_height);
 
-    if (VID_Is8bit()) {		// 8bit texture upload
-	ResampleXlate8(original, inwidth, inheight, instride,
-		       (byte *)pixels, scaled_width, scaled_height,
-		       translate);
-	GL_Upload8_EXT((byte *)pixels, scaled_width, scaled_height, false);
-	return;
-    }
-
-    for (i = 0; i < 256; i++)
-	translate32[i] = d_8to24table[translate[i]];
-
-    ResampleXlate32(original, inwidth, inheight, instride,
-		    pixels, scaled_width, scaled_height,
-		    translate32);
+    ResampleXlate(original, inwidth, inheight, instride,
+		  pixels, scaled_width, scaled_height, translate);
     glTexImage2D(GL_TEXTURE_2D, 0, gl_solid_format, scaled_width,
 		 scaled_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 

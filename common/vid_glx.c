@@ -105,7 +105,6 @@ const char *gl_renderer;
 const char *gl_version;
 const char *gl_extensions;
 
-static qboolean is8bit = false;
 qboolean gl_mtexable = false;
 static int gl_num_texture_units;
 
@@ -722,88 +721,19 @@ GL_EndRendering(void)
     glXSwapBuffers(x_disp, x_win);
 }
 
-qboolean
-VID_Is8bit(void)
-{
-    return is8bit;
-}
-
-typedef void (*tdfxSetPaletteFUNC) (GLuint *);
-typedef void (*ColorTableFUNC) (GLenum, GLenum, GLsizei, GLenum, GLenum,
-				const GLvoid *);
-
-// FIXME - allow 8-bit palettes to be enabled/disabled
-static void
-VID_Init8bitPalette(void)
-{
-    /*
-     * Check for 8bit Extensions and initialize them.
-     * Try color table extension first, then 3dfx specific
-     */
-    tdfxSetPaletteFUNC qgl3DfxSetPaletteEXT;
-    ColorTableFUNC qglColorTableEXT;
-    int i;
-
-    if (strstr(gl_extensions, "GL_EXT_shared_texture_palette")) {
-	char thePalette[256 * 3];
-	char *oldPalette, *newPalette;
-
-	qglColorTableEXT =
-	    (ColorTableFUNC)qglXGetProcAddress("glColorTableEXT");
-	Con_SafePrintf("8-bit GL extensions enabled.\n");
-	glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
-	oldPalette = (char *)d_8to24table;	//d_8to24table3dfx;
-	newPalette = thePalette;
-	for (i = 0; i < 256; i++) {
-	    *newPalette++ = *oldPalette++;
-	    *newPalette++ = *oldPalette++;
-	    *newPalette++ = *oldPalette++;
-	    oldPalette++;
-	}
-	qglColorTableEXT(GL_SHARED_TEXTURE_PALETTE_EXT, GL_RGB, 256, GL_RGB,
-			 GL_UNSIGNED_BYTE, (void *)thePalette);
-	is8bit = true;
-    } else if (strstr(gl_extensions, "3DFX_set_global_palette")) {
-	GLubyte table[256][4];
-	char *oldpal;
-
-	qgl3DfxSetPaletteEXT =
-	    (tdfxSetPaletteFUNC)qglXGetProcAddress("gl3DfxSetPaletteEXT");
-	Con_SafePrintf("8-bit GL extensions (3dfx) enabled.\n");
-	oldpal = (char *)d_8to24table;	//d_8to24table3dfx;
-	for (i = 0; i < 256; i++) {
-	    table[i][2] = *oldpal++;
-	    table[i][1] = *oldpal++;
-	    table[i][0] = *oldpal++;
-	    table[i][3] = 255;
-	    oldpal++;
-	}
-	glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
-	qgl3DfxSetPaletteEXT((GLuint *)table);
-	is8bit = true;
-    }
-}
-
 #if 0
 /* FIXME - re-enable? */
 static void
-Check_Gamma (unsigned char *pal)
+Check_Gamma(unsigned char *pal)
 {
-    float       f, inf;
+    float f, inf;
     unsigned char palette[768];
-    int         i;
+    int i;
 
-    if ((i = COM_CheckParm("-gamma")) == 0) {
-	if ((gl_renderer && strstr(gl_renderer, "Voodoo")) ||
-	    (gl_vendor && strstr(gl_vendor, "3Dfx"))) {
-	    vid_gamma = 1;
-	} else {
-	    //vid_gamma = 0.7;	// default to 0.7 on non-3dfx hardware
-	    vid_gamma = 1.0;	// Be like the original...
-	}
-    } else {
+    if ((i = COM_CheckParm("-gamma")) == 0)
+	vid_gamma = 1.0;
+    else
 	vid_gamma = Q_atof(com_argv[i + 1]);
-    }
 
     for (i = 0; i < 768; i++) {
 	f = pow((pal[i] + 1) / 256.0, vid_gamma);
@@ -1029,9 +959,6 @@ VID_Init(unsigned char *palette)
     Sys_mkdir(gldir);
 
     VID_SetPalette(palette);
-
-    // Check for 3DFX Extensions and initialize them.
-    VID_Init8bitPalette();
 
     Con_SafePrintf("Video mode %dx%d initialized.\n", width, height);
 
