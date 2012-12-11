@@ -557,14 +557,16 @@ IN_ProcessEvents(void)
 		Key_Event(K_MOUSE1 + but - 1,
 			  event.type == SDL_MOUSEBUTTONDOWN);
 		break;
-	    case 4:
-		Key_Event(K_MWHEELUP,
-			  event.type == SDL_MOUSEBUTTONDOWN);
-		break;
-	    case 5:
-		Key_Event(K_MWHEELDOWN,
-			  event.type == SDL_MOUSEBUTTONDOWN);
-		break;
+	    }
+	    break;
+
+	case SDL_MOUSEWHEEL:
+	    if (event.wheel.y < 0) {
+		Key_Event(K_MWHEELDOWN, true);
+		Key_Event(K_MWHEELDOWN, false);
+	    } else if (event.wheel.y > 0) {
+		Key_Event(K_MWHEELUP, true);
+		Key_Event(K_MWHEELUP, false);
 	    }
 	    break;
 
