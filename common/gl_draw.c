@@ -103,11 +103,8 @@ GL_Bind(int texnum)
     if (currenttexture == texnum)
 	return;
     currenttexture = texnum;
-#ifdef _WIN32
-    bindTexFunc(GL_TEXTURE_2D, texnum);
-#else
+
     glBindTexture(GL_TEXTURE_2D, texnum);
-#endif
 }
 
 
