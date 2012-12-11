@@ -22,7 +22,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MODEL_H
 
 #ifdef GLQUAKE
+#ifdef APPLE_OPENGL
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 #endif
 
 #include "bspfile.h"

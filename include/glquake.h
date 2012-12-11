@@ -25,7 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <windows.h>
 #endif
 
+#ifdef APPLE_OPENGL
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
+
 #ifdef _WIN32
 #include <GL/glext.h>
 #endif
