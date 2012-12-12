@@ -831,10 +831,10 @@ SZ_GetSpace(sizebuf_t *buf, int length)
 
     if (buf->cursize + length > buf->maxsize) {
 	if (!buf->allowoverflow)
-	    Sys_Error("%s: overflow without allowoverflow set (%d)", __func__,
-		      buf->maxsize);
+	    Sys_Error("%s: overflow without allowoverflow set (%d > %d)",
+		      __func__, buf->cursize + length, buf->maxsize);
 	if (length > buf->maxsize)
-	    Sys_Error("%s: %i is > full buffer size", __func__, length);
+	    Sys_Error("%s: %d is > full buffer size", __func__, length);
 	if (developer.value)
 	    /* Con_Printf may be redirected */
 	    Sys_Printf("%s: overflow\n", __func__);
