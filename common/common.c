@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <ctype.h>
 #include <dirent.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -461,6 +462,33 @@ MSG_WriteString(sizebuf_t *sb, const char *s)
 	SZ_Write(sb, "", 1);
     else
 	SZ_Write(sb, s, strlen(s) + 1);
+}
+
+void
+MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
+{
+    int maxlen, len;
+
+    /*
+     * FIXME - Kind of ugly to check space first then do getspace
+     * afterwards, but we don't know how much we'll need before
+     * hand. Update the SZ interface?
+     */
+    maxlen = sb->maxsize - sb->cursize;
+    len = vsnprintf((char *)sb->data + sb->cursize, maxlen, fmt, ap);
+
+    /* Use SZ_GetSpace to check for overflow */
+    SZ_GetSpace(sb, len + 1);
+}
+
+void
+MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    MSG_WriteStringvf(sb, fmt, ap);
+    va_end(ap);
 }
 
 void

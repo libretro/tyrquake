@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdarg.h>
 #include <stdio.h>
 
 #include "qtypes.h"
@@ -116,6 +117,10 @@ void MSG_WriteShort(sizebuf_t *sb, int c);
 void MSG_WriteLong(sizebuf_t *sb, int c);
 void MSG_WriteFloat(sizebuf_t *sb, float f);
 void MSG_WriteString(sizebuf_t *sb, const char *s);
+void MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...)
+    __attribute__((format(printf,2,3)));
+void MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
+    __attribute__((format(printf,2,0)));
 void MSG_WriteCoord(sizebuf_t *sb, float f);
 void MSG_WriteAngle(sizebuf_t *sb, float f);
 #ifdef QW_HACK
