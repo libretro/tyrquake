@@ -299,6 +299,11 @@ SV_FullClientUpdate(client_t *client, sizebuf_t *buf)
     MSG_WriteByte(buf, i);
     MSG_WriteFloat(buf, realtime - client->connection_started);
 
+    /*
+     * FIXME - this is safe becuase client->userinfo is also MAX_INFO_STRING
+     * bytes, but this is just ugly. Maintain the prefixed keys in a separate
+     * buffer?
+     */
     strcpy(info, client->userinfo);
     Info_RemovePrefixedKeys(info, '_');	// server passwords, etc
 

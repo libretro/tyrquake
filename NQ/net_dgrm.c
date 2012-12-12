@@ -614,8 +614,8 @@ Test2_Poll(struct test_poll_state *state)
     netadr_t clientaddr;
     int control;
     int len;
-    char name[256];
-    char value[256];
+    char name[256]; /* FIXME */
+    char value[256]; /* FIXME */
 
     name[0] = 0;
 
