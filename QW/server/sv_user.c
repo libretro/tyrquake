@@ -115,8 +115,8 @@ SV_New_f(void)
 
     // send server info string
     MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
-    MSG_WriteString(&host_client->netchan.message,
-		    va("fullserverinfo \"%s\"\n", svs.info));
+    MSG_WriteStringf(&host_client->netchan.message,
+		     "fullserverinfo \"%s\"\n", svs.info);
 }
 
 /*
@@ -275,12 +275,12 @@ SV_PreSpawn_f(void)
     buf++;
     if (buf == sv.num_signon_buffers) {	// all done prespawning
 	MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
-	MSG_WriteString(&host_client->netchan.message,
-			va("cmd spawn %i 0\n", svs.spawncount));
+	MSG_WriteStringf(&host_client->netchan.message, "cmd spawn %i 0\n",
+			 svs.spawncount);
     } else {			// need to prespawn more
 	MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
-	MSG_WriteString(&host_client->netchan.message,
-			va("cmd prespawn %i %i\n", svs.spawncount, buf));
+	MSG_WriteStringf(&host_client->netchan.message, "cmd prespawn %i %i\n",
+			 svs.spawncount, buf);
     }
 }
 

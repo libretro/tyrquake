@@ -305,14 +305,11 @@ void
 SV_ClientPrintf(const char *fmt, ...)
 {
     va_list argptr;
-    char string[MAX_PRINTMSG];
-
-    va_start(argptr, fmt);
-    vsnprintf(string, sizeof(string), fmt, argptr);
-    va_end(argptr);
 
     MSG_WriteByte(&host_client->message, svc_print);
-    MSG_WriteString(&host_client->message, string);
+    va_start(argptr, fmt);
+    MSG_WriteStringvf(&host_client->message, fmt, argptr);
+    va_end(argptr);
 }
 
 /*
@@ -326,17 +323,14 @@ void
 SV_BroadcastPrintf(const char *fmt, ...)
 {
     va_list argptr;
-    char string[MAX_PRINTMSG];
     int i;
-
-    va_start(argptr, fmt);
-    vsnprintf(string, sizeof(string), fmt, argptr);
-    va_end(argptr);
 
     for (i = 0; i < svs.maxclients; i++)
 	if (svs.clients[i].active && svs.clients[i].spawned) {
 	    MSG_WriteByte(&svs.clients[i].message, svc_print);
-	    MSG_WriteString(&svs.clients[i].message, string);
+	    va_start(argptr, fmt);
+	    MSG_WriteStringvf(&svs.clients[i].message, fmt, argptr);
+	    va_end(argptr);
 	}
 }
 
@@ -351,14 +345,11 @@ void
 Host_ClientCommands(const char *fmt, ...)
 {
     va_list argptr;
-    char string[MAX_PRINTMSG];
-
-    va_start(argptr, fmt);
-    vsnprintf(string, sizeof(string), fmt, argptr);
-    va_end(argptr);
 
     MSG_WriteByte(&host_client->message, svc_stufftext);
-    MSG_WriteString(&host_client->message, string);
+    va_start(argptr, fmt);
+    MSG_WriteStringvf(&host_client->message, fmt, argptr);
+    va_end(argptr);
 }
 
 /*

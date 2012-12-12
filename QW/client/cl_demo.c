@@ -466,7 +466,7 @@ CL_Record_f(void)
 
     // send server info string
     MSG_WriteByte(&buf, svc_stufftext);
-    MSG_WriteString(&buf, va("fullserverinfo \"%s\"\n", cl.serverinfo));
+    MSG_WriteStringf(&buf, "fullserverinfo \"%s\"\n", cl.serverinfo);
 
     // flush packet
     CL_WriteRecordDemoMessage(&buf, seq++);
@@ -581,7 +581,7 @@ CL_Record_f(void)
     }
 
     MSG_WriteByte(&buf, svc_stufftext);
-    MSG_WriteString(&buf, va("cmd spawn %i 0\n", cl.servercount));
+    MSG_WriteStringf(&buf, "cmd spawn %i 0\n", cl.servercount);
 
     if (buf.cursize) {
 	CL_WriteRecordDemoMessage(&buf, seq++);
@@ -653,7 +653,7 @@ CL_Record_f(void)
     // get the client to check and download skins
     // when that is completed, a begin command will be issued
     MSG_WriteByte(&buf, svc_stufftext);
-    MSG_WriteString(&buf, va("skins\n"));
+    MSG_WriteString(&buf, "skins\n");
 
     CL_WriteRecordDemoMessage(&buf, seq++);
 

@@ -300,12 +300,11 @@ void
 SV_SendServerinfo(client_t *client)
 {
     char **s;
-    char message[2048];
 
     MSG_WriteByte(&client->message, svc_print);
-    sprintf(message, "%c\nVERSION TyrQuake-%s SERVER (%i CRC)", 2,
-	    stringify(TYR_VERSION), pr_crc);
-    MSG_WriteString(&client->message, message);
+    MSG_WriteStringf(&client->message,
+		     "%c\nVERSION TyrQuake-%s SERVER (%i CRC)",
+		     2, stringify(TYR_VERSION), pr_crc);
 
     MSG_WriteByte(&client->message, svc_serverinfo);
     MSG_WriteLong(&client->message, sv.protocol);
@@ -316,9 +315,7 @@ SV_SendServerinfo(client_t *client)
     else
 	MSG_WriteByte(&client->message, GAME_COOP);
 
-    sprintf(message, "%s", PR_GetString(sv.edicts->v.message));
-
-    MSG_WriteString(&client->message, message);
+    MSG_WriteString(&client->message, PR_GetString(sv.edicts->v.message));
 
     for (s = sv.model_precache + 1; *s; s++)
 	MSG_WriteString(&client->message, *s);

@@ -221,8 +221,6 @@ An svc_signonnum has been received, perform a client side setup
 void
 CL_SignonReply(void)
 {
-    char str[8192];
-
     Con_DPrintf("CL_SignonReply: %i\n", cls.signon);
 
     switch (cls.signon) {
@@ -233,16 +231,15 @@ CL_SignonReply(void)
 
     case 2:
 	MSG_WriteByte(&cls.message, clc_stringcmd);
-	MSG_WriteString(&cls.message, va("name \"%s\"\n", cl_name.string));
+	MSG_WriteStringf(&cls.message, "name \"%s\"\n", cl_name.string);
 
 	MSG_WriteByte(&cls.message, clc_stringcmd);
-	MSG_WriteString(&cls.message, va("color %i %i\n",
-					 ((int)cl_color.value) >> 4,
-					 ((int)cl_color.value) & 15));
+	MSG_WriteStringf(&cls.message, "color %i %i\n",
+			 ((int)cl_color.value) >> 4,
+			 ((int)cl_color.value) & 15);
 
 	MSG_WriteByte(&cls.message, clc_stringcmd);
-	sprintf(str, "spawn %s", cls.spawnparms);
-	MSG_WriteString(&cls.message, str);
+	MSG_WriteStringf(&cls.message, "spawn %s", cls.spawnparms);
 	break;
 
     case 3:

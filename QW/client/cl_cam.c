@@ -128,11 +128,8 @@ Cam_Unlock(void)
 static void
 Cam_Lock(int playernum)
 {
-    char st[40];
-
-    sprintf(st, "ptrack %i", playernum);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    MSG_WriteString(&cls.netchan.message, st);
+    MSG_WriteStringf(&cls.netchan.message, "ptrack %i", playernum);
     spec_track = playernum;
     cam_forceview = true;
     locked = false;
