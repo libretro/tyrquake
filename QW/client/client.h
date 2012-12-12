@@ -380,12 +380,6 @@ void CL_BeginServerConnect(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern char emodel_name[];
-extern char pmodel_name[];
-extern char prespawn_name[];
-extern char modellist_name[];
-extern char soundlist_name[];
-
 extern int fps_count;
 extern int minimum_memory;
 

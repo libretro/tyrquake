@@ -152,31 +152,6 @@ int fps_count;
 static jmp_buf host_abort;
 static float server_version = 0;// version of server we connected to
 
-char emodel_name[] =
-    { 'e' ^ 0xff, 'm' ^ 0xff, 'o' ^ 0xff, 'd' ^ 0xff, 'e' ^ 0xff, 'l' ^ 0xff,
-    0
-};
-char pmodel_name[] =
-    { 'p' ^ 0xff, 'm' ^ 0xff, 'o' ^ 0xff, 'd' ^ 0xff, 'e' ^ 0xff, 'l' ^ 0xff,
-    0
-};
-char prespawn_name[] =
-    { 'p' ^ 0xff, 'r' ^ 0xff, 'e' ^ 0xff, 's' ^ 0xff, 'p' ^ 0xff, 'a' ^ 0xff,
-    'w' ^ 0xff, 'n' ^ 0xff,
-    ' ' ^ 0xff, '%' ^ 0xff, 'i' ^ 0xff, ' ' ^ 0xff, '0' ^ 0xff, ' ' ^ 0xff,
-    '%' ^ 0xff, 'i' ^ 0xff, 0
-};
-char modellist_name[] =
-    { 'm' ^ 0xff, 'o' ^ 0xff, 'd' ^ 0xff, 'e' ^ 0xff, 'l' ^ 0xff, 'l' ^ 0xff,
-    'i' ^ 0xff, 's' ^ 0xff, 't' ^ 0xff,
-    ' ' ^ 0xff, '%' ^ 0xff, 'i' ^ 0xff, ' ' ^ 0xff, '%' ^ 0xff, 'i' ^ 0xff, 0
-};
-char soundlist_name[] =
-    { 's' ^ 0xff, 'o' ^ 0xff, 'u' ^ 0xff, 'n' ^ 0xff, 'd' ^ 0xff, 'l' ^ 0xff,
-    'i' ^ 0xff, 's' ^ 0xff, 't' ^ 0xff,
-    ' ' ^ 0xff, '%' ^ 0xff, 'i' ^ 0xff, ' ' ^ 0xff, '%' ^ 0xff, 'i' ^ 0xff, 0
-};
-
 /*
 ==================
 CL_Quit_f
@@ -645,7 +620,7 @@ CL_FullInfo_f(void)
 	if (*s)
 	    s++;
 
-	if (!strcasecmp(key, pmodel_name) || !strcasecmp(key, emodel_name))
+	if (!strcasecmp(key, "pmodel") || !strcasecmp(key, "emodel"))
 	    continue;
 
 	Info_SetValueForKey(cls.userinfo, key, value, MAX_INFO_STRING);
@@ -670,8 +645,7 @@ CL_SetInfo_f(void)
 	Con_Printf("usage: setinfo [ <key> <value> ]\n");
 	return;
     }
-    if (!strcasecmp(Cmd_Argv(1), pmodel_name)
-	|| !strcmp(Cmd_Argv(1), emodel_name))
+    if (!strcasecmp(Cmd_Argv(1), "pmodel") || !strcmp(Cmd_Argv(1), "emodel"))
 	return;
 
     Info_SetValueForKey(cls.userinfo, Cmd_Argv(1), Cmd_Argv(2),
@@ -1423,23 +1397,6 @@ Host_Frame(float time)
     fps_count++;
 }
 
-static void
-simple_crypt(char *buf, int len)
-{
-    while (len--)
-	*buf++ ^= 0xff;
-}
-
-void
-Host_FixupModelNames(void)
-{
-    simple_crypt(emodel_name, sizeof(emodel_name) - 1);
-    simple_crypt(pmodel_name, sizeof(pmodel_name) - 1);
-    simple_crypt(prespawn_name, sizeof(prespawn_name) - 1);
-    simple_crypt(modellist_name, sizeof(modellist_name) - 1);
-    simple_crypt(soundlist_name, sizeof(soundlist_name) - 1);
-}
-
 //============================================================================
 
 /*
@@ -1472,8 +1429,6 @@ Host_Init(quakeparms_t *parms)
     V_Init();
 
     COM_Init();
-
-    Host_FixupModelNames();
 
     NET_Init(PORT_CLIENT);
     Netchan_Init();

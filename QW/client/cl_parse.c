@@ -261,9 +261,8 @@ Model_NextDownload(void)
 
     // done with modellist, request first of static signon messages
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-//      MSG_WriteString (&cls.netchan.message, va("prespawn %i 0 %i", cl.servercount, cl.worldmodel->checksum2));
     MSG_WriteString(&cls.netchan.message,
-		    va(prespawn_name, cl.servercount,
+		    va("prespawn %i 0 %i", cl.servercount,
 		       cl.worldmodel->checksum2));
 }
 
@@ -302,9 +301,8 @@ Sound_NextDownload(void)
     cl_spikeindex = -1;
     cl_flagindex = -1;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-//      MSG_WriteString (&cls.netchan.message, va("modellist %i 0", cl.servercount));
     MSG_WriteString(&cls.netchan.message,
-		    va(modellist_name, cl.servercount, 0));
+		    va("modellist %i 0", cl.servercount));
 }
 
 
@@ -602,16 +600,15 @@ CL_ParseServerData(void)
     movevars.entgravity = MSG_ReadFloat();
 
     // seperate the printfs so the server message can have a color
-    Con_Printf
-	("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n\n");
+    Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
+	       "\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n\n");
     Con_Printf("%c%s\n", 2, str);
 
     // ask for the sound list next
     memset(cl.sound_name, 0, sizeof(cl.sound_name));
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-//      MSG_WriteString (&cls.netchan.message, va("soundlist %i 0", cl.servercount));
     MSG_WriteString(&cls.netchan.message,
-		    va(soundlist_name, cl.servercount, 0));
+		    va("soundlist %i 0", cl.servercount));
 
     // now waiting for downloads, etc
     cls.state = ca_onserver;
@@ -633,7 +630,6 @@ CL_ParseSoundlist(void)
 //      memset (cl.sound_precache, 0, sizeof(cl.sound_precache));
 
     numsounds = MSG_ReadByte();
-
     for (;;) {
 	str = MSG_ReadString();
 	if (!str[0])
@@ -645,12 +641,10 @@ CL_ParseSoundlist(void)
     }
 
     n = MSG_ReadByte();
-
     if (n) {
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-//              MSG_WriteString (&cls.netchan.message, va("soundlist %i %i", cl.servercount, n));
 	MSG_WriteString(&cls.netchan.message,
-			va(soundlist_name, cl.servercount, n));
+			va("soundlist %i %i", cl.servercount, n));
 	return;
     }
 
@@ -695,9 +689,8 @@ CL_ParseModellist(void)
 
     if (n) {
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-//              MSG_WriteString (&cls.netchan.message, va("modellist %i %i", cl.servercount, n));
 	MSG_WriteString(&cls.netchan.message,
-			va(modellist_name, cl.servercount, n));
+			va("modellist %i %i", cl.servercount, n));
 	return;
     }
 

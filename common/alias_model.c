@@ -247,13 +247,13 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 	snprintf(st, sizeof(st), "%d", (int)crc);
 	Info_SetValueForKey(cls.userinfo,
 			    !strcmp(loadmodel->name, "progs/player.mdl") ?
-			    pmodel_name : emodel_name, st, MAX_INFO_STRING);
+			    "pmodel" : "emodel", st, MAX_INFO_STRING);
 
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 	    snprintf(st, sizeof(st), "setinfo %s %d",
 		     !strcmp(loadmodel->name, "progs/player.mdl") ?
-		     pmodel_name : emodel_name, (int)crc);
+		     "pmodel" : "emodel", (int)crc);
 	    SZ_Print(&cls.netchan.message, st);
 	}
     }
