@@ -233,28 +233,27 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     float *intervals;
 
 #ifdef QW_HACK
-    if (!strcmp(loadmodel->name, "progs/player.mdl") ||
-	!strcmp(loadmodel->name, "progs/eyes.mdl")) {
+    const char *crcmodel = NULL;
+    if (!strcmp(loadmodel->name, "progs/player.mdl"))
+	crcmodel = "pmodel";
+    if (!strcmp(loadmodel->name, "progs/player.mdl"))
+	crcmodel = "emodel";
+
+    if (crcmodel) {
 	unsigned short crc;
 	byte *p;
 	int len;
-	char st[40];
 
 	CRC_Init(&crc);
 	for (len = com_filesize, p = buffer; len; len--, p++)
 	    CRC_ProcessByte(&crc, *p);
 
-	snprintf(st, sizeof(st), "%d", (int)crc);
-	Info_SetValueForKey(cls.userinfo,
-			    !strcmp(loadmodel->name, "progs/player.mdl") ?
-			    "pmodel" : "emodel", st, MAX_INFO_STRING);
-
+	Info_SetValueForKey(cls.userinfo, crcmodel, va("%d", (int)crc),
+			    MAX_INFO_STRING);
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	    snprintf(st, sizeof(st), "setinfo %s %d",
-		     !strcmp(loadmodel->name, "progs/player.mdl") ?
-		     "pmodel" : "emodel", (int)crc);
-	    SZ_Print(&cls.netchan.message, st);
+	    MSG_WriteStringf(&cls.netchan.message, "setinfo %s %d", crcmodel,
+			     (int)crc);
 	}
     }
 #endif
