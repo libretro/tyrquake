@@ -663,7 +663,7 @@ Key_Bind_f
 void
 Key_Bind_f(void)
 {
-    int i, c, b;
+    int i, c, b, len;
     char cmd[1024];
 
     // FIXME - allow arguments bound with the commands?
@@ -686,12 +686,25 @@ Key_Bind_f(void)
 	    Con_Printf("\"%s\" is not bound\n", Cmd_Argv(1));
 	return;
     }
+
     // copy the rest of the command line
+    len = strlen(Cmd_Argv(2));
+    if (len >= sizeof(cmd)) {
+	Con_Printf("bind command too long (MAX = %d)", (int)sizeof(cmd));
+	return;
+    }
     strcpy(cmd, Cmd_Argv(2));
+
     for (i = 3; i < c; i++) {
+	len += 1 + strlen(Cmd_Argv(i));
+	if (len >= sizeof(cmd)) {
+	    Con_Printf("bind command too long (MAX = %d)", (int)sizeof(cmd));
+	    return;
+	}
 	strcat(cmd, " ");
 	strcat(cmd, Cmd_Argv(i));
     }
+
     Key_SetBinding(b, cmd);
 }
 
