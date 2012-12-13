@@ -801,7 +801,7 @@ SCR_RSShot_f(void)
 
     if (!scr_allowsnap.value) {
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	SZ_Print(&cls.netchan.message, "snap\n");
+	MSG_WriteString(&cls.netchan.message, "snap\n");
 	Con_Printf("Refusing remote screen shot request.\n");
 	return;
     }

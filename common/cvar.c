@@ -205,8 +205,8 @@ Cvar_Set(const char *var_name, const char *value)
 	Info_SetValueForKey(cls.userinfo, var_name, value, MAX_INFO_STRING);
 	if (cls.state >= ca_connected) {
 	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	    SZ_Print(&cls.netchan.message,
-		     va("setinfo \"%s\" \"%s\"\n", var_name, value));
+	    MSG_WriteStringf(&cls.netchan.message, "setinfo \"%s\" \"%s\"\n",
+			     var_name, value);
 	}
     }
 #endif

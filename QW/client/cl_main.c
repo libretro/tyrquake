@@ -1005,7 +1005,7 @@ CL_Download_f(void)
     cls.downloadtype = dl_single;
 
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Print(&cls.netchan.message, va("download %s\n", Cmd_Argv(1)));
+    MSG_WriteStringf(&cls.netchan.message, "download %s\n", Cmd_Argv(1));
 }
 
 /* FIXME - more hacks... */

@@ -398,7 +398,7 @@ CL_ParseDownload(void)
 	cls.downloadpercent = percent;
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	SZ_Print(&cls.netchan.message, "nextdl");
+	MSG_WriteString(&cls.netchan.message, "nextdl");
     } else {
 	char oldn[MAX_OSPATH];
 	char newn[MAX_OSPATH];
