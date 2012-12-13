@@ -436,12 +436,9 @@ Draw_Init(void)
     //         GL_PROXY_TEXTURE_2D
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &i);
     if (gl_max_size.value > i) {
-	char tmp[20];
-
 	Con_DPrintf("Reducing gl_max_size from %i to %i\n",
 		    (int)gl_max_size.value, i);
-	snprintf(tmp, 20, "%i", i);
-	Cvar_Set("gl_max_size", tmp);
+	Cvar_Set("gl_max_size", va("%i", i));
     }
 #if 0
     // 3dfx can only handle 256 wide textures
