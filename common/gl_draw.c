@@ -440,13 +440,6 @@ Draw_Init(void)
 		    (int)gl_max_size.value, i);
 	Cvar_Set("gl_max_size", va("%i", i));
     }
-#if 0
-    // 3dfx can only handle 256 wide textures
-    // FIXME - remove when proper tex size queries working?
-    if (!strncasecmp((char *)gl_renderer, "3dfx", 4) ||
-	!strncasecmp((char *)gl_renderer, "Mesa", 4))
-	Cvar_Set("gl_max_size", "256");
-#endif
 
     Cmd_AddCommand("gl_texturemode", &Draw_TextureMode_f);
 
