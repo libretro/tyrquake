@@ -370,7 +370,6 @@ GL_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
     int i, skinsize;
     GLuint *glt;
     char loadname[MAX_QPATH];	/* for hunk tags */
-    char name[32];
 
     COM_FileBase(modelname, loadname);
     skinsize = ahdr->skinwidth * ahdr->skinheight;
@@ -391,10 +390,8 @@ GL_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 	    memcpy(player_8bit_texels, skindata[i], skinsize);
 #endif
 	}
-	snprintf(name, sizeof(name), "%s_%i", loadname, i);
-	name[sizeof(name) - 1] = 0;
-	glt[i] = GL_LoadTexture(name, ahdr->skinwidth, ahdr->skinheight,
-				skindata[i], true, false);
+	glt[i] = GL_LoadTexture(va("%s_%i", loadname, i), ahdr->skinwidth,
+				ahdr->skinheight, skindata[i], true, false);
     }
 
     return glt;

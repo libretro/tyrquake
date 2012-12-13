@@ -806,17 +806,17 @@ Draw_ConsoleBackground(int lines)
 
 #ifdef QW_HACK
     {
-	char ver[40];
+	const char *version;
 	int x, i;
 
 	// hack the version number directly into the pic
 	y = lines - 14;
 	if (!cls.download) {
-	    sprintf(ver, "TyrQuake (%s) QuakeWorld", stringify(TYR_VERSION));
-	    x = vid.conwidth - (strlen(ver) * 8 + 11) -
+	    version = va("TyrQuake (%s) QuakeWorld", stringify(TYR_VERSION));
+	    x = vid.conwidth - (strlen(version) * 8 + 11) -
 		(vid.conwidth * 8 / conback->width) * 7;
-	    for (i = 0; i < strlen(ver); i++)
-		Draw_Character(x + i * 8, y, ver[i] | 0x80);
+	    for (i = 0; i < strlen(version); i++)
+		Draw_Character(x + i * 8, y, version[i] | 0x80);
 	}
     }
 #endif
