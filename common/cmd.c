@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cmd.c -- Quake script command processing module
 
+#include <string.h>
+
 #include "client.h"
 #include "cmd.h"
 #include "common.h"
@@ -125,34 +127,28 @@ Cbuf_AddText(const char *text)
 ============
 Cbuf_InsertText
 
-Adds command text immediately after the current command
-Adds a \n to the text
-FIXME: actually change the command buffer to do less copying
+Adds command text immediately after the current command (i.e. at the start
+of the command buffer). Adds a \n to the text.
 ============
 */
 void
 Cbuf_InsertText(const char *text)
 {
-    char *temp;
-    int templen;
+    int len;
 
-// copy off any commands still remaining in the exec buffer
-    templen = cmd_text.cursize;
-    if (templen) {
-	temp = Z_Malloc(templen);
-	memcpy(temp, cmd_text.data, templen);
-	SZ_Clear(&cmd_text);
-    } else
-	temp = NULL;		// shut up compiler
+    len = strlen(text);
+    if (cmd_text.cursize) {
+	if (cmd_text.cursize + len + 1 > cmd_text.maxsize)
+	    Sys_Error("%s: overflow", __func__);
 
-// add the entire text of the file
-    Cbuf_AddText(text);
-    SZ_Write(&cmd_text, "\n", 1);
-
-// add the copied off data
-    if (templen) {
-	SZ_Write(&cmd_text, temp, templen);
-	Z_Free(temp);
+	/* move any commands still remaining in the exec buffer */
+	memmove(cmd_text.data + len + 1, cmd_text.data, cmd_text.cursize);
+	memcpy(cmd_text.data, text, len);
+	cmd_text.data[len] = '\n';
+	cmd_text.cursize += len + 1;
+    } else {
+	Cbuf_AddText(text);
+	Cbuf_AddText("\n");
     }
 }
 
