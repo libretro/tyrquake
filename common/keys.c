@@ -205,7 +205,7 @@ CheckForCommand(void)
 
     s = key_lines[edit_line] + 1;	// skip the ]
 
-    for (i = 0; i < 127; i++)
+    for (i = 0; i < sizeof(cmd) - 1; i++)
 	if (s[i] <= ' ')
 	    break;
 	else
