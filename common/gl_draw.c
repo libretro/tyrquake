@@ -453,8 +453,7 @@ Draw_Init(void)
 	    draw_chars[i] = 255;	// proper transparent color
 
     // now turn them into textures
-    char_texture =
-	GL_LoadTexture("charset", 128, 128, draw_chars, false, true);
+    char_texture = GL_LoadTexture("charset", 128, 128, draw_chars, false, true);
     cs_texture = GL_LoadTexture("crosshair", 8, 8, cs_data, false, true);
 
     start = Hunk_LowMark();
@@ -480,9 +479,8 @@ Draw_Init(void)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     gl = (glpic_t *)conback->data;
-    gl->texnum =
-	GL_LoadTexture("conback", conback->width, conback->height, ncdata,
-		       false, false);
+    gl->texnum = GL_LoadTexture("conback", conback->width, conback->height,
+				ncdata, false, false);
     gl->sl = 0;
     gl->sh = 1;
     gl->tl = 0;
@@ -511,7 +509,6 @@ Draw_Init(void)
     draw_disc = Draw_PicFromWad("disc");
     draw_backtile = Draw_PicFromWad("backtile");
 }
-
 
 
 /*
