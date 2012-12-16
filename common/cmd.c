@@ -51,7 +51,7 @@ typedef struct cmdalias_s {
 #define cmdalias_entry(ptr) container_of(ptr, struct cmdalias_s, stree)
 static DECLARE_STREE_ROOT(cmdalias_tree);
 
-qboolean cmd_wait;
+static qboolean cmd_wait;
 
 cvar_t cl_warncmd = { "cl_warncmd", "0" };
 
