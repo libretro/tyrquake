@@ -601,8 +601,7 @@ Con_DrawConsole(int lines)
 
 	// draw it
 	y = con_vislines - 22 + 8;
-	for (i = 0; i < strlen(dlbar); i++)
-	    Draw_Character((i + 1) << 3, y, dlbar[i]);
+	Draw_String(8, y, dlbar);
     }
 #endif
 

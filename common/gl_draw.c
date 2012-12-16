@@ -807,7 +807,7 @@ Draw_ConsoleBackground(int lines)
 #ifdef QW_HACK
     {
 	const char *version;
-	int x, i;
+	int x;
 
 	// hack the version number directly into the pic
 	y = lines - 14;
@@ -815,8 +815,7 @@ Draw_ConsoleBackground(int lines)
 	    version = va("TyrQuake (%s) QuakeWorld", stringify(TYR_VERSION));
 	    x = vid.conwidth - (strlen(version) * 8 + 11) -
 		(vid.conwidth * 8 / conback->width) * 7;
-	    for (i = 0; i < strlen(version); i++)
-		Draw_Character(x + i * 8, y, version[i] | 0x80);
+	    Draw_Alt_String(x, y, version);
 	}
     }
 #endif
