@@ -33,7 +33,7 @@ void SCR_UpdateWholeScreen(void);
 void SCR_SizeUp(void);
 void SCR_SizeDown(void);
 void SCR_BringDownConsole(void);
-void SCR_CenterPrint(char *str);
+void SCR_CenterPrint(const char *str);
 void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 int SCR_ModalMessage(const char *text);

@@ -151,9 +151,10 @@ for a few moments
 ==============
 */
 void
-SCR_CenterPrint(char *str)
+SCR_CenterPrint(const char *str)
 {
-    strncpy(scr_centerstring, str, sizeof(scr_centerstring) - 1);
+    strncpy(scr_centerstring, str, sizeof(scr_centerstring));
+    scr_centerstring[sizeof(scr_centerstring) - 1] = 0;
     scr_centertime_off = scr_centertime.value;
     scr_centertime_start = cl.time;
 
