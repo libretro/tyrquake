@@ -160,7 +160,7 @@ Cbuf_Execute
 void
 Cbuf_Execute(void)
 {
-    int i;
+    int len, maxlen;
     char *text;
     char line[1024];
     int quotes;
@@ -170,28 +170,33 @@ Cbuf_Execute(void)
 	text = (char *)cmd_text.data;
 
 	quotes = 0;
-	for (i = 0; i < cmd_text.cursize; i++) {
-	    if (text[i] == '"')
+	maxlen = qmin(cmd_text.cursize, (int)sizeof(line));
+	for (len = 0; len < maxlen; len++) {
+	    if (text[len] == '"')
 		quotes++;
-	    if (!(quotes & 1) && text[i] == ';')
+	    if (!(quotes & 1) && text[len] == ';')
 		break;		/* don't break if inside a quoted string */
-	    if (text[i] == '\n')
+	    if (text[len] == '\n')
 		break;
 	}
-	memcpy(line, text, i);
-	line[i] = 0;
+	if (len == sizeof(line)) {
+	    Con_Printf("%s: command truncated\n", __func__);
+	    len--;
+	}
+	memcpy(line, text, len);
+	line[len] = 0;
 
 	/*
 	 * delete the text from the command buffer and move remaining commands
 	 * down this is necessary because commands (exec, alias) can insert
 	 * data at the beginning of the text buffer
 	 */
-	if (i == cmd_text.cursize)
+	if (len == cmd_text.cursize)
 	    cmd_text.cursize = 0;
 	else {
-	    i++;
-	    cmd_text.cursize -= i;
-	    memmove(text, text + i, cmd_text.cursize);
+	    len++; /* skip the terminating character */
+	    cmd_text.cursize -= len;
+	    memmove(text, text + len, cmd_text.cursize);
 	}
 
 	/* execute the command line */
