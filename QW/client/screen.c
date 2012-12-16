@@ -104,7 +104,6 @@ qpic_t *scr_turtle;
 int scr_fullupdate;
 int clearconsole;
 int clearnotify;
-int sb_lines;
 
 vrect_t *pconupdate;
 vrect_t scr_vrect;
