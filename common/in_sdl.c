@@ -562,11 +562,15 @@ IN_ProcessEvents(void)
 
 	case SDL_MOUSEWHEEL:
 	    if (event.wheel.y < 0) {
-		Key_Event(K_MWHEELDOWN, true);
-		Key_Event(K_MWHEELDOWN, false);
+		while (event.wheel.y++) {
+		    Key_Event(K_MWHEELDOWN, true);
+		    Key_Event(K_MWHEELDOWN, false);
+		}
 	    } else if (event.wheel.y > 0) {
-		Key_Event(K_MWHEELUP, true);
-		Key_Event(K_MWHEELUP, false);
+		while (event.wheel.y--) {
+		    Key_Event(K_MWHEELUP, true);
+		    Key_Event(K_MWHEELUP, false);
+		}
 	    }
 	    break;
 
