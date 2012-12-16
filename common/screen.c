@@ -645,16 +645,9 @@ SCR_DrawConsole(void)
 WritePCXfile
 ==============
 */
-#ifdef NQ_HACK
 static void
-WritePCXfile(char *filename, byte *data, int width, int height,
-	     int rowbytes, byte *palette)
-#endif
-#ifdef QW_HACK
-static void
-WritePCXfile(char *filename, byte *data, int width, int height,
-	     int rowbytes, byte *palette, qboolean upload)
-#endif
+WritePCXfile(const char *filename, const byte *data, int width, int height,
+	     int rowbytes, const byte *palette, qboolean upload)
 {
     int i, j, length;
     pcx_t *pcx;
@@ -704,15 +697,15 @@ WritePCXfile(char *filename, byte *data, int width, int height,
 
     // write output file
     length = pack - (byte *)pcx;
-#ifdef NQ_HACK
-    COM_WriteFile(filename, pcx, length);
-#endif
+
 #ifdef QW_HACK
-    if (upload)
+    if (upload) {
 	CL_StartUpload((void *)pcx, length);
-    else
-	COM_WriteFile(filename, pcx, length);
+	return;
+    }
 #endif
+
+    COM_WriteFile(filename, pcx, length);
 }
 
 
@@ -750,14 +743,8 @@ SCR_ScreenShot_f(void)
     D_EnableBackBufferAccess();	// enable direct drawing of console to back
     //  buffer
 
-#ifdef NQ_HACK
-    WritePCXfile(pcxname, vid.buffer, vid.width, vid.height, vid.rowbytes,
-		 host_basepal);
-#endif
-#ifdef QW_HACK
     WritePCXfile(pcxname, vid.buffer, vid.width, vid.height, vid.rowbytes,
 		 host_basepal, false);
-#endif
 
     D_DisableBackBufferAccess();	// for adapters that can't stay mapped in
     //  for linear writes all the time
