@@ -1032,13 +1032,13 @@ SCR_RSShot_f(void)
 
 //=============================================================================
 
-static char *scr_notifystring;
+static const char *scr_notifystring;
 static qboolean scr_drawdialog;
 
 void
 SCR_DrawNotifyString(void)
 {
-    char *start;
+    const char *start;
     int l;
     int j;
     int x, y;
@@ -1077,7 +1077,7 @@ keypress.
 ==================
 */
 int
-SCR_ModalMessage(char *text)
+SCR_ModalMessage(const char *text)
 {
 #ifdef NQ_HACK
     if (cls.state == ca_dedicated)
