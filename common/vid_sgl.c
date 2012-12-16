@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "console.h"
 #include "glquake.h"
+#include "input.h"
 #include "quakedef.h"
 #include "sdl_common.h"
 #include "sys.h"
@@ -67,7 +68,10 @@ void D_EndDirectRect(int x, int y, int width, int height) {}
  */
 
 #ifndef _WIN32
-void Sys_SendKeyEvents(void) {}
+void Sys_SendKeyEvents(void)
+{
+    IN_ProcessEvents();
+}
 #endif
 
 #ifdef _WIN32

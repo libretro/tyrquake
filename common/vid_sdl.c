@@ -1196,5 +1196,6 @@ VID_UnlockBuffer(void)
 void
 Sys_SendKeyEvents(void)
 {
+    IN_ProcessEvents();
 }
 #endif
