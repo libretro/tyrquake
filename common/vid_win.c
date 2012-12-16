@@ -365,8 +365,8 @@ VID_Suspend(MGLDC *dc, m_int flags)
 	IN_RestoreOriginalMouseState();
 	CDAudio_Pause();
 
-	in_mode_set = true;	/* keep WM_PAINT from trying to redraw */
-	block_drawing = true;	/* don't try to draw while switched away */
+	in_mode_set = true;       /* keep WM_PAINT from trying to redraw */
+	scr_block_drawing = true; /* don't try to draw while switched away */
 
 	return MGL_NO_SUSPEND_APP;
 
@@ -384,7 +384,7 @@ VID_Suspend(MGLDC *dc, m_int flags)
 
 	in_mode_set = false;
 	vid.recalc_refdef = 1;
-	block_drawing = false;
+	scr_block_drawing = false;
 
 	return MGL_NO_SUSPEND_APP;
     }

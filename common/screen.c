@@ -117,7 +117,7 @@ qboolean scr_drawloading;
 float scr_disabled_time;
 #endif
 
-qboolean block_drawing;
+qboolean scr_block_drawing;
 
 void SCR_ScreenShot_f(void);
 
@@ -1129,7 +1129,7 @@ SCR_UpdateScreen(void)
     static float old_viewsize, old_fov;
     vrect_t vrect;
 
-    if (scr_skipupdate || block_drawing)
+    if (scr_skipupdate || scr_block_drawing)
 	return;
 
 #ifdef NQ_HACK

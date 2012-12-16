@@ -124,7 +124,7 @@ qboolean scr_disabled_for_loading;
 qboolean scr_drawloading;
 float scr_disabled_time;
 
-qboolean block_drawing;
+qboolean scr_block_drawing;
 
 void SCR_ScreenShot_f(void);
 #ifdef QW_HACK
@@ -1172,7 +1172,7 @@ SCR_UpdateScreen(void)
 {
     static float old_viewsize, old_fov;
 
-    if (block_drawing)
+    if (scr_block_drawing)
 	return;
 
     vid.numpages = 2 + gl_triplebuffer.value;

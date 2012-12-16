@@ -908,7 +908,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 	 * or not the focus
 	 */
 	if ((cl.paused && (!ActiveApp && !DDActive)) || !window_visible()
-	    || block_drawing) {
+	    || scr_block_drawing) {
 	    SleepUntilInput(PAUSE_SLEEP);
 	    scr_skipupdate = 1;	/* no point in bothering to draw */
 	} else if (!ActiveApp && !DDActive) {
