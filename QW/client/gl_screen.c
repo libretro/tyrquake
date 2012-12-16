@@ -30,10 +30,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "sbar.h"
 #include "screen.h"
+#include "sound.h"
 #include "sys.h"
 #include "vid.h"
 #include "view.h"
 #include "wad.h"
+
+#ifdef NQ_HACK
+#include "host.h"
+#endif
 
 /*
 
@@ -86,7 +91,10 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
+#ifdef QW_HACK
 static float oldsbar;
+cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
+#endif
 
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
@@ -96,7 +104,6 @@ cvar_t scr_showram = { "showram", "1" };
 cvar_t scr_showturtle = { "showturtle", "0" };
 cvar_t scr_showpause = { "showpause", "1" };
 cvar_t scr_printspeed = { "scr_printspeed", "8" };
-cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 cvar_t gl_triplebuffer = { "gl_triplebuffer", "1", true };
 static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
 
@@ -120,7 +127,9 @@ float scr_disabled_time;
 qboolean block_drawing;
 
 void SCR_ScreenShot_f(void);
+#ifdef QW_HACK
 void SCR_RSShot_f(void);
+#endif
 
 /*
 ===============================================================================
@@ -310,10 +319,11 @@ SCR_CalcRefdef(void)
     }
     size /= 100;
 
+    h = vid.height - sb_lines;
+#ifdef QW_HACK
     if (!cl_sbar.value && full)
 	h = vid.height;
-    else
-	h = vid.height - sb_lines;
+#endif
 
     r_refdef.vrect.width = vid.width * size;
     if (r_refdef.vrect.width < 96) {
@@ -322,11 +332,20 @@ SCR_CalcRefdef(void)
     }
 
     r_refdef.vrect.height = vid.height * size;
+#ifdef NQ_HACK
+    if (r_refdef.vrect.height > vid.height - sb_lines)
+	r_refdef.vrect.height = vid.height - sb_lines;
+    if (r_refdef.vrect.height > vid.height)
+	r_refdef.vrect.height = vid.height;
+#endif
+#ifdef QW_HACK
     if (cl_sbar.value || !full) {
 	if (r_refdef.vrect.height > vid.height - sb_lines)
 	    r_refdef.vrect.height = vid.height - sb_lines;
     } else if (r_refdef.vrect.height > vid.height)
 	r_refdef.vrect.height = vid.height;
+#endif
+
     r_refdef.vrect.x = (vid.width - r_refdef.vrect.width) / 2;
     if (full)
 	r_refdef.vrect.y = 0;
@@ -388,14 +407,17 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_showpause);
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
-    Cvar_RegisterVariable(&scr_allowsnap);
     Cvar_RegisterVariable(&gl_triplebuffer);
     Cvar_RegisterVariable(&show_fps);
 
     Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
-    Cmd_AddCommand("snap", SCR_RSShot_f);
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
+
+#ifdef QW_HACK
+    Cvar_RegisterVariable(&scr_allowsnap);
+    Cmd_AddCommand("snap", SCR_RSShot_f);
+#endif
 
     scr_ram = Draw_PicFromWad("ram");
     scr_net = Draw_PicFromWad("net");
@@ -457,9 +479,15 @@ SCR_DrawNet
 void
 SCR_DrawNet(void)
 {
+#ifdef NQ_HACK
+    if (realtime - cl.last_received_message < 0.3)
+	return;
+#endif
+#ifdef QW_HACK
     if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
 	UPDATE_BACKUP - 1)
 	return;
+#endif
     if (cls.demoplayback)
 	return;
 
@@ -549,7 +577,12 @@ SCR_SetUpToDrawConsole(void)
 	return;			// never a console with loading plaque
 
 // decide on the height of the console
+#ifdef NQ_HACK
+    con_forcedup = !cl.worldmodel || cls.state != ca_active;
+#endif
+#ifdef QW_HACK
     con_forcedup = cls.state != ca_active;
+#endif
 
     if (con_forcedup) {
 	scr_conlines = vid.height;	// full screen
@@ -669,7 +702,58 @@ SCR_ScreenShot_f(void)
     Con_Printf("Wrote %s\n", tganame);
 }
 
+//=============================================================================
 
+#ifdef NQ_HACK
+/*
+===============
+SCR_BeginLoadingPlaque
+
+================
+*/
+void
+SCR_BeginLoadingPlaque(void)
+{
+    S_StopAllSounds(true);
+
+    if (cls.state != ca_active)
+	return;
+
+// redraw with no console and the loading plaque
+    Con_ClearNotify();
+    scr_centertime_off = 0;
+    scr_con_current = 0;
+
+    scr_drawloading = true;
+    scr_fullupdate = 0;
+    Sbar_Changed();
+    SCR_UpdateScreen();
+    scr_drawloading = false;
+
+    scr_disabled_for_loading = true;
+    scr_disabled_time = realtime;
+    scr_fullupdate = 0;
+}
+
+
+/*
+===============
+SCR_EndLoadingPlaque
+
+================
+*/
+void
+SCR_EndLoadingPlaque(void)
+{
+    scr_disabled_for_loading = false;
+    scr_fullupdate = 0;
+    Con_ClearNotify();
+}
+#endif /* NQ_HACK */
+
+//=============================================================================
+
+#ifdef QW_HACK
 /*
 ==============
 WritePCXfile
@@ -944,6 +1028,7 @@ SCR_RSShot_f(void)
 
     Con_Printf("Wrote %s\n", pcxname);
 }
+#endif /* QW_HACK */
 
 //=============================================================================
 
@@ -994,6 +1079,11 @@ keypress.
 int
 SCR_ModalMessage(char *text)
 {
+#ifdef NQ_HACK
+    if (cls.state == ca_dedicated)
+	return true;
+#endif
+
     scr_notifystring = text;
 
 // draw a fresh screen
@@ -1091,7 +1181,12 @@ SCR_UpdateScreen(void)
     scr_copyeverything = 0;
 
     if (scr_disabled_for_loading) {
-	if (realtime - scr_disabled_time > 60) {
+	/*
+	 * FIXME - this really needs to be fixed properly.
+	 * Simply starting a new game and typing "changelevel foo" will hang
+	 * the engine for 5s (was 60s!) if foo.bsp does not exist.
+	 */
+	if (realtime - scr_disabled_time > 5) {
 	    scr_disabled_for_loading = false;
 	    Con_Printf("load failed.\n");
 	} else
@@ -1101,11 +1196,12 @@ SCR_UpdateScreen(void)
     if (!scr_initialized || !con_initialized)
 	return;			// not initialized yet
 
-
+#ifdef QW_HACK
     if (oldsbar != cl_sbar.value) {
 	oldsbar = cl_sbar.value;
 	vid.recalc_refdef = true;
     }
+#endif
 
     GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 
@@ -1139,8 +1235,10 @@ SCR_UpdateScreen(void)
     //
     SCR_TileClear();
 
+#ifdef QW_HACK
     if (r_netgraph.value)
 	R_NetGraph();
+#endif
 
     if (scr_drawdialog) {
 	Sbar_Draw();
@@ -1156,9 +1254,17 @@ SCR_UpdateScreen(void)
 	Sbar_FinaleOverlay();
 	SCR_CheckDrawCenterString();
     } else {
+#ifdef NQ_HACK
+	if (crosshair.value) {
+	    //Draw_Crosshair();
+	    Draw_Character(scr_vrect.x + scr_vrect.width / 2,
+			   scr_vrect.y + scr_vrect.height / 2, '+');
+	}
+#endif
+#ifdef QW_HACK
 	if (crosshair.value)
 	    Draw_Crosshair();
-
+#endif
 	SCR_DrawRam();
 	SCR_DrawNet();
 	SCR_DrawFPS();

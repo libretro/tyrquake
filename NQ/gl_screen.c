@@ -20,11 +20,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // screen.c -- master for refresh, status bar, console, chat, notify, etc
 
+#include "client.h"
 #include "cmd.h"
 #include "console.h"
 #include "draw.h"
 #include "glquake.h"
-#include "host.h"
 #include "keys.h"
 #include "menu.h"
 #include "quakedef.h"
@@ -32,8 +32,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.h"
 #include "sound.h"
 #include "sys.h"
+#include "vid.h"
 #include "view.h"
 #include "wad.h"
+
+#ifdef NQ_HACK
+#include "host.h"
+#endif
 
 /*
 
@@ -86,6 +91,11 @@ int scr_copyeverything;
 float scr_con_current;
 float scr_conlines;		// lines of console to display
 
+#ifdef QW_HACK
+static float oldsbar;
+cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
+#endif
+
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 cvar_t scr_conspeed = { "scr_conspeed", "300" };
@@ -117,6 +127,9 @@ float scr_disabled_time;
 qboolean block_drawing;
 
 void SCR_ScreenShot_f(void);
+#ifdef QW_HACK
+void SCR_RSShot_f(void);
+#endif
 
 /*
 ===============================================================================
@@ -307,6 +320,10 @@ SCR_CalcRefdef(void)
     size /= 100;
 
     h = vid.height - sb_lines;
+#ifdef QW_HACK
+    if (!cl_sbar.value && full)
+	h = vid.height;
+#endif
 
     r_refdef.vrect.width = vid.width * size;
     if (r_refdef.vrect.width < 96) {
@@ -315,10 +332,20 @@ SCR_CalcRefdef(void)
     }
 
     r_refdef.vrect.height = vid.height * size;
+#ifdef NQ_HACK
     if (r_refdef.vrect.height > vid.height - sb_lines)
 	r_refdef.vrect.height = vid.height - sb_lines;
     if (r_refdef.vrect.height > vid.height)
 	r_refdef.vrect.height = vid.height;
+#endif
+#ifdef QW_HACK
+    if (cl_sbar.value || !full) {
+	if (r_refdef.vrect.height > vid.height - sb_lines)
+	    r_refdef.vrect.height = vid.height - sb_lines;
+    } else if (r_refdef.vrect.height > vid.height)
+	r_refdef.vrect.height = vid.height;
+#endif
+
     r_refdef.vrect.x = (vid.width - r_refdef.vrect.width) / 2;
     if (full)
 	r_refdef.vrect.y = 0;
@@ -387,6 +414,11 @@ SCR_Init(void)
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
 
+#ifdef QW_HACK
+    Cvar_RegisterVariable(&scr_allowsnap);
+    Cmd_AddCommand("snap", SCR_RSShot_f);
+#endif
+
     scr_ram = Draw_PicFromWad("ram");
     scr_net = Draw_PicFromWad("net");
     scr_turtle = Draw_PicFromWad("turtle");
@@ -447,8 +479,15 @@ SCR_DrawNet
 void
 SCR_DrawNet(void)
 {
+#ifdef NQ_HACK
     if (realtime - cl.last_received_message < 0.3)
 	return;
+#endif
+#ifdef QW_HACK
+    if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
+	UPDATE_BACKUP - 1)
+	return;
+#endif
     if (cls.demoplayback)
 	return;
 
@@ -460,8 +499,8 @@ void
 SCR_DrawFPS(void)
 {
     static double lastframetime;
-    double t;
     static int lastfps;
+    double t;
     int x, y;
     char st[80];
 
@@ -538,7 +577,12 @@ SCR_SetUpToDrawConsole(void)
 	return;			// never a console with loading plaque
 
 // decide on the height of the console
+#ifdef NQ_HACK
     con_forcedup = !cl.worldmodel || cls.state != ca_active;
+#endif
+#ifdef QW_HACK
+    con_forcedup = cls.state != ca_active;
+#endif
 
     if (con_forcedup) {
 	scr_conlines = vid.height;	// full screen
@@ -658,10 +702,9 @@ SCR_ScreenShot_f(void)
     Con_Printf("Wrote %s\n", tganame);
 }
 
-
 //=============================================================================
 
-
+#ifdef NQ_HACK
 /*
 ===============
 SCR_BeginLoadingPlaque
@@ -706,6 +749,286 @@ SCR_EndLoadingPlaque(void)
     scr_fullupdate = 0;
     Con_ClearNotify();
 }
+#endif /* NQ_HACK */
+
+//=============================================================================
+
+#ifdef QW_HACK
+/*
+==============
+WritePCXfile
+==============
+*/
+static void
+WritePCXfile(char *filename, byte *data, int width, int height,
+	     int rowbytes, byte *palette, qboolean upload)
+{
+    int i, j, length;
+    pcx_t *pcx;
+    byte *pack;
+
+    pcx = Hunk_TempAlloc(width * height * 2 + 1000);
+    if (pcx == NULL) {
+	Con_Printf("SCR_ScreenShot_f: not enough memory\n");
+	return;
+    }
+
+    pcx->manufacturer = 0x0a;	// PCX id
+    pcx->version = 5;		// 256 color
+    pcx->encoding = 1;		// uncompressed
+    pcx->bits_per_pixel = 8;	// 256 color
+    pcx->xmin = 0;
+    pcx->ymin = 0;
+    pcx->xmax = LittleShort((short)(width - 1));
+    pcx->ymax = LittleShort((short)(height - 1));
+    pcx->hres = LittleShort((short)width);
+    pcx->vres = LittleShort((short)height);
+    memset(pcx->palette, 0, sizeof(pcx->palette));
+    pcx->color_planes = 1;	// chunky image
+    pcx->bytes_per_line = LittleShort((short)width);
+    pcx->palette_type = LittleShort(1);	// not a grey scale
+    memset(pcx->filler, 0, sizeof(pcx->filler));
+
+    // pack the image
+    pack = &pcx->data;
+
+    // The GL buffer addressing is bottom to top?
+    data += rowbytes * (height - 1);
+    for (i = 0; i < height; i++) {
+	for (j = 0; j < width; j++) {
+	    if ((*data & 0xc0) != 0xc0) {
+		*pack++ = *data++;
+	    } else {
+		*pack++ = 0xc1;
+		*pack++ = *data++;
+	    }
+	}
+	data += rowbytes - width;
+	data -= rowbytes * 2;
+    }
+
+    // write the palette
+    *pack++ = 0x0c;		// palette ID byte
+    for (i = 0; i < 768; i++)
+	*pack++ = *palette++;
+
+    // write output file
+    length = pack - (byte *)pcx;
+
+    if (upload)
+	CL_StartUpload((void *)pcx, length);
+    else
+	COM_WriteFile(filename, pcx, length);
+}
+
+
+/*
+Find closest color in the palette for named color
+*/
+int
+MipColor(int r, int g, int b)
+{
+    int i;
+    float dist;
+    int best;
+    float bestdist;
+    int r1, g1, b1;
+    static int lr = -1, lg = -1, lb = -1;
+    static int lastbest;
+
+    if (r == lr && g == lg && b == lb)
+	return lastbest;
+
+    bestdist = 256 * 256 * 3;
+
+    best = 0;			// FIXME - Uninitialised? Zero ok?
+    for (i = 0; i < 256; i++) {
+	r1 = host_basepal[i * 3] - r;
+	g1 = host_basepal[i * 3 + 1] - g;
+	b1 = host_basepal[i * 3 + 2] - b;
+	dist = r1 * r1 + g1 * g1 + b1 * b1;
+	if (dist < bestdist) {
+	    bestdist = dist;
+	    best = i;
+	}
+    }
+    lr = r;
+    lg = g;
+    lb = b;
+    lastbest = best;
+    return best;
+}
+
+
+void
+SCR_DrawCharToSnap(int num, byte *dest, int width)
+{
+    int row, col;
+    byte *source;
+    int drawline;
+    int x;
+
+    row = num >> 4;
+    col = num & 15;
+    source = draw_chars + (row << 10) + (col << 3);
+
+    drawline = 8;
+
+    while (drawline--) {
+	for (x = 0; x < 8; x++)
+	    if (source[x])
+		dest[x] = source[x];
+	    else
+		dest[x] = 98;
+	source += 128;
+	dest -= width;
+    }
+
+}
+
+
+void
+SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width)
+{
+    byte *dest;
+    const unsigned char *p;
+
+    dest = buf + ((y * width) + x);
+
+    p = (const unsigned char *)s;
+    while (*p) {
+	SCR_DrawCharToSnap(*p++, dest, width);
+	dest += 8;
+    }
+}
+
+
+/*
+==================
+SCR_RSShot_f
+==================
+*/
+void
+SCR_RSShot_f(void)
+{
+    int x, y;
+    unsigned char *src, *dest;
+    char pcxname[80];
+    unsigned char *newbuf;
+    int w, h;
+    int dx, dy, dex, dey, nx;
+    int r, b, g;
+    int count;
+    float fracw, frach;
+    char st[80];
+    time_t now;
+
+    if (CL_IsUploading())
+	return;			// already one pending
+
+    if (cls.state < ca_onserver)
+	return;			// gotta be connected
+
+    Con_Printf("Remote screen shot requested.\n");
+
+#if 0
+//
+// find a file name to save it to
+//
+    strcpy(pcxname, "mquake00.pcx");
+
+    for (i = 0; i <= 99; i++) {
+	pcxname[6] = i / 10 + '0';
+	pcxname[7] = i % 10 + '0';
+	sprintf(checkname, "%s/%s", com_gamedir, pcxname);
+	if (Sys_FileTime(checkname) == -1)
+	    break;		// file doesn't exist
+    }
+    if (i == 100) {
+	Con_Printf("SCR_ScreenShot_f: Couldn't create a PCX");
+	return;
+    }
+#endif
+
+//
+// save the pcx file
+//
+    newbuf = malloc(glheight * glwidth * 3);
+
+    glReadPixels(glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE,
+		 newbuf);
+
+    w = (vid.width < RSSHOT_WIDTH) ? glwidth : RSSHOT_WIDTH;
+    h = (vid.height < RSSHOT_HEIGHT) ? glheight : RSSHOT_HEIGHT;
+
+    fracw = (float)glwidth / (float)w;
+    frach = (float)glheight / (float)h;
+
+    for (y = 0; y < h; y++) {
+	dest = newbuf + (w * 3 * y);
+
+	for (x = 0; x < w; x++) {
+	    r = g = b = 0;
+
+	    dx = x * fracw;
+	    dex = (x + 1) * fracw;
+	    if (dex == dx)
+		dex++;		// at least one
+	    dy = y * frach;
+	    dey = (y + 1) * frach;
+	    if (dey == dy)
+		dey++;		// at least one
+
+	    count = 0;
+	    for ( /* */ ; dy < dey; dy++) {
+		src = newbuf + (glwidth * 3 * dy) + dx * 3;
+		for (nx = dx; nx < dex; nx++) {
+		    r += *src++;
+		    g += *src++;
+		    b += *src++;
+		    count++;
+		}
+	    }
+	    r /= count;
+	    g /= count;
+	    b /= count;
+	    *dest++ = r;
+	    *dest++ = b;
+	    *dest++ = g;
+	}
+    }
+
+    // convert to eight bit
+    for (y = 0; y < h; y++) {
+	src = newbuf + (w * 3 * y);
+	dest = newbuf + (w * y);
+
+	for (x = 0; x < w; x++) {
+	    *dest++ = MipColor(src[0], src[1], src[2]);
+	    src += 3;
+	}
+    }
+
+    time(&now);
+    strcpy(st, ctime(&now));
+    st[strlen(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 1, w);
+
+    strncpy(st, cls.servername, sizeof(st));
+    st[sizeof(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 11, w);
+
+    strncpy(st, name.string, sizeof(st));
+    st[sizeof(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 21, w);
+
+    WritePCXfile(pcxname, newbuf, w, h, w, host_basepal, true);
+
+    free(newbuf);
+
+    Con_Printf("Wrote %s\n", pcxname);
+}
+#endif /* QW_HACK */
 
 //=============================================================================
 
@@ -756,8 +1079,10 @@ keypress.
 int
 SCR_ModalMessage(char *text)
 {
+#ifdef NQ_HACK
     if (cls.state == ca_dedicated)
 	return true;
+#endif
 
     scr_notifystring = text;
 
@@ -831,7 +1156,6 @@ SCR_TileClear(void)
     }
 }
 
-
 /*
 ==================
 SCR_UpdateScreen
@@ -860,9 +1184,9 @@ SCR_UpdateScreen(void)
 	/*
 	 * FIXME - this really needs to be fixed properly.
 	 * Simply starting a new game and typing "changelevel foo" will hang
-	 * the engine for 15s (was 60s!) if foo.bsp does not exist.
+	 * the engine for 5s (was 60s!) if foo.bsp does not exist.
 	 */
-	if (realtime - scr_disabled_time > 15) {
+	if (realtime - scr_disabled_time > 5) {
 	    scr_disabled_for_loading = false;
 	    Con_Printf("load failed.\n");
 	} else
@@ -871,6 +1195,13 @@ SCR_UpdateScreen(void)
 
     if (!scr_initialized || !con_initialized)
 	return;			// not initialized yet
+
+#ifdef QW_HACK
+    if (oldsbar != cl_sbar.value) {
+	oldsbar = cl_sbar.value;
+	vid.recalc_refdef = true;
+    }
+#endif
 
     GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 
@@ -904,6 +1235,11 @@ SCR_UpdateScreen(void)
     //
     SCR_TileClear();
 
+#ifdef QW_HACK
+    if (r_netgraph.value)
+	R_NetGraph();
+#endif
+
     if (scr_drawdialog) {
 	Sbar_Draw();
 	Draw_FadeScreen();
@@ -918,11 +1254,17 @@ SCR_UpdateScreen(void)
 	Sbar_FinaleOverlay();
 	SCR_CheckDrawCenterString();
     } else {
+#ifdef NQ_HACK
 	if (crosshair.value) {
 	    //Draw_Crosshair();
 	    Draw_Character(scr_vrect.x + scr_vrect.width / 2,
 			   scr_vrect.y + scr_vrect.height / 2, '+');
 	}
+#endif
+#ifdef QW_HACK
+	if (crosshair.value)
+	    Draw_Crosshair();
+#endif
 	SCR_DrawRam();
 	SCR_DrawNet();
 	SCR_DrawFPS();
