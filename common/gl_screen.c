@@ -820,9 +820,6 @@ SCR_UpdateScreen(void)
 
     vid.numpages = 2 + gl_triplebuffer.value;
 
-    scr_copytop = 0;
-    scr_copyeverything = 0;
-
 #ifdef NQ_HACK
     if (scr_disabled_for_loading) {
 	/*
@@ -844,6 +841,9 @@ SCR_UpdateScreen(void)
 
     if (!scr_initialized || !con_initialized)
 	return;			// not initialized yet
+
+    scr_copytop = 0;
+    scr_copyeverything = 0;
 
 #ifdef QW_HACK
     if (oldsbar != cl_sbar.value) {
