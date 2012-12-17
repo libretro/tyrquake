@@ -481,7 +481,7 @@ CL_OBJS := \
 	r_model.o	\
 	r_part.o	\
 	sbar.o		\
-	screen_common.o	\
+	screen.o	\
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
@@ -544,8 +544,7 @@ SW_OBJS := \
 	r_sky.o		\
 	r_sprite.o	\
 	r_surf.o	\
-	r_vars.o	\
-	screen.o
+	r_vars.o
 
 GL_OBJS := \
 	drawhulls.o	\
@@ -555,7 +554,6 @@ GL_OBJS := \
 	gl_rmain.o	\
 	gl_rmisc.o	\
 	gl_rsurf.o	\
-	gl_screen.o	\
 	gl_warp.o
 
 NQSW_OBJS :=
