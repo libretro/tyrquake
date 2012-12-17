@@ -119,8 +119,10 @@ int sb_lines;
 vrect_t scr_vrect;
 
 qboolean scr_disabled_for_loading;
+#ifdef NQ_HACK
 qboolean scr_drawloading;
 float scr_disabled_time;
+#endif
 
 qboolean scr_block_drawing;
 
@@ -436,25 +438,6 @@ SCR_DrawPause(void)
 	     (vid.height - 48 - pic->height) / 2, pic);
 }
 
-
-/*
-==============
-SCR_DrawLoading
-==============
-*/
-void
-SCR_DrawLoading(void)
-{
-    qpic_t *pic;
-
-    if (!scr_drawloading)
-	return;
-
-    pic = Draw_CachePic("gfx/loading.lmp");
-    Draw_Pic((vid.width - pic->width) / 2,
-	     (vid.height - 48 - pic->height) / 2, pic);
-}
-
 //=============================================================================
 
 /*
@@ -467,8 +450,10 @@ SCR_SetUpToDrawConsole(void)
 {
     Con_CheckResize();
 
+#ifdef NQ_HACK
     if (scr_drawloading)
 	return;			// never a console with loading plaque
+#endif
 
 // decide on the height of the console
 #ifdef NQ_HACK
@@ -629,6 +614,23 @@ SCR_BeginLoadingPlaque(void)
     scr_fullupdate = 0;
 }
 
+/*
+==============
+SCR_DrawLoading
+==============
+*/
+void
+SCR_DrawLoading(void)
+{
+    qpic_t *pic;
+
+    if (!scr_drawloading)
+	return;
+
+    pic = Draw_CachePic("gfx/loading.lmp");
+    Draw_Pic((vid.width - pic->width) / 2,
+	     (vid.height - 48 - pic->height) / 2, pic);
+}
 
 /*
 ===============
@@ -975,6 +977,7 @@ SCR_UpdateScreen(void)
     scr_copytop = 0;
     scr_copyeverything = 0;
 
+#ifdef NQ_HACK
     if (scr_disabled_for_loading) {
 	/*
 	 * FIXME - this really needs to be fixed properly.
@@ -987,6 +990,11 @@ SCR_UpdateScreen(void)
 	} else
 	    return;
     }
+#endif
+#ifdef QW_HACK
+    if (scr_disabled_for_loading)
+	return;
+#endif
 
     if (!scr_initialized || !con_initialized)
 	return;			// not initialized yet
@@ -1040,9 +1048,11 @@ SCR_UpdateScreen(void)
 	Draw_FadeScreen();
 	SCR_DrawNotifyString();
 	scr_copyeverything = true;
+#ifdef NQ_HACK
     } else if (scr_drawloading) {
 	SCR_DrawLoading();
 	Sbar_Draw();
+#endif
     } else if (cl.intermission == 1 && key_dest == key_game) {
 	Sbar_IntermissionOverlay();
     } else if (cl.intermission == 2 && key_dest == key_game) {

@@ -406,26 +406,6 @@ SCR_DrawPause(void)
 	     (vid.height - 48 - pic->height) / 2, pic);
 }
 
-#ifdef NQ_HACK
-/*
-==============
-SCR_DrawLoading
-==============
-*/
-void
-SCR_DrawLoading(void)
-{
-    qpic_t *pic;
-
-    if (!scr_drawloading)
-	return;
-
-    pic = Draw_CachePic("gfx/loading.lmp");
-    Draw_Pic((vid.width - pic->width) / 2,
-	     (vid.height - 48 - pic->height) / 2, pic);
-}
-#endif
-
 //=============================================================================
 
 /*
@@ -656,6 +636,23 @@ SCR_BeginLoadingPlaque(void)
     scr_fullupdate = 0;
 }
 
+/*
+==============
+SCR_DrawLoading
+==============
+*/
+void
+SCR_DrawLoading(void)
+{
+    qpic_t *pic;
+
+    if (!scr_drawloading)
+	return;
+
+    pic = Draw_CachePic("gfx/loading.lmp");
+    Draw_Pic((vid.width - pic->width) / 2,
+	     (vid.height - 48 - pic->height) / 2, pic);
+}
 
 /*
 ===============
