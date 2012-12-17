@@ -168,7 +168,7 @@ SCR_CalcRefdef(void)
 {
     float size;
     int h;
-    qboolean full = false;
+    qboolean full;
 
     scr_fullupdate = 0;		// force a background redraw
     vid.recalc_refdef = 0;
@@ -203,23 +203,25 @@ SCR_CalcRefdef(void)
     else
 	sb_lines = 24 + 16 + 8;
 
-    if (scr_viewsize.value >= 100) {
-	full = true;
-	size = 100;
-    } else
-	size = scr_viewsize.value;
+#ifdef NQ_HACK
+    full = (scr_viewsize.value >= 120.0f);
+#endif
+#ifdef QW_HACK
+    full = (!cl_sbar.value && scr_viewsize.value >= 100.0f);
+#endif
+
+    /* Hide the status bar during intermission */
     if (cl.intermission) {
 	full = true;
 	size = 100;
 	sb_lines = 0;
     }
-    size /= 100;
+    size /= 100.0;
 
-    h = vid.height - sb_lines;
-#ifdef QW_HACK
-    if (!cl_sbar.value && full)
+    if (full)
 	h = vid.height;
-#endif
+    else
+	h = vid.height - sb_lines;
 
     r_refdef.vrect.width = vid.width * size;
     if (r_refdef.vrect.width < 96) {
@@ -228,19 +230,11 @@ SCR_CalcRefdef(void)
     }
 
     r_refdef.vrect.height = vid.height * size;
-#ifdef NQ_HACK
-    if (r_refdef.vrect.height > vid.height - sb_lines)
-	r_refdef.vrect.height = vid.height - sb_lines;
-    if (r_refdef.vrect.height > vid.height)
-	r_refdef.vrect.height = vid.height;
-#endif
-#ifdef QW_HACK
-    if (cl_sbar.value || !full) {
+    if (!full) {
 	if (r_refdef.vrect.height > vid.height - sb_lines)
 	    r_refdef.vrect.height = vid.height - sb_lines;
     } else if (r_refdef.vrect.height > vid.height)
 	r_refdef.vrect.height = vid.height;
-#endif
 
     r_refdef.vrect.x = (vid.width - r_refdef.vrect.width) / 2;
     if (full)
