@@ -132,7 +132,7 @@ void SCR_RSShot_f(void);
 CalcFov
 ====================
 */
-float
+static float
 CalcFov(float fov_x, float width, float height)
 {
     float a;
