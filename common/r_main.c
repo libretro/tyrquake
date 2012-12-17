@@ -349,7 +349,7 @@ R_SetVrect
 ===============
 */
 void
-R_SetVrect(vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
+R_SetVrect(const vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
 {
     int h;
     float size;
