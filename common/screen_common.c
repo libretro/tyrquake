@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "draw.h"
 #include "keys.h"
 #include "quakedef.h"
+#include "sbar.h"
 #include "screen.h"
 #include "sound.h"
 #include "sys.h"
@@ -251,4 +252,134 @@ SCR_BringDownConsole(void)
 
     cl.cshifts[0].percent = 0;	// no area contents palette on next frame
     VID_SetPalette(host_basepal);
+}
+
+//============================================================================
+
+/*
+====================
+CalcFov
+====================
+*/
+static float
+CalcFov(float fov_x, float width, float height)
+{
+    float a;
+    float x;
+
+    if (fov_x < 1 || fov_x > 179)
+	Sys_Error("Bad fov: %f", fov_x);
+
+    x = width / tan(fov_x / 360 * M_PI);
+    a = atan(height / x);
+    a = a * 360 / M_PI;
+
+    return a;
+}
+
+
+/*
+=================
+SCR_CalcRefdef
+
+Must be called whenever vid changes
+Internal use only
+=================
+*/
+void
+SCR_CalcRefdef(void)
+{
+    vrect_t vrect;
+    float size;
+
+    scr_fullupdate = 0;		// force a background redraw
+    vid.recalc_refdef = 0;
+
+// force the status bar to redraw
+    Sbar_Changed();
+
+//========================================
+
+// bound viewsize
+    if (scr_viewsize.value < 30)
+	Cvar_Set("viewsize", "30");
+    if (scr_viewsize.value > 120)
+	Cvar_Set("viewsize", "120");
+
+// bound field of view
+    if (scr_fov.value < 10)
+	Cvar_Set("fov", "10");
+    if (scr_fov.value > 170)
+	Cvar_Set("fov", "170");
+
+// intermission is always full screen
+    if (cl.intermission)
+	size = 120;
+    else
+	size = scr_viewsize.value;
+
+    if (size >= 120)
+	sb_lines = 0;		// no status bar at all
+    else if (size >= 110)
+	sb_lines = 24;		// no inventory
+    else
+	sb_lines = 24 + 16 + 8;
+
+// these calculations mirror those in R_Init() for r_refdef, but take no
+// account of water warping
+    vrect.x = 0;
+    vrect.y = 0;
+    vrect.width = vid.width;
+    vrect.height = vid.height;
+
+#ifdef GLQUAKE
+    R_SetVrect(&vrect, &r_refdef.vrect, sb_lines);
+#else
+    R_SetVrect(&vrect, &scr_vrect, sb_lines);
+#endif
+
+    r_refdef.fov_x = scr_fov.value;
+    r_refdef.fov_y =
+	CalcFov(r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
+
+#ifdef GLQUAKE
+    scr_vrect = r_refdef.vrect;
+#else
+// guard against going from one mode to another that's less than half the
+// vertical resolution
+    if (scr_con_current > vid.height)
+	scr_con_current = vid.height;
+
+// notify the refresh of the change
+    R_ViewChanged(&vrect, sb_lines, vid.aspect);
+#endif
+}
+
+/*
+=================
+SCR_SizeUp_f
+
+Keybinding command
+=================
+*/
+void
+SCR_SizeUp_f(void)
+{
+    Cvar_SetValue("viewsize", scr_viewsize.value + 10);
+    vid.recalc_refdef = 1;
+}
+
+
+/*
+=================
+SCR_SizeDown_f
+
+Keybinding command
+=================
+*/
+void
+SCR_SizeDown_f(void)
+{
+    Cvar_SetValue("viewsize", scr_viewsize.value - 10);
+    vid.recalc_refdef = 1;
 }

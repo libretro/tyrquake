@@ -42,6 +42,9 @@ extern qboolean scr_drawdialog;
 void SCR_DrawCenterString(void);
 void SCR_DrawNotifyString(void);
 void SCR_EraseCenterString(void);
+void SCR_CalcRefdef(void); /* internal use only */
+void SCR_SizeUp_f(void);
+void SCR_SizeDown_f(void);
 
 extern float scr_con_current;
 extern float scr_conlines;	// lines of console to display
