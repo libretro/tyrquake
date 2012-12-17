@@ -382,13 +382,13 @@ R_SetVrect(const vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
 	pvrect->width = 96;	// min for icons
     }
     pvrect->width &= ~7;
+
     pvrect->height = pvrectin->height * size;
     if (!full) {
 	if (pvrect->height > pvrectin->height - lineadj)
 	    pvrect->height = pvrectin->height - lineadj;
     } else if (pvrect->height > pvrectin->height)
 	pvrect->height = pvrectin->height;
-
     pvrect->height &= ~1;
 
     pvrect->x = (pvrectin->width - pvrect->width) / 2;

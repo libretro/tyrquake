@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glquake.h"
 #include "protocol.h"
 #include "quakedef.h"
+#include "sbar.h"
+#include "screen.h"
 #include "sys.h"
 
 // FIXME - should only be needed in r_part.c or here, not both.
@@ -245,6 +247,61 @@ R_Init(void)
     glGenTextures(MAX_CLIENTS, playertextures);
 }
 
+
+/*
+===============
+R_SetVrect
+===============
+*/
+void
+R_SetVrect(const vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
+{
+    int h;
+    float size;
+    qboolean full;
+
+#ifdef NQ_HACK
+    full = (scr_viewsize.value >= 120.0f);
+#endif
+#ifdef QW_HACK
+    full = (!cl_sbar.value && scr_viewsize.value >= 100.0f);
+#endif
+    size = qmin(scr_viewsize.value, 100.0f);
+
+    /* Hide the status bar during intermission */
+    if (cl.intermission) {
+	full = true;
+	size = 100.0;
+	lineadj = 0;
+    }
+    size /= 100.0;
+
+    if (full)
+	h = pvrectin->height;
+    else
+	h = pvrectin->height - lineadj;
+
+    pvrect->width = pvrectin->width * size;
+    if (pvrect->width < 96) {
+	size = 96.0 / pvrectin->width;
+	pvrect->width = 96;	// min for icons
+    }
+    //pvrect->width &= ~7;
+
+    pvrect->height = pvrectin->height * size;
+    if (!full) {
+	if (pvrect->height > pvrectin->height - lineadj)
+	    pvrect->height = pvrectin->height - lineadj;
+    } else if (pvrect->height > pvrectin->height)
+	pvrect->height = pvrectin->height;
+    //pvrect->height &= ~1;
+
+    pvrect->x = (pvrectin->width - pvrect->width) / 2;
+    if (full)
+	pvrect->y = 0;
+    else
+	pvrect->y = (h - pvrect->height) / 2;
+}
 
 /*
  * ================
