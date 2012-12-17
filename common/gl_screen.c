@@ -1146,7 +1146,7 @@ SCR_UpdateScreen(void)
 	Sbar_IntermissionOverlay();
     } else if (cl.intermission == 2 && key_dest == key_game) {
 	Sbar_FinaleOverlay();
-	SCR_CheckDrawCenterString();
+	SCR_DrawCenterString();
     } else {
 #ifdef NQ_HACK
 	if (crosshair.value) {
@@ -1164,7 +1164,7 @@ SCR_UpdateScreen(void)
 	SCR_DrawFPS();
 	SCR_DrawTurtle();
 	SCR_DrawPause();
-	SCR_CheckDrawCenterString();
+	SCR_DrawCenterString();
 	Sbar_Draw();
 	SCR_DrawConsole();
 	M_Draw();

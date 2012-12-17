@@ -104,6 +104,17 @@ SCR_DrawCenterString(void)
     int x, y;
     int remaining;
 
+    scr_copytop = 1;
+    if (scr_center_lines > scr_erase_lines)
+	scr_erase_lines = scr_center_lines;
+
+    scr_centertime_off -= host_frametime;
+
+    if (scr_centertime_off <= 0 && !cl.intermission)
+	return;
+    if (key_dest != key_game)
+	return;
+
 // the finale prints the characters one at a time
     if (cl.intermission)
 	remaining = scr_printspeed.value * (cl.time - scr_centertime_start);
@@ -139,22 +150,4 @@ SCR_DrawCenterString(void)
 	    break;
 	start++;		// skip the \n
     } while (1);
-}
-
-
-void
-SCR_CheckDrawCenterString(void)
-{
-    scr_copytop = 1;
-    if (scr_center_lines > scr_erase_lines)
-	scr_erase_lines = scr_center_lines;
-
-    scr_centertime_off -= host_frametime;
-
-    if (scr_centertime_off <= 0 && !cl.intermission)
-	return;
-    if (key_dest != key_game)
-	return;
-
-    SCR_CheckDrawCenterString();
 }
