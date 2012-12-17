@@ -26,23 +26,84 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "draw.h"
 #include "keys.h"
+#include "menu.h"
 #include "quakedef.h"
 #include "sbar.h"
 #include "screen.h"
 #include "sound.h"
 #include "sys.h"
+#include "view.h"
 
 #ifdef GLQUAKE
 #include "glquake.h"
 #else
 #include "d_iface.h"
+#include "r_local.h"
 #endif
 
 #ifdef NQ_HACK
 #include "host.h"
 #endif
 
+/*
+
+background clear
+rendering
+turtle/net/ram icons
+sbar
+centerprint / slow centerprint
+notify lines
+intermission / finale overlay
+loading plaque
+console
+menu
+
+required background clears
+required update regions
+
+syncronous draw mode or async
+One off screen buffer, with updates either copied or xblited
+Need to double buffer?
+
+async draw will require the refresh area to be cleared, because it will be
+xblited, but sync draw can just ignore it.
+
+sync
+draw
+
+CenterPrint();
+SlowPrint();
+Screen_Update();
+Con_Printf();
+
+net
+turn off messages option
+
+the refresh is always rendered, unless the console is full screen
+
+console is:
+	notify lines
+	half
+	full
+*/
+
 qboolean scr_initialized;	// ready to draw
+
+// only the refresh window will be updated unless these variables are flagged
+int scr_copytop;
+int scr_copyeverything;
+
+float scr_con_current;
+float scr_conlines;		// lines of console to display
+
+int scr_fullupdate;
+int clearconsole;
+int clearnotify;
+
+vrect_t scr_vrect;
+
+qboolean scr_disabled_for_loading;
+qboolean scr_block_drawing;
 
 cvar_t scr_centertime = { "scr_centertime", "2" };
 cvar_t scr_printspeed = { "scr_printspeed", "8" };
@@ -56,6 +117,9 @@ cvar_t scr_showpause = { "showpause", "1" };
 static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
 #ifdef GLQUAKE
 cvar_t gl_triplebuffer = { "gl_triplebuffer", "1", true };
+#else
+vrect_t *pconupdate;
+qboolean scr_skipupdate;
 #endif
 
 qpic_t *scr_ram;
@@ -72,6 +136,10 @@ static int scr_erase_center;
 #ifdef NQ_HACK
 qboolean scr_drawloading;
 float scr_disabled_time;
+#endif
+#ifdef QW_HACK
+static float oldsbar;
+cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 #endif
 
 
@@ -1165,6 +1233,266 @@ SCR_EndLoadingPlaque(void)
     Con_ClearNotify();
 }
 #endif /* NQ_HACK */
+
+//=============================================================================
+
+#ifdef GLQUAKE
+static void
+SCR_TileClear(void)
+{
+    if (r_refdef.vrect.x > 0) {
+	// left
+	Draw_TileClear(0, 0, r_refdef.vrect.x, vid.height - sb_lines);
+	// right
+	Draw_TileClear(r_refdef.vrect.x + r_refdef.vrect.width, 0,
+		       vid.width - r_refdef.vrect.x + r_refdef.vrect.width,
+		       vid.height - sb_lines);
+    }
+    if (r_refdef.vrect.y > 0) {
+	// top
+	Draw_TileClear(r_refdef.vrect.x, 0,
+		       r_refdef.vrect.x + r_refdef.vrect.width,
+		       r_refdef.vrect.y);
+	// bottom
+	Draw_TileClear(r_refdef.vrect.x,
+		       r_refdef.vrect.y + r_refdef.vrect.height,
+		       r_refdef.vrect.width,
+		       vid.height - sb_lines -
+		       (r_refdef.vrect.height + r_refdef.vrect.y));
+    }
+}
+#endif
+
+/*
+==================
+SCR_UpdateScreen
+
+This is called every frame, and can also be called explicitly to flush
+text to the screen.
+
+WARNING: be very careful calling this from elsewhere, because the refresh
+needs almost the entire 256k of stack space!
+==================
+*/
+void
+SCR_UpdateScreen(void)
+{
+    static float old_viewsize, old_fov;
+#ifndef GLQUAKE
+    vrect_t vrect;
+
+    if (scr_skipupdate)
+	return;
+#endif
+    if (scr_block_drawing)
+	return;
+
+#ifdef GLQUAKE
+    vid.numpages = 2 + gl_triplebuffer.value;
+#endif
+
+#ifdef NQ_HACK
+    if (scr_disabled_for_loading) {
+	/*
+	 * FIXME - this really needs to be fixed properly.
+	 * Simply starting a new game and typing "changelevel foo" will hang
+	 * the engine for 5s (was 60s!) if foo.bsp does not exist.
+	 */
+	if (realtime - scr_disabled_time > 5) {
+	    scr_disabled_for_loading = false;
+	    Con_Printf("load failed.\n");
+	} else
+	    return;
+    }
+#endif
+#ifdef QW_HACK
+    if (scr_disabled_for_loading)
+	return;
+#endif
+
+#if defined(_WIN32) && !defined(GLQUAKE)
+    /* Don't suck up CPU if minimized */
+    if (!window_visible())
+	return;
+#endif
+
+#ifdef NQ_HACK
+    if (cls.state == ca_dedicated)
+	return;			// stdout only
+#endif
+
+    if (!scr_initialized || !con_initialized)
+	return;			// not initialized yet
+
+    scr_copytop = 0;
+    scr_copyeverything = 0;
+
+#ifdef GLQUAKE
+    GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
+#endif
+
+    /*
+     * Check for vid setting changes
+     */
+    if (old_fov != scr_fov.value) {
+	old_fov = scr_fov.value;
+	vid.recalc_refdef = true;
+    }
+    if (old_viewsize != scr_viewsize.value) {
+	old_viewsize = scr_viewsize.value;
+	vid.recalc_refdef = true;
+    }
+#ifdef QW_HACK
+    if (oldsbar != cl_sbar.value) {
+	oldsbar = cl_sbar.value;
+	vid.recalc_refdef = true;
+    }
+#endif
+
+    if (vid.recalc_refdef)
+	SCR_CalcRefdef();
+
+    /*
+     * do 3D refresh drawing, and then update the screen
+     */
+#ifdef GLQUAKE
+    SCR_SetUpToDrawConsole();
+#else
+    D_EnableBackBufferAccess();	/* for overlay stuff, if drawing directly */
+
+    if (scr_fullupdate++ < vid.numpages) {
+	/* clear the entire screen */
+	scr_copyeverything = 1;
+	Draw_TileClear(0, 0, vid.width, vid.height);
+	Sbar_Changed();
+    }
+    pconupdate = NULL;
+    SCR_SetUpToDrawConsole();
+    SCR_EraseCenterString();
+
+    /* for adapters that can't stay mapped in for linear writes all the time */
+    D_DisableBackBufferAccess();
+
+    VID_LockBuffer();
+#endif /* !GLQUAKE */
+
+    V_RenderView();
+
+#ifdef GLQUAKE
+    GL_Set2D();
+
+    /* draw any areas not covered by the refresh */
+    SCR_TileClear();
+
+#ifdef QW_HACK /* FIXME - draw from same place as SW renderer? */
+    if (r_netgraph.value)
+	R_NetGraph();
+#endif
+
+#else /* !GLQUAKE */
+    VID_UnlockBuffer();
+    D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
+#endif /* !GLQUAKE */
+
+    if (scr_drawdialog) {
+	Sbar_Draw();
+	Draw_FadeScreen();
+	SCR_DrawNotifyString();
+	scr_copyeverything = true;
+#ifdef NQ_HACK
+    } else if (scr_drawloading) {
+	SCR_DrawLoading();
+	Sbar_Draw();
+#endif
+    } else if (cl.intermission == 1 && key_dest == key_game) {
+	Sbar_IntermissionOverlay();
+    } else if (cl.intermission == 2 && key_dest == key_game) {
+	Sbar_FinaleOverlay();
+	SCR_DrawCenterString();
+#if defined(NQ_HACK) && !defined(GLQUAKE) /* FIXME? */
+    } else if (cl.intermission == 3 && key_dest == key_game) {
+	SCR_DrawCenterString();
+#endif
+    } else {
+#if defined(NQ_HACK) && defined(GLQUAKE)
+	if (crosshair.value) {
+	    //Draw_Crosshair();
+	    Draw_Character(scr_vrect.x + scr_vrect.width / 2,
+			   scr_vrect.y + scr_vrect.height / 2, '+');
+	}
+#endif
+#if defined(QW_HACK) && defined(GLQUAKE)
+	if (crosshair.value)
+	    Draw_Crosshair();
+#endif
+	SCR_DrawRam();
+	SCR_DrawNet();
+	SCR_DrawFPS();
+	SCR_DrawTurtle();
+	SCR_DrawPause();
+	SCR_DrawCenterString();
+	Sbar_Draw();
+	SCR_DrawConsole();
+	M_Draw();
+    }
+
+#ifndef GLQUAKE
+    /* for adapters that can't stay mapped in for linear writes all the time */
+    D_DisableBackBufferAccess();
+    if (pconupdate)
+	D_UpdateRects(pconupdate);
+#endif
+
+    V_UpdatePalette();
+
+#ifdef GLQUAKE
+    GL_EndRendering();
+#else
+    /*
+     * update one of three areas
+     */
+    if (scr_copyeverything) {
+	vrect.x = 0;
+	vrect.y = 0;
+	vrect.width = vid.width;
+	vrect.height = vid.height;
+	vrect.pnext = 0;
+
+	VID_Update(&vrect);
+    } else if (scr_copytop) {
+	vrect.x = 0;
+	vrect.y = 0;
+	vrect.width = vid.width;
+	vrect.height = vid.height - sb_lines;
+	vrect.pnext = 0;
+
+	VID_Update(&vrect);
+    } else {
+	vrect.x = scr_vrect.x;
+	vrect.y = scr_vrect.y;
+	vrect.width = scr_vrect.width;
+	vrect.height = scr_vrect.height;
+	vrect.pnext = 0;
+
+	VID_Update(&vrect);
+    }
+#endif
+}
+
+#if !defined(GLQUAKE) && defined(_WIN32)
+/*
+==================
+SCR_UpdateWholeScreen
+FIXME - vid_win.c only?
+==================
+*/
+void
+SCR_UpdateWholeScreen(void)
+{
+    scr_fullupdate = 0;
+    SCR_UpdateScreen();
+}
+#endif
 
 //=============================================================================
 
