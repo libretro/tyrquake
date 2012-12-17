@@ -87,17 +87,17 @@ console is:
 	full
 */
 
-qboolean scr_initialized;	// ready to draw
+static qboolean scr_initialized;	/* ready to draw */
 
 // only the refresh window will be updated unless these variables are flagged
 int scr_copytop;
 int scr_copyeverything;
 
 float scr_con_current;
-float scr_conlines;		// lines of console to display
+static float scr_conlines;		/* lines of console to display */
 
 int scr_fullupdate;
-int clearconsole;
+static int clearconsole;
 int clearnotify;
 
 vrect_t scr_vrect;
@@ -105,26 +105,26 @@ vrect_t scr_vrect;
 qboolean scr_disabled_for_loading;
 qboolean scr_block_drawing;
 
-cvar_t scr_centertime = { "scr_centertime", "2" };
-cvar_t scr_printspeed = { "scr_printspeed", "8" };
+static cvar_t scr_centertime = { "scr_centertime", "2" };
+static cvar_t scr_printspeed = { "scr_printspeed", "8" };
 
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
-cvar_t scr_conspeed = { "scr_conspeed", "300" };
-cvar_t scr_showram = { "showram", "1" };
-cvar_t scr_showturtle = { "showturtle", "0" };
-cvar_t scr_showpause = { "showpause", "1" };
+static cvar_t scr_conspeed = { "scr_conspeed", "300" };
+static cvar_t scr_showram = { "showram", "1" };
+static cvar_t scr_showturtle = { "showturtle", "0" };
+static cvar_t scr_showpause = { "showpause", "1" };
 static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
 #ifdef GLQUAKE
-cvar_t gl_triplebuffer = { "gl_triplebuffer", "1", true };
+static cvar_t gl_triplebuffer = { "gl_triplebuffer", "1", true };
 #else
-vrect_t *pconupdate;
+static vrect_t *pconupdate;
 qboolean scr_skipupdate;
 #endif
 
-qpic_t *scr_ram;
-qpic_t *scr_net;
-qpic_t *scr_turtle;
+static qpic_t *scr_ram;
+static qpic_t *scr_net;
+static qpic_t *scr_turtle;
 
 static char scr_centerstring[1024];
 static float scr_centertime_start;	// for slow victory printing
@@ -134,12 +134,12 @@ static int scr_erase_lines;
 static int scr_erase_center;
 
 #ifdef NQ_HACK
-qboolean scr_drawloading;
-float scr_disabled_time;
+static qboolean scr_drawloading;
+static float scr_disabled_time;
 #endif
 #ifdef QW_HACK
 static float oldsbar;
-cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
+static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 #endif
 
 
@@ -150,7 +150,7 @@ cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 SCR_DrawRam
 ==============
 */
-void
+static void
 SCR_DrawRam(void)
 {
     if (!scr_showram.value)
@@ -168,7 +168,7 @@ SCR_DrawRam(void)
 SCR_DrawTurtle
 ==============
 */
-void
+static void
 SCR_DrawTurtle(void)
 {
     static int count;
@@ -194,7 +194,7 @@ SCR_DrawTurtle(void)
 SCR_DrawNet
 ==============
 */
-void
+static void
 SCR_DrawNet(void)
 {
 #ifdef NQ_HACK
@@ -214,7 +214,7 @@ SCR_DrawNet(void)
 }
 
 
-void
+static void
 SCR_DrawFPS(void)
 {
     static double lastframetime;
@@ -245,7 +245,7 @@ SCR_DrawFPS(void)
 DrawPause
 ==============
 */
-void
+static void
 SCR_DrawPause(void)
 {
     qpic_t *pic;
@@ -268,7 +268,7 @@ SCR_DrawPause(void)
 SCR_SetUpToDrawConsole
 ==================
 */
-void
+static void
 SCR_SetUpToDrawConsole(void)
 {
     Con_CheckResize();
@@ -325,7 +325,7 @@ SCR_SetUpToDrawConsole(void)
 SCR_DrawConsole
 ==================
 */
-void
+static void
 SCR_DrawConsole(void)
 {
     if (scr_con_current) {
@@ -371,7 +371,8 @@ SCR_CenterPrint(const char *str)
     }
 }
 
-void
+#ifndef GLQUAKE
+static void
 SCR_EraseCenterString(void)
 {
     int y, height;
@@ -392,8 +393,9 @@ SCR_EraseCenterString(void)
     scr_copytop = 1;
     Draw_TileClear(0, y, vid.width, height);
 }
+#endif
 
-void
+static void
 SCR_DrawCenterString(void)
 {
     char *start;
@@ -453,9 +455,9 @@ SCR_DrawCenterString(void)
 //=============================================================================
 
 static const char *scr_notifystring;
-qboolean scr_drawdialog;
+static qboolean scr_drawdialog;
 
-void
+static void
 SCR_DrawNotifyString(void)
 {
     const char *start;
@@ -526,29 +528,6 @@ SCR_ModalMessage(const char *text)
     return key_lastpress == 'y';
 }
 
-//=============================================================================
-
-/*
-===============
-SCR_BringDownConsole
-
-Brings the console down and fades the palettes back to normal
-================
-*/
-void
-SCR_BringDownConsole(void)
-{
-    int i;
-
-    scr_centertime_off = 0;
-
-    for (i = 0; i < 20 && scr_conlines != scr_con_current; i++)
-	SCR_UpdateScreen();
-
-    cl.cshifts[0].percent = 0;	// no area contents palette on next frame
-    VID_SetPalette(host_basepal);
-}
-
 //============================================================================
 
 /*
@@ -581,7 +560,7 @@ Must be called whenever vid changes
 Internal use only
 =================
 */
-void
+static void
 SCR_CalcRefdef(void)
 {
     vrect_t vrect;
@@ -657,7 +636,7 @@ SCR_SizeUp_f
 Keybinding command
 =================
 */
-void
+static void
 SCR_SizeUp_f(void)
 {
     Cvar_SetValue("viewsize", scr_viewsize.value + 10);
@@ -672,7 +651,7 @@ SCR_SizeDown_f
 Keybinding command
 =================
 */
-void
+static void
 SCR_SizeDown_f(void)
 {
     Cvar_SetValue("viewsize", scr_viewsize.value - 10);
@@ -860,7 +839,7 @@ SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width)
 SCR_RSShot_f
 ==================
 */
-void
+static void
 SCR_RSShot_f(void)
 {
     int x, y;
@@ -1081,7 +1060,7 @@ int glx, gly, glwidth, glheight;
 SCR_ScreenShot_f
 ==================
 */
-void
+static void
 SCR_ScreenShot_f(void)
 {
 #ifdef GLQUAKE
@@ -1206,7 +1185,7 @@ SCR_BeginLoadingPlaque(void)
 SCR_DrawLoading
 ==============
 */
-void
+static void
 SCR_DrawLoading(void)
 {
     qpic_t *pic;

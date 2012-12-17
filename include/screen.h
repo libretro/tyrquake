@@ -30,62 +30,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 void SCR_Init(void);
 void SCR_UpdateScreen(void);
 void SCR_UpdateWholeScreen(void);
-void SCR_SizeUp(void);
-void SCR_SizeDown(void);
-void SCR_BringDownConsole(void);
 void SCR_CenterPrint(const char *str);
 void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 int SCR_ModalMessage(const char *text);
 
-extern qboolean scr_drawdialog;
-void SCR_DrawCenterString(void);
-void SCR_DrawNotifyString(void);
-void SCR_EraseCenterString(void);
-void SCR_CalcRefdef(void); /* internal use only */
-void SCR_SizeUp_f(void);
-void SCR_SizeDown_f(void);
-void SCR_ScreenShot_f(void);
-#ifdef QW_HACK
-void SCR_RSShot_f(void);
-extern cvar_t scr_allowsnap;
-#endif
-
-void SCR_DrawRam(void);
-void SCR_DrawTurtle(void);
-void SCR_DrawNet(void);
-void SCR_DrawFPS(void);
-void SCR_DrawPause(void);
-void SCR_SetUpToDrawConsole(void);
-void SCR_DrawConsole(void);
-void SCR_DrawLoading(void);
-
-extern qboolean scr_initialized;
 extern float scr_con_current;
-extern float scr_conlines;	// lines of console to display
-
 extern float scr_centertime_off;
 extern int scr_fullupdate;	// set to 0 to force full redraw
-
 extern int clearnotify;		// set to 0 whenever notify text is drawn
-extern int clearconsole;
 extern qboolean scr_disabled_for_loading;
-#ifdef NQ_HACK
-extern float scr_disabled_time;
-#endif
 extern qboolean scr_skipupdate;
 extern qboolean scr_block_drawing;
-extern qboolean scr_drawloading;
-
-extern cvar_t scr_centertime;
-extern cvar_t scr_printspeed;
 extern cvar_t scr_viewsize;
 extern cvar_t scr_fov;
-extern cvar_t scr_conspeed;
-#ifdef GLQUAKE
-extern cvar_t gl_triplebuffer;
-#endif
-
 extern vrect_t scr_vrect;
 
 // only the refresh window will be updated unless these variables are flagged
