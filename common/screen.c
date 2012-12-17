@@ -96,83 +96,12 @@ vrect_t scr_vrect;
 
 qboolean scr_disabled_for_loading;
 qboolean scr_skipupdate;
-#ifdef NQ_HACK
-qboolean scr_drawloading;
-float scr_disabled_time;
-#endif
-
 qboolean scr_block_drawing;
 
 #ifdef QW_HACK
 static float oldsbar;
 cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 #endif
-
-//=============================================================================
-
-#ifdef NQ_HACK
-/*
-===============
-SCR_BeginLoadingPlaque
-
-================
-*/
-void
-SCR_BeginLoadingPlaque(void)
-{
-    S_StopAllSounds(true);
-
-    if (cls.state != ca_active)
-	return;
-
-// redraw with no console and the loading plaque
-    Con_ClearNotify();
-    scr_centertime_off = 0;
-    scr_con_current = 0;
-
-    scr_drawloading = true;
-    scr_fullupdate = 0;
-    Sbar_Changed();
-    SCR_UpdateScreen();
-    scr_drawloading = false;
-
-    scr_disabled_for_loading = true;
-    scr_disabled_time = realtime;
-    scr_fullupdate = 0;
-}
-
-/*
-==============
-SCR_DrawLoading
-==============
-*/
-void
-SCR_DrawLoading(void)
-{
-    qpic_t *pic;
-
-    if (!scr_drawloading)
-	return;
-
-    pic = Draw_CachePic("gfx/loading.lmp");
-    Draw_Pic((vid.width - pic->width) / 2,
-	     (vid.height - 48 - pic->height) / 2, pic);
-}
-
-/*
-===============
-SCR_EndLoadingPlaque
-
-================
-*/
-void
-SCR_EndLoadingPlaque(void)
-{
-    scr_disabled_for_loading = false;
-    scr_fullupdate = 0;
-    Con_ClearNotify();
-}
-#endif /* NQ_HACK */
 
 //=============================================================================
 

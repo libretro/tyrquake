@@ -58,6 +58,7 @@ void SCR_DrawFPS(void);
 void SCR_DrawPause(void);
 void SCR_SetUpToDrawConsole(void);
 void SCR_DrawConsole(void);
+void SCR_DrawLoading(void);
 
 extern qboolean scr_initialized;
 extern float scr_con_current;
@@ -69,6 +70,9 @@ extern int scr_fullupdate;	// set to 0 to force full redraw
 extern int clearnotify;		// set to 0 whenever notify text is drawn
 extern int clearconsole;
 extern qboolean scr_disabled_for_loading;
+#ifdef NQ_HACK
+extern float scr_disabled_time;
+#endif
 extern qboolean scr_skipupdate;
 extern qboolean scr_block_drawing;
 extern qboolean scr_drawloading;
