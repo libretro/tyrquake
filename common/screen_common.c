@@ -33,12 +33,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 cvar_t scr_centertime = { "scr_centertime", "2" };
 cvar_t scr_printspeed = { "scr_printspeed", "8" };
 
-char scr_centerstring[1024];
-float scr_centertime_start;	// for slow victory printing
+static char scr_centerstring[1024];
+static float scr_centertime_start;	// for slow victory printing
 float scr_centertime_off;
-int scr_center_lines;
-int scr_erase_lines;
-int scr_erase_center;
+static int scr_center_lines;
+static int scr_erase_lines;
+static int scr_erase_center;
 
 /*
 ===============================================================================
