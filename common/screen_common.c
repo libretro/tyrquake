@@ -32,6 +32,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 
+#ifdef GLQUAKE
+#include "glquake.h"
+#else
+#include "d_iface.h"
+#endif
+
 #ifdef NQ_HACK
 #include "host.h"
 #endif
@@ -598,6 +604,496 @@ SCR_SizeDown_f(void)
     Cvar_SetValue("viewsize", scr_viewsize.value - 10);
     vid.recalc_refdef = 1;
 }
+
+/*
+==============================================================================
+
+				SCREEN SHOTS
+
+==============================================================================
+*/
+
+#if !defined(NQ_HACK) || !defined(GLQUAKE)
+/*
+==============
+WritePCXfile
+==============
+*/
+static void
+WritePCXfile(const char *filename, const byte *data, int width, int height,
+	     int rowbytes, const byte *palette, qboolean upload)
+{
+    int i, j, length;
+    pcx_t *pcx;
+    byte *pack;
+
+    pcx = Hunk_TempAlloc(width * height * 2 + 1000);
+    if (pcx == NULL) {
+	Con_Printf("SCR_ScreenShot_f: not enough memory\n");
+	return;
+    }
+
+    pcx->manufacturer = 0x0a;	// PCX id
+    pcx->version = 5;		// 256 color
+    pcx->encoding = 1;		// uncompressed
+    pcx->bits_per_pixel = 8;	// 256 color
+    pcx->xmin = 0;
+    pcx->ymin = 0;
+    pcx->xmax = LittleShort((short)(width - 1));
+    pcx->ymax = LittleShort((short)(height - 1));
+    pcx->hres = LittleShort((short)width);
+    pcx->vres = LittleShort((short)height);
+    memset(pcx->palette, 0, sizeof(pcx->palette));
+    pcx->color_planes = 1;	// chunky image
+    pcx->bytes_per_line = LittleShort((short)width);
+    pcx->palette_type = LittleShort(1);	// not a grey scale
+    memset(pcx->filler, 0, sizeof(pcx->filler));
+
+    // pack the image
+    pack = &pcx->data;
+
+#ifdef GLQUAKE
+    // The GL buffer addressing is bottom to top?
+    data += rowbytes * (height - 1);
+    for (i = 0; i < height; i++) {
+	for (j = 0; j < width; j++) {
+	    if ((*data & 0xc0) != 0xc0) {
+		*pack++ = *data++;
+	    } else {
+		*pack++ = 0xc1;
+		*pack++ = *data++;
+	    }
+	}
+	data += rowbytes - width;
+	data -= rowbytes * 2;
+    }
+#else
+    for (i = 0; i < height; i++) {
+	for (j = 0; j < width; j++) {
+	    if ((*data & 0xc0) != 0xc0) {
+		*pack++ = *data++;
+	    } else {
+		*pack++ = 0xc1;
+		*pack++ = *data++;
+	    }
+	}
+	data += rowbytes - width;
+    }
+#endif
+
+    // write the palette
+    *pack++ = 0x0c;		// palette ID byte
+    for (i = 0; i < 768; i++)
+	*pack++ = *palette++;
+
+    // write output file
+    length = pack - (byte *)pcx;
+
+#ifdef QW_HACK
+    if (upload) {
+	CL_StartUpload((void *)pcx, length);
+	return;
+    }
+#endif
+
+    COM_WriteFile(filename, pcx, length);
+}
+#endif /* !defined(NQ_HACK) && !defined(GLQUAKE) */
+
+
+#ifdef QW_HACK
+/*
+Find closest color in the palette for named color
+*/
+static int
+MipColor(int r, int g, int b)
+{
+    int i;
+    float dist;
+    int best;
+    float bestdist;
+    int r1, g1, b1;
+    static int lr = -1, lg = -1, lb = -1;
+    static int lastbest;
+
+    if (r == lr && g == lg && b == lb)
+	return lastbest;
+
+    bestdist = 256 * 256 * 3;
+
+    best = 0;			// FIXME - Uninitialised? Zero ok?
+    for (i = 0; i < 256; i++) {
+	r1 = host_basepal[i * 3] - r;
+	g1 = host_basepal[i * 3 + 1] - g;
+	b1 = host_basepal[i * 3 + 2] - b;
+	dist = r1 * r1 + g1 * g1 + b1 * b1;
+	if (dist < bestdist) {
+	    bestdist = dist;
+	    best = i;
+	}
+    }
+    lr = r;
+    lg = g;
+    lb = b;
+    lastbest = best;
+    return best;
+}
+
+static void
+SCR_DrawCharToSnap(int num, byte *dest, int width)
+{
+    int row, col;
+    byte *source;
+    int drawline;
+    int x;
+
+    row = num >> 4;
+    col = num & 15;
+    source = draw_chars + (row << 10) + (col << 3);
+
+    drawline = 8;
+
+    while (drawline--) {
+	for (x = 0; x < 8; x++)
+	    if (source[x])
+		dest[x] = source[x];
+	    else
+		dest[x] = 98;
+	source += 128;
+	dest += width;
+    }
+
+}
+
+static void
+SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width)
+{
+    byte *dest;
+    const unsigned char *p;
+
+    dest = buf + ((y * width) + x);
+
+    p = (const unsigned char *)s;
+    while (*p) {
+	SCR_DrawCharToSnap(*p++, dest, width);
+	dest += 8;
+    }
+}
+
+
+/*
+==================
+SCR_RSShot_f
+==================
+*/
+void
+SCR_RSShot_f(void)
+{
+    int x, y;
+    unsigned char *src, *dest;
+    char pcxname[80];
+    unsigned char *newbuf;
+    int w, h;
+    int dx, dy, dex, dey, nx;
+    int r, b, g;
+    int count;
+    float fracw, frach;
+    char st[80];
+    time_t now;
+
+    if (CL_IsUploading())
+	return;			// already one pending
+
+    if (cls.state < ca_onserver)
+	return;			// gotta be connected
+
+#ifndef GLQUAKE /* <- probably a bug, should check always? */
+    if (!scr_allowsnap.value) {
+	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+	MSG_WriteString(&cls.netchan.message, "snap\n");
+	Con_Printf("Refusing remote screen shot request.\n");
+	return;
+    }
+#endif
+
+    Con_Printf("Remote screen shot requested.\n");
+
+#if 0
+//
+// find a file name to save it to
+//
+    strcpy(pcxname, "mquake00.pcx");
+
+    for (i = 0; i <= 99; i++) {
+	pcxname[6] = i / 10 + '0';
+	pcxname[7] = i % 10 + '0';
+	sprintf(checkname, "%s/%s", com_gamedir, pcxname);
+	if (Sys_FileTime(checkname) == -1)
+	    break;		// file doesn't exist
+    }
+    if (i == 100) {
+	Con_Printf("SCR_ScreenShot_f: Couldn't create a PCX");
+	return;
+    }
+#endif
+
+//
+// save the pcx file
+//
+#ifdef GLQUAKE /* FIXME - consolidate common bits */
+    newbuf = malloc(glheight * glwidth * 3);
+
+    glReadPixels(glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE,
+		 newbuf);
+
+    w = (vid.width < RSSHOT_WIDTH) ? glwidth : RSSHOT_WIDTH;
+    h = (vid.height < RSSHOT_HEIGHT) ? glheight : RSSHOT_HEIGHT;
+
+    fracw = (float)glwidth / (float)w;
+    frach = (float)glheight / (float)h;
+
+    for (y = 0; y < h; y++) {
+	dest = newbuf + (w * 3 * y);
+
+	for (x = 0; x < w; x++) {
+	    r = g = b = 0;
+
+	    dx = x * fracw;
+	    dex = (x + 1) * fracw;
+	    if (dex == dx)
+		dex++;		// at least one
+	    dy = y * frach;
+	    dey = (y + 1) * frach;
+	    if (dey == dy)
+		dey++;		// at least one
+
+	    count = 0;
+	    for ( /* */ ; dy < dey; dy++) {
+		src = newbuf + (glwidth * 3 * dy) + dx * 3;
+		for (nx = dx; nx < dex; nx++) {
+		    r += *src++;
+		    g += *src++;
+		    b += *src++;
+		    count++;
+		}
+	    }
+	    r /= count;
+	    g /= count;
+	    b /= count;
+	    *dest++ = r;
+	    *dest++ = b;
+	    *dest++ = g;
+	}
+    }
+
+    // convert to eight bit
+    for (y = 0; y < h; y++) {
+	src = newbuf + (w * 3 * y);
+	dest = newbuf + (w * y);
+
+	for (x = 0; x < w; x++) {
+	    *dest++ = MipColor(src[0], src[1], src[2]);
+	    src += 3;
+	}
+    }
+#else
+    D_EnableBackBufferAccess();	// enable direct drawing of console to back
+    //  buffer
+
+    w = (vid.width < RSSHOT_WIDTH) ? vid.width : RSSHOT_WIDTH;
+    h = (vid.height < RSSHOT_HEIGHT) ? vid.height : RSSHOT_HEIGHT;
+
+    fracw = (float)vid.width / (float)w;
+    frach = (float)vid.height / (float)h;
+
+    newbuf = malloc(w * h);
+
+    for (y = 0; y < h; y++) {
+	dest = newbuf + (w * y);
+
+	for (x = 0; x < w; x++) {
+	    r = g = b = 0;
+
+	    dx = x * fracw;
+	    dex = (x + 1) * fracw;
+	    if (dex == dx)
+		dex++;		// at least one
+	    dy = y * frach;
+	    dey = (y + 1) * frach;
+	    if (dey == dy)
+		dey++;		// at least one
+
+	    count = 0;
+	    for ( /* */ ; dy < dey; dy++) {
+		src = vid.buffer + (vid.rowbytes * dy) + dx;
+		for (nx = dx; nx < dex; nx++) {
+		    r += host_basepal[*src * 3];
+		    g += host_basepal[*src * 3 + 1];
+		    b += host_basepal[*src * 3 + 2];
+		    src++;
+		    count++;
+		}
+	    }
+	    r /= count;
+	    g /= count;
+	    b /= count;
+	    *dest++ = MipColor(r, g, b);
+	}
+    }
+#endif
+
+#ifdef GLQUAKE /* FIXME - very similar, different location for string? */
+    time(&now);
+    strcpy(st, ctime(&now));
+    st[strlen(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 1, w);
+
+    strncpy(st, cls.servername, sizeof(st));
+    st[sizeof(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 11, w);
+
+    strncpy(st, name.string, sizeof(st));
+    st[sizeof(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 21, w);
+
+    WritePCXfile(pcxname, newbuf, w, h, w, host_basepal, true);
+
+    free(newbuf);
+
+    Con_Printf("Wrote %s\n", pcxname);
+#else
+    time(&now);
+    strcpy(st, ctime(&now));
+    st[strlen(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 0, w);
+
+    strncpy(st, cls.servername, sizeof(st));
+    st[sizeof(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 10, w);
+
+    strncpy(st, name.string, sizeof(st));
+    st[sizeof(st) - 1] = 0;
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 20, w);
+
+    WritePCXfile(pcxname, newbuf, w, h, w, host_basepal, true);
+
+    free(newbuf);
+
+    D_DisableBackBufferAccess();	// for adapters that can't stay mapped in
+    //  for linear writes all the time
+
+//      Con_Printf ("Wrote %s\n", pcxname);
+    Con_Printf("Sending shot to server...\n");
+#endif
+}
+
+#endif /* QW_HACK */
+
+#ifdef GLQUAKE
+typedef struct _TargaHeader {
+    unsigned char id_length, colormap_type, image_type;
+    unsigned short colormap_index, colormap_length;
+    unsigned char colormap_size;
+    unsigned short x_origin, y_origin, width, height;
+    unsigned char pixel_size, attributes;
+} TargaHeader;
+
+/* FIXME - poorly chosen globals? need to be global? */
+int glx, gly, glwidth, glheight;
+#endif
+
+/*
+==================
+SCR_ScreenShot_f
+==================
+*/
+void
+SCR_ScreenShot_f(void)
+{
+#ifdef GLQUAKE
+    byte *buffer;
+    char tganame[80];
+    char checkname[MAX_OSPATH];
+    int i, c, temp;
+
+//
+// find a file name to save it to
+//
+    strcpy(tganame, "quake00.tga");
+
+    for (i = 0; i <= 99; i++) {
+	tganame[5] = i / 10 + '0';
+	tganame[6] = i % 10 + '0';
+	sprintf(checkname, "%s/%s", com_gamedir, tganame);
+	if (Sys_FileTime(checkname) == -1)
+	    break;		// file doesn't exist
+    }
+    if (i == 100) {
+	Con_Printf("%s: Couldn't create a TGA file\n", __func__);
+	return;
+    }
+
+    /* Construct the TGA header */
+    buffer = malloc(glwidth * glheight * 3 + 18);
+    memset(buffer, 0, 18);
+    buffer[2] = 2;		// uncompressed type
+    buffer[12] = glwidth & 255;
+    buffer[13] = glwidth >> 8;
+    buffer[14] = glheight & 255;
+    buffer[15] = glheight >> 8;
+    buffer[16] = 24;		// pixel size
+
+    glReadPixels(glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE,
+		 buffer + 18);
+
+    // swap rgb to bgr
+    c = 18 + glwidth * glheight * 3;
+    for (i = 18; i < c; i += 3) {
+	temp = buffer[i];
+	buffer[i] = buffer[i + 2];
+	buffer[i + 2] = temp;
+    }
+    COM_WriteFile(tganame, buffer, glwidth * glheight * 3 + 18);
+
+    free(buffer);
+    Con_Printf("Wrote %s\n", tganame);
+#else
+    int i;
+    char pcxname[80];
+    char checkname[MAX_OSPATH];
+
+//
+// find a file name to save it to
+//
+    strcpy(pcxname, "quake00.pcx");
+
+    for (i = 0; i <= 99; i++) {
+	pcxname[5] = i / 10 + '0';
+	pcxname[6] = i % 10 + '0';
+	sprintf(checkname, "%s/%s", com_gamedir, pcxname);
+	if (Sys_FileTime(checkname) == -1)
+	    break;		// file doesn't exist
+    }
+    if (i == 100) {
+	Con_Printf("%s: Couldn't create a PCX file\n", __func__);
+	return;
+    }
+//
+// save the pcx file
+//
+    D_EnableBackBufferAccess();	// enable direct drawing of console to back
+    //  buffer
+
+    WritePCXfile(pcxname, vid.buffer, vid.width, vid.height, vid.rowbytes,
+		 host_basepal, false);
+
+    D_DisableBackBufferAccess();	// for adapters that can't stay mapped in
+    //  for linear writes all the time
+
+    Con_Printf("Wrote %s\n", pcxname);
+#endif
+}
+
 
 //=============================================================================
 
