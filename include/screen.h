@@ -45,6 +45,17 @@ void SCR_EraseCenterString(void);
 void SCR_CalcRefdef(void); /* internal use only */
 void SCR_SizeUp_f(void);
 void SCR_SizeDown_f(void);
+void SCR_ScreenShot_f(void);
+#ifdef QW_HACK
+void SCR_RSShot_f(void);
+extern cvar_t scr_allowsnap;
+#endif
+
+void SCR_DrawRam(void);
+void SCR_DrawTurtle(void);
+void SCR_DrawNet(void);
+void SCR_DrawFPS(void);
+void SCR_DrawPause(void);
 
 extern float scr_con_current;
 extern float scr_conlines;	// lines of console to display
@@ -61,6 +72,10 @@ extern cvar_t scr_centertime;
 extern cvar_t scr_printspeed;
 extern cvar_t scr_viewsize;
 extern cvar_t scr_fov;
+extern cvar_t scr_conspeed;
+#ifdef GLQUAKE
+extern cvar_t gl_triplebuffer;
+#endif
 
 extern vrect_t scr_vrect;
 

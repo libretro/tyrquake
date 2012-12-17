@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 #include "client.h"
+#include "cmd.h"
+#include "common.h"
 #include "draw.h"
 #include "keys.h"
 #include "quakedef.h"
@@ -33,8 +35,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 #endif
 
+qboolean scr_initialized;	// ready to draw
+
 cvar_t scr_centertime = { "scr_centertime", "2" };
 cvar_t scr_printspeed = { "scr_printspeed", "8" };
+
+cvar_t scr_viewsize = { "viewsize", "100", true };
+cvar_t scr_fov = { "fov", "90" };	// 10 - 170
+cvar_t scr_conspeed = { "scr_conspeed", "300" };
+cvar_t scr_showram = { "showram", "1" };
+cvar_t scr_showturtle = { "showturtle", "0" };
+cvar_t scr_showpause = { "showpause", "1" };
+static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
+#ifdef GLQUAKE
+cvar_t gl_triplebuffer = { "gl_triplebuffer", "1", true };
+#endif
+
+qpic_t *scr_ram;
+qpic_t *scr_net;
+qpic_t *scr_turtle;
 
 static char scr_centerstring[1024];
 static float scr_centertime_start;	// for slow victory printing
@@ -42,6 +61,124 @@ float scr_centertime_off;
 static int scr_center_lines;
 static int scr_erase_lines;
 static int scr_erase_center;
+
+//=============================================================================
+
+/*
+==============
+SCR_DrawRam
+==============
+*/
+void
+SCR_DrawRam(void)
+{
+    if (!scr_showram.value)
+	return;
+
+    if (!r_cache_thrash)
+	return;
+
+    Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
+}
+
+
+/*
+==============
+SCR_DrawTurtle
+==============
+*/
+void
+SCR_DrawTurtle(void)
+{
+    static int count;
+
+    if (!scr_showturtle.value)
+	return;
+
+    if (host_frametime < 0.1) {
+	count = 0;
+	return;
+    }
+
+    count++;
+    if (count < 3)
+	return;
+
+    Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
+}
+
+
+/*
+==============
+SCR_DrawNet
+==============
+*/
+void
+SCR_DrawNet(void)
+{
+#ifdef NQ_HACK
+    if (realtime - cl.last_received_message < 0.3)
+	return;
+#endif
+#ifdef QW_HACK
+    if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
+	UPDATE_BACKUP - 1)
+	return;
+#endif
+
+    if (cls.demoplayback)
+	return;
+
+    Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
+}
+
+
+void
+SCR_DrawFPS(void)
+{
+    static double lastframetime;
+    static int lastfps;
+    double t;
+    int x, y;
+    char st[80];
+
+    if (!show_fps.value)
+	return;
+
+    t = Sys_DoubleTime();
+    if ((t - lastframetime) >= 1.0) {
+	lastfps = fps_count;
+	fps_count = 0;
+	lastframetime = t;
+    }
+
+    sprintf(st, "%3d FPS", lastfps);
+    x = vid.width - strlen(st) * 8 - 8;
+    y = vid.height - sb_lines - 8;
+    Draw_String(x, y, st);
+}
+
+
+/*
+==============
+DrawPause
+==============
+*/
+void
+SCR_DrawPause(void)
+{
+    qpic_t *pic;
+
+    if (!scr_showpause.value)	// turn off for screenshots
+	return;
+
+    if (!cl.paused)
+	return;
+
+    pic = Draw_CachePic("gfx/pause.lmp");
+    Draw_Pic((vid.width - pic->width) / 2,
+	     (vid.height - 48 - pic->height) / 2, pic);
+}
 
 /*
 ===============================================================================
@@ -382,4 +519,48 @@ SCR_SizeDown_f(void)
 {
     Cvar_SetValue("viewsize", scr_viewsize.value - 10);
     vid.recalc_refdef = 1;
+}
+
+//=============================================================================
+
+/*
+==================
+SCR_Init
+==================
+*/
+void
+SCR_Init(void)
+{
+    Cvar_RegisterVariable(&scr_fov);
+    Cvar_RegisterVariable(&scr_viewsize);
+    Cvar_RegisterVariable(&scr_conspeed);
+    Cvar_RegisterVariable(&scr_showram);
+    Cvar_RegisterVariable(&scr_showturtle);
+    Cvar_RegisterVariable(&scr_showpause);
+    Cvar_RegisterVariable(&scr_centertime);
+    Cvar_RegisterVariable(&scr_printspeed);
+    Cvar_RegisterVariable(&show_fps);
+#ifdef GLQUAKE
+    Cvar_RegisterVariable(&gl_triplebuffer);
+#endif
+
+    Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
+    Cmd_AddCommand("sizeup", SCR_SizeUp_f);
+    Cmd_AddCommand("sizedown", SCR_SizeDown_f);
+
+#ifdef NQ_HACK
+    scr_ram = Draw_PicFromWad("ram");
+    scr_net = Draw_PicFromWad("net");
+    scr_turtle = Draw_PicFromWad("turtle");
+#endif
+#ifdef QW_HACK
+    scr_ram = W_GetLumpName("ram");
+    scr_net = W_GetLumpName("net");
+    scr_turtle = W_GetLumpName("turtle");
+
+    Cvar_RegisterVariable(&scr_allowsnap);
+    Cmd_AddCommand("snap", SCR_RSShot_f);
+#endif
+
+    scr_initialized = true;
 }
