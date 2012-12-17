@@ -38,6 +38,9 @@ void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 int SCR_ModalMessage(const char *text);
 
+void SCR_CheckDrawCenterString(void);
+void SCR_EraseCenterString(void);
+
 extern float scr_con_current;
 extern float scr_conlines;	// lines of console to display
 
@@ -49,6 +52,8 @@ extern qboolean scr_disabled_for_loading;
 extern qboolean scr_skipupdate;
 extern qboolean scr_block_drawing;
 
+extern cvar_t scr_centertime;
+extern cvar_t scr_printspeed;
 extern cvar_t scr_viewsize;
 extern cvar_t scr_fov;
 

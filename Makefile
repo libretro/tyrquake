@@ -481,6 +481,7 @@ CL_OBJS := \
 	r_model.o	\
 	r_part.o	\
 	sbar.o		\
+	screen_common.o	\
 	snd_dma.o	\
 	snd_mem.o	\
 	snd_mix.o	\
