@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #include "cmd.h"
 #include "common.h"
+#include "console.h"
 #include "draw.h"
 #include "keys.h"
 #include "quakedef.h"
@@ -178,6 +179,83 @@ SCR_DrawPause(void)
     pic = Draw_CachePic("gfx/pause.lmp");
     Draw_Pic((vid.width - pic->width) / 2,
 	     (vid.height - 48 - pic->height) / 2, pic);
+}
+
+//=============================================================================
+
+/*
+==================
+SCR_SetUpToDrawConsole
+==================
+*/
+void
+SCR_SetUpToDrawConsole(void)
+{
+    Con_CheckResize();
+
+#ifdef NQ_HACK
+    if (scr_drawloading)
+	return;			// never a console with loading plaque
+#endif
+
+// decide on the height of the console
+#ifdef NQ_HACK
+    con_forcedup = !cl.worldmodel || cls.state != ca_active;
+#endif
+#ifdef QW_HACK
+    con_forcedup = cls.state != ca_active;
+#endif
+
+    if (con_forcedup) {
+	scr_conlines = vid.height;	// full screen
+	scr_con_current = scr_conlines;
+    } else if (key_dest == key_console)
+	scr_conlines = vid.height / 2;	// half screen
+    else
+	scr_conlines = 0;	// none visible
+
+    if (scr_conlines < scr_con_current) {
+	scr_con_current -= scr_conspeed.value * host_frametime;
+	if (scr_conlines > scr_con_current)
+	    scr_con_current = scr_conlines;
+
+    } else if (scr_conlines > scr_con_current) {
+	scr_con_current += scr_conspeed.value * host_frametime;
+	if (scr_conlines < scr_con_current)
+	    scr_con_current = scr_conlines;
+    }
+
+    if (clearconsole++ < vid.numpages) {
+#ifdef GLQUAKE
+	scr_copytop = 1;
+	Draw_TileClear(0, (int)scr_con_current, vid.width,
+		       vid.height - (int)scr_con_current);
+#endif
+	Sbar_Changed();
+    } else if (clearnotify++ < vid.numpages) {
+	scr_copytop = 1;
+	Draw_TileClear(0, 0, vid.width, con_notifylines);
+    } else
+	con_notifylines = 0;
+}
+
+
+/*
+==================
+SCR_DrawConsole
+==================
+*/
+void
+SCR_DrawConsole(void)
+{
+    if (scr_con_current) {
+	scr_copyeverything = 1;
+	Con_DrawConsole(scr_con_current);
+	clearconsole = 0;
+    } else {
+	if (key_dest == key_game || key_dest == key_message)
+	    Con_DrawNotify();	// only draw notify in game
+    }
 }
 
 /*

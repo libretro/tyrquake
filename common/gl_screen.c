@@ -98,10 +98,6 @@ cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 
 qboolean scr_initialized;	// ready to draw
 
-qpic_t *scr_ram;
-qpic_t *scr_net;
-qpic_t *scr_turtle;
-
 int scr_fullupdate;
 int clearconsole;
 int clearnotify;
@@ -121,76 +117,6 @@ void SCR_ScreenShot_f(void);
 #ifdef QW_HACK
 void SCR_RSShot_f(void);
 #endif
-
-//=============================================================================
-
-/*
-==================
-SCR_SetUpToDrawConsole
-==================
-*/
-void
-SCR_SetUpToDrawConsole(void)
-{
-    Con_CheckResize();
-
-#ifdef NQ_HACK
-    if (scr_drawloading)
-	return;			// never a console with loading plaque
-#endif
-
-// decide on the height of the console
-#ifdef NQ_HACK
-    con_forcedup = !cl.worldmodel || cls.state != ca_active;
-#endif
-#ifdef QW_HACK
-    con_forcedup = cls.state != ca_active;
-#endif
-
-    if (con_forcedup) {
-	scr_conlines = vid.height;	// full screen
-	scr_con_current = scr_conlines;
-    } else if (key_dest == key_console)
-	scr_conlines = vid.height / 2;	// half screen
-    else
-	scr_conlines = 0;	// none visible
-
-    if (scr_conlines < scr_con_current) {
-	scr_con_current -= scr_conspeed.value * host_frametime;
-	if (scr_conlines > scr_con_current)
-	    scr_con_current = scr_conlines;
-
-    } else if (scr_conlines > scr_con_current) {
-	scr_con_current += scr_conspeed.value * host_frametime;
-	if (scr_conlines < scr_con_current)
-	    scr_con_current = scr_conlines;
-    }
-
-    if (clearconsole++ < vid.numpages)
-	Sbar_Changed();
-    else if (clearnotify++ >= vid.numpages)
-	con_notifylines = 0;
-}
-
-
-/*
-==================
-SCR_DrawConsole
-==================
-*/
-void
-SCR_DrawConsole(void)
-{
-    if (scr_con_current) {
-	scr_copyeverything = 1;
-	Con_DrawConsole(scr_con_current);
-	clearconsole = 0;
-    } else {
-	if (key_dest == key_game || key_dest == key_message)
-	    Con_DrawNotify();	// only draw notify in game
-    }
-}
-
 
 /*
 ==============================================================================
