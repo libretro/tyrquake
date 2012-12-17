@@ -250,13 +250,6 @@ SCR_UpdateScreen(void)
     scr_copytop = 0;
     scr_copyeverything = 0;
 
-#ifdef QW_HACK
-    if (oldsbar != cl_sbar.value) {
-	oldsbar = cl_sbar.value;
-	vid.recalc_refdef = true;
-    }
-#endif
-
     GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 
     //
@@ -271,6 +264,12 @@ SCR_UpdateScreen(void)
 	old_viewsize = scr_viewsize.value;
 	vid.recalc_refdef = true;
     }
+#ifdef QW_HACK
+    if (oldsbar != cl_sbar.value) {
+	oldsbar = cl_sbar.value;
+	vid.recalc_refdef = true;
+    }
+#endif
 
     if (vid.recalc_refdef)
 	SCR_CalcRefdef();

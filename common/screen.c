@@ -222,9 +222,6 @@ SCR_UpdateScreen(void)
     }
 #endif
 
-    scr_copytop = 0;
-    scr_copyeverything = 0;
-
 #ifdef NQ_HACK
     if (cls.state == ca_dedicated)
 	return;			// stdout only
@@ -232,6 +229,9 @@ SCR_UpdateScreen(void)
 
     if (!scr_initialized || !con_initialized)
 	return;			// not initialized yet
+
+    scr_copytop = 0;
+    scr_copyeverything = 0;
 
 //
 // check for vid changes
