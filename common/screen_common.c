@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "keys.h"
 #include "quakedef.h"
 #include "screen.h"
+#include "sound.h"
+#include "sys.h"
 
 #ifdef NQ_HACK
 #include "host.h"
@@ -150,4 +152,103 @@ SCR_DrawCenterString(void)
 	    break;
 	start++;		// skip the \n
     } while (1);
+}
+
+//=============================================================================
+
+static const char *scr_notifystring;
+qboolean scr_drawdialog;
+
+void
+SCR_DrawNotifyString(void)
+{
+    const char *start;
+    int l;
+    int j;
+    int x, y;
+
+    start = scr_notifystring;
+
+    y = vid.height * 0.35;
+
+    do {
+	// scan the width of the line
+	for (l = 0; l < 40; l++)
+	    if (start[l] == '\n' || !start[l])
+		break;
+	x = (vid.width - l * 8) / 2;
+	for (j = 0; j < l; j++, x += 8)
+	    Draw_Character(x, y, start[j]);
+
+	y += 8;
+
+	while (*start && *start != '\n')
+	    start++;
+
+	if (!*start)
+	    break;
+	start++;		// skip the \n
+    } while (1);
+}
+
+
+/*
+==================
+SCR_ModalMessage
+
+Displays a text string in the center of the screen and waits for a Y or N
+keypress.
+==================
+*/
+int
+SCR_ModalMessage(const char *text)
+{
+#ifdef NQ_HACK
+    if (cls.state == ca_dedicated)
+	return true;
+#endif
+
+    scr_notifystring = text;
+
+// draw a fresh screen
+    scr_fullupdate = 0;
+    scr_drawdialog = true;
+    SCR_UpdateScreen();
+    scr_drawdialog = false;
+
+    S_ClearBuffer();		// so dma doesn't loop current sound
+
+    do {
+	key_count = -1;		// wait for a key down and up
+	Sys_SendKeyEvents();
+    } while (key_lastpress != 'y' && key_lastpress != 'n'
+	     && key_lastpress != K_ESCAPE);
+
+    scr_fullupdate = 0;
+    SCR_UpdateScreen();
+
+    return key_lastpress == 'y';
+}
+
+//=============================================================================
+
+/*
+===============
+SCR_BringDownConsole
+
+Brings the console down and fades the palettes back to normal
+================
+*/
+void
+SCR_BringDownConsole(void)
+{
+    int i;
+
+    scr_centertime_off = 0;
+
+    for (i = 0; i < 20 && scr_conlines != scr_con_current; i++)
+	SCR_UpdateScreen();
+
+    cl.cshifts[0].percent = 0;	// no area contents palette on next frame
+    VID_SetPalette(host_basepal);
 }

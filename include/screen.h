@@ -38,7 +38,9 @@ void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 int SCR_ModalMessage(const char *text);
 
+extern qboolean scr_drawdialog;
 void SCR_DrawCenterString(void);
+void SCR_DrawNotifyString(void);
 void SCR_EraseCenterString(void);
 
 extern float scr_con_current;
