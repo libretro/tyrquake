@@ -112,12 +112,18 @@ Adds command text at the end of the buffer
 ============
 */
 void
-Cbuf_AddText(const char *text)
+Cbuf_AddText(const char *fmt, ...)
 {
-    int len = strlen(text);
+    va_list ap;
+    int len, maxlen;
+
+    maxlen = cmd_text.maxsize - cmd_text.cursize;
+    va_start(ap, fmt);
+    len = vsnprintf((char *)cmd_text.data + cmd_text.cursize, maxlen, fmt, ap);
+    va_end(ap);
 
     if (cmd_text.cursize + len < cmd_text.maxsize)
-	SZ_Write(&cmd_text, text, len);
+	cmd_text.cursize += len;
     else
 	Con_Printf("%s: overflow\n", __func__);
 }
@@ -147,8 +153,7 @@ Cbuf_InsertText(const char *text)
 	cmd_text.data[len] = '\n';
 	cmd_text.cursize += len + 1;
     } else {
-	Cbuf_AddText(text);
-	Cbuf_AddText("\n");
+	Cbuf_AddText("%s\n", text);
     }
 }
 

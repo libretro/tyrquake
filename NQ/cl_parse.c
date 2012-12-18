@@ -892,7 +892,7 @@ CL_ParseServerMessage(void)
 	    break;
 
 	case svc_stufftext:
-	    Cbuf_AddText(MSG_ReadString());
+	    Cbuf_AddText("%s", MSG_ReadString());
 	    break;
 
 	case svc_damage:

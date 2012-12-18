@@ -1174,7 +1174,7 @@ CL_ParseServerMessage(void)
 
 	case svc_stufftext:
 	    s = MSG_ReadString();
-	    Cbuf_AddText(s);
+	    Cbuf_AddText("%s", s);
 	    break;
 
 	case svc_damage:

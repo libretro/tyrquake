@@ -826,10 +826,7 @@ localcmd (string)
 static void
 PF_localcmd(void)
 {
-    char *str;
-
-    str = G_STRING(OFS_PARM0);
-    Cbuf_AddText(str);
+    Cbuf_AddText("%s", G_STRING(OFS_PARM0));
 }
 
 /*
@@ -1554,15 +1551,12 @@ PF_changelevel
 static void
 PF_changelevel(void)
 {
-    char *s;
-
     /* make sure we don't issue two changelevels */
     if (svs.changelevel_issued)
 	return;
     svs.changelevel_issued = true;
 
-    s = G_STRING(OFS_PARM0);
-    Cbuf_AddText(va("changelevel %s\n", s));
+    Cbuf_AddText("changelevel %s\n", G_STRING(OFS_PARM0));
 }
 
 

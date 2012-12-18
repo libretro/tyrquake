@@ -329,14 +329,14 @@ EnterCommand(const char *buf)
      * If the check fails, we send the text as a chat message.
      */
     if (buf[0] == '\\' || buf[0] == '/')
-	Cbuf_AddText(buf + 1);
+	Cbuf_AddText("%s", buf + 1);
     else if (CheckForCommand())
-	Cbuf_AddText(buf);
+	Cbuf_AddText("%s", buf);
     else {
 	/* doesn't look like a command, convert to a chat message */
 	if (cls.state >= ca_connected)
 	    Cbuf_AddText("say ");
-	Cbuf_AddText(buf);
+	Cbuf_AddText("%s", buf);
     }
     Cbuf_AddText("\n");
 }
@@ -496,11 +496,9 @@ Key_Message(int key)
 {
     if (key == K_ENTER) {
 	if (chat_team)
-	    Cbuf_AddText("say_team \"");
+	    Cbuf_AddText("say_team \"%s\"\n", chat_buffer);
 	else
-	    Cbuf_AddText("say \"");
-	Cbuf_AddText(chat_buffer);
-	Cbuf_AddText("\"\n");
+	    Cbuf_AddText("say \"%s\"\n", chat_buffer);
 
 	key_dest = key_game;
 	chat_bufferlen = 0;
@@ -811,7 +809,6 @@ void
 Key_Event(knum_t key, qboolean down)
 {
     const char *kb;
-    char cmd[1024];
 
     keydown[key] = down;
 
@@ -872,16 +869,12 @@ Key_Event(knum_t key, qboolean down)
 //
     if (!down) {
 	kb = keybindings[key];
-	if (kb && kb[0] == '+') {
-	    sprintf(cmd, "-%s %i\n", kb + 1, key);
-	    Cbuf_AddText(cmd);
-	}
+	if (kb && kb[0] == '+')
+	    Cbuf_AddText("-%s %i\n", kb + 1, key);
 	if (keyshift[key] != key) {
 	    kb = keybindings[keyshift[key]];
-	    if (kb && kb[0] == '+') {
-		sprintf(cmd, "-%s %i\n", kb + 1, key);
-		Cbuf_AddText(cmd);
-	    }
+	    if (kb && kb[0] == '+')
+		Cbuf_AddText("-%s %i\n", kb + 1, key);
 	}
 	return;
     }
@@ -908,13 +901,11 @@ Key_Event(knum_t key, qboolean down)
 #endif
 	kb = keybindings[key];
 	if (kb) {
-	    if (kb[0] == '+') {	// button commands add keynum as a parm
-		sprintf(cmd, "%s %i\n", kb, key);
-		Cbuf_AddText(cmd);
-	    } else {
-		Cbuf_AddText(kb);
-		Cbuf_AddText("\n");
-	    }
+	    if (kb[0] == '+')
+		/* button commands add keynum as a parm */
+		Cbuf_AddText("%s %i\n", kb, key);
+	    else
+		Cbuf_AddText("%s\n", kb);
 	}
 	return;
     }

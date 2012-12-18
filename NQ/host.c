@@ -554,7 +554,7 @@ Host_GetConsoleCommands(void)
 	cmd = Sys_ConsoleInput();
 	if (!cmd)
 	    break;
-	Cbuf_AddText(cmd);
+	Cbuf_AddText("%s", cmd);
     }
 }
 

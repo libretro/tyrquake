@@ -554,7 +554,7 @@ M_Load_Key(int k)
 	SCR_BeginLoadingPlaque();
 
 	// issue the load command
-	Cbuf_AddText(va("load s%i\n", load_cursor));
+	Cbuf_AddText("load s%i\n", load_cursor);
 	return;
 
     case K_UPARROW:
@@ -587,7 +587,7 @@ M_Save_Key(int k)
     case K_ENTER:
 	m_state = m_none;
 	key_dest = key_game;
-	Cbuf_AddText(va("save s%i\n", load_cursor));
+	Cbuf_AddText("save s%i\n", load_cursor);
 	return;
 
     case K_UPARROW:
@@ -812,11 +812,11 @@ M_Setup_Key(int k)
 
 	// setup_cursor == 4 (OK)
 	if (strcmp(cl_name.string, setup_myname) != 0)
-	    Cbuf_AddText(va("name \"%s\"\n", setup_myname));
+	    Cbuf_AddText("name \"%s\"\n", setup_myname);
 	if (strcmp(hostname.string, setup_hostname) != 0)
 	    Cvar_Set("hostname", setup_hostname);
 	if (setup_top != setup_oldtop || setup_bottom != setup_oldbottom)
-	    Cbuf_AddText(va("color %i %i\n", setup_top, setup_bottom));
+	    Cbuf_AddText("color %i %i\n", setup_top, setup_bottom);
 	m_entersound = true;
 	M_Menu_MultiPlayer_f();
 	break;
@@ -1629,7 +1629,7 @@ M_LanConfig_Key(int key)
 	    m_return_onerror = true;
 	    key_dest = key_game;
 	    m_state = m_none;
-	    Cbuf_AddText(va("connect \"%s\"\n", lanConfig_joinname));
+	    Cbuf_AddText("connect \"%s\"\n", lanConfig_joinname);
 	    break;
 	}
 
@@ -2134,22 +2134,22 @@ M_GameOptions_Key(int key)
 	    if (sv.active)
 		Cbuf_AddText("disconnect\n");
 	    Cbuf_AddText("listen 0\n");	// so host_netport will be re-examined
-	    Cbuf_AddText(va("maxplayers %u\n", maxplayers));
+	    Cbuf_AddText("maxplayers %u\n", maxplayers);
 	    SCR_BeginLoadingPlaque();
 
 	    if (hipnotic)
-		Cbuf_AddText(va("map %s\n",
-				hipnoticlevels[hipnoticepisodes[startepisode].
-					       firstLevel +
-					       startlevel].name));
+		Cbuf_AddText("map %s\n",
+			     hipnoticlevels[hipnoticepisodes[startepisode].
+					    firstLevel +
+					    startlevel].name);
 	    else if (rogue)
-		Cbuf_AddText(va("map %s\n",
-				roguelevels[rogueepisodes[startepisode].
-					    firstLevel + startlevel].name));
+		Cbuf_AddText("map %s\n",
+			     roguelevels[rogueepisodes[startepisode].
+					 firstLevel + startlevel].name);
 	    else
-		Cbuf_AddText(va("map %s\n",
-				levels[episodes[startepisode].firstLevel +
-				       startlevel].name));
+		Cbuf_AddText("map %s\n",
+			     levels[episodes[startepisode].firstLevel +
+				    startlevel].name);
 
 	    return;
 	}
@@ -2315,7 +2315,7 @@ M_ServerList_Key(int k)
 	slist_sorted = false;
 	key_dest = key_game;
 	m_state = m_none;
-	Cbuf_AddText(va("connect \"%s\"\n", hostcache[slist_cursor].cname));
+	Cbuf_AddText("connect \"%s\"\n", hostcache[slist_cursor].cname);
 	break;
 
     default:

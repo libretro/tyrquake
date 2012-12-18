@@ -819,7 +819,7 @@ CL_ConnectionlessPacket(void)
     }
     // remote command from gui front end
     if (c == A2C_CLIENT_COMMAND) {
-	char cmdtext[2048];
+	char cmdtext[2048]; /* FIXME! */
 
 	Con_Printf("client command\n");
 
@@ -865,7 +865,7 @@ CL_ConnectionlessPacket(void)
 	    return;
 	}
 
-	Cbuf_AddText(cmdtext);
+	Cbuf_AddText("%s", cmdtext);
 	allowremotecmd = false;
 	return;
     }
