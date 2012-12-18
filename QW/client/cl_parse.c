@@ -951,8 +951,14 @@ CL_ProcessUserinfo
 static void
 CL_ProcessUserInfo(int slot, player_info_t * player)
 {
-    strncpy(player->name, Info_ValueForKey(player->userinfo, "name"),
-	    sizeof(player->name) - 1);
+    int len;
+    char *name;
+
+    name = Info_ValueForKey(player->userinfo, "name");
+    len = snprintf(player->name, sizeof(player->name), "%s", name);
+    if (len > sizeof(player->name) - 1)
+	player->name[sizeof(player->name) - 1] = 0;
+
     player->topcolor = atoi(Info_ValueForKey(player->userinfo, "topcolor"));
     player->bottomcolor =
 	atoi(Info_ValueForKey(player->userinfo, "bottomcolor"));
