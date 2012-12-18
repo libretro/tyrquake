@@ -38,7 +38,6 @@ cvar_t in_snd_block = { "in_snd_block", "0" };
 
 static qboolean mouse_available;
 static int mouse_x, mouse_y;
-static keydest_t old_key_dest = key_none;
 static int have_focus = 1;
 
 static void
@@ -72,18 +71,6 @@ IN_ProcessEvents(void)
     short unicode;
 
     while (SDL_PollEvent(&event)) {
-	// Ugly key repeat handling. Should use a key_dest callback...
-	if (old_key_dest != key_dest) {
-	    old_key_dest = key_dest;
-#if 0 // KeyRepeat API changed? (repeat attribute on SDL_KeyboardEvent)
-	    if (key_dest == key_game)
-		SDL_EnableKeyRepeat(0, SDL_DEFAULT_REPEAT_INTERVAL);
-	    else
-		SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
-				    SDL_DEFAULT_REPEAT_INTERVAL);
-#endif
-	}
-
 	switch (event.type) {
 #if 0 // ACTIVEEVENT disappeared??
 	case SDL_ACTIVEEVENT:
