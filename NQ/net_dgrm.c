@@ -1187,7 +1187,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
     netadr_t readaddr;
     qsocket_t *sock;
     int newsock;
-    int ret;
+    int ret, len;
     int reps;
     double start_time;
     int control;
@@ -1274,24 +1274,17 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 
     if (ret == 0) {
 	reason = "No Response";
-	Con_Printf("%s\n", reason);
-	strcpy(m_return_reason, reason);
 	goto ErrorReturn;
     }
 
     if (ret == -1) {
 	reason = "Network Error";
-	Con_Printf("%s\n", reason);
-	strcpy(m_return_reason, reason);
 	goto ErrorReturn;
     }
 
     ret = MSG_ReadByte();
     if (ret == CCREP_REJECT) {
 	reason = MSG_ReadString();
-	Con_Printf("%s\n", reason);
-	strncpy(m_return_reason, reason, 31);
-	m_return_reason[31] = 0;
 	goto ErrorReturn;
     }
 
@@ -1300,8 +1293,6 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 	NET_SetSocketPort(&sock->addr, MSG_ReadLong());
     } else {
 	reason = "Bad Response";
-	Con_Printf("%s\n", reason);
-	strcpy(m_return_reason, reason);
 	goto ErrorReturn;
     }
 
@@ -1314,6 +1305,11 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
     return sock;
 
   ErrorReturn:
+    Con_Printf("%s\n", reason);
+    len = snprintf(m_return_reason, sizeof(m_return_reason), "%s", reason);
+    if (len > sizeof(m_return_reason) - 1)
+	m_return_reason[sizeof(m_return_reason) - 1] = 0;
+
     NET_FreeQSocket(sock);
   ErrorReturn2:
     driver->CloseSocket(newsock);
