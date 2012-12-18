@@ -903,9 +903,9 @@ SCR_RSShot_f(void)
 // save the pcx file
 //
 #ifdef GLQUAKE /* FIXME - consolidate common bits */
-    newbuf = malloc(glheight * glwidth * 3);
+    newbuf = malloc(glheight * glwidth * 4);
 
-    glReadPixels(glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE,
+    glReadPixels(glx, gly, glwidth, glheight, GL_RGBA, GL_UNSIGNED_BYTE,
 		 newbuf);
 
     w = (vid.width < RSSHOT_WIDTH) ? glwidth : RSSHOT_WIDTH;
@@ -915,7 +915,7 @@ SCR_RSShot_f(void)
     frach = (float)glheight / (float)h;
 
     for (y = 0; y < h; y++) {
-	dest = newbuf + (w * 3 * y);
+	dest = newbuf + (w * 4 * y);
 
 	for (x = 0; x < w; x++) {
 	    r = g = b = 0;
@@ -931,11 +931,12 @@ SCR_RSShot_f(void)
 
 	    count = 0;
 	    for ( /* */ ; dy < dey; dy++) {
-		src = newbuf + (glwidth * 3 * dy) + dx * 3;
+		src = newbuf + (glwidth * 4 * dy) + dx * 4;
 		for (nx = dx; nx < dex; nx++) {
 		    r += *src++;
 		    g += *src++;
 		    b += *src++;
+		    src++;
 		    count++;
 		}
 	    }
@@ -943,19 +944,20 @@ SCR_RSShot_f(void)
 	    g /= count;
 	    b /= count;
 	    *dest++ = r;
-	    *dest++ = b;
 	    *dest++ = g;
+	    *dest++ = b;
+	    dest++;
 	}
     }
 
     // convert to eight bit
     for (y = 0; y < h; y++) {
-	src = newbuf + (w * 3 * y);
+	src = newbuf + (w * 4 * y);
 	dest = newbuf + (w * y);
 
 	for (x = 0; x < w; x++) {
 	    *dest++ = MipColor(src[0], src[1], src[2]);
-	    src += 3;
+	    src += 4;
 	}
     }
 #else
