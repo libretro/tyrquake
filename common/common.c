@@ -176,6 +176,22 @@ InsertLinkAfter(link_t *l, link_t *after)
 ============================================================================
 */
 
+/*
+ * Use this function to share static string buffers
+ * between different text processing functions.
+ * Try to avoid fixed-size intermediate buffers like this if possible
+ */
+#define COM_STRBUF_LEN 2048
+static char *
+COM_GetStrBuf(void)
+{
+    static char buffers[4][COM_STRBUF_LEN];
+    static int index;
+    return buffers[3 & ++index];
+}
+
+
+
 int
 Q_atoi(const char *str)
 {
@@ -697,42 +713,42 @@ MSG_ReadFloat(void)
 char *
 MSG_ReadString(void)
 {
-    static char string[2048];
-    int l, c;
+    char *buf;
+    int len, c;
 
-    l = 0;
+    buf = COM_GetStrBuf();
+    len = 0;
     do {
 	c = MSG_ReadChar();
 	if (c == -1 || c == 0)
 	    break;
-	string[l] = c;
-	l++;
-    } while (l < sizeof(string) - 1);
+	buf[len++] = c;
+    } while (len < COM_STRBUF_LEN - 1);
 
-    string[l] = 0;
+    buf[len] = 0;
 
-    return string;
+    return buf;
 }
 
 #ifdef QW_HACK
 char *
 MSG_ReadStringLine(void)
 {
-    static char string[2048];
-    int l, c;
+    char *buf;
+    int len, c;
 
-    l = 0;
+    buf = COM_GetStrBuf();
+    len = 0;
     do {
 	c = MSG_ReadChar();
 	if (c == -1 || c == 0 || c == '\n')
 	    break;
-	string[l] = c;
-	l++;
-    } while (l < sizeof(string) - 1);
+	buf[len++] = c;
+    } while (len < COM_STRBUF_LEN - 1);
 
-    string[l] = 0;
+    buf[len] = 0;
 
-    return string;
+    return buf;
 }
 #endif
 
@@ -1310,15 +1326,6 @@ does a varargs printf into a temp buffer, so I don't need to have
 varargs versions of all text functions.
 ============
 */
-#define VA_BUFFERLEN 1024
-static char *
-get_va_buffer(void)
-{
-    static char buffers[4][VA_BUFFERLEN];
-    static int index;
-    return buffers[3 & ++index];
-}
-
 char *
 va(const char *format, ...)
 {
@@ -1326,12 +1333,12 @@ va(const char *format, ...)
     char *buf;
     int ret;
 
-    buf = get_va_buffer();
+    buf = COM_GetStrBuf();
     va_start(argptr, format);
-    ret = vsnprintf(buf, VA_BUFFERLEN, format, argptr);
+    ret = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
     va_end(argptr);
 
-    if (ret >= VA_BUFFERLEN)
+    if (ret >= COM_STRBUF_LEN)
 	Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 
     return buf;
