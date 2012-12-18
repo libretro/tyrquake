@@ -1110,7 +1110,7 @@ CL_ParseServerMessage(void)
 {
     int cmd;
     char *s;
-    int i, j;
+    int i, j, len;
 
     received_framecount = host_framecount;
     cl.last_servermessage = realtime;
@@ -1197,7 +1197,10 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= MAX_LIGHTSTYLES)
 		Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
-	    strcpy(cl_lightstyle[i].map, MSG_ReadString());
+	    s = MSG_ReadString();
+	    len = snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
+	    if (len > MAX_STYLESTRING - 1)
+		cl_lightstyle[i].map[MAX_STYLESTRING - 1] = 0;
 	    cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
 	    break;
 
