@@ -480,8 +480,8 @@ Test_Poll(struct test_poll_state *state)
     netadr_t clientaddr;
     int control;
     int len;
-    char name[32];
-    char address[64];
+    char *name;
+    char *address;
     int colors;
     int frags;
     int connectTime;
@@ -508,11 +508,11 @@ Test_Poll(struct test_poll_state *state)
 	    Sys_Error("Unexpected repsonse to Player Info request");
 
 	playerNumber = MSG_ReadByte();
-	strcpy(name, MSG_ReadString());
+	name = MSG_ReadString();
 	colors = MSG_ReadLong();
 	frags = MSG_ReadLong();
 	connectTime = MSG_ReadLong();
-	strcpy(address, MSG_ReadString());
+	address = MSG_ReadString();
 
 	Con_Printf("%s (%d)\n  frags:%3i  colors:%u %u  time:%u\n  %s\n",
 		   name, (int)playerNumber, frags, colors >> 4, colors & 0x0f,
@@ -614,10 +614,8 @@ Test2_Poll(struct test_poll_state *state)
     netadr_t clientaddr;
     int control;
     int len;
-    char name[256]; /* FIXME */
-    char value[256]; /* FIXME */
-
-    name[0] = 0;
+    char *name;
+    char *value;
 
     len = state->driver->Read(state->socket, net_message.data,
 			      net_message.maxsize, &clientaddr);
@@ -638,10 +636,10 @@ Test2_Poll(struct test_poll_state *state)
     if (MSG_ReadByte() != CCREP_RULE_INFO)
 	goto Error;
 
-    strcpy(name, MSG_ReadString());
-    if (name[0] == 0)
+    name = MSG_ReadString();
+    if (!name[0])
 	goto Done;
-    strcpy(value, MSG_ReadString());
+    value = MSG_ReadString();
 
     Con_Printf("%-16.16s  %-16.16s\n", name, value);
 
@@ -1121,8 +1119,14 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 
 	// add it
 	hostCacheCount++;
-	strcpy(host->name, MSG_ReadString());
-	strcpy(host->map, MSG_ReadString());
+
+	len = snprintf(host->name, sizeof(host->name), "%s", MSG_ReadString());
+	if (len > sizeof(host->name) - 1)
+	    host->name[sizeof(host->name) - 1] = 0;
+	len = snprintf(host->map, sizeof(host->map), "%s", MSG_ReadString());
+	if (len > sizeof(host->map) - 1)
+	    host->map[sizeof(host->map) - 1] = 0;
+
 	host->users = MSG_ReadByte();
 	host->maxusers = MSG_ReadByte();
 	if (MSG_ReadByte() != NET_PROTOCOL_VERSION) {
