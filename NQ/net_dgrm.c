@@ -1062,11 +1062,11 @@ static void
 _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 {
     int ret;
-    int n;
-    int i;
+    int i, len, hostnum;
     netadr_t readaddr;
     netadr_t myaddr;
     int control;
+    hostcache_t *host;
 
     driver->GetSocketAddr(driver->controlSock, &myaddr);
     if (xmit) {
@@ -1110,43 +1110,55 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 
 	driver->GetAddrFromName(MSG_ReadString(), &readaddr);
 	// search the cache for this server
-	for (n = 0; n < hostCacheCount; n++)
-	    if (NET_AddrCompare(&readaddr, &hostcache[n].addr) == 0)
+	for (i = 0, host = hostcache; i < hostCacheCount; i++, host++)
+	    if (NET_AddrCompare(&readaddr, &host->addr) == 0)
 		break;
+	hostnum = i;
 
 	// is it already there?
-	if (n < hostCacheCount)
+	if (hostnum < hostCacheCount)
 	    continue;
 
 	// add it
 	hostCacheCount++;
-	strcpy(hostcache[n].name, MSG_ReadString());
-	strcpy(hostcache[n].map, MSG_ReadString());
-	hostcache[n].users = MSG_ReadByte();
-	hostcache[n].maxusers = MSG_ReadByte();
+	strcpy(host->name, MSG_ReadString());
+	strcpy(host->map, MSG_ReadString());
+	host->users = MSG_ReadByte();
+	host->maxusers = MSG_ReadByte();
 	if (MSG_ReadByte() != NET_PROTOCOL_VERSION) {
-	    strcpy(hostcache[n].cname, hostcache[n].name);
-	    hostcache[n].cname[14] = 0;
-	    strcpy(hostcache[n].name, "*");
-	    strcat(hostcache[n].name, hostcache[n].cname);
+	    strcpy(host->cname, host->name);
+	    host->cname[14] = 0;
+	    strcpy(host->name, "*");
+	    strcat(host->name, host->cname);
 	}
-	hostcache[n].addr = readaddr;
-	hostcache[n].driver = net_driver;
-	hostcache[n].ldriver = driver;
-	strcpy(hostcache[n].cname, NET_AdrToString(&readaddr));
+	host->addr = readaddr;
+	host->driver = net_driver;
+	host->ldriver = driver;
+	strcpy(host->cname, NET_AdrToString(&readaddr));
 
-	// check for a name conflict
+	/*
+	 * check for a name conflict (FIXME - gross!)
+	 */
 	for (i = 0; i < hostCacheCount; i++) {
-	    if (i == n)
+	    if (i == hostnum)
 		continue;
-	    if (strcasecmp(hostcache[n].name, hostcache[i].name) == 0) {
-		i = strlen(hostcache[n].name);
-		if (i < 15 && hostcache[n].name[i - 1] > '8') {
-		    hostcache[n].name[i] = '0';
-		    hostcache[n].name[i + 1] = 0;
+	    if (!strcasecmp(host->name, hostcache[i].name)) {
+		const int max = sizeof(host->name);
+		len = strlen(host->name);
+		/*
+		 * If there's room to add an extra character and the current
+		 * ending character doesn't look like one we might have
+		 * just added, add a zero.
+		 *
+		 * Otherwise, just increment the final character.
+		 */
+		if (len < max - 1 &&
+		    host->name[len - 1] > '0' + HOSTCACHESIZE) {
+		    host->name[len] = '0';
+		    host->name[len + 1] = 0;
 		} else
-		    hostcache[n].name[i - 1]++;
-		i = -1;
+		    host->name[len - 1]++;
+		i = -1; /* reset the loop counter */
 	    }
 	}
     }
