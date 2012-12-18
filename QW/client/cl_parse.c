@@ -1174,7 +1174,6 @@ CL_ParseServerMessage(void)
 
 	case svc_stufftext:
 	    s = MSG_ReadString();
-	    Con_DPrintf("stufftext: %s\n", s);
 	    Cbuf_AddText(s);
 	    break;
 
