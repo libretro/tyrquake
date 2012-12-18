@@ -792,7 +792,7 @@ Responses to broadcasts, etc
 void
 CL_ConnectionlessPacket(void)
 {
-    char *s;
+    char *cmdtext, *idstring, *s;
     int c;
 
     MSG_BeginReading();
@@ -819,8 +819,6 @@ CL_ConnectionlessPacket(void)
     }
     // remote command from gui front end
     if (c == A2C_CLIENT_COMMAND) {
-	char cmdtext[2048]; /* FIXME! */
-
 	Con_Printf("client command\n");
 
 	if (net_from.ip.l != net_local_adr.ip.l
@@ -832,35 +830,32 @@ CL_ConnectionlessPacket(void)
 	ShowWindow(mainwindow, SW_RESTORE);
 	SetForegroundWindow(mainwindow);
 #endif
-	s = MSG_ReadString();
+	cmdtext = MSG_ReadString();
+	idstring = MSG_ReadString();
 
-	strncpy(cmdtext, s, sizeof(cmdtext) - 1);
-	cmdtext[sizeof(cmdtext) - 1] = 0;
+	/* Strip leading and trailing spaces */
+	while (*idstring && isspace(*idstring))
+	    idstring++;
+	while (*idstring && isspace(idstring[strlen(idstring) - 1]))
+	    idstring[strlen(idstring) - 1] = 0;
 
-	s = MSG_ReadString();
-
-	while (*s && isspace(*s))
-	    s++;
-	while (*s && isspace(s[strlen(s) - 1]))
-	    s[strlen(s) - 1] = 0;
-
-	if (!allowremotecmd
-	    && (!*localid.string || strcmp(localid.string, s))) {
-	    if (!*localid.string) {
-		Con_Printf("===========================\n");
-		Con_Printf("Command packet received from local host, but no "
-			   "localid has been set.  You may need to upgrade your server "
-			   "browser.\n");
-		Con_Printf("===========================\n");
-		return;
-	    }
-	    Con_Printf("===========================\n");
-	    Con_Printf
-		("Invalid localid on command packet received from local host. "
-		 "\n|%s| != |%s|\n"
-		 "You may need to reload your server browser and QuakeWorld.\n",
-		 s, localid.string);
-	    Con_Printf("===========================\n");
+	if (!allowremotecmd && !*localid.string) {
+	    Con_Printf("===========================\n"
+		       "Command packet received from local host, but no "
+		       "localid has been set.  You may need to upgrade your "
+		       "server browser.\n"
+		       "===========================\n");
+	    return;
+	}
+	if (!allowremotecmd && strcmp(localid.string, idstring)) {
+	    Con_Printf("===========================\n"
+		       "Invalid localid on command packet received from local "
+		       "host.\n"
+		       " |%s| != |%s|\n"
+		       "You may need to reload your server browser and "
+		       "QuakeWorld.\n"
+		       "===========================\n",
+		       idstring, localid.string);
 	    Cvar_Set("localid", "");
 	    return;
 	}
@@ -905,7 +900,6 @@ CL_ConnectionlessPacket(void)
 #if 0
     if (c == svc_disconnect) {
 	Con_Printf("disconnect\n");
-
 	Host_EndGame("Server disconnected");
     }
 #endif
