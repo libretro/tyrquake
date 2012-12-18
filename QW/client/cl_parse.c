@@ -531,6 +531,7 @@ CL_ParseServerData(void)
     char fn[MAX_OSPATH];
     qboolean cflag = false;
     int protover;
+    int len;
 
     Con_DPrintf("Serverdata packet received.\n");
 //
@@ -565,7 +566,9 @@ CL_ParseServerData(void)
     //ZOID--run the autoexec.cfg in the gamedir
     //if it exists
     if (cflag) {
-	sprintf(fn, "%s/%s", com_gamedir, "config.cfg");
+	len = snprintf(fn, sizeof(fn), "%s/%s", com_gamedir, "config.cfg");
+	if (len > sizeof(fn) - 1)
+	    fn[sizeof(fn) - 1] = 0;
 	if ((f = fopen(fn, "r")) != NULL) {
 	    fclose(f);
 	    Cbuf_AddText("cl_warncmd 0\n");
@@ -582,7 +585,9 @@ CL_ParseServerData(void)
     }
     // get the full level name
     str = MSG_ReadString();
-    strncpy(cl.levelname, str, sizeof(cl.levelname) - 1);
+    len = snprintf(cl.levelname, sizeof(cl.levelname), "%s", str);
+    if (len > sizeof(cl.levelname) - 1)
+	cl.levelname[sizeof(cl.levelname) - 1] = 0;
 
     // get the movevars
     movevars.gravity = MSG_ReadFloat();
@@ -618,13 +623,13 @@ CL_ParseSoundlist
 static void
 CL_ParseSoundlist(void)
 {
+    const int NAMELEN = sizeof(cl.sound_name[0]);
+
+    char *str, *name;
     int numsounds;
-    char *str;
-    int n;
+    int n, len;
 
 // precache sounds
-//      memset (cl.sound_precache, 0, sizeof(cl.sound_precache));
-
     numsounds = MSG_ReadByte();
     for (;;) {
 	str = MSG_ReadString();
@@ -633,7 +638,10 @@ CL_ParseSoundlist(void)
 	numsounds++;
 	if (numsounds == MAX_SOUNDS)
 	    Host_EndGame("Server sent too many sound_precache");
-	strcpy(cl.sound_name[numsounds], str);
+	name = cl.sound_name[numsounds];
+	len = snprintf(name, NAMELEN, "%s", str);
+	if (len > NAMELEN - 1)
+	    name[NAMELEN - 1] = 0;
     }
 
     n = MSG_ReadByte();
@@ -657,9 +665,10 @@ CL_ParseModellist
 static void
 CL_ParseModellist(void)
 {
+    const int NAMELEN = sizeof(cl.model_name[0]);
     int nummodels;
-    char *str;
-    int n;
+    char *str, *name;
+    int n, len;
 
 // precache models and note certain default indexes
     nummodels = MSG_ReadByte();
@@ -671,13 +680,16 @@ CL_ParseModellist(void)
 	nummodels++;
 	if (nummodels == MAX_MODELS)
 	    Host_EndGame("Server sent too many model_precache");
-	strcpy(cl.model_name[nummodels], str);
+	name = cl.model_name[nummodels];
+	len = snprintf(name, NAMELEN, "%s", str);
+	if (len > NAMELEN - 1)
+	    name[NAMELEN - 1] = 0;
 
-	if (!strcmp(cl.model_name[nummodels], "progs/spike.mdl"))
+	if (!strcmp(name, "progs/spike.mdl"))
 	    cl_spikeindex = nummodels;
-	if (!strcmp(cl.model_name[nummodels], "progs/player.mdl"))
+	if (!strcmp(name, "progs/player.mdl"))
 	    cl_playerindex = nummodels;
-	if (!strcmp(cl.model_name[nummodels], "progs/flag.mdl"))
+	if (!strcmp(name, "progs/flag.mdl"))
 	    cl_flagindex = nummodels;
     }
 
@@ -964,8 +976,9 @@ CL_UpdateUserinfo
 static void
 CL_UpdateUserinfo(void)
 {
-    int slot;
     player_info_t *player;
+    char *info;
+    int slot, len;
 
     slot = MSG_ReadByte();
     if (slot >= MAX_CLIENTS)
@@ -973,7 +986,11 @@ CL_UpdateUserinfo(void)
 
     player = &cl.players[slot];
     player->userid = MSG_ReadLong();
-    strncpy(player->userinfo, MSG_ReadString(), sizeof(player->userinfo) - 1);
+
+    info = MSG_ReadString();
+    len = snprintf(player->userinfo, sizeof(player->userinfo), "%s", info);
+    if (len > sizeof(player->userinfo) - 1)
+	player->userinfo[sizeof(player->userinfo) - 1] = 0;
 
     CL_ProcessUserInfo(slot, player);
 }
@@ -986,10 +1003,10 @@ CL_SetInfo
 static void
 CL_SetInfo(void)
 {
-    int slot;
-    player_info_t *player;
     char key[MAX_MSGLEN];
     char value[MAX_MSGLEN];
+    player_info_t *player;
+    int slot, len;
 
     slot = MSG_ReadByte();
     if (slot >= MAX_CLIENTS)
@@ -997,10 +1014,12 @@ CL_SetInfo(void)
 
     player = &cl.players[slot];
 
-    strncpy(key, MSG_ReadString(), sizeof(key) - 1);
-    key[sizeof(key) - 1] = 0;
-    strncpy(value, MSG_ReadString(), sizeof(value) - 1);
-    key[sizeof(value) - 1] = 0;
+    len = snprintf(key, sizeof(key), "%s", MSG_ReadString());
+    if (len > sizeof(key) - 1)
+	key[sizeof(key) - 1] = 0;
+    len = snprintf(value, sizeof(value), "%s", MSG_ReadString());
+    if (len > sizeof(value) - 1)
+	value[sizeof(value) - 1] = 0;
 
     Con_DPrintf("SETINFO %s: %s=%s\n", player->name, key, value);
 
@@ -1019,11 +1038,14 @@ CL_ServerInfo(void)
 {
     char key[MAX_MSGLEN];
     char value[MAX_MSGLEN];
+    int len;
 
-    strncpy(key, MSG_ReadString(), sizeof(key) - 1);
-    key[sizeof(key) - 1] = 0;
-    strncpy(value, MSG_ReadString(), sizeof(value) - 1);
-    key[sizeof(value) - 1] = 0;
+    len = snprintf(key, sizeof(key), "%s", MSG_ReadString());
+    if (len > sizeof(key) - 1)
+	key[sizeof(key) - 1] = 0;
+    len = snprintf(value, sizeof(value), "%s", MSG_ReadString());
+    if (len > sizeof(value) - 1)
+	value[sizeof(value) - 1] = 0;
 
     Con_DPrintf("SERVERINFO: %s=%s\n", key, value);
 
@@ -1173,8 +1195,7 @@ CL_ParseServerMessage(void)
 	    break;
 
 	case svc_stufftext:
-	    s = MSG_ReadString();
-	    Cbuf_AddText("%s", s);
+	    Cbuf_AddText("%s", MSG_ReadString());
 	    break;
 
 	case svc_damage:
