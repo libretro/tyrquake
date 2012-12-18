@@ -744,7 +744,7 @@ WritePCXfile(const char *filename, const byte *data, int width, int height,
 
 #ifdef QW_HACK
     if (upload) {
-	CL_StartUpload((void *)pcx, length);
+	CL_StartUpload((byte *)pcx, length);
 	return;
     }
 #endif
