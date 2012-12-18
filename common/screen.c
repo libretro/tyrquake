@@ -798,33 +798,44 @@ SCR_DrawCharToSnap(int num, byte *dest, int width)
     int row, col;
     byte *source;
     int drawline;
-    int x;
+    int x, stride;
 
     row = num >> 4;
     col = num & 15;
     source = draw_chars + (row << 10) + (col << 3);
 
-    drawline = 8;
+#ifdef GLQUAKE
+    stride = -128;
+#else
+    stride = 128;
+#endif
 
+    if (stride < 0)
+	source -= 7 * stride;
+
+    drawline = 8;
     while (drawline--) {
 	for (x = 0; x < 8; x++)
 	    if (source[x])
 		dest[x] = source[x];
 	    else
 		dest[x] = 98;
-	source += 128;
+	source += stride;
 	dest += width;
     }
-
 }
 
 static void
-SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width)
+SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width, int height)
 {
     byte *dest;
     const unsigned char *p;
 
-    dest = buf + ((y * width) + x);
+#ifdef GLQUAKE
+    dest = buf + (height - y - 8) * width + x;
+#else
+    dest = buf + y * width + x;
+#endif
 
     p = (const unsigned char *)s;
     while (*p) {
@@ -993,49 +1004,30 @@ SCR_RSShot_f(void)
     }
 #endif
 
-#ifdef GLQUAKE /* FIXME - very similar, different location for string? */
     time(&now);
     strcpy(st, ctime(&now));
     st[strlen(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 1, w);
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 0, w, h);
 
     strncpy(st, cls.servername, sizeof(st));
     st[sizeof(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 11, w);
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 10, w, h);
 
     strncpy(st, name.string, sizeof(st));
     st[sizeof(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, h - 21, w);
+    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 20, w, h);
 
     WritePCXfile(pcxname, newbuf, w, h, w, host_basepal, true);
 
     free(newbuf);
+
+#ifndef GLQUAKE
+    /* for adapters that can't stay mapped in for linear writes all the time */
+    D_DisableBackBufferAccess();
+#endif
 
     Con_Printf("Wrote %s\n", pcxname);
-#else
-    time(&now);
-    strcpy(st, ctime(&now));
-    st[strlen(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 0, w);
-
-    strncpy(st, cls.servername, sizeof(st));
-    st[sizeof(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 10, w);
-
-    strncpy(st, name.string, sizeof(st));
-    st[sizeof(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 20, w);
-
-    WritePCXfile(pcxname, newbuf, w, h, w, host_basepal, true);
-
-    free(newbuf);
-
-    D_DisableBackBufferAccess();	// for adapters that can't stay mapped in
-    //  for linear writes all the time
-
-//      Con_Printf ("Wrote %s\n", pcxname);
     Con_Printf("Sending shot to server...\n");
-#endif
 }
 
 #endif /* QW_HACK */
