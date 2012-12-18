@@ -235,8 +235,8 @@ CL_ParseServerInfo
 void
 CL_ParseServerInfo(void)
 {
-    char *str;
-    int i;
+    char *level;
+    int i, len, maxlen;
     int nummodels, numsounds;
     char model_precache[MAX_MODELS][MAX_QPATH];
     char sound_precache[MAX_SOUNDS][MAX_QPATH];
@@ -267,13 +267,16 @@ CL_ParseServerInfo(void)
     cl.gametype = MSG_ReadByte();
 
 // parse signon message
-    str = MSG_ReadString();
-    strncpy(cl.levelname, str, sizeof(cl.levelname) - 1);
+    level = cl.levelname;
+    maxlen = sizeof(cl.levelname);
+    len = snprintf(level, maxlen, "%s", MSG_ReadString());
+    if (len > maxlen - 1)
+	level[maxlen - 1] = 0;
 
 // seperate the printfs so the server message can have a color
-    Con_Printf
-	("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n\n");
-    Con_Printf("%c%s\n", 2, str);
+    Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
+	       "\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n\n");
+    Con_Printf("%c%s\n", 2, level);
 
 //
 // first we go through and touch all of the precache data that still
@@ -284,35 +287,45 @@ CL_ParseServerInfo(void)
 // precache models
     memset(cl.model_precache, 0, sizeof(cl.model_precache));
     for (nummodels = 1;; nummodels++) {
-	str = MSG_ReadString();
-	if (!str[0])
+	char *in, *model;
+	in = MSG_ReadString();
+	if (!in[0])
 	    break;
 	if (nummodels == max_models(cl.protocol)) {
 	    Host_Error("Server sent too many model precaches (max = %d)",
 		       max_models(cl.protocol));
 	    return;
 	}
-	strcpy(model_precache[nummodels], str);
-	Mod_TouchModel(str);
+	model = model_precache[nummodels];
+	maxlen = sizeof(model_precache[0]);
+	len = snprintf(model, maxlen, "%s", in);
+	if (len > maxlen - 1)
+	    model[maxlen - 1] = 0;
+	Mod_TouchModel(model);
     }
 
 // precache sounds
     memset(cl.sound_precache, 0, sizeof(cl.sound_precache));
     for (numsounds = 1;; numsounds++) {
-	str = MSG_ReadString();
-	if (!str[0])
+	char *in, *sound;
+	in = MSG_ReadString();
+	if (!in[0])
 	    break;
 	if (numsounds == max_sounds(cl.protocol)) {
 	    Host_Error("Server sent too many sound precaches (max = %d)",
 		       max_sounds(cl.protocol));
 	    return;
 	}
-	strcpy(sound_precache[numsounds], str);
-	S_TouchSound(str);
+	sound = sound_precache[numsounds];
+	maxlen = sizeof(sound_precache[0]);
+	len = snprintf(sound, maxlen, "%s", in);
+	if (len > maxlen - 1)
+	    sound[maxlen - 1] = 0;
+	S_TouchSound(sound);
     }
 
 // copy the naked name of the map file to the cl structure
-    COM_StripExtension (COM_SkipPath(model_precache[1]), cl.mapname);
+    COM_StripExtension(COM_SkipPath(model_precache[1]), cl.mapname);
 
 //
 // now we try to load everything else until a cache allocation fails
@@ -821,7 +834,8 @@ void
 CL_ParseServerMessage(void)
 {
     int cmd;
-    int i;
+    char *s;
+    int i, len;
     byte colors;
 
 //
@@ -917,7 +931,10 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= MAX_LIGHTSTYLES)
 		Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
-	    strcpy(cl_lightstyle[i].map, MSG_ReadString());
+	    s = MSG_ReadString();
+	    len = snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
+	    if (len > MAX_STYLESTRING - 1)
+		cl_lightstyle[i].map[MAX_STYLESTRING - 1] = 0;
 	    cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
 	    break;
 
@@ -935,7 +952,10 @@ CL_ParseServerMessage(void)
 	    i = MSG_ReadByte();
 	    if (i >= cl.maxclients)
 		Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
-	    strcpy(cl.players[i].name, MSG_ReadString());
+	    s = MSG_ReadString();
+	    len = snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
+	    if (len > MAX_SCOREBOARDNAME - 1)
+		cl.players[i].name[MAX_SCOREBOARDNAME - 1] = 0;
 	    break;
 
 	case svc_updatefrags:
