@@ -792,7 +792,7 @@ Responses to broadcasts, etc
 void
 CL_ConnectionlessPacket(void)
 {
-    char *cmdtext, *idstring, *s;
+    char *cmdtext, *idstring;
     int c;
 
     MSG_BeginReading();
@@ -867,9 +867,7 @@ CL_ConnectionlessPacket(void)
     // print command from somewhere
     if (c == A2C_PRINT) {
 	Con_Printf("print\n");
-
-	s = MSG_ReadString();
-	Con_Print(s);
+	Con_Print(MSG_ReadString());
 	return;
     }
     // ping from somewhere
@@ -891,9 +889,7 @@ CL_ConnectionlessPacket(void)
 
     if (c == S2C_CHALLENGE) {
 	Con_Printf("challenge\n");
-
-	s = MSG_ReadString();
-	cls.challenge = atoi(s);
+	cls.challenge = atoi(MSG_ReadString());
 	CL_SendConnectPacket();
 	return;
     }

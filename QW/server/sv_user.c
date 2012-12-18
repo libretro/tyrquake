@@ -1468,7 +1468,6 @@ void
 SV_ExecuteClientMessage(client_t *cl)
 {
     int c;
-    char *s;
     usercmd_t oldest, oldcmd, newcmd;
     client_frame_t *frame;
     vec3_t o;
@@ -1585,8 +1584,7 @@ SV_ExecuteClientMessage(client_t *cl)
 
 
 	case clc_stringcmd:
-	    s = MSG_ReadString();
-	    SV_ExecuteUserCommand(s);
+	    SV_ExecuteUserCommand(MSG_ReadString());
 	    break;
 
 	case clc_tmove:

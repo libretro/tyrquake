@@ -774,41 +774,35 @@ connectionless packets.
 static void
 SV_ConnectionlessPacket(void)
 {
-    const char *s;
-    const char *c;
+    const char *cmdstring;
+    const char *cmd;
 
     MSG_BeginReading();
     MSG_ReadLong();		// skip the -1 marker
 
-    s = MSG_ReadStringLine();
-    Cmd_TokenizeString(s);
-    c = Cmd_Argv(0);
+    cmdstring = MSG_ReadStringLine();
+    Cmd_TokenizeString(cmdstring);
+    cmd = Cmd_Argv(0);
 
-    if (!strcmp(c, "ping")
-	|| (c[0] == A2A_PING && (c[1] == 0 || c[1] == '\n'))) {
+    if (!strcmp(cmd, "ping"))
 	SVC_Ping();
-	return;
-    }
-    if (c[0] == A2A_ACK && (c[1] == 0 || c[1] == '\n')) {
+    else if (cmd[0] == A2A_PING && (cmd[1] == 0 || cmd[1] == '\n'))
+	SVC_Ping();
+    else if (cmd[0] == A2A_ACK && (cmd[1] == 0 || cmd[1] == '\n'))
 	Con_Printf("A2A_ACK from %s\n", NET_AdrToString(net_from));
-	return;
-    } else if (!strcmp(c, "status")) {
+    else if (!strcmp(cmd, "status"))
 	SVC_Status();
-	return;
-    } else if (!strcmp(c, "log")) {
+    else if (!strcmp(cmd, "log"))
 	SVC_Log();
-	return;
-    } else if (!strcmp(c, "connect")) {
+    else if (!strcmp(cmd, "connect"))
 	SVC_DirectConnect();
-	return;
-    } else if (!strcmp(c, "getchallenge")) {
+    else if (!strcmp(cmd, "getchallenge"))
 	SVC_GetChallenge();
-	return;
-    } else if (!strcmp(c, "rcon"))
+    else if (!strcmp(cmd, "rcon"))
 	SVC_RemoteCommand();
     else
 	Con_Printf("bad connectionless packet from %s:\n%s\n",
-		   NET_AdrToString(net_from), s);
+		   NET_AdrToString(net_from), cmdstring);
 }
 
 /*
