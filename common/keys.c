@@ -759,8 +759,6 @@ Key_Init(void)
     consolekeys[K_RSHIFT] = true;
     consolekeys[K_MWHEELUP] = true;
     consolekeys[K_MWHEELDOWN] = true;
-    //consolekeys['`'] = false;
-    //consolekeys['~'] = false;
 
     for (i = 0; i < K_LAST; i++)
         keyshift[i] = i;
@@ -890,9 +888,12 @@ Key_Event(knum_t key, qboolean down)
 //
 // during demo playback, most keys bring up the main menu
 //
-    if (cls.demoplayback && down && consolekeys[key] && key_dest == key_game) {
-	M_ToggleMenu_f();
-	return;
+    if (cls.demoplayback && consolekeys[key] && key_dest == key_game) {
+	/* Don't override the console key */
+	if (!keybindings[key] || strcmp(keybindings[key], "toggleconsole")) {
+	    M_ToggleMenu_f();
+	    return;
+	}
     }
 //
 // if not a consolekey, send to the interpreter no matter what mode is
