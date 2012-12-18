@@ -145,6 +145,11 @@ CL_Disconnect(void)
 // stop sounds (especially looping!)
     S_StopAllSounds(true);
 
+    /* Clear up view, remove palette shift */
+    scr_centertime_off = 0;
+    cl.cshifts[0].percent = 0;
+    VID_SetPalette(host_basepal);
+
 // if running a local server, shut it down
     if (cls.demoplayback)
 	CL_StopPlayback();
