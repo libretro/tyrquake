@@ -236,6 +236,7 @@ void
 CL_ParseServerInfo(void)
 {
     char *level;
+    const char *mapname;
     int i, len, maxlen;
     int nummodels, numsounds;
     char model_precache[MAX_MODELS][MAX_QPATH];
@@ -325,7 +326,9 @@ CL_ParseServerInfo(void)
     }
 
 // copy the naked name of the map file to the cl structure
-    COM_StripExtension(COM_SkipPath(model_precache[1]), cl.mapname);
+    mapname = COM_SkipPath(model_precache[1]);
+    snprintf(cl.mapname, sizeof(cl.mapname), "%s", mapname);
+    COM_StripExtension(cl.mapname);
 
 //
 // now we try to load everything else until a cache allocation fails

@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 cvar_t baseskin = { "baseskin", "base" };
 cvar_t noskins = { "noskins", "0" };
 
-char allskins[128];
+static char allskins[128];
 
 #define	MAX_CACHED_SKINS		128
 skin_t skins[MAX_CACHED_SKINS];
@@ -48,22 +48,20 @@ Skin_Find(player_info_t * sc)
 {
     skin_t *skin;
     int i;
-    char name[128], *s;
+    char name[128];
+    const char *skinname;
 
-    if (allskins[0])
-	strcpy(name, allskins);
-    else {
-	s = Info_ValueForKey(sc->userinfo, "skin");
-	if (s && s[0])
-	    strcpy(name, s);
-	else
-	    strcpy(name, baseskin.string);
+    skinname = allskins;
+    if (!skinname[0]) {
+	skinname = Info_ValueForKey(sc->userinfo, "skin");
+	if (!skinname || !skinname[0])
+	    skinname = baseskin.string;
     }
+    if (strstr(skinname, "..") || skinname[0] == '.')
+	skinname = "base";
 
-    if (strstr(name, "..") || *name == '.')
-	strcpy(name, "base");
-
-    COM_StripExtension(name, name);
+    snprintf(name, sizeof(name), "%s", skinname);
+    COM_StripExtension(name);
 
     for (i = 0; i < numskins; i++) {
 	if (!strcmp(name, skins[i].name)) {
@@ -83,7 +81,7 @@ Skin_Find(player_info_t * sc)
     numskins++;
 
     memset(skin, 0, sizeof(*skin));
-    strncpy(skin->name, name, sizeof(skin->name) - 1);
+    snprintf(skin->name, sizeof(skin->name), "%s", name);
 }
 
 

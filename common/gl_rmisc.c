@@ -366,7 +366,7 @@ R_TranslatePlayerSkin(int playernum)
     const entity_t *e;
 #endif
 #ifdef QW_HACK
-    char skin[512];
+    char *skin;
 #endif
 
     GL_DisableMultitexture();
@@ -379,8 +379,8 @@ R_TranslatePlayerSkin(int playernum)
     if (!player->name[0])
 	return;
 
-    strcpy(skin, Info_ValueForKey(player->userinfo, "skin"));
-    COM_StripExtension(skin, skin);
+    skin = Info_ValueForKey(player->userinfo, "skin");
+    COM_StripExtension(skin);
     if (player->skin && !strcasecmp(skin, player->skin->name))
 	player->skin = NULL;
 

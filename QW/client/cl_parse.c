@@ -171,6 +171,7 @@ qboolean
 CL_CheckOrDownloadFile(char *filename)
 {
     FILE *f;
+    int maxlen;
 
     if (strstr(filename, "..")) {
 	Con_Printf("Refusing to download a path with ..\n");
@@ -182,23 +183,32 @@ CL_CheckOrDownloadFile(char *filename)
 	fclose(f);
 	return true;
     }
-    //ZOID - can't download when recording
+    /* can't download when recording */
     if (cls.demorecording) {
 	Con_Printf("Unable to download %s in record mode.\n",
 		   cls.downloadname);
 	return true;
     }
-    //ZOID - can't download when playback
+    /* can't download when playback */
     if (cls.demoplayback)
 	return true;
 
-    strcpy(cls.downloadname, filename);
+    snprintf(cls.downloadname, sizeof(cls.downloadname), "%s", filename);
     Con_Printf("Downloading %s...\n", cls.downloadname);
 
-    // download to a temp name, and only rename
-    // to the real name when done, so if interrupted
-    // a runt file wont be left
-    COM_StripExtension(cls.downloadname, cls.downloadtempname);
+    /*
+     * download to a temp name, and only rename to the real name when
+     * done, so if interrupted a runt file wont be left
+     */
+    strcpy(cls.downloadtempname, cls.downloadname); /* same size */
+    COM_StripExtension(cls.downloadtempname);
+
+    /* make sure the .tmp extension fits... */
+    maxlen = sizeof(cls.downloadtempname);
+    if (strlen(cls.downloadtempname) + strlen(".tmp") > maxlen - 1) {
+	Con_Printf("Refusing download, pathname too long\n");
+	return true;
+    }
     strcat(cls.downloadtempname, ".tmp");
 
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -892,21 +902,21 @@ CL_NewTranslation(int slot)
 
     R_TranslatePlayerSkin(slot);
 #else
-
     int i, j;
     int top, bottom;
     byte *dest, *source;
     player_info_t *player;
-    char s[512];
+    char *skin;
 
     if (slot > MAX_CLIENTS)
 	Sys_Error("%s: slot > MAX_CLIENTS", __func__);
 
     player = &cl.players[slot];
 
-    strcpy(s, Info_ValueForKey(player->userinfo, "skin"));
-    COM_StripExtension(s, s);
-    if (player->skin && !strcasecmp(s, player->skin->name))
+    skin = Info_ValueForKey(player->userinfo, "skin");
+    COM_StripExtension(skin);
+
+    if (player->skin && !strcasecmp(skin, player->skin->name))
 	player->skin = NULL;
 
     if (player->_topcolor != player->topcolor ||
@@ -927,7 +937,8 @@ CL_NewTranslation(int slot)
 	bottom *= 16;
 
 	for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256) {
-	    if (top < 128)	// the artists made some backwards ranges.  sigh.
+	    /* the artists made some backwards ranges.  sigh. */
+	    if (top < 128)
 		memcpy(dest + TOP_RANGE, source + top, 16);
 	    else
 		for (j = 0; j < 16; j++)

@@ -938,11 +938,11 @@ COM_StripExtension
 ============
 */
 void
-COM_StripExtension(const char *in, char *out)
+COM_StripExtension(char *filename)
 {
-    while (*in && *in != '.')
-	*out++ = *in++;
-    *out = 0;
+    while (*filename && *filename != '.')
+	filename++;
+    *filename = 0;
 }
 
 /*
