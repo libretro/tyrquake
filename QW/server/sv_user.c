@@ -639,11 +639,13 @@ SV_BeginDownload_f
 void
 SV_BeginDownload_f(void)
 {
-    char lname[MAX_OSPATH], *p;
-    const char *name;
+    char name[MAX_OSPATH], *p;
 
-    name = Cmd_Argv(1);
-// hacked by zoid to allow more conrol over download
+    /* Lowercase name (needed for casesen file systems) */
+    snprintf(name, sizeof(name), "%s", Cmd_Argv(1));
+    for (p = name; *p; p++)
+	*p = tolower(*p);
+
     // first off, no .. or global allow check
     if (strstr(name, "..") || !allow_download.value
 	// leading dot is no good
@@ -670,23 +672,20 @@ SV_BeginDownload_f(void)
 	fclose(host_client->download);
 	host_client->download = NULL;
     }
-    // lowercase name (needed for casesen file systems)
-    for (p = lname; *name; p++, name++)
-	*p = (char)tolower(*name);
 
-    host_client->downloadsize = COM_FOpenFile(lname, &host_client->download);
+    host_client->downloadsize = COM_FOpenFile(name, &host_client->download);
     host_client->downloadcount = 0;
 
     if (!host_client->download
 	// special check for maps, if it came from a pak file, don't allow
 	// download  ZOID
-	|| (strncmp(lname, "maps/", 5) == 0 && file_from_pak)) {
+	|| (strncmp(name, "maps/", 5) == 0 && file_from_pak)) {
 	if (host_client->download) {
 	    fclose(host_client->download);
 	    host_client->download = NULL;
 	}
 
-	Sys_Printf("Couldn't download %s to %s\n", lname, host_client->name);
+	Sys_Printf("Couldn't upload %s to %s\n", name, host_client->name);
 	ClientReliableWrite_Begin(host_client, svc_download, 4);
 	ClientReliableWrite_Short(host_client, -1);
 	ClientReliableWrite_Byte(host_client, 0);
@@ -694,7 +693,7 @@ SV_BeginDownload_f(void)
     }
 
     SV_NextDownload_f();
-    Sys_Printf("Downloading %s to %s\n", lname, host_client->name);
+    Sys_Printf("Uploading %s to %s\n", name, host_client->name);
 }
 
 //=============================================================================
