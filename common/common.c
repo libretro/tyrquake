@@ -2117,19 +2117,23 @@ char *
 Info_ValueForKey(const char *s, const char *key)
 {
     char pkey[512];
-    static char value[4][512];	// use two buffers so compares
+    static char value[4][512];	// use multiple buffers so compares
 				// work without stomping on each other
     static int valueindex;
-    char *o;
+    char *o, *buf;
 
     valueindex = (valueindex + 1) % 4;
+    buf = value[valueindex];
+
     if (*s == '\\')
 	s++;
     while (1) {
 	o = pkey;
 	while (*s != '\\') {
-	    if (!*s)
-		return "";
+	    if (!*s) {
+		*buf = 0;
+		return buf;
+	    }
 	    *o++ = *s++;
 	}
 	*o = 0;
@@ -2138,8 +2142,10 @@ Info_ValueForKey(const char *s, const char *key)
 	o = value[valueindex];
 
 	while (*s != '\\' && *s) {
-	    if (!*s)
-		return "";
+	    if (!*s) {
+		*buf = 0;
+		return buf;
+	    }
 	    *o++ = *s++;
 	}
 	*o = 0;
@@ -2147,8 +2153,10 @@ Info_ValueForKey(const char *s, const char *key)
 	if (!strcmp(key, pkey))
 	    return value[valueindex];
 
-	if (!*s)
-	    return "";
+	if (!*s) {
+	    *buf = 0;
+	    return buf;
+	}
 	s++;
     }
 }
