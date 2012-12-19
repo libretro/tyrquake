@@ -940,9 +940,9 @@ COM_StripExtension
 void
 COM_StripExtension(char *filename)
 {
-    while (*filename && *filename != '.')
-	filename++;
-    *filename = 0;
+    char *pos = strrchr(filename, '.');
+    if (pos && *pos)
+	*pos = 0;
 }
 
 /*
