@@ -508,6 +508,62 @@ Con_DrawNotify(void)
 	con_notifylines = v;
 }
 
+static void
+Con_DrawDLBar(void)
+{
+#ifdef QW_HACK
+    char dlbar[256];
+    const char *dlname;
+    char *buf;
+    int bufspace;
+    int namespace, len;
+    int barchars, totalchars, markpos;
+    int i;
+
+    if (!cls.download)
+	return;
+
+    /*
+     * totalchars = the space available for the whole bar + text
+     * barchars   = the space for just the bar
+     *
+     * Bar looks like this:
+     *  filename     <====*====> 42%
+     *  longfilen... <==*======> 31%
+     */
+    dlname = COM_SkipPath(cls.downloadname);
+
+    buf = dlbar;
+    bufspace = sizeof(dlbar) - 1;
+
+    namespace  = qmin(con_linewidth / 3, 20);
+    totalchars = qmin(con_linewidth - 2, (int)sizeof(dlbar) - 1);
+
+    if (strlen(dlname) > namespace) {
+	len = snprintf(buf, bufspace, "%.*s... ", namespace - 2, dlname);
+    } else {
+	len = snprintf(buf, bufspace, "%-*s ", namespace + 1, dlname);
+    }
+    buf += len;
+    totalchars -= len;
+    barchars = totalchars - 7; /* endcaps, space, "100%" */
+
+    markpos = barchars * cls.downloadpercent / 100;
+    *buf++ = '\x80';
+    for (i = 0; i < barchars; i++) {
+	if (i == markpos)
+	    *buf++ = '\x83';
+	else
+	    *buf++ = '\x81';
+    }
+    *buf++ = '\x82';
+    snprintf(buf, 6, " %3d%%", cls.downloadpercent);
+
+    /* draw it */
+    Draw_String(8, con_vislines - 22 + 8, dlbar);
+#endif
+}
+
 /*
 ================
 Con_DrawConsole
@@ -523,11 +579,6 @@ Con_DrawConsole(int lines)
     int rows;
     char *text;
     int row;
-
-#ifdef QW_HACK
-    int j, n;
-    char dlbar[1024];
-#endif
 
     if (lines <= 0)
 	return;
@@ -561,49 +612,8 @@ Con_DrawConsole(int lines)
 	    Draw_Character((x + 1) << 3, y, text[x]);
     }
 
-#ifdef QW_HACK
-    // draw the download bar
-    // figure out width
-    if (cls.download) {
-	if ((text = strrchr(cls.downloadname, '/')) != NULL)
-	    text++;
-	else
-	    text = cls.downloadname;
-
-	x = con_linewidth - ((con_linewidth * 7) / 40);
-	y = x - strlen(text) - 8;
-	i = con_linewidth / 3;
-	if (strlen(text) > i) {
-	    y = x - i - 11;
-	    strncpy(dlbar, text, i);
-	    dlbar[i] = 0;
-	    strcat(dlbar, "...");
-	} else
-	    strcpy(dlbar, text);
-	strcat(dlbar, ": ");
-	i = strlen(dlbar);
-	dlbar[i++] = '\x80';
-	// where's the dot go?
-	if (cls.downloadpercent == 0)
-	    n = 0;
-	else
-	    n = y * cls.downloadpercent / 100;
-
-	for (j = 0; j < y; j++)
-	    if (j == n)
-		dlbar[i++] = '\x83';
-	    else
-		dlbar[i++] = '\x81';
-	dlbar[i++] = '\x82';
-	dlbar[i] = 0;
-
-	sprintf(dlbar + strlen(dlbar), " %02d%%", cls.downloadpercent);
-
-	// draw it
-	y = con_vislines - 22 + 8;
-	Draw_String(8, y, dlbar);
-    }
-#endif
+    // draw the download bar, if needed
+    Con_DrawDLBar();
 
     // draw the input prompt, user text, and cursor if desired
     Con_DrawInput();
