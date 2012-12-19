@@ -2252,7 +2252,8 @@ void
 Info_SetValueForStarKey(char *s, const char *key, const char *value,
 			int maxsize)
 {
-    char new[1024], *v;
+    char info[1024];
+    char *v;
     int c;
 
     if (strstr(key, "\\") || strstr(value, "\\")) {
@@ -2269,8 +2270,9 @@ Info_SetValueForStarKey(char *s, const char *key, const char *value,
 	Con_Printf("Keys and values must be < 64 characters.\n");
 	return;
     }
-    // this next line is kinda trippy
-    if (*(v = Info_ValueForKey(s, key))) {
+
+    v = Info_ValueForKey(s, key);
+    if (*v) {
 	// key exists, make sure we have enough room for new value, if we don't,
 	// don't change it!
 	if (strlen(value) - strlen(v) + strlen(s) > maxsize) {
@@ -2282,25 +2284,25 @@ Info_SetValueForStarKey(char *s, const char *key, const char *value,
     if (!value || !strlen(value))
 	return;
 
-    sprintf(new, "\\%s\\%s", key, value);
+    snprintf(info, sizeof(info), "\\%s\\%s", key, value);
 
-    if ((int)(strlen(new) + strlen(s)) > maxsize) {
+    if (strlen(info) + strlen(s) > maxsize) {
 	Con_Printf("Info string length exceeded\n");
 	return;
     }
     // only copy ascii values
     s += strlen(s);
-    v = new;
+    v = info;
     while (*v) {
 	c = (unsigned char)*v++;
 #ifndef SERVERONLY
 	// client only allows highbits on name
-	if (strcasecmp(key, "name") != 0) {
+	if (strcasecmp(key, "name")) {
 	    c &= 127;
 	    if (c < 32 || c > 127)
 		continue;
 	    // auto lowercase team
-	    if (strcasecmp(key, "team") == 0)
+	    if (!strcasecmp(key, "team"))
 		c = tolower(c);
 	}
 #else
@@ -2310,8 +2312,7 @@ Info_SetValueForStarKey(char *s, const char *key, const char *value,
 		continue;
 	}
 #endif
-//              c &= 127;               // strip high bits
-	if (c > 13)		// && c < 127)
+	if (c > 13)
 	    *s++ = c;
     }
     *s = 0;
