@@ -562,8 +562,10 @@ IN_ProcessEvents(void)
 	    break;
 
 	case SDL_MOUSEMOTION:
-	    mouse_x += event.motion.xrel;
-	    mouse_y += event.motion.yrel;
+	    if (SDL_GetWindowGrab(sdl_window)) {
+		mouse_x += event.motion.xrel;
+		mouse_y += event.motion.yrel;
+	    }
 	    break;
 
 	case SDL_QUIT:
@@ -586,11 +588,15 @@ IN_GrabMouse(int grab)
     if ((mouse_grabbed && !grab) || (!mouse_grabbed && grab))
 	Con_Printf("%s: grab failed? (%s)\n", __func__, SDL_GetError());
 
-    SDL_SetRelativeMouseMode(mouse_grabbed);
-    err = SDL_ShowCursor(mouse_grabbed ? 0 : 1);
+    err = SDL_ShowCursor(mouse_grabbed ? SDL_DISABLE : SDL_ENABLE);
     if (err < 0)
-	Con_Printf("Unable to %s the mouse cursor (%s)\n",
+	Con_Printf("WARNING: Unable to %s the mouse cursor (%s)\n",
 		   mouse_grabbed ? "hide" : "unhide", SDL_GetError());
+
+    if (!mouse_grabbed)
+	SDL_WarpMouseInWindow(sdl_window, vid.width / 2, vid.height / 2);
+
+    SDL_SetRelativeMouseMode(mouse_grabbed);
 }
 
 static void
@@ -616,6 +622,9 @@ IN_MouseMove(usercmd_t *cmd)
     static float old_mouse_x, old_mouse_y;
 
     if (!mouse_available)
+	return;
+
+    if (!SDL_GetWindowGrab(sdl_window))
 	return;
 
     if (m_filter.value) {
@@ -687,5 +696,19 @@ void IN_Move(usercmd_t *cmd)
 }
 void IN_Commands(void)
 {
+    if (mouse_available) {
+	SDL_bool mouse_grabbed = SDL_GetWindowGrab(sdl_window);
+
+	// If we have the mouse, but are not in the game...
+	if (mouse_grabbed && key_dest != key_game && !VID_IsFullScreen())
+	    IN_GrabMouse(false);
+
+	// If we don't have the mouse, but we're in the game and we want it...
+	if (!mouse_grabbed && key_dest == key_game &&
+	    (_windowed_mouse.value || VID_IsFullScreen()))
+	    IN_GrabMouse(true);
+
+    }
+
     IN_ProcessEvents();
 }
