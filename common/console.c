@@ -546,7 +546,7 @@ Con_DrawDLBar(void)
     }
     buf += len;
     totalchars -= len;
-    barchars = totalchars - 7; /* endcaps, space, "100%" */
+    barchars = totalchars - 7; /* 7 => 2 endcaps, space, "100%" */
 
     markpos = barchars * cls.downloadpercent / 100;
     *buf++ = '\x80';

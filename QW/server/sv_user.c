@@ -473,11 +473,9 @@ SV_Begin_f(void)
     pmodel = atoi(Info_ValueForKey(host_client->userinfo, "pmodel"));
     emodel = atoi(Info_ValueForKey(host_client->userinfo, "emodel"));
 
-    if (pmodel != sv.model_player_checksum ||
-	emodel != sv.eyes_player_checksum)
-	SV_BroadcastPrintf(PRINT_HIGH,
-			   "%s WARNING: non standard player/eyes model detected\n",
-			   host_client->name);
+    if (pmodel != sv.model_player_checksum || emodel != sv.eyes_player_checksum)
+	SV_BroadcastPrintf(PRINT_HIGH, "%s WARNING: non standard player/eyes "
+			   "model detected\n", host_client->name);
 
     // if we are paused, tell the client
     if (sv.paused) {
@@ -1494,7 +1492,6 @@ SV_ExecuteClientMessage(client_t *cl)
     host_client = cl;
     sv_player = host_client->edict;
 
-//      seq_hash = (cl->netchan.incoming_sequence & 0xffff) ; // ^ QW_CHECK_HASH;
     seq_hash = cl->netchan.incoming_sequence;
 
     // mark time so clients will know how much to predict
