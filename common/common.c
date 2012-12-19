@@ -2114,7 +2114,7 @@ key and returns the associated value, or an empty string.
 ===============
 */
 char *
-Info_ValueForKey(char *s, const char *key)
+Info_ValueForKey(const char *s, const char *key)
 {
     char pkey[512];
     static char value[4][512];	// use two buffers so compares

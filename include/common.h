@@ -219,7 +219,7 @@ extern struct cvar_s registered;
 extern qboolean standard_quake, rogue, hipnotic;
 
 #ifdef QW_HACK
-char *Info_ValueForKey(char *s, const char *key);
+char *Info_ValueForKey(const char *s, const char *key);
 void Info_RemoveKey(char *s, const char *key);
 void Info_RemovePrefixedKeys(char *start, char prefix);
 void Info_SetValueForKey(char *s, const char *key, const char *value,
