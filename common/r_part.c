@@ -168,7 +168,7 @@ R_ReadPointFile_f(void)
     char name[MAX_OSPATH];
 
 #ifdef NQ_HACK
-    sprintf(name, "maps/%s.pts", sv.name);
+    snprintf(name, sizeof(name), "maps/%s.pts", sv.name);
 #endif
 #ifdef QW_HACK
     snprintf(name, sizeof(name), "maps/%s.pts",

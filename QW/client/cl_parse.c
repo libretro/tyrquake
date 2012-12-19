@@ -541,7 +541,6 @@ CL_ParseServerData(void)
     char fn[MAX_OSPATH];
     qboolean cflag = false;
     int protover;
-    int len;
 
     Con_DPrintf("Serverdata packet received.\n");
 //
@@ -576,9 +575,7 @@ CL_ParseServerData(void)
     //ZOID--run the autoexec.cfg in the gamedir
     //if it exists
     if (cflag) {
-	len = snprintf(fn, sizeof(fn), "%s/%s", com_gamedir, "config.cfg");
-	if (len > sizeof(fn) - 1)
-	    fn[sizeof(fn) - 1] = 0;
+	snprintf(fn, sizeof(fn), "%s/%s", com_gamedir, "config.cfg");
 	if ((f = fopen(fn, "r")) != NULL) {
 	    fclose(f);
 	    Cbuf_AddText("cl_warncmd 0\n");
@@ -595,9 +592,7 @@ CL_ParseServerData(void)
     }
     // get the full level name
     str = MSG_ReadString();
-    len = snprintf(cl.levelname, sizeof(cl.levelname), "%s", str);
-    if (len > sizeof(cl.levelname) - 1)
-	cl.levelname[sizeof(cl.levelname) - 1] = 0;
+    snprintf(cl.levelname, sizeof(cl.levelname), "%s", str);
 
     // get the movevars
     movevars.gravity = MSG_ReadFloat();
@@ -637,7 +632,7 @@ CL_ParseSoundlist(void)
 
     char *str, *name;
     int numsounds;
-    int n, len;
+    int n;
 
 // precache sounds
     numsounds = MSG_ReadByte();
@@ -649,9 +644,7 @@ CL_ParseSoundlist(void)
 	if (numsounds == MAX_SOUNDS)
 	    Host_EndGame("Server sent too many sound_precache");
 	name = cl.sound_name[numsounds];
-	len = snprintf(name, NAMELEN, "%s", str);
-	if (len > NAMELEN - 1)
-	    name[NAMELEN - 1] = 0;
+	snprintf(name, NAMELEN, "%s", str);
     }
 
     n = MSG_ReadByte();
@@ -678,7 +671,7 @@ CL_ParseModellist(void)
     const int NAMELEN = sizeof(cl.model_name[0]);
     int nummodels;
     char *str, *name;
-    int n, len;
+    int n;
 
 // precache models and note certain default indexes
     nummodels = MSG_ReadByte();
@@ -691,9 +684,7 @@ CL_ParseModellist(void)
 	if (nummodels == MAX_MODELS)
 	    Host_EndGame("Server sent too many model_precache");
 	name = cl.model_name[nummodels];
-	len = snprintf(name, NAMELEN, "%s", str);
-	if (len > NAMELEN - 1)
-	    name[NAMELEN - 1] = 0;
+	snprintf(name, NAMELEN, "%s", str);
 
 	if (!strcmp(name, "progs/spike.mdl"))
 	    cl_spikeindex = nummodels;
@@ -962,13 +953,10 @@ CL_ProcessUserinfo
 static void
 CL_ProcessUserInfo(int slot, player_info_t * player)
 {
-    int len;
     char *name;
 
     name = Info_ValueForKey(player->userinfo, "name");
-    len = snprintf(player->name, sizeof(player->name), "%s", name);
-    if (len > sizeof(player->name) - 1)
-	player->name[sizeof(player->name) - 1] = 0;
+    snprintf(player->name, sizeof(player->name), "%s", name);
 
     player->topcolor = atoi(Info_ValueForKey(player->userinfo, "topcolor"));
     player->bottomcolor =
@@ -995,7 +983,7 @@ CL_UpdateUserinfo(void)
 {
     player_info_t *player;
     char *info;
-    int slot, len;
+    int slot;
 
     slot = MSG_ReadByte();
     if (slot >= MAX_CLIENTS)
@@ -1005,10 +993,7 @@ CL_UpdateUserinfo(void)
     player->userid = MSG_ReadLong();
 
     info = MSG_ReadString();
-    len = snprintf(player->userinfo, sizeof(player->userinfo), "%s", info);
-    if (len > sizeof(player->userinfo) - 1)
-	player->userinfo[sizeof(player->userinfo) - 1] = 0;
-
+    snprintf(player->userinfo, sizeof(player->userinfo), "%s", info);
     CL_ProcessUserInfo(slot, player);
 }
 
@@ -1023,20 +1008,15 @@ CL_SetInfo(void)
     char key[MAX_MSGLEN];
     char value[MAX_MSGLEN];
     player_info_t *player;
-    int slot, len;
+    int slot;
 
     slot = MSG_ReadByte();
     if (slot >= MAX_CLIENTS)
 	Host_EndGame("%s: svc_setinfo > MAX_SCOREBOARD", __func__);
 
     player = &cl.players[slot];
-
-    len = snprintf(key, sizeof(key), "%s", MSG_ReadString());
-    if (len > sizeof(key) - 1)
-	key[sizeof(key) - 1] = 0;
-    len = snprintf(value, sizeof(value), "%s", MSG_ReadString());
-    if (len > sizeof(value) - 1)
-	value[sizeof(value) - 1] = 0;
+    snprintf(key, sizeof(key), "%s", MSG_ReadString());
+    snprintf(value, sizeof(value), "%s", MSG_ReadString());
 
     Con_DPrintf("SETINFO %s: %s=%s\n", player->name, key, value);
 
@@ -1055,14 +1035,9 @@ CL_ServerInfo(void)
 {
     char key[MAX_MSGLEN];
     char value[MAX_MSGLEN];
-    int len;
 
-    len = snprintf(key, sizeof(key), "%s", MSG_ReadString());
-    if (len > sizeof(key) - 1)
-	key[sizeof(key) - 1] = 0;
-    len = snprintf(value, sizeof(value), "%s", MSG_ReadString());
-    if (len > sizeof(value) - 1)
-	value[sizeof(value) - 1] = 0;
+    snprintf(key, sizeof(key), "%s", MSG_ReadString());
+    snprintf(value, sizeof(value), "%s", MSG_ReadString());
 
     Con_DPrintf("SERVERINFO: %s=%s\n", key, value);
 
@@ -1149,7 +1124,7 @@ CL_ParseServerMessage(void)
 {
     int cmd;
     char *s;
-    int i, j, len;
+    int i, j;
 
     received_framecount = host_framecount;
     cl.last_servermessage = realtime;
@@ -1236,9 +1211,7 @@ CL_ParseServerMessage(void)
 	    if (i >= MAX_LIGHTSTYLES)
 		Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
 	    s = MSG_ReadString();
-	    len = snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
-	    if (len > MAX_STYLESTRING - 1)
-		cl_lightstyle[i].map[MAX_STYLESTRING - 1] = 0;
+	    snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
 	    cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
 	    break;
 

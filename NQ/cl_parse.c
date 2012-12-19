@@ -237,7 +237,7 @@ CL_ParseServerInfo(void)
 {
     char *level;
     const char *mapname;
-    int i, len, maxlen;
+    int i, maxlen;
     int nummodels, numsounds;
     char model_precache[MAX_MODELS][MAX_QPATH];
     char sound_precache[MAX_SOUNDS][MAX_QPATH];
@@ -270,9 +270,7 @@ CL_ParseServerInfo(void)
 // parse signon message
     level = cl.levelname;
     maxlen = sizeof(cl.levelname);
-    len = snprintf(level, maxlen, "%s", MSG_ReadString());
-    if (len > maxlen - 1)
-	level[maxlen - 1] = 0;
+    snprintf(level, maxlen, "%s", MSG_ReadString());
 
 // seperate the printfs so the server message can have a color
     Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
@@ -299,9 +297,7 @@ CL_ParseServerInfo(void)
 	}
 	model = model_precache[nummodels];
 	maxlen = sizeof(model_precache[0]);
-	len = snprintf(model, maxlen, "%s", in);
-	if (len > maxlen - 1)
-	    model[maxlen - 1] = 0;
+	snprintf(model, maxlen, "%s", in);
 	Mod_TouchModel(model);
     }
 
@@ -319,9 +315,7 @@ CL_ParseServerInfo(void)
 	}
 	sound = sound_precache[numsounds];
 	maxlen = sizeof(sound_precache[0]);
-	len = snprintf(sound, maxlen, "%s", in);
-	if (len > maxlen - 1)
-	    sound[maxlen - 1] = 0;
+	snprintf(sound, maxlen, "%s", in);
 	S_TouchSound(sound);
     }
 
@@ -838,7 +832,7 @@ CL_ParseServerMessage(void)
 {
     int cmd;
     char *s;
-    int i, len;
+    int i;
     byte colors;
 
 //
@@ -935,9 +929,7 @@ CL_ParseServerMessage(void)
 	    if (i >= MAX_LIGHTSTYLES)
 		Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
 	    s = MSG_ReadString();
-	    len = snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
-	    if (len > MAX_STYLESTRING - 1)
-		cl_lightstyle[i].map[MAX_STYLESTRING - 1] = 0;
+	    snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
 	    cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
 	    break;
 
@@ -956,9 +948,7 @@ CL_ParseServerMessage(void)
 	    if (i >= cl.maxclients)
 		Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
 	    s = MSG_ReadString();
-	    len = snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
-	    if (len > MAX_SCOREBOARDNAME - 1)
-		cl.players[i].name[MAX_SCOREBOARDNAME - 1] = 0;
+	    snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
 	    break;
 
 	case svc_updatefrags:

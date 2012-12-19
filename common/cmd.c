@@ -116,10 +116,12 @@ Cbuf_AddText(const char *fmt, ...)
 {
     va_list ap;
     int len, maxlen;
+    char *buf;
 
+    buf = (char *)cmd_text.data + cmd_text.cursize;
     maxlen = cmd_text.maxsize - cmd_text.cursize;
     va_start(ap, fmt);
-    len = vsnprintf((char *)cmd_text.data + cmd_text.cursize, maxlen, fmt, ap);
+    len = vsnprintf(buf, maxlen, fmt, ap);
     va_end(ap);
 
     if (cmd_text.cursize + len < cmd_text.maxsize)

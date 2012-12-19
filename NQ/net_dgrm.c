@@ -1120,13 +1120,8 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	// add it
 	hostCacheCount++;
 
-	len = snprintf(host->name, sizeof(host->name), "%s", MSG_ReadString());
-	if (len > sizeof(host->name) - 1)
-	    host->name[sizeof(host->name) - 1] = 0;
-	len = snprintf(host->map, sizeof(host->map), "%s", MSG_ReadString());
-	if (len > sizeof(host->map) - 1)
-	    host->map[sizeof(host->map) - 1] = 0;
-
+	snprintf(host->name, sizeof(host->name), "%s", MSG_ReadString());
+	snprintf(host->map, sizeof(host->map), "%s", MSG_ReadString());
 	host->users = MSG_ReadByte();
 	host->maxusers = MSG_ReadByte();
 	if (MSG_ReadByte() != NET_PROTOCOL_VERSION) {
@@ -1191,7 +1186,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
     netadr_t readaddr;
     qsocket_t *sock;
     int newsock;
-    int ret, len;
+    int ret;
     int reps;
     double start_time;
     int control;
@@ -1310,10 +1305,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 
   ErrorReturn:
     Con_Printf("%s\n", reason);
-    len = snprintf(m_return_reason, sizeof(m_return_reason), "%s", reason);
-    if (len > sizeof(m_return_reason) - 1)
-	m_return_reason[sizeof(m_return_reason) - 1] = 0;
-
+    snprintf(m_return_reason, sizeof(m_return_reason), "%s", reason);
     NET_FreeQSocket(sock);
   ErrorReturn2:
     driver->CloseSocket(newsock);

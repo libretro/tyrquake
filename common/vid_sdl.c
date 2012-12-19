@@ -230,7 +230,6 @@ InitMode(vmode_t *mode, int num, int fullscreen, int width, int height)
     mode->width = width;
     mode->height = height;
     snprintf(mode->modedesc, sizeof(mode->modedesc), "%dx%d", width, height);
-    mode->modedesc[sizeof(mode->modedesc) - 1] = 0;
 }
 
 static void

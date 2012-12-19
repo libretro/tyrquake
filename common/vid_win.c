@@ -631,8 +631,7 @@ InitWindowedMode(vmode_t *mode, int num, int width, int height)
     mode->type = MS_WINDOWED;
     mode->width = width;
     mode->height = height;
-    snprintf(mode->modedesc, 13, "%dx%d", width, height);
-    mode->modedesc[12] = 0;
+    snprintf(mode->modedesc, sizeof(mode->modedesc), "%dx%d", width, height);
     mode->mode13 = 0;
     mode->modenum = num;
     mode->stretched = 0;

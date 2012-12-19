@@ -1331,14 +1331,14 @@ va(const char *format, ...)
 {
     va_list argptr;
     char *buf;
-    int ret;
+    int len;
 
     buf = COM_GetStrBuf();
     va_start(argptr, format);
-    ret = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
+    len = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
     va_end(argptr);
 
-    if (ret >= COM_STRBUF_LEN)
+    if (len > COM_STRBUF_LEN - 1)
 	Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 
     return buf;
