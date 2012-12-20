@@ -950,22 +950,27 @@ COM_StripExtension(char *filename)
 COM_FileExtension
 ============
 */
-char *
+#ifdef NQ_HACK
+static const char *
 COM_FileExtension(const char *in)
 {
     static char exten[8];
+    const char *dot;
     int i;
 
-    while (*in && *in != '.')
-	in++;
-    if (!*in)
+    in = COM_SkipPath(in);
+    dot = strrchr(in, '.');
+    if (!dot)
 	return "";
-    in++;
-    for (i = 0; i < 7 && *in; i++, in++)
-	exten[i] = *in;
+
+    dot++;
+    for (i = 0; i < sizeof(exten) - 1 && *dot; i++, dot++)
+	exten[i] = *dot;
     exten[i] = 0;
+
     return exten;
 }
+#endif
 
 /*
 ============
