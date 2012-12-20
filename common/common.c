@@ -2106,6 +2106,61 @@ COM_InitFilesystem(void)
 */
 
 /*
+ * INFO HELPER FUNCTIONS
+ *
+ * Helper fuction to copy off the next string in the info string
+ * Copies the next '\\' separated string into the buffer of size buflen
+ * Always zero terminates the buffer
+ * Returns a pointer to the char following the returned string.
+ *
+ * Key/Value checks are consolidated into Info_ReadKey and Info_ReadValue
+ */
+static const char *
+Info_ReadString(const char *infostring, char *buffer, int buflen)
+{
+    char *out = buffer;
+
+    while (out - buffer < buflen - 1) {
+	if (!*infostring || *infostring == '\\')
+	    break;
+	*out++ = *infostring++;
+    }
+    *out = 0;
+
+    return infostring;
+}
+
+static const char *
+Info_ReadKey(const char *infostring, char *buffer, int buflen)
+{
+    const char *pkey;
+
+    if (*infostring == '\\')
+	infostring++;
+
+    pkey = infostring;
+    infostring = Info_ReadString(infostring, buffer, buflen);
+
+    /* If we aren't at a separator, then the key was too long */
+    if (*buffer && *infostring != '\\')
+	Con_DPrintf("WARNING: No separator after info key (%s)\n", pkey);
+
+    return infostring;
+}
+
+static const char *
+Info_ReadValue(const char *infostring, char *buffer, int buflen)
+{
+    infostring = Info_ReadString(infostring, buffer, buflen);
+
+    /* If we aren't at a separator, then the value was too long */
+    if (*infostring && *infostring != '\\')
+	Con_DPrintf("WARNING: info value too long? (%s)\n", buffer);
+
+    return infostring;
+}
+
+/*
 ===============
 Info_ValueForKey
 
@@ -2114,60 +2169,53 @@ key and returns the associated value, or an empty string.
 ===============
 */
 char *
-Info_ValueForKey(const char *s, const char *key)
+Info_ValueForKey(const char *infostring, const char *key)
 {
-    char pkey[512];
-    static char value[4][512];	// use multiple buffers so compares
-				// work without stomping on each other
-    static int valueindex;
-    char *o, *buf;
+    /* use multiple buffers so compares work without stomping on each other */
+    static char buffers[4][MAX_INFO_STRING];
+    static int buffer_index;
 
-    valueindex = (valueindex + 1) % 4;
-    buf = value[valueindex];
+    char pkey[MAX_INFO_STRING];
+    char *buf;
 
-    if (*s == '\\')
-	s++;
+    buffer_index = (buffer_index + 1) & 3;
+    buf = buffers[buffer_index];
+
     while (1) {
-	o = pkey;
-	while (*s != '\\') {
-	    if (!*s) {
-		*buf = 0;
-		return buf;
-	    }
-	    *o++ = *s++;
-	}
-	*o = 0;
-	s++;
-
-	o = value[valueindex];
-
-	while (*s != '\\' && *s) {
-	    if (!*s) {
-		*buf = 0;
-		return buf;
-	    }
-	    *o++ = *s++;
-	}
-	*o = 0;
-
-	if (!strcmp(key, pkey))
-	    return value[valueindex];
-
-	if (!*s) {
+	/* Retrieve the key */
+	infostring = Info_ReadKey(infostring, pkey, sizeof(pkey));
+	if (*infostring != '\\') {
 	    *buf = 0;
 	    return buf;
 	}
-	s++;
+	infostring++;
+
+	/* Retrieve the value */
+	infostring = Info_ReadString(infostring, buf, sizeof(buffers[0]));
+	if (*infostring && *infostring != '\\') {
+	    *buf = 0;
+	    return buf;
+	}
+
+	/* If the keys match, return the value in the buffer */
+	if (!strcmp(key, pkey))
+	    return buf;
+
+	/* Return if we've reached the end of the infostring */
+	if (!*infostring) {
+	    *buf = 0;
+	    return buf;
+	}
+	infostring++;
     }
 }
 
 void
-Info_RemoveKey(char *s, const char *key)
+Info_RemoveKey(char *infostring, const char *key)
 {
     char *start;
-    char pkey[512];
-    char value[512];
-    char *o;
+    char pkey[MAX_INFO_STRING];
+    char value[MAX_INFO_STRING];
 
     if (strstr(key, "\\")) {
 	Con_Printf("Can't use a key with a \\\n");
@@ -2175,133 +2223,107 @@ Info_RemoveKey(char *s, const char *key)
     }
 
     while (1) {
-	start = s;
-	if (*s == '\\')
-	    s++;
-	o = pkey;
-	while (*s != '\\') {
-	    if (!*s)
-		return;
-	    *o++ = *s++;
-	}
-	*o = 0;
-	s++;
+	start = infostring;
 
-	o = value;
-	while (*s != '\\' && *s) {
-	    if (!*s)
-		return;
-	    *o++ = *s++;
-	}
-	*o = 0;
+	infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
+	if (*infostring)
+	    infostring++;
+	infostring = (char *)Info_ReadValue(infostring, value, sizeof(value));
+	if (*infostring)
+	    infostring++;
 
+	/* If the keys match, remove this part of the string */
 	if (!strcmp(key, pkey)) {
-	    strcpy(start, s);	// remove this part
+	    memmove(start, infostring, strlen(infostring) + 1);
 	    return;
 	}
-
-	if (!*s)
+	if (!*infostring)
 	    return;
     }
-
 }
 
 void
-Info_RemovePrefixedKeys(char *start, char prefix)
+Info_RemovePrefixedKeys(char *infostring, char prefix)
 {
-    char *s;
-    char pkey[512];
-    char value[512];
-    char *o;
+    char *start;
+    char pkey[MAX_INFO_STRING];
+    char value[MAX_INFO_STRING];
 
-    s = start;
-
+    start = infostring;
     while (1) {
-	if (*s == '\\')
-	    s++;
-	o = pkey;
-	while (*s != '\\') {
-	    if (!*s)
-		return;
-	    *o++ = *s++;
-	}
-	*o = 0;
-	s++;
+	infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
+	if (*infostring)
+	    infostring++;
+	infostring = (char *)Info_ReadValue(infostring, value, sizeof(value));
+	if (*infostring)
+	    infostring++;
 
-	o = value;
-	while (*s != '\\' && *s) {
-	    if (!*s)
-		return;
-	    *o++ = *s++;
-	}
-	*o = 0;
-
+	/* If the prefix matches, remove the key */
 	if (pkey[0] == prefix) {
 	    Info_RemoveKey(start, pkey);
-	    s = start;
+	    infostring = start;
 	}
-
-	if (!*s)
+	if (!*infostring)
 	    return;
     }
-
 }
 
-
 void
-Info_SetValueForStarKey(char *s, const char *key, const char *value,
+Info_SetValueForStarKey(char *infostring, const char *key, const char *value,
 			int maxsize)
 {
-    char info[1024];
-    char *v;
-    int c;
+    char buffer[MAX_INFO_STRING * 2];
+    char *oldvalue, *info;
+    int c, len;
 
     if (strstr(key, "\\") || strstr(value, "\\")) {
 	Con_Printf("Can't use keys or values with a \\\n");
 	return;
     }
-
     if (strstr(key, "\"") || strstr(value, "\"")) {
 	Con_Printf("Can't use keys or values with a \"\n");
 	return;
     }
-
     if (strlen(key) > 63 || strlen(value) > 63) {
 	Con_Printf("Keys and values must be < 64 characters.\n");
 	return;
     }
 
-    v = Info_ValueForKey(s, key);
-    if (*v) {
-	// key exists, make sure we have enough room for new value, if we don't,
-	// don't change it!
-	if (strlen(value) - strlen(v) + strlen(s) > maxsize) {
-	    Con_Printf("Info string length exceeded\n");
-	    return;
-	}
+    oldvalue = Info_ValueForKey(infostring, key);
+    if (*oldvalue) {
+	/*
+	 * Key exists. Make sure we have enough room for new value.
+	 * If we don't, don't change it!
+	 */
+	len = strlen(infostring) - strlen(oldvalue) + strlen(value);
+	if (len > maxsize - 1)
+	    goto ErrTooLong;
     }
-    Info_RemoveKey(s, key);
+
+    Info_RemoveKey(infostring, key);
     if (!value || !strlen(value))
 	return;
 
-    snprintf(info, sizeof(info), "\\%s\\%s", key, value);
+    len = snprintf(buffer, sizeof(buffer), "\\%s\\%s", key, value);
+    if (len > sizeof(buffer) - 1)
+	goto ErrTooLong;
 
-    if (strlen(info) + strlen(s) > maxsize) {
-	Con_Printf("Info string length exceeded\n");
-	return;
-    }
-    // only copy ascii values
-    s += strlen(s);
-    v = info;
-    while (*v) {
-	c = (unsigned char)*v++;
+    len += strlen(infostring);
+    if (len > maxsize - 1)
+	goto ErrTooLong;
+
+    /* Append the new key/value pair to the info string */
+    infostring += strlen(infostring);
+    info = buffer;
+    while (*info) {
+	c = (unsigned char)*info++;
 #ifndef SERVERONLY
-	// client only allows highbits on name
+	/* client only allows highbits on name */
 	if (strcasecmp(key, "name")) {
 	    c &= 127;
 	    if (c < 32 || c > 127)
 		continue;
-	    // auto lowercase team
+	    /* auto lowercase team */
 	    if (!strcasecmp(key, "team"))
 		c = tolower(c);
 	}
@@ -2313,59 +2335,41 @@ Info_SetValueForStarKey(char *s, const char *key, const char *value,
 	}
 #endif
 	if (c > 13)
-	    *s++ = c;
+	    *infostring++ = c;
     }
-    *s = 0;
+    *infostring = 0;
+    return;
+
+ ErrTooLong:
+	Con_Printf("Info string length exceeded\n");
 }
 
 void
-Info_SetValueForKey(char *s, const char *key, const char *value, int maxsize)
+Info_SetValueForKey(char *infostring, const char *key, const char *value,
+		    int maxsize)
 {
     if (key[0] == '*') {
 	Con_Printf("Can't set * keys\n");
 	return;
     }
-
-    Info_SetValueForStarKey(s, key, value, maxsize);
+    Info_SetValueForStarKey(infostring, key, value, maxsize);
 }
 
 void
-Info_Print(const char *s)
+Info_Print(const char *infostring)
 {
-    char key[512];
-    char value[512];
-    char *o;
-    int l;
+    char key[MAX_INFO_STRING];
+    char value[MAX_INFO_STRING];
 
-    if (*s == '\\')
-	s++;
-    while (*s) {
-	o = key;
-	while (*s && *s != '\\')
-	    *o++ = *s++;
+    while (*infostring) {
+	infostring = Info_ReadKey(infostring, key, sizeof(key));
+	if (*infostring)
+	    infostring++;
+	infostring = Info_ReadValue(infostring, value, sizeof(value));
+	if (*infostring)
+	    infostring++;
 
-	l = o - key;
-	if (l < 20) {
-	    memset(o, ' ', 20 - l);
-	    key[20] = 0;
-	} else
-	    *o = 0;
-	Con_Printf("%s", key);
-
-	if (!*s) {
-	    Con_Printf("MISSING VALUE\n");
-	    return;
-	}
-
-	o = value;
-	s++;
-	while (*s && *s != '\\')
-	    *o++ = *s++;
-	*o = 0;
-
-	if (*s)
-	    s++;
-	Con_Printf("%s\n", value);
+	Con_Printf("%-20.20s %s\n", key, *value ? value : "MISSING VALUE");
     }
 }
 

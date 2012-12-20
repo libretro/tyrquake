@@ -219,14 +219,14 @@ extern struct cvar_s registered;
 extern qboolean standard_quake, rogue, hipnotic;
 
 #ifdef QW_HACK
-char *Info_ValueForKey(const char *s, const char *key);
-void Info_RemoveKey(char *s, const char *key);
-void Info_RemovePrefixedKeys(char *start, char prefix);
-void Info_SetValueForKey(char *s, const char *key, const char *value,
+char *Info_ValueForKey(const char *infostring, const char *key);
+void Info_RemoveKey(char *infostring, const char *key);
+void Info_RemovePrefixedKeys(char *infostring, char prefix);
+void Info_SetValueForKey(char *infostring, const char *key, const char *value,
 			 int maxsize);
-void Info_SetValueForStarKey(char *s, const char *key, const char *value,
-			     int maxsize);
-void Info_Print(const char *s);
+void Info_SetValueForStarKey(char *infostring, const char *key,
+			     const char *value, int maxsize);
+void Info_Print(const char *infostring);
 
 unsigned Com_BlockChecksum(const void *buffer, int length);
 void Com_BlockFullChecksum(const void *buffer, int len,
