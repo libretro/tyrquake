@@ -658,7 +658,7 @@ Hunk_TempAllocExtend(int size)
  * ===========================================================================
  */
 
-#define CACHE_NAMELEN 16
+#define CACHE_NAMELEN 32
 
 typedef struct cache_system_s {
     int size;			/* including this header */
