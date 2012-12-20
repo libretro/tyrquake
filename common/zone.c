@@ -872,9 +872,6 @@ Cache_Flush(void)
 	Cache_Free(cache_head.next->user);	/* reclaim the space */
 }
 
-
-/* FIXME - Unused? */
-#if 0
 /*
  * ============
  * Cache_Print
@@ -889,7 +886,6 @@ Cache_Print(void)
 	Con_Printf("%8i : %s\n", cd->size, cd->name);
     }
 }
-#endif
 
 /*
  * ============
@@ -1030,6 +1026,22 @@ Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name)
     return Cache_Check(c);
 }
 
+static void
+Cache_f(void)
+{
+    if (Cmd_Argc() == 2) {
+	if (!strcmp(Cmd_Argv(1), "print")) {
+	    Cache_Print();
+	    return;
+	}
+	if (!strcmp(Cmd_Argv(1), "flush")) {
+	    Cache_Flush();
+	    return;
+	}
+    }
+    Con_Printf("Usage: cache print|flush\n");
+}
+
 /* ========================================================================= */
 
 
@@ -1064,4 +1076,5 @@ Memory_Init(void *buf, int size)
     /* Needs to be added after the zone init... */
     Cmd_AddCommand("flush", Cache_Flush);
     Cmd_AddCommand("hunk", Hunk_f);
+    Cmd_AddCommand("cache", Cache_f);
 }
