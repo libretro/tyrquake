@@ -1474,7 +1474,7 @@ COM_WriteFile(const char *filename, const void *data, int len)
     FILE *f;
     char name[MAX_OSPATH];
 
-    sprintf(name, "%s/%s", com_gamedir, filename);
+    snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
 
     f = fopen(name, "wb");
     if (!f) {
@@ -1530,7 +1530,7 @@ int
 COM_FOpenFile(const char *filename, FILE **file)
 {
     searchpath_t *search;
-    char fullpath[MAX_OSPATH];
+    char path[MAX_OSPATH];
     pack_t *pak;
     int i;
     int findtime;
@@ -1558,16 +1558,17 @@ COM_FOpenFile(const char *filename, FILE **file)
 		}
 	} else {
 	    // check a file in the directory tree
-	    if (!static_registered) {	// if not a registered version, don't ever go beyond base
+	    if (!static_registered) {
+		// if not a registered version, don't ever go beyond base
 		if (strchr(filename, '/') || strchr(filename, '\\'))
 		    continue;
 	    }
-	    sprintf(fullpath, "%s/%s", search->filename, filename);
-	    findtime = Sys_FileTime(fullpath);
+	    snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
+	    findtime = Sys_FileTime(path);
 	    if (findtime == -1)
 		continue;
 
-	    *file = fopen(fullpath, "rb");
+	    *file = fopen(path, "rb");
 	    com_filesize = COM_filelength(*file);
 	    return com_filesize;
 	}
@@ -1913,7 +1914,7 @@ COM_AddGameDirectory(const char *base, const char *dir)
 // add any pak files in the format pak0.pak pak1.pak, ...
 //
     for (i = 0;; i++) {
-	sprintf(pakfile, "%s/pak%i.pak", com_gamedir, i);
+	snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
 	    break;
@@ -1973,7 +1974,7 @@ COM_Gamedir(const char *dir)
     if (!strcmp(dir, "id1") || !strcmp(dir, "qw"))
 	return;
 
-    sprintf(com_gamedir, "%s/%s", com_basedir, dir);
+    snprintf(com_gamedir, sizeof(com_gamedir), "%s/%s", com_basedir, dir);
 
     //
     // add the directory to the search path
@@ -1987,7 +1988,7 @@ COM_Gamedir(const char *dir)
     // add any pak files in the format pak0.pak pak1.pak, ...
     //
     for (i = 0;; i++) {
-	sprintf(pakfile, "%s/pak%i.pak", com_gamedir, i);
+	snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
 	    break;
