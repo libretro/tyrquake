@@ -372,7 +372,8 @@ Hunk_Print(qboolean all)
     starthigh = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
     endhigh = (hunk_t *)(hunk_base + hunk_size);
 
-    Con_Printf("          :%8i total hunk size\n", hunk_size);
+    Con_Printf("%*s :%8i total hunk size\n",
+	       (int)sizeof(void *) * 2 + 2, "", hunk_size);
     Con_Printf("-------------------------\n");
 
     while (1) {
@@ -381,7 +382,8 @@ Hunk_Print(qboolean all)
 	 */
 	if (h == endlow) {
 	    Con_Printf("-------------------------\n");
-	    Con_Printf("          :%8i REMAINING\n",
+	    Con_Printf("%*s :%8i REMAINING\n",
+		       (int)sizeof(void *) * 2 + 2, "",
 		       hunk_size - hunk_low_used - hunk_high_used);
 	    Con_Printf("-------------------------\n");
 	    h = starthigh;
@@ -410,7 +412,8 @@ Hunk_Print(qboolean all)
 	 */
 	memcpy(name, h->name, HUNK_NAMELEN);
 	if (all)
-	    Con_Printf("%8p :%8i %8s\n", h, h->size, name);
+	    Con_Printf("%*p :%8i %8s\n", (int)sizeof(void *) * 2 + 2,
+		       h, h->size, name);
 
 	/*
 	 * print the total
@@ -418,7 +421,8 @@ Hunk_Print(qboolean all)
 	if (next == endlow || next == endhigh ||
 	    strncmp(h->name, next->name, HUNK_NAMELEN)) {
 	    if (!all)
-		Con_Printf("          :%8i %8s (TOTAL)\n", sum, name);
+		Con_Printf("%*s :%8i %8s (TOTAL)\n",
+			   (int)sizeof(void *) * 2 + 2, "", sum, name);
 	    count = 0;
 	    sum = 0;
 	}
