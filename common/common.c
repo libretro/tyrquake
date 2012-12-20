@@ -981,25 +981,20 @@ COM_FileBase
 ============
 */
 void
-COM_FileBase(const char *in, char *out)
+COM_FileBase(const char *in, char *out, size_t buflen)
 {
-    const char *s, *s2;
+    const char *dot;
+    int copylen;
 
-    s = in + strlen(in) - 1;
+    in = COM_SkipPath(in);
+    dot = strrchr(in, '.');
+    copylen = dot ? dot - in : strlen(in);
 
-    while (s != in && *s != '.')
-	s--;
-
-    for (s2 = s; s2 >= in && *s2 && *s2 != '/'; s2--)
-	/* nothing */;
-
-    if (s - s2 < 2)
-	strcpy(out, "?model?");
-    else {
-	s--;
-	strncpy(out, s2 + 1, s - s2);
-	out[s - s2] = 0;
+    if (copylen < 2) {
+	in = "?model?";
+	copylen = strlen(in);
     }
+    snprintf(out, buflen, "%.*s", copylen, in);
 }
 
 
@@ -1727,7 +1722,7 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 	*length = len;
 
 // extract the filename base name for hunk tag
-    COM_FileBase(path, base);
+    COM_FileBase(path, base, sizeof(base));
 
     if (usehunk == 1)
 	buf = Hunk_AllocName(len + 1, base);

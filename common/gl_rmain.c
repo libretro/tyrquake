@@ -371,7 +371,7 @@ GL_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
     GLuint *glt;
     char loadname[MAX_QPATH];	/* for hunk tags */
 
-    COM_FileBase(modelname, loadname);
+    COM_FileBase(modelname, loadname, sizeof(loadname));
     skinsize = ahdr->skinwidth * ahdr->skinheight;
     glt = Hunk_Alloc(skinnum * sizeof(GLuint));
     for (i = 0; i < skinnum; i++) {
