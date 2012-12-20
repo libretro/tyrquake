@@ -940,7 +940,10 @@ COM_StripExtension
 void
 COM_StripExtension(char *filename)
 {
-    char *pos = strrchr(filename, '.');
+    const char *start;
+
+    start = COM_SkipPath(filename);
+    char *pos = strrchr(start, '.');
     if (pos && *pos)
 	*pos = 0;
 }
