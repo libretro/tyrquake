@@ -311,7 +311,7 @@ Z_Print(memzone_t * zone)
 typedef struct {
     int sentinal;
     int size;		/* including sizeof(hunk_t), -1 = not allocated */
-    char name[HUNK_NAMELEN];
+    char name[HUNK_NAMELEN]; /* not necessarily zero terminated */
 } hunk_t;
 
 static byte *hunk_base;
@@ -358,22 +358,24 @@ static void
 Hunk_Print(qboolean all)
 {
     hunk_t *h, *next, *endlow, *starthigh, *endhigh;
-    int count, sum;
+    int count, sum, pwidth;
     int totalblocks;
-    char name[HUNK_NAMELEN + 1];
+    char safename[HUNK_NAMELEN + 1]; /* Zero terminated copy of hunk name */
 
-    name[HUNK_NAMELEN] = 0;
     count = 0;
     sum = 0;
     totalblocks = 0;
+    memset(safename, 0, sizeof(safename));
+
+    /* Don't put in wide spaces if not printing pointers */
+    pwidth = all ? (sizeof(void *) * 2 + 2) : 8;
 
     h = (hunk_t *)hunk_base;
     endlow = (hunk_t *)(hunk_base + hunk_low_used);
     starthigh = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
     endhigh = (hunk_t *)(hunk_base + hunk_size);
 
-    Con_Printf("%*s :%8i total hunk size\n",
-	       (int)sizeof(void *) * 2 + 2, "", hunk_size);
+    Con_Printf("%*s :%10i total hunk size\n", pwidth, "", hunk_size);
     Con_Printf("-------------------------\n");
 
     while (1) {
@@ -382,8 +384,7 @@ Hunk_Print(qboolean all)
 	 */
 	if (h == endlow) {
 	    Con_Printf("-------------------------\n");
-	    Con_Printf("%*s :%8i REMAINING\n",
-		       (int)sizeof(void *) * 2 + 2, "",
+	    Con_Printf("%*s :%10i REMAINING\n", pwidth, "",
 		       hunk_size - hunk_low_used - hunk_high_used);
 	    Con_Printf("-------------------------\n");
 	    h = starthigh;
@@ -410,10 +411,10 @@ Hunk_Print(qboolean all)
 	/*
 	 * print the single block
 	 */
-	memcpy(name, h->name, HUNK_NAMELEN);
+	memcpy(safename, h->name, HUNK_NAMELEN);
 	if (all)
-	    Con_Printf("%*p :%8i %8s\n", (int)sizeof(void *) * 2 + 2,
-		       h, h->size, name);
+	    Con_Printf("%*p :%10i %-*s\n", pwidth, h, h->size,
+		       HUNK_NAMELEN, safename);
 
 	/*
 	 * print the total
@@ -421,8 +422,8 @@ Hunk_Print(qboolean all)
 	if (next == endlow || next == endhigh ||
 	    strncmp(h->name, next->name, HUNK_NAMELEN)) {
 	    if (!all)
-		Con_Printf("%*s :%8i %8s (TOTAL)\n",
-			   (int)sizeof(void *) * 2 + 2, "", sum, name);
+		Con_Printf("%*s :%10i %-*s (TOTAL)\n", pwidth, "", sum,
+			   HUNK_NAMELEN, safename);
 	    count = 0;
 	    sum = 0;
 	}
@@ -487,8 +488,8 @@ Hunk_AllocName(int size, const char *name)
 
     h->size = size;
     h->sentinal = HUNK_SENTINAL;
-    strncpy(h->name, name, HUNK_NAMELEN - 1);
-    h->name[HUNK_NAMELEN - 1] = 0;
+    memset(h->name, 0, HUNK_NAMELEN);
+    memcpy(h->name, name, qmin((int)strlen(name), HUNK_NAMELEN));
 
     return (void *)(h + 1);
 }
