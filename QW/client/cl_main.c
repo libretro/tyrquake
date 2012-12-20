@@ -353,7 +353,6 @@ CL_Rcon_f(void)
     NET_SendPacket(strlen(message) + 1, message, to);
 }
 
-
 /*
 =====================
 CL_ClearState

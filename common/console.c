@@ -292,7 +292,6 @@ Con_Print(const char *txt)
 		con->x = 0;
 	    break;
 	}
-
     }
 }
 
