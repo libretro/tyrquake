@@ -441,7 +441,6 @@ Hunk_f(void)
 	    return;
 	}
     }
-    Con_Printf("Cmd_Argc() == %d\n", Cmd_Argc());
     Con_Printf("Usage: hunk print|printall\n");
 }
 
