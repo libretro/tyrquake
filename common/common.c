@@ -1842,15 +1842,12 @@ COM_LoadPackFile(const char *packfile)
     fread(&info, 1, header.dirlen, packhandle);
 
 // crc the directory to check for modifications
+    crc = CRC_Block((byte *)info, header.dirlen);
 #ifdef NQ_HACK
-    CRC_Init(&crc);
-    for (i = 0; i < header.dirlen; i++)
-	CRC_ProcessByte(&crc, ((byte *)info)[i]);
     if (crc != NQ_PAK0_CRC)
 	com_modified = true;
 #endif
 #ifdef QW_HACK
-    crc = CRC_Block((byte *)info, header.dirlen);
     if (crc != QW_PAK0_CRC)
 	com_modified = true;
 #endif
