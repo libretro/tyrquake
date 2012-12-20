@@ -338,7 +338,8 @@ Hunk_Check(void)
     for (h = (hunk_t *)hunk_base; (byte *)h != hunk_base + hunk_low_used;) {
 	if (h->sentinal != HUNK_SENTINAL)
 	    Sys_Error("%s: trashed sentinal", __func__);
-	if (h->size < 16 || h->size + (byte *)h - hunk_base > hunk_size)
+	if (h->size < sizeof(hunk_t) ||
+	    h->size + (byte *)h - hunk_base > hunk_size)
 	    Sys_Error("%s: bad size", __func__);
 	h = (hunk_t *)((byte *)h + h->size);
     }
