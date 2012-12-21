@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ===============================================================================
 */
 
-static char *
+static const char *
 PF_VarString(int first)
 {
     static char out[512];
@@ -77,7 +77,7 @@ error(value)
 static void
 PF_error(void)
 {
-    char *s;
+    const char *s;
     edict_t *ed;
 
     s = PF_VarString(0);
@@ -102,7 +102,7 @@ objerror(value)
 static void
 PF_objerror(void)
 {
-    char *s;
+    const char *s;
     edict_t *ed;
 
     s = PF_VarString(0);
@@ -299,7 +299,7 @@ bprint(value)
 static void
 PF_bprint(void)
 {
-    char *s;
+    const char *s;
 
     s = PF_VarString(0);
     SV_BroadcastPrintf("%s", s);
@@ -317,7 +317,7 @@ sprint(clientent, value)
 static void
 PF_sprint(void)
 {
-    char *s;
+    const char *s;
     client_t *client;
     int entnum;
 
@@ -348,7 +348,7 @@ centerprint(clientent, value)
 static void
 PF_centerprint(void)
 {
-    char *s;
+    const char *s;
     client_t *client;
     int entnum;
 
