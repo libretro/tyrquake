@@ -67,7 +67,7 @@ static int type_size[8] = {
     1				// ev_pointer
 };
 
-static qboolean ED_ParseEpair(void *base, ddef_t *key, char *s);
+static qboolean ED_ParseEpair(void *base, ddef_t *key, const char *s);
 
 #define	MAX_FIELD_LEN	64
 #define GEFV_CACHESIZE	2
@@ -240,7 +240,7 @@ ED_FindField
 ============
 */
 static ddef_t *
-ED_FindField(char *name)
+ED_FindField(const char *name)
 {
     ddef_t *def;
     int i;
@@ -260,7 +260,7 @@ ED_FindGlobal
 ============
 */
 static ddef_t *
-ED_FindGlobal(char *name)
+ED_FindGlobal(const char *name)
 {
     ddef_t *def;
     int i;
@@ -280,7 +280,7 @@ ED_FindFunction
 ============
 */
 static dfunction_t *
-ED_FindFunction(char *name)
+ED_FindFunction(const char *name)
 {
     dfunction_t *func;
     int i;
@@ -294,7 +294,7 @@ ED_FindFunction(char *name)
 }
 
 eval_t *
-GetEdictFieldValue(edict_t *ed, char *field)
+GetEdictFieldValue(edict_t *ed, const char *field)
 {
     static int rep = 0;
     ddef_t *def = NULL;
@@ -751,7 +751,7 @@ ED_NewString
 =============
 */
 static char *
-ED_NewString(char *string)
+ED_NewString(const char *string)
 {
     char *new, *new_p;
     int i, l;
@@ -784,7 +784,7 @@ returns false if error
 =============
 */
 static qboolean
-ED_ParseEpair(void *base, ddef_t *key, char *s)
+ED_ParseEpair(void *base, ddef_t *key, const char *s)
 {
     int i;
     char string[128];
