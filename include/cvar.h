@@ -114,10 +114,10 @@ void Cvar_RegisterVariable(cvar_t *variable);
 void Cvar_Set(const char *var_name, const char *value);
 
 /* expands value to a string and calls Cvar_Set */
-void Cvar_SetValue(char *var_name, float value);
+void Cvar_SetValue(const char *var_name, float value);
 
 /* returns 0 if not defined or non numeric */
-float Cvar_VariableValue(char *var_name);
+float Cvar_VariableValue(const char *var_name);
 
 /* returns an empty string if not defined */
 char *Cvar_VariableString(const char *var_name);

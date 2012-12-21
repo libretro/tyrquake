@@ -134,7 +134,7 @@ Cvar_VariableValue
 ============
 */
 float
-Cvar_VariableValue(char *var_name)
+Cvar_VariableValue(const char *var_name)
 {
     cvar_t *var;
 
@@ -244,7 +244,7 @@ Cvar_SetValue
 ============
 */
 void
-Cvar_SetValue(char *var_name, float value)
+Cvar_SetValue(const char *var_name, float value)
 {
     char val[32];
 
