@@ -244,7 +244,7 @@ Z_Malloc(int size)
  * ========================
  */
 void *
-Z_Realloc(void *ptr, int size)
+Z_Realloc(const void *ptr, int size)
 {
     memblock_t *block;
     int orig_size;
