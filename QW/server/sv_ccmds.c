@@ -395,11 +395,10 @@ SV_Status_f
 void
 SV_Status_f(void)
 {
-    const char *s;
-    int i, j, l;
-    client_t *cl;
+    const char *addr;
+    int i;
+    client_t *client;
     float cpu, avg, pak;
-
 
     cpu = (svs.stats.latched_active + svs.stats.latched_idle);
     if (cpu)
@@ -415,78 +414,60 @@ SV_Status_f(void)
 // min fps lat drp
     if (sv_redirected != RD_NONE) {
 	// most remote clients are 40 columns
-	//           0123456789012345678901234567890123456789
-	Con_Printf("name               userid frags\n");
-	Con_Printf("  address          rate ping drop\n");
-	Con_Printf("  ---------------- ---- ---- -----\n");
-	for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
-	    if (!cl->state)
+	//          0123456789012345678901234567890123456789
+	Con_Printf("name               userid frags\n"
+		   "  address          rate ping drop\n"
+		   "  ---------------- ---- ---- -----\n");
+	for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
+	    if (!client->state)
 		continue;
 
-	    Con_Printf("%-16.16s  ", cl->name);
+	    Con_Printf("%-16.16s  %6i %5i%s\n", client->name, client->userid,
+		       (int)client->edict->v.frags,
+		       client->spectator ? " (s)" : "");
 
-	    Con_Printf("%6i %5i", cl->userid, (int)cl->edict->v.frags);
-	    if (cl->spectator)
-		Con_Printf(" (s)\n");
-	    else
-		Con_Printf("\n");
-
-	    s = NET_BaseAdrToString(cl->netchan.remote_address);
-	    Con_Printf("  %-16.16s", s);
-	    if (cl->state == cs_connected) {
+	    addr = NET_BaseAdrToString(client->netchan.remote_address);
+	    Con_Printf("  %-16.16s ", addr);
+	    if (client->state == cs_connected) {
 		Con_Printf("CONNECTING\n");
 		continue;
 	    }
-	    if (cl->state == cs_zombie) {
+	    if (client->state == cs_zombie) {
 		Con_Printf("ZOMBIE\n");
 		continue;
 	    }
-	    Con_Printf("%4i %4i %5.2f\n", (int)(1000 * cl->netchan.frame_rate)
-		       , (int)SV_CalcPing(cl)
-		       ,
-		       100.0 * cl->netchan.drop_count /
-		       cl->netchan.incoming_sequence);
+	    Con_Printf("%4i %4i %5.2f\n",
+		       (int)(1000 * client->netchan.frame_rate),
+		       (int)SV_CalcPing(client),
+		       100.0 * client->netchan.drop_count /
+		       client->netchan.incoming_sequence);
 	}
     } else {
-	Con_Printf
-	    ("frags userid address         name            rate ping drop  qport\n");
-	Con_Printf
-	    ("----- ------ --------------- --------------- ---- ---- ----- -----\n");
-	for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
-	    if (!cl->state)
+	Con_Printf("frags userid address         name            rate ping drop  qport\n");
+	Con_Printf("----- ------ --------------- --------------- ---- ---- ----- -----\n");
+	for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
+	    if (!client->state)
 		continue;
-	    Con_Printf("%5i %6i ", (int)cl->edict->v.frags, cl->userid);
+	    addr = NET_BaseAdrToString(client->netchan.remote_address);
+	    Con_Printf("%5i %6i %-16.16s %-16.16s ",
+		       (int)client->edict->v.frags, client->userid, addr,
+		       client->name);
 
-	    s = NET_BaseAdrToString(cl->netchan.remote_address);
-	    Con_Printf("%s", s);
-	    l = 16 - strlen(s);
-	    for (j = 0; j < l; j++)
-		Con_Printf(" ");
-
-	    Con_Printf("%s", cl->name);
-	    l = 16 - strlen(cl->name);
-	    for (j = 0; j < l; j++)
-		Con_Printf(" ");
-	    if (cl->state == cs_connected) {
+	    if (client->state == cs_connected) {
 		Con_Printf("CONNECTING\n");
 		continue;
 	    }
-	    if (cl->state == cs_zombie) {
+	    if (client->state == cs_zombie) {
 		Con_Printf("ZOMBIE\n");
 		continue;
 	    }
-	    Con_Printf("%4i %4i %3.1f %4i",
-		       (int)(1000 * cl->netchan.frame_rate)
-		       , (int)SV_CalcPing(cl)
-		       ,
-		       100.0 * cl->netchan.drop_count /
-		       cl->netchan.incoming_sequence, cl->netchan.qport);
-	    if (cl->spectator)
-		Con_Printf(" (s)\n");
-	    else
-		Con_Printf("\n");
-
-
+	    Con_Printf("%4i %4i %3.1f %4i%s\n",
+		       (int)(1000 * client->netchan.frame_rate),
+		       (int)SV_CalcPing(client),
+		       100.0 * client->netchan.drop_count /
+		       client->netchan.incoming_sequence,
+		       client->netchan.qport,
+		       client->spectator ? " (s)" : "");
 	}
     }
     Con_Printf("\n");
