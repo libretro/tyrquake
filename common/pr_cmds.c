@@ -1880,11 +1880,11 @@ string(entity e, string key) infokey
 static void
 PF_infokey(void)
 {
-    edict_t *e;
-    int e1;
+    static char buf[256]; /* only needs to fit IP or ping */
     const char *value;
     const char *key;
-    static char ov[256];
+    edict_t *e;
+    int e1;
 
     e = G_EDICT(OFS_PARM0);
     e1 = NUM_FOR_EDICT(e);
@@ -1894,16 +1894,14 @@ PF_infokey(void)
 	if ((value = Info_ValueForKey(svs.info, key)) == NULL || !*value)
 	    value = Info_ValueForKey(localinfo, key);
     } else if (e1 <= MAX_CLIENTS) {
-	if (!strcmp(key, "ip"))
-	    value =
-		strcpy(ov,
-		       NET_BaseAdrToString(svs.clients[e1 - 1].netchan.
-					   remote_address));
-	else if (!strcmp(key, "ping")) {
+	if (!strcmp(key, "ip")) {
+	    netadr_t addr = svs.clients[e1 - 1].netchan.remote_address;
+	    snprintf(buf, sizeof(buf), "%s", NET_BaseAdrToString(addr));
+	    value = buf;
+	} else if (!strcmp(key, "ping")) {
 	    int ping = SV_CalcPing(&svs.clients[e1 - 1]);
-
-	    sprintf(ov, "%d", ping);
-	    value = ov;
+	    snprintf(buf, sizeof(buf), "%d", ping);
+	    value = buf;
 	} else
 	    value = Info_ValueForKey(svs.clients[e1 - 1].userinfo, key);
     } else
