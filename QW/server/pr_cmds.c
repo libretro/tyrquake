@@ -18,13 +18,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <float.h>
+
 #include "cmd.h"
 #include "console.h"
 #include "model.h"
 #include "progs.h"
-#include "qwsvdef.h"
 #include "server.h"
 #include "world.h"
+
+#ifdef NQ_HACK
+#include "host.h"
+#include "protocol.h"
+#include "quakedef.h"
+#include "sys.h"
+/* FIXME - quick hack to enable merging of NQ/QWSV shared code */
+#define SV_Error Host_Error
+#endif
+#ifdef QW_HACK
+#include "qwsvdef.h"
+#endif
 
 #define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 #define	RETURN_STRING(s) (((int *)pr_globals)[OFS_RETURN] = PR_SetString(s))
@@ -132,7 +145,10 @@ PF_makevectors(void)
 =================
 PF_setorigin
 
-This is the only valid way to move an object without using the physics of the world (setting velocity and waiting).  Directly changing origin will not set internal links correctly, so clipping would be messed up.  This should be called when an object is spawned, and then only if it is teleported.
+This is the only valid way to move an object without using the physics of the
+world (setting velocity and waiting).  Directly changing origin will not set
+internal links correctly, so clipping would be messed up.  This should be
+called when an object is spawned, and then only if it is teleported.
 
 setorigin (entity, origin)
 =================
@@ -149,6 +165,77 @@ PF_setorigin(void)
     SV_LinkEdict(e, false);
 }
 
+#ifdef NQ_HACK
+static void
+SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
+{
+    float *angles;
+    vec3_t rmin, rmax;
+    float bounds[2][3];
+    float xvector[2], yvector[2];
+    float a;
+    vec3_t base, transformed;
+    int i, j, k, l;
+
+    for (i = 0; i < 3; i++)
+	if (min[i] > max[i])
+	    PR_RunError("backwards mins/maxs");
+
+    rotate = false;		// FIXME: implement rotation properly again
+
+    if (!rotate) {
+	VectorCopy(min, rmin);
+	VectorCopy(max, rmax);
+    } else {
+	// find min / max for rotations
+	angles = e->v.angles;
+
+	a = angles[1] / 180 * M_PI;
+
+	xvector[0] = cos(a);
+	xvector[1] = sin(a);
+	yvector[0] = -sin(a);
+	yvector[1] = cos(a);
+
+	VectorCopy(min, bounds[0]);
+	VectorCopy(max, bounds[1]);
+
+	rmin[0] = rmin[1] = rmin[2] = FLT_MAX;
+	rmax[0] = rmax[1] = rmax[2] = -FLT_MAX;
+
+	for (i = 0; i <= 1; i++) {
+	    base[0] = bounds[i][0];
+	    for (j = 0; j <= 1; j++) {
+		base[1] = bounds[j][1];
+		for (k = 0; k <= 1; k++) {
+		    base[2] = bounds[k][2];
+
+		    // transform the point
+		    transformed[0] =
+			xvector[0] * base[0] + yvector[0] * base[1];
+		    transformed[1] =
+			xvector[1] * base[0] + yvector[1] * base[1];
+		    transformed[2] = base[2];
+
+		    for (l = 0; l < 3; l++) {
+			if (transformed[l] < rmin[l])
+			    rmin[l] = transformed[l];
+			if (transformed[l] > rmax[l])
+			    rmax[l] = transformed[l];
+		    }
+		}
+	    }
+	}
+    }
+
+// set derived values
+    VectorCopy(rmin, e->v.mins);
+    VectorCopy(rmax, e->v.maxs);
+    VectorSubtract(max, min, e->v.size);
+
+    SV_LinkEdict(e, false);
+}
+#endif
 
 /*
 =================
@@ -168,10 +255,15 @@ PF_setsize(void)
     e = G_EDICT(OFS_PARM0);
     min = G_VECTOR(OFS_PARM1);
     max = G_VECTOR(OFS_PARM2);
+#ifdef NQ_HACK
+    SetMinMaxSize(e, min, max, false);
+#endif
+#ifdef QW_HACK
     VectorCopy(min, e->v.mins);
     VectorCopy(max, e->v.maxs);
     VectorSubtract(max, min, e->v.size);
     SV_LinkEdict(e, false);
+#endif
 }
 
 
@@ -195,7 +287,7 @@ PF_setmodel(void)
     e = G_EDICT(OFS_PARM0);
     m = G_STRING(OFS_PARM1);
 
-// check to see if model was properly precached
+    /* check to see if model was properly precached */
     for (i = 0, check = sv.model_precache; *check; i++, check++)
 	if (!strcmp(*check, m))
 	    break;
@@ -206,7 +298,15 @@ PF_setmodel(void)
     e->v.model = PR_SetString(m);
     e->v.modelindex = i;
 
-// if it is an inline model, get the size information for it
+#ifdef NQ_HACK
+    mod = sv.models[(int)e->v.modelindex];
+    if (mod)
+	SetMinMaxSize(e, mod->mins, mod->maxs, true);
+    else
+	SetMinMaxSize(e, vec3_origin, vec3_origin, true);
+#endif
+#ifdef QW_HACK
+    /* if it is an inline model, get the size information for it */
     if (m[0] == '*') {
 	mod = Mod_ForName(m, true);
 	VectorCopy(mod->mins, e->v.mins);
@@ -214,7 +314,7 @@ PF_setmodel(void)
 	VectorSubtract(mod->maxs, mod->mins, e->v.size);
 	SV_LinkEdict(e, false);
     }
-
+#endif
 }
 
 /*
@@ -229,13 +329,20 @@ bprint(value)
 static void
 PF_bprint(void)
 {
+#ifdef NQ_HACK
+    const char *s;
+
+    s = PF_VarString(0);
+    SV_BroadcastPrintf("%s", s);
+#endif
+#ifdef QW_HACK
     const char *s;
     int level;
 
     level = G_FLOAT(OFS_PARM0);
-
     s = PF_VarString(1);
     SV_BroadcastPrintf(level, "%s", s);
+#endif
 }
 
 /*
@@ -250,6 +357,24 @@ sprint(clientent, value)
 static void
 PF_sprint(void)
 {
+#ifdef NQ_HACK
+    const char *s;
+    client_t *client;
+    int entnum;
+
+    entnum = G_EDICTNUM(OFS_PARM0);
+    s = PF_VarString(1);
+
+    if (entnum < 1 || entnum > svs.maxclients) {
+	Con_Printf("tried to sprint to a non-client\n");
+	return;
+    }
+
+    client = &svs.clients[entnum - 1];
+    MSG_WriteChar(&client->message, svc_print);
+    MSG_WriteString(&client->message, s);
+#endif
+#ifdef QW_HACK
     const char *s;
     client_t *client;
     int entnum;
@@ -257,7 +382,6 @@ PF_sprint(void)
 
     entnum = G_EDICTNUM(OFS_PARM0);
     level = G_FLOAT(OFS_PARM1);
-
     s = PF_VarString(2);
 
     if (entnum < 1 || entnum > MAX_CLIENTS) {
@@ -266,8 +390,8 @@ PF_sprint(void)
     }
 
     client = &svs.clients[entnum - 1];
-
     SV_ClientPrintf(client, level, "%s", s);
+#endif
 }
 
 
@@ -284,21 +408,31 @@ static void
 PF_centerprint(void)
 {
     const char *s;
+    client_t *client;
     int entnum;
-    client_t *cl;
 
     entnum = G_EDICTNUM(OFS_PARM0);
     s = PF_VarString(1);
 
+#ifdef NQ_HACK
+    if (entnum < 1 || entnum > svs.maxclients) {
+#endif
+#ifdef QW_HACK
     if (entnum < 1 || entnum > MAX_CLIENTS) {
+#endif
 	Con_Printf("tried to sprint to a non-client\n");
 	return;
     }
 
-    cl = &svs.clients[entnum - 1];
-
-    ClientReliableWrite_Begin(cl, svc_centerprint, 2 + strlen(s));
-    ClientReliableWrite_String(cl, s);
+    client = &svs.clients[entnum - 1];
+#ifdef NQ_HACK
+    MSG_WriteChar(&client->message, svc_centerprint);
+    MSG_WriteString(&client->message, s);
+#endif
+#ifdef QW_HACK
+    ClientReliableWrite_Begin(client, svc_centerprint, 2 + strlen(s));
+    ClientReliableWrite_String(client, s);
+#endif
 }
 
 
@@ -440,6 +574,46 @@ PF_random(void)
     G_FLOAT(OFS_RETURN) = num;
 }
 
+#ifdef NQ_HACK
+/*
+=================
+PF_particle
+
+particle(origin, color, count)
+=================
+*/
+static void
+PF_particle(void)
+{
+    float *org, *dir;
+    float color;
+    float count;
+
+    org = G_VECTOR(OFS_PARM0);
+    dir = G_VECTOR(OFS_PARM1);
+    color = G_FLOAT(OFS_PARM2);
+    count = G_FLOAT(OFS_PARM3);
+    SV_StartParticle(org, dir, color, count);
+}
+
+static void
+PF_WriteSoundNum_Static(sizebuf_t *sb, int c)
+{
+    switch (sv.protocol) {
+    case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP3:
+	MSG_WriteByte(sb, c);
+	break;
+    case PROTOCOL_VERSION_BJP2:
+	MSG_WriteShort(sb, c);
+	break;
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   sv.protocol);
+    }
+}
+#endif
 
 /*
 =================
@@ -470,17 +644,20 @@ PF_ambientsound(void)
 	Con_Printf("no precache: %s\n", samp);
 	return;
     }
-// add an svc_spawnambient command to the level signon packet
 
+// add an svc_spawnambient command to the level signon packet
     MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
     for (i = 0; i < 3; i++)
 	MSG_WriteCoord(&sv.signon, pos[i]);
 
+#ifdef NQ_HACK
+    PF_WriteSoundNum_Static(&sv.signon, soundnum);
+#endif
+#ifdef QW_HACK
     MSG_WriteByte(&sv.signon, soundnum);
-
+#endif
     MSG_WriteByte(&sv.signon, vol * 255);
     MSG_WriteByte(&sv.signon, attenuation * 64);
-
 }
 
 /*
@@ -512,6 +689,17 @@ PF_sound(void)
     sample = G_STRING(OFS_PARM2);
     volume = G_FLOAT(OFS_PARM3) * 255;
     attenuation = G_FLOAT(OFS_PARM4);
+
+#ifdef NQ_HACK
+    if (volume < 0 || volume > 255)
+	Sys_Error("%s: volume = %i", __func__, volume);
+
+    if (attenuation < 0 || attenuation > 4)
+	Sys_Error("%s: attenuation = %f", __func__, attenuation);
+
+    if (channel < 0 || channel > 7)
+	Sys_Error("%s: channel = %i", __func__, channel);
+#endif
 
     SV_StartSound(entity, channel, sample, volume, attenuation);
 }
@@ -578,31 +766,35 @@ static byte checkpvs[MAX_MAP_LEAFS / 8];
 static int
 PF_newcheckclient(int check)
 {
-    int i;
+    int entnum;
     byte *pvs;
     edict_t *ent;
     mleaf_t *leaf;
     vec3_t org;
 
 // cycle to the next one
+#ifdef NQ_HACK
+    check = qclamp(check, 1, svs.maxclients);
+    entnum = (check == svs.maxclients) ? 1 : check + 1;
+#endif
+#ifdef QW_HACK
+    check = qclamp(check, 1, MAX_CLIENTS);
+    entnum = (check == MAX_CLIENTS) ? 1 : check + 1;
+#endif
 
-    if (check < 1)
-	check = 1;
-    if (check > MAX_CLIENTS)
-	check = MAX_CLIENTS;
+    for (;; entnum++) {
+#ifdef NQ_HACK
+	if (entnum == svs.maxclients + 1)
+	    entnum = 1;
+#endif
+#ifdef QW_HACK
+	if (entnum == MAX_CLIENTS + 1)
+	    entnum = 1;
+#endif
 
-    if (check == MAX_CLIENTS)
-	i = 1;
-    else
-	i = check + 1;
+	ent = EDICT_NUM(entnum);
 
-    for (;; i++) {
-	if (i == MAX_CLIENTS + 1)
-	    i = 1;
-
-	ent = EDICT_NUM(i);
-
-	if (i == check)
+	if (entnum == check)
 	    break;		// didn't find anything else
 
 	if (ent->free)
@@ -622,7 +814,7 @@ PF_newcheckclient(int check)
     pvs = Mod_LeafPVS(leaf, sv.worldmodel);
     memcpy(checkpvs, pvs, (sv.worldmodel->numleafs + 7) >> 3);
 
-    return i;
+    return entnum;
 }
 
 /*
@@ -693,23 +885,35 @@ PF_stuffcmd(void)
 {
     int entnum;
     const char *str;
-    client_t *cl;
+    client_t *client;
 
     entnum = G_EDICTNUM(OFS_PARM0);
+#ifdef NQ_HACK
+    if (entnum < 1 || entnum > svs.maxclients)
+	PR_RunError("Parm 0 not a client");
+#endif
+#ifdef QW_HACK
     if (entnum < 1 || entnum > MAX_CLIENTS)
 	PR_RunError("Parm 0 not a client");
+#endif
     str = G_STRING(OFS_PARM1);
 
-    cl = &svs.clients[entnum - 1];
-
+#ifdef NQ_HACK
+    client = host_client;
+    host_client = &svs.clients[entnum - 1];
+    Host_ClientCommands("%s", str);
+    host_client = client;
+#endif
+#ifdef QW_HACK
+    client = &svs.clients[entnum - 1];
     if (strcmp(str, "disconnect\n") == 0) {
 	// so long and thanks for all the fish
-	cl->drop = true;
+	client->drop = true;
 	return;
     }
-
-    ClientReliableWrite_Begin(cl, svc_stufftext, 2 + strlen(str));
-    ClientReliableWrite_String(cl, str);
+    ClientReliableWrite_Begin(client, svc_stufftext, 2 + strlen(str));
+    ClientReliableWrite_String(client, str);
+#endif
 }
 
 /*
@@ -814,7 +1018,7 @@ PF_dprint
 static void
 PF_dprint(void)
 {
-    Con_Printf("%s", PF_VarString(0));
+    Con_DPrintf("%s", PF_VarString(0));
 }
 
 static char pr_string_temp[128];
@@ -927,7 +1131,12 @@ PF_precache_sound(void)
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
     PR_CheckEmptyString(s);
 
+#ifdef NQ_HACK
+    for (i = 0; i < max_sounds(sv.protocol); i++) {
+#endif
+#ifdef QW_HACK
     for (i = 0; i < MAX_SOUNDS; i++) {
+#endif
 	if (!sv.sound_precache[i]) {
 	    sv.sound_precache[i] = s;
 	    return;
@@ -935,7 +1144,12 @@ PF_precache_sound(void)
 	if (!strcmp(sv.sound_precache[i], s))
 	    return;
     }
-    PR_RunError("PF_precache_sound: overflow");
+#ifdef NQ_HACK
+    PR_RunError("%s: overflow (max = %d)", __func__, max_sounds(sv.protocol));
+#endif
+#ifdef QW_HACK
+    PR_RunError("%s: overflow (max = %d)", __func__, MAX_SOUNDS);
+#endif
 }
 
 static void
@@ -945,22 +1159,35 @@ PF_precache_model(void)
     int i;
 
     if (sv.state != ss_loading)
-	PR_RunError
-	    ("PF_Precache_*: Precache can only be done in spawn functions");
+	PR_RunError("%s: Precache can only be done in spawn functions",
+		    __func__);
 
     s = G_STRING(OFS_PARM0);
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
     PR_CheckEmptyString(s);
 
+#ifdef NQ_HACK
+    for (i = 0; i < max_models(sv.protocol); i++) {
+#endif
+#ifdef QW_HACK
     for (i = 0; i < MAX_MODELS; i++) {
+#endif
 	if (!sv.model_precache[i]) {
 	    sv.model_precache[i] = s;
+#ifdef NQ_HACK
+	    sv.models[i] = Mod_ForName(s, true);
+#endif
 	    return;
 	}
 	if (!strcmp(sv.model_precache[i], s))
 	    return;
     }
-    PR_RunError("PF_precache_model: overflow");
+#ifdef NQ_HACK
+    PR_RunError("%s: overflow (max = %d)", __func__, max_models(sv.protocol));
+#endif
+#ifdef QW_HACK
+    PR_RunError("%s: overflow (max = %d)", __func__, MAX_MODELS);
+#endif
 }
 
 
@@ -1076,7 +1303,7 @@ PF_lightstyle(void)
     int style;
     const char *val;
     client_t *client;
-    int j;
+    int i;
 
     style = G_FLOAT(OFS_PARM0);
     val = G_STRING(OFS_PARM1);
@@ -1088,13 +1315,23 @@ PF_lightstyle(void)
     if (sv.state != ss_active)
 	return;
 
-    for (j = 0, client = svs.clients; j < MAX_CLIENTS; j++, client++)
+#ifdef NQ_HACK
+    for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
+	if (client->active || client->spawned) {
+	    MSG_WriteChar(&client->message, svc_lightstyle);
+	    MSG_WriteChar(&client->message, style);
+	    MSG_WriteString(&client->message, val);
+	}
+#endif
+#ifdef QW_HACK
+    for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++)
 	if (client->state == cs_spawned) {
 	    ClientReliableWrite_Begin(client, svc_lightstyle,
 				      strlen(val) + 3);
 	    ClientReliableWrite_Char(client, style);
 	    ClientReliableWrite_String(client, val);
 	}
+#endif
 }
 
 static void
@@ -1188,8 +1425,13 @@ Pick a vector for the player to shoot along
 vector aim(entity, missilespeed)
 =============
 */
-//cvar_t        sv_aim = {"sv_aim", "0.93"};
+#ifdef NQ_HACK
+cvar_t sv_aim = { "sv_aim", "0.93" };
+#endif
+#ifdef QW_HACK
 cvar_t sv_aim = { "sv_aim", "2" };
+#endif
+
 static void
 PF_aim(void)
 {
@@ -1200,7 +1442,9 @@ PF_aim(void)
     float dist, bestdist;
     /* NOTE: missilespeed parameter is ignored */
     //float speed;
+#ifdef QW_HACK
     char *noaim;
+#endif
 
     ent = G_EDICT(OFS_PARM0);
     //speed = G_FLOAT(OFS_PARM1);
@@ -1208,6 +1452,7 @@ PF_aim(void)
     VectorCopy(ent->v.origin, start);
     start[2] += 20;
 
+#ifdef QW_HACK
 // noaim option
     i = NUM_FOR_EDICT(ent);
     if (i > 0 && i < MAX_CLIENTS) {
@@ -1217,6 +1462,8 @@ PF_aim(void)
 	    return;
 	}
     }
+#endif
+
 // try sending a trace straight
     VectorCopy(pr_global_struct->v_forward, dir);
     VectorMA(start, 2048, dir, end);
@@ -1318,12 +1565,18 @@ MESSAGE WRITING
 #define MSG_ONE		1	/* reliable to one (msg_entity) */
 #define MSG_ALL		2	/* reliable to all              */
 #define MSG_INIT	3	/* write to the init string     */
+#ifdef QW_HACK
 #define MSG_MULTICAST	4	/* for multicast()              */
+#endif
 
 static sizebuf_t *
 WriteDest(void)
 {
     int dest;
+#ifdef NQ_HACK
+    int entnum;
+    edict_t *ent;
+#endif
 
     dest = G_FLOAT(OFS_PARM0);
     switch (dest) {
@@ -1331,26 +1584,32 @@ WriteDest(void)
 	return &sv.datagram;
 
     case MSG_ONE:
-	SV_Error("Shouldn't be at MSG_ONE");
-#if 0
+#ifdef NQ_HACK
 	ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
 	entnum = NUM_FOR_EDICT(ent);
-	if (entnum < 1 || entnum > MAX_CLIENTS)
+	if (entnum < 1 || entnum > svs.maxclients)
 	    PR_RunError("WriteDest: not a client");
-	return &svs.clients[entnum - 1].netchan.message;
+	return &svs.clients[entnum - 1].message;
+#endif
+#ifdef QW_HACK
+	SV_Error("Shouldn't be at MSG_ONE");
 #endif
 
     case MSG_ALL:
 	return &sv.reliable_datagram;
 
     case MSG_INIT:
+#ifdef QW_HACK
 	if (sv.state != ss_loading)
-	    PR_RunError
-		("PF_Write_*: MSG_INIT can only be written in spawn functions");
+	    PR_RunError("%s: MSG_INIT can only be written in spawn functions",
+			__func__);
+#endif
 	return &sv.signon;
 
+#ifdef QW_HACK
     case MSG_MULTICAST:
 	return &sv.multicast;
+#endif
 
     default:
 	PR_RunError("WriteDest: bad destination");
@@ -1360,6 +1619,7 @@ WriteDest(void)
     return NULL;
 }
 
+#ifdef QW_HACK
 static client_t *
 Write_GetClient(void)
 {
@@ -1372,103 +1632,118 @@ Write_GetClient(void)
 	PR_RunError("WriteDest: not a client");
     return &svs.clients[entnum - 1];
 }
-
+#endif
 
 static void
 PF_WriteByte(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 1);
-	ClientReliableWrite_Byte(cl, G_FLOAT(OFS_PARM1));
-    } else
-	MSG_WriteByte(WriteDest(), G_FLOAT(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 1);
+	ClientReliableWrite_Byte(client, G_FLOAT(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteByte(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteChar(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 1);
-	ClientReliableWrite_Char(cl, G_FLOAT(OFS_PARM1));
-    } else
-	MSG_WriteChar(WriteDest(), G_FLOAT(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 1);
+	ClientReliableWrite_Char(client, G_FLOAT(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteChar(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteShort(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 2);
-	ClientReliableWrite_Short(cl, G_FLOAT(OFS_PARM1));
-    } else
-	MSG_WriteShort(WriteDest(), G_FLOAT(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 2);
+	ClientReliableWrite_Short(client, G_FLOAT(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteShort(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteLong(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 4);
-	ClientReliableWrite_Long(cl, G_FLOAT(OFS_PARM1));
-    } else
-	MSG_WriteLong(WriteDest(), G_FLOAT(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 4);
+	ClientReliableWrite_Long(client, G_FLOAT(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteLong(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteAngle(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 1);
-	ClientReliableWrite_Angle(cl, G_FLOAT(OFS_PARM1));
-    } else
-	MSG_WriteAngle(WriteDest(), G_FLOAT(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 1);
+	ClientReliableWrite_Angle(client, G_FLOAT(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteAngle(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteCoord(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 2);
-	ClientReliableWrite_Coord(cl, G_FLOAT(OFS_PARM1));
-    } else
-	MSG_WriteCoord(WriteDest(), G_FLOAT(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 2);
+	ClientReliableWrite_Coord(client, G_FLOAT(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteCoord(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteString(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 1 + strlen(G_STRING(OFS_PARM1)));
-	ClientReliableWrite_String(cl, G_STRING(OFS_PARM1));
-    } else
-	MSG_WriteString(WriteDest(), G_STRING(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 1 + strlen(G_STRING(OFS_PARM1)));
+	ClientReliableWrite_String(client, G_STRING(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteString(WriteDest(), G_STRING(OFS_PARM1));
 }
-
 
 static void
 PF_WriteEntity(void)
 {
+#ifdef QW_HACK
     if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *cl = Write_GetClient();
-
-	ClientReliableCheckBlock(cl, 2);
-	ClientReliableWrite_Short(cl, G_EDICTNUM(OFS_PARM1));
-    } else
-	MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
+	client_t *client = Write_GetClient();
+	ClientReliableCheckBlock(client, 2);
+	ClientReliableWrite_Short(client, G_EDICTNUM(OFS_PARM1));
+	return;
+    }
+#endif
+    MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
 
 //=============================================================================
@@ -1482,18 +1757,22 @@ PF_makestatic(void)
     ent = G_EDICT(OFS_PARM0);
 
     MSG_WriteByte(&sv.signon, svc_spawnstatic);
-
+#ifdef NQ_HACK
+    SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
+#endif
+#ifdef QW_HACK
     MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
-
+#endif
     MSG_WriteByte(&sv.signon, ent->v.frame);
     MSG_WriteByte(&sv.signon, ent->v.colormap);
     MSG_WriteByte(&sv.signon, ent->v.skin);
+
     for (i = 0; i < 3; i++) {
 	MSG_WriteCoord(&sv.signon, ent->v.origin[i]);
 	MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
     }
 
-// throw the entity away now
+    /* throw the entity away now */
     ED_Free(ent);
 }
 
@@ -1513,7 +1792,12 @@ PF_setspawnparms(void)
 
     ent = G_EDICT(OFS_PARM0);
     i = NUM_FOR_EDICT(ent);
+#ifdef NQ_HACK
+    if (i < 1 || i > svs.maxclients)
+#endif
+#ifdef QW_HACK
     if (i < 1 || i > MAX_CLIENTS)
+#endif
 	PR_RunError("Entity is not a client");
 
     // copy spawn parms out of the client_t
@@ -1531,17 +1815,27 @@ PF_changelevel
 static void
 PF_changelevel(void)
 {
+#ifdef NQ_HACK
+    /* make sure we don't issue two changelevels */
+    if (svs.changelevel_issued)
+	return;
+    svs.changelevel_issued = true;
+
+    Cbuf_AddText("changelevel %s\n", G_STRING(OFS_PARM0));
+#endif
+#ifdef QW_HACK
     static int last_spawncount;
 
-// make sure we don't issue two changelevels
+    /* make sure we don't issue two changelevels */
     if (svs.spawncount == last_spawncount)
 	return;
     last_spawncount = svs.spawncount;
 
     Cbuf_AddText("map %s\n", G_STRING(OFS_PARM0));
+#endif
 }
 
-
+#ifdef QW_HACK
 /*
 ==============
 PF_logfrag
@@ -1654,7 +1948,7 @@ PF_multicast(void)
 
     SV_Multicast(o, to);
 }
-
+#endif /* QW_HACK */
 
 static void
 PF_Fixme(void)
@@ -1666,39 +1960,39 @@ PF_Fixme(void)
 
 builtin_t pr_builtin[] = {
     PF_Fixme,
-    PF_makevectors,		// void(entity e)       makevectors             = #1;
-    PF_setorigin,		// void(entity e, vector o) setorigin   = #2;
-    PF_setmodel,		// void(entity e, string m) setmodel    = #3;
-    PF_setsize,			// void(entity e, vector min, vector max) setsize = #4;
-    PF_Fixme,			// void(entity e, vector min, vector max) setabssize = #5;
-    PF_break,			// void() break                                         = #6;
-    PF_random,			// float() random                                               = #7;
-    PF_sound,			// void(entity e, float chan, string samp) sound = #8;
-    PF_normalize,		// vector(vector v) normalize                   = #9;
-    PF_error,			// void(string e) error                         = #10;
-    PF_objerror,		// void(string e) objerror                              = #11;
-    PF_vlen,			// float(vector v) vlen                         = #12;
-    PF_vectoyaw,		// float(vector v) vectoyaw             = #13;
-    PF_Spawn,			// entity() spawn                                               = #14;
-    PF_Remove,			// void(entity e) remove                                = #15;
-    PF_traceline,		// float(vector v1, vector v2, float tryents) traceline = #16;
-    PF_checkclient,		// entity() clientlist                                  = #17;
-    PF_Find,			// entity(entity start, .string fld, string match) find = #18;
-    PF_precache_sound,		// void(string s) precache_sound                = #19;
-    PF_precache_model,		// void(string s) precache_model                = #20;
-    PF_stuffcmd,		// void(entity client, string s)stuffcmd = #21;
-    PF_findradius,		// entity(vector org, float rad) findradius = #22;
-    PF_bprint,			// void(string s) bprint                                = #23;
-    PF_sprint,			// void(entity client, string s) sprint = #24;
-    PF_dprint,			// void(string s) dprint                                = #25;
-    PF_ftos,			// void(string s) ftos                          = #26;
-    PF_vtos,			// void(string s) vtos                          = #27;
+    PF_makevectors,	// void(entity e) makevectors                    = #1;
+    PF_setorigin,	// void(entity e, vector o) setorigin            = #2;
+    PF_setmodel,	// void(entity e, string m) setmodel             = #3;
+    PF_setsize,		// void(entity e, vector min, vector max) setsize = #4;
+    PF_Fixme,		// void(entity e, vector min, vector max) setabssize = #5;
+    PF_break,		// void() break                                  = #6;
+    PF_random,		// float() random                                = #7;
+    PF_sound,		// void(entity e, float chan, string samp) sound = #8;
+    PF_normalize,	// vector(vector v) normalize                    = #9;
+    PF_error,		// void(string e) error                          = #10;
+    PF_objerror,	// void(string e) objerror                       = #11;
+    PF_vlen,		// float(vector v) vlen                          = #12;
+    PF_vectoyaw,	// float(vector v) vectoyaw                      = #13;
+    PF_Spawn,		// entity() spawn                                = #14;
+    PF_Remove,		// void(entity e) remove                         = #15;
+    PF_traceline,	// float(vector v1, vector v2, float tryents) traceline = #16;
+    PF_checkclient,	// entity() clientlist                           = #17;
+    PF_Find,		// entity(entity start, .string fld, string match) find = #18;
+    PF_precache_sound,	// void(string s) precache_sound                 = #19;
+    PF_precache_model,	// void(string s) precache_model                 = #20;
+    PF_stuffcmd,	// void(entity client, string s)stuffcmd         = #21;
+    PF_findradius,	// entity(vector org, float rad) findradius      = #22;
+    PF_bprint,		// void(string s) bprint                         = #23;
+    PF_sprint,		// void(entity client, string s) sprint          = #24;
+    PF_dprint,		// void(string s) dprint                         = #25;
+    PF_ftos,		// void(string s) ftos                           = #26;
+    PF_vtos,		// void(string s) vtos                           = #27;
     PF_coredump,
     PF_traceon,
     PF_traceoff,
-    PF_eprint,			// void(entity e) debug print an entire entity
-    PF_walkmove,		// float(float yaw, float dist) walkmove
-    PF_Fixme,			// float(float yaw, float dist) walkmove
+    PF_eprint,		// void(entity e) debug print an entire entity
+    PF_walkmove,	// float(float yaw, float dist) walkmove
+    PF_Fixme,		// float(float yaw, float dist) walkmove
     PF_droptofloor,
     PF_lightstyle,
     PF_rint,
@@ -1713,7 +2007,12 @@ builtin_t pr_builtin[] = {
     PF_cvar,
     PF_localcmd,
     PF_nextent,
+#ifdef NQ_HACK
+    PF_particle,
+#endif
+#ifdef QW_HACK
     PF_Fixme,
+#endif
     PF_changeyaw,
     PF_Fixme,
     PF_vectoangles,
@@ -1748,16 +2047,17 @@ builtin_t pr_builtin[] = {
     PF_ambientsound,
 
     PF_precache_model,
-    PF_precache_sound,		// precache_sound2 is different only for qcc
+    PF_precache_sound,	/* precache_sound2 is different only for qcc */
     PF_precache_file,
 
     PF_setspawnparms,
 
+#ifdef QW_HACK
     PF_logfrag,
-
     PF_infokey,
     PF_stof,
-    PF_multicast
+    PF_multicast,
+#endif
 };
 
 builtin_t *pr_builtins = pr_builtin;
