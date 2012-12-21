@@ -40,12 +40,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static char *
 PF_VarString(int first)
 {
-    int i;
-    static char out[256];
+    static char out[512];
+    const char *arg;
+    int i, buflen, arglen;
 
+    buflen = sizeof(out) - 1;
     out[0] = 0;
     for (i = first; i < pr_argc; i++) {
-	strcat(out, G_STRING((OFS_PARM0 + i * 3)));
+	arg = G_STRING(OFS_PARM0 + i * 3);
+	arglen = strlen(arg);
+	strncat(out, arg, buflen);
+	buflen -= arglen;
+	if (buflen < 0) {
+	    Con_DPrintf("%s: overflow (string truncated)\n", __func__);
+	    break;
+	}
     }
     return out;
 }
