@@ -299,7 +299,7 @@ This will be sent on the initial connection and upon each server load.
 void
 SV_SendServerinfo(client_t *client)
 {
-    char **s;
+    const char **s;
 
     MSG_WriteByte(&client->message, svc_print);
     MSG_WriteStringf(&client->message,
