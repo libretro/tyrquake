@@ -383,7 +383,7 @@ GL_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 	    // Maybe the directory wasn't present, try again
 	    char gldir[MAX_OSPATH];
 
-	    sprintf(gldir, "%s/glquake", com_gamedir);
+	    snprintf(gldir, sizeof(gldir), "%s/glquake", com_gamedir);
 	    Sys_mkdir(gldir);
 	    f = fopen(cache, "wb");
 	}
