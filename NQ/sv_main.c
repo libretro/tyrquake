@@ -996,7 +996,7 @@ SV_ModelIndex
 ================
 */
 int
-SV_ModelIndex(char *name)
+SV_ModelIndex(const char *name)
 {
     int i;
 

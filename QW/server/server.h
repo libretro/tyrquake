@@ -389,7 +389,7 @@ void SV_FullClientUpdateToClient(client_t *client, client_t *cl);
 int SV_CalcPing(client_t *cl);
 void SV_FullClientUpdate(client_t *client, sizebuf_t *buf);
 
-int SV_ModelIndex(char *name);
+int SV_ModelIndex(const char *name);
 
 qboolean SV_CheckBottom(edict_t *ent);
 qboolean SV_movestep(edict_t *ent, vec3_t move, qboolean relink);
