@@ -482,7 +482,7 @@ void ClientReliableWrite_Float(client_t *cl, float f);
 void ClientReliableWrite_Coord(client_t *cl, float f);
 void ClientReliableWrite_Long(client_t *cl, int c);
 void ClientReliableWrite_Short(client_t *cl, int c);
-void ClientReliableWrite_String(client_t *cl, char *s);
+void ClientReliableWrite_String(client_t *cl, const char *s);
 void ClientReliableWrite_SZ(client_t *cl, void *data, int len);
 
 #endif /* SERVER_SERVER_H */
