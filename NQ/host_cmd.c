@@ -542,6 +542,7 @@ Host_Loadgame_f(void)
     char mapname[MAX_QPATH];
     float time, tfloat;
     char str[32768];
+    char *lightstyle;
     const char *start;
     int i, r;
     edict_t *ent;
@@ -610,8 +611,9 @@ Host_Loadgame_f(void)
 
     for (i = 0; i < MAX_LIGHTSTYLES; i++) {
 	fscanf(f, "%s\n", str);
-	sv.lightstyles[i] = Hunk_Alloc(strlen(str) + 1);
-	strcpy(sv.lightstyles[i], str);
+	lightstyle = Hunk_Alloc(strlen(str) + 1);
+	strcpy(lightstyle, str);
+	sv.lightstyles[i] = lightstyle;
     }
 
 // load the edicts out of the savegame file
