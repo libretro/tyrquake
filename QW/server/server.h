@@ -439,7 +439,7 @@ extern redirect_t sv_redirected;
 void SV_SendClientMessages(void);
 
 void SV_Multicast(vec3_t origin, int to);
-void SV_StartSound(edict_t *entity, int channel, char *sample,
+void SV_StartSound(edict_t *entity, int channel, const char *sample,
 		   int volume, float attenuation);
 void SV_ClientPrintf(client_t *cl, int level, const char *fmt, ...)
     __attribute__((format(printf,3,4)));
