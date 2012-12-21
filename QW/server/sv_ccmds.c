@@ -395,10 +395,10 @@ SV_Status_f
 void
 SV_Status_f(void)
 {
+    const char *s;
     int i, j, l;
     client_t *cl;
     float cpu, avg, pak;
-    char *s;
 
 
     cpu = (svs.stats.latched_active + svs.stats.latched_idle);
