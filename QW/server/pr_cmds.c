@@ -178,7 +178,8 @@ static void
 PF_setmodel(void)
 {
     edict_t *e;
-    char *m, **check;
+    const char **check;
+    char *m;
     int i;
     model_t *mod;
 
@@ -440,7 +441,7 @@ PF_ambientsound
 static void
 PF_ambientsound(void)
 {
-    char **check;
+    const char **check;
     char *samp;
     float *pos;
     float vol, attenuation;

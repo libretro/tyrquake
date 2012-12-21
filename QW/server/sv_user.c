@@ -127,7 +127,7 @@ SV_Soundlist_f
 void
 SV_Soundlist_f(void)
 {
-    char **s;
+    const char **s;
     int n;
 
     if (host_client->state != cs_connected) {
@@ -176,7 +176,7 @@ SV_Modellist_f
 void
 SV_Modellist_f(void)
 {
-    char **s;
+    const char **s;
     int n;
 
     if (host_client->state != cs_connected) {
