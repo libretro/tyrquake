@@ -248,7 +248,7 @@ Cvar_SetValue(char *var_name, float value)
 {
     char val[32];
 
-    sprintf(val, "%f", value);
+    snprintf(val, sizeof(val), "%f", value);
     Cvar_Set(var_name, val);
 }
 
