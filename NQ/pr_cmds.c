@@ -44,19 +44,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static char *
 PF_VarString(int first)
 {
-    int i, len = 0;
     static char out[512];
-    char *arg;
+    const char *arg;
+    int i, buflen, arglen;
 
+    buflen = sizeof(out) - 1;
     out[0] = 0;
     for (i = first; i < pr_argc; i++) {
-	arg = G_STRING((OFS_PARM0 + i * 3));
-	len += strlen(arg);
-	if (len > 511) {
+	arg = G_STRING(OFS_PARM0 + i * 3);
+	arglen = strlen(arg);
+	strncat(out, arg, buflen);
+	buflen -= arglen;
+	if (buflen < 0) {
 	    Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 	    break;
 	}
-	strcat(out, arg);
     }
     return out;
 }
@@ -259,7 +261,7 @@ PF_setmodel(void)
 {
     edict_t *e;
     const char **check;
-    char *m;
+    const char *m;
     model_t *mod;
     int i;
 
@@ -553,7 +555,7 @@ static void
 PF_ambientsound(void)
 {
     const char **check;
-    char *samp;
+    const char *samp;
     float *pos;
     float vol, attenuation;
     int i, soundnum;
@@ -601,7 +603,7 @@ Larger attenuations will drop off.
 static void
 PF_sound(void)
 {
-    char *sample;
+    const char *sample;
     int channel;
     edict_t *entity;
     int volume;
@@ -801,7 +803,7 @@ static void
 PF_stuffcmd(void)
 {
     int entnum;
-    char *str;
+    const char *str;
     client_t *old;
 
     entnum = G_EDICTNUM(OFS_PARM0);
@@ -840,11 +842,11 @@ float cvar (string)
 static void
 PF_cvar(void)
 {
-    char *str;
+    const char *var;
 
-    str = G_STRING(OFS_PARM0);
+    var = G_STRING(OFS_PARM0);
 
-    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(str);
+    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(var);
 }
 
 /*
@@ -857,7 +859,7 @@ float cvar (string)
 static void
 PF_cvar_set(void)
 {
-    char *var, *val;
+    const char *var, *val;
 
     var = G_STRING(OFS_PARM0);
     val = G_STRING(OFS_PARM1);
@@ -978,7 +980,7 @@ PF_Find(void)
 {
     int e;
     int f;
-    char *s, *t;
+    const char *s, *t;
     edict_t *ed;
 
     e = G_EDICTNUM(OFS_PARM0);
@@ -1004,7 +1006,7 @@ PF_Find(void)
 }
 
 static void
-PR_CheckEmptyString(char *s)
+PR_CheckEmptyString(const char *s)
 {
     if (s[0] <= ' ')
 	PR_RunError("Bad string");
@@ -1019,7 +1021,7 @@ PF_precache_file(void)
 static void
 PF_precache_sound(void)
 {
-    char *s;
+    const char *s;
     int i;
 
     if (sv.state != ss_loading)
@@ -1044,7 +1046,7 @@ PF_precache_sound(void)
 static void
 PF_precache_model(void)
 {
-    char *s;
+    const char *s;
     int i;
 
     if (sv.state != ss_loading)
@@ -1178,7 +1180,7 @@ static void
 PF_lightstyle(void)
 {
     int style;
-    char *val;
+    const char *val;
     client_t *client;
     int j;
 

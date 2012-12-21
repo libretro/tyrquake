@@ -143,8 +143,8 @@ eval_t *GetEdictFieldValue(edict_t *ed, const char *field);
  * PR Strings stuff
  */
 void PR_InitStringTable(void);
-char *PR_GetString(int num);
-int PR_SetString(char *s);
+const char *PR_GetString(int num);
+int PR_SetString(const char *s);
 
 /*
  * Somehow, I don't think this should be exposed - but better to have it here

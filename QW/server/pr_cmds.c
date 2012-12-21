@@ -179,9 +179,9 @@ PF_setmodel(void)
 {
     edict_t *e;
     const char **check;
-    char *m;
-    int i;
+    const char *m;
     model_t *mod;
+    int i;
 
     e = G_EDICT(OFS_PARM0);
     m = G_STRING(OFS_PARM1);
@@ -442,7 +442,7 @@ static void
 PF_ambientsound(void)
 {
     const char **check;
-    char *samp;
+    const char *samp;
     float *pos;
     float vol, attenuation;
     int i, soundnum;
@@ -492,7 +492,7 @@ Larger attenuations will drop off.
 static void
 PF_sound(void)
 {
-    char *sample;
+    const char *sample;
     int channel;
     edict_t *entity;
     int volume;
@@ -683,7 +683,7 @@ static void
 PF_stuffcmd(void)
 {
     int entnum;
-    char *str;
+    const char *str;
     client_t *cl;
 
     entnum = G_EDICTNUM(OFS_PARM0);
@@ -728,11 +728,11 @@ float cvar (string)
 static void
 PF_cvar(void)
 {
-    char *str;
+    const char *var;
 
-    str = G_STRING(OFS_PARM0);
+    var = G_STRING(OFS_PARM0);
 
-    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(str);
+    G_FLOAT(OFS_RETURN) = Cvar_VariableValue(var);
 }
 
 /*
@@ -745,7 +745,7 @@ float cvar (string)
 static void
 PF_cvar_set(void)
 {
-    char *var, *val;
+    const char *var, *val;
 
     var = G_STRING(OFS_PARM0);
     val = G_STRING(OFS_PARM1);
@@ -866,7 +866,7 @@ PF_Find(void)
 {
     int e;
     int f;
-    char *s, *t;
+    const char *s, *t;
     edict_t *ed;
 
     e = G_EDICTNUM(OFS_PARM0);
@@ -892,7 +892,7 @@ PF_Find(void)
 }
 
 static void
-PR_CheckEmptyString(char *s)
+PR_CheckEmptyString(const char *s)
 {
     if (s[0] <= ' ')
 	PR_RunError("Bad string");
@@ -907,7 +907,7 @@ PF_precache_file(void)
 static void
 PF_precache_sound(void)
 {
-    char *s;
+    const char *s;
     int i;
 
     if (sv.state != ss_loading)
@@ -932,7 +932,7 @@ PF_precache_sound(void)
 static void
 PF_precache_model(void)
 {
-    char *s;
+    const char *s;
     int i;
 
     if (sv.state != ss_loading)
@@ -1065,7 +1065,7 @@ static void
 PF_lightstyle(void)
 {
     int style;
-    char *val;
+    const char *val;
     client_t *client;
     int j;
 
@@ -1545,7 +1545,7 @@ PF_logfrag(void)
 {
     edict_t *ent1, *ent2;
     int e1, e2;
-    char *s;
+    const char *s;
 
     ent1 = G_EDICT(OFS_PARM0);
     ent2 = G_EDICT(OFS_PARM1);
@@ -1579,8 +1579,8 @@ PF_infokey(void)
 {
     edict_t *e;
     int e1;
-    char *value;
-    char *key;
+    const char *value;
+    const char *key;
     static char ov[256];
 
     e = G_EDICT(OFS_PARM0);
@@ -1619,7 +1619,7 @@ float(string s) stof
 static void
 PF_stof(void)
 {
-    char *s;
+    const char *s;
 
     s = G_STRING(OFS_PARM0);
 

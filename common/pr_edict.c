@@ -453,8 +453,7 @@ PR_GlobalString(int ofs)
 		 PR_GetString(def->s_name), s);
     }
 
-    i = strlen(line);
-    for (; i < 20; i++)
+    for (i = strlen(line); i < 20; i++)
 	strcat(line, " ");
     strcat(line, " ");
 
@@ -497,7 +496,7 @@ ED_Print(edict_t *ed)
     ddef_t *d;
     int *v;
     int i, j;
-    char *name;
+    const char *name;
     int type;
 
     if (ed->free) {
@@ -545,7 +544,7 @@ ED_Write(FILE *f, edict_t *ed)
     ddef_t *d;
     int *v;
     int i, j;
-    char *name;
+    const char *name;
     int type;
 
     fprintf(f, "{\n");
@@ -675,7 +674,7 @@ ED_WriteGlobals(FILE *f)
 {
     ddef_t *def;
     int i;
-    char *name;
+    const char *name;
     int type;
 
     fprintf(f, "{\n");

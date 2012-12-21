@@ -683,7 +683,7 @@ PR_ExecuteProgram(func_t fnum)
 /*----------------------*/
 
 #define PR_STRTBL_CHUNK 256
-static char **pr_strtbl = NULL;
+static const char **pr_strtbl = NULL;
 static int pr_strtbl_size;
 static int num_prstr;
 
@@ -698,10 +698,10 @@ PR_InitStringTable(void)
     num_prstr = 0;
 }
 
-char *
+const char *
 PR_GetString(int num)
 {
-    char *s = "";
+    const char *s = "";
 
     if (num >= 0 && num < pr_strings_size - 1)
 	s = pr_strings + num;
@@ -721,7 +721,7 @@ PR_GetString(int num)
 }
 
 int
-PR_SetString(char *s)
+PR_SetString(const char *s)
 {
     int i;
 
