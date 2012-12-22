@@ -150,7 +150,7 @@ Cvar_VariableValue(const char *var_name)
 Cvar_VariableString
 ============
 */
-char *
+const char *
 Cvar_VariableString(const char *var_name)
 {
     cvar_t *var;
@@ -171,6 +171,7 @@ void
 Cvar_Set(const char *var_name, const char *value)
 {
     cvar_t *var;
+    char *newstring;
     qboolean changed;
 
     var = Cvar_FindVar(var_name);
@@ -214,8 +215,9 @@ Cvar_Set(const char *var_name, const char *value)
 
     Z_Free(var->string);	// free the old value string
 
-    var->string = Z_Malloc(strlen(value) + 1);
-    strcpy(var->string, value);
+    newstring = Z_Malloc(strlen(value) + 1);
+    strcpy(newstring, value);
+    var->string = newstring;
     var->value = Q_atof(var->string);
 
 #ifdef NQ_HACK

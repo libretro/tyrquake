@@ -1208,7 +1208,7 @@ SV_CheckVars
 static void
 SV_CheckVars(void)
 {
-    static char *pw, *spw;
+    static const char *pw, *spw;
     int v;
 
     if (password.string == pw && spectator_password.string == spw)

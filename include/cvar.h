@@ -82,8 +82,8 @@ typedef void (*cvar_callback) (struct cvar_s *);
 typedef struct stree_root *(*cvar_arg_f)(const char *);
 
 typedef struct cvar_s {
-    char *name;
-    char *string;
+    const char *name;
+    const char *string;
     qboolean archive;	// set to true to cause it to be saved to vars.rc
 
     // FIXME - obviously...
@@ -120,7 +120,7 @@ void Cvar_SetValue(const char *var_name, float value);
 float Cvar_VariableValue(const char *var_name);
 
 /* returns an empty string if not defined */
-char *Cvar_VariableString(const char *var_name);
+const char *Cvar_VariableString(const char *var_name);
 
 /*
  * called by Cmd_ExecuteString when Cmd_Argv(0) doesn't match a known command.
