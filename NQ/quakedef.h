@@ -198,8 +198,7 @@ typedef struct {
 // available for the program to use
 
 typedef struct {
-    char *basedir;
-    char *cachedir;		// for development over ISDN lines
+    const char *basedir;
     int argc;
     const char **argv;
     void *membase;
