@@ -539,8 +539,8 @@ SV_NextDownload_f(void)
 
 }
 
-void
-OutofBandPrintf(netadr_t where, char *fmt, ...)
+static void
+OutofBandPrintf(netadr_t where, const char *fmt, ...)
 {
     va_list argptr;
     char send[MAX_PRINTMSG];
