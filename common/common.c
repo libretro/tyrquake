@@ -1703,7 +1703,7 @@ static cache_user_t *loadcache;
 static byte *loadbuf;
 static int loadsize;
 
-static byte *
+static void *
 COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
     FILE *f;
@@ -1757,13 +1757,13 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
     return buf;
 }
 
-byte *
+void *
 COM_LoadHunkFile(const char *path)
 {
     return COM_LoadFile(path, 1, NULL);
 }
 
-byte *
+void *
 COM_LoadTempFile(const char *path)
 {
     return COM_LoadFile(path, 2, NULL);
@@ -1778,7 +1778,7 @@ COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
 
 // uses temp hunk if larger than bufsize
 // length is size of loaded file in bytes
-byte *
+void *
 COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 		  unsigned long *length)
 {

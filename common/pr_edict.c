@@ -1055,12 +1055,12 @@ PR_LoadProgs(void)
 	gefvCache[i].field[0] = 0;
 
 #ifdef NQ_HACK
-    progs = (dprograms_t *)COM_LoadHunkFile("progs.dat");
+    progs = COM_LoadHunkFile("progs.dat");
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-    progs = (dprograms_t *)COM_LoadHunkFile("qwprogs.dat");
+    progs = COM_LoadHunkFile("qwprogs.dat");
     if (!progs)
-	progs = (dprograms_t *)COM_LoadHunkFile("progs.dat");
+	progs = COM_LoadHunkFile("progs.dat");
 #endif
     if (!progs)
 	SV_Error("%s: couldn't load progs.dat", __func__);

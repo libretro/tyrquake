@@ -274,7 +274,7 @@ Draw_CachePic(const char *path)
 //
 // load the pic from disk
 //
-    dat = (qpic_t *)COM_LoadTempFile(path);
+    dat = COM_LoadTempFile(path);
     if (!dat)
 	Sys_Error("%s: failed to load %s", __func__, path);
     SwapPic(dat);
@@ -479,10 +479,10 @@ Draw_Init(void)
     start = Hunk_LowMark();
 
 #ifdef NQ_HACK
-    cb = (qpic_t *)COM_LoadTempFile("gfx/conback.lmp");
+    cb = COM_LoadTempFile("gfx/conback.lmp");
 #endif
 #ifdef QW_HACK
-    cb = (qpic_t *)COM_LoadHunkFile("gfx/conback.lmp");
+    cb = COM_LoadHunkFile("gfx/conback.lmp");
 #endif
     if (!cb)
 	Sys_Error("Couldn't load gfx/conback.lmp");

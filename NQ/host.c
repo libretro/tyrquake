@@ -833,10 +833,10 @@ Host_Init(quakeparms_t *parms)
     R_InitTextures();		// needed even for dedicated servers
 
     if (cls.state != ca_dedicated) {
-	host_basepal = (byte *)COM_LoadHunkFile("gfx/palette.lmp");
+	host_basepal = COM_LoadHunkFile("gfx/palette.lmp");
 	if (!host_basepal)
 	    Sys_Error("Couldn't load gfx/palette.lmp");
-	host_colormap = (byte *)COM_LoadHunkFile("gfx/colormap.lmp");
+	host_colormap = COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
 	    Sys_Error("Couldn't load gfx/colormap.lmp");
 

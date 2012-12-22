@@ -245,8 +245,7 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 //
 // load the file
 //
-    buf = (unsigned *)COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf),
-					&size);
+    buf = COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf), &size);
     if (!buf) {
 	if (crash)
 	    SV_Error("%s: %s not found", __func__, mod->name);

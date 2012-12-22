@@ -205,10 +205,10 @@ int COM_FOpenFile(const char *filename, FILE **file);
 void COM_ScanDir(struct stree_root *root, const char *path,
 		 const char *pfx, const char *ext, qboolean stripext);
 
-byte *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
+void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 			unsigned long *length);
-byte *COM_LoadTempFile(const char *path);
-byte *COM_LoadHunkFile(const char *path);
+void *COM_LoadTempFile(const char *path);
+void *COM_LoadHunkFile(const char *path);
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu);
 #ifdef QW_HACK
 void COM_CreatePath(const char *path);
