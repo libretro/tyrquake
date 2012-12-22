@@ -43,16 +43,16 @@ typedef struct {
     vrect_t rect;
     int width;
     int height;
-    byte *ptexbytes;
+    const byte *ptexbytes;
     int rowbytes;
 } rectdesc_t;
 
 static rectdesc_t r_rectdesc;
 
 byte *draw_chars;		// 8*8 graphic characters
-qpic_t *draw_disc;
+const qpic_t *draw_disc;
 
-static qpic_t *draw_backtile;
+static const qpic_t *draw_backtile;
 
 //=============================================================================
 /* Support Routines */
@@ -67,7 +67,7 @@ static cachepic_t menu_cachepics[MAX_CACHED_PICS];
 static int menu_numcachepics;
 
 
-qpic_t *
+const qpic_t *
 Draw_PicFromWad(const char *name)
 {
     return W_GetLumpName(name);
@@ -359,10 +359,11 @@ Draw_SubPic
 =============
 */
 void
-Draw_SubPic(int x, int y, qpic_t *pic, int srcx, int srcy, int width,
+Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 	    int height)
 {
-    byte *dest, *source;
+    const byte *source;
+    byte *dest;
     unsigned short *pusdest;
     int v, u;
 
@@ -553,7 +554,7 @@ Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 #define CHAR_HEIGHT	8
 
 static void
-Draw_ScaledCharToConback(qpic_t *conback, int num, byte *dest)
+Draw_ScaledCharToConback(const qpic_t *conback, int num, byte *dest)
 {
     int row, col;
     byte *source, *src;
@@ -614,7 +615,8 @@ void
 Draw_ConsoleBackground(int lines)
 {
     int x, y, v;
-    byte *src, *dest;
+    const byte *src;
+    byte *dest;
     unsigned short *pusdest;
     int f, fstep;
     qpic_t *conback;
@@ -679,7 +681,7 @@ R_DrawRect8
 ==============
 */
 static void
-R_DrawRect8(vrect_t *prect, int rowbytes, byte *psrc, int transparent)
+R_DrawRect8(vrect_t *prect, int rowbytes, const byte *psrc, int transparent)
 {
     byte t;
     int i, j, srcdelta, destdelta;
@@ -721,7 +723,7 @@ R_DrawRect16
 ==============
 */
 static void
-R_DrawRect16(vrect_t *prect, int rowbytes, byte *psrc, int transparent)
+R_DrawRect16(vrect_t *prect, int rowbytes, const byte *psrc, int transparent)
 {
     byte t;
     int i, j, srcdelta, destdelta;
@@ -777,7 +779,7 @@ void
 Draw_TileClear(int x, int y, int w, int h)
 {
     int width, height, tileoffsetx, tileoffsety;
-    byte *psrc;
+    const byte *psrc;
     vrect_t vr;
 
     if (x < 0 || (unsigned)(x + w) > vid.width ||

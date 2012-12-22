@@ -47,8 +47,8 @@ static cvar_t gl_constretch = { "gl_constretch", "0", true };
 cvar_t gl_max_size = { "gl_max_size", "1024" };
 
 byte *draw_chars;		/* 8*8 graphic characters */
-qpic_t *draw_disc;
-static qpic_t *draw_backtile;
+const qpic_t *draw_disc;
+static const qpic_t *draw_backtile;
 
 static GLuint translate_texture;
 static GLuint char_texture;
@@ -208,10 +208,10 @@ static byte menuplyr_pixels[4096];
 static int pic_texels;
 static int pic_count;
 
-qpic_t *
+const qpic_t *
 Draw_PicFromWad(const char *name)
 {
-    qpic_t *p;
+    const qpic_t *p;
     glpic_t *gl;
 
     p = W_GetLumpName(name);
@@ -254,7 +254,7 @@ Draw_PicFromWad(const char *name)
 Draw_CachePic
 ================
 */
-qpic_t *
+const qpic_t *
 Draw_CachePic(const char *path)
 {
     cachepic_t *pic;
