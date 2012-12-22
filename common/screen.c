@@ -122,9 +122,9 @@ static vrect_t *pconupdate;
 qboolean scr_skipupdate;
 #endif
 
-static qpic_t *scr_ram;
-static qpic_t *scr_net;
-static qpic_t *scr_turtle;
+static const qpic_t *scr_ram;
+static const qpic_t *scr_net;
+static const qpic_t *scr_turtle;
 
 static char scr_centerstring[1024];
 static float scr_centertime_start;	// for slow victory printing
@@ -248,7 +248,7 @@ DrawPause
 static void
 SCR_DrawPause(void)
 {
-    qpic_t *pic;
+    const qpic_t *pic;
 
     if (!scr_showpause.value)	// turn off for screenshots
 	return;
@@ -796,7 +796,7 @@ static void
 SCR_DrawCharToSnap(int num, byte *dest, int width)
 {
     int row, col;
-    byte *source;
+    const byte *source;
     int drawline;
     int x, stride;
 
@@ -1180,7 +1180,7 @@ SCR_DrawLoading
 static void
 SCR_DrawLoading(void)
 {
-    qpic_t *pic;
+    const qpic_t *pic;
 
     if (!scr_drawloading)
 	return;
