@@ -51,7 +51,7 @@ dfunction_t *pr_xfunction;
 int pr_xstatement;
 int pr_argc;
 
-char *pr_opnames[] = {
+const char *pr_opnames[] = {
     "DONE",
 
     "MUL_F",
