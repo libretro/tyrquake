@@ -56,12 +56,12 @@ static struct {
 } packetBuffer;
 
 #ifdef DEBUG
-char *
+const char *
 StrAddr(netadr_t *addr)
 {
     static char buf[32];
 
-    sprintf(buf, "%d.%d.%d.%d:%d",
+    snprintf(buf, sizeof(buf), "%d.%d.%d.%d:%d",
 	    addr->ip.b[0], addr->ip.b[1], addr->ip.b[2], addr->ip.b[3],
 	    ntohs(addr->port));
     return buf;
