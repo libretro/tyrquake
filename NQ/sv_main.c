@@ -58,10 +58,6 @@ static sv_protocol_t sv_protocols[] = {
 
 static int sv_protocol = PROTOCOL_VERSION_NQ;
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 static void
 SV_Protocol_f(void)
 {

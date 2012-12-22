@@ -360,12 +360,12 @@ typedef struct {
 } glmode_t;
 
 static glmode_t gl_texturemodes[] = {
-    {"GL_NEAREST", GL_NEAREST, GL_NEAREST},
-    {"GL_LINEAR", GL_LINEAR, GL_LINEAR},
-    {"GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST},
-    {"GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR},
-    {"GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST},
-    {"GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR}
+    { "GL_NEAREST", GL_NEAREST, GL_NEAREST },
+    { "GL_LINEAR", GL_LINEAR, GL_LINEAR },
+    { "GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST },
+    { "GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR },
+    { "GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST },
+    { "GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR }
 };
 
 /*
@@ -413,6 +413,25 @@ Draw_TextureMode_f(void)
     }
 }
 
+static struct stree_root *
+Draw_TextureMode_Arg_f(const char *arg)
+{
+    int i, arg_len;
+    struct stree_root *root;
+
+    root = Z_Malloc(sizeof(struct stree_root));
+    if (root) {
+	*root = STREE_ROOT;
+	STree_AllocInit();
+	arg_len = arg ? strlen(arg) : 0;
+	for (i = 0; i < ARRAY_SIZE(gl_texturemodes); i++) {
+	    if (!arg || !strncasecmp(gl_texturemodes[i].name, arg, arg_len))
+		STree_InsertAlloc(root, gl_texturemodes[i].name, false);
+	}
+    }
+    return root;
+}
+
 /*
 ===============
 Draw_Init
@@ -441,7 +460,8 @@ Draw_Init(void)
 	Cvar_Set("gl_max_size", va("%i", i));
     }
 
-    Cmd_AddCommand("gl_texturemode", &Draw_TextureMode_f);
+    Cmd_AddCommand("gl_texturemode", Draw_TextureMode_f);
+    Cmd_SetCompletion("gl_texturemode", Draw_TextureMode_Arg_f);
 
     // load the console background and the charset
     // by hand, because we need to write the version
