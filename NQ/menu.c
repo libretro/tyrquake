@@ -175,7 +175,7 @@ M_BuildTranslationTable(int top, int bottom)
 
 
 static void
-M_DrawTransPicTranslate(int x, int y, qpic_t *pic)
+M_DrawTransPicTranslate(int x, int y, const qpic_t *pic)
 {
     Draw_TransPicTranslate(x + ((vid.width - 320) >> 1), y, pic,
 			   translationTable);
@@ -185,7 +185,7 @@ M_DrawTransPicTranslate(int x, int y, qpic_t *pic)
 void
 M_DrawTextBox(int x, int y, int width, int lines)
 {
-    qpic_t *p;
+    const qpic_t *p;
     int cx, cy;
     int n;
 
@@ -289,7 +289,7 @@ static void
 M_Main_Draw(void)
 {
     int f;
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/ttl_main.lmp");
@@ -376,7 +376,7 @@ static void
 M_SinglePlayer_Draw(void)
 {
     int f;
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/ttl_sgl.lmp");
@@ -504,7 +504,7 @@ static void
 M_Load_Draw(void)
 {
     int i;
-    qpic_t *p;
+    const qpic_t *p;
 
     p = Draw_CachePic("gfx/p_load.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
@@ -521,7 +521,7 @@ static void
 M_Save_Draw(void)
 {
     int i;
-    qpic_t *p;
+    const qpic_t *p;
 
     p = Draw_CachePic("gfx/p_save.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
@@ -628,7 +628,7 @@ static void
 M_MultiPlayer_Draw(void)
 {
     int f;
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_multi.lmp");
@@ -718,7 +718,7 @@ M_Menu_Setup_f(void)
 static void
 M_Setup_Draw(void)
 {
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_multi.lmp");
@@ -997,7 +997,7 @@ static void
 M_Options_Draw(void)
 {
     float r;
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_option.lmp");
@@ -1213,7 +1213,7 @@ M_Keys_Draw(void)
     int keys[2];
     const char *name;
     int x, y;
-    qpic_t *p;
+    const qpic_t *p;
 
     p = Draw_CachePic("gfx/ttl_cstm.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
@@ -1529,7 +1529,7 @@ M_Menu_LanConfig_f(void)
 static void
 M_LanConfig_Draw(void)
 {
-    qpic_t *p;
+    const qpic_t *p;
     int basex;
     const char *startJoin;
     const char *protocol;
@@ -1849,7 +1849,7 @@ M_Menu_GameOptions_f(void)
 static void
 M_GameOptions_Draw(void)
 {
-    qpic_t *p;
+    const qpic_t *p;
     int x;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
@@ -2181,7 +2181,7 @@ M_Menu_Search_f(void)
 static void
 M_Search_Draw(void)
 {
-    qpic_t *p;
+    const qpic_t *p;
     int x;
 
     p = Draw_CachePic("gfx/p_multi.lmp");
@@ -2242,7 +2242,7 @@ M_ServerList_Draw(void)
 {
     int n;
     char string[64];
-    qpic_t *p;
+    const qpic_t *p;
 
     if (!slist_sorted) {
 	if (hostCacheCount > 1) {

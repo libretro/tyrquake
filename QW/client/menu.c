@@ -113,7 +113,7 @@ M_DrawPic(int x, int y, const qpic_t *pic)
 void
 M_DrawTextBox(int x, int y, int width, int lines)
 {
-    qpic_t *p;
+    const qpic_t *p;
     int cx, cy;
     int n;
 
@@ -217,7 +217,7 @@ static void
 M_Main_Draw(void)
 {
     int f;
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/ttl_main.lmp");
@@ -399,7 +399,7 @@ static void
 M_Options_Draw(void)
 {
     float r;
-    qpic_t *p;
+    const qpic_t *p;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_option.lmp");
@@ -625,7 +625,7 @@ M_Keys_Draw(void)
     int keys[2];
     const char *name;
     int x, y;
-    qpic_t *p;
+    const qpic_t *p;
 
     p = Draw_CachePic("gfx/ttl_cstm.lmp");
     M_DrawPic((320 - p->width) / 2, 4, p);
