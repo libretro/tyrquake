@@ -1531,8 +1531,8 @@ M_LanConfig_Draw(void)
 {
     qpic_t *p;
     int basex;
-    char *startJoin;
-    char *protocol;
+    const char *startJoin;
+    const char *protocol;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_multi.lmp");
@@ -1870,7 +1870,7 @@ M_GameOptions_Draw(void)
 
     M_Print(0, 72, "        Teamplay");
     if (rogue) {
-	char *msg;
+	const char *msg;
 
 	switch ((int)teamplay.value) {
 	case 1:
@@ -1897,7 +1897,7 @@ M_GameOptions_Draw(void)
 	}
 	M_Print(160, 72, msg);
     } else {
-	char *msg;
+	const char *msg;
 
 	switch ((int)teamplay.value) {
 	case 1:
