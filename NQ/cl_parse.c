@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 # include "glquake.h"
 #endif
 
-char *svc_strings[] = {
+static const char *svc_strings[] = {
     "svc_bad",
     "svc_nop",
     "svc_disconnect",
@@ -815,7 +815,7 @@ CL_ParseStaticSound(void)
 
 /* helper function (was a macro, hence the CAPS) */
 static void
-SHOWNET(char *msg)
+SHOWNET(const char *msg)
 {
     if (cl_shownet.value == 2)
 	Con_Printf("%3i:%s\n", msg_readcount - 1, msg);
