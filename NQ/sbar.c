@@ -326,8 +326,8 @@ Sbar_DrawCharacter(int x, int y, int num)
 Sbar_DrawString
 ================
 */
-void
-Sbar_DrawString(int x, int y, char *str)
+static void
+Sbar_DrawString(int x, int y, const char *str)
 {
     if (cl.gametype == GAME_DEATHMATCH)
 	Draw_String(x /*+ ((vid.width - 320)>>1) */ ,
