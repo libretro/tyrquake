@@ -57,7 +57,7 @@ This will be sent on the initial connection and upon each server load.
 void
 SV_New_f(void)
 {
-    char *gamedir;
+    const char *gamedir;
     int playernum;
 
     if (host_client->state == cs_spawned)
