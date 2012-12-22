@@ -67,7 +67,7 @@ void
 Draw_CharToNetGraph(int x, int y, int num)
 {
     int row, col;
-    byte *source;
+    const byte *source;
     int drawline;
     int nx;
 
