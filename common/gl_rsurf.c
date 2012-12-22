@@ -454,15 +454,15 @@ DrawFlatGLPoly(glpoly_t *p)
  * Re-uploads the modified region of the given lightmap number
  */
 static void
-R_UploadLightmapUpdate(int map)
+R_UploadLMBlockUpdate(int blocknum)
 {
     glRect_t *rect;
     byte *pixels;
     unsigned offset;
 
-    rect = &lm_blocks[map].rectchange;
+    rect = &lm_blocks[blocknum].rectchange;
     offset = (BLOCK_WIDTH * rect->t + rect->l) * lightmap_bytes;
-    pixels = lm_blocks[map].data + offset;
+    pixels = lm_blocks[blocknum].data + offset;
 
     /* set unpacking width to BLOCK_WIDTH, reset after */
     glPixelStorei(GL_UNPACK_ROW_LENGTH, BLOCK_WIDTH);
@@ -513,15 +513,15 @@ R_BlendLightmaps(void)
     }
 
     for (i = 0; i < MAX_LM_BLOCKS; i++) {
-	p = lm_blocks[i].polys;
-	if (!p)
+	lm_block_t *block = &lm_blocks[i];
+	if (!block->polys)
 	    continue;
-	GL_Bind(lm_blocks[i].texture);
-	if (lm_blocks[i].modified) {
-	    R_UploadLightmapUpdate(i);
-	    lm_blocks[i].modified = false;
+	GL_Bind(block->texture);
+	if (block->modified) {
+	    R_UploadLMBlockUpdate(i);
+	    block->modified = false;
 	}
-	for (; p; p = p->chain) {
+	for (p = block->polys; p; p = p->chain) {
 	    if (WATER_WARP_TEST(p))
 		DrawGLWaterPolyLightmap(p);
 	    else
@@ -546,9 +546,10 @@ static void
 R_UpdateLightmapBlockRect(msurface_t *fa)
 {
     int map;
-    glRect_t *theRect;
     byte *base;
     int smax, tmax;
+    lm_block_t *block;
+    glRect_t *rect;
 
     if (!r_dynamic.value)
 	return;
@@ -569,28 +570,28 @@ R_UpdateLightmapBlockRect(msurface_t *fa)
 	 * modified. If necessary, increase the modified rectangle to include
 	 * this surface's allocatied sub-area.
 	 */
-	lm_blocks[fa->lightmaptexturenum].modified = true;
-	theRect = &lm_blocks[fa->lightmaptexturenum].rectchange;
-	if (fa->light_t < theRect->t) {
-	    if (theRect->h)
-		theRect->h += theRect->t - fa->light_t;
-	    theRect->t = fa->light_t;
+	block = &lm_blocks[fa->lightmaptexturenum];
+	rect = &block->rectchange;
+	block->modified = true;
+	if (fa->light_t < rect->t) {
+	    if (rect->h)
+		rect->h += rect->t - fa->light_t;
+	    rect->t = fa->light_t;
 	}
-	if (fa->light_s < theRect->l) {
-	    if (theRect->w)
-		theRect->w += theRect->l - fa->light_s;
-	    theRect->l = fa->light_s;
+	if (fa->light_s < rect->l) {
+	    if (rect->w)
+		rect->w += rect->l - fa->light_s;
+	    rect->l = fa->light_s;
 	}
 	smax = (fa->extents[0] >> 4) + 1;
 	tmax = (fa->extents[1] >> 4) + 1;
-	if ((theRect->w + theRect->l) < (fa->light_s + smax))
-	    theRect->w = (fa->light_s - theRect->l) + smax;
-	if ((theRect->h + theRect->t) < (fa->light_t + tmax))
-	    theRect->h = (fa->light_t - theRect->t) + tmax;
-	base = lm_blocks[fa->lightmaptexturenum].data;
-	base +=
-	    fa->light_t * BLOCK_WIDTH * lightmap_bytes +
-	    fa->light_s * lightmap_bytes;
+	if ((rect->w + rect->l) < (fa->light_s + smax))
+	    rect->w = (fa->light_s - rect->l) + smax;
+	if ((rect->h + rect->t) < (fa->light_t + tmax))
+	    rect->h = (fa->light_t - rect->t) + tmax;
+	base = block->data;
+	base += fa->light_t * BLOCK_WIDTH * lightmap_bytes;
+	base += fa->light_s * lightmap_bytes;
 	R_BuildLightMap(fa, base, BLOCK_WIDTH * lightmap_bytes);
     }
 }
@@ -603,7 +604,7 @@ R_RenderBrushPoly
 void
 R_RenderBrushPoly(const entity_t *e, msurface_t *fa)
 {
-    int i;
+    lm_block_t *block;
     texture_t *t;
 
     c_brush_polys++;
@@ -629,14 +630,14 @@ R_RenderBrushPoly(const entity_t *e, msurface_t *fa)
 	return;
     }
 
+    block = &lm_blocks[fa->lightmaptexturenum];
     if (gl_mtexable) {
 	/* All lightmaps are up to date... */
-	i = fa->lightmaptexturenum;
 	GL_EnableMultitexture();
-	GL_Bind(lm_blocks[i].texture);
-	if (lm_blocks[i].modified) {
-	    R_UploadLightmapUpdate(i);
-	    lm_blocks[i].modified = false;
+	GL_Bind(block->texture);
+	if (block->modified) {
+	    R_UploadLMBlockUpdate(fa->lightmaptexturenum);
+	    block->modified = false;
 	}
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
 	DrawGLPoly_2Ply(fa->polys);
@@ -648,8 +649,8 @@ R_RenderBrushPoly(const entity_t *e, msurface_t *fa)
 	    DrawGLPoly(fa->polys);
 
 	/* add the poly to the proper lightmap chain */
-	fa->polys->chain = lm_blocks[fa->lightmaptexturenum].polys;
-	lm_blocks[fa->lightmaptexturenum].polys = fa->polys;
+	fa->polys->chain = block->polys;
+	block->polys = fa->polys;
 
 	R_UpdateLightmapBlockRect(fa);
     }
@@ -1114,6 +1115,7 @@ AllocBlock(int w, int h, int *x, int *y)
     int best, best2;
     int texnum;
     float t1, t2;
+    int *allocated;
 
     t1 = Sys_DoubleTime();
 
@@ -1123,7 +1125,7 @@ AllocBlock(int w, int h, int *x, int *y)
      */
     texnum = (lm_used < 4) ? 0 : lm_used - 4;
     for ( ; texnum < MAX_LM_BLOCKS; texnum++) {
-
+	allocated = lm_blocks[texnum].allocated;
 	if (texnum > lm_used)
 	    lm_used = texnum;
 
@@ -1133,14 +1135,14 @@ AllocBlock(int w, int h, int *x, int *y)
 	    best2 = 0;
 	    for (j = 0; j < w; j++) {
 		/* If it's not going to fit, don't check again... */
-		if (lm_blocks[texnum].allocated[i + j] + h > BLOCK_HEIGHT) {
+		if (allocated[i + j] + h > BLOCK_HEIGHT) {
 		    i += j + 1;
 		    break;
 		}
-		if (lm_blocks[texnum].allocated[i + j] >= best)
+		if (allocated[i + j] >= best)
 		    break;
-		if (lm_blocks[texnum].allocated[i + j] > best2)
-		    best2 = lm_blocks[texnum].allocated[i + j];
+		if (allocated[i + j] > best2)
+		    best2 = allocated[i + j];
 	    }
 	    if (j == w) {	// this is a valid spot
 		*x = i;
@@ -1152,7 +1154,7 @@ AllocBlock(int w, int h, int *x, int *y)
 	    continue;
 
 	for (i = 0; i < w; i++)
-	    lm_blocks[texnum].allocated[*x + i] = best + h;
+	    allocated[*x + i] = best + h;
 
 	t2 = Sys_DoubleTime();
 	alloc_block_time += t2 - t1;
@@ -1274,6 +1276,7 @@ GL_BuildLightmaps(void)
     int i, j, cnt;
     float t1, t2;
     model_t *m;
+    lm_block_t *block;
 
     for (i = 0; i < MAX_LM_BLOCKS; i++)
 	memset(lm_blocks[i].allocated, 0, sizeof(lm_blocks[i].allocated));
@@ -1350,19 +1353,20 @@ GL_BuildLightmaps(void)
     //
     t1 = Sys_DoubleTime();
     for (i = 0; i < MAX_LM_BLOCKS; i++) {
-	if (!lm_blocks[i].allocated[0])
+	block = &lm_blocks[i];
+	if (!block->allocated[0])
 	    break;		// no more used
-	lm_blocks[i].modified = false;
-	lm_blocks[i].rectchange.l = BLOCK_WIDTH;
-	lm_blocks[i].rectchange.t = BLOCK_HEIGHT;
-	lm_blocks[i].rectchange.w = 0;
-	lm_blocks[i].rectchange.h = 0;
-	GL_Bind(lm_blocks[i].texture);
+	block->modified = false;
+	block->rectchange.l = BLOCK_WIDTH;
+	block->rectchange.t = BLOCK_HEIGHT;
+	block->rectchange.w = 0;
+	block->rectchange.h = 0;
+	GL_Bind(block->texture);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, lightmap_bytes, BLOCK_WIDTH,
 		     BLOCK_HEIGHT, 0, gl_lightmap_format, GL_UNSIGNED_BYTE,
-		     lm_blocks[i].data);
+		     block->data);
     }
     t2 = Sys_DoubleTime();
     Con_DPrintf("Uploaded %i lightmap blocks in %f seconds.\n", i, t2 - t1);
