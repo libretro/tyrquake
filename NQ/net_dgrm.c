@@ -1190,7 +1190,7 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
     int reps;
     double start_time;
     int control;
-    char *reason;
+    const char *reason;
 
     // see if we can resolve the host name
     if (driver->GetAddrFromName(host, &sendaddr) == -1)
