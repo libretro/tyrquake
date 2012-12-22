@@ -58,7 +58,7 @@ qboolean gl_mtexable;
 cvar_t gl_ztrick = { "gl_ztrick", "1" };
 
 void VID_Update(vrect_t *rects) {}
-void D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height) {}
+void D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height) {}
 void D_EndDirectRect(int x, int y, int width, int height) {}
 
 /*

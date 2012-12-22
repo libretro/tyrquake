@@ -1166,7 +1166,7 @@ Sys_SendKeyEvents(void)
 }
 
 void
-D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height)
+D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
 {
 // direct drawing of the "accessing disk" icon isn't supported under Linux
 }

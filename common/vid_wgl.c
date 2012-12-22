@@ -217,7 +217,7 @@ VID_ForceUnlockedAndReturnState(void)
 }
 
 void
-D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height)
+D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
 {
 }
 

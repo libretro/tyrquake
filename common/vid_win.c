@@ -2266,7 +2266,7 @@ D_BeginDirectRect
 ================
 */
 void
-D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height)
+D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
 {
     int i, j, reps, repshift;
     vrect_t rect;

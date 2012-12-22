@@ -1112,10 +1112,10 @@ VID_Update(vrect_t *rects)
 }
 
 void
-D_BeginDirectRect(int x, int y, byte *pbitmap, int width, int height)
+D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
 {
     int err, i;
-    byte *src;
+    const byte *src;
     unsigned *dst;
     int pitch;
     SDL_Rect subrect;
