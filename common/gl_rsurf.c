@@ -191,7 +191,7 @@ R_BuildLightMap(msurface_t *surf, byte *dest, int stride)
     lightmap = surf->samples;
 
 // set to full bright if no light data
-    if (r_fullbright.value || !cl.worldmodel->lightdata) {
+    if (!cl.worldmodel->lightdata) {
 	for (i = 0; i < size; i++)
 	    blocklights[i] = 255 * 256;
 	goto store;
@@ -518,8 +518,6 @@ R_BlendLightmaps(void)
     int i;
     glpoly_t *p;
 
-    if (r_fullbright.value)
-	return;
     if (r_drawflat.value)
 	return;
 
@@ -649,6 +647,10 @@ R_RenderBrushPoly(const entity_t *e, msurface_t *fa)
 
     if (fa->flags & SURF_DRAWTURB) {	// warp texture, no lightmaps
 	EmitWaterPolys(fa);
+	return;
+    }
+    if (r_fullbright.value) {
+	DrawGLPoly(fa->polys);
 	return;
     }
 

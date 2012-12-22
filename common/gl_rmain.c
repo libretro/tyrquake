@@ -456,8 +456,12 @@ GL_AliasDrawModel(const entity_t *e, float blend)
 		order += 2;
 
 		// normals and vertexes come from the frame list
-		l = shadedots[light->lightnormalindex] * shadelight;
-		glColor3f(l, l, l);
+		if (r_fullbright.value) {
+		    glColor3f(255.0f, 255.0f, 255.0f);
+		} else {
+		    l = shadedots[light->lightnormalindex] * shadelight;
+		    glColor3f(l, l, l);
+		}
 		glv[0] = verts0->v[0] * blend0 + verts1->v[0] * blend;
 		glv[1] = verts0->v[1] * blend0 + verts1->v[1] * blend;
 		glv[2] = verts0->v[2] * blend0 + verts1->v[2] * blend;
