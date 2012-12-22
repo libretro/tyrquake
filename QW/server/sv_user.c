@@ -1109,42 +1109,42 @@ SV_NoSnap_f(void)
 }
 
 typedef struct {
-    char *name;
-    void (*func) (void);
+    const char *name;
+    void (*func)(void);
 } ucmd_t;
 
 ucmd_t ucmds[] = {
-    {"new", SV_New_f},
-    {"modellist", SV_Modellist_f},
-    {"soundlist", SV_Soundlist_f},
-    {"prespawn", SV_PreSpawn_f},
-    {"spawn", SV_Spawn_f},
-    {"begin", SV_Begin_f},
+    { "new", SV_New_f },
+    { "modellist", SV_Modellist_f },
+    { "soundlist", SV_Soundlist_f },
+    { "prespawn", SV_PreSpawn_f },
+    { "spawn", SV_Spawn_f },
+    { "begin", SV_Begin_f },
 
-    {"drop", SV_Drop_f},
-    {"pings", SV_Pings_f},
+    { "drop", SV_Drop_f },
+    { "pings", SV_Pings_f },
 
 // issued by hand at client consoles
-    {"rate", SV_Rate_f},
-    {"kill", SV_Kill_f},
-    {"pause", SV_Pause_f},
-    {"msg", SV_Msg_f},
+    { "rate", SV_Rate_f },
+    { "kill", SV_Kill_f },
+    { "pause", SV_Pause_f },
+    { "msg", SV_Msg_f },
 
-    {"say", SV_Say_f},
-    {"say_team", SV_Say_Team_f},
+    { "say", SV_Say_f },
+    { "say_team", SV_Say_Team_f },
 
-    {"setinfo", SV_SetInfo_f},
+    { "setinfo", SV_SetInfo_f },
 
-    {"serverinfo", SV_ShowServerinfo_f},
+    { "serverinfo", SV_ShowServerinfo_f },
 
-    {"download", SV_BeginDownload_f},
-    {"nextdl", SV_NextDownload_f},
+    { "download", SV_BeginDownload_f },
+    { "nextdl", SV_NextDownload_f },
 
-    {"ptrack", SV_PTrack_f},	//ZOID - used with autocam
+    { "ptrack", SV_PTrack_f },	//ZOID - used with autocam
 
-    {"snap", SV_NoSnap_f},
+    { "snap", SV_NoSnap_f },
 
-    {NULL, NULL}
+    { NULL, NULL }
 };
 
 /*
