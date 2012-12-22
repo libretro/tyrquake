@@ -588,7 +588,7 @@ Draw_ScaledCharToConback(qpic_t *conback, int num, byte *dest)
  * at the same location.
  */
 static void
-Draw_ConbackString(qpic_t *cb, char *str)
+Draw_ConbackString(qpic_t *cb, const char *str)
 {
     int len, row, col, x;
     byte *dest;
