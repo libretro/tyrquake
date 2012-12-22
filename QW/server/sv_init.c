@@ -276,7 +276,7 @@ This is only called from the SV_Map_f() function.
 ================
 */
 void
-SV_SpawnServer(char *server)
+SV_SpawnServer(const char *server)
 {
     edict_t *ent;
     int i;

@@ -382,7 +382,7 @@ extern int file_from_pak;
 //
 void SV_Shutdown(void);
 void SV_Frame(float time);
-void SV_FinalMessage(char *message);
+void SV_FinalMessage(const char *message);
 void SV_DropClient(client_t *drop);
 void SV_FullClientUpdateToClient(client_t *client, client_t *cl);
 
@@ -398,7 +398,7 @@ void SV_WriteClientdataToMessage(client_t *client, sizebuf_t *msg);
 void SV_MoveToGoal(void);
 void SV_SaveSpawnparms(void);
 void SV_Physics_Client(edict_t *ent);
-void SV_ExecuteUserCommand(char *s);
+void SV_ExecuteUserCommand(const char *s);
 void SV_InitOperatorCommands(void);
 void SV_SendServerinfo(client_t *client);
 void SV_SendServerInfoChange(const char *key, const char *value);
@@ -407,7 +407,7 @@ void SV_ExtractFromUserinfo(client_t *cl);
 //
 // sv_init.c
 //
-void SV_SpawnServer(char *server);
+void SV_SpawnServer(const char *server);
 void SV_FlushSignon(void);
 
 

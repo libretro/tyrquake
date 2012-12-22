@@ -124,7 +124,7 @@ then exits
 ================
 */
 void
-SV_Error(char *error, ...)
+SV_Error(const char *fmt, ...)
 {
     va_list argptr;
     static char string[MAX_PRINTMSG];
@@ -135,8 +135,8 @@ SV_Error(char *error, ...)
 
     inerror = true;
 
-    va_start(argptr, error);
-    vsnprintf(string, sizeof(string), error, argptr);
+    va_start(argptr, fmt);
+    vsnprintf(string, sizeof(string), fmt, argptr);
     va_end(argptr);
 
     Con_Printf("%s: %s\n", __func__, string);
@@ -159,7 +159,7 @@ to totally exit after returning from this function.
 ==================
 */
 void
-SV_FinalMessage(char *message)
+SV_FinalMessage(const char *message)
 {
     int i;
     client_t *cl;

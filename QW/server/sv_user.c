@@ -1153,7 +1153,7 @@ SV_ExecuteUserCommand
 ==================
 */
 void
-SV_ExecuteUserCommand(char *s)
+SV_ExecuteUserCommand(const char *s)
 {
     ucmd_t *u;
 
