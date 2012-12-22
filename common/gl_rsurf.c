@@ -55,8 +55,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static int lightmap_bytes;		// 1, 2, or 4
 static int lightmap_textures_initialised = 0;
 
-static unsigned blocklights[18 * 18];
-
 #define	BLOCK_WIDTH	128
 #define	BLOCK_HEIGHT	128
 
@@ -83,7 +81,7 @@ static int lm_used;
  * Check all dynamic lights against this surface
  */
 static void
-R_AddDynamicLights(msurface_t *surf)
+R_AddDynamicLights(msurface_t *surf, unsigned *blocklights)
 {
     int lnum;
     int sd, td;
@@ -164,6 +162,7 @@ R_BuildLightMap(msurface_t *surf, byte *dest, int stride)
     byte *lightmap;
     unsigned scale;
     int map;
+    unsigned blocklights[18 * 18];
     unsigned *bl;
 
     surf->cached_dlight = (surf->dlightframe == r_framecount);
@@ -196,7 +195,7 @@ R_BuildLightMap(msurface_t *surf, byte *dest, int stride)
 
 // add all the dynamic lights
     if (surf->dlightframe == r_framecount)
-	R_AddDynamicLights(surf);
+	R_AddDynamicLights(surf, blocklights);
 
 // bound, invert, and shift
   store:
