@@ -252,14 +252,14 @@ SV_CalcPHS(void)
 	       vcount / num, count / num, num);
 }
 
-unsigned
-SV_CheckModel(char *mdl)
+static unsigned
+SV_CheckModel(const char *mdl)
 {
     byte stackbuf[1024];	// avoid dirtying the cache heap
-    byte *buf;
+    const byte *buf;
     unsigned short crc;
 
-    buf = (byte *)COM_LoadStackFile(mdl, stackbuf, sizeof(stackbuf), NULL);
+    buf = COM_LoadStackFile(mdl, stackbuf, sizeof(stackbuf), NULL);
     crc = CRC_Block(buf, com_filesize);
 
     return crc;
