@@ -164,7 +164,7 @@ extern qsocket_t *net_activeSockets;
 extern qsocket_t *net_freeSockets;
 
 typedef struct net_landriver_s {
-    char *name;
+    const char *name;
     qboolean initialized;
     int controlSock;
     int (*Init)(void);
@@ -186,12 +186,12 @@ extern int net_numlandrivers;
 extern net_landriver_t net_landrivers[];
 
 typedef struct net_driver_s {
-    char *name;
+    const char *name;
     qboolean initialized;
     int (*Init)(void);
     void (*Listen)(qboolean state);
     void (*SearchForHosts)(qboolean xmit);
-    qsocket_t *(*Connect)(char *host);
+    qsocket_t *(*Connect)(const char *host);
     qsocket_t *(*CheckNewConnections)(void);
     int (*QGetMessage)(qsocket_t *sock);
     int (*QSendMessage)(qsocket_t *sock, sizebuf_t *data);
@@ -268,7 +268,7 @@ struct qsocket_s *NET_CheckNewConnections(void);
 /*
  * called by client to connect to a host.  Returns -1 if not able to
  */
-struct qsocket_s *NET_Connect(char *host);
+struct qsocket_s *NET_Connect(const char *host);
 
 /*
  * Returns true or false if the given qsocket can currently accept a message

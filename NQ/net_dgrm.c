@@ -1180,7 +1180,7 @@ Datagram_SearchForHosts(qboolean xmit)
 
 
 static qsocket_t *
-_Datagram_Connect(char *host, net_landriver_t *driver)
+_Datagram_Connect(const char *host, net_landriver_t *driver)
 {
     netadr_t sendaddr;
     netadr_t readaddr;
@@ -1318,7 +1318,7 @@ _Datagram_Connect(char *host, net_landriver_t *driver)
 }
 
 qsocket_t *
-Datagram_Connect(char *host)
+Datagram_Connect(const char *host)
 {
     int i;
     qsocket_t *ret = NULL;
