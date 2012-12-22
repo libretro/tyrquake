@@ -40,6 +40,4 @@ void M_DrawTextBox(int x, int y, int width, int lines);
 void M_Print(int cx, int cy, const char *str);
 void M_PrintWhite(int cx, int cy, const char *str);
 
-qpic_t *M_CachePic(char *path);
-
 #endif /* MENU_H */
