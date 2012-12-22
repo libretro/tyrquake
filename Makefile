@@ -218,7 +218,7 @@ STRIP   ?= strip
 WINDRES ?= windres
 
 CFLAGS ?=
-CFLAGS := $(CFLAGS) -Wall -Wno-trigraphs
+CFLAGS := $(CFLAGS) -Wall -Wno-trigraphs -Wwrite-strings
 
 ifeq ($(DEBUG),Y)
 CFLAGS += -g
