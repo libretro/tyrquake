@@ -216,9 +216,9 @@ Sys_Error(const char *error, ...)
     va_list argptr;
     char text[MAX_PRINTMSG];
     char text2[MAX_PRINTMSG];
-    char *text3 = "Press Enter to exit\n";
-    char *text4 = "***********************************\n";
-    char *text5 = "\n";
+    const char *text3 = "Press Enter to exit\n";
+    const char *text4 = "***********************************\n";
+    const char *text5 = "\n";
     DWORD dummy;
     double starttime;
     static int in_sys_error0 = 0;

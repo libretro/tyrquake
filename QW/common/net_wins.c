@@ -66,7 +66,7 @@ NET_CompareAdr(netadr_t a, netadr_t b)
   return a.ip.l == b.ip.l && a.port == b.port;
 }
 
-char *
+const char *
 NET_AdrToString(netadr_t a)
 {
     static char s[64];
@@ -77,7 +77,7 @@ NET_AdrToString(netadr_t a)
     return s;
 }
 
-char *
+const char *
 NET_BaseAdrToString(netadr_t a)
 {
     static char s[64];
