@@ -539,12 +539,10 @@ main(int argc, const char **argv)
 	parms.memsize = Q_atoi(com_argv[t + 1]) * 1024 * 1024;
 
     parms.membase = malloc(parms.memsize);
-
     if (!parms.membase)
 	Sys_Error("Insufficient memory.");
 
     parms.basedir = ".";
-    parms.cachedir = NULL;
 
     SV_Init(&parms);
 
@@ -729,8 +727,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,
 	cwd[strlen(cwd) - 1] = 0;
 
     parms.basedir = cwd;
-    parms.cachedir = NULL;
-
     parms.argc = 1;
     argv[0] = empty_string;
 
