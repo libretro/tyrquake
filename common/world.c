@@ -71,7 +71,7 @@ HULL BOXES
 
 
 static hull_t box_hull;
-static dclipnode_t box_clipnodes[6];
+static mclipnode_t box_clipnodes[6];
 static mplane_t box_planes[6];
 
 /*
@@ -573,13 +573,10 @@ int
 SV_HullPointContents(hull_t *hull, int num, vec3_t p)
 {
     float d;
-    dclipnode_t *node;
+    mclipnode_t *node;
     mplane_t *plane;
 
-    if (num < 0)
-	return num;
-
-    while (num < 0xfff0) {
+    while (num >= 0) {
 	if (num < hull->firstclipnode || num > hull->lastclipnode)
 	    SV_Error("%s: bad node number (%i)", __func__, num);
 
@@ -591,13 +588,12 @@ SV_HullPointContents(hull_t *hull, int num, vec3_t p)
 	else
 	    d = DotProduct(plane->normal, p) - plane->dist;
 	if (d < 0)
-	    num = *(uint16_t *)&node->children[1];
+	    num = node->children[1];
 	else
-	    num = *(uint16_t *)&node->children[0];
+	    num = node->children[0];
     }
 
-    /* Convert back to negative contents */
-    return num - 0x10000;
+    return num;
 }
 
 #endif /* USE_X86_ASM */
@@ -670,11 +666,11 @@ qboolean
 SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 		      vec3_t p1, vec3_t p2, trace_t *trace)
 {
-    dclipnode_t *node;
+    mclipnode_t *node;
     mplane_t *plane;
     float t1, t2;
     float frac;
-    int i;
+    int i, child;
     vec3_t mid;
     int side;
     float midf;
@@ -711,21 +707,21 @@ SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 
 #if 1
     if (t1 >= 0 && t2 >= 0) {
-	i = clipnode_child(node, 0);
-	return SV_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[0];
+	return SV_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
     if (t1 < 0 && t2 < 0) {
-	i = clipnode_child(node, 1);
-	return SV_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[1];
+	return SV_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
 #else
     if ((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0)) {
-	i = clipnode_child(node, 0);
-	return SV_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[0];
+	return SV_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
     if ((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0)) {
-	i = clipnode_child(node, 1);
-	return SV_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[1];
+	return SV_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
 #endif
 
@@ -746,21 +742,21 @@ SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     side = (t1 < 0);
 
 // move up to the node
-    i = clipnode_child(node, side);
-    if (!SV_RecursiveHullCheck(hull, i, p1f, midf, p1, mid, trace))
+    child = node->children[side];
+    if (!SV_RecursiveHullCheck(hull, child, p1f, midf, p1, mid, trace))
 	return false;
 
 #ifdef PARANOID
-    if (SV_HullPointContents(sv_hullmodel, mid, i) == CONTENTS_SOLID) {
+    if (SV_HullPointContents(sv_hullmodel, mid, child) == CONTENTS_SOLID) {
 	Con_Printf("mid PointInHullSolid\n");
 	return false;
     }
 #endif
 
-    i = clipnode_child(node, side ^ 1);
-    if (SV_HullPointContents(hull, i, mid) != CONTENTS_SOLID)
+    child = node->children[side ^ 1];
+    if (SV_HullPointContents(hull, child, mid) != CONTENTS_SOLID)
 	/* go past the node */
-	return SV_RecursiveHullCheck(hull, i, midf, p2f, mid, p2, trace);
+	return SV_RecursiveHullCheck(hull, child, midf, p2f, mid, p2, trace);
 
     if (trace->allsolid)
 	return false;		// never got out of the solid area

@@ -481,14 +481,14 @@ winding_split(winding_t *in, const mplane_t *split,
  * "sides" indicates which side we went down each time
  */
 #define MAX_CLIPNODE_DEPTH 256
-static dclipnode_t *node_stack[MAX_CLIPNODE_DEPTH];
+static mclipnode_t *node_stack[MAX_CLIPNODE_DEPTH];
 static int side_stack[MAX_CLIPNODE_DEPTH];
 static unsigned node_stack_depth;
 static unsigned num_hull_polys;
 static struct list_node hull_polys = LIST_HEAD_INIT(hull_polys);
 
 static void
-push_node(dclipnode_t *node, int side)
+push_node(mclipnode_t *node, int side)
 {
     if (node_stack_depth == MAX_CLIPNODE_DEPTH)
 	Sys_Error("%s: node_depth == MAX_CLIPNODE_DEPTH\n", __func__);
@@ -519,13 +519,13 @@ free_hull_polys(void)
 }
 
 static void
-hull_windings_r(hull_t *hull, dclipnode_t *node, struct list_node *polys);
+hull_windings_r(hull_t *hull, mclipnode_t *node, struct list_node *polys);
 
 static void
-do_hull_recursion(hull_t *hull, dclipnode_t *node, int side,
+do_hull_recursion(hull_t *hull, mclipnode_t *node, int side,
 		  struct list_node *polys)
 {
-    dclipnode_t *child;
+    mclipnode_t *child;
     winding_t *w, *next;
 
     if (node->children[side] >= 0) {
@@ -564,7 +564,7 @@ do_hull_recursion(hull_t *hull, dclipnode_t *node, int side,
 }
 
 static void
-hull_windings_r(hull_t *hull, dclipnode_t *node, struct list_node *polys)
+hull_windings_r(hull_t *hull, mclipnode_t *node, struct list_node *polys)
 {
     mplane_t *plane = hull->planes + node->planenum;
     winding_t *w, *next, *front, *back;

@@ -48,7 +48,7 @@ C(SV_HullPointContents):
 	js	Lhquickout
 
 //	float		d;
-//	dclipnode_t	*node;
+//	mclipnode_t	*node;
 //	mplane_t	*plane;
 
 	pushl	%ebx
@@ -69,19 +69,19 @@ C(SV_HullPointContents):
 // %edi: hull->clipnodes
 // %ebp: hull->planes
 
-//	while (num < 0xfff0)
+//	while (num >= 0)
 //	{
 
 Lhloop:
 
 //		node = hull->clipnodes + num;
 //		plane = hull->planes + node->planenum;
-// !!! if the size of dclipnode_t changes, the scaling of %eax needs to be
+// !!! if the size of mclipnode_t changes, the scaling of %eax needs to be
 //     changed !!!
-	movl	nd_planenum(%edi,%eax,8),%ecx
-	movl	nd_children(%edi,%eax,8),%eax
-	movl	%eax,%esi
-	rorl	$16,%eax
+	leal	(%eax,%eax,2),%eax
+	movl	cn_planenum(%edi,%eax,4),%ecx
+	movl	cn_children+4(%edi,%eax,4),%esi
+	movl	cn_children(%edi,%eax,4),%eax
 	leal	(%ecx,%ecx,4),%ecx
 
 //		if (plane->type < 3)
@@ -109,10 +109,6 @@ Lnodot:
 	fsubrs	(%edx,%ebx,4)
 
 Lsub:
-// Note: treating children as unsigned
-	shrl	$16,%eax
-	shrl	$16,%esi
-
 //		if (d < 0)
 //			num = node->children[1];
 //		else
@@ -124,13 +120,7 @@ Lsub:
 	xorl	$0xFFFFFFFF,%ecx
 	andl	%ecx,%eax
 	orl	%esi,%eax
-
-	cmpl	$0xFFF0,%eax
-	jb	Lhloop
-
-// Re-interpret sign bit and extend
-	shll	$16,%eax
-	sarl	$16,%eax
+	jns	Lhloop
 
 //	return num;
 Lhdone:

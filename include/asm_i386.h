@@ -63,6 +63,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	nd_numfaces		36
 #define nd_size			40
 
+// mclipnode_t structure
+// !!! if this is changed, it must be changed in bspfile.h too !!!
+#define cn_planenum		0
+#define cn_children		4
+#define cn_size			12
+
 // sfxcache_t structure
 // !!! if this is changed, it much be changed in sound.h too !!!
 #define sfxc_length		0

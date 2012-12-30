@@ -171,16 +171,10 @@ typedef struct {
     int16_t children[2];
 } dclipnode_t;
 
-static inline int
-clipnode_child(dclipnode_t *node, int child)
-{
-    int ret = *(uint16_t *)&node->children[child];
-    if (ret > 0xfff0)
-	ret -= 0x10000;
-
-    return ret;
-}
-
+typedef struct {
+    int32_t planenum;
+    int32_t children[2];
+} mclipnode_t;
 
 typedef struct texinfo_s {
     float vecs[2][4];		// [s/t][xyz offset]

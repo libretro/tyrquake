@@ -38,7 +38,7 @@ extern vec3_t player_mins;
 extern vec3_t player_maxs;
 
 static hull_t box_hull;
-static dclipnode_t box_clipnodes[6];
+static mclipnode_t box_clipnodes[6];
 static mplane_t box_planes[6];
 
 /*
@@ -110,13 +110,10 @@ int
 PM_HullPointContents(hull_t *hull, int num, vec3_t p)
 {
     float d;
-    dclipnode_t *node;
+    mclipnode_t *node;
     mplane_t *plane;
 
-    if (num < 0)
-	return num;
-
-    while (num < 0xfff0) {
+    while (num >= 0) {
 	if (num < hull->firstclipnode || num > hull->lastclipnode)
 	    Sys_Error("PM_HullPointContents: bad node number");
 
@@ -128,13 +125,12 @@ PM_HullPointContents(hull_t *hull, int num, vec3_t p)
 	else
 	    d = DotProduct(plane->normal, p) - plane->dist;
 	if (d < 0)
-	    num = *(uint16_t *)&node->children[1];
+	    num = node->children[1];
 	else
-	    num = *(uint16_t *)&node->children[0];
+	    num = node->children[0];
     }
 
-    /* Convert back to negative contents */
-    return num - 0x10000;
+    return num;
 }
 
 /*
@@ -146,37 +142,13 @@ PM_PointContents
 int
 PM_PointContents(vec3_t p)
 {
-    float d;
-    dclipnode_t *node;
-    mplane_t *plane;
     hull_t *hull;
     int num;
 
     hull = &pmove.physents[0].model->hulls[0];
     num = hull->firstclipnode;
 
-    if (num < 0)
-	return num;
-
-    while (num < 0xfff0) {
-	if (num < hull->firstclipnode || num > hull->lastclipnode)
-	    Sys_Error("PM_HullPointContents: bad node number");
-
-	node = hull->clipnodes + num;
-	plane = hull->planes + node->planenum;
-
-	if (plane->type < 3)
-	    d = p[plane->type] - plane->dist;
-	else
-	    d = DotProduct(plane->normal, p) - plane->dist;
-	if (d < 0)
-	    num = *(uint16_t *)&node->children[1];
-	else
-	    num = *(uint16_t *)&node->children[0];
-    }
-
-    /* Convert back to negative contents */
-    return num - 0x10000;
+    return PM_HullPointContents(hull, num, p);
 }
 
 /*
@@ -200,11 +172,11 @@ qboolean
 PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 		      vec3_t p1, vec3_t p2, pmtrace_t * trace)
 {
-    dclipnode_t *node;
+    mclipnode_t *node;
     mplane_t *plane;
     float t1, t2;
     float frac;
-    int i;
+    int child, i;
     vec3_t mid;
     int side;
     float midf;
@@ -241,21 +213,21 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 
 #if 1
     if (t1 >= 0 && t2 >= 0) {
-	i = clipnode_child(node, 0);
-	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[0];
+	return PM_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
     if (t1 < 0 && t2 < 0) {
-	i = clipnode_child(node, 1);
-	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[1];
+	return PM_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
 #else
     if ((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0)) {
-	i = clipnode_child(node, 0);
-	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[0];
+	return PM_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
     if ((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0)) {
-	i = clipnode_child(node, 1);
-	return PM_RecursiveHullCheck(hull, i, p1f, p2f, p1, p2, trace);
+	child = node->children[1];
+	return PM_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
 #endif
 
@@ -276,21 +248,21 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     side = (t1 < 0);
 
 // move up to the node
-    i = clipnode_child(node, side);
-    if (!PM_RecursiveHullCheck(hull, i, p1f, midf, p1, mid, trace))
+    child = node->children[side];
+    if (!PM_RecursiveHullCheck(hull, child, p1f, midf, p1, mid, trace))
 	return false;
 
 #ifdef PARANOID
-    if (PM_HullPointContents(pm_hullmodel, i, mid) == CONTENTS_SOLID) {
+    if (PM_HullPointContents(pm_hullmodel, child, mid) == CONTENTS_SOLID) {
 	Con_Printf("mid PointInHullSolid\n");
 	return false;
     }
 #endif
 
-    i = clipnode_child(node, side ^ 1);
-    if (PM_HullPointContents(hull, i, mid) != CONTENTS_SOLID)
+    child = node->children[side ^ 1];
+    if (PM_HullPointContents(hull, child, mid) != CONTENTS_SOLID)
 	/* go past the node */
-	return PM_RecursiveHullCheck(hull, i, midf, p2f, mid, p2, trace);
+	return PM_RecursiveHullCheck(hull, child, midf, p2f, mid, p2, trace);
 
     if (trace->allsolid)
 	return false;		// never got out of the solid area

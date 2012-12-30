@@ -929,11 +929,12 @@ Mod_LoadClipnodes
 static void
 Mod_LoadClipnodes(lump_t *l)
 {
-    dclipnode_t *in, *out;
-    int i, count;
+    dclipnode_t *in;
+    mclipnode_t *out;
+    int i, j, count;
     hull_t *hull;
 
-    in = (void *)(mod_base + l->fileofs);
+    in = (dclipnode_t *)(mod_base + l->fileofs);
     if (l->filelen % sizeof(*in))
 	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
@@ -968,8 +969,13 @@ Mod_LoadClipnodes(lump_t *l)
 
     for (i = 0; i < count; i++, out++, in++) {
 	out->planenum = LittleLong(in->planenum);
-	out->children[0] = LittleShort(in->children[0]);
-	out->children[1] = LittleShort(in->children[1]);
+	for (j = 0; j < 2; j++) {
+	    out->children[j] = (uint16_t)LittleShort(in->children[j]);
+	    if (out->children[j] > 0xfff0)
+		out->children[j] -= 0x10000;
+	    if (out->children[j] >= count)
+		SV_Error("%s: bad clipnode child number", __func__);
+	}
     }
 }
 
@@ -984,7 +990,7 @@ static void
 Mod_MakeHull0(void)
 {
     mnode_t *in, *child;
-    dclipnode_t *out;
+    mclipnode_t *out;
     int i, j, count;
     hull_t *hull;
 
