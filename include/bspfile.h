@@ -59,6 +59,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //=============================================================================
 
 #define BSPVERSION	29
+#define BSP2VERSION	(('B' << 24) | ('S' << 16) | ('P' << 8) | '2')
 
 typedef struct {
     int32_t fileofs;
@@ -153,7 +154,16 @@ typedef struct {
     int16_t maxs[3];
     uint16_t firstface;
     uint16_t numfaces;	// counting both sides
-} dnode_t;
+} bsp29_dnode_t;
+
+typedef struct {
+    int32_t planenum;
+    int32_t children[2];	// negative numbers are -(leafs+1), not nodes
+    int16_t mins[3];		// for sphere culling
+    int16_t maxs[3];
+    uint32_t firstface;
+    uint32_t numfaces;	// counting both sides
+} bsp2_dnode_t;
 
 /*
  * Note that children are interpreted as unsigned values now, so that we can
@@ -167,7 +177,12 @@ typedef struct {
 typedef struct {
     int32_t planenum;
     int16_t children[2];
-} dclipnode_t;
+} bsp29_dclipnode_t;
+
+typedef struct {
+    int32_t planenum;
+    int32_t children[2];
+} bsp2_dclipnode_t;
 
 typedef struct {
     int32_t planenum;
@@ -186,7 +201,11 @@ typedef struct texinfo_s {
 // counterclockwise use of the edge in a face
 typedef struct {
     uint16_t v[2];	// vertex numbers
-} dedge_t;
+} bsp29_dedge_t;
+
+typedef struct {
+    uint32_t v[2];	// vertex numbers
+} bsp2_dedge_t;
 
 #define	MAXLIGHTMAPS	4
 typedef struct {
@@ -200,8 +219,20 @@ typedef struct {
     // lighting info
     uint8_t styles[MAXLIGHTMAPS];
     int32_t lightofs;		// start of [numstyles*surfsize] samples
-} dface_t;
+} bsp29_dface_t;
 
+typedef struct {
+    int32_t planenum;
+    int32_t side;
+
+    int32_t firstedge;		// we must support > 64k edges
+    int32_t numedges;
+    int32_t texinfo;
+
+    // lighting info
+    uint8_t styles[MAXLIGHTMAPS];
+    int32_t lightofs;		// start of [numstyles*surfsize] samples
+} bsp2_dface_t;
 
 #define	AMBIENT_WATER	0
 #define	AMBIENT_SKY	1
@@ -223,6 +254,19 @@ typedef struct {
     uint16_t nummarksurfaces;
 
     uint8_t ambient_level[NUM_AMBIENTS];
-} dleaf_t;
+} bsp29_dleaf_t;
+
+typedef struct {
+    int32_t contents;
+    int32_t visofs;			// -1 = no visibility info
+
+    int16_t mins[3];		// for frustum culling
+    int16_t maxs[3];
+
+    uint32_t firstmarksurface;
+    uint32_t nummarksurfaces;
+
+    uint8_t ambient_level[NUM_AMBIENTS];
+} bsp2_dleaf_t;
 
 #endif /* BSPFILE_H */
