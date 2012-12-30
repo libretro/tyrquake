@@ -119,7 +119,7 @@ typedef struct texture_s {
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct {
-    unsigned short v[2];
+    unsigned int v[2];
     unsigned int cachededgeoffset;
 } medge_t;
 
