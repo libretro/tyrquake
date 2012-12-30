@@ -318,7 +318,7 @@ LSide1:
 	subl	%esi,%eax
 	shrl	$(SURF_T_SHIFT),%eax
 	movl	%edx,et_surfs(%edi)
-	movl	%eax,et_surfs+2(%edi)
+	movl	%eax,et_surfs+4(%edi)
 
 	subl	%esi,%esi
 
@@ -365,7 +365,7 @@ LSide0:
 	subl	%edx,%edx
 	subl	%esi,%eax
 	shrl	$(SURF_T_SHIFT),%eax
-	movl	%edx,et_surfs+2(%edi)
+	movl	%edx,et_surfs+4(%edi)
 	movl	%eax,et_surfs(%edi)
 
 	movl	$1,%esi

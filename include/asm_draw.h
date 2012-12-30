@@ -72,10 +72,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define et_prev		8
 #define et_next		12
 #define et_surfs	16
-#define et_nextremove	20
-#define et_nearzi	24
-#define et_owner	28
-#define et_size		32
+#define et_nextremove	24
+#define et_nearzi	28
+#define et_owner	32
+#define et_size		36
 
 // surf_t structure
 // !!! if this is changed, it must be changed in r_shared.h too !!!
