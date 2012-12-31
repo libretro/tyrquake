@@ -232,6 +232,7 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
     int field_mask;
     int i;
     int ent;
+    float coord;
 
     if (volume < 0 || volume > 255)
 	Sys_Error("%s: volume = %i", __func__, volume);
@@ -256,7 +257,7 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
 	    break;
 
     if (sound_num == MAX_SOUNDS || !sv.sound_precache[sound_num]) {
-	Con_Printf("SV_StartSound: %s not precacheed\n", sample);
+	Con_Printf("%s: %s not precacheed\n", __func__, sample);
 	return;
     }
 
@@ -279,10 +280,11 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
 	MSG_WriteByte(&sv.datagram, attenuation * 64);
     MSG_WriteShort(&sv.datagram, channel);
     SV_WriteSoundNum(&sv.datagram, sound_num);
-    for (i = 0; i < 3; i++)
-	MSG_WriteCoord(&sv.datagram,
-		       entity->v.origin[i] + 0.5 * (entity->v.mins[i] +
-						    entity->v.maxs[i]));
+    for (i = 0; i < 3; i++) {
+	coord = entity->v.origin[i];
+	coord += 0.5 * (entity->v.mins[i] + entity->v.maxs[i]);
+	MSG_WriteCoord(&sv.datagram, coord);
+    }
 }
 
 /*
@@ -388,9 +390,9 @@ SV_ConnectClient(int clientnum)
     client->message.maxsize = sizeof(client->msgbuf);
     client->message.allowoverflow = true;	// we can catch it
 
-    if (sv.loadgame)
+    if (sv.loadgame) {
 	memcpy(client->spawn_parms, spawn_parms, sizeof(spawn_parms));
-    else {
+    } else {
 	// call the progs to get default spawn parms for the new client
 	PR_ExecuteProgram(pr_global_struct->SetNewParms);
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
@@ -410,15 +412,15 @@ SV_CheckForNewClients
 void
 SV_CheckForNewClients(void)
 {
-    struct qsocket_s *ret;
+    struct qsocket_s *sock;
     int i;
 
 //
 // check for new connections
 //
     while (1) {
-	ret = NET_CheckNewConnections();
-	if (!ret)
+	sock = NET_CheckNewConnections();
+	if (!sock)
 	    break;
 
 	//
@@ -430,7 +432,7 @@ SV_CheckForNewClients(void)
 	if (i == svs.maxclients)
 	    Sys_Error("%s: no free clients", __func__);
 
-	svs.clients[i].netconnection = ret;
+	svs.clients[i].netconnection = sock;
 	SV_ConnectClient(i);
 
 	net_activeconnections++;
@@ -566,16 +568,16 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
     ent = NEXT_EDICT(sv.edicts);
     for (e = 1; e < sv.num_edicts; e++, ent = NEXT_EDICT(ent)) {
 
-// ignore if not touching a PV leaf
-	if (ent != clent)	// clent is ALLWAYS sent
-	{
+// clent is ALWAYS sent
+	if (ent != clent) {
+
 // ignore ents without visible models
 	    if (!ent->v.modelindex || !*PR_GetString(ent->v.model))
 		continue;
 
+// ignore if not touching a PV leaf
 	    for (i = 0; i < ent->num_leafs; i++)
-		if (pvs[ent->leafnums[i] >> 3] &
-		    (1 << (ent->leafnums[i] & 7)))
+		if (pvs[ent->leafnums[i] >> 3] & (1 << (ent->leafnums[i] & 7)))
 		    break;
 
 	    if (i == ent->num_leafs)
@@ -697,7 +699,8 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
     int i;
     edict_t *other;
     int items;
-    eval_t *val;
+    eval_t *items2;
+    float coord;
 
 //
 // send a damage message
@@ -707,11 +710,11 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
 	MSG_WriteByte(msg, svc_damage);
 	MSG_WriteByte(msg, ent->v.dmg_save);
 	MSG_WriteByte(msg, ent->v.dmg_take);
-	for (i = 0; i < 3; i++)
-	    MSG_WriteCoord(msg,
-			   other->v.origin[i] + 0.5 * (other->v.mins[i] +
-						       other->v.maxs[i]));
-
+	for (i = 0; i < 3; i++) {
+	    coord = other->v.origin[i];
+	    coord += 0.5 * (other->v.mins[i] + other->v.maxs[i]);
+	    MSG_WriteCoord(msg, coord);
+	}
 	ent->v.dmg_take = 0;
 	ent->v.dmg_save = 0;
     }
@@ -738,13 +741,12 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
 
 // stuff the sigil bits into the high bits of items for sbar, or else
 // mix in items2
-    val = GetEdictFieldValue(ent, "items2");
-
-    if (val)
-	items = (int)ent->v.items | ((int)val->_float << 23);
+    items = ent->v.items;
+    items2 = GetEdictFieldValue(ent, "items2");
+    if (items2)
+	items |= (int)items2->_float << 23;
     else
-	items =
-	    (int)ent->v.items | ((int)pr_global_struct->serverflags << 28);
+	items |= (int)pr_global_struct->serverflags << 28;
 
     bits |= SU_ITEMS;
 
@@ -827,6 +829,7 @@ SV_SendClientDatagram(client_t *client)
 {
     byte buf[MAX_DATAGRAM];
     sizebuf_t msg;
+    int err;
 
     msg.data = buf;
     msg.maxsize = client->netconnection->mtu;
@@ -845,8 +848,10 @@ SV_SendClientDatagram(client_t *client)
 	SZ_Write(&msg, sv.datagram.data, sv.datagram.cursize);
 
 // send the datagram
-    if (NET_SendUnreliableMessage(client->netconnection, &msg) == -1) {
-	SV_DropClient(true);	// if the message couldn't send, kick off
+    err = NET_SendUnreliableMessage(client->netconnection, &msg);
+    /* if the message couldn't send, kick the client off */
+    if (err == -1) {
+	SV_DropClient(true);
 	return false;
     }
 
@@ -905,6 +910,7 @@ SV_SendNop(client_t *client)
 {
     sizebuf_t msg;
     byte buf[4];
+    int err;
 
     msg.data = buf;
     msg.maxsize = sizeof(buf);
@@ -912,8 +918,10 @@ SV_SendNop(client_t *client)
 
     MSG_WriteChar(&msg, svc_nop);
 
-    if (NET_SendUnreliableMessage(client->netconnection, &msg) == -1)
-	SV_DropClient(true);	// if the message couldn't send, kick off
+    err = NET_SendUnreliableMessage(client->netconnection, &msg);
+    /* if the message couldn't send, kick the client off */
+    if (err == -1)
+	SV_DropClient(true);
     client->last_message = realtime;
 }
 
@@ -925,7 +933,7 @@ SV_SendClientMessages
 void
 SV_SendClientMessages(void)
 {
-    int i;
+    int i, err;
 
 // update frags, names, etc
     SV_UpdateToReliableMessages();
@@ -962,17 +970,18 @@ SV_SendClientMessages(void)
 	}
 
 	if (host_client->message.cursize || host_client->dropasap) {
-	    if (!NET_CanSendMessage(host_client->netconnection)) {
-//                              I_Printf ("can't write\n");
+	    if (!NET_CanSendMessage(host_client->netconnection))
 		continue;
-	    }
 
-	    if (host_client->dropasap)
+	    if (host_client->dropasap) {
 		SV_DropClient(false);	// went to another level
-	    else {
-		if (NET_SendMessage
-		    (host_client->netconnection, &host_client->message) == -1)
-		    SV_DropClient(true);	// if the message couldn't send, kick off
+	    } else {
+		err = NET_SendMessage(host_client->netconnection,
+				      &host_client->message);
+		/* if the message couldn't send, kick the client off */
+		if (err == -1)
+		    SV_DropClient(true);
+
 		SZ_Clear(&host_client->message);
 		host_client->last_message = realtime;
 		host_client->sendsignon = false;
