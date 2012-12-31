@@ -264,5 +264,8 @@ Loop_Close(qsocket_t *sock)
 int
 Loop_GetDefaultMTU(void)
 {
-    return MAX_DATAGRAM;
+    /*
+     * The loop driver can send the maximum message size in one packet
+     */
+    return MAX_MSGLEN;
 }
