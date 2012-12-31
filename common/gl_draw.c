@@ -88,7 +88,7 @@ typedef struct {
     unsigned short crc;		// CRC for texture cache matching
 } gltexture_t;
 
-#define	MAX_GLTEXTURES	1024
+#define	MAX_GLTEXTURES	4096
 static gltexture_t gltextures[MAX_GLTEXTURES];
 static int numgltextures;
 

@@ -50,7 +50,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     (r_waterwarp.value && ((surf)->flags & SURF_UNDERWATER))
 #endif
 
-#define	MAX_LM_BLOCKS	80
+#define	MAX_LM_BLOCKS	256
 
 static int lightmap_bytes;		// 1, 2, or 4
 static int lightmap_textures_initialised = 0;
