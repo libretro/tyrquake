@@ -248,7 +248,7 @@ Datagram_GetMessage(qsocket_t *sock)
 
     while (1) {
 	length = sock->landriver->Read(sock->socket, &packetBuffer,
-				       NET_DATAGRAMSIZE, &readaddr);
+				       NET_MESSAGESIZE, &readaddr);
 #if 0
 	/* for testing packet loss effects */
 	if ((rand() & 255) > 220)

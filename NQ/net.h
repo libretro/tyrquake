@@ -36,9 +36,9 @@ typedef struct {
 
 #define	NET_NAMELEN		64
 
-#define NET_MAXMESSAGE		MAX_DATAGRAM
+#define NET_MAXMESSAGE		MAX_MSGLEN
 #define NET_HEADERSIZE		(2 * sizeof(unsigned int))
-#define NET_DATAGRAMSIZE	(NET_MAXMESSAGE + NET_HEADERSIZE)
+#define NET_MESSAGESIZE		(NET_MAXMESSAGE + NET_HEADERSIZE)
 
 // NetHeader flags
 #define NETFLAG_LENGTH_MASK	0x0000ffff
