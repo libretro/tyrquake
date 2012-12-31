@@ -119,14 +119,39 @@ NET_Ban_f(void)
     }
 }
 
-
-int
-Datagram_SendMessage(qsocket_t *sock, sizebuf_t *data)
+static int
+SendPacket(qsocket_t *sock)
 {
     unsigned int packetLen;
     unsigned int dataLen;
     unsigned int eom;
 
+    if (sock->sendMessageLength <= MAX_DATAGRAM) {
+	dataLen = sock->sendMessageLength;
+	eom = NETFLAG_EOM;
+    } else {
+	dataLen = MAX_DATAGRAM;
+	eom = 0;
+    }
+    packetLen = NET_HEADERSIZE + dataLen;
+
+    packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
+    packetBuffer.sequence = BigLong(sock->sendSequence++);
+    memcpy(packetBuffer.data, sock->sendMessage, dataLen);
+
+    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
+			       &sock->addr) == -1)
+	return -1;
+
+    sock->lastSendTime = net_time;
+    packetsSent++;
+
+    return 1;
+}
+
+int
+Datagram_SendMessage(qsocket_t *sock, sizebuf_t *data)
+{
 #ifdef DEBUG
     if (data->cursize == 0)
 	Sys_Error("%s: zero length message", __func__);
@@ -140,95 +165,25 @@ Datagram_SendMessage(qsocket_t *sock, sizebuf_t *data)
 
     memcpy(sock->sendMessage, data->data, data->cursize);
     sock->sendMessageLength = data->cursize;
-
-    if (data->cursize <= MAX_DATAGRAM) {
-	dataLen = data->cursize;
-	eom = NETFLAG_EOM;
-    } else {
-	dataLen = MAX_DATAGRAM;
-	eom = 0;
-    }
-    packetLen = NET_HEADERSIZE + dataLen;
-
-    packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
-    packetBuffer.sequence = BigLong(sock->sendSequence++);
-    memcpy(packetBuffer.data, sock->sendMessage, dataLen);
-
     sock->canSend = false;
 
-    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
-			       &sock->addr) == -1)
-	return -1;
-
-    sock->lastSendTime = net_time;
-    packetsSent++;
-    return 1;
+    return SendPacket(sock);
 }
 
-
-int
+static int
 SendMessageNext(qsocket_t *sock)
 {
-    unsigned int packetLen;
-    unsigned int dataLen;
-    unsigned int eom;
-
-    if (sock->sendMessageLength <= MAX_DATAGRAM) {
-	dataLen = sock->sendMessageLength;
-	eom = NETFLAG_EOM;
-    } else {
-	dataLen = MAX_DATAGRAM;
-	eom = 0;
-    }
-    packetLen = NET_HEADERSIZE + dataLen;
-
-    packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
-    packetBuffer.sequence = BigLong(sock->sendSequence++);
-    memcpy(packetBuffer.data, sock->sendMessage, dataLen);
-
     sock->sendNext = false;
 
-    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
-			       &sock->addr) == -1)
-	return -1;
-
-    sock->lastSendTime = net_time;
-    packetsSent++;
-
-    return 1;
+    return SendPacket(sock);
 }
 
-
-int
+static int
 ReSendMessage(qsocket_t *sock)
 {
-    unsigned int packetLen;
-    unsigned int dataLen;
-    unsigned int eom;
-
-    if (sock->sendMessageLength <= MAX_DATAGRAM) {
-	dataLen = sock->sendMessageLength;
-	eom = NETFLAG_EOM;
-    } else {
-	dataLen = MAX_DATAGRAM;
-	eom = 0;
-    }
-    packetLen = NET_HEADERSIZE + dataLen;
-
-    packetBuffer.length = BigLong(packetLen | (NETFLAG_DATA | eom));
-    packetBuffer.sequence = BigLong(sock->sendSequence - 1);
-    memcpy(packetBuffer.data, sock->sendMessage, dataLen);
-
     sock->sendNext = false;
 
-    if (sock->landriver->Write(sock->socket, &packetBuffer, packetLen,
-			       &sock->addr) == -1)
-	return -1;
-
-    sock->lastSendTime = net_time;
-    packetsReSent++;
-
-    return 1;
+    return SendPacket(sock);
 }
 
 
