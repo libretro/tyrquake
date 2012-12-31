@@ -52,7 +52,7 @@ static net_driver_t *dgrm_driver;
 static struct {
     unsigned int length;
     unsigned int sequence;
-    byte data[MAX_DATAGRAM];
+    byte data[NET_MAXMESSAGE];
 } packetBuffer;
 
 #ifdef DEBUG
