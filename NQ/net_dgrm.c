@@ -126,11 +126,11 @@ SendPacket(qsocket_t *sock)
     unsigned int dataLen;
     unsigned int eom;
 
-    if (sock->sendMessageLength <= MAX_DATAGRAM) {
+    if (sock->sendMessageLength <= sock->mtu) {
 	dataLen = sock->sendMessageLength;
 	eom = NETFLAG_EOM;
     } else {
-	dataLen = MAX_DATAGRAM;
+	dataLen = sock->mtu;
 	eom = 0;
     }
     packetLen = NET_HEADERSIZE + dataLen;
@@ -213,7 +213,7 @@ Datagram_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
     if (data->cursize == 0)
 	Sys_Error("%s: zero length message", __func__);
 
-    if (data->cursize > MAX_DATAGRAM)
+    if (data->cursize > sock->mtu)
 	Sys_Error("%s: message too big %u", __func__, data->cursize);
 #endif
 
@@ -321,9 +321,9 @@ Datagram_GetMessage(qsocket_t *sock)
 		Con_DPrintf("Duplicate ACK received\n");
 		continue;
 	    }
-	    sock->sendMessageLength -= MAX_DATAGRAM;
+	    sock->sendMessageLength -= sock->mtu;
 	    if (sock->sendMessageLength > 0) {
-		memmove(sock->sendMessage, sock->sendMessage + MAX_DATAGRAM,
+		memmove(sock->sendMessage, sock->sendMessage + sock->mtu,
 		       sock->sendMessageLength);
 		sock->sendNext = true;
 	    } else {
