@@ -975,7 +975,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     sock->landriver = driver;
     sock->addr = clientaddr;
     strcpy(sock->address, NET_AdrToString(&clientaddr));
-    sock->mtu = driver->GetDefaultMTU();
+    sock->mtu = driver->GetDefaultMTU() - NET_HEADERSIZE;
 
     // send him back the info about the server connection he has been allocated
     SZ_Clear(&net_message);
@@ -1160,7 +1160,7 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
 
     sock->socket = newsock;
     sock->landriver = driver;
-    sock->mtu = driver->GetDefaultMTU();
+    sock->mtu = driver->GetDefaultMTU() - NET_HEADERSIZE;
 
     // send the connection request
     Con_Printf("trying...\n");
