@@ -83,7 +83,7 @@ typedef struct client_s {
     vec3_t wishdir;		// intended motion calced from cmd
 
     sizebuf_t message;		// can be added to at any time,
-    // copied and clear once per frame
+				// copied and clear once per frame
     byte msgbuf[MAX_MSGLEN];
     edict_t *edict;		// EDICT_NUM(clientnum+1)
     char name[32];		// for printing to other people

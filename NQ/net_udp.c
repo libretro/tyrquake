@@ -423,4 +423,3 @@ UDP_GetDefaultMTU(void)
 {
     return 1400;
 }
-

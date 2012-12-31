@@ -324,7 +324,7 @@ Datagram_GetMessage(qsocket_t *sock)
 	    sock->sendMessageLength -= sock->mtu;
 	    if (sock->sendMessageLength > 0) {
 		memmove(sock->sendMessage, sock->sendMessage + sock->mtu,
-		       sock->sendMessageLength);
+			sock->sendMessageLength);
 		sock->sendNext = true;
 	    } else {
 		sock->sendMessageLength = 0;

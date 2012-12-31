@@ -840,7 +840,6 @@ SV_SendClientDatagram(client_t *client)
 
 // add the client specific data to the datagram
     SV_WriteClientdataToMessage(client->edict, &msg);
-
     SV_WriteEntitiesToClient(client->edict, &msg);
 
 // copy the server datagram if there is space
@@ -881,7 +880,6 @@ SV_UpdateToReliableMessages(void)
 		MSG_WriteByte(&client->message, i);
 		MSG_WriteShort(&client->message, host_client->edict->v.frags);
 	    }
-
 	    host_client->old_frags = host_client->edict->v.frags;
 	}
     }
@@ -988,7 +986,6 @@ SV_SendClientMessages(void)
 	    }
 	}
     }
-
 
 // clear muzzle flashes
     SV_CleanupEnts();

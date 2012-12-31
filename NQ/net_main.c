@@ -571,7 +571,6 @@ NET_SendMessage(qsocket_t *sock, sizebuf_t *data)
 	return -1;
     }
 
-
     SetNetTime();
     r = sock->driver->QSendMessage(sock, data);
     if (r == 1 && !IS_LOOP_DRIVER(sock->driver))
