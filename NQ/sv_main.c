@@ -168,8 +168,13 @@ SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
 {
     int i, v;
 
-    if (sv.datagram.cursize > MAX_DATAGRAM - 16)
+    /*
+     * Drop silently if there is no room
+     * FIXME - does not take into account MTU...
+     */
+    if (sv.datagram.cursize > MAX_DATAGRAM - 12)
 	return;
+
     MSG_WriteByte(&sv.datagram, svc_particle);
     MSG_WriteCoord(&sv.datagram, org[0]);
     MSG_WriteCoord(&sv.datagram, org[1]);
@@ -237,7 +242,11 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
     if (channel < 0 || channel > 7)
 	Sys_Error("%s: channel = %i", __func__, channel);
 
-    if (sv.datagram.cursize > MAX_DATAGRAM - 16)
+    /*
+     * Drop silently if there is no room
+     * FIXME - does not take into account MTU...
+     */
+    if (sv.datagram.cursize > MAX_DATAGRAM - 14)
 	return;
 
 // find precache number for sound
