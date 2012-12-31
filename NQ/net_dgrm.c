@@ -40,12 +40,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 
 /* statistic counters */
-int packetsSent = 0;
-int packetsReSent = 0;
-int packetsReceived = 0;
-int receivedDuplicateCount = 0;
-int shortPacketCount = 0;
-int droppedDatagrams;
+static int packetsSent = 0;
+static int packetsReSent = 0;
+static int packetsReceived = 0;
+static int receivedDuplicateCount = 0;
+static int shortPacketCount = 0;
+static int droppedDatagrams;
 
 static net_driver_t *dgrm_driver;
 
@@ -56,7 +56,7 @@ static struct {
 } packetBuffer;
 
 #ifdef DEBUG
-const char *
+static const char *
 StrAddr(netadr_t *addr)
 {
     static char buf[32];
@@ -71,7 +71,7 @@ StrAddr(netadr_t *addr)
 static netadr_t banAddr = { .ip.l = INADDR_ANY };
 static netadr_t banMask = { .ip.l = INADDR_NONE };
 
-void
+static void
 NET_Ban_f(void)
 {
     char addrStr[32];
@@ -371,8 +371,7 @@ Datagram_GetMessage(qsocket_t *sock)
     return ret;
 }
 
-
-void
+static void
 PrintStats(qsocket_t *s)
 {
     Con_Printf("canSend = %4u   \n", s->canSend);
