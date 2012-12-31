@@ -56,10 +56,10 @@ typedef struct {
     byte datagram_buf[MAX_DATAGRAM];
 
     sizebuf_t reliable_datagram; // copied to all clients at end of frame
-    byte reliable_datagram_buf[MAX_DATAGRAM];
+    byte reliable_datagram_buf[MAX_MSGLEN];
 
     sizebuf_t signon;
-    byte signon_buf[8192];
+    byte signon_buf[MAX_MSGLEN];
 
     int protocol;		/* Active network protocol version */
 } server_t;
