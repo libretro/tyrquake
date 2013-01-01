@@ -49,8 +49,6 @@ static alight_t r_viewlighting = { 128, 192, viewlightvec };
 
 qboolean r_dowarp, r_dowarpold, r_viewchanged;
 
-int numbtofpolys;
-btofpoly_t *pbtofpolys;
 mvertex_t *r_pcurrentvertbase;
 
 int c_surf;

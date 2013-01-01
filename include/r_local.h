@@ -182,16 +182,6 @@ extern vec3_t sbaseaxis[3], tbaseaxis[3];
 extern int r_currentkey;
 extern int r_currentbkey;
 
-typedef struct btofpoly_s {
-    int clipflags;
-    msurface_t *psurf;
-} btofpoly_t;
-
-#define MAX_BTOFPOLYS	5000	// FIXME: tune this
-
-extern int numbtofpolys;
-extern btofpoly_t *pbtofpolys;
-
 void R_ZDrawSubmodelPolys(const entity_t *e, model_t *clmodel);
 
 //=========================================================

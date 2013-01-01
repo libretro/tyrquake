@@ -52,6 +52,15 @@ static mvertex_t *pfrontenter, *pfrontexit;
 
 static qboolean makeclippededge;
 
+typedef struct btofpoly_s {
+    int clipflags;
+    msurface_t *psurf;
+} btofpoly_t;
+
+#define MAX_BTOFPOLYS	5000	// FIXME: tune this
+
+static int numbtofpolys;
+static btofpoly_t *pbtofpolys;
 
 //===========================================================================
 
@@ -591,6 +600,7 @@ R_RenderWorld(void)
     btofpoly_t btofpolys[MAX_BTOFPOLYS];
 
     pbtofpolys = btofpolys;
+    numbtofpolys = 0;
 
     e = &r_worldentity;
     VectorCopy(r_origin, modelorg);
