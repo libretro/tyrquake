@@ -231,7 +231,7 @@ R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pnode,
 	    // split into two edges, one on each side, and remember entering
 	    // and exiting points
 	    // FIXME: share the clip edge by having a winding direction flag?
-	    if (numbedges >= (MAX_BMODEL_EDGES - 1)) {
+	    if (numbedges > MAX_BMODEL_EDGES - 2) {
 		Con_Printf("Out of edges for bmodel\n");
 		return;
 	    }
@@ -268,7 +268,7 @@ R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pnode,
 // if anything was clipped, reconstitute and add the edges along the clip
 // plane to both sides (but in opposite directions)
     if (makeclippededge) {
-	if (numbedges >= (MAX_BMODEL_EDGES - 2)) {
+	if (numbedges > MAX_BMODEL_EDGES - 2) {
 	    Con_Printf("Out of edges for bmodel\n");
 	    return;
 	}
