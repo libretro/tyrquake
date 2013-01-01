@@ -740,6 +740,34 @@ CalcSurfaceExtents(msurface_t *s)
     }
 }
 
+static void
+CalcSurfaceBounds(msurface_t *surf)
+{
+    int i, j, edgenum;
+    medge_t *edge;
+    mvertex_t *v;
+
+    surf->mins[0] = surf->mins[1] = surf->mins[2] = FLT_MAX;
+    surf->maxs[0] = surf->maxs[1] = surf->maxs[2] = -FLT_MAX;
+
+    for (i = 0; i < surf->numedges; i++) {
+	edgenum = loadmodel->surfedges[surf->firstedge + i];
+	if (edgenum >= 0) {
+	    edge = &loadmodel->edges[edgenum];
+	    v = &loadmodel->vertexes[edge->v[0]];
+	} else {
+	    edge = &loadmodel->edges[-edgenum];
+	    v = &loadmodel->vertexes[edge->v[1]];
+	}
+
+	for (j = 0; j < 3; j++) {
+	    if (surf->mins[j] > v->position[j])
+		surf->mins[j] = v->position[j];
+	    if (surf->maxs[j] < v->position[j])
+		surf->maxs[j] = v->position[j];
+	}
+    }
+}
 
 /*
 =================
@@ -778,6 +806,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
 	out->texinfo = loadmodel->texinfo + LittleShort(in->texinfo);
 
 	CalcSurfaceExtents(out);
+	CalcSurfaceBounds(out);
 
 	// lighting info
 
@@ -839,6 +868,7 @@ Mod_LoadFaces_BSP2(lump_t *l)
 	out->texinfo = loadmodel->texinfo + LittleLong(in->texinfo);
 
 	CalcSurfaceExtents(out);
+	CalcSurfaceBounds(out);
 
 	// lighting info
 

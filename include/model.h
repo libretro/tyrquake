@@ -143,6 +143,8 @@ typedef struct glpoly_s {
 
 typedef struct msurface_s {
     int visframe;	// should be drawn when node is crossed
+    vec3_t mins;	// bounding box for frustum culling
+    vec3_t maxs;
 
     mplane_t *plane;
     int flags;
