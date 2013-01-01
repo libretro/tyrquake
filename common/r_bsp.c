@@ -425,6 +425,51 @@ R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags)
     }
 }
 
+static void
+DrawBackSurfs(const entity_t *e, msurface_t *surf, int count, int clipflags)
+{
+    while (count--) {
+	if ((surf->flags & SURF_PLANEBACK) && surf->visframe == r_framecount) {
+	    if (r_drawpolys) {
+		if (r_worldpolysbacktofront) {
+		    if (numbtofpolys < MAX_BTOFPOLYS) {
+			pbtofpolys[numbtofpolys].clipflags = clipflags;
+			pbtofpolys[numbtofpolys].psurf = surf;
+			numbtofpolys++;
+		    }
+		} else {
+		    R_RenderPoly(e, surf, clipflags);
+		}
+	    } else {
+		R_RenderFace(e, surf, clipflags);
+	    }
+	}
+	surf++;
+    }
+}
+
+static void
+DrawFrontSurfs(const entity_t *e, msurface_t *surf, int count, int clipflags)
+{
+    while (count--) {
+	if (!(surf->flags & SURF_PLANEBACK) && surf->visframe == r_framecount) {
+	    if (r_drawpolys) {
+		if (r_worldpolysbacktofront) {
+		    if (numbtofpolys < MAX_BTOFPOLYS) {
+			pbtofpolys[numbtofpolys].clipflags = clipflags;
+			pbtofpolys[numbtofpolys].psurf = surf;
+			numbtofpolys++;
+		    }
+		} else {
+		    R_RenderPoly(e, surf, clipflags);
+		}
+	    } else {
+		R_RenderFace(e, surf, clipflags);
+	    }
+	}
+	surf++;
+    }
+}
 
 /*
 ================
@@ -434,7 +479,7 @@ R_RecursiveWorldNode
 static void
 R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 {
-    int i, c, side, *pindex;
+    int i, count, side, *pindex;
     vec3_t acceptpt, rejectpt;
     mplane_t *plane;
     msurface_t *surf, **mark;
@@ -488,13 +533,13 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 	pleaf = (mleaf_t *)node;
 
 	mark = pleaf->firstmarksurface;
-	c = pleaf->nummarksurfaces;
+	count = pleaf->nummarksurfaces;
 
-	if (c) {
+	if (count) {
 	    do {
 		(*mark)->visframe = r_framecount;
 		mark++;
-	    } while (--c);
+	    } while (--count);
 	}
 
 	// deal with model fragments in this leaf
@@ -528,54 +573,14 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 	R_RecursiveWorldNode(e, node->children[side], clipflags);
 
 	// draw stuff
-	c = node->numsurfaces;
-
-	if (c) {
+	count = node->numsurfaces;
+	if (count) {
 	    surf = cl.worldmodel->surfaces + node->firstsurface;
+	    if (dot < -BACKFACE_EPSILON)
+		DrawBackSurfs(e, surf, count, clipflags);
+	    else if (dot > BACKFACE_EPSILON)
+		DrawFrontSurfs(e, surf, count, clipflags);
 
-	    if (dot < -BACKFACE_EPSILON) {
-		do {
-		    if ((surf->flags & SURF_PLANEBACK) &&
-			(surf->visframe == r_framecount)) {
-			if (r_drawpolys) {
-			    if (r_worldpolysbacktofront) {
-				if (numbtofpolys < MAX_BTOFPOLYS) {
-				    pbtofpolys[numbtofpolys].clipflags =
-					clipflags;
-				    pbtofpolys[numbtofpolys].psurf = surf;
-				    numbtofpolys++;
-				}
-			    } else {
-				R_RenderPoly(e, surf, clipflags);
-			    }
-			} else {
-			    R_RenderFace(e, surf, clipflags);
-			}
-		    }
-		    surf++;
-		} while (--c);
-	    } else if (dot > BACKFACE_EPSILON) {
-		do {
-		    if (!(surf->flags & SURF_PLANEBACK) &&
-			(surf->visframe == r_framecount)) {
-			if (r_drawpolys) {
-			    if (r_worldpolysbacktofront) {
-				if (numbtofpolys < MAX_BTOFPOLYS) {
-				    pbtofpolys[numbtofpolys].clipflags =
-					clipflags;
-				    pbtofpolys[numbtofpolys].psurf = surf;
-				    numbtofpolys++;
-				}
-			    } else {
-				R_RenderPoly(e, surf, clipflags);
-			    }
-			} else {
-			    R_RenderFace(e, surf, clipflags);
-			}
-		    }
-		    surf++;
-		} while (--c);
-	    }
 	    // all surfaces on the same node share the same sequence number
 	    r_currentkey++;
 	}
