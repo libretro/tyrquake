@@ -108,13 +108,11 @@ D_DrawTurbulent8Span(void)
     int sturb, tturb;
 
     do {
-	sturb =
-	    ((r_turb_s +
-	      r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)]) >> 16) & 63;
-	tturb =
-	    ((r_turb_t +
-	      r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)]) >> 16) & 63;
-	*r_turb_pdest++ = *(r_turb_pbase + (tturb << 6) + sturb);
+	sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
+	sturb = (sturb >> 16) & (TURB_TEX_SIZE - 1);
+	tturb = r_turb_t + r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)];
+	tturb = (tturb >> 16) & (TURB_TEX_SIZE - 1);
+	*r_turb_pdest++ = *(r_turb_pbase + (tturb * TURB_TEX_SIZE) + sturb);
 	r_turb_s += r_turb_sstep;
 	r_turb_t += r_turb_tstep;
     } while (--r_turb_spancount > 0);
