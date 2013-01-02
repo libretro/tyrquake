@@ -108,18 +108,22 @@ typedef struct mplane_s {
     byte pad[2];
 } mplane_t;
 
+#define PSIDE_FRONT 1
+#define PSIDE_BACK  2
+#define PSIDE_BOTH  (PSIDE_FRONT | PSIDE_BACK)
+
 int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *plane);
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)			\
 	(((p)->type < 3)?					\
 	(							\
 		((p)->dist <= (emins)[(p)->type])?		\
-			1					\
+			PSIDE_FRONT				\
 		:						\
 		(						\
 			((p)->dist >= (emaxs)[(p)->type])?	\
-				2				\
+				PSIDE_BACK			\
 			:					\
-				3				\
+				PSIDE_BOTH			\
 		)						\
 	)							\
 	:							\

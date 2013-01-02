@@ -137,17 +137,17 @@ R_SplitEntityOnNode(mnode_t *node)
     splitplane = node->plane;
     sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
 
-    if (sides == 3) {
+    if (sides == PSIDE_BOTH) {
 	// split on this plane
 	// if this is the first splitter of this bmodel, remember it
 	if (!r_pefragtopnode)
 	    r_pefragtopnode = node;
     }
 // recurse down the contacted sides
-    if (sides & 1)
+    if (sides & PSIDE_FRONT)
 	R_SplitEntityOnNode(node->children[0]);
 
-    if (sides & 2)
+    if (sides & PSIDE_BACK)
 	R_SplitEntityOnNode(node->children[1]);
 }
 
@@ -177,13 +177,13 @@ R_SplitEntityOnNode2(mnode_t *node)
     splitplane = node->plane;
     sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
 
-    if (sides == 3) {
+    if (sides == PSIDE_BOTH) {
 	// remember first splitter
 	r_pefragtopnode = node;
 	return;
     }
 // not split yet; recurse down the contacted side
-    if (sides & 1)
+    if (sides & PSIDE_FRONT)
 	R_SplitEntityOnNode2(node->children[0]);
     else
 	R_SplitEntityOnNode2(node->children[1]);

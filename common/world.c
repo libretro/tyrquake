@@ -466,10 +466,10 @@ SV_FindTouchedLeafs(edict_t *ent, mnode_t *node)
     sides = BOX_ON_PLANE_SIDE(ent->v.absmin, ent->v.absmax, splitplane);
 
 // recurse down the contacted sides
-    if (sides & 1)
+    if (sides & PSIDE_FRONT)
 	SV_FindTouchedLeafs(ent, node->children[0]);
 
-    if (sides & 2)
+    if (sides & PSIDE_BACK)
 	SV_FindTouchedLeafs(ent, node->children[1]);
 }
 

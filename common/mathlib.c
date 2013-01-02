@@ -185,7 +185,7 @@ BOPS_Error(void)
 ==================
 BoxOnPlaneSide
 
-Returns 1, 2, or 1 + 2
+Returns PSIDE_FRONT, PSIDE_BACK, or PSIDE_BOTH (PSIDE_FRONT | PSIDE_BACK)
 ==================
 */
 int
@@ -199,10 +199,10 @@ BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
     // fast axial cases
     if (p->type < 3) {
 	if (p->dist <= emins[p->type])
-	    return 1;
+	    return PSIDE_FRONT;
 	if (p->dist >= emaxs[p->type])
-	    return 2;
-	return 3;
+	    return PSIDE_BACK;
+	return PSIDE_BOTH;
     }
 #endif
 
@@ -277,34 +277,11 @@ BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
 	break;
     }
 
-#if 0
-    int i;
-    vec3_t corners[2];
-
-    for (i = 0; i < 3; i++) {
-	if (plane->normal[i] < 0) {
-	    corners[0][i] = emins[i];
-	    corners[1][i] = emaxs[i];
-	} else {
-	    corners[1][i] = emins[i];
-	    corners[0][i] = emaxs[i];
-	}
-    }
-    dist = DotProduct(plane->normal, corners[0]) - plane->dist;
-    dist2 = DotProduct(plane->normal, corners[1]) - plane->dist;
-    sides = 0;
-    if (dist1 >= 0)
-	sides = 1;
-    if (dist2 < 0)
-	sides |= 2;
-
-#endif
-
     sides = 0;
     if (dist1 >= p->dist)
-	sides = 1;
+	sides = PSIDE_FRONT;
     if (dist2 < p->dist)
-	sides |= 2;
+	sides |= PSIDE_BACK;
 
 #ifdef PARANOID
     if (sides == 0)
