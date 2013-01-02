@@ -357,6 +357,7 @@ R_TransformFrustum(void)
 {
     int i;
     vec3_t v, v2;
+    mplane_t *plane;
 
 #ifdef NQ_HACK
     if (r_lockfrustum.value)
@@ -372,9 +373,10 @@ R_TransformFrustum(void)
 	v2[1] = v[1] * vright[1] + v[2] * vup[1] + v[0] * vpn[1];
 	v2[2] = v[1] * vright[2] + v[2] * vup[2] + v[0] * vpn[2];
 
-	VectorCopy(v2, view_clipplanes[i].plane.normal);
-
-	view_clipplanes[i].plane.dist = DotProduct(modelorg, v2);
+	plane = &view_clipplanes[i].plane;
+	VectorCopy(v2, plane->normal);
+	plane->dist = DotProduct(modelorg, v2);
+	plane->signbits = SignbitsForPlane(plane);
     }
 }
 
