@@ -1123,22 +1123,6 @@ R_PolyBlend(void)
     }
 }
 
-
-static int
-SignbitsForPlane(mplane_t *out)
-{
-    int bits, j;
-
-    // for fast box on planeside test
-    bits = 0;
-    for (j = 0; j < 3; j++) {
-	if (out->normal[j] < 0)
-	    bits |= 1 << j;
-    }
-    return bits;
-}
-
-
 static void
 R_SetFrustum(void)
 {
@@ -1177,8 +1161,6 @@ R_SetFrustum(void)
 	frustum[i].signbits = SignbitsForPlane(&frustum[i]);
     }
 }
-
-
 
 /*
 ===============

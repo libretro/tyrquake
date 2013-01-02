@@ -108,6 +108,8 @@ typedef struct mplane_s {
     byte pad[2];
 } mplane_t;
 
+int SignbitsForPlane(const mplane_t *plane); /* sign bits for BOPS test */
+
 #define PSIDE_FRONT 1
 #define PSIDE_BACK  2
 #define PSIDE_BOTH  (PSIDE_FRONT | PSIDE_BACK)

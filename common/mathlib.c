@@ -166,6 +166,20 @@ anglemod(float a)
     return a;
 }
 
+int
+SignbitsForPlane(const mplane_t *plane)
+{
+    int i, bits;
+
+    // for fast box on planeside test
+    bits = 0;
+    for (i = 0; i < 3; i++) {
+	if (plane->normal[i] < 0)
+	    bits |= 1 << i;
+    }
+    return bits;
+}
+
 /*
 ==================
 BOPS_Error
