@@ -122,7 +122,6 @@ typedef struct {
 } pvscache_t;
 static pvscache_t pvscache[2];
 static int pvscache_numleafs;
-static byte *mod_novis;
 
 static void
 Mod_InitPVSCache(int numleafs)
@@ -131,8 +130,6 @@ Mod_InitPVSCache(int numleafs)
 
     memset(pvscache, 0, sizeof(pvscache));
     leafbytes = ((numleafs + 63) & ~63) >> 3;
-    mod_novis = Hunk_AllocName(leafbytes, "novis");
-    memset(mod_novis, 0, leafbytes);
 
     pvscache_numleafs = numleafs;
     pvscache[0].vis = Hunk_AllocName(ARRAY_SIZE(pvscache) * leafbytes, "pvscache");
@@ -182,7 +179,7 @@ Mod_DecompressVis(const byte *in, const model_t *model, byte *dest)
 byte *
 Mod_LeafPVS(mleaf_t *leaf, model_t *model)
 {
-    int slot;
+    int slot, leafbytes;
     pvscache_t tmp;
 
     for (slot = 0; slot < ARRAY_SIZE(pvscache); slot++)
@@ -195,7 +192,13 @@ Mod_LeafPVS(mleaf_t *leaf, model_t *model)
 	    tmp.model = model;
 	    tmp.leaf = leaf;
 	    tmp.vis = pvscache[slot].vis;
-	    Mod_DecompressVis(leaf->compressed_vis, model, tmp.vis);
+	    if (leaf == model->leafs) {
+		/* return set with everything visible */
+		leafbytes = ((model->numleafs + 63) & ~63) >> 3;
+		memset(tmp.vis, 0xff, leafbytes);
+	    } else {
+		Mod_DecompressVis(leaf->compressed_vis, model, tmp.vis);
+	    }
 	} else {
 	    tmp = pvscache[slot];
 	}
@@ -230,7 +233,6 @@ Mod_ClearAll(void)
 
     memset(pvscache, 0, sizeof(pvscache));
     pvscache_numleafs = 0;
-    mod_novis = NULL;
 }
 
 /*
