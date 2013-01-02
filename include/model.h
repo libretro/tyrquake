@@ -75,9 +75,6 @@ typedef struct {
     vec3_t position;
 } mvertex_t;
 
-#define	SIDE_FRONT	0
-#define	SIDE_BACK	1
-#define	SIDE_ON		2
 
 
 // plane_t structure

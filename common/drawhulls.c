@@ -218,6 +218,10 @@ winding_for_plane(const mplane_t *p)
  *  (winding_clip, winding_split)
  * ===========================
  */
+#define	SIDE_FRONT	0
+#define	SIDE_BACK	1
+#define	SIDE_ON		2
+
 static void
 CalcSides(const winding_t *in, const mplane_t *split,
 	  int *sides, vec_t *dists, int counts[3], vec_t epsilon)
