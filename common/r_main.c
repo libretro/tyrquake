@@ -743,11 +743,11 @@ R_BmodelCheckBBox
 =============
 */
 static int
-R_BmodelCheckBBox(const entity_t *e, model_t *clmodel, float *minmaxs)
+R_BmodelCheckBBox(const entity_t *e, model_t *clmodel,
+		  const vec3_t mins, const vec3_t maxs)
 {
-    int i, *pindex, clipflags;
-    vec3_t acceptpt, rejectpt;
-    double d;
+    int i, side, clipflags;
+    vec_t d;
 
     clipflags = 0;
 
@@ -764,30 +764,10 @@ R_BmodelCheckBBox(const entity_t *e, model_t *clmodel, float *minmaxs)
 	}
     } else {
 	for (i = 0; i < 4; i++) {
-	    // generate accept and reject points
-	    // FIXME: do with fast look-ups or integer tests based on the sign
-	    // bit of the floating point values
-
-	    pindex = pfrustum_indexes[i];
-
-	    rejectpt[0] = minmaxs[pindex[0]];
-	    rejectpt[1] = minmaxs[pindex[1]];
-	    rejectpt[2] = minmaxs[pindex[2]];
-
-	    d = DotProduct(rejectpt, view_clipplanes[i].plane.normal);
-	    d -= view_clipplanes[i].plane.dist;
-
-	    if (d <= 0)
+	    side = BoxOnPlaneSide(mins, maxs, &view_clipplanes[i].plane);
+	    if (side == PSIDE_BACK)
 		return BMODEL_FULLY_CLIPPED;
-
-	    acceptpt[0] = minmaxs[pindex[3 + 0]];
-	    acceptpt[1] = minmaxs[pindex[3 + 1]];
-	    acceptpt[2] = minmaxs[pindex[3 + 2]];
-
-	    d = DotProduct(acceptpt, view_clipplanes[i].plane.normal);
-	    d -= view_clipplanes[i].plane.dist;
-
-	    if (d <= 0)
+	    if (side == PSIDE_BOTH)
 		clipflags |= (1 << i);
 	}
     }
@@ -805,10 +785,10 @@ static void
 R_DrawBEntitiesOnList(void)
 {
     entity_t *e;
-    int i, j, k, clipflags;
+    int i, j, clipflags;
     vec3_t oldorigin;
     model_t *clmodel;
-    float minmaxs[6];
+    vec3_t mins, maxs;
 
     if (!r_drawentities.value)
 	return;
@@ -827,11 +807,9 @@ R_DrawBEntitiesOnList(void)
 
 	    // see if the bounding box lets us trivially reject, also sets
 	    // trivial accept status
-	    for (j = 0; j < 3; j++) {
-		minmaxs[j] = e->origin[j] + clmodel->mins[j];
-		minmaxs[3 + j] = e->origin[j] + clmodel->maxs[j];
-	    }
-	    clipflags = R_BmodelCheckBBox(e, clmodel, minmaxs);
+	    VectorAdd(e->origin, clmodel->mins, mins);
+	    VectorAdd(e->origin, clmodel->maxs, maxs);
+	    clipflags = R_BmodelCheckBBox(e, clmodel, mins, maxs);
 
 	    if (clipflags != BMODEL_FULLY_CLIPPED) {
 		VectorCopy(e->origin, r_entorigin);
@@ -844,13 +822,13 @@ R_DrawBEntitiesOnList(void)
 		// calculate dynamic lighting for bmodel if it's not an
 		// instanced model
 		if (clmodel->firstmodelsurface != 0) {
-		    for (k = 0; k < MAX_DLIGHTS; k++) {
-			if ((cl_dlights[k].die < cl.time) ||
-			    (!cl_dlights[k].radius)) {
+		    for (j = 0; j < MAX_DLIGHTS; j++) {
+			if ((cl_dlights[j].die < cl.time) ||
+			    (!cl_dlights[j].radius)) {
 			    continue;
 			}
 
-			R_MarkLights(&cl_dlights[k], 1 << k,
+			R_MarkLights(&cl_dlights[j], 1 << j,
 				     clmodel->nodes +
 				     clmodel->hulls[0].firstclipnode);
 		    }
@@ -862,12 +840,8 @@ R_DrawBEntitiesOnList(void)
 		    R_ZDrawSubmodelPolys(e, clmodel);
 		} else {
 		    r_pefragtopnode = NULL;
-
-		    for (j = 0; j < 3; j++) {
-			r_emins[j] = minmaxs[j];
-			r_emaxs[j] = minmaxs[3 + j];
-		    }
-
+		    VectorCopy(mins, r_emins);
+		    VectorCopy(maxs, r_emaxs);
 		    R_SplitEntityOnNode2(cl.worldmodel->nodes);
 
 		    if (r_pefragtopnode) {

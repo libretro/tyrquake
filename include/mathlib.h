@@ -114,22 +114,22 @@ int SignbitsForPlane(const mplane_t *plane); /* sign bits for BOPS test */
 #define PSIDE_BACK  2
 #define PSIDE_BOTH  (PSIDE_FRONT | PSIDE_BACK)
 
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *plane);
-#define BOX_ON_PLANE_SIDE(emins, emaxs, p)			\
+int BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *plane);
+#define BOX_ON_PLANE_SIDE(mins, maxs, p)			\
 	(((p)->type < 3)?					\
 	(							\
-		((p)->dist <= (emins)[(p)->type])?		\
+		((p)->dist <= (mins)[(p)->type])?		\
 			PSIDE_FRONT				\
 		:						\
 		(						\
-			((p)->dist >= (emaxs)[(p)->type])?	\
+			((p)->dist >= (maxs)[(p)->type])?	\
 				PSIDE_BACK			\
 			:					\
 				PSIDE_BOTH			\
 		)						\
 	)							\
 	:							\
-		BoxOnPlaneSide( (emins), (emaxs), (p)))
+		BoxOnPlaneSide( (mins), (maxs), (p)))
 
 #ifdef QW_HACK
 fixed16_t Mul16_30(fixed16_t multiplier, fixed16_t multiplicand);

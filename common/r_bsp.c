@@ -479,12 +479,11 @@ R_RecursiveWorldNode
 static void
 R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 {
-    int i, count, side, *pindex;
-    vec3_t acceptpt, rejectpt;
+    int i, count, side;
     mplane_t *plane;
     msurface_t *surf, **mark;
     mleaf_t *pleaf;
-    double d, dot;
+    vec_t dot;
 
     if (node->contents == CONTENTS_SOLID)
 	return;			// solid
@@ -500,30 +499,11 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 	    if (!(clipflags & (1 << i)))
 		continue;	// don't need to clip against it
 
-	    // generate accept and reject points
-	    // FIXME: do with fast look-ups or integer tests based on the sign
-	    // bit of the floating point values
-
-	    pindex = pfrustum_indexes[i];
-
-	    rejectpt[0] = (float)node->minmaxs[pindex[0]];
-	    rejectpt[1] = (float)node->minmaxs[pindex[1]];
-	    rejectpt[2] = (float)node->minmaxs[pindex[2]];
-
-	    d = DotProduct(rejectpt, view_clipplanes[i].plane.normal);
-	    d -= view_clipplanes[i].plane.dist;
-
-	    if (d <= 0)
+	    plane = &view_clipplanes[i].plane;
+	    side = BoxOnPlaneSide(node->mins, node->maxs, plane);
+	    if (side == PSIDE_BACK)
 		return;
-
-	    acceptpt[0] = (float)node->minmaxs[pindex[3 + 0]];
-	    acceptpt[1] = (float)node->minmaxs[pindex[3 + 1]];
-	    acceptpt[2] = (float)node->minmaxs[pindex[3 + 2]];
-
-	    d = DotProduct(acceptpt, view_clipplanes[i].plane.normal);
-	    d -= view_clipplanes[i].plane.dist;
-
-	    if (d >= 0)
+	    if (side == PSIDE_FRONT)
 		clipflags &= ~(1 << i);	// node is entirely on screen
 	}
     }

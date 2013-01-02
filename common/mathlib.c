@@ -203,7 +203,7 @@ Returns PSIDE_FRONT, PSIDE_BACK, or PSIDE_BOTH (PSIDE_FRONT | PSIDE_BACK)
 ==================
 */
 int
-BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
+BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
 {
     float dist1, dist2;
     int sides;
@@ -212,9 +212,9 @@ BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
     // this is done by the BOX_ON_PLANE_SIDE macro before calling this function
     // fast axial cases
     if (p->type < 3) {
-	if (p->dist <= emins[p->type])
+	if (p->dist <= mins[p->type])
 	    return PSIDE_FRONT;
-	if (p->dist >= emaxs[p->type])
+	if (p->dist >= maxs[p->type])
 	    return PSIDE_BACK;
 	return PSIDE_BOTH;
     }
@@ -224,67 +224,67 @@ BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *p)
     switch (p->signbits) {
     case 0:
 	dist1 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * maxs[2];
 	dist2 =
-	    p->normal[0] * emins[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * mins[2];
 	break;
     case 1:
 	dist1 =
-	    p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * maxs[2];
 	dist2 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * mins[2];
 	break;
     case 2:
 	dist1 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * maxs[2];
 	dist2 =
-	    p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * mins[2];
 	break;
     case 3:
 	dist1 =
-	    p->normal[0] * emins[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * maxs[2];
 	dist2 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * mins[2];
 	break;
     case 4:
 	dist1 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * mins[2];
 	dist2 =
-	    p->normal[0] * emins[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * maxs[2];
 	break;
     case 5:
 	dist1 =
-	    p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * mins[2];
 	dist2 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * maxs[2];
 	break;
     case 6:
 	dist1 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * mins[2];
 	dist2 =
-	    p->normal[0] * emins[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * maxs[2];
 	break;
     case 7:
 	dist1 =
-	    p->normal[0] * emins[0] + p->normal[1] * emins[1] +
-	    p->normal[2] * emins[2];
+	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+	    p->normal[2] * mins[2];
 	dist2 =
-	    p->normal[0] * emaxs[0] + p->normal[1] * emaxs[1] +
-	    p->normal[2] * emaxs[2];
+	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+	    p->normal[2] * maxs[2];
 	break;
     default:
 	BOPS_Error();
