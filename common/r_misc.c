@@ -415,35 +415,6 @@ R_TransformPlane(mplane_t *p, float *normal, float *dist)
 
 /*
 ===============
-R_SetUpFrustumIndexes
-===============
-*/
-void
-R_SetUpFrustumIndexes(void)
-{
-    int i, j, *pindex;
-
-    pindex = r_frustum_indexes;
-
-    for (i = 0; i < 4; i++) {
-	for (j = 0; j < 3; j++) {
-	    if (view_clipplanes[i].plane.normal[j] < 0) {
-		pindex[j] = j;
-		pindex[j + 3] = j + 3;
-	    } else {
-		pindex[j] = j + 3;
-		pindex[j + 3] = j;
-	    }
-	}
-
-	// FIXME: do just once at start
-	pfrustum_indexes[i] = pindex;
-	pindex += 6;
-    }
-}
-
-/*
-===============
 R_SetupFrame
 ===============
 */
@@ -587,8 +558,6 @@ R_SetupFrame(void)
     VectorCopy(modelorg, base_modelorg);
 
     R_SetSkyFrame();
-
-    R_SetUpFrustumIndexes();
 
     r_cache_thrash = false;
 

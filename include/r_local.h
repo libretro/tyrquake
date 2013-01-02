@@ -163,7 +163,6 @@ extern void R_RotateBmodel(const entity_t *e);
 
 extern int c_faceclip;
 extern int r_polycount;
-extern int *pfrustum_indexes[4];
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 #define	NEAR_CLIP	0.01
@@ -251,7 +250,6 @@ void R_Alias_clip_right(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
 extern float r_time1;
 extern float dp_time1, dp_time2, db_time1, db_time2, rw_time1, rw_time2;
 extern float se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
-extern int r_frustum_indexes[4 * 6];
 extern int r_maxsurfsseen, r_maxedgesseen;
 extern cshift_t cshift_water;
 extern qboolean r_dowarpold, r_viewchanged;

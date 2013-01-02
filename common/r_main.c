@@ -100,9 +100,6 @@ int r_visframecount;
 int r_polycount;
 int r_drawnpolycount;
 
-int *pfrustum_indexes[4];
-int r_frustum_indexes[4 * 6];
-
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
 texture_t *r_notexture_mip;
