@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <limits.h>
 
+#include "qtypes.h"
+
 // mathlib.h
 
 typedef float vec_t;
@@ -54,8 +56,6 @@ typedef int fixed16_t;
 #ifndef M_PI
 #define M_PI 3.14159265358979323846	// matches value in gcc v2 math.h
 #endif
-
-struct mplane_s;
 
 extern vec3_t vec3_origin;
 extern int nanmask;
@@ -96,9 +96,19 @@ fixed16_t Invert24To16(fixed16_t val);
 int GreatestCommonDivisor(int i1, int i2);
 
 void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
-int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, struct mplane_s *plane);
 float anglemod(float a);
 
+// plane_t structure
+// !!! if this is changed, it must be changed in asm_i386.h too !!!
+typedef struct mplane_s {
+    vec3_t normal;
+    float dist;
+    byte type;		// for texture axis selection and fast side tests
+    byte signbits;	// signx + signy<<1 + signz<<1
+    byte pad[2];
+} mplane_t;
+
+int BoxOnPlaneSide(vec3_t emins, vec3_t emaxs, mplane_t *plane);
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)			\
 	(((p)->type < 3)?					\
 	(							\
