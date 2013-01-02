@@ -325,17 +325,16 @@ R_EmitCachedEdge
 void
 R_EmitCachedEdge(void)
 {
-    edge_t *pedge_t;
+    edge_t *edge;
 
-    pedge_t = (edge_t *)((unsigned long)r_edges + r_pedge->cachededgeoffset);
-
-    if (!pedge_t->surfs[0])
-	pedge_t->surfs[0] = surface_p - surfaces;
+    edge = (edge_t *)((byte *)r_edges + r_pedge->cachededgeoffset);
+    if (!edge->surfs[0])
+	edge->surfs[0] = surface_p - surfaces;
     else
-	pedge_t->surfs[1] = surface_p - surfaces;
+	edge->surfs[1] = surface_p - surfaces;
 
-    if (pedge_t->nearzi > r_nearzi)	// for mipmap finding
-	r_nearzi = pedge_t->nearzi;
+    if (edge->nearzi > r_nearzi)	// for mipmap finding
+	r_nearzi = edge->nearzi;
 
     r_emitted = 1;
 }
