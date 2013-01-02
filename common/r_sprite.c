@@ -91,8 +91,8 @@ R_ClipSpriteFace(int nump, clipplane_t *pclipplane)
     float frac, clipdist, *pclipnormal;
     float *in, *instep, *outstep, *vert2;
 
-    clipdist = pclipplane->dist;
-    pclipnormal = pclipplane->normal;
+    clipdist = pclipplane->plane.dist;
+    pclipnormal = pclipplane->plane.normal;
 
 // calc dists
     if (clip_current) {

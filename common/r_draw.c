@@ -236,11 +236,13 @@ R_ClipEdge(mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
 {
     float d0, d1, f;
     mvertex_t clipvert;
+    mplane_t *plane;
 
     if (clip) {
 	do {
-	    d0 = DotProduct(pv0->position, clip->normal) - clip->dist;
-	    d1 = DotProduct(pv1->position, clip->normal) - clip->dist;
+	    plane = &clip->plane;
+	    d0 = DotProduct(pv0->position, plane->normal) - plane->dist;
+	    d1 = DotProduct(pv1->position, plane->normal) - plane->dist;
 
 	    if (d0 >= 0) {
 		// point 0 is unclipped
@@ -627,7 +629,7 @@ R_RenderPoly(const entity_t *e, msurface_t *fa, int clipflags)
     vec3_t local, transformed;
     clipplane_t *pclip;
     medge_t *pedges;
-    mplane_t *pplane;
+    mplane_t *plane;
     mvertex_t verts[2][100];	//FIXME: do real number
     polyvert_t pverts[100];	//FIXME: do real number, safely
     int vertpage, newverts, newpage, lastvert;
@@ -668,17 +670,18 @@ R_RenderPoly(const entity_t *e, msurface_t *fa, int clipflags)
 
 // clip the polygon, done if not visible
     while (pclip) {
+	plane = &pclip->plane;
 	lastvert = lnumverts - 1;
 	lastdist = DotProduct(verts[vertpage][lastvert].position,
-			      pclip->normal) - pclip->dist;
+			      plane->normal) - plane->dist;
 
 	visible = false;
 	newverts = 0;
 	newpage = vertpage ^ 1;
 
 	for (i = 0; i < lnumverts; i++) {
-	    dist = DotProduct(verts[vertpage][i].position, pclip->normal) -
-		pclip->dist;
+	    dist = DotProduct(verts[vertpage][i].position, plane->normal) -
+		plane->dist;
 
 	    if ((lastdist > 0) != (dist > 0)) {
 		frac = dist / (dist - lastdist);
@@ -717,8 +720,7 @@ R_RenderPoly(const entity_t *e, msurface_t *fa, int clipflags)
 
 // transform and project, remembering the z values at the vertices and
 // r_nearzi, and extract the s and t coordinates at the vertices
-    pplane = fa->plane;
-    switch (pplane->type) {
+    switch (fa->plane->type) {
     case PLANE_X:
     case PLANE_ANYX:
 	s_axis = 1;

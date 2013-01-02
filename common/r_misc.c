@@ -372,9 +372,9 @@ R_TransformFrustum(void)
 	v2[1] = v[1] * vright[1] + v[2] * vup[1] + v[0] * vpn[1];
 	v2[2] = v[1] * vright[2] + v[2] * vup[2] + v[0] * vpn[2];
 
-	VectorCopy(v2, view_clipplanes[i].normal);
+	VectorCopy(v2, view_clipplanes[i].plane.normal);
 
-	view_clipplanes[i].dist = DotProduct(modelorg, v2);
+	view_clipplanes[i].plane.dist = DotProduct(modelorg, v2);
     }
 }
 
@@ -425,7 +425,7 @@ R_SetUpFrustumIndexes(void)
 
     for (i = 0; i < 4; i++) {
 	for (j = 0; j < 3; j++) {
-	    if (view_clipplanes[i].normal[j] < 0) {
+	    if (view_clipplanes[i].plane.normal[j] < 0) {
 		pindex[j] = j;
 		pindex[j + 3] = j + 3;
 	    } else {

@@ -99,13 +99,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // clipplane_t structure
 // !!! if this is changed, it must be changed in r_local.h too !!!
-#define cp_normal	0
-#define cp_dist		12
-#define cp_next		16
-#define cp_leftedge	20
-#define cp_rightedge	21
-#define cp_reserved	22
-#define cp_size		24
+#define cp_pnormal	0
+#define cp_pdist	12
+#define cp_ptype	16
+#define cp_psignbits	17
+#define cp_ppad		18
+#define cp_next		20
+#define cp_leftedge	24
+#define cp_rightedge	25
+#define cp_reserved	26
+#define cp_size		28
 
 // medge_t structure
 // !!! if this is changed, it must be changed in model.h too !!!

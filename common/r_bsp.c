@@ -510,8 +510,8 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 	    rejectpt[1] = (float)node->minmaxs[pindex[1]];
 	    rejectpt[2] = (float)node->minmaxs[pindex[2]];
 
-	    d = DotProduct(rejectpt, view_clipplanes[i].normal);
-	    d -= view_clipplanes[i].dist;
+	    d = DotProduct(rejectpt, view_clipplanes[i].plane.normal);
+	    d -= view_clipplanes[i].plane.dist;
 
 	    if (d <= 0)
 		return;
@@ -520,8 +520,8 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 	    acceptpt[1] = (float)node->minmaxs[pindex[3 + 1]];
 	    acceptpt[2] = (float)node->minmaxs[pindex[3 + 2]];
 
-	    d = DotProduct(acceptpt, view_clipplanes[i].normal);
-	    d -= view_clipplanes[i].dist;
+	    d = DotProduct(acceptpt, view_clipplanes[i].plane.normal);
+	    d -= view_clipplanes[i].plane.dist;
 
 	    if (d >= 0)
 		clipflags &= ~(1 << i);	// node is entirely on screen

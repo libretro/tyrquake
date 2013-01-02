@@ -753,8 +753,8 @@ R_BmodelCheckBBox(const entity_t *e, model_t *clmodel, float *minmaxs)
 
     if (e->angles[0] || e->angles[1] || e->angles[2]) {
 	for (i = 0; i < 4; i++) {
-	    d = DotProduct(e->origin, view_clipplanes[i].normal);
-	    d -= view_clipplanes[i].dist;
+	    d = DotProduct(e->origin, view_clipplanes[i].plane.normal);
+	    d -= view_clipplanes[i].plane.dist;
 
 	    if (d <= -clmodel->radius)
 		return BMODEL_FULLY_CLIPPED;
@@ -774,8 +774,8 @@ R_BmodelCheckBBox(const entity_t *e, model_t *clmodel, float *minmaxs)
 	    rejectpt[1] = minmaxs[pindex[1]];
 	    rejectpt[2] = minmaxs[pindex[2]];
 
-	    d = DotProduct(rejectpt, view_clipplanes[i].normal);
-	    d -= view_clipplanes[i].dist;
+	    d = DotProduct(rejectpt, view_clipplanes[i].plane.normal);
+	    d -= view_clipplanes[i].plane.dist;
 
 	    if (d <= 0)
 		return BMODEL_FULLY_CLIPPED;
@@ -784,8 +784,8 @@ R_BmodelCheckBBox(const entity_t *e, model_t *clmodel, float *minmaxs)
 	    acceptpt[1] = minmaxs[pindex[3 + 1]];
 	    acceptpt[2] = minmaxs[pindex[3 + 2]];
 
-	    d = DotProduct(acceptpt, view_clipplanes[i].normal);
-	    d -= view_clipplanes[i].dist;
+	    d = DotProduct(acceptpt, view_clipplanes[i].plane.normal);
+	    d -= view_clipplanes[i].plane.dist;
 
 	    if (d <= 0)
 		clipflags |= (1 << i);

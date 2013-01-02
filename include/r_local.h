@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #include "client.h"
+#include "model.h"
 #include "r_shared.h"
 
 #define ALIAS_BASE_SIZE_RATIO	(1.0 / 11.0)
@@ -86,8 +87,7 @@ extern cvar_t r_numedges;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct clipplane_s {
-    vec3_t normal;
-    float dist;
+    mplane_t plane;
     struct clipplane_s *next;
     byte leftedge;
     byte rightedge;
