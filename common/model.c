@@ -54,8 +54,6 @@ static char loadname[MAX_QPATH];	/* for hunk tags */
 static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
 static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
 
-static byte mod_novis[MAX_MAP_LEAFS / 8];
-
 #define MAX_MOD_KNOWN 512
 static model_t mod_known[MAX_MOD_KNOWN];
 static int mod_numknown;
@@ -80,7 +78,6 @@ Mod_Init(const model_loader_t *loader)
 #ifdef GLQUAKE
     Cvar_RegisterVariable(&gl_subdivide_size);
 #endif
-    memset(mod_novis, 0xff, sizeof(mod_novis));
     mod_loader = loader;
 }
 
@@ -116,27 +113,55 @@ Mod_PointInLeaf(vec3_t p, model_t *model)
 
 
 /*
+ * Simple LRU cache for decompressed vis data
+ */
+typedef struct {
+    model_t *model;
+    mleaf_t *leaf;
+    byte *vis;
+} pvscache_t;
+static pvscache_t pvscache[2];
+static int pvscache_numleafs;
+static byte *mod_novis;
+
+static void
+Mod_InitPVSCache(int numleafs)
+{
+    int i, leafbytes;
+
+    memset(pvscache, 0, sizeof(pvscache));
+    leafbytes = ((numleafs + 63) & ~63) >> 3;
+    mod_novis = Hunk_AllocName(leafbytes, "novis");
+    memset(mod_novis, 0, leafbytes);
+
+    pvscache_numleafs = numleafs;
+    pvscache[0].vis = Hunk_AllocName(ARRAY_SIZE(pvscache) * leafbytes, "pvscache");
+    for (i = 1; i < ARRAY_SIZE(pvscache); i++)
+	pvscache[i].vis = pvscache[0].vis + i * leafbytes;
+}
+
+/*
 ===================
 Mod_DecompressVis
 ===================
 */
-static byte *
-Mod_DecompressVis(byte *in, model_t *model)
+
+static void
+Mod_DecompressVis(const byte *in, const model_t *model, byte *dest)
 {
-    static byte decompressed[MAX_MAP_LEAFS / 8];
     int c;
     byte *out;
     int row;
 
     row = (model->numleafs + 7) >> 3;
-    out = decompressed;
+    out = dest;
 
     if (!in) {			// no vis info, so make all visible
 	while (row) {
 	    *out++ = 0xff;
 	    row--;
 	}
-	return decompressed;
+	return;
     }
 
     do {
@@ -151,17 +176,34 @@ Mod_DecompressVis(byte *in, model_t *model)
 	    *out++ = 0;
 	    c--;
 	}
-    } while (out - decompressed < row);
-
-    return decompressed;
+    } while (out - dest < row);
 }
 
 byte *
 Mod_LeafPVS(mleaf_t *leaf, model_t *model)
 {
-    if (leaf == model->leafs)
-	return mod_novis;
-    return Mod_DecompressVis(leaf->compressed_vis, model);
+    int slot;
+    pvscache_t tmp;
+
+    for (slot = 0; slot < ARRAY_SIZE(pvscache); slot++)
+	if (pvscache[slot].model != model && pvscache[slot].leaf != leaf)
+	    continue;
+
+    if (slot) {
+	if (slot == ARRAY_SIZE(pvscache)) {
+	    slot--;
+	    tmp.model = model;
+	    tmp.leaf = leaf;
+	    tmp.vis = pvscache[slot].vis;
+	    Mod_DecompressVis(leaf->compressed_vis, model, tmp.vis);
+	} else {
+	    tmp = pvscache[slot];
+	}
+	memmove(pvscache + 1, pvscache, slot * sizeof(pvscache_t));
+	pvscache[0] = tmp;
+    }
+
+    return pvscache[0].vis;
 }
 
 /*
@@ -185,6 +227,10 @@ Mod_ClearAll(void)
 	if (mod->type == mod_sprite)
 	    mod->cache.data = NULL;
     }
+
+    memset(pvscache, 0, sizeof(pvscache));
+    pvscache_numleafs = 0;
+    mod_novis = NULL;
 }
 
 /*
@@ -1018,9 +1064,17 @@ Mod_LoadLeafs_BSP29(lump_t *l)
 	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
 
-    /* FIXME - fail gracefully */
-    if (count > MAX_MAP_LEAFS)
-	SV_Error("%s: model->numleafs > MAX_MAP_LEAFS\n", __func__);
+    /*
+     * Create space for the decompressed vis data
+     * - We assume the main map is the first BSP file loaded (should be)
+     * - If any other model has more leafs, then we may be in trouble...
+     */
+    if (count > pvscache_numleafs) {
+	if (pvscache[0].vis)
+	    SV_Error("%s: %d available for visdata, but model %s has %d leafs",
+		     __func__, pvscache_numleafs, loadmodel->name, count);
+	Mod_InitPVSCache(count);
+    }
 
     out = Hunk_AllocName(count * sizeof(*out), loadname);
 
@@ -1088,9 +1142,17 @@ Mod_LoadLeafs_BSP2(lump_t *l)
 	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
 
-    /* FIXME - fail gracefully -> Increase limit for BSP2 */
-    if (count > MAX_MAP_LEAFS)
-	SV_Error("%s: model->numleafs > MAX_MAP_LEAFS\n", __func__);
+    /*
+     * Create space for the decompressed vis data
+     * - We assume the main map is the first BSP file loaded (should be)
+     * - If any other model has more leafs, then we may be in trouble...
+     */
+    if (count > pvscache_numleafs) {
+	if (pvscache[0].vis)
+	    SV_Error("%s: %d available for visdata, but model %s has %d leafs",
+		     __func__, pvscache_numleafs, loadmodel->name, count);
+	Mod_InitPVSCache(count);
+    }
 
     out = Hunk_AllocName(count * sizeof(*out), loadname);
 
