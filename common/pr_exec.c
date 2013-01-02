@@ -734,8 +734,6 @@ PR_SetString(const char *s)
 	if (num_prstr == pr_strtbl_size) {
 	    pr_strtbl_size += PR_STRTBL_CHUNK;
 	    pr_strtbl = Z_Realloc(pr_strtbl, pr_strtbl_size * sizeof(char *));
-	    Con_DPrintf("%s: Progs string table grew to %d entries.\n",
-			__func__, pr_strtbl_size);
 	}
 	pr_strtbl[num_prstr] = s;
 	num_prstr++;
