@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SERVER_H
 #define SERVER_H
 
+#include "model.h"
 #include "progs.h"
 #include "client.h"
 
@@ -36,6 +37,7 @@ typedef struct {
 
     int lastcheck;		// used by PF_checkclient
     double lastchecktime;
+    const mleaf_t *checkleaf;
 
     char name[64];		// map name
 

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SERVER_SERVER_H
 
 #include "bothdefs.h"
+#include "model.h"
 #include "net.h"
 #include "progs.h"
 
@@ -50,6 +51,7 @@ typedef struct {
 
     int lastcheck;		// used by PF_checkclient
     double lastchecktime;	// for monster ai
+    const mleaf_t *checkleaf;
 
     qboolean paused;		// are we paused?
 
