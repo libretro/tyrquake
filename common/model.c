@@ -190,8 +190,8 @@ Mod_LeafPVS(const model_t *model, const mleaf_t *leaf)
     pvscache_t tmp;
 
     for (slot = 0; slot < PVSCACHE_SIZE; slot++)
-	if (pvscache[slot].model != model && pvscache[slot].leaf != leaf)
-	    continue;
+	if (pvscache[slot].model == model && pvscache[slot].leaf == leaf)
+	    break;
 
     if (slot) {
 	if (slot == PVSCACHE_SIZE) {
