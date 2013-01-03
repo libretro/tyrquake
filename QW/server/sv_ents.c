@@ -24,71 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "sys.h"
 
-/*
-=============================================================================
-
-The PVS must include a small area around the client to allow head bobbing
-or other small motion on the client side.  Otherwise, a bob might cause an
-entity that should be visible to not show up, especially when the bob
-crosses a waterline.
-
-=============================================================================
-*/
-
-int fatbytes;
-byte fatpvs[MAX_MAP_LEAFS / 8];
-
-void
-SV_AddToFatPVS(vec3_t org, mnode_t *node)
-{
-    int i;
-    byte *pvs;
-    mplane_t *plane;
-    float d;
-
-    while (1) {
-	// if this is a leaf, accumulate the pvs bits
-	if (node->contents < 0) {
-	    if (node->contents != CONTENTS_SOLID) {
-		pvs = Mod_LeafPVS((mleaf_t *)node, sv.worldmodel);
-		for (i = 0; i < fatbytes; i++)
-		    fatpvs[i] |= pvs[i];
-	    }
-	    return;
-	}
-
-	plane = node->plane;
-	d = DotProduct(org, plane->normal) - plane->dist;
-	if (d > 8)
-	    node = node->children[0];
-	else if (d < -8)
-	    node = node->children[1];
-	else {			// go down both
-	    SV_AddToFatPVS(org, node->children[0]);
-	    node = node->children[1];
-	}
-    }
-}
-
-/*
-=============
-SV_FatPVS
-
-Calculates a PVS that is the inclusive or of all leafs within 8 pixels of the
-given point.
-=============
-*/
-byte *
-SV_FatPVS(vec3_t org)
-{
-    fatbytes = (sv.worldmodel->numleafs + 31) >> 3;
-    memset(fatpvs, 0, fatbytes);
-    SV_AddToFatPVS(org, sv.worldmodel->nodes);
-    return fatpvs;
-}
-
-//=============================================================================
-
 // because there can be a lot of nails, there is a special
 // network protocol for them
 #define	MAX_NAILS	32
@@ -319,8 +254,8 @@ SV_WritePlayersToClient
 
 =============
 */
-void
-SV_WritePlayersToClient(client_t *client, edict_t *clent, byte *pvs,
+static void
+SV_WritePlayersToClient(client_t *client, edict_t *clent, const byte *pvs,
 			sizebuf_t *msg)
 {
     int i, j;
@@ -443,7 +378,7 @@ void
 SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
 {
     int e, i;
-    byte *pvs;
+    const byte *pvs;
     vec3_t org;
     edict_t *ent;
     packet_entities_t *pack;
@@ -457,7 +392,7 @@ SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
     // find the client's PVS
     clent = client->edict;
     VectorAdd(clent->v.origin, clent->v.view_ofs, org);
-    pvs = SV_FatPVS(org);
+    pvs = Mod_FatPVS(sv.worldmodel, org);
 
     // send over the players in the PVS
     SV_WritePlayersToClient(client, clent, pvs, msg);

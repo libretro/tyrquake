@@ -461,69 +461,6 @@ SV_ClearDatagram(void)
     SZ_Clear(&sv.datagram);
 }
 
-/*
-=============================================================================
-
-The PVS must include a small area around the client to allow head bobbing
-or other small motion on the client side.  Otherwise, a bob might cause an
-entity that should be visible to not show up, especially when the bob
-crosses a waterline.
-
-=============================================================================
-*/
-
-int fatbytes;
-byte fatpvs[MAX_MAP_LEAFS / 8];
-
-void
-SV_AddToFatPVS(vec3_t org, mnode_t *node)
-{
-    int i;
-    byte *pvs;
-    mplane_t *plane;
-    float d;
-
-    while (1) {
-	// if this is a leaf, accumulate the pvs bits
-	if (node->contents < 0) {
-	    if (node->contents != CONTENTS_SOLID) {
-		pvs = Mod_LeafPVS((mleaf_t *)node, sv.worldmodel);
-		for (i = 0; i < fatbytes; i++)
-		    fatpvs[i] |= pvs[i];
-	    }
-	    return;
-	}
-
-	plane = node->plane;
-	d = DotProduct(org, plane->normal) - plane->dist;
-	if (d > 8)
-	    node = node->children[0];
-	else if (d < -8)
-	    node = node->children[1];
-	else {			// go down both
-	    SV_AddToFatPVS(org, node->children[0]);
-	    node = node->children[1];
-	}
-    }
-}
-
-/*
-=============
-SV_FatPVS
-
-Calculates a PVS that is the inclusive or of all leafs within 8 pixels of the
-given point.
-=============
-*/
-byte *
-SV_FatPVS(vec3_t org)
-{
-    fatbytes = (sv.worldmodel->numleafs + 31) >> 3;
-    memset(fatpvs, 0, fatbytes);
-    SV_AddToFatPVS(org, sv.worldmodel->nodes);
-    return fatpvs;
-}
-
 //=============================================================================
 
 void
@@ -555,14 +492,14 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 {
     int e, i;
     int bits;
-    byte *pvs;
+    const byte *pvs;
     vec3_t org;
     float miss;
     edict_t *ent;
 
 // find the client's PVS
     VectorAdd(clent->v.origin, clent->v.view_ofs, org);
-    pvs = SV_FatPVS(org);
+    pvs = Mod_FatPVS(sv.worldmodel, org);
 
 // send over all entities (excpet the client) that touch the pvs
     ent = NEXT_EDICT(sv.edicts);

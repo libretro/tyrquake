@@ -463,7 +463,8 @@ void Mod_TouchModel(char *name);
 void Mod_Print(void);
 
 mleaf_t *Mod_PointInLeaf(float *p, model_t *model);
-byte *Mod_LeafPVS(mleaf_t *leaf, model_t *model);
+byte *Mod_LeafPVS(const mleaf_t *leaf, const model_t *model);
+const byte *Mod_FatPVS(const model_t *model, const vec3_t point);
 
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);

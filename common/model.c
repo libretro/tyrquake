@@ -116,25 +116,32 @@ Mod_PointInLeaf(vec3_t p, model_t *model)
  * Simple LRU cache for decompressed vis data
  */
 typedef struct {
-    model_t *model;
-    mleaf_t *leaf;
+    const model_t *model;
+    const mleaf_t *leaf;
     byte *vis;
 } pvscache_t;
 static pvscache_t pvscache[2];
+static byte *fatpvs;
 static int pvscache_numleafs;
+static int pvscache_bytes;
+static int pvscache_longs;
+
+#define PVSCACHE_SIZE ARRAY_SIZE(pvscache)
 
 static void
 Mod_InitPVSCache(int numleafs)
 {
-    int i, leafbytes;
-
-    memset(pvscache, 0, sizeof(pvscache));
-    leafbytes = ((numleafs + 63) & ~63) >> 3;
+    int i;
 
     pvscache_numleafs = numleafs;
-    pvscache[0].vis = Hunk_AllocName(ARRAY_SIZE(pvscache) * leafbytes, "pvscache");
-    for (i = 1; i < ARRAY_SIZE(pvscache); i++)
-	pvscache[i].vis = pvscache[0].vis + i * leafbytes;
+    pvscache_bytes = ((numleafs + 63) & ~63) >> 3;
+    pvscache_longs = pvscache_bytes / sizeof(unsigned long);
+    fatpvs = Hunk_AllocName(pvscache_bytes, "fatpvs");
+
+    memset(pvscache, 0, sizeof(pvscache));
+    pvscache[0].vis = Hunk_AllocName(PVSCACHE_SIZE * pvscache_bytes, "pvscache");
+    for (i = 1; i < PVSCACHE_SIZE; i++)
+	pvscache[i].vis = pvscache[0].vis + i * pvscache_bytes;
 }
 
 /*
@@ -177,25 +184,24 @@ Mod_DecompressVis(const byte *in, const model_t *model, byte *dest)
 }
 
 byte *
-Mod_LeafPVS(mleaf_t *leaf, model_t *model)
+Mod_LeafPVS(const mleaf_t *leaf, const model_t *model)
 {
-    int slot, leafbytes;
+    int slot;
     pvscache_t tmp;
 
-    for (slot = 0; slot < ARRAY_SIZE(pvscache); slot++)
+    for (slot = 0; slot < PVSCACHE_SIZE; slot++)
 	if (pvscache[slot].model != model && pvscache[slot].leaf != leaf)
 	    continue;
 
     if (slot) {
-	if (slot == ARRAY_SIZE(pvscache)) {
+	if (slot == PVSCACHE_SIZE) {
 	    slot--;
 	    tmp.model = model;
 	    tmp.leaf = leaf;
 	    tmp.vis = pvscache[slot].vis;
 	    if (leaf == model->leafs) {
 		/* return set with everything visible */
-		leafbytes = ((model->numleafs + 63) & ~63) >> 3;
-		memset(tmp.vis, 0xff, leafbytes);
+		memset(tmp.vis, 0xff, pvscache_bytes);
 	    } else {
 		Mod_DecompressVis(leaf->compressed_vis, model, tmp.vis);
 	    }
@@ -207,6 +213,65 @@ Mod_LeafPVS(mleaf_t *leaf, model_t *model)
     }
 
     return pvscache[0].vis;
+}
+
+static void
+Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
+{
+    mplane_t *plane;
+    float d;
+
+    while (1) {
+	// if this is a leaf, accumulate the pvs bits
+	if (node->contents < 0) {
+	    if (node->contents != CONTENTS_SOLID) {
+		int i;
+		const byte *pvs;
+		const unsigned long *pvslong;
+		unsigned long *fatlong;
+
+		pvs = Mod_LeafPVS((const mleaf_t *)node, model);
+		pvslong = (const unsigned long *)pvs;
+		fatlong = (unsigned long *)fatpvs;
+		for (i = 0; i < pvscache_longs; i++)
+		    *fatlong++ |= *pvslong++;
+	    }
+	    return;
+	}
+
+	plane = node->plane;
+	d = DotProduct(point, plane->normal) - plane->dist;
+	if (d > 8)
+	    node = node->children[0];
+	else if (d < -8)
+	    node = node->children[1];
+	else {			// go down both
+	    Mod_AddToFatPVS(model, point, node->children[0]);
+	    node = node->children[1];
+	}
+    }
+}
+
+/*
+=============
+Mod_FatPVS
+
+Calculates a PVS that is the inclusive or of all leafs within 8 pixels of the
+given point.
+
+The FatPVS must include a small area around the client to allow head bobbing
+or other small motion on the client side.  Otherwise, a bob might cause an
+entity that should be visible to not show up, especially when the bob
+crosses a waterline.
+=============
+*/
+const byte *
+Mod_FatPVS(const model_t *model, const vec3_t point)
+{
+    memset(fatpvs, 0, pvscache_bytes);
+    Mod_AddToFatPVS(model, point, model->nodes);
+
+    return fatpvs;
 }
 
 /*
@@ -231,8 +296,10 @@ Mod_ClearAll(void)
 	    mod->cache.data = NULL;
     }
 
+    fatpvs = NULL;
     memset(pvscache, 0, sizeof(pvscache));
     pvscache_numleafs = 0;
+    pvscache_bytes = pvscache_longs = 0;
 }
 
 /*
