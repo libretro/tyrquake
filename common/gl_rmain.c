@@ -906,7 +906,7 @@ R_MarkLeaves
 static void
 R_MarkLeaves(void)
 {
-    byte *vis;
+    const byte *vis;
     mnode_t *node;
     int i;
     byte solid[4096];
@@ -924,7 +924,7 @@ R_MarkLeaves(void)
 	vis = solid;
 	memset(solid, 0xff, (cl.worldmodel->numleafs + 7) >> 3);
     } else
-	vis = Mod_LeafPVS(r_viewleaf, cl.worldmodel);
+	vis = Mod_LeafPVS(cl.worldmodel, r_viewleaf);
 
     for (i = 0; i < cl.worldmodel->numleafs; i++) {
 	if (vis[i >> 3] & (1 << (i & 7))) {
@@ -1194,7 +1194,7 @@ R_SetupFrame(void)
 // current viewleaf
     r_oldviewleaf = r_viewleaf;
     if (!r_viewleaf || !r_lockpvs.value)
-	r_viewleaf = Mod_PointInLeaf(r_origin, cl.worldmodel);
+	r_viewleaf = Mod_PointInLeaf(cl.worldmodel, r_origin);
 
 // color shifting for water, etc.
     V_SetContentsColor(r_viewleaf->contents);

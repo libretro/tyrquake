@@ -265,7 +265,7 @@ SV_Multicast(vec3_t origin, int to)
     int j;
     qboolean reliable;
 
-    leaf = Mod_PointInLeaf(origin, sv.worldmodel);
+    leaf = Mod_PointInLeaf(sv.worldmodel, origin);
     if (!leaf)
 	leafnum = 0;
     else
@@ -310,7 +310,7 @@ SV_Multicast(vec3_t origin, int to)
 		goto inrange;
 	}
 
-	leaf = Mod_PointInLeaf(client->edict->v.origin, sv.worldmodel);
+	leaf = Mod_PointInLeaf(sv.worldmodel, client->edict->v.origin);
 	if (leaf) {
 	    // -1 is because pvs rows are 1 based, not 0 based like leafs
 	    leafnum = leaf - sv.worldmodel->leafs - 1;

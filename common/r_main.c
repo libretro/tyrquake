@@ -539,7 +539,7 @@ R_MarkLeaves
 static void
 R_MarkLeaves(void)
 {
-    byte *vis;
+    const byte *vis;
     mnode_t *node;
     int i;
 
@@ -549,7 +549,7 @@ R_MarkLeaves(void)
     r_visframecount++;
     r_oldviewleaf = r_viewleaf;
 
-    vis = Mod_LeafPVS(r_viewleaf, cl.worldmodel);
+    vis = Mod_LeafPVS(cl.worldmodel, r_viewleaf);
 
     for (i = 0; i < cl.worldmodel->numleafs; i++) {
 	if (vis[i >> 3] & (1 << (i & 7))) {

@@ -87,11 +87,11 @@ Mod_PointInLeaf
 ===============
 */
 mleaf_t *
-Mod_PointInLeaf(vec3_t p, model_t *model)
+Mod_PointInLeaf(const model_t *model, const vec3_t point)
 {
-    mnode_t *node;
-    float d;
     mplane_t *plane;
+    mnode_t *node;
+    float dist;
 
     if (!model || !model->nodes)
 	SV_Error("%s: bad model", __func__);
@@ -101,8 +101,8 @@ Mod_PointInLeaf(vec3_t p, model_t *model)
 	if (node->contents < 0)
 	    return (mleaf_t *)node;
 	plane = node->plane;
-	d = DotProduct(p, plane->normal) - plane->dist;
-	if (d > 0)
+	dist = DotProduct(point, plane->normal) - plane->dist;
+	if (dist > 0)
 	    node = node->children[0];
 	else
 	    node = node->children[1];
@@ -183,8 +183,8 @@ Mod_DecompressVis(const byte *in, const model_t *model, byte *dest)
     } while (out - dest < row);
 }
 
-byte *
-Mod_LeafPVS(const mleaf_t *leaf, const model_t *model)
+const byte *
+Mod_LeafPVS(const model_t *model, const mleaf_t *leaf)
 {
     int slot;
     pvscache_t tmp;
@@ -230,7 +230,7 @@ Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
 		const unsigned long *pvslong;
 		unsigned long *fatlong;
 
-		pvs = Mod_LeafPVS((const mleaf_t *)node, model);
+		pvs = Mod_LeafPVS(model, (const mleaf_t *)node);
 		pvslong = (const unsigned long *)pvs;
 		fatlong = (unsigned long *)fatpvs;
 		for (i = 0; i < pvscache_longs; i++)

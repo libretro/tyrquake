@@ -462,8 +462,8 @@ void *Mod_Extradata(model_t *mod);	// handles caching
 void Mod_TouchModel(char *name);
 void Mod_Print(void);
 
-mleaf_t *Mod_PointInLeaf(float *p, model_t *model);
-byte *Mod_LeafPVS(const mleaf_t *leaf, const model_t *model);
+mleaf_t *Mod_PointInLeaf(const model_t *model, const vec3_t point);
+const byte *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
 const byte *Mod_FatPVS(const model_t *model, const vec3_t point);
 
 // FIXME - surely this doesn't belong here?

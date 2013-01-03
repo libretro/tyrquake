@@ -205,7 +205,7 @@ SV_CalcPHS(void)
     scan = sv.pvs;
     vcount = 0;
     for (i = 0; i < num; i++, scan += rowbytes) {
-	memcpy(scan, Mod_LeafPVS(sv.worldmodel->leafs + i, sv.worldmodel),
+	memcpy(scan, Mod_LeafPVS(sv.worldmodel, sv.worldmodel->leafs + i),
 	       rowbytes);
 	if (i == 0)
 	    continue;

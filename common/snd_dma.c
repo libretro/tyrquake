@@ -601,7 +601,7 @@ S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 static void
 S_UpdateAmbientSounds(void)
 {
-    mleaf_t *l;
+    mleaf_t *leaf;
     float vol;
     int ambient_channel;
     channel_t *chan;
@@ -613,8 +613,8 @@ S_UpdateAmbientSounds(void)
     if (!cl.worldmodel)
 	return;
 
-    l = Mod_PointInLeaf(listener_origin, cl.worldmodel);
-    if (!l || !ambient_level.value) {
+    leaf = Mod_PointInLeaf(cl.worldmodel, listener_origin);
+    if (!leaf || !ambient_level.value) {
 	for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS;
 	     ambient_channel++)
 	    channels[ambient_channel].sfx = NULL;
@@ -626,7 +626,7 @@ S_UpdateAmbientSounds(void)
 	chan = &channels[ambient_channel];
 	chan->sfx = ambient_sfx[ambient_channel];
 
-	vol = ambient_level.value * l->ambient_sound_level[ambient_channel];
+	vol = ambient_level.value * leaf->ambient_sound_level[ambient_channel];
 	if (vol < 8)
 	    vol = 0;
 
