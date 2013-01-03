@@ -908,8 +908,8 @@ R_MarkLeaves(void)
 {
     const byte *vis;
     mnode_t *node;
+    mleaf_t *leaf;
     int i;
-    byte solid[4096];
 
     if (r_oldviewleaf == r_viewleaf && !r_novis.value)
 	return;
@@ -920,11 +920,9 @@ R_MarkLeaves(void)
     r_visframecount++;
     r_oldviewleaf = r_viewleaf;
 
-    if (r_novis.value) {
-	vis = solid;
-	memset(solid, 0xff, (cl.worldmodel->numleafs + 7) >> 3);
-    } else
-	vis = Mod_LeafPVS(cl.worldmodel, r_viewleaf);
+    /* Pass the zero leaf to get the all visible set */
+    leaf = r_novis.value ? cl.worldmodel->leafs : r_viewleaf;
+    vis = Mod_LeafPVS(cl.worldmodel, leaf);
 
     for (i = 0; i < cl.worldmodel->numleafs; i++) {
 	if (vis[i >> 3] & (1 << (i & 7))) {
