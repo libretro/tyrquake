@@ -373,7 +373,7 @@ GL_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 
     COM_FileBase(modelname, loadname, sizeof(loadname));
     skinsize = ahdr->skinwidth * ahdr->skinheight;
-    glt = Hunk_Alloc(skinnum * sizeof(GLuint));
+    glt = Hunk_AllocName(skinnum * sizeof(GLuint), loadname);
     for (i = 0; i < skinnum; i++) {
 	GL_FloodFillSkin(skindata[i], ahdr->skinwidth, ahdr->skinheight);
 

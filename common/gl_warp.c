@@ -55,9 +55,9 @@ BoundPoly(int numverts, float *verts, vec3_t mins, vec3_t maxs)
 }
 
 static void
-SubdividePolygon(int numverts, float *verts)
+SubdividePolygon(int numverts, float *verts, const char *loadname)
 {
-    int i, j, k;
+    int i, j, k, memsize;
     vec3_t mins, maxs;
     float m;
     float *v;
@@ -75,8 +75,8 @@ SubdividePolygon(int numverts, float *verts)
 
     for (i = 0; i < 3; i++) {
 	m = (mins[i] + maxs[i]) * 0.5;
-	m = gl_subdivide_size.value * floor(m / gl_subdivide_size.value +
-					    0.5);
+	m = floor(m / gl_subdivide_size.value + 0.5);
+	m *= gl_subdivide_size.value;
 	if (maxs[i] - m < 8)
 	    continue;
 	if (m - mins[i] < 8)
@@ -116,13 +116,13 @@ SubdividePolygon(int numverts, float *verts)
 	    }
 	}
 
-	SubdividePolygon(f, front[0]);
-	SubdividePolygon(b, back[0]);
+	SubdividePolygon(f, front[0], loadname);
+	SubdividePolygon(b, back[0], loadname);
 	return;
     }
 
-    poly =
-	Hunk_Alloc(sizeof(glpoly_t) + numverts * VERTEXSIZE * sizeof(float));
+    memsize = sizeof(glpoly_t) + numverts * VERTEXSIZE * sizeof(float);
+    poly = Hunk_AllocName(memsize, loadname);
     poly->next = warpface->polys;
     warpface->polys = poly;
     poly->numverts = numverts;
@@ -145,7 +145,7 @@ can be done reasonably.
 ================
 */
 void
-GL_SubdivideSurface(model_t *m, msurface_t *fa)
+GL_SubdivideSurface(model_t *m, msurface_t *fa, const char *loadname)
 {
     vec3_t verts[64];
     int numverts;
@@ -168,7 +168,7 @@ GL_SubdivideSurface(model_t *m, msurface_t *fa)
 	VectorCopy(vec, verts[numverts]);
 	numverts++;
     }
-    SubdividePolygon(numverts, verts[0]);
+    SubdividePolygon(numverts, verts[0], loadname);
 }
 
 //=========================================================

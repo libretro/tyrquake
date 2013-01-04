@@ -969,7 +969,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
 	if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
 	    out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
 #ifdef GLQUAKE
-	    GL_SubdivideSurface(loadmodel, out);
+	    GL_SubdivideSurface(loadmodel, out, loadname);
 #endif
 	} else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
 	    out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
@@ -978,7 +978,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
 		out->texturemins[i] = -8192;
 	    }
 #ifdef GLQUAKE
-	    GL_SubdivideSurface(loadmodel, out);
+	    GL_SubdivideSurface(loadmodel, out, loadname);
 #endif
 	}
     }
@@ -1031,7 +1031,7 @@ Mod_LoadFaces_BSP2(lump_t *l)
 	if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
 	    out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
 #ifdef GLQUAKE
-	    GL_SubdivideSurface(loadmodel, out);
+	    GL_SubdivideSurface(loadmodel, out, loadname);
 #endif
 	} else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
 	    out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
@@ -1040,7 +1040,7 @@ Mod_LoadFaces_BSP2(lump_t *l)
 		out->texturemins[i] = -8192;
 	    }
 #ifdef GLQUAKE
-	    GL_SubdivideSurface(loadmodel, out);
+	    GL_SubdivideSurface(loadmodel, out, loadname);
 #endif
 	}
     }
