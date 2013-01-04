@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <float.h>
 #include <stdint.h>
 
+#include "cmd.h"
 #include "common.h"
 #include "console.h"
 #include "model.h"
@@ -67,6 +68,7 @@ byte player_8bit_texels[320 * 200];
 
 static const model_loader_t *mod_loader;
 
+static void PVSCache_f(void);
 /*
 ===============
 Mod_Init
@@ -78,6 +80,7 @@ Mod_Init(const model_loader_t *loader)
 #ifdef GLQUAKE
     Cvar_RegisterVariable(&gl_subdivide_size);
 #endif
+    Cmd_AddCommand("pvscache", PVSCache_f);
     mod_loader = loader;
 }
 
@@ -125,6 +128,8 @@ static leafbits_t *fatpvs;
 static int pvscache_numleafs;
 static int pvscache_bytes;
 static int pvscache_longs;
+
+static int c_cachehit, c_cachemiss;
 
 #define PVSCACHE_SIZE ARRAY_SIZE(pvscache)
 
@@ -205,8 +210,10 @@ Mod_LeafPVS(const model_t *model, const mleaf_t *leaf)
     pvscache_t tmp;
 
     for (slot = 0; slot < PVSCACHE_SIZE; slot++)
-	if (pvscache[slot].model == model && pvscache[slot].leaf == leaf)
+	if (pvscache[slot].model == model && pvscache[slot].leaf == leaf) {
+	    c_cachehit++;
 	    break;
+	}
 
     if (slot) {
 	if (slot == PVSCACHE_SIZE) {
@@ -221,6 +228,7 @@ Mod_LeafPVS(const model_t *model, const mleaf_t *leaf)
 	    } else {
 		Mod_DecompressVis(leaf->compressed_vis, model, tmp.leafbits);
 	    }
+	    c_cachemiss++;
 	} else {
 	    tmp = pvscache[slot];
 	}
@@ -229,6 +237,12 @@ Mod_LeafPVS(const model_t *model, const mleaf_t *leaf)
     }
 
     return pvscache[0].leafbits;
+}
+
+static void
+PVSCache_f(void)
+{
+    Con_Printf("PVSCache: %7d hits %7d misses\n", c_cachehit, c_cachemiss);
 }
 
 static void
@@ -317,6 +331,7 @@ Mod_ClearAll(void)
     memset(pvscache, 0, sizeof(pvscache));
     pvscache_numleafs = 0;
     pvscache_bytes = pvscache_longs = 0;
+    c_cachehit = c_cachemiss = 0;
 }
 
 /*
