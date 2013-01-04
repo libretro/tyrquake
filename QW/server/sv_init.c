@@ -188,68 +188,74 @@ Expands the PVS and calculates the PHS
 void
 SV_CalcPHS(void)
 {
-    int rowbytes, rowwords;
-    int i, j, k, l, index, num;
-    int bitbyte;
-    unsigned *dest, *src;
-    byte *scan;
-    int count, vcount;
+    int numleafs, rowbytes, rowlongs;
+    int i, j, k, l, index;
+    int vcount, hcount;
+    const leafbits_t *leafbits;
+    const unsigned long *src;
+    unsigned long *dst, check;
+    leafbits_t *pvs, *phs;
 
     Con_Printf("Building PHS...\n");
 
-    num = sv.worldmodel->numleafs;
-    rowwords = (num + 31) >> 5;
-    rowbytes = rowwords * 4;
+    numleafs = sv.worldmodel->numleafs;
+    rowlongs = (numleafs + LEAFMASK) >> LEAFSHIFT;
+    rowbytes = Mod_LeafbitsSize(sv.worldmodel->numleafs);
 
-    sv.pvs = Hunk_Alloc(rowbytes * num);
-    scan = sv.pvs;
+    sv.pvs = Hunk_AllocName(rowbytes * numleafs, "pvs");
+
     vcount = 0;
-    for (i = 0; i < num; i++, scan += rowbytes) {
-	memcpy(scan, Mod_LeafPVS(sv.worldmodel, sv.worldmodel->leafs + i),
-	       rowbytes);
-	if (i == 0)
-	    continue;
-	for (j = 0; j < num; j++) {
-	    if (scan[j >> 3] & (1 << (j & 7))) {
-		vcount++;
+    pvs = sv.pvs;
+    for (i = 0; i < numleafs; i++) {
+	leafbits = Mod_LeafPVS(sv.worldmodel, sv.worldmodel->leafs + i);
+	memcpy(pvs, leafbits, rowbytes);
+	if (i > 0) {
+	    for (j = 0; j < numleafs; j++) {
+		if (Mod_TestLeafBit(pvs, j))
+		    vcount++;
 	    }
 	}
+	pvs = (leafbits_t *)((byte *)pvs + rowbytes);
     }
 
+    sv.phs = Hunk_AllocName(rowbytes * numleafs, "phs");
 
-    sv.phs = Hunk_Alloc(rowbytes * num);
-    count = 0;
-    scan = sv.pvs;
-    dest = (unsigned *)sv.phs;
-    for (i = 0; i < num; i++, dest += rowwords, scan += rowbytes) {
-	memcpy(dest, scan, rowbytes);
-	for (j = 0; j < rowbytes; j++) {
-	    bitbyte = scan[j];
-	    if (!bitbyte)
+    hcount = 0;
+    pvs = sv.pvs;
+    phs = sv.phs;
+    for (i = 0; i < numleafs; i++) {
+	memcpy(phs, pvs, rowbytes);
+	for (j = 0; j < rowlongs; j++) {
+	    check = pvs->bits[j];
+	    if (!check)
 		continue;
-	    for (k = 0; k < 8; k++) {
-		if (!(bitbyte & (1 << k)))
+	    for (k = 0; k < (sizeof(unsigned long) << 3); k++) {
+		if (!(check & (1UL << k)))
 		    continue;
 		// or this pvs row into the phs
-		// +1 because pvs is 1 based
-		index = ((j << 3) + k + 1);
-		if (index >= num)
+		// index is +1 because pvs is 1 based
+		index = (j << LEAFSHIFT) + k + 1;
+		if (index >= numleafs)
 		    continue;
-		src = (unsigned *)sv.pvs + index * rowwords;
-		for (l = 0; l < rowwords; l++)
-		    dest[l] |= src[l];
+		leafbits = (leafbits_t *)((byte *)sv.pvs + index * rowbytes);
+		src = leafbits->bits;
+		dst = phs->bits;
+		for (l = 0; l < rowlongs; l++)
+		    *dst++ |= *src++;
 	    }
 	}
+	if (i > 0) {
+	    for (j = 0; j < numleafs; j++)
+		if (Mod_TestLeafBit(phs, j))
+		    hcount++;
+	}
 
-	if (i == 0)
-	    continue;
-	for (j = 0; j < num; j++)
-	    if (((byte *)dest)[j >> 3] & (1 << (j & 7)))
-		count++;
+	pvs = (leafbits_t *)((byte *)pvs + rowbytes);
+	phs = (leafbits_t *)((byte *)phs + rowbytes);
     }
 
     Con_Printf("Average leafs visible / hearable / total: %i / %i / %i\n",
-	       vcount / num, count / num, num);
+	       vcount / numleafs, hcount / numleafs, numleafs);
 }
 
 static unsigned

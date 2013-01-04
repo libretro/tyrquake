@@ -259,12 +259,14 @@ void
 SV_Multicast(vec3_t origin, int to)
 {
     client_t *client;
-    byte *mask;
+    const leafbits_t *mask;
+    int rowbytes;
     mleaf_t *leaf;
     int leafnum;
     int j;
     qboolean reliable;
 
+    rowbytes = Mod_LeafbitsSize(sv.worldmodel->numleafs);
     leaf = Mod_PointInLeaf(sv.worldmodel, origin);
     if (!leaf)
 	leafnum = 0;
@@ -283,13 +285,13 @@ SV_Multicast(vec3_t origin, int to)
     case MULTICAST_PHS_R:
 	reliable = true;	// intentional fallthrough
     case MULTICAST_PHS:
-	mask = sv.phs + leafnum * 4 * ((sv.worldmodel->numleafs + 31) >> 5);
+	mask = (leafbits_t *)((byte *)sv.phs + leafnum * rowbytes);
 	break;
 
     case MULTICAST_PVS_R:
 	reliable = true;	// intentional fallthrough
     case MULTICAST_PVS:
-	mask = sv.pvs + leafnum * 4 * ((sv.worldmodel->numleafs + 31) >> 5);
+	mask = (leafbits_t *)((byte *)sv.pvs + leafnum * rowbytes);
 	break;
 
     default:
@@ -314,8 +316,8 @@ SV_Multicast(vec3_t origin, int to)
 	if (leaf) {
 	    // -1 is because pvs rows are 1 based, not 0 based like leafs
 	    leafnum = leaf - sv.worldmodel->leafs - 1;
-	    if (!(mask[leafnum >> 3] & (1 << (leafnum & 7)))) {
-//                              Con_Printf ("supressed multicast\n");
+	    if (!Mod_TestLeafBit(mask, leafnum)) {
+//		Con_Printf ("supressed multicast\n");
 		continue;
 	    }
 	}

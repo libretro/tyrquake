@@ -833,8 +833,8 @@ PF_checkclient(void)
 {
     edict_t *ent, *self;
     mleaf_t *leaf;
-    int l;
-    const byte *checkpvs;
+    int leafnum;
+    const leafbits_t *checkpvs;
     vec3_t view;
 
 // find a new check if on a new frame
@@ -853,8 +853,8 @@ PF_checkclient(void)
     self = PROG_TO_EDICT(pr_global_struct->self);
     VectorAdd(self->v.origin, self->v.view_ofs, view);
     leaf = Mod_PointInLeaf(sv.worldmodel, view);
-    l = (leaf - sv.worldmodel->leafs) - 1;
-    if ((l < 0) || !(checkpvs[l >> 3] & (1 << (l & 7)))) {
+    leafnum = (leaf - sv.worldmodel->leafs) - 1;
+    if (leafnum < 0 || !Mod_TestLeafBit(checkpvs, leafnum)) {
 	c_notvis++;
 	RETURN_EDICT(sv.edicts);
 	return;

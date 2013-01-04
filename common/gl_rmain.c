@@ -906,7 +906,7 @@ R_MarkLeaves
 static void
 R_MarkLeaves(void)
 {
-    const byte *vis;
+    const leafbits_t *pvs;
     mnode_t *node;
     mleaf_t *leaf;
     int i;
@@ -922,10 +922,10 @@ R_MarkLeaves(void)
 
     /* Pass the zero leaf to get the all visible set */
     leaf = r_novis.value ? cl.worldmodel->leafs : r_viewleaf;
-    vis = Mod_LeafPVS(cl.worldmodel, leaf);
+    pvs = Mod_LeafPVS(cl.worldmodel, leaf);
 
     for (i = 0; i < cl.worldmodel->numleafs; i++) {
-	if (vis[i >> 3] & (1 << (i & 7))) {
+	if (Mod_TestLeafBit(pvs, i)) {
 	    node = (mnode_t *)&cl.worldmodel->leafs[i + 1];
 	    do {
 		if (node->visframe == r_visframecount)

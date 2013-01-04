@@ -492,7 +492,7 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 {
     int e, i;
     int bits;
-    const byte *pvs;
+    const leafbits_t *pvs;
     vec3_t org;
     float miss;
     edict_t *ent;
@@ -514,7 +514,7 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 
 // ignore if not touching a PV leaf
 	    for (i = 0; i < ent->num_leafs; i++)
-		if (pvs[ent->leafnums[i] >> 3] & (1 << (ent->leafnums[i] & 7)))
+		if (Mod_TestLeafBit(pvs, ent->leafnums[i]))
 		    break;
 
 	    if (i == ent->num_leafs)

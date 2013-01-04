@@ -255,8 +255,8 @@ SV_WritePlayersToClient
 =============
 */
 static void
-SV_WritePlayersToClient(client_t *client, edict_t *clent, const byte *pvs,
-			sizebuf_t *msg)
+SV_WritePlayersToClient(client_t *client, edict_t *clent,
+			const leafbits_t *pvs, sizebuf_t *msg)
 {
     int i, j;
     client_t *cl;
@@ -279,8 +279,7 @@ SV_WritePlayersToClient(client_t *client, edict_t *clent, const byte *pvs,
 
 	    // ignore if not touching a PV leaf
 	    for (i = 0; i < ent->num_leafs; i++)
-		if (pvs[ent->leafnums[i] >> 3] &
-		    (1 << (ent->leafnums[i] & 7)))
+		if (Mod_TestLeafBit(pvs, ent->leafnums[i]))
 		    break;
 	    if (i == ent->num_leafs)
 		continue;	// not visible
@@ -378,7 +377,7 @@ void
 SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
 {
     int e, i;
-    const byte *pvs;
+    const leafbits_t *pvs;
     vec3_t org;
     edict_t *ent;
     packet_entities_t *pack;
@@ -411,7 +410,7 @@ SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
 
 	// ignore if not touching a PV leaf
 	for (i = 0; i < ent->num_leafs; i++)
-	    if (pvs[ent->leafnums[i] >> 3] & (1 << (ent->leafnums[i] & 7)))
+	    if (Mod_TestLeafBit(pvs, ent->leafnums[i]))
 		break;
 
 	if (i == ent->num_leafs)

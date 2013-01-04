@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef MODEL_H
 #define MODEL_H
 
+#include <stdlib.h>
+
 #ifdef GLQUAKE
 #ifdef APPLE_OPENGL
 #include <OpenGL/gl.h>
@@ -462,9 +464,34 @@ void *Mod_Extradata(model_t *mod);	// handles caching
 void Mod_TouchModel(char *name);
 void Mod_Print(void);
 
+/*
+ * PVS/PHS information
+ */
+typedef struct {
+    int numleafs;
+    unsigned long bits[0]; /* Variable Sized */
+} leafbits_t;
+
 mleaf_t *Mod_PointInLeaf(const model_t *model, const vec3_t point);
-const byte *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
-const byte *Mod_FatPVS(const model_t *model, const vec3_t point);
+const leafbits_t *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
+const leafbits_t *Mod_FatPVS(const model_t *model, const vec3_t point);
+
+int __ERRORLONGSIZE(void); /* to generate an error at link time */
+#define QBYTESHIFT(x) ((x) == 8 ? 6 : ((x) == 4 ? 5 : __ERRORLONGSIZE() ))
+#define LEAFSHIFT QBYTESHIFT(sizeof(unsigned long))
+#define LEAFMASK  ((sizeof(unsigned long) << 3) - 1UL)
+
+static inline unsigned long
+Mod_TestLeafBit(const leafbits_t *bits, int leafnum)
+{
+    return bits->bits[leafnum >> LEAFSHIFT] & (1UL << (leafnum & LEAFMASK));
+}
+
+static inline size_t
+Mod_LeafbitsSize(int numleafs)
+{
+    return offsetof(leafbits_t, bits[(numleafs + LEAFMASK) >> LEAFSHIFT]);
+}
 
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);
