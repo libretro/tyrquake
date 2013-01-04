@@ -1164,19 +1164,6 @@ Mod_LoadLeafs_BSP29(lump_t *l)
     if (l->filelen % sizeof(*in))
 	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
-
-    /*
-     * Create space for the decompressed vis data
-     * - We assume the main map is the first BSP file loaded (should be)
-     * - If any other model has more leafs, then we may be in trouble...
-     */
-    if (count > pvscache_numleafs) {
-	if (pvscache[0].leafbits)
-	    SV_Error("%s: %d available for visdata, but model %s has %d leafs",
-		     __func__, pvscache_numleafs, loadmodel->name, count);
-	Mod_InitPVSCache(count);
-    }
-
     out = Hunk_AllocName(count * sizeof(*out), loadname);
 
     loadmodel->leafs = out;
@@ -1242,19 +1229,6 @@ Mod_LoadLeafs_BSP2(lump_t *l)
     if (l->filelen % sizeof(*in))
 	SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
     count = l->filelen / sizeof(*in);
-
-    /*
-     * Create space for the decompressed vis data
-     * - We assume the main map is the first BSP file loaded (should be)
-     * - If any other model has more leafs, then we may be in trouble...
-     */
-    if (count > pvscache_numleafs) {
-	if (pvscache[0].leafbits)
-	    SV_Error("%s: %d available for visdata, but model %s has %d leafs",
-		     __func__, pvscache_numleafs, loadmodel->name, count);
-	Mod_InitPVSCache(count);
-    }
-
     out = Hunk_AllocName(count * sizeof(*out), loadname);
 
     loadmodel->leafs = out;
@@ -1703,6 +1677,18 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 
     mod->numframes = 2;		// regular and alternate animation
     mod->flags = 0;
+
+    /*
+     * Create space for the decompressed vis data
+     * - We assume the main map is the first BSP file loaded (should be)
+     * - If any other model has more leafs, then we may be in trouble...
+     */
+    if (mod->numleafs > pvscache_numleafs) {
+	if (pvscache[0].leafbits)
+	    SV_Error("%s: %d allocated for visdata, but model %s has %d leafs",
+		     __func__, pvscache_numleafs, loadmodel->name, mod->numleafs);
+	Mod_InitPVSCache(mod->numleafs);
+    }
 
 //
 // set up the submodels (FIXME: this is confusing)
