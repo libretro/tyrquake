@@ -114,6 +114,26 @@ Mod_PointInLeaf(const model_t *model, const vec3_t point)
     return NULL;		// never reached
 }
 
+#ifdef SERVERONLY
+int
+Mod_CountLeafBits(const leafbits_t *leafbits)
+{
+    int i, leafblocks, count;
+    leafblock_t block;
+
+    count = 0;
+    leafblocks = (leafbits->numleafs + LEAFMASK) >> LEAFSHIFT;
+    for (i = 0; i < leafblocks; i++) {
+	block = leafbits->bits[i];
+	while (block) {
+	    count++;
+	    block &= (block - 1); /* remove least significant bit */
+	}
+    }
+
+    return count;
+};
+#endif
 
 /*
  * Simple LRU cache for decompressed vis data

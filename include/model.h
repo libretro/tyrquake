@@ -536,6 +536,11 @@ Mod_NextLeafBit(const leafbits_t *leafbits, int leafnum, leafblock_t *check)
 		leafnum < leafbits->numleafs;					\
 		leafnum = Mod_NextLeafBit(leafbits, leafnum, &check) )
 
+#ifdef SERVERONLY
+/* Slightly faster counting of sparse sets for QWSV */
+int Mod_CountLeafBits(const leafbits_t *leafbits);
+#endif
+
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);
 

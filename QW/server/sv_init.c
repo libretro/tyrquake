@@ -221,8 +221,7 @@ SV_CalcPHS(void)
 	if (!i)
 	    continue;
 
-	foreach_leafbit(pvs, leafnum, check)
-	    vcount++;
+	vcount += Mod_CountLeafBits(pvs);
     }
 
     hcount = 0;
@@ -245,8 +244,7 @@ SV_CalcPHS(void)
 	    for (j = 0; j < leafblocks; j++)
 		*dst++ |= *src++;
 	}
-	foreach_leafbit(phs, leafnum, check)
-	    hcount++;
+	hcount += Mod_CountLeafBits(phs);
     }
 
     Con_Printf("Average leafs visible / hearable / total: %i / %i / %i\n",
