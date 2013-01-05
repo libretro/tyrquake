@@ -127,7 +127,7 @@ static pvscache_t pvscache[2];
 static leafbits_t *fatpvs;
 static int pvscache_numleafs;
 static int pvscache_bytes;
-static int pvscache_longs;
+static int pvscache_blocks;
 
 static int c_cachehit, c_cachemiss;
 
@@ -142,7 +142,7 @@ Mod_InitPVSCache(int numleafs)
 
     pvscache_numleafs = numleafs;
     pvscache_bytes = ((numleafs + LEAFMASK) & ~LEAFMASK) >> 3;
-    pvscache_longs = pvscache_bytes / sizeof(unsigned long);
+    pvscache_blocks = pvscache_bytes / sizeof(leafblock_t);
     memsize = Mod_LeafbitsSize(numleafs);
     fatpvs = Hunk_AllocName(memsize, "fatpvs");
 
@@ -161,7 +161,7 @@ Mod_DecompressVis
 static void
 Mod_DecompressVis(const byte *in, const model_t *model, leafbits_t *dest)
 {
-    unsigned long *out;
+    leafblock_t *out;
     int num_out;
     int shift;
     int count;
@@ -180,10 +180,10 @@ Mod_DecompressVis(const byte *in, const model_t *model, leafbits_t *dest)
     shift = 0;
     do {
 	if (*in) {
-	    *out |= (unsigned long)*in++ << shift;
+	    *out |= (leafblock_t)*in++ << shift;
 	    shift += 8;
 	    num_out += 8;
-	    if (shift == sizeof(unsigned long) << 3) {
+	    if (shift == (1 << LEAFSHIFT)) {
 		shift = 0;
 		out++;
 	    }
@@ -193,11 +193,11 @@ Mod_DecompressVis(const byte *in, const model_t *model, leafbits_t *dest)
 	/* Run of zeros - skip over */
 	count = in[1];
 	in += 2;
-	out += count / sizeof(unsigned long);
-	shift += (count % sizeof(unsigned long)) << 3;
+	out += count / sizeof(leafblock_t);
+	shift += (count % sizeof(leafblock_t)) << 3;
 	num_out += count << 3;
-	if (shift >= sizeof(unsigned long) << 3) {
-	    shift -= sizeof(unsigned long) << 3;
+	if (shift >= (1 << LEAFSHIFT)) {
+	    shift -= (1 << LEAFSHIFT);
 	    out++;
 	}
     } while (num_out < dest->numleafs);
@@ -257,13 +257,13 @@ Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
 	    if (node->contents != CONTENTS_SOLID) {
 		int i;
 		const leafbits_t *pvs;
-		const unsigned long *src;
-		unsigned long *dst;
+		const leafblock_t *src;
+		leafblock_t *dst;
 
 		pvs = Mod_LeafPVS(model, (const mleaf_t *)node);
 		src = pvs->bits;
 		dst = fatpvs->bits;
-		for (i = 0; i < pvscache_longs; i++)
+		for (i = 0; i < pvscache_blocks; i++)
 		    *dst++ |= *src++;
 	    }
 	    return;
@@ -330,7 +330,7 @@ Mod_ClearAll(void)
     fatpvs = NULL;
     memset(pvscache, 0, sizeof(pvscache));
     pvscache_numleafs = 0;
-    pvscache_bytes = pvscache_longs = 0;
+    pvscache_bytes = pvscache_blocks = 0;
     c_cachehit = c_cachemiss = 0;
 }
 

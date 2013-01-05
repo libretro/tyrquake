@@ -22,6 +22,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MODEL_H
 
 #include <stdlib.h>
+#include <string.h>
+
+#ifdef _WIN32
+/* On Win32/MinGW, we don't have ffsl in string.h - use the GCC builtin */
+#ifndef ffsl
+#define ffsl __builtin_ffsl
+#endif
+#endif
 
 #ifdef GLQUAKE
 #ifdef APPLE_OPENGL
@@ -467,9 +475,10 @@ void Mod_Print(void);
 /*
  * PVS/PHS information
  */
+typedef unsigned long leafblock_t;
 typedef struct {
     int numleafs;
-    unsigned long bits[0]; /* Variable Sized */
+    leafblock_t bits[0]; /* Variable Sized */
 } leafbits_t;
 
 mleaf_t *Mod_PointInLeaf(const model_t *model, const vec3_t point);
@@ -478,13 +487,13 @@ const leafbits_t *Mod_FatPVS(const model_t *model, const vec3_t point);
 
 int __ERRORLONGSIZE(void); /* to generate an error at link time */
 #define QBYTESHIFT(x) ((x) == 8 ? 6 : ((x) == 4 ? 5 : __ERRORLONGSIZE() ))
-#define LEAFSHIFT QBYTESHIFT(sizeof(unsigned long))
-#define LEAFMASK  ((sizeof(unsigned long) << 3) - 1UL)
+#define LEAFSHIFT QBYTESHIFT(sizeof(leafblock_t))
+#define LEAFMASK  ((sizeof(leafblock_t) << 3) - 1UL)
 
-static inline unsigned long
+static inline qboolean
 Mod_TestLeafBit(const leafbits_t *bits, int leafnum)
 {
-    return bits->bits[leafnum >> LEAFSHIFT] & (1UL << (leafnum & LEAFMASK));
+    return !!(bits->bits[leafnum >> LEAFSHIFT] & (1UL << (leafnum & LEAFMASK)));
 }
 
 static inline size_t
@@ -492,6 +501,40 @@ Mod_LeafbitsSize(int numleafs)
 {
     return offsetof(leafbits_t, bits[(numleafs + LEAFMASK) >> LEAFSHIFT]);
 }
+
+static inline int
+Mod_NextLeafBit(const leafbits_t *leafbits, int leafnum, leafblock_t *check)
+{
+    int bit;
+
+    if (!*check) {
+	leafnum += (1 << LEAFSHIFT);
+	leafnum &= ~LEAFMASK;
+	if (leafnum < leafbits->numleafs)
+	    *check = leafbits->bits[leafnum >> LEAFSHIFT];
+	while (!*check) {
+	    leafnum += (1 << LEAFSHIFT);
+	    if (leafnum < leafbits->numleafs)
+		*check = leafbits->bits[leafnum >> LEAFSHIFT];
+	    else
+		return leafbits->numleafs;
+	}
+    }
+
+    bit = ffsl(*check) - 1;
+    leafnum = (leafnum & ~LEAFMASK) + bit;
+    *check &= ~(1UL << bit);
+
+    return leafnum;
+}
+
+/*
+ * Macro to iterate over just the ones in the leaf bit array
+ */
+#define foreach_leafbit(leafbits, leafnum, check) \
+    for (	check = 0, leafnum = Mod_NextLeafBit(leafbits, -1, &check);	\
+		leafnum < leafbits->numleafs;					\
+		leafnum = Mod_NextLeafBit(leafbits, leafnum, &check) )
 
 // FIXME - surely this doesn't belong here?
 texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);

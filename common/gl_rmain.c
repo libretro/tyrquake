@@ -903,13 +903,14 @@ R_AliasDrawModel(entity_t *e)
 R_MarkLeaves
 ===============
 */
-static void
+void
 R_MarkLeaves(void)
 {
     const leafbits_t *pvs;
+    leafblock_t check;
+    int leafnum;
     mnode_t *node;
     mleaf_t *leaf;
-    int i;
 
     if (r_oldviewleaf == r_viewleaf && !r_novis.value)
 	return;
@@ -922,18 +923,16 @@ R_MarkLeaves(void)
 
     /* Pass the zero leaf to get the all visible set */
     leaf = r_novis.value ? cl.worldmodel->leafs : r_viewleaf;
-    pvs = Mod_LeafPVS(cl.worldmodel, leaf);
 
-    for (i = 0; i < cl.worldmodel->numleafs; i++) {
-	if (Mod_TestLeafBit(pvs, i)) {
-	    node = (mnode_t *)&cl.worldmodel->leafs[i + 1];
-	    do {
-		if (node->visframe == r_visframecount)
-		    break;
-		node->visframe = r_visframecount;
-		node = node->parent;
-	    } while (node);
-	}
+    pvs = Mod_LeafPVS(cl.worldmodel, leaf);
+    foreach_leafbit(pvs, leafnum, check) {
+	node = (mnode_t *)&cl.worldmodel->leafs[leafnum + 1];
+	do {
+	    if (node->visframe == r_visframecount)
+		break;
+	    node->visframe = r_visframecount;
+	    node = node->parent;
+	} while (node);
     }
 }
 

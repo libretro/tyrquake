@@ -541,7 +541,8 @@ R_MarkLeaves(void)
 {
     const leafbits_t *pvs;
     mnode_t *node;
-    int i;
+    int leafnum;
+    leafblock_t check;
 
     if (r_oldviewleaf == r_viewleaf || r_lockpvs.value)
 	return;
@@ -550,16 +551,14 @@ R_MarkLeaves(void)
     r_oldviewleaf = r_viewleaf;
 
     pvs = Mod_LeafPVS(cl.worldmodel, r_viewleaf);
-    for (i = 0; i < cl.worldmodel->numleafs; i++) {
-	if (Mod_TestLeafBit(pvs, i)) {
-	    node = (mnode_t *)&cl.worldmodel->leafs[i + 1];
-	    do {
-		if (node->visframe == r_visframecount)
-		    break;
-		node->visframe = r_visframecount;
-		node = node->parent;
-	    } while (node);
-	}
+    foreach_leafbit(pvs, leafnum, check) {
+	node = (mnode_t *)&cl.worldmodel->leafs[leafnum + 1];
+	do {
+	    if (node->visframe == r_visframecount)
+		break;
+	    node->visframe = r_visframecount;
+	    node = node->parent;
+	} while (node);
     }
 }
 

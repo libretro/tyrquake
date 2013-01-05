@@ -188,70 +188,60 @@ Expands the PVS and calculates the PHS
 void
 SV_CalcPHS(void)
 {
-    int numleafs, rowbytes, rowlongs;
-    int i, j, k, l, index;
+    int numleafs, leafmem, leafblocks;
+    int i, j, leafnum, index;
     int vcount, hcount;
     const leafbits_t *leafbits;
-    const unsigned long *src;
-    unsigned long *dst, check;
+    const leafblock_t *src;
+    leafblock_t *dst, check;
     leafbits_t *pvs, *phs;
 
     Con_Printf("Building PHS...\n");
 
     numleafs = sv.worldmodel->numleafs;
-    rowlongs = (numleafs + LEAFMASK) >> LEAFSHIFT;
-    rowbytes = Mod_LeafbitsSize(sv.worldmodel->numleafs);
+    leafblocks = (numleafs + LEAFMASK) >> LEAFSHIFT;
+    leafmem = Mod_LeafbitsSize(sv.worldmodel->numleafs);
 
-    sv.pvs = Hunk_AllocName(rowbytes * numleafs, "pvs");
+    sv.pvs = Hunk_AllocName(leafmem * numleafs, "pvs");
 
     vcount = 0;
     pvs = sv.pvs;
     for (i = 0; i < numleafs; i++) {
 	leafbits = Mod_LeafPVS(sv.worldmodel, sv.worldmodel->leafs + i);
-	memcpy(pvs, leafbits, rowbytes);
+	memcpy(pvs, leafbits, leafmem);
 	if (i > 0) {
-	    for (j = 0; j < numleafs; j++) {
-		if (Mod_TestLeafBit(pvs, j))
-		    vcount++;
-	    }
+	    foreach_leafbit(pvs, leafnum, check)
+		vcount++;
 	}
-	pvs = (leafbits_t *)((byte *)pvs + rowbytes);
+	pvs = (leafbits_t *)((byte *)pvs + leafmem);
     }
 
-    sv.phs = Hunk_AllocName(rowbytes * numleafs, "phs");
+    sv.phs = Hunk_AllocName(leafmem * numleafs, "phs");
 
     hcount = 0;
     pvs = sv.pvs;
     phs = sv.phs;
     for (i = 0; i < numleafs; i++) {
-	memcpy(phs, pvs, rowbytes);
-	for (j = 0; j < rowlongs; j++) {
-	    check = pvs->bits[j];
-	    if (!check)
-		continue;
-	    for (k = 0; k < (sizeof(unsigned long) << 3); k++) {
-		if (!(check & (1UL << k)))
-		    continue;
-		// or this pvs row into the phs
-		// index is +1 because pvs is 1 based
-		index = (j << LEAFSHIFT) + k + 1;
-		if (index >= numleafs)
-		    continue;
-		leafbits = (leafbits_t *)((byte *)sv.pvs + index * rowbytes);
-		src = leafbits->bits;
-		dst = phs->bits;
-		for (l = 0; l < rowlongs; l++)
-		    *dst++ |= *src++;
-	    }
+	memcpy(phs, pvs, leafmem);
+	foreach_leafbit(pvs, leafnum, check) {
+	    /*
+	     * OR each visible pvs row into the phs
+	     * index is +1 because pvs is 1 based
+	     */
+	    index = leafnum + 1;
+	    leafbits = (leafbits_t *)((byte *)sv.pvs + index * leafmem);
+	    src = leafbits->bits;
+	    dst = phs->bits;
+	    for (j = 0; j < leafblocks; j++)
+		*dst++ |= *src++;
 	}
 	if (i > 0) {
-	    for (j = 0; j < numleafs; j++)
-		if (Mod_TestLeafBit(phs, j))
-		    hcount++;
+	    foreach_leafbit(phs, leafnum, check)
+		hcount++;
 	}
 
-	pvs = (leafbits_t *)((byte *)pvs + rowbytes);
-	phs = (leafbits_t *)((byte *)phs + rowbytes);
+	pvs = (leafbits_t *)((byte *)pvs + leafmem);
+	phs = (leafbits_t *)((byte *)phs + leafmem);
     }
 
     Con_Printf("Average leafs visible / hearable / total: %i / %i / %i\n",
