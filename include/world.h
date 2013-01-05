@@ -85,7 +85,6 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
 #if defined(QW_HACK) && defined(SERVERONLY)
-edict_t *SV_TestPlayerPosition(edict_t *ent, vec3_t origin);
 void SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs);
 #endif
 #ifdef NQ_HACK
