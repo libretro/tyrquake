@@ -188,18 +188,16 @@ Expands the PVS and calculates the PHS
 void
 SV_CalcPHS(void)
 {
-    int numleafs, leafmem, leafblocks;
-    int i, j, leafnum;
+    int numleafs, leafmem;
+    int i, leafnum;
     int vcount, hcount;
     const leafbits_t *leafbits;
-    const leafblock_t *src;
-    leafblock_t *dst, check;
     leafbits_t *pvs, *phs;
+    leafblock_t check;
 
     Con_Printf("Building PHS...\n");
 
     numleafs = sv.worldmodel->numleafs;
-    leafblocks = (numleafs + LEAFMASK) >> LEAFSHIFT;
     leafmem = Mod_LeafbitsSize(sv.worldmodel->numleafs);
 
     /*
@@ -239,10 +237,8 @@ SV_CalcPHS(void)
 	     */
 	    if (leafnum + 1 >= numleafs)
 		continue;
-	    src = sv.pvs[leafnum + 1]->bits;
-	    dst = phs->bits;
-	    for (j = 0; j < leafblocks; j++)
-		*dst++ |= *src++;
+	    leafbits = sv.pvs[leafnum + 1];
+	    Mod_AddLeafBits(phs, leafbits);
 	}
 	hcount += Mod_CountLeafBits(phs);
     }

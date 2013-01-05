@@ -536,6 +536,9 @@ Mod_NextLeafBit(const leafbits_t *leafbits, int leafnum, leafblock_t *check)
 		leafnum < leafbits->numleafs;					\
 		leafnum = Mod_NextLeafBit(leafbits, leafnum, &check) )
 
+/* 'OR' the bits of src into dst */
+void Mod_AddLeafBits(leafbits_t *dst, const leafbits_t *src);
+
 #ifdef SERVERONLY
 /* Slightly faster counting of sparse sets for QWSV */
 int Mod_CountLeafBits(const leafbits_t *leafbits);

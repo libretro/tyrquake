@@ -114,6 +114,24 @@ Mod_PointInLeaf(const model_t *model, const vec3_t point)
     return NULL;		// never reached
 }
 
+void
+Mod_AddLeafBits(leafbits_t *dst, const leafbits_t *src)
+{
+    int i, leafblocks;
+    const leafblock_t *srcblock;
+    leafblock_t *dstblock;
+
+    if (src->numleafs != dst->numleafs)
+	SV_Error("%s: src->numleafs (%d) != dst->numleafs (%d)",
+		 __func__, src->numleafs, dst->numleafs);
+
+    srcblock = src->bits;
+    dstblock = dst->bits;
+    leafblocks = (src->numleafs + LEAFMASK) >> LEAFSHIFT;
+    for (i = 0; i < leafblocks; i++)
+	*dstblock++ |= *srcblock++;
+}
+
 #ifdef SERVERONLY
 int
 Mod_CountLeafBits(const leafbits_t *leafbits)
@@ -268,6 +286,7 @@ PVSCache_f(void)
 static void
 Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
 {
+    const leafbits_t *pvs;
     mplane_t *plane;
     float d;
 
@@ -275,16 +294,8 @@ Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
 	// if this is a leaf, accumulate the pvs bits
 	if (node->contents < 0) {
 	    if (node->contents != CONTENTS_SOLID) {
-		int i;
-		const leafbits_t *pvs;
-		const leafblock_t *src;
-		leafblock_t *dst;
-
 		pvs = Mod_LeafPVS(model, (const mleaf_t *)node);
-		src = pvs->bits;
-		dst = fatpvs->bits;
-		for (i = 0; i < pvscache_blocks; i++)
-		    *dst++ |= *src++;
+		Mod_AddLeafBits(fatpvs, pvs);
 	    }
 	    return;
 	}
