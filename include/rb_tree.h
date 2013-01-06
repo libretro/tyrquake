@@ -41,8 +41,8 @@
 struct rb_node {
     struct rb_node *rb_parent;
     int rb_color;
-#define	RB_RED		0
-#define	RB_BLACK	1
+#define	QRB_RED		0
+#define	QRB_BLACK	1
     struct rb_node *rb_right;
     struct rb_node *rb_left;
 };
@@ -51,7 +51,7 @@ struct rb_root {
     struct rb_node *rb_node;
 };
 
-#define RB_ROOT	(struct rb_root) { NULL, }
+#define QRB_ROOT	(struct rb_root) { NULL, }
 
 /*
  *
@@ -68,7 +68,7 @@ rb_link_node(struct rb_node *node, struct rb_node *parent,
 	     struct rb_node **rb_link)
 {
     node->rb_parent = parent;
-    node->rb_color = RB_RED;
+    node->rb_color = QRB_RED;
     node->rb_left = node->rb_right = NULL;
 
     *rb_link = node;

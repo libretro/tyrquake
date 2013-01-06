@@ -63,16 +63,16 @@ rb_insert_color(struct rb_node *node, struct rb_root *root)
 {
     struct rb_node *parent, *gparent;
 
-    while ((parent = node->rb_parent) && parent->rb_color == RB_RED) {
+    while ((parent = node->rb_parent) && parent->rb_color == QRB_RED) {
 	gparent = parent->rb_parent;
 
 	if (parent == gparent->rb_left) {
 	    {
 		register struct rb_node *uncle = gparent->rb_right;
-		if (uncle && uncle->rb_color == RB_RED) {
-		    uncle->rb_color = RB_BLACK;
-		    parent->rb_color = RB_BLACK;
-		    gparent->rb_color = RB_RED;
+		if (uncle && uncle->rb_color == QRB_RED) {
+		    uncle->rb_color = QRB_BLACK;
+		    parent->rb_color = QRB_BLACK;
+		    gparent->rb_color = QRB_RED;
 		    node = gparent;
 		    continue;
 		}
@@ -86,16 +86,16 @@ rb_insert_color(struct rb_node *node, struct rb_root *root)
 		node = tmp;
 	    }
 
-	    parent->rb_color = RB_BLACK;
-	    gparent->rb_color = RB_RED;
+	    parent->rb_color = QRB_BLACK;
+	    gparent->rb_color = QRB_RED;
 	    __rb_rotate_right(gparent, root);
 	} else {
 	    {
 		register struct rb_node *uncle = gparent->rb_left;
-		if (uncle && uncle->rb_color == RB_RED) {
-		    uncle->rb_color = RB_BLACK;
-		    parent->rb_color = RB_BLACK;
-		    gparent->rb_color = RB_RED;
+		if (uncle && uncle->rb_color == QRB_RED) {
+		    uncle->rb_color = QRB_BLACK;
+		    parent->rb_color = QRB_BLACK;
+		    gparent->rb_color = QRB_RED;
 		    node = gparent;
 		    continue;
 		}
@@ -109,13 +109,13 @@ rb_insert_color(struct rb_node *node, struct rb_root *root)
 		node = tmp;
 	    }
 
-	    parent->rb_color = RB_BLACK;
-	    gparent->rb_color = RB_RED;
+	    parent->rb_color = QRB_BLACK;
+	    gparent->rb_color = QRB_RED;
 	    __rb_rotate_left(gparent, root);
 	}
     }
 
-    root->rb_node->rb_color = RB_BLACK;
+    root->rb_node->rb_color = QRB_BLACK;
 }
 
 
@@ -124,69 +124,69 @@ __rb_erase_color(struct rb_node *node, struct rb_node *parent, struct rb_root *r
 {
     struct rb_node *other;
 
-    while ((!node || node->rb_color == RB_BLACK) && node != root->rb_node) {
+    while ((!node || node->rb_color == QRB_BLACK) && node != root->rb_node) {
 	if (parent->rb_left == node) {
 	    other = parent->rb_right;
-	    if (other->rb_color == RB_RED) {
-		other->rb_color = RB_BLACK;
-		parent->rb_color = RB_RED;
+	    if (other->rb_color == QRB_RED) {
+		other->rb_color = QRB_BLACK;
+		parent->rb_color = QRB_RED;
 		__rb_rotate_left(parent, root);
 		other = parent->rb_right;
 	    }
 	    if ((!other->rb_left ||
-		 other->rb_left->rb_color == RB_BLACK)
+		 other->rb_left->rb_color == QRB_BLACK)
 		&& (!other->rb_right ||
-		    other->rb_right->rb_color == RB_BLACK)) {
-		other->rb_color = RB_RED;
+		    other->rb_right->rb_color == QRB_BLACK)) {
+		other->rb_color = QRB_RED;
 		node = parent;
 		parent = node->rb_parent;
 	    } else {
 		if (!other->rb_right ||
-		    other->rb_right->rb_color == RB_BLACK) {
+		    other->rb_right->rb_color == QRB_BLACK) {
 		    register struct rb_node *o_left;
 		    if ((o_left = other->rb_left))
-			o_left->rb_color = RB_BLACK;
-		    other->rb_color = RB_RED;
+			o_left->rb_color = QRB_BLACK;
+		    other->rb_color = QRB_RED;
 		    __rb_rotate_right(other, root);
 		    other = parent->rb_right;
 		}
 		other->rb_color = parent->rb_color;
-		parent->rb_color = RB_BLACK;
+		parent->rb_color = QRB_BLACK;
 		if (other->rb_right)
-		    other->rb_right->rb_color = RB_BLACK;
+		    other->rb_right->rb_color = QRB_BLACK;
 		__rb_rotate_left(parent, root);
 		node = root->rb_node;
 		break;
 	    }
 	} else {
 	    other = parent->rb_left;
-	    if (other->rb_color == RB_RED) {
-		other->rb_color = RB_BLACK;
-		parent->rb_color = RB_RED;
+	    if (other->rb_color == QRB_RED) {
+		other->rb_color = QRB_BLACK;
+		parent->rb_color = QRB_RED;
 		__rb_rotate_right(parent, root);
 		other = parent->rb_left;
 	    }
 	    if ((!other->rb_left ||
-		 other->rb_left->rb_color == RB_BLACK)
+		 other->rb_left->rb_color == QRB_BLACK)
 		&& (!other->rb_right ||
-		    other->rb_right->rb_color == RB_BLACK)) {
-		other->rb_color = RB_RED;
+		    other->rb_right->rb_color == QRB_BLACK)) {
+		other->rb_color = QRB_RED;
 		node = parent;
 		parent = node->rb_parent;
 	    } else {
 		if (!other->rb_left ||
-		    other->rb_left->rb_color == RB_BLACK) {
+		    other->rb_left->rb_color == QRB_BLACK) {
 		    register struct rb_node *o_right;
 		    if ((o_right = other->rb_right))
-			o_right->rb_color = RB_BLACK;
-		    other->rb_color = RB_RED;
+			o_right->rb_color = QRB_BLACK;
+		    other->rb_color = QRB_RED;
 		    __rb_rotate_left(other, root);
 		    other = parent->rb_left;
 		}
 		other->rb_color = parent->rb_color;
-		parent->rb_color = RB_BLACK;
+		parent->rb_color = QRB_BLACK;
 		if (other->rb_left)
-		    other->rb_left->rb_color = RB_BLACK;
+		    other->rb_left->rb_color = QRB_BLACK;
 		__rb_rotate_right(parent, root);
 		node = root->rb_node;
 		break;
@@ -194,7 +194,7 @@ __rb_erase_color(struct rb_node *node, struct rb_node *parent, struct rb_root *r
 	}
     }
     if (node)
-	node->rb_color = RB_BLACK;
+	node->rb_color = QRB_BLACK;
 }
 
 void
@@ -262,6 +262,6 @@ rb_erase(struct rb_node *node, struct rb_root *root)
 	root->rb_node = child;
 
  color:
-    if (color == RB_BLACK)
+    if (color == QRB_BLACK)
 	__rb_erase_color(child, parent, root);
 }
