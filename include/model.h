@@ -24,8 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-/* On Win32/MinGW, we don't have ffsl in string.h - use the GCC builtin */
+/* Workaround for platforms that don't have ffsl in string.h */
+#if defined(__MINGW32__) || defined(__OpenBSD__)
 #ifndef ffsl
 #define ffsl __builtin_ffsl
 #endif
