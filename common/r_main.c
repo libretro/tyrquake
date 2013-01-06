@@ -533,26 +533,47 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
 
 /*
 ===============
-R_MarkLeaves
+R_MarkSurfaces
 ===============
 */
 static void
-R_MarkLeaves(void)
+R_MarkSurfaces(void)
 {
     const leafbits_t *pvs;
-    mnode_t *node;
-    int leafnum;
     leafblock_t check;
+    int leafnum, i;
+    mleaf_t *leaf;
+    mnode_t *node;
+    msurface_t **mark;
+    qboolean pvs_changed;
 
-    if (r_oldviewleaf == r_viewleaf || r_lockpvs.value)
-	return;
-
-    r_visframecount++;
-    r_oldviewleaf = r_viewleaf;
+    /*
+     * If the PVS hasn't changed, no need to update bsp visframes,
+     * just store the efrags.
+     */
+    pvs_changed = (r_viewleaf != r_oldviewleaf && !r_lockpvs.value);
+    if (pvs_changed) {
+	r_visframecount++;
+	r_oldviewleaf = r_viewleaf;
+    }
 
     pvs = Mod_LeafPVS(cl.worldmodel, r_viewleaf);
     foreach_leafbit(pvs, leafnum, check) {
-	node = (mnode_t *)&cl.worldmodel->leafs[leafnum + 1];
+	leaf = &cl.worldmodel->leafs[leafnum + 1];
+	if (leaf->efrags)
+	    R_StoreEfrags(&leaf->efrags);
+	if (!pvs_changed)
+	    continue;
+
+	/* Mark the surfaces */
+	mark = leaf->firstmarksurface;
+	for (i = 0; i < leaf->nummarksurfaces; i++) {
+	    (*mark)->visframe = r_visframecount;
+	    mark++;
+	}
+
+	/* Mark the leaf and all parent nodes */
+	node = (mnode_t *)leaf;
 	do {
 	    if (node->visframe == r_visframecount)
 		break;
@@ -959,7 +980,7 @@ R_RenderView_(void)
 	r_time1 = Sys_DoubleTime();
 
     R_SetupFrame();
-    R_MarkLeaves();		// done here so we know if we're in water
+    R_MarkSurfaces();		// done here so we know if we're in water
 
     // make FDIV fast. This reduces timing precision after we've been running
     // for a while, so we don't do it globally.  This also sets chop mode, and

@@ -429,7 +429,7 @@ static void
 DrawBackSurfs(const entity_t *e, msurface_t *surf, int count, int clipflags)
 {
     while (count--) {
-	if ((surf->flags & SURF_PLANEBACK) && surf->visframe == r_framecount) {
+	if ((surf->flags & SURF_PLANEBACK) && surf->visframe == r_visframecount) {
 	    if (r_drawpolys) {
 		if (r_worldpolysbacktofront) {
 		    if (numbtofpolys < MAX_BTOFPOLYS) {
@@ -452,7 +452,7 @@ static void
 DrawFrontSurfs(const entity_t *e, msurface_t *surf, int count, int clipflags)
 {
     while (count--) {
-	if (!(surf->flags & SURF_PLANEBACK) && surf->visframe == r_framecount) {
+	if (!(surf->flags & SURF_PLANEBACK) && surf->visframe == r_visframecount) {
 	    if (r_drawpolys) {
 		if (r_worldpolysbacktofront) {
 		    if (numbtofpolys < MAX_BTOFPOLYS) {
@@ -481,7 +481,7 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
 {
     int i, count, side;
     mplane_t *plane;
-    msurface_t *surf, **mark;
+    msurface_t *surf;
     mleaf_t *pleaf;
     vec_t dot;
 
@@ -511,62 +511,51 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
     /* if a leaf node, draw stuff */
     if (node->contents < 0) {
 	pleaf = (mleaf_t *)node;
-
-	mark = pleaf->firstmarksurface;
-	count = pleaf->nummarksurfaces;
-
-	if (count) {
-	    do {
-		(*mark)->visframe = r_framecount;
-		mark++;
-	    } while (--count);
-	}
-
-	// deal with model fragments in this leaf
-	if (pleaf->efrags) {
-	    R_StoreEfrags(&pleaf->efrags);
-	}
-
 	pleaf->key = r_currentkey;
 	r_currentkey++;		// all bmodels in a leaf share the same key
-    } else {
-	// node is just a decision point, so go down the apropriate sides
-	// find which side of the node we are on
-	plane = node->plane;
-	switch (plane->type) {
-	case PLANE_X:
-	    dot = modelorg[0] - plane->dist;
-	    break;
-	case PLANE_Y:
-	    dot = modelorg[1] - plane->dist;
-	    break;
-	case PLANE_Z:
-	    dot = modelorg[2] - plane->dist;
-	    break;
-	default:
-	    dot = DotProduct(modelorg, plane->normal) - plane->dist;
-	    break;
-	}
-	side = (dot >= 0) ? 0 : 1;
 
-	// recurse down the children, front side first
-	R_RecursiveWorldNode(e, node->children[side], clipflags);
-
-	// draw stuff
-	count = node->numsurfaces;
-	if (count) {
-	    surf = cl.worldmodel->surfaces + node->firstsurface;
-	    if (dot < -BACKFACE_EPSILON)
-		DrawBackSurfs(e, surf, count, clipflags);
-	    else if (dot > BACKFACE_EPSILON)
-		DrawFrontSurfs(e, surf, count, clipflags);
-
-	    // all surfaces on the same node share the same sequence number
-	    r_currentkey++;
-	}
-	// recurse down the back side
-	R_RecursiveWorldNode(e, node->children[!side], clipflags);
+	return;
     }
+
+    /*
+     * The node is a decision point, so go down the apropriate sides.
+     * Find which side of the node we are on.
+     */
+    plane = node->plane;
+    switch (plane->type) {
+    case PLANE_X:
+	dot = modelorg[0] - plane->dist;
+	break;
+    case PLANE_Y:
+	dot = modelorg[1] - plane->dist;
+	break;
+    case PLANE_Z:
+	dot = modelorg[2] - plane->dist;
+	break;
+    default:
+	dot = DotProduct(modelorg, plane->normal) - plane->dist;
+	break;
+    }
+    side = (dot >= 0) ? 0 : 1;
+
+    /* recurse down the children, front side first */
+    R_RecursiveWorldNode(e, node->children[side], clipflags);
+
+    /* draw stuff */
+    count = node->numsurfaces;
+    if (count) {
+	surf = cl.worldmodel->surfaces + node->firstsurface;
+	if (dot < -BACKFACE_EPSILON)
+	    DrawBackSurfs(e, surf, count, clipflags);
+	else if (dot > BACKFACE_EPSILON)
+	    DrawFrontSurfs(e, surf, count, clipflags);
+
+	/* all surfaces on the same node share the same sequence number */
+	r_currentkey++;
+    }
+
+    /* recurse down the back side */
+    R_RecursiveWorldNode(e, node->children[!side], clipflags);
 }
 
 
