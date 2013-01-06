@@ -340,50 +340,51 @@ R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel)
     for (i = 0; i < numsurfaces; i++, psurf++) {
 	// find which side of the node we are on
 	pplane = psurf->plane;
-
 	dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
 
+	if ((psurf->flags & SURF_PLANEBACK) && dot > -BACKFACE_EPSILON)
+	    continue;
+	if (!(psurf->flags & SURF_PLANEBACK) && dot < BACKFACE_EPSILON)
+	    continue;
+
 	// draw the polygon
-	if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
-	    (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))) {
-	    // FIXME: use bounding-box-based frustum clipping info?
+	// FIXME: use bounding-box-based frustum clipping info?
 
-	    // copy the edges to bedges, flipping if necessary so always
-	    // clockwise winding
+	// copy the edges to bedges, flipping if necessary so always
+	// clockwise winding
 
-	    /*
-	     * FIXME: if edges and vertices get caches, these assignments must
-	     * move outside the loop, and overflow checking must be done here
-	     */
-	    pbverts = bverts;
-	    pbedges = bedges;
-	    numbverts = numbedges = 0;
+	/*
+	 * FIXME: if edges and vertices get caches, these assignments must
+	 * move outside the loop, and overflow checking must be done here
+	 */
+	pbverts = bverts;
+	pbedges = bedges;
+	numbverts = numbedges = 0;
 
-	    if (psurf->numedges > 0) {
-		pbedge = &bedges[numbedges];
-		numbedges += psurf->numedges;
+	if (psurf->numedges > 0) {
+	    pbedge = &bedges[numbedges];
+	    numbedges += psurf->numedges;
 
-		for (j = 0; j < psurf->numedges; j++) {
-		    lindex = pmodel->surfedges[psurf->firstedge + j];
+	    for (j = 0; j < psurf->numedges; j++) {
+		lindex = pmodel->surfedges[psurf->firstedge + j];
 
-		    if (lindex > 0) {
-			pedge = &pedges[lindex];
-			pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[0]];
-			pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[1]];
-		    } else {
-			lindex = -lindex;
-			pedge = &pedges[lindex];
-			pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[1]];
-			pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[0]];
-		    }
-		    pbedge[j].pnext = &pbedge[j + 1];
+		if (lindex > 0) {
+		    pedge = &pedges[lindex];
+		    pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[0]];
+		    pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[1]];
+		} else {
+		    lindex = -lindex;
+		    pedge = &pedges[lindex];
+		    pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[1]];
+		    pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[0]];
 		}
-		pbedge[j - 1].pnext = NULL;	// mark end of edges
-
-		R_RecursiveClipBPoly(e, pbedge, e->topnode, psurf);
-	    } else {
-		Sys_Error("no edges in bmodel");
+		pbedge[j].pnext = &pbedge[j + 1];
 	    }
+	    pbedge[j - 1].pnext = NULL;	// mark end of edges
+
+	    R_RecursiveClipBPoly(e, pbedge, e->topnode, psurf);
+	} else {
+	    Sys_Error("no edges in bmodel");
 	}
     }
 }
