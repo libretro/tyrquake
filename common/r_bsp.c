@@ -305,8 +305,7 @@ R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pnode,
 			R_RenderBmodelFace(e, psideedges[i], psurf);
 		    }
 		} else {
-		    R_RecursiveClipBPoly(e, psideedges[i], pnode->children[i],
-					 psurf);
+		    R_RecursiveClipBPoly(e, psideedges[i], pn, psurf);
 		}
 	    }
 	}
