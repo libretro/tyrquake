@@ -355,6 +355,8 @@ R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
     vec3_t p_normal;
     medge_t *pedges, tedge;
     clipplane_t *pclip;
+    byte *cachep;
+    edge_t *cedge;
 
 // skip out if no more surfs
     if ((surface_p) >= surf_max) {
@@ -402,14 +404,15 @@ R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
 			continue;
 		    }
 		} else {
-		    if ((((unsigned long)edge_p - (unsigned long)r_edges) >
-			 r_pedge->cachededgeoffset) &&
-			(((edge_t *)((unsigned long)r_edges +
-				     r_pedge->cachededgeoffset))->owner ==
-			 r_pedge)) {
-			R_EmitCachedEdge();
-			r_lastvertvalid = false;
-			continue;
+		    ptrdiff_t ofs = (byte *)edge_p - (byte *)r_edges;
+		    if (ofs > r_pedge->cachededgeoffset) {
+			cachep = (byte *)r_edges + r_pedge->cachededgeoffset;
+			cedge = (edge_t *)cachep;
+			if (cedge->owner == r_pedge) {
+			    R_EmitCachedEdge();
+			    r_lastvertvalid = false;
+			    continue;
+			}
 		    }
 		}
 	    }
@@ -439,14 +442,15 @@ R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
 		} else {
 		    // it's cached if the cached edge is valid and is owned
 		    // by this medge_t
-		    if ((((unsigned long)edge_p - (unsigned long)r_edges) >
-			 r_pedge->cachededgeoffset) &&
-			(((edge_t *)((unsigned long)r_edges +
-				     r_pedge->cachededgeoffset))->owner ==
-			 r_pedge)) {
-			R_EmitCachedEdge();
-			r_lastvertvalid = false;
-			continue;
+		    ptrdiff_t ofs = (byte *)edge_p - (byte *)r_edges;
+		    if (ofs > r_pedge->cachededgeoffset) {
+			cachep = (byte *)r_edges + r_pedge->cachededgeoffset;
+			cedge = (edge_t *)cachep;
+			if (cedge->owner == r_pedge) {
+			    R_EmitCachedEdge();
+			    r_lastvertvalid = false;
+			    continue;
+			}
 		    }
 		}
 	    }
