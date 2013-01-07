@@ -58,7 +58,6 @@ int r_clipflags;
 byte *r_warpbuffer;
 
 static byte *r_stack_start;
-static qboolean r_fov_greater_than_90;
 
 entity_t r_worldentity;
 
@@ -504,11 +503,6 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
     r_aliastransition = r_aliastransbase.value * res_scale;
     r_resfudge = r_aliastransadj.value * res_scale;
 
-    if (scr_fov.value <= 90.0)
-	r_fov_greater_than_90 = false;
-    else
-	r_fov_greater_than_90 = true;
-
 // TODO: collect 386-specific code in one place
 #ifdef USE_X86_ASM
     if (r_pixbytes == 1) {
@@ -804,11 +798,11 @@ R_DrawViewModel(void)
     dlight_t *dl;
 
 #ifdef NQ_HACK
-    if (!r_drawviewmodel.value || r_fov_greater_than_90)
+    if (!r_drawviewmodel.value)
 	return;
 #endif
 #ifdef QW_HACK
-    if (!r_drawviewmodel.value || r_fov_greater_than_90 || !Cam_DrawViewModel())
+    if (!r_drawviewmodel.value || !Cam_DrawViewModel())
 	return;
 #endif
 
