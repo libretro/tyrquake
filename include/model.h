@@ -24,11 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
-/* Workaround for platforms that don't have ffsl in string.h */
-#if defined(__MINGW32__) || defined(__OpenBSD__)
+/* Use the GCC builtin ffsl function */
 #ifndef ffsl
 #define ffsl __builtin_ffsl
-#endif
 #endif
 
 #ifdef GLQUAKE
