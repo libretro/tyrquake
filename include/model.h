@@ -138,6 +138,7 @@ typedef struct glpoly_s {
 
 typedef struct msurface_s {
     int visframe;	// should be drawn when node is crossed
+    int clipflags;	// flags for clipping against frustum
     vec3_t mins;	// bounding box for frustum culling
     vec3_t maxs;
 
@@ -177,6 +178,7 @@ typedef struct mnode_s {
 // common with leaf
     int contents;		// 0, to differentiate from leafs
     int visframe;		// node needs to be traversed if current
+    int clipflags;		// frustum plane clip flags
 
     vec3_t mins;		// for bounding box culling
     vec3_t maxs;
@@ -199,6 +201,7 @@ typedef struct mleaf_s {
 // common with node
     int contents;		// wil be a negative contents number
     int visframe;		// node needs to be traversed if current
+    int clipflags;		// frustum plane clip flags
 
     vec3_t mins;		// for bounding box culling
     vec3_t maxs;

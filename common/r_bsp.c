@@ -53,7 +53,6 @@ static mvertex_t *pfrontenter, *pfrontexit;
 static qboolean makeclippededge;
 
 typedef struct btofpoly_s {
-    int clipflags;
     msurface_t *psurf;
 } btofpoly_t;
 
@@ -425,88 +424,26 @@ R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags)
     }
 }
 
-static void
-DrawBackSurfs(const entity_t *e, msurface_t *surf, int count, int clipflags)
-{
-    while (count--) {
-	if ((surf->flags & SURF_PLANEBACK) && surf->visframe == r_visframecount) {
-	    if (r_drawpolys) {
-		if (r_worldpolysbacktofront) {
-		    if (numbtofpolys < MAX_BTOFPOLYS) {
-			pbtofpolys[numbtofpolys].clipflags = clipflags;
-			pbtofpolys[numbtofpolys].psurf = surf;
-			numbtofpolys++;
-		    }
-		} else {
-		    R_RenderPoly(e, surf, clipflags);
-		}
-	    } else {
-		R_RenderFace(e, surf, clipflags);
-	    }
-	}
-	surf++;
-    }
-}
-
-static void
-DrawFrontSurfs(const entity_t *e, msurface_t *surf, int count, int clipflags)
-{
-    while (count--) {
-	if (!(surf->flags & SURF_PLANEBACK) && surf->visframe == r_visframecount) {
-	    if (r_drawpolys) {
-		if (r_worldpolysbacktofront) {
-		    if (numbtofpolys < MAX_BTOFPOLYS) {
-			pbtofpolys[numbtofpolys].clipflags = clipflags;
-			pbtofpolys[numbtofpolys].psurf = surf;
-			numbtofpolys++;
-		    }
-		} else {
-		    R_RenderPoly(e, surf, clipflags);
-		}
-	    } else {
-		R_RenderFace(e, surf, clipflags);
-	    }
-	}
-	surf++;
-    }
-}
-
 /*
 ================
 R_RecursiveWorldNode
 ================
 */
 static void
-R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
+R_RecursiveWorldNode(const entity_t *e, mnode_t *node)
 {
-    int i, count, side;
+    int count, side;
     mplane_t *plane;
     msurface_t *surf;
     mleaf_t *pleaf;
     vec_t dot;
 
     if (node->contents == CONTENTS_SOLID)
-	return;			// solid
-
+	return;
     if (node->visframe != r_visframecount)
 	return;
-
-// cull the clipping planes if not trivial accept
-// FIXME: the compiler is doing a lousy job of optimizing here; it could be
-//  twice as fast in ASM
-    if (clipflags) {
-	for (i = 0; i < 4; i++) {
-	    if (!(clipflags & (1 << i)))
-		continue;	// don't need to clip against it
-
-	    plane = &view_clipplanes[i].plane;
-	    side = BoxOnPlaneSide(node->mins, node->maxs, plane);
-	    if (side == PSIDE_BACK)
-		return;
-	    if (side == PSIDE_FRONT)
-		clipflags &= ~(1 << i);	// node is entirely on screen
-	}
-    }
+    if (node->clipflags == BMODEL_FULLY_CLIPPED)
+	return;
 
     /* if a leaf node, draw stuff */
     if (node->contents < 0) {
@@ -539,23 +476,37 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node, int clipflags)
     side = (dot >= 0) ? 0 : 1;
 
     /* recurse down the children, front side first */
-    R_RecursiveWorldNode(e, node->children[side], clipflags);
+    R_RecursiveWorldNode(e, node->children[side]);
 
     /* draw stuff */
     count = node->numsurfaces;
     if (count) {
 	surf = cl.worldmodel->surfaces + node->firstsurface;
-	if (dot < -BACKFACE_EPSILON)
-	    DrawBackSurfs(e, surf, count, clipflags);
-	else if (dot > BACKFACE_EPSILON)
-	    DrawFrontSurfs(e, surf, count, clipflags);
+	for (count = node->numsurfaces; count; count--, surf++) {
+	    if (surf->visframe != r_visframecount)
+		continue;
+	    if (surf->clipflags == BMODEL_FULLY_CLIPPED)
+		continue;
+	    if (r_drawpolys) {
+		if (r_worldpolysbacktofront) {
+		    if (numbtofpolys < MAX_BTOFPOLYS) {
+			pbtofpolys[numbtofpolys].psurf = surf;
+			numbtofpolys++;
+		    }
+		} else {
+		    R_RenderPoly(e, surf, surf->clipflags);
+		}
+	    } else {
+		R_RenderFace(e, surf, surf->clipflags);
+	    }
+	}
 
 	/* all surfaces on the same node share the same sequence number */
 	r_currentkey++;
     }
 
     /* recurse down the back side */
-    R_RecursiveWorldNode(e, node->children[!side], clipflags);
+    R_RecursiveWorldNode(e, node->children[!side]);
 }
 
 
@@ -581,13 +532,13 @@ R_RenderWorld(void)
     clmodel = e->model;
     r_pcurrentvertbase = clmodel->vertexes;
 
-    R_RecursiveWorldNode(e, clmodel->nodes, 15);
+    R_RecursiveWorldNode(e, clmodel->nodes);
 
 // if the driver wants the polygons back to front, play the visible ones back
 // in that order
     if (r_worldpolysbacktofront) {
 	for (i = numbtofpolys - 1; i >= 0; i--) {
-	    R_RenderPoly(e, btofpolys[i].psurf, btofpolys[i].clipflags);
+	    R_RenderPoly(e, btofpolys[i].psurf, btofpolys[i].psurf->clipflags);
 	}
     }
 }

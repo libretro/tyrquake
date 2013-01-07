@@ -583,6 +583,119 @@ R_MarkSurfaces(void)
     }
 }
 
+/*
+=============
+R_CullSurfaces
+=============
+*/
+static void
+R_CullSurfaces(model_t *model, vec3_t vieworg)
+{
+    int i, j;
+    int side;
+    mnode_t *node;
+    msurface_t *surf;
+    mplane_t *plane;
+    vec_t dist;
+
+    node = model->nodes;
+    node->clipflags = 15;
+
+    for (;;) {
+	if (node->visframe != r_visframecount)
+	    goto NodeUp;
+
+	if (node->clipflags) {
+	    /* Clip the node against the frustum */
+	    for (i = 0; i < 4; i++) {
+		if (!(node->clipflags & (1 << i)))
+		    continue;
+		plane = &view_clipplanes[i].plane;
+		side = BoxOnPlaneSide(node->mins, node->maxs, plane);
+		if (side == PSIDE_BACK) {
+		    node->clipflags = BMODEL_FULLY_CLIPPED;
+		    goto NodeUp;
+		}
+		if (side == PSIDE_FRONT)
+		    node->clipflags &= ~(1 << i);
+	    }
+	}
+
+	if (node->contents < 0)
+	    goto NodeUp;
+
+	surf = model->surfaces + node->firstsurface;
+	for (i = 0; i < node->numsurfaces; i++, surf++) {
+	    /* Clip the surfaces against the frustum */
+	    surf->clipflags = node->clipflags;
+	    for (j = 0; j < 4; j++) {
+		if (!(node->clipflags & (1 << j)))
+		    continue;
+		plane = &view_clipplanes[j].plane;
+		side = BoxOnPlaneSide(surf->mins, surf->maxs, plane);
+		if (side == PSIDE_BACK) {
+		    surf->clipflags = BMODEL_FULLY_CLIPPED;
+		    break;
+		}
+		if (side == PSIDE_FRONT)
+		    surf->clipflags &= ~(1 << j);
+	    }
+	    if (j < 4)
+		continue;
+
+	    /* Cull backward facing surfs */
+	    if (surf->plane->type < 3) {
+		dist = vieworg[surf->plane->type] - surf->plane->dist;
+	    } else {
+		dist = DotProduct(vieworg, surf->plane->normal);
+		dist -= surf->plane->dist;
+	    }
+	    if (surf->flags & SURF_PLANEBACK) {
+		if (dist > -BACKFACE_EPSILON)
+		    surf->clipflags = BMODEL_FULLY_CLIPPED;
+	    } else {
+		if (dist < BACKFACE_EPSILON)
+		    surf->clipflags = BMODEL_FULLY_CLIPPED;
+	    }
+	}
+
+//  DownLeft:
+	/* Don't descend into solid leafs because parent links are broken */
+	if (node->children[0]->contents == CONTENTS_SOLID)
+	    goto DownRight;
+	node->children[0]->clipflags = node->clipflags;
+	node = node->children[0];
+	continue;
+
+    DownRight:
+	/* Don't descent into solid leafs because parent links are broken */
+	if (node->children[1]->contents == CONTENTS_SOLID)
+	    goto NodeUp;
+	node->children[1]->clipflags = node->clipflags;
+	node = node->children[1];
+	continue;
+
+    NodeUp:
+	/* If we just processed the left node, go right */
+	if (node->parent && node == node->parent->children[0]) {
+	    node = node->parent;
+	    goto DownRight;
+	}
+
+	/* If we were on a right branch, backtrack */
+	while (node->parent && node == node->parent->children[1])
+	    node = node->parent;
+
+	/* If we still have a parent, we need to cross to the right */
+	if (node->parent) {
+	    node = node->parent;
+	    goto DownRight;
+	}
+
+	/* If no more parents, we are done */
+	break;
+    }
+}
 
 /*
 =============
@@ -981,6 +1094,7 @@ R_RenderView_(void)
 
     R_SetupFrame();
     R_MarkSurfaces();		// done here so we know if we're in water
+    R_CullSurfaces(r_worldentity.model, r_refdef.vieworg);
 
     // make FDIV fast. This reduces timing precision after we've been running
     // for a while, so we don't do it globally.  This also sets chop mode, and
