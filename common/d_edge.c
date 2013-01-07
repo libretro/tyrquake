@@ -35,19 +35,6 @@ int screenwidth;
 int ubasestep, errorterm, erroradjustup, erroradjustdown;
 
 /*
-==============
-D_DrawPoly
-
-==============
-*/
-void
-D_DrawPoly(void)
-{
-// this driver takes spans, not polygons
-}
-
-
-/*
 =============
 D_MipLevelForScale
 =============

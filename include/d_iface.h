@@ -65,17 +65,6 @@ typedef struct particle_s {
 
 #define PARTICLE_Z_CLIP	8.0
 
-typedef struct polyvert_s {
-    float u, v, zi, s, t;
-} polyvert_t;
-
-typedef struct polydesc_s {
-    int numverts;
-    float nearzi;
-    msurface_t *pcurrentface;
-    polyvert_t *pverts;
-} polydesc_t;
-
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 typedef struct finalvert_s {
     int v[6];			// u, v, s, t, l, 1/z
@@ -113,17 +102,6 @@ typedef struct {
 
 extern cvar_t r_drawflat;
 extern int r_framecount;	// sequence # of current frame since Quake started
-extern qboolean r_drawpolys;	// 1 if driver wants clipped polygons
-
-				//  rather than a span list
-extern qboolean r_drawculledpolys;	// 1 if driver wants clipped polygons
-
-				    // that have been culled by the edge
-				    // list
-extern qboolean r_worldpolysbacktofront;	// 1 if driver wants polygons
-
-					  //  delivered back to front rather
-					  //  than front to back
 extern qboolean r_recursiveaffinetriangles;	// true if a driver wants to use
 
 					    //  recursive triangular subdivison
@@ -140,10 +118,8 @@ extern qboolean r_dowarp;
 
 extern affinetridesc_t r_affinetridesc;
 extern spritedesc_t r_spritedesc;
-extern polydesc_t r_polydesc;
 
 extern int d_con_indirect;	// if 0, Quake will draw console directly
-
 				//  to vid.buffer; if 1, Quake will
 				//  draw console via D_DrawRect. Must be
 				//  defined by driver
@@ -159,7 +135,6 @@ void D_EndDirectRect(int x, int y, int width, int height);
 void D_PolysetDraw(void);
 void D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts);
 void D_DrawParticle(particle_t *pparticle);
-void D_DrawPoly(void);
 void D_DrawSprite(void);
 void D_DrawSurfaces(void);
 void D_EnableBackBufferAccess(void);

@@ -52,15 +52,6 @@ static mvertex_t *pfrontenter, *pfrontexit;
 
 static qboolean makeclippededge;
 
-typedef struct btofpoly_s {
-    msurface_t *psurf;
-} btofpoly_t;
-
-#define MAX_BTOFPOLYS	5000	// FIXME: tune this
-
-static int numbtofpolys;
-static btofpoly_t *pbtofpolys;
-
 //===========================================================================
 
 /*
@@ -487,18 +478,7 @@ R_RecursiveWorldNode(const entity_t *e, mnode_t *node)
 		continue;
 	    if (surf->clipflags == BMODEL_FULLY_CLIPPED)
 		continue;
-	    if (r_drawpolys) {
-		if (r_worldpolysbacktofront) {
-		    if (numbtofpolys < MAX_BTOFPOLYS) {
-			pbtofpolys[numbtofpolys].psurf = surf;
-			numbtofpolys++;
-		    }
-		} else {
-		    R_RenderPoly(e, surf, surf->clipflags);
-		}
-	    } else {
-		R_RenderFace(e, surf, surf->clipflags);
-	    }
+	    R_RenderFace(e, surf, surf->clipflags);
 	}
 
 	/* all surfaces on the same node share the same sequence number */
@@ -519,26 +499,7 @@ R_RenderWorld
 void
 R_RenderWorld(void)
 {
-    entity_t *e;
-    int i;
-    model_t *clmodel;
-    btofpoly_t btofpolys[MAX_BTOFPOLYS];
-
-    pbtofpolys = btofpolys;
-    numbtofpolys = 0;
-
-    e = &r_worldentity;
     VectorCopy(r_origin, modelorg);
-    clmodel = e->model;
-    r_pcurrentvertbase = clmodel->vertexes;
-
-    R_RecursiveWorldNode(e, clmodel->nodes);
-
-// if the driver wants the polygons back to front, play the visible ones back
-// in that order
-    if (r_worldpolysbacktofront) {
-	for (i = numbtofpolys - 1; i >= 0; i--) {
-	    R_RenderPoly(e, btofpolys[i].psurf, btofpolys[i].psurf->clipflags);
-	}
-    }
+    r_pcurrentvertbase = r_worldentity.model->vertexes;
+    R_RecursiveWorldNode(&r_worldentity, r_worldentity.model->nodes);
 }

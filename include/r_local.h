@@ -109,9 +109,6 @@ extern int r_visframecount;
 
 //=============================================================================
 
-void R_ClearPolyList(void);
-void R_DrawPolyList(void);
-
 //
 // current entity info
 //
@@ -119,7 +116,6 @@ extern qboolean insubmodel;
 
 void R_DrawSprite(const entity_t *e);
 void R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags);
-void R_RenderPoly(const entity_t *e, msurface_t *fa, int clipflags);
 void R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf);
 void R_TransformPlane(mplane_t *p, float *normal, float *dist);
 void R_TransformFrustum(void);
@@ -180,8 +176,6 @@ extern vec3_t sbaseaxis[3], tbaseaxis[3];
 
 extern int r_currentkey;
 extern int r_currentbkey;
-
-void R_ZDrawSubmodelPolys(const entity_t *e, model_t *clmodel);
 
 //=========================================================
 // Alias models

@@ -52,8 +52,6 @@ D_Init(void)
     Cvar_RegisterVariable(&d_mipcap);
     Cvar_RegisterVariable(&d_mipscale);
 
-    r_drawpolys = false;
-    r_worldpolysbacktofront = false;
     r_recursiveaffinetriangles = true;
     r_pixbytes = 1;
     r_aliasuvscale = 1.0;

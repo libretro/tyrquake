@@ -34,9 +34,6 @@ void *colormap;
 float r_time1;
 int r_numallocatededges;
 
-qboolean r_drawpolys;
-qboolean r_drawculledpolys;
-qboolean r_worldpolysbacktofront;
 qboolean r_recursiveaffinetriangles = true;
 
 int r_pixbytes = 1;
@@ -962,32 +959,26 @@ R_DrawBEntitiesOnList(void)
 				     clmodel->hulls[0].firstclipnode);
 		    }
 		}
-		// if the driver wants polygons, deliver those. Z-buffering is
-		// on at this point, so no clipping to the world tree is
-		// needed, just frustum clipping
-		if (r_drawpolys | r_drawculledpolys) {
-		    R_ZDrawSubmodelPolys(e, clmodel);
-		} else {
-		    r_pefragtopnode = NULL;
-		    VectorCopy(mins, r_emins);
-		    VectorCopy(maxs, r_emaxs);
-		    R_SplitEntityOnNode2(cl.worldmodel->nodes);
 
-		    if (r_pefragtopnode) {
-			e->topnode = r_pefragtopnode;
+		r_pefragtopnode = NULL;
+		VectorCopy(mins, r_emins);
+		VectorCopy(maxs, r_emaxs);
+		R_SplitEntityOnNode2(cl.worldmodel->nodes);
 
-			if (r_pefragtopnode->contents >= 0) {
-			    // not a leaf; has to be clipped to the world BSP
-			    r_clipflags = clipflags;
-			    R_DrawSolidClippedSubmodelPolygons(e, clmodel);
-			} else {
-			    // falls entirely in one leaf, so we just put all
-			    // the edges in the edge list and let 1/z sorting
-			    // handle drawing order
-			    R_DrawSubmodelPolygons(e, clmodel, clipflags);
-			}
-			e->topnode = NULL;
+		if (r_pefragtopnode) {
+		    e->topnode = r_pefragtopnode;
+
+		    if (r_pefragtopnode->contents >= 0) {
+			// not a leaf; has to be clipped to the world BSP
+			r_clipflags = clipflags;
+			R_DrawSolidClippedSubmodelPolygons(e, clmodel);
+		    } else {
+			// falls entirely in one leaf, so we just put all
+			// the edges in the edge list and let 1/z sorting
+			// handle drawing order
+			R_DrawSubmodelPolygons(e, clmodel, clipflags);
 		    }
+		    e->topnode = NULL;
 		}
 
 		// put back world rotation and frustum clipping
@@ -1045,9 +1036,6 @@ R_EdgeDrawing(void)
 
     R_RenderWorld();
 
-    if (r_drawculledpolys)
-	R_ScanEdges();
-
     // only the world can be drawn back to front with no z reads or compares,
     // just z writes, so have the driver turn z compares on now
     D_TurnZOn();
@@ -1070,8 +1058,7 @@ R_EdgeDrawing(void)
 	VID_LockBuffer();
     }
 
-    if (!(r_drawpolys | r_drawculledpolys))
-	R_ScanEdges();
+    R_ScanEdges();
 }
 
 
