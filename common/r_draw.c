@@ -322,12 +322,22 @@ R_ClipEdge(mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
 R_EmitCachedEdge
 ================
 */
-void
+static qboolean
 R_EmitCachedEdge(void)
 {
     edge_t *edge;
 
+    /* If fully clipped, no action necessary */
+    if (r_pedge->cachededgeoffset & FULLY_CLIPPED_CACHED)
+	return (r_pedge->cachededgeoffset & FRAMECOUNT_MASK) == r_framecount;
+
+    /* It's cached if the cached edge is valid and is owned by this medge_t */
+    if ((byte *)edge_p - (byte *)r_edges <= r_pedge->cachededgeoffset)
+	return false;
     edge = (edge_t *)((byte *)r_edges + r_pedge->cachededgeoffset);
+    if (edge->owner != r_pedge)
+	return false;
+
     if (!edge->surfs[0])
 	edge->surfs[0] = surface_p - surfaces;
     else
@@ -337,6 +347,8 @@ R_EmitCachedEdge(void)
 	r_nearzi = edge->nearzi;
 
     r_emitted = 1;
+
+    return true;
 }
 
 
@@ -355,8 +367,6 @@ R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
     vec3_t p_normal;
     medge_t *pedges, tedge;
     clipplane_t *pclip;
-    byte *cachep;
-    edge_t *cedge;
 
 // skip out if no more surfs
     if ((surface_p) >= surf_max) {
@@ -396,26 +406,11 @@ R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
 	    r_pedge = &pedges[lindex];
 
 	    // if the edge is cached, we can just reuse the edge
-	    if (!insubmodel) {
-		if (r_pedge->cachededgeoffset & FULLY_CLIPPED_CACHED) {
-		    if ((r_pedge->cachededgeoffset & FRAMECOUNT_MASK) ==
-			r_framecount) {
-			r_lastvertvalid = false;
-			continue;
-		    }
-		} else {
-		    ptrdiff_t ofs = (byte *)edge_p - (byte *)r_edges;
-		    if (ofs > r_pedge->cachededgeoffset) {
-			cachep = (byte *)r_edges + r_pedge->cachededgeoffset;
-			cedge = (edge_t *)cachep;
-			if (cedge->owner == r_pedge) {
-			    R_EmitCachedEdge();
-			    r_lastvertvalid = false;
-			    continue;
-			}
-		    }
-		}
+	    if (!insubmodel && R_EmitCachedEdge()) {
+		r_lastvertvalid = false;
+		continue;
 	    }
+
 	    // assume it's cacheable
 	    cacheoffset = (byte *)edge_p - (byte *)r_edges;
 	    r_leftclipped = r_rightclipped = false;
@@ -432,28 +427,11 @@ R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
 	    lindex = -lindex;
 	    r_pedge = &pedges[lindex];
 	    // if the edge is cached, we can just reuse the edge
-	    if (!insubmodel) {
-		if (r_pedge->cachededgeoffset & FULLY_CLIPPED_CACHED) {
-		    if ((r_pedge->cachededgeoffset & FRAMECOUNT_MASK) ==
-			r_framecount) {
-			r_lastvertvalid = false;
-			continue;
-		    }
-		} else {
-		    // it's cached if the cached edge is valid and is owned
-		    // by this medge_t
-		    ptrdiff_t ofs = (byte *)edge_p - (byte *)r_edges;
-		    if (ofs > r_pedge->cachededgeoffset) {
-			cachep = (byte *)r_edges + r_pedge->cachededgeoffset;
-			cedge = (edge_t *)cachep;
-			if (cedge->owner == r_pedge) {
-			    R_EmitCachedEdge();
-			    r_lastvertvalid = false;
-			    continue;
-			}
-		    }
-		}
+	    if (!insubmodel && R_EmitCachedEdge()) {
+		r_lastvertvalid = false;
+		continue;
 	    }
+
 	    // assume it's cacheable
 	    cacheoffset = (byte *)edge_p - (byte *)r_edges;
 	    r_leftclipped = r_rightclipped = false;
