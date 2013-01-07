@@ -975,6 +975,11 @@ Mod_LoadFaces_BSP29(lump_t *l)
 	out->numedges = LittleShort(in->numedges);
 	out->flags = 0;
 
+	/* FIXME - Also check numedges doesn't overflow edges */
+	if (out->numedges <= 0)
+	    SV_Error("%s: bmodel %s has surface with no edges", __func__,
+		     loadmodel->name);
+
 	planenum = LittleShort(in->planenum);
 	side = LittleShort(in->side);
 	if (side)

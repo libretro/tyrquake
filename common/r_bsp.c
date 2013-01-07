@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "r_local.h"
-#include "sys.h"
 #include "console.h"
 
 //
@@ -350,31 +349,27 @@ R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel)
 	pbedges = bedges;
 	numbverts = numbedges = 0;
 
-	if (psurf->numedges > 0) {
-	    pbedge = &bedges[numbedges];
-	    numbedges += psurf->numedges;
+	pbedge = &bedges[numbedges];
+	numbedges += psurf->numedges;
 
-	    for (j = 0; j < psurf->numedges; j++) {
-		lindex = pmodel->surfedges[psurf->firstedge + j];
+	for (j = 0; j < psurf->numedges; j++) {
+	    lindex = pmodel->surfedges[psurf->firstedge + j];
 
-		if (lindex > 0) {
-		    pedge = &pedges[lindex];
-		    pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[0]];
-		    pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[1]];
-		} else {
-		    lindex = -lindex;
-		    pedge = &pedges[lindex];
-		    pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[1]];
-		    pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[0]];
-		}
-		pbedge[j].pnext = &pbedge[j + 1];
+	    if (lindex > 0) {
+		pedge = &pedges[lindex];
+		pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[0]];
+		pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[1]];
+	    } else {
+		lindex = -lindex;
+		pedge = &pedges[lindex];
+		pbedge[j].v[0] = &r_pcurrentvertbase[pedge->v[1]];
+		pbedge[j].v[1] = &r_pcurrentvertbase[pedge->v[0]];
 	    }
-	    pbedge[j - 1].pnext = NULL;	// mark end of edges
-
-	    R_RecursiveClipBPoly(e, pbedge, e->topnode, psurf);
-	} else {
-	    Sys_Error("no edges in bmodel");
+	    pbedge[j].pnext = &pbedge[j + 1];
 	}
+	pbedge[j - 1].pnext = NULL;	// mark end of edges
+
+	R_RecursiveClipBPoly(e, pbedge, e->topnode, psurf);
     }
 }
 
