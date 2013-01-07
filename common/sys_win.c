@@ -46,11 +46,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #endif
 
-static double timer_pfreq;
-static int timer_lowshift;
-static unsigned int timer_oldtime;
-static qboolean timer_fallback;
-static DWORD timer_fallback_start;
+static int64_t timer_pfreq;
+static int64_t timer_lastpcount;
+static qboolean timer_perfctr;
+static DWORD timer_starttime;
+static DWORD timer_lasttime;
 
 void MaskExceptions(void);
 void Sys_PushFPCW_SetHigh(void);
@@ -119,91 +119,67 @@ Sys_mkdir(const char *path)
 static void
 Sys_InitTimers(void)
 {
-    LARGE_INTEGER freq, pcount;
-    unsigned int lowpart, highpart;
-
     MaskExceptions();
     Sys_SetFPCW();
 
-    if (!QueryPerformanceFrequency(&freq)) {
-	Con_Printf("WARNING: No hardware timer available, using fallback\n");
-	timer_fallback = true;
-	timer_fallback_start = timeGetTime();
-	return;
-    }
-
     /*
-     * get 32 out of the 64 time bits such that we have around
-     * 1 microsecond resolution
+     * Request 1ms precision for timeouts from the scheduler
+     * (may or may not succeed)
      */
-    lowpart = (unsigned int)freq.LowPart;
-    highpart = (unsigned int)freq.HighPart;
-    timer_lowshift = 0;
+    timeBeginPeriod(1);
 
-    while (highpart || (lowpart > 2000000.0)) {
-	timer_lowshift++;
-	lowpart >>= 1;
-	lowpart |= (highpart & 1) << 31;
-	highpart >>= 1;
-    }
-    timer_pfreq = 1.0 / (double)lowpart;
-
-    /* Do first time initialisation */
-    Sys_PushFPCW_SetHigh();
-    QueryPerformanceCounter(&pcount);
-    timer_oldtime = (unsigned int)pcount.LowPart >> timer_lowshift;
-    timer_oldtime |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
-    Sys_PopFPCW();
+    timer_starttime = timer_lasttime = timeGetTime();
+    timer_perfctr = !!QueryPerformanceFrequency((LARGE_INTEGER *)&timer_pfreq);
+    if (timer_perfctr)
+	QueryPerformanceCounter((LARGE_INTEGER *)&timer_lastpcount);
 }
 
 double
 Sys_DoubleTime(void)
 {
-    static double curtime = 0.0;
-    static double lastcurtime = 0.0;
-    static int sametimecount;
-
-    LARGE_INTEGER pcount;
-    unsigned int temp, t2;
-    double time;
-
-    if (timer_fallback) {
-	DWORD now = timeGetTime();
-	if (now < timer_fallback_start)	/* wrapped */
-	    return (now + (LONG_MAX - timer_fallback_start)) / 1000.0;
-	return (now - timer_fallback_start) / 1000.0;
-    }
+    int64_t pcount;
+    int64_t currtime;
+    double qtime;
 
     Sys_PushFPCW_SetHigh();
 
-    QueryPerformanceCounter(&pcount);
+    currtime = timeGetTime();
+    qtime = (currtime - timer_starttime) * 0.001;
 
-    temp = (unsigned int)pcount.LowPart >> timer_lowshift;
-    temp |= (unsigned int)pcount.HighPart << (32 - timer_lowshift);
+    if (!timer_perfctr)
+	goto out;
 
-    /* check for turnover or backward time */
-    if ((temp <= timer_oldtime) && ((timer_oldtime - temp) < 0x10000000)) {
-	timer_oldtime = temp;	/* so we don't get stuck */
-    } else {
-	t2 = temp - timer_oldtime;
-	time = (double)t2 * timer_pfreq;
-	timer_oldtime = temp;
-	curtime += time;
-	if (curtime == lastcurtime) {
-	    sametimecount++;
-	    if (sametimecount > 100000) {
-		curtime += 1.0;
-		sametimecount = 0;
-	    }
-	} else {
-	    sametimecount = 0;
-	}
-	lastcurtime = curtime;
+    QueryPerformanceCounter((LARGE_INTEGER *)&pcount);
+
+    if (currtime != timer_lasttime) {
+	/*
+	 * Re-query the frequency in case it changes (which it can on
+	 * multicore machines with buggy BIOS or drivers). Or we could set
+	 * processor affinity, but would rather not for now.
+	 *
+	 * See also:
+	 *   Game Timing and Multicore Processors (Windows)
+	 *   http://msdn.microsoft.com/en-us/library/windows/desktop/ee417693%28v=vs.85%29.aspx
+	 */
+	QueryPerformanceFrequency((LARGE_INTEGER *)&timer_pfreq);
+
+	/*
+	 * Calculate a fudge factor to compensate for low precision in
+	 * timeGetTime().
+	 */
+	qtime += (double)(pcount - timer_lastpcount) / (double)timer_pfreq;
+	qtime -= (currtime - timer_lasttime) * 0.001;
+
+	timer_lastpcount = pcount;
+	timer_lasttime = currtime;
     }
 
+    qtime += (double)(pcount - timer_lastpcount) / (double)timer_pfreq;
+
+ out:
     Sys_PopFPCW();
 
-    return curtime;
+    return qtime;
 }
 
 /*
@@ -505,8 +481,9 @@ Sys_ConsoleInput(void)
 void
 Sys_Init(void)
 {
-    Cvar_RegisterVariable(&sys_nostdout);
     Sys_InitTimers();
+
+    Cvar_RegisterVariable(&sys_nostdout);
 }
 
 /*
@@ -657,13 +634,6 @@ Sys_Init(void)
 				    0,		/* Initial count       */
 				    1,		/* Maximum count       */
 				    "qwcl");	/* Semaphore name      */
-
-    MaskExceptions();
-    Sys_SetFPCW();
-
-    // make sure the timer is high precision, otherwise
-    // NT gets 18ms resolution
-    timeBeginPeriod(1);
 #endif
 
     vinfo.dwOSVersionInfoSize = sizeof(vinfo);
