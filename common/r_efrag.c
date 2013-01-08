@@ -202,24 +202,17 @@ R_AddEfrags
 void
 R_AddEfrags(entity_t *ent)
 {
-    model_t *entmodel;
-    int i;
-
     if (!ent->model)
 	return;
 
     r_addent = ent;
     lastlink = &ent->efrag;
     r_pefragtopnode = NULL;
-    entmodel = ent->model;
 
-    for (i = 0; i < 3; i++) {
-	r_emins[i] = ent->origin[i] + entmodel->mins[i];
-	r_emaxs[i] = ent->origin[i] + entmodel->maxs[i];
-    }
+    VectorAdd(ent->origin, ent->model->mins, r_emins);
+    VectorAdd(ent->origin, ent->model->maxs, r_emaxs);
 
     R_SplitEntityOnNode(cl.worldmodel->nodes);
-
     ent->topnode = r_pefragtopnode;
 }
 
