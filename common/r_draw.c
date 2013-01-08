@@ -527,7 +527,7 @@ R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf)
     pclip = NULL;
 
     for (i = 3, mask = 0x08; i >= 0; i--, mask >>= 1) {
-	if (r_clipflags & mask) {
+	if (psurf->clipflags & mask) {
 	    view_clipplanes[i].next = pclip;
 	    pclip = &view_clipplanes[i];
 	}

@@ -311,33 +311,21 @@ void
 R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel)
 {
     int i, j, lindex;
-    vec_t dot;
     msurface_t *psurf;
     int numsurfaces;
-    mplane_t *pplane;
     mvertex_t bverts[MAX_BMODEL_VERTS];
     bedge_t bedges[MAX_BMODEL_EDGES], *pbedge;
     medge_t *pedge, *pedges;
-
-// FIXME: use bounding-box-based frustum clipping info?
 
     psurf = &pmodel->surfaces[pmodel->firstmodelsurface];
     numsurfaces = pmodel->nummodelsurfaces;
     pedges = pmodel->edges;
 
     for (i = 0; i < numsurfaces; i++, psurf++) {
-	// find which side of the node we are on
-	pplane = psurf->plane;
-	dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
-
-	if ((psurf->flags & SURF_PLANEBACK) && dot > -BACKFACE_EPSILON)
-	    continue;
-	if (!(psurf->flags & SURF_PLANEBACK) && dot < BACKFACE_EPSILON)
+	if (psurf->clipflags == BMODEL_FULLY_CLIPPED)
 	    continue;
 
 	// draw the polygon
-	// FIXME: use bounding-box-based frustum clipping info?
-
 	// copy the edges to bedges, flipping if necessary so always
 	// clockwise winding
 

@@ -166,10 +166,13 @@ R_SplitEntityOnNode2(mnode_t *node)
 
     if (node->visframe != r_visframecount)
 	return;
+    if (node->clipflags == BMODEL_FULLY_CLIPPED)
+	return;
 
     if (node->contents < 0) {
 	if (node->contents != CONTENTS_SOLID)
-	    r_pefragtopnode = node;	// we've reached a non-solid leaf, so it's
+	    r_pefragtopnode = node;
+	// we've reached a non-solid leaf, so it's
 	//  visible and not BSP clipped
 	return;
     }

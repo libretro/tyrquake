@@ -54,7 +54,6 @@ int r_maxsurfsseen, r_maxedgesseen;
 static int r_cnumsurfs;
 static qboolean r_surfsonstack;
 
-int r_clipflags;
 byte *r_warpbuffer;
 
 static byte *r_stack_start;
@@ -690,6 +689,54 @@ R_CullSurfaces(model_t *model, vec3_t vieworg)
 
 /*
 =============
+R_CullSubmodelSurfaces
+=============
+*/
+static void
+R_CullSubmodelSurfaces(const model_t *submodel, const vec3_t vieworg,
+		       int clipflags)
+{
+    int i, j, side;
+    msurface_t *surf;
+    mplane_t *plane;
+    vec_t dist;
+
+    surf = submodel->surfaces + submodel->firstmodelsurface;
+    for (i = 0; i < submodel->nummodelsurfaces; i++, surf++) {
+	/* Clip the surface against the frustum */
+	surf->clipflags = clipflags;
+	for (j = 0; j < 4; j++) {
+	    plane = &view_clipplanes[j].plane;
+	    side = BoxOnPlaneSide(surf->mins, surf->maxs, plane);
+	    if (side == PSIDE_BACK) {
+		surf->clipflags = BMODEL_FULLY_CLIPPED;
+		break;
+	    }
+	    if (side == PSIDE_FRONT)
+		surf->clipflags &= ~(1 << j);
+	}
+	if (j < 4)
+	    continue;
+
+	/* Cull backward facing surfs */
+	if (surf->plane->type < 3) {
+	    dist = vieworg[surf->plane->type] - surf->plane->dist;
+	} else {
+	    dist = DotProduct(vieworg, surf->plane->normal);
+	    dist -= surf->plane->dist;
+	}
+	if (surf->flags & SURF_PLANEBACK) {
+	    if (dist > -BACKFACE_EPSILON)
+		surf->clipflags = BMODEL_FULLY_CLIPPED;
+	} else {
+	    if (dist < BACKFACE_EPSILON)
+		surf->clipflags = BMODEL_FULLY_CLIPPED;
+	}
+    }
+}
+
+/*
+=============
 R_DrawEntitiesOnList
 =============
 */
@@ -907,7 +954,7 @@ R_DrawBEntitiesOnList(void)
     entity_t *e;
     int i, j, clipflags;
     vec3_t oldorigin;
-    model_t *clmodel;
+    model_t *model;
     vec3_t mins, maxs;
 
     if (!r_drawentities.value)
@@ -919,76 +966,67 @@ R_DrawBEntitiesOnList(void)
 
     for (i = 0; i < cl_numvisedicts; i++) {
 	e = &cl_visedicts[i];
+	if (e->model->type != mod_brush)
+	    continue;
 
-	switch (e->model->type) {
-	case mod_brush:
+	model = e->model;
 
-	    clmodel = e->model;
+	// see if the bounding box lets us trivially reject, also sets
+	// trivial accept status
+	VectorAdd(e->origin, model->mins, mins);
+	VectorAdd(e->origin, model->maxs, maxs);
+	clipflags = R_BmodelCheckBBox(e, model, mins, maxs);
 
-	    // see if the bounding box lets us trivially reject, also sets
-	    // trivial accept status
-	    VectorAdd(e->origin, clmodel->mins, mins);
-	    VectorAdd(e->origin, clmodel->maxs, maxs);
-	    clipflags = R_BmodelCheckBBox(e, clmodel, mins, maxs);
+	if (clipflags == BMODEL_FULLY_CLIPPED)
+	    continue;
 
-	    if (clipflags != BMODEL_FULLY_CLIPPED) {
-		VectorCopy(e->origin, r_entorigin);
-		VectorSubtract(r_origin, r_entorigin, modelorg);
-		r_pcurrentvertbase = clmodel->vertexes;
+	VectorCopy(e->origin, r_entorigin);
+	VectorSubtract(r_origin, r_entorigin, modelorg);
+	r_pcurrentvertbase = model->vertexes;
 
-		// FIXME: stop transforming twice
-		R_RotateBmodel(e);
+	// FIXME: stop transforming twice
+	R_RotateBmodel(e);
 
-		// calculate dynamic lighting for bmodel if it's not an
-		// instanced model
-		if (clmodel->firstmodelsurface != 0) {
-		    for (j = 0; j < MAX_DLIGHTS; j++) {
-			if ((cl_dlights[j].die < cl.time) ||
-			    (!cl_dlights[j].radius)) {
-			    continue;
-			}
-
-			R_MarkLights(&cl_dlights[j], 1 << j,
-				     clmodel->nodes +
-				     clmodel->hulls[0].firstclipnode);
-		    }
-		}
-
-		r_pefragtopnode = NULL;
-		VectorCopy(mins, r_emins);
-		VectorCopy(maxs, r_emaxs);
-		R_SplitEntityOnNode2(cl.worldmodel->nodes);
-
-		if (r_pefragtopnode) {
-		    e->topnode = r_pefragtopnode;
-
-		    if (r_pefragtopnode->contents >= 0) {
-			// not a leaf; has to be clipped to the world BSP
-			r_clipflags = clipflags;
-			R_DrawSolidClippedSubmodelPolygons(e, clmodel);
-		    } else {
-			// falls entirely in one leaf, so we just put all
-			// the edges in the edge list and let 1/z sorting
-			// handle drawing order
-			R_DrawSubmodelPolygons(e, clmodel, clipflags);
-		    }
-		    e->topnode = NULL;
-		}
-
-		// put back world rotation and frustum clipping
-		// FIXME: R_RotateBmodel should just work off base_vxx
-		VectorCopy(base_vpn, vpn);
-		VectorCopy(base_vup, vup);
-		VectorCopy(base_vright, vright);
-		VectorCopy(base_modelorg, modelorg);
-		VectorCopy(oldorigin, modelorg);
-		R_TransformFrustum();
+	// calculate dynamic lighting for bmodel if it's not an
+	// instanced model
+	if (model->firstmodelsurface != 0) {
+	    for (j = 0; j < MAX_DLIGHTS; j++) {
+		if ((cl_dlights[j].die < cl.time) || (!cl_dlights[j].radius))
+		    continue;
+		R_MarkLights(&cl_dlights[j], 1 << j,
+			     model->nodes + model->hulls[0].firstclipnode);
 	    }
-	    break;
-
-	default:
-	    break;
 	}
+
+	r_pefragtopnode = NULL;
+	VectorCopy(mins, r_emins);
+	VectorCopy(maxs, r_emaxs);
+	R_SplitEntityOnNode2(cl.worldmodel->nodes);
+	R_CullSubmodelSurfaces(model, modelorg, clipflags);
+
+	if (r_pefragtopnode) {
+	    e->topnode = r_pefragtopnode;
+
+	    if (r_pefragtopnode->contents >= 0) {
+		// not a leaf; has to be clipped to the world BSP
+		R_DrawSolidClippedSubmodelPolygons(e, model);
+	    } else {
+		// falls entirely in one leaf, so we just put all
+		// the edges in the edge list and let 1/z sorting
+		// handle drawing order
+		R_DrawSubmodelPolygons(e, model, clipflags);
+	    }
+	    e->topnode = NULL;
+	}
+
+	// put back world rotation and frustum clipping
+	// FIXME: R_RotateBmodel should just work off base_vxx
+	VectorCopy(base_vpn, vpn);
+	VectorCopy(base_vup, vup);
+	VectorCopy(base_vright, vright);
+	VectorCopy(base_modelorg, modelorg);
+	VectorCopy(oldorigin, modelorg);
+	R_TransformFrustum();
     }
 
     insubmodel = false;
