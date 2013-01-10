@@ -297,60 +297,61 @@ R_LeadingEdgeBackwards(edge_t *edge)
 // don't start a span if this is an inverted span, with the end
 // edge preceding the start edge (that is, we've already seen the
 // end edge)
-    if (++surf->spanstate == 1) {
-	surf2 = surfaces[1].next;
+    if (++surf->spanstate != 1)
+	return;
 
-	if (surf->key > surf2->key)
-	    goto newtop;
+    surf2 = surfaces[1].next;
 
+    if (surf->key > surf2->key)
+	goto newtop;
+
+    // if it's two surfaces on the same plane, the one that's already
+    // active is in front, so keep going unless it's a bmodel
+    if (surf->insubmodel && (surf->key == surf2->key)) {
+	// must be two bmodels in the same leaf; don't care, because they'll
+	// never be farthest anyway
+	goto newtop;
+    }
+
+ continue_search:
+
+    do {
+	surf2 = surf2->next;
+    } while (surf->key < surf2->key);
+
+    if (surf->key == surf2->key) {
 	// if it's two surfaces on the same plane, the one that's already
 	// active is in front, so keep going unless it's a bmodel
-	if (surf->insubmodel && (surf->key == surf2->key)) {
-	    // must be two bmodels in the same leaf; don't care, because they'll
-	    // never be farthest anyway
-	    goto newtop;
-	}
+	if (!surf->insubmodel)
+	    goto continue_search;
 
-      continue_search:
-
-	do {
-	    surf2 = surf2->next;
-	} while (surf->key < surf2->key);
-
-	if (surf->key == surf2->key) {
-	    // if it's two surfaces on the same plane, the one that's already
-	    // active is in front, so keep going unless it's a bmodel
-	    if (!surf->insubmodel)
-		goto continue_search;
-
-	    // must be two bmodels in the same leaf; don't care which is really
-	    // in front, because they'll never be farthest anyway
-	}
-
-	goto gotposition;
-
-      newtop:
-	// emit a span (obscures current top)
-	iu = edge->u >> 20;
-
-	if (iu > surf2->last_u) {
-	    span = span_p++;
-	    span->u = surf2->last_u;
-	    span->count = iu - span->u;
-	    span->v = current_iv;
-	    span->pnext = surf2->spans;
-	    surf2->spans = span;
-	}
-	// set last_u on the new span
-	surf->last_u = iu;
-
-      gotposition:
-	// insert before surf2
-	surf->next = surf2;
-	surf->prev = surf2->prev;
-	surf2->prev->next = surf;
-	surf2->prev = surf;
+	// must be two bmodels in the same leaf; don't care which is really
+	// in front, because they'll never be farthest anyway
     }
+
+    goto gotposition;
+
+ newtop:
+    // emit a span (obscures current top)
+    iu = edge->u >> 20;
+
+    if (iu > surf2->last_u) {
+	span = span_p++;
+	span->u = surf2->last_u;
+	span->count = iu - span->u;
+	span->v = current_iv;
+	span->pnext = surf2->spans;
+	surf2->spans = span;
+    }
+    // set last_u on the new span
+    surf->last_u = iu;
+
+ gotposition:
+    // insert before surf2
+    surf->next = surf2;
+    surf->prev = surf2->prev;
+    surf2->prev->next = surf;
+    surf2->prev = surf;
 }
 
 
@@ -368,28 +369,28 @@ R_TrailingEdge(surf_t *surf, edge_t *edge)
 // don't generate a span if this is an inverted span, with the end
 // edge preceding the start edge (that is, we haven't seen the
 // start edge yet)
-    if (--surf->spanstate == 0) {
-	if (surf->insubmodel)
-	    r_bmodelactive--;
+    if (--surf->spanstate != 0)
+	return;
 
-	if (surf == surfaces[1].next) {
-	    // emit a span (current top going away)
-	    iu = edge->u >> 20;
-	    if (iu > surf->last_u) {
-		span = span_p++;
-		span->u = surf->last_u;
-		span->count = iu - span->u;
-		span->v = current_iv;
-		span->pnext = surf->spans;
-		surf->spans = span;
-	    }
-	    // set last_u on the surface below
-	    surf->next->last_u = iu;
+    if (surf->insubmodel)
+	r_bmodelactive--;
+
+    if (surf == surfaces[1].next) {
+	// emit a span (current top going away)
+	iu = edge->u >> 20;
+	if (iu > surf->last_u) {
+	    span = span_p++;
+	    span->u = surf->last_u;
+	    span->count = iu - span->u;
+	    span->v = current_iv;
+	    span->pnext = surf->spans;
+	    surf->spans = span;
 	}
-
-	surf->prev->next = surf->next;
-	surf->next->prev = surf->prev;
+	// set last_u on the surface below
+	surf->next->last_u = iu;
     }
+    surf->prev->next = surf->next;
+    surf->next->prev = surf->prev;
 }
 
 
