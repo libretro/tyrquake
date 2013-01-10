@@ -371,10 +371,8 @@ void
 R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags)
 {
     int i;
-    vec_t dot;
     msurface_t *psurf;
     int numsurfaces;
-    mplane_t *pplane;
 
 // FIXME: use bounding-box-based frustum clipping info?
 
@@ -382,19 +380,11 @@ R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags)
     numsurfaces = pmodel->nummodelsurfaces;
 
     for (i = 0; i < numsurfaces; i++, psurf++) {
-	// find which side of the node we are on
-	pplane = psurf->plane;
+	if (psurf->clipflags == BMODEL_FULLY_CLIPPED)
+	    continue;
 
-	dot = DotProduct(modelorg, pplane->normal) - pplane->dist;
-
-	// draw the polygon
-	if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
-	    (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON))) {
-	    r_currentkey = ((mleaf_t *)e->topnode)->key;
-
-	    // FIXME: use bounding-box-based frustum clipping info?
-	    R_RenderFace(e, psurf, clipflags);
-	}
+	r_currentkey = ((mleaf_t *)e->topnode)->key;
+	R_RenderFace(e, psurf, clipflags);
     }
 }
 
