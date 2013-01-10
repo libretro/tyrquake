@@ -453,31 +453,28 @@ R_LeadingEdge(edge_t *edge)
 	surf2 = surf2->next;
     } while (surf->key > surf2->key);
 
-    if (surf->key == surf2->key) {
-	// if it's two surfaces on the same plane, the one that's already
-	// active is in front, so keep going unless it's a bmodel
-	if (!surf->insubmodel)
-	    goto continue_search;
+    if (surf->key != surf2->key)
+	goto gotposition;
 
-	// must be two bmodels in the same leaf; sort on 1/z
-	fu = (float)(edge->u - 0xFFFFF) * (1.0 / 0x100000);
-	newzi = surf->d_ziorigin + fv * surf->d_zistepv + fu * surf->d_zistepu;
-	newzibottom = newzi * 0.99;
-
-	testzi = surf2->d_ziorigin + fv * surf2->d_zistepv +
-	    fu * surf2->d_zistepu;
-
-	if (newzibottom >= testzi)
-	    goto gotposition;
-
-	newzitop = newzi * 1.01;
-	if (newzitop >= testzi && surf->d_zistepu >= surf2->d_zistepu)
-	    goto gotposition;
-
+    // if it's two surfaces on the same plane, the one that's already
+    // active is in front, so keep going unless it's a bmodel
+    if (!surf->insubmodel)
 	goto continue_search;
-    }
 
-    goto gotposition;
+    // must be two bmodels in the same leaf; sort on 1/z
+    fu = (float)(edge->u - 0xFFFFF) * (1.0 / 0x100000);
+    newzi = surf->d_ziorigin + fv * surf->d_zistepv + fu * surf->d_zistepu;
+    newzibottom = newzi * 0.99;
+
+    testzi = surf2->d_ziorigin + fv * surf2->d_zistepv + fu * surf2->d_zistepu;
+    if (newzibottom >= testzi)
+	goto gotposition;
+
+    newzitop = newzi * 1.01;
+    if (newzitop >= testzi && surf->d_zistepu >= surf2->d_zistepu)
+	goto gotposition;
+
+    goto continue_search;
 
  newtop:
     // emit a span (obscures current top)
