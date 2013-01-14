@@ -123,8 +123,8 @@ void MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
     __attribute__((format(printf,2,0)));
 void MSG_WriteCoord(sizebuf_t *sb, float f);
 void MSG_WriteAngle(sizebuf_t *sb, float f);
-#ifdef QW_HACK
 void MSG_WriteAngle16(sizebuf_t *sb, float f);
+#ifdef QW_HACK
 void MSG_WriteDeltaUsercmd(sizebuf_t *sb, const struct usercmd_s *from,
 			   const struct usercmd_s *cmd);
 #endif
