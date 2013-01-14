@@ -533,8 +533,8 @@ Mod_NextLeafBit(const leafbits_t *leafbits, int leafnum, leafblock_t *check)
  * Macro to iterate over just the ones in the leaf bit array
  */
 #define foreach_leafbit(leafbits, leafnum, check) \
-    for (	check = 0, leafnum = Mod_NextLeafBit(leafbits, -1, &check);	\
-		leafnum < leafbits->numleafs;					\
+    for (	check = 0, leafnum = Mod_NextLeafBit(leafbits, -1, &check); \
+		leafnum < leafbits->numleafs;				    \
 		leafnum = Mod_NextLeafBit(leafbits, leafnum, &check) )
 
 /* 'OR' the bits of src into dst */
