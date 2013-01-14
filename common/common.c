@@ -520,16 +520,16 @@ MSG_WriteCoord(sizebuf_t *sb, float f)
 void
 MSG_WriteAngle(sizebuf_t *sb, float f)
 {
-    MSG_WriteByte(sb, (int)(f * 256 / 360) & 255);
+    MSG_WriteByte(sb, (int)floorf((f * 256 / 360) + 0.5f) & 255);
 }
 
-#ifdef QW_HACK
 void
 MSG_WriteAngle16(sizebuf_t *sb, float f)
 {
-    MSG_WriteShort(sb, (int)(f * 65536 / 360) & 65535);
+    MSG_WriteShort(sb, (int)floorf((f * 65536 / 360) + 0.5f) & 65535);
 }
 
+#ifdef QW_HACK
 void
 MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
 		      const usercmd_t *cmd)
