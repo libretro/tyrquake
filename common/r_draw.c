@@ -147,13 +147,12 @@ R_EmitEdge(mvertex_t *pv0, mvertex_t *pv1)
 
     r_ceilv1 = (int)ceil(r_v1);
 
-
 // create the edge
     if (ceilv0 == r_ceilv1) {
 	// we cache unclipped horizontal edges as fully clipped
 	if (cacheoffset != 0x7FFFFFFF) {
-	    cacheoffset = FULLY_CLIPPED_CACHED |
-		(r_framecount & FRAMECOUNT_MASK);
+	    cacheoffset = FULLY_CLIPPED_CACHED;
+	    cacheoffset |= (r_framecount & FRAMECOUNT_MASK);
 	}
 
 	return;			// horizontal edge
