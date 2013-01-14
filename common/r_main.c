@@ -706,6 +706,8 @@ R_CullSubmodelSurfaces(const model_t *submodel, const vec3_t vieworg,
 	/* Clip the surface against the frustum */
 	surf->clipflags = clipflags;
 	for (j = 0; j < 4; j++) {
+	    if (!(surf->clipflags & (1 << j)))
+		continue;
 	    plane = &view_clipplanes[j].plane;
 	    side = BoxOnPlaneSide(surf->mins, surf->maxs, plane);
 	    if (side == PSIDE_BACK) {
