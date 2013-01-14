@@ -80,7 +80,23 @@ static const char *svc_strings[] = {
     "svc_finale",		// [string] music [string] text
     "svc_cdtrack",		// [byte] track [byte] looptrack
     "svc_sellscreen",
-    "svc_cutscene"
+    "svc_cutscene",
+    /* FITZ protocol messages */
+    "",				// 35
+    "",				// 36
+    "svc_skybox",
+    "",				// 38
+    "",				// 39
+    "svc_bf",
+    "svc_fog",
+    "svc_spawnbaseline2",
+    "svc_spawnstatic2",
+    "svc_spawnstaticsound2",
+    "",				// 45
+    "",				// 46
+    "",				// 47
+    "",				// 48
+    "",				// 49
 };
 
 //=============================================================================
@@ -109,7 +125,7 @@ CL_EntityNum(int num)
 
 
 static int
-CL_ReadSoundNum()
+CL_ReadSoundNum(int field_mask)
 {
     switch (cl.protocol) {
     case PROTOCOL_VERSION_NQ:
@@ -117,7 +133,12 @@ CL_ReadSoundNum()
 	return MSG_ReadByte();
     case PROTOCOL_VERSION_BJP2:
     case PROTOCOL_VERSION_BJP3:
-	return MSG_ReadShort();
+	return (unsigned short)MSG_ReadShort();
+    case PROTOCOL_VERSION_FITZ:
+	if (field_mask & SND_LARGESOUND)
+	    return (unsigned short)MSG_ReadShort();
+	else
+	    return MSG_ReadByte();
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
 		   cl.protocol);
@@ -152,11 +173,15 @@ CL_ParseStartSoundPacket(void)
     else
 	attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
-    channel = MSG_ReadShort();
-    sound_num = CL_ReadSoundNum();
-
-    ent = channel >> 3;
-    channel &= 7;
+    if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_LARGEENTITY)) {
+	ent = (unsigned short)MSG_ReadShort();
+	channel = MSG_ReadByte();
+    } else {
+	channel = MSG_ReadShort();
+	ent = channel >> 3;
+	channel &= 7;
+    }
+    sound_num = CL_ReadSoundNum(field_mask);
 
     if (ent > MAX_EDICTS)
 	Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
@@ -276,6 +301,7 @@ CL_ParseServerInfo(void)
     Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
 	       "\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n\n");
     Con_Printf("%c%s\n", 2, level);
+    Con_Printf("Using protocol %i\n", cl.protocol);
 
 //
 // first we go through and touch all of the precache data that still
@@ -357,7 +383,7 @@ CL_ParseServerInfo(void)
 
 
 static int
-CL_ReadModelIndex(void)
+CL_ReadModelIndex(unsigned int bits)
 {
     switch (cl.protocol) {
     case PROTOCOL_VERSION_NQ:
@@ -366,6 +392,29 @@ CL_ReadModelIndex(void)
     case PROTOCOL_VERSION_BJP2:
     case PROTOCOL_VERSION_BJP3:
 	return MSG_ReadShort();
+    case PROTOCOL_VERSION_FITZ:
+	if (bits & B_LARGEMODEL)
+	    return MSG_ReadShort();
+	return MSG_ReadByte();
+    default:
+	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+		   cl.protocol);
+    }
+}
+
+static int
+CL_ReadModelFrame(unsigned int bits)
+{
+    switch (cl.protocol) {
+    case PROTOCOL_VERSION_NQ:
+    case PROTOCOL_VERSION_BJP:
+    case PROTOCOL_VERSION_BJP2:
+    case PROTOCOL_VERSION_BJP3:
+	return MSG_ReadByte();
+    case PROTOCOL_VERSION_FITZ:
+	if (bits & B_LARGEFRAME)
+	    return MSG_ReadShort();
+	return MSG_ReadByte();
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
 		   cl.protocol);
@@ -383,7 +432,7 @@ relinked.  Other attributes can change without relinking.
 */
 
 void
-CL_ParseUpdate(int bits)
+CL_ParseUpdate(unsigned int bits)
 {
     int i;
     model_t *model;
@@ -408,6 +457,13 @@ CL_ParseUpdate(int bits)
 	bits |= (i << 8);
     }
 
+    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
+	if (bits & U_EXTEND1)
+	    bits |= MSG_ReadByte() << 16;
+	if (bits & U_EXTEND2)
+	    bits |= MSG_ReadByte() << 24;
+    }
+
     if (bits & U_LONGENTITY)
 	num = MSG_ReadShort();
     else
@@ -423,30 +479,11 @@ CL_ParseUpdate(int bits)
     ent->msgtime = cl.mtime[0];
 
     if (bits & U_MODEL) {
-	modnum = CL_ReadModelIndex();
+	modnum = CL_ReadModelIndex(0);
 	if (modnum >= max_models(cl.protocol))
 	    Host_Error("CL_ParseModel: bad modnum");
     } else
 	modnum = ent->baseline.modelindex;
-
-    model = cl.model_precache[modnum];
-    if (model != ent->model) {
-	ent->model = model;
-	// automatic animation (torches, etc) can be either all together
-	// or randomized
-	if (model) {
-	    if (model->synctype == ST_RAND)
-		ent->syncbase = (float)(rand() & 0x7fff) / 0x7fff;
-	    else
-		ent->syncbase = 0.0;
-	} else
-	    forcelink = true;	// hack to make null model players work
-
-#ifdef GLQUAKE
-	if (num > 0 && num <= cl.maxclients)
-	    R_TranslatePlayerSkin(num - 1);
-#endif
-    }
 
     if (bits & U_FRAME)
 	ent->frame = MSG_ReadByte();
@@ -529,6 +566,41 @@ CL_ParseUpdate(int bits)
     else
 	ent->msg_angles[0][2] = ent->baseline.angles[2];
 
+    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
+	if (bits & U_NOLERP) {
+	    // FIXME - TODO (called U_STEP in FQ)
+	}
+	if (bits & U_ALPHA) {
+	    MSG_ReadByte(); // FIXME - TODO
+	}
+	if (bits & U_FRAME2)
+	    ent->frame = (ent->frame & 0xFF) | (MSG_ReadByte() << 8);
+	if (bits & U_MODEL2)
+	    modnum = (modnum & 0xFF)| (MSG_ReadByte() << 8);
+	if (bits & U_LERPFINISH) {
+	    MSG_ReadByte(); // FIXME - TODO
+	}
+    }
+
+    model = cl.model_precache[modnum];
+    if (model != ent->model) {
+	ent->model = model;
+	// automatic animation (torches, etc) can be either all together
+	// or randomized
+	if (model) {
+	    if (model->synctype == ST_RAND)
+		ent->syncbase = (float)(rand() & 0x7fff) / 0x7fff;
+	    else
+		ent->syncbase = 0.0;
+	} else
+	    forcelink = true;	// hack to make null model players work
+
+#ifdef GLQUAKE
+	if (num > 0 && num <= cl.maxclients)
+	    R_TranslatePlayerSkin(num - 1);
+#endif
+    }
+
     /* MOVEMENT LERP INFO - could I just extend baseline instead? */
     if (!VectorCompare(ent->msg_origins[0], ent->currentorigin)) {
 	if (ent->currentorigintime) {
@@ -570,18 +642,22 @@ CL_ParseUpdate(int bits)
 CL_ParseBaseline
 ==================
 */
-void
-CL_ParseBaseline(entity_t *ent)
+static void
+CL_ParseBaseline(entity_t *ent, unsigned int bits)
 {
     int i;
 
-    ent->baseline.modelindex = CL_ReadModelIndex();
-    ent->baseline.frame = MSG_ReadByte();
+    ent->baseline.modelindex = CL_ReadModelIndex(bits);
+    ent->baseline.frame = CL_ReadModelFrame(bits);
     ent->baseline.colormap = MSG_ReadByte();
     ent->baseline.skinnum = MSG_ReadByte();
     for (i = 0; i < 3; i++) {
 	ent->baseline.origin[i] = MSG_ReadCoord();
 	ent->baseline.angles[i] = MSG_ReadAngle();
+    }
+
+    if (cl.protocol == PROTOCOL_VERSION_FITZ && (bits & B_ALPHA)) {
+	MSG_ReadByte(); // FIXME - TODO
     }
 }
 
@@ -594,9 +670,16 @@ Server information pertaining to this client only
 ==================
 */
 void
-CL_ParseClientdata(int bits)
+CL_ParseClientdata(void)
 {
     int i, j;
+    unsigned int bits;
+
+    bits = (unsigned short)MSG_ReadShort();
+    if (bits & SU_EXTEND1)
+	bits |= MSG_ReadByte() << 16;
+    if (bits & SU_EXTEND2)
+	bits |= MSG_ReadByte() << 24;
 
     if (bits & SU_VIEWHEIGHT)
 	cl.viewheight = MSG_ReadChar();
@@ -649,7 +732,7 @@ CL_ParseClientdata(int bits)
     }
 
     if (bits & SU_WEAPON)
-	i = CL_ReadModelIndex();
+	i = CL_ReadModelIndex(0);
     else
 	i = 0;
     if (cl.stats[STAT_WEAPON] != i) {
@@ -690,6 +773,26 @@ CL_ParseClientdata(int bits)
 	    Sbar_Changed();
 	}
     }
+
+    /* FITZ Protocol */
+    if (bits & SU_WEAPON2)
+	cl.stats[STAT_WEAPON] |= MSG_ReadByte() << 8;
+    if (bits & SU_ARMOR2)
+	cl.stats[STAT_ARMOR] |= MSG_ReadByte() << 8;
+    if (bits & SU_AMMO2)
+	cl.stats[STAT_AMMO] |= MSG_ReadByte() << 8;
+    if (bits & SU_SHELLS2)
+	cl.stats[STAT_SHELLS] |= MSG_ReadByte() << 8;
+    if (bits & SU_NAILS2)
+	cl.stats[STAT_NAILS] |= MSG_ReadByte() << 8;
+    if (bits & SU_ROCKETS2)
+	cl.stats[STAT_ROCKETS] |= MSG_ReadByte() << 8;
+    if (bits & SU_CELLS2)
+	cl.stats[STAT_CELLS] |= MSG_ReadByte() << 8;
+    if (bits & SU_WEAPONFRAME2)
+	cl.stats[STAT_WEAPONFRAME] |= MSG_ReadByte() << 8;
+    if (bits & SU_WEAPONALPHA)
+	MSG_ReadByte(); // FIXME - TODO
 }
 
 /*
@@ -736,7 +839,7 @@ CL_ParseStatic
 =====================
 */
 void
-CL_ParseStatic(void)
+CL_ParseStatic(unsigned int bits)
 {
     entity_t *ent;
     int i;
@@ -746,7 +849,7 @@ CL_ParseStatic(void)
 	Host_Error("Too many static entities");
     ent = &cl_static_entities[i];
     cl.num_statics++;
-    CL_ParseBaseline(ent);
+    CL_ParseBaseline(ent, bits);
 
 // copy it to the current state
     ent->model = cl.model_precache[ent->baseline.modelindex];
@@ -782,6 +885,7 @@ CL_ReadSoundNum_Static(void)
     case PROTOCOL_VERSION_NQ:
     case PROTOCOL_VERSION_BJP:
     case PROTOCOL_VERSION_BJP3:
+    case PROTOCOL_VERSION_FITZ:
 	return MSG_ReadByte();
     case PROTOCOL_VERSION_BJP2:
 	return MSG_ReadShort();
@@ -796,7 +900,7 @@ CL_ReadSoundNum_Static(void)
 CL_ParseStaticSound
 ===================
 */
-void
+static void
 CL_ParseStaticSound(void)
 {
     vec3_t org;
@@ -812,6 +916,22 @@ CL_ParseStaticSound(void)
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
 
+/* FITZ protocol */
+static void
+CL_ParseStaticSound2(void)
+{
+    vec3_t org;
+    int sound_num, vol, atten;
+    int i;
+
+    for (i = 0; i < 3; i++)
+	org[i] = MSG_ReadCoord();
+    sound_num = MSG_ReadShort();
+    vol = MSG_ReadByte();
+    atten = MSG_ReadByte();
+
+    S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
+}
 
 /* helper function (was a macro, hence the CAPS) */
 static void
@@ -833,6 +953,7 @@ CL_ParseServerMessage(void)
     int cmd;
     char *s;
     int i;
+    unsigned int bits;
     byte colors;
 
 //
@@ -879,8 +1000,7 @@ CL_ParseServerMessage(void)
 	    break;
 
 	case svc_clientdata:
-	    i = MSG_ReadShort();
-	    CL_ParseClientdata(i);
+	    CL_ParseClientdata();
 	    break;
 
 	case svc_version:
@@ -977,11 +1097,26 @@ CL_ParseServerMessage(void)
 	case svc_spawnbaseline:
 	    i = MSG_ReadShort();
 	    // must use CL_EntityNum() to force cl.num_entities up
-	    CL_ParseBaseline(CL_EntityNum(i));
+	    CL_ParseBaseline(CL_EntityNum(i), 0);
 	    break;
+
+	case svc_spawnbaseline2:
+	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
+	    i = MSG_ReadShort();
+	    bits = MSG_ReadByte();
+	    // must use CL_EntityNum() to force cl.num_entities up
+	    CL_ParseBaseline(CL_EntityNum(i), bits);
+
 	case svc_spawnstatic:
-	    CL_ParseStatic();
+	    CL_ParseStatic(0);
 	    break;
+
+	case svc_spawnstatic2:
+	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
+	    bits = MSG_ReadByte();
+	    CL_ParseStatic(bits);
+	    break;
+
 	case svc_temp_entity:
 	    CL_ParseTEnt();
 	    break;
@@ -1021,6 +1156,11 @@ CL_ParseServerMessage(void)
 	    CL_ParseStaticSound();
 	    break;
 
+	case svc_spawnstaticsound2:
+	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
+	    CL_ParseStaticSound2();
+	    break;
+
 	case svc_cdtrack:
 	    cl.cdtrack = MSG_ReadByte();
 	    cl.looptrack = MSG_ReadByte();
@@ -1053,6 +1193,24 @@ CL_ParseServerMessage(void)
 
 	case svc_sellscreen:
 	    Cmd_ExecuteString("help", src_command);
+	    break;
+
+	/* Various FITZ protocol messages - FIXME - !protocol => Host_Error */
+	case svc_skybox:
+	    MSG_ReadString(); // FIXME - TODO
+	    break;
+
+	case svc_bf:
+	    Cmd_ExecuteString("bf", src_command);
+	    break;
+
+	case svc_fog:
+	    /* FIXME - TODO */
+	    MSG_ReadByte(); // density
+	    MSG_ReadByte(); // red
+	    MSG_ReadByte(); // green
+	    MSG_ReadByte(); // blue
+	    MSG_ReadShort(); // time
 	    break;
 
 	default:
