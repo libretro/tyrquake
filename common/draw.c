@@ -166,11 +166,11 @@ Draw_Character(int x, int y, int num)
      *       - seems to be affected by "-conwidth ..."
      */
     if (y > vid.height - 8 || x < 0 || x > vid.width - 8) {
-	Con_DPrintf("%s: (%i, %i)\n", __func__, x, y);
+	//Con_DPrintf("%s: (%i, %i)\n", __func__, x, y);
 	return;
     }
     if (num < 0 || num > 255) {
-	Con_DPrintf("%s: char %i\n", __func__, num);
+	//Con_DPrintf("%s: char %i\n", __func__, num);
 	return;
     }
 
