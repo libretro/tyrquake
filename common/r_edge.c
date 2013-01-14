@@ -462,6 +462,14 @@ R_LeadingEdge(edge_t *edge)
     if (!surf->insubmodel)
 	goto continue_search;
 
+    /*
+     * TODO - support clipping intersecting bmodels?
+     *
+     * Current edge code only supports "abutting" bmodels - if two non-world
+     * bmodels intersect, the surfaces will not be rendered correctly by the
+     * edge renderer.
+     */
+
     // must be two bmodels in the same leaf; sort on 1/z
     fu = (float)(edge->u - 0xFFFFF) * (1.0 / 0x100000);
     newzi = surf->d_ziorigin + fv * surf->d_zistepv + fu * surf->d_zistepu;
