@@ -107,7 +107,6 @@ WINS_Init(void)
     char *colon;
     struct hostent *local;
     netadr_t addr;
-    const struct sockaddr_in *iaddr;
 
     if (COM_CheckParm("-noudp"))
 	return -1;
@@ -123,6 +122,7 @@ WINS_Init(void)
 
     /* determine my name & address */
     myAddr.ip.l = htonl(INADDR_LOOPBACK);
+    myAddr.port = htons(DEFAULTnet_hostport);
     err = gethostname(buff, MAXHOSTNAMELEN);
     if (err) {
 	Con_Printf("%s: WARNING: gethostname failed.\n", __func__);
@@ -137,11 +137,11 @@ WINS_Init(void)
 	} else if (local->h_addrtype != AF_INET) {
 	    Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
 	} else {
-	    iaddr = (const struct sockaddr_in *)local->h_addr_list[0];
-	    SockadrToNetadr(iaddr, &myAddr);
+	    struct in_addr *inaddr = (struct in_addr *)local->h_addr_list[0];
+	    myAddr.ip.l = inaddr->S_un.S_addr;
 	}
     }
-    Con_Printf ("UDP, Local address: %s\n", NET_AdrToString(&myAddr));
+    Con_Printf("UDP, Local address: %s\n", NET_AdrToString(&myAddr));
 
     i = COM_CheckParm("-ip");
     if (i && i < com_argc - 1) {
