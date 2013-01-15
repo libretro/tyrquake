@@ -768,13 +768,13 @@ MSG_ReadAngle(void)
     return MSG_ReadChar() * (360.0 / 256);
 }
 
-#ifdef QW_HACK
 float
 MSG_ReadAngle16(void)
 {
     return MSG_ReadShort() * (360.0 / 65536);
 }
 
+#ifdef QW_HACK
 void
 MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
 {

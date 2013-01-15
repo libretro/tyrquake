@@ -453,7 +453,10 @@ SV_ReadClientMove(usercmd_t *move)
 
 // read current angles
     for (i = 0; i < 3; i++)
-	angle[i] = MSG_ReadAngle();
+	if (sv.protocol == PROTOCOL_VERSION_FITZ)
+	    angle[i] = MSG_ReadAngle16();
+	else
+	    angle[i] = MSG_ReadAngle();
 
     VectorCopy(angle, host_client->edict->v.v_angle);
 

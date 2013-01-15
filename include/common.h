@@ -151,8 +151,8 @@ char *MSG_ReadStringLine(void);
 
 float MSG_ReadCoord(void);
 float MSG_ReadAngle(void);
-#ifdef QW_HACK
 float MSG_ReadAngle16(void);
+#ifdef QW_HACK
 void MSG_ReadDeltaUsercmd(const struct usercmd_s *from, struct usercmd_s *cmd);
 #endif
 #ifdef NQ_HACK

@@ -608,6 +608,12 @@ PF_WriteSoundNum_Static(sizebuf_t *sb, int c)
     case PROTOCOL_VERSION_BJP2:
 	MSG_WriteShort(sb, c);
 	break;
+    case PROTOCOL_VERSION_FITZ:
+	if (c > 255)
+	    MSG_WriteShort(sb, c);
+	else
+	    MSG_WriteByte(sb, c);
+	break;
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
 		   sv.protocol);
@@ -646,7 +652,15 @@ PF_ambientsound(void)
     }
 
 // add an svc_spawnambient command to the level signon packet
+#ifdef NQ_HACK
+    if (sv.protocol == PROTOCOL_VERSION_FITZ && soundnum > 255)
+	MSG_WriteByte(&sv.signon, svc_spawnstaticsound2);
+    else
+	MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
+#endif
+#ifdef QW_HACK
     MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
+#endif
     for (i = 0; i < 3; i++)
 	MSG_WriteCoord(&sv.signon, pos[i]);
 
@@ -1749,16 +1763,36 @@ PF_makestatic(void)
 {
     edict_t *ent;
     int i;
+#ifdef NQ_HACK
+    unsigned int bits;
+#endif
 
     ent = G_EDICT(OFS_PARM0);
 
-    MSG_WriteByte(&sv.signon, svc_spawnstatic);
 #ifdef NQ_HACK
-    SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
+    bits = 0;
+    if (sv.protocol == PROTOCOL_VERSION_FITZ) {
+	if (SV_ModelIndex(PR_GetString(ent->v.model)) & 0xff00)
+	    bits |= B_LARGEMODEL;
+	if ((int)ent->v.frame & 0xff00)
+	    bits |= B_LARGEFRAME;
+#if 0
+	if (ent->alpha != ENTALPHA_DEFAULT)
+	    bits |= B_ALPHA;
+#endif
+    }
+
+    if (bits)
+	MSG_WriteByte(&sv.signon, svc_spawnstatic2);
+    else
+	MSG_WriteByte(&sv.signon, svc_spawnstatic);
+    SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)), bits);
 #endif
 #ifdef QW_HACK
+    MSG_WriteByte(&sv.signon, svc_spawnstatic);
     MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
 #endif
+
     MSG_WriteByte(&sv.signon, ent->v.frame);
     MSG_WriteByte(&sv.signon, ent->v.colormap);
     MSG_WriteByte(&sv.signon, ent->v.skin);
@@ -1767,6 +1801,11 @@ PF_makestatic(void)
 	MSG_WriteCoord(&sv.signon, ent->v.origin[i]);
 	MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
     }
+
+#if 0
+    if (bits & B_ALPHA)
+	MSG_WriteByte(&sv.signon, ent->alpha);
+#endif
 
     /* throw the entity away now */
     ED_Free(ent);

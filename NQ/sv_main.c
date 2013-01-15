@@ -53,7 +53,8 @@ static sv_protocol_t sv_protocols[] = {
     PROT(PROTOCOL_VERSION_NQ,   "NQ",   "Standard NetQuake protocol"),
     PROT(PROTOCOL_VERSION_BJP,  "BJP",  "BJP protocol (v1)"),
     PROT(PROTOCOL_VERSION_BJP2, "BJP2", "BJP protocol (v2)"),
-    PROT(PROTOCOL_VERSION_BJP3, "BJP3", "BJP protocol (v3)")
+    PROT(PROTOCOL_VERSION_BJP3, "BJP3", "BJP protocol (v3)"),
+    PROT(PROTOCOL_VERSION_FITZ, "FITZ", "FitzQuake protocol"),
 };
 
 static int sv_protocol = PROTOCOL_VERSION_NQ;
@@ -192,7 +193,7 @@ SV_StartParticle(vec3_t org, vec3_t dir, int color, int count)
 }
 
 static void
-SV_WriteSoundNum(sizebuf_t *sb, int c)
+SV_WriteSoundNum(sizebuf_t *sb, int c, unsigned int bits)
 {
     switch (sv.protocol) {
     case PROTOCOL_VERSION_NQ:
@@ -202,6 +203,12 @@ SV_WriteSoundNum(sizebuf_t *sb, int c)
     case PROTOCOL_VERSION_BJP2:
     case PROTOCOL_VERSION_BJP3:
 	MSG_WriteShort(sb, c);
+	break;
+    case PROTOCOL_VERSION_FITZ:
+	if (bits & SND_LARGESOUND)
+	    MSG_WriteShort(sb, c);
+	else
+	    MSG_WriteByte(sb, c);
 	break;
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
@@ -263,13 +270,22 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
 
     ent = NUM_FOR_EDICT(entity);
 
-    channel = (ent << 3) | channel;
-
     field_mask = 0;
     if (volume != DEFAULT_SOUND_PACKET_VOLUME)
 	field_mask |= SND_VOLUME;
     if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
 	field_mask |= SND_ATTENUATION;
+
+    if (ent >= 8192) {
+	if (sv.protocol != PROTOCOL_VERSION_FITZ)
+	    return; /* currently no other protocols can encode these */
+	field_mask |= SND_LARGEENTITY;
+    }
+    if (sound_num >= 256 || channel >= 8) {
+	if (sv.protocol != PROTOCOL_VERSION_FITZ)
+	    return; /* currently no other protocols can encode these */
+	field_mask |= SND_LARGESOUND;
+    }
 
 // directed messages go only to the entity the are targeted on
     MSG_WriteByte(&sv.datagram, svc_sound);
@@ -278,8 +294,13 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
 	MSG_WriteByte(&sv.datagram, volume);
     if (field_mask & SND_ATTENUATION)
 	MSG_WriteByte(&sv.datagram, attenuation * 64);
-    MSG_WriteShort(&sv.datagram, channel);
-    SV_WriteSoundNum(&sv.datagram, sound_num);
+    if (field_mask & SND_LARGEENTITY) {
+	MSG_WriteShort(&sv.datagram, ent);
+	MSG_WriteByte(&sv.datagram, channel);
+    } else {
+	MSG_WriteShort(&sv.datagram, (ent << 3) | channel);
+    }
+    SV_WriteSoundNum(&sv.datagram, sound_num, field_mask);
     for (i = 0; i < 3; i++) {
 	coord = entity->v.origin[i];
 	coord += 0.5 * (entity->v.mins[i] + entity->v.maxs[i]);
@@ -464,7 +485,7 @@ SV_ClearDatagram(void)
 //=============================================================================
 
 void
-SV_WriteModelIndex(sizebuf_t *sb, int c)
+SV_WriteModelIndex(sizebuf_t *sb, int c, unsigned int bits)
 {
     switch (sv.protocol) {
     case PROTOCOL_VERSION_NQ:
@@ -474,6 +495,12 @@ SV_WriteModelIndex(sizebuf_t *sb, int c)
     case PROTOCOL_VERSION_BJP2:
     case PROTOCOL_VERSION_BJP3:
 	MSG_WriteShort(sb, c);
+	break;
+    case PROTOCOL_VERSION_FITZ:
+	if (bits & B_LARGEMODEL)
+	    MSG_WriteShort(sb, c);
+	else
+	    MSG_WriteByte(sb, c);
 	break;
     default:
 	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
@@ -561,6 +588,20 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 	if (ent->baseline.modelindex != ent->v.modelindex)
 	    bits |= U_MODEL;
 
+	/* FIXME - TODO: add alpha stuff here */
+
+	if (sv.protocol == PROTOCOL_VERSION_FITZ) {
+	    if ((bits & U_FRAME) && ((int)ent->v.frame & 0xff00))
+		bits |= U_FRAME2;
+	    if ((bits & U_MODEL) && ((int)ent->v.modelindex & 0xff00))
+		bits |= U_MODEL2;
+	    /* FIXME - Add the U_LERPFINISH bit */
+	    if (bits & 0x00ff0000)
+		bits |= U_EXTEND1;
+	    if (bits & 0xff000000)
+		bits |= U_EXTEND2;
+	}
+
 	if (e >= 256)
 	    bits |= U_LONGENTITY;
 
@@ -574,13 +615,18 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 
 	if (bits & U_MOREBITS)
 	    MSG_WriteByte(msg, bits >> 8);
+	if (bits & U_EXTEND1)
+	    MSG_WriteByte(msg, bits >> 16);
+	if (bits & U_EXTEND2)
+	    MSG_WriteByte(msg, bits >> 24);
+
 	if (bits & U_LONGENTITY)
 	    MSG_WriteShort(msg, e);
 	else
 	    MSG_WriteByte(msg, e);
 
 	if (bits & U_MODEL)
-	    SV_WriteModelIndex(msg, ent->v.modelindex);
+	    SV_WriteModelIndex(msg, ent->v.modelindex, 0);
 	if (bits & U_FRAME)
 	    MSG_WriteByte(msg, ent->v.frame);
 	if (bits & U_COLORMAP)
@@ -601,7 +647,19 @@ SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 	    MSG_WriteCoord(msg, ent->v.origin[2]);
 	if (bits & U_ANGLE3)
 	    MSG_WriteAngle(msg, ent->v.angles[2]);
-    }
+#if 0 /* FIXME */
+	if (bits & U_ALPHA)
+	    MSG_WriteByte(msg, ent->alpha);
+#endif
+	if (bits & U_FRAME2)
+	    MSG_WriteByte(msg, (int)ent->v.frame >> 8);
+	if (bits & U_MODEL2)
+	    MSG_WriteByte(msg, (int)ent->v.modelindex >> 8);
+#if 0 /* FIXME */
+	if (bits & U_LERPFINISH)
+	    MSG_WriteByte(msg, (byte)floorf(((ent->v.nextthink - sv.time) * 255.0f) + 0.5f));
+#endif
+     }
 }
 
 /*
@@ -706,13 +764,46 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
     if (ent->v.armorvalue)
 	bits |= SU_ARMOR;
 
-//      if (ent->v.weapon)
+//if (ent->v.weapon)
     bits |= SU_WEAPON;
+
+    if (sv.protocol == PROTOCOL_VERSION_FITZ) {
+	if ((bits & SU_WEAPON) &&
+	    (SV_ModelIndex(pr_strings + ent->v.weaponmodel) & 0xff00))
+	    bits |= SU_WEAPON2;
+	if ((int)ent->v.armorvalue & 0xff00)
+	    bits |= SU_ARMOR2;
+	if ((int)ent->v.currentammo & 0xff00)
+	    bits |= SU_AMMO2;
+	if ((int)ent->v.ammo_shells & 0xff00)
+	    bits |= SU_SHELLS2;
+	if ((int)ent->v.ammo_nails & 0xff00)
+	    bits |= SU_NAILS2;
+	if ((int)ent->v.ammo_rockets & 0xff00)
+	    bits |= SU_ROCKETS2;
+	if ((int)ent->v.ammo_cells & 0xff00)
+	    bits |= SU_CELLS2;
+	if ((bits & SU_WEAPONFRAME) &&
+	    ((int)ent->v.weaponframe & 0xff00))
+	    bits |= SU_WEAPONFRAME2;
+#if 0 /* FIXME - TODO */
+	if ((bits & SU_WEAPON) && ent->alpha != ENTALPHA_DEFAULT)
+	    bits |= SU_WEAPONALPHA; //for now, weaponalpha = client entity alpha
+#endif
+	if (bits & 0x00ff0000)
+	    bits |= SU_EXTEND1;
+	if (bits & 0xff000000)
+	    bits |= SU_EXTEND2;
+    }
 
 // send the data
 
     MSG_WriteByte(msg, svc_clientdata);
     MSG_WriteShort(msg, bits);
+    if (bits & SU_EXTEND1)
+	MSG_WriteByte(msg, bits >> 16);
+    if (bits & SU_EXTEND2)
+	MSG_WriteByte(msg, bits >> 24);
 
     if (bits & SU_VIEWHEIGHT)
 	MSG_WriteChar(msg, ent->v.view_ofs[2]);
@@ -735,7 +826,7 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
     if (bits & SU_ARMOR)
 	MSG_WriteByte(msg, ent->v.armorvalue);
     if (bits & SU_WEAPON)
-	SV_WriteModelIndex(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel)));
+	SV_WriteModelIndex(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel)), 0);
 
     MSG_WriteShort(msg, ent->v.health);
     MSG_WriteByte(msg, ent->v.currentammo);
@@ -754,6 +845,28 @@ SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
 	    }
 	}
     }
+
+    /* FITZ protocol stuff */
+    if (bits & SU_WEAPON2)
+	MSG_WriteByte(msg, SV_ModelIndex(pr_strings + ent->v.weaponmodel) >> 8);
+    if (bits & SU_ARMOR2)
+	MSG_WriteByte(msg, (int)ent->v.armorvalue >> 8);
+    if (bits & SU_AMMO2)
+	MSG_WriteByte(msg, (int)ent->v.currentammo >> 8);
+    if (bits & SU_SHELLS2)
+	MSG_WriteByte(msg, (int)ent->v.ammo_shells >> 8);
+    if (bits & SU_NAILS2)
+	MSG_WriteByte(msg, (int)ent->v.ammo_nails >> 8);
+    if (bits & SU_ROCKETS2)
+	MSG_WriteByte(msg, (int)ent->v.ammo_rockets >> 8);
+    if (bits & SU_CELLS2)
+	MSG_WriteByte(msg, (int)ent->v.ammo_cells >> 8);
+    if (bits & SU_WEAPONFRAME2)
+	MSG_WriteByte(msg, (int)ent->v.weaponframe >> 8);
+#if 0 /* FIXME - TODO */
+    if (bits & SU_WEAPONALPHA)
+	MSG_WriteByte(msg, ent->alpha); //for now, weaponalpha = client entity alpha
+#endif
 }
 
 /*
@@ -971,6 +1084,7 @@ SV_CreateBaseline(void)
     int i;
     edict_t *svent;
     int entnum;
+    unsigned int bits;
 
     for (entnum = 0; entnum < sv.num_edicts; entnum++) {
 	// get the current server version
@@ -996,20 +1110,46 @@ SV_CreateBaseline(void)
 		SV_ModelIndex(PR_GetString(svent->v.model));
 	}
 
+	bits = 0;
+	if (sv.protocol == PROTOCOL_VERSION_FITZ) {
+	    if (svent->baseline.modelindex & 0xff00)
+		bits |= B_LARGEMODEL;
+	    if (svent->baseline.frame & 0xff00)
+		bits |= B_LARGEFRAME;
+#if 0 /* FIXME - TODO */
+	    if (svent->baseline.alpha != ENTALPHA_DEFAULT)
+		bits |= B_ALPHA
+#endif
+	}
+
 	//
 	// add to the message
 	//
-	MSG_WriteByte(&sv.signon, svc_spawnbaseline);
-	MSG_WriteShort(&sv.signon, entnum);
+	if (bits) {
+	    MSG_WriteByte(&sv.signon, svc_spawnbaseline2);
+	    MSG_WriteShort(&sv.signon, entnum);
+	    MSG_WriteByte(&sv.signon, bits);
+	} else {
+	    MSG_WriteByte(&sv.signon, svc_spawnbaseline);
+	    MSG_WriteShort(&sv.signon, entnum);
+	}
 
-	SV_WriteModelIndex(&sv.signon, svent->baseline.modelindex);
-	MSG_WriteByte(&sv.signon, svent->baseline.frame);
+	SV_WriteModelIndex(&sv.signon, svent->baseline.modelindex, bits);
+	if (bits & B_LARGEFRAME)
+	    MSG_WriteShort(&sv.signon, svent->baseline.frame);
+	else
+	    MSG_WriteByte(&sv.signon, svent->baseline.frame);
 	MSG_WriteByte(&sv.signon, svent->baseline.colormap);
 	MSG_WriteByte(&sv.signon, svent->baseline.skinnum);
 	for (i = 0; i < 3; i++) {
 	    MSG_WriteCoord(&sv.signon, svent->baseline.origin[i]);
 	    MSG_WriteAngle(&sv.signon, svent->baseline.angles[i]);
 	}
+
+#if 0 /* FIXME - TODO */
+	if (bits & B_ALPHA)
+	    MSG_WriteByte(&sv.signon, svent->baseline.alpha);
+#endif
     }
 }
 
