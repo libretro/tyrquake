@@ -50,11 +50,11 @@ typedef struct {
 
 #define PROT(v, n, d) { .version = v, .name = n, .description = d }
 static sv_protocol_t sv_protocols[] = {
-    PROT(PROTOCOL_VERSION_NQ,   "NQ",   "Standard NetQuake protocol"),
-    PROT(PROTOCOL_VERSION_BJP,  "BJP",  "BJP protocol (v1)"),
-    PROT(PROTOCOL_VERSION_BJP2, "BJP2", "BJP protocol (v2)"),
-    PROT(PROTOCOL_VERSION_BJP3, "BJP3", "BJP protocol (v3)"),
-    PROT(PROTOCOL_VERSION_FITZ, "FITZ", "FitzQuake protocol"),
+    PROT(PROTOCOL_VERSION_NQ,   "nq",   "Standard NetQuake protocol"),
+    PROT(PROTOCOL_VERSION_FITZ, "fitz", "FitzQuake protocol"),
+    PROT(PROTOCOL_VERSION_BJP,  "bjp",  "BJP protocol (v1)"),
+    PROT(PROTOCOL_VERSION_BJP2, "bjp2", "BJP protocol (v2)"),
+    PROT(PROTOCOL_VERSION_BJP3, "bjp3", "BJP protocol (v3)"),
 };
 
 static int sv_protocol = PROTOCOL_VERSION_NQ;
@@ -72,33 +72,38 @@ SV_Protocol_f(void)
 		break;
 	    }
 	}
-	Con_Printf("sv_protocol is %d (%s)\n", sv_protocol, name);
+	Con_Printf("sv_protocol is %d (%s)\n"
+		   "    use 'sv_protocol list' to list available protocols\n",
+		   sv_protocol, name);
     } else if (Cmd_Argc() == 2) {
 	if (!strcasecmp(Cmd_Argv(1), "list")) {
 	    Con_Printf("Version  Name  Description\n"
 		       "-------  ----  -----------\n");
 	    for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
-		Con_Printf("%7d  %4s  %s\n", sv_protocols[i].version,
+		Con_Printf("%7d  %-4s  %s\n", sv_protocols[i].version,
 			   sv_protocols[i].name, sv_protocols[i].description);
 	    }
 	} else {
 	    int v = Q_atoi(Cmd_Argv(1));
 	    for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
-		if (sv_protocols[i].version == v) {
-		    sv_protocol = v;
-		    return;
-		} else if (!strcasecmp(sv_protocols[i].name, Cmd_Argv(1))) {
-		    sv_protocol = sv_protocols[i].version;
-		    return;
-		}
+		if (sv_protocols[i].version == v)
+		    break;
+		if (!strcasecmp(sv_protocols[i].name, Cmd_Argv(1)))
+		    break;
 	    }
-	    Con_Printf("sv_protocol: invalid protocol version (%d)\n", v);
+	    if (i == ARRAY_SIZE(sv_protocols)) {
+		Con_Printf("sv_protocol: unknown protocol version\n");
+		return;
+	    }
+	    if (sv_protocol != sv_protocols[i].version) {
+		sv_protocol = sv_protocols[i].version;
+		if (sv.active)
+		    Con_Printf("change will not take effect until the next "
+			       "level load.\n");
+	    }
 	}
     } else {
-	Con_Printf("Usage: sv_protocol [version | name | 'list']\n"
-		   "       With no arguments, displays the current value\n"
-		   "       Set using protocol name or number as argument\n"
-		   "       'sv_protocol list' to see available protocols\n");
+	Con_Printf("Usage: sv_protocol [<version> | <name> | 'list']\n");
     }
 }
 
@@ -106,6 +111,7 @@ static struct stree_root *
 SV_Protocol_Arg_f(const char *arg)
 {
     int i, arg_len;
+    char digits[10];
     struct stree_root *root;
 
     root = Z_Malloc(sizeof(struct stree_root));
@@ -116,6 +122,9 @@ SV_Protocol_Arg_f(const char *arg)
 	for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
 	    if (!arg || !strncasecmp(sv_protocols[i].name, arg, arg_len))
 		STree_InsertAlloc(root, sv_protocols[i].name, false);
+	    snprintf(digits, sizeof(digits), "%d", sv_protocols[i].version);
+	    if (arg_len && !strncmp(digits, arg, arg_len))
+		STree_InsertAlloc(root, digits, true);
 	}
     }
     return root;
