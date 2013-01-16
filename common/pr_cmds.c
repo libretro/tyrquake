@@ -1096,7 +1096,7 @@ PF_Find(void)
     f = G_INT(OFS_PARM1);
     s = G_STRING(OFS_PARM2);
     if (!s)
-	PR_RunError("PF_Find: bad search string");
+	PR_RunError("%s: bad search string", __func__);
 
     for (e++; e < sv.num_edicts; e++) {
 	ed = EDICT_NUM(e);
@@ -1118,12 +1118,13 @@ static void
 PR_CheckEmptyString(const char *s)
 {
     if (s[0] <= ' ')
-	PR_RunError("Bad string");
+	PR_RunError("%s: Bad string", __func__);
 }
 
 static void
 PF_precache_file(void)
-{				// precache_file is only used to copy files with qcc, it does nothing
+{
+    // precache_file is only used to copy files with qcc, it does nothing
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
 }
 
@@ -1134,8 +1135,8 @@ PF_precache_sound(void)
     int i;
 
     if (sv.state != ss_loading)
-	PR_RunError
-	    ("PF_Precache_*: Precache can only be done in spawn functions");
+	PR_RunError("%s: Precache can only be done in spawn functions",
+		    __func__);
 
     s = G_STRING(OFS_PARM0);
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
@@ -1598,11 +1599,11 @@ WriteDest(void)
 	ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
 	entnum = NUM_FOR_EDICT(ent);
 	if (entnum < 1 || entnum > svs.maxclients)
-	    PR_RunError("WriteDest: not a client");
+	    PR_RunError("%s: not a client", __func__);
 	return &svs.clients[entnum - 1].message;
 #endif
 #ifdef QW_HACK
-	SV_Error("Shouldn't be at MSG_ONE");
+	SV_Error("%s: Shouldn't be at MSG_ONE", __func__);
 #endif
 
     case MSG_ALL:
@@ -1622,7 +1623,7 @@ WriteDest(void)
 #endif
 
     default:
-	PR_RunError("WriteDest: bad destination");
+	PR_RunError("%s: bad destination", __func__);
 	break;
     }
 
@@ -1639,7 +1640,7 @@ Write_GetClient(void)
     ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
     entnum = NUM_FOR_EDICT(ent);
     if (entnum < 1 || entnum > MAX_CLIENTS)
-	PR_RunError("WriteDest: not a client");
+	PR_RunError("%s: not a client", __func__);
     return &svs.clients[entnum - 1];
 }
 #endif
@@ -1833,7 +1834,7 @@ PF_setspawnparms(void)
 #ifdef QW_HACK
     if (i < 1 || i > MAX_CLIENTS)
 #endif
-	PR_RunError("Entity is not a client");
+	PR_RunError("%s: Entity is not a client", __func__);
 
     // copy spawn parms out of the client_t
     client = svs.clients + (i - 1);
