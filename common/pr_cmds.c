@@ -725,12 +725,12 @@ PF_break
 break()
 =================
 */
+ __attribute__((noreturn))
 static void
 PF_break(void)
 {
     Con_Printf("break statement\n");
-    *(int *)-4 = 0;		// dump to debugger
-//      PR_RunError ("break statement");
+    abort(); /* dump to debugger */
 }
 
 /*
