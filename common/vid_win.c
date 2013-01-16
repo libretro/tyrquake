@@ -19,9 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // vid_win.c -- Win32 video driver
 
-// FIXME - broken mgraph header?
-//       - needs windows.h but doesn't include it?
 #include <windows.h>
+#include <mmsystem.h>
 #include <mgraph.h>
 
 #include "cdaudio.h"

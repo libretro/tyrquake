@@ -28,8 +28,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #error "You shouldn't be including this file for non-Win32 stuff!"
 #endif
 
-// FIXME - mousewheel redefined? What is this magic number?
 #include <windows.h>
+#include <winsock2.h>
+
+// FIXME - mousewheel redefined? What is this magic number?
 #ifndef WM_MOUSEWHEEL
 # define WM_MOUSEWHEEL 0x020A
 #endif

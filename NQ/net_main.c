@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 /* FIXME - just for the htons() call below */
 #ifdef WIN32
-#include <winsock.h>
+#include <winsock2.h>
 #else
 #include <arpa/inet.h>
 #endif

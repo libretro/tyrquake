@@ -24,6 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <fcntl.h>
 #include <limits.h>
 #include <windows.h>
+#include <mmsystem.h>
+#include <winsock2.h>
 
 #include "common.h"
 #include "console.h"

@@ -19,6 +19,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cl_main.c  -- client main loop
 
+#include <ctype.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <winsock2.h>
+#include "winquake.h"
+#else
+#include <sys/types.h>
+#include <netinet/in.h>
+#endif
+
 #include "cdaudio.h"
 #include "client.h"
 #include "cmd.h"
@@ -38,16 +49,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GLQUAKE
 #include "d_iface.h"
 #endif
-
-#ifdef _WIN32
-#include "winsock.h"
-#include "winquake.h"
-#else
-#include <sys/types.h>
-#include <netinet/in.h>
-#endif
-
-#include <ctype.h>
 
 /* Argument completion function for the skin cvar */
 static struct stree_root * CL_Skin_Arg_f(const char *arg);
