@@ -120,15 +120,12 @@ max_sounds(int p)
 #define	U_LONGENTITY	(1<<14)
 
 // Extra FITZ bits
-#define U_EXTEND1       (1<<15)
-#define U_ALPHA         (1<<16) // alpha byte follows
-#define U_FRAME2        (1<<17) // byte for frame high bits follows
-#define U_MODEL2        (1<<18) // byte for model high bits follows
-#define U_LERPFINISH    (1<<19)
-#define U_UNUSED20      (1<<20)
-#define U_UNUSED21      (1<<21)
-#define U_UNUSED22      (1<<22)
-#define U_EXTEND2       (1<<23)
+#define U_FITZ_EXTEND1  (1<<15)
+#define U_FITZ_ALPHA    (1<<16) // alpha byte follows
+#define U_FITZ_FRAME2   (1<<17) // byte for frame high bits follows
+#define U_FITZ_MODEL2   (1<<18) // byte for model high bits follows
+#define U_FITZ_LERPFINISH (1<<19)
+#define U_FITZ_EXTEND2  (1<<23)
 
 #define	SU_VIEWHEIGHT	(1<<0)
 #define	SU_IDEALPITCH	(1<<1)
@@ -147,36 +144,31 @@ max_sounds(int p)
 #define	SU_WEAPON	(1<<14)
 
 // Extra FITZ bits
-#define SU_EXTEND1      (1<<15)
-#define SU_WEAPON2      (1<<16)
-#define SU_ARMOR2       (1<<17)
-#define SU_AMMO2        (1<<18)
-#define SU_SHELLS2      (1<<19)
-#define SU_NAILS2       (1<<20)
-#define SU_ROCKETS2     (1<<21)
-#define SU_CELLS2       (1<<22)
-#define SU_EXTEND2      (1<<23)
-#define SU_WEAPONFRAME2 (1<<24)
-#define SU_WEAPONALPHA  (1<<25)
-#define SU_UNUSED26     (1<<26)
-#define SU_UNUSED27     (1<<27)
-#define SU_UNUSED28     (1<<28)
-#define SU_UNUSED29     (1<<29)
-#define SU_UNUSED30     (1<<30)
-#define SU_EXTEND3      (1<<31)
+#define SU_FITZ_EXTEND1      (1<<15)
+#define SU_FITZ_WEAPON2      (1<<16)
+#define SU_FITZ_ARMOR2       (1<<17)
+#define SU_FITZ_AMMO2        (1<<18)
+#define SU_FITZ_SHELLS2      (1<<19)
+#define SU_FITZ_NAILS2       (1<<20)
+#define SU_FITZ_ROCKETS2     (1<<21)
+#define SU_FITZ_CELLS2       (1<<22)
+#define SU_FITZ_EXTEND2      (1<<23)
+#define SU_FITZ_WEAPONFRAME2 (1<<24)
+#define SU_FITZ_WEAPONALPHA  (1<<25)
+#define SU_FITZ_EXTEND3      (1<<31)
 
 // a sound with no channel is a local only sound
 #define	SND_VOLUME	(1<<0)	// a byte
 #define	SND_ATTENUATION	(1<<1)	// a byte
 #define	SND_LOOPING	(1<<2)	// a long
 // Extra bits for FITZ protocol
-#define SND_LARGEENTITY (1<<3)  // a short + byte (instead of just a short)
-#define SND_LARGESOUND  (1<<4)  // a short soundindex (instead of a byte)
+#define SND_FITZ_LARGEENTITY (1<<3)  // a short + byte (instead of just a short)
+#define SND_FITZ_LARGESOUND  (1<<4)  // a short soundindex (instead of a byte)
 
 // extra FITZ model flags
-#define B_LARGEMODEL    (1<<0)
-#define B_LARGEFRAME    (1<<1)
-#define B_ALPHA         (1<<2)
+#define B_FITZ_LARGEMODEL (1<<0)
+#define B_FITZ_LARGEFRAME (1<<1)
+#define B_FITZ_ALPHA      (1<<2)
 
 // defaults for clientinfo messages
 #define	DEFAULT_VIEWHEIGHT	22
@@ -245,13 +237,13 @@ max_sounds(int p)
 
 #define svc_cutscene		34
 
-// FITZ protocol new message types
-#define svc_skybox		37
-#define svc_bf			40
-#define svc_fog			41
-#define svc_spawnbaseline2	42
-#define svc_spawnstatic2	43
-#define svc_spawnstaticsound2	44
+// FITZ protocol messages
+#define svc_fitz_skybox		37
+#define svc_fitz_bf		40
+#define svc_fitz_fog		41
+#define svc_fitz_spawnbaseline2	42
+#define svc_fitz_spawnstatic2	43
+#define svc_fitz_spawnstaticsound2 44
 
 //
 // client to server

@@ -81,17 +81,16 @@ static const char *svc_strings[] = {
     "svc_cdtrack",		// [byte] track [byte] looptrack
     "svc_sellscreen",
     "svc_cutscene",
-    /* FITZ protocol messages */
     "",				// 35
     "",				// 36
-    "svc_skybox",
+    "svc_fitz_skybox",
     "",				// 38
     "",				// 39
-    "svc_bf",
-    "svc_fog",
-    "svc_spawnbaseline2",
-    "svc_spawnstatic2",
-    "svc_spawnstaticsound2",
+    "svc_fitz_bf",
+    "svc_fitz_fog",
+    "svc_fitz_spawnbaseline2",
+    "svc_fitz_spawnstatic2",
+    "svc_fitz_spawnstaticsound2",
     "",				// 45
     "",				// 46
     "",				// 47
@@ -135,7 +134,7 @@ CL_ReadSoundNum(int field_mask)
     case PROTOCOL_VERSION_BJP3:
 	return (unsigned short)MSG_ReadShort();
     case PROTOCOL_VERSION_FITZ:
-	if (field_mask & SND_LARGESOUND)
+	if (field_mask & SND_FITZ_LARGESOUND)
 	    return (unsigned short)MSG_ReadShort();
 	else
 	    return MSG_ReadByte();
@@ -173,7 +172,7 @@ CL_ParseStartSoundPacket(void)
     else
 	attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
-    if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_LARGEENTITY)) {
+    if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_FITZ_LARGEENTITY)) {
 	ent = (unsigned short)MSG_ReadShort();
 	channel = MSG_ReadByte();
     } else {
@@ -393,7 +392,7 @@ CL_ReadModelIndex(unsigned int bits)
     case PROTOCOL_VERSION_BJP3:
 	return MSG_ReadShort();
     case PROTOCOL_VERSION_FITZ:
-	if (bits & B_LARGEMODEL)
+	if (bits & B_FITZ_LARGEMODEL)
 	    return MSG_ReadShort();
 	return MSG_ReadByte();
     default:
@@ -412,7 +411,7 @@ CL_ReadModelFrame(unsigned int bits)
     case PROTOCOL_VERSION_BJP3:
 	return MSG_ReadByte();
     case PROTOCOL_VERSION_FITZ:
-	if (bits & B_LARGEFRAME)
+	if (bits & B_FITZ_LARGEFRAME)
 	    return MSG_ReadShort();
 	return MSG_ReadByte();
     default:
@@ -458,9 +457,9 @@ CL_ParseUpdate(unsigned int bits)
     }
 
     if (cl.protocol == PROTOCOL_VERSION_FITZ) {
-	if (bits & U_EXTEND1)
+	if (bits & U_FITZ_EXTEND1)
 	    bits |= MSG_ReadByte() << 16;
-	if (bits & U_EXTEND2)
+	if (bits & U_FITZ_EXTEND2)
 	    bits |= MSG_ReadByte() << 24;
     }
 
@@ -570,14 +569,14 @@ CL_ParseUpdate(unsigned int bits)
 	if (bits & U_NOLERP) {
 	    // FIXME - TODO (called U_STEP in FQ)
 	}
-	if (bits & U_ALPHA) {
+	if (bits & U_FITZ_ALPHA) {
 	    MSG_ReadByte(); // FIXME - TODO
 	}
-	if (bits & U_FRAME2)
+	if (bits & U_FITZ_FRAME2)
 	    ent->frame = (ent->frame & 0xFF) | (MSG_ReadByte() << 8);
-	if (bits & U_MODEL2)
+	if (bits & U_FITZ_MODEL2)
 	    modnum = (modnum & 0xFF)| (MSG_ReadByte() << 8);
-	if (bits & U_LERPFINISH) {
+	if (bits & U_FITZ_LERPFINISH) {
 	    MSG_ReadByte(); // FIXME - TODO
 	}
     }
@@ -656,7 +655,7 @@ CL_ParseBaseline(entity_t *ent, unsigned int bits)
 	ent->baseline.angles[i] = MSG_ReadAngle();
     }
 
-    if (cl.protocol == PROTOCOL_VERSION_FITZ && (bits & B_ALPHA)) {
+    if (cl.protocol == PROTOCOL_VERSION_FITZ && (bits & B_FITZ_ALPHA)) {
 	MSG_ReadByte(); // FIXME - TODO
     }
 }
@@ -676,9 +675,9 @@ CL_ParseClientdata(void)
     unsigned int bits;
 
     bits = (unsigned short)MSG_ReadShort();
-    if (bits & SU_EXTEND1)
+    if (bits & SU_FITZ_EXTEND1)
 	bits |= MSG_ReadByte() << 16;
-    if (bits & SU_EXTEND2)
+    if (bits & SU_FITZ_EXTEND2)
 	bits |= MSG_ReadByte() << 24;
 
     if (bits & SU_VIEWHEIGHT)
@@ -775,23 +774,23 @@ CL_ParseClientdata(void)
     }
 
     /* FITZ Protocol */
-    if (bits & SU_WEAPON2)
+    if (bits & SU_FITZ_WEAPON2)
 	cl.stats[STAT_WEAPON] |= MSG_ReadByte() << 8;
-    if (bits & SU_ARMOR2)
+    if (bits & SU_FITZ_ARMOR2)
 	cl.stats[STAT_ARMOR] |= MSG_ReadByte() << 8;
-    if (bits & SU_AMMO2)
+    if (bits & SU_FITZ_AMMO2)
 	cl.stats[STAT_AMMO] |= MSG_ReadByte() << 8;
-    if (bits & SU_SHELLS2)
+    if (bits & SU_FITZ_SHELLS2)
 	cl.stats[STAT_SHELLS] |= MSG_ReadByte() << 8;
-    if (bits & SU_NAILS2)
+    if (bits & SU_FITZ_NAILS2)
 	cl.stats[STAT_NAILS] |= MSG_ReadByte() << 8;
-    if (bits & SU_ROCKETS2)
+    if (bits & SU_FITZ_ROCKETS2)
 	cl.stats[STAT_ROCKETS] |= MSG_ReadByte() << 8;
-    if (bits & SU_CELLS2)
+    if (bits & SU_FITZ_CELLS2)
 	cl.stats[STAT_CELLS] |= MSG_ReadByte() << 8;
-    if (bits & SU_WEAPONFRAME2)
+    if (bits & SU_FITZ_WEAPONFRAME2)
 	cl.stats[STAT_WEAPONFRAME] |= MSG_ReadByte() << 8;
-    if (bits & SU_WEAPONALPHA)
+    if (bits & SU_FITZ_WEAPONALPHA)
 	MSG_ReadByte(); // FIXME - TODO
 }
 
@@ -918,7 +917,7 @@ CL_ParseStaticSound(void)
 
 /* FITZ protocol */
 static void
-CL_ParseStaticSound2(void)
+CL_ParseFitzStaticSound2(void)
 {
     vec3_t org;
     int sound_num, vol, atten;
@@ -1100,7 +1099,7 @@ CL_ParseServerMessage(void)
 	    CL_ParseBaseline(CL_EntityNum(i), 0);
 	    break;
 
-	case svc_spawnbaseline2:
+	case svc_fitz_spawnbaseline2:
 	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
 	    i = MSG_ReadShort();
 	    bits = MSG_ReadByte();
@@ -1111,7 +1110,7 @@ CL_ParseServerMessage(void)
 	    CL_ParseStatic(0);
 	    break;
 
-	case svc_spawnstatic2:
+	case svc_fitz_spawnstatic2:
 	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
 	    bits = MSG_ReadByte();
 	    CL_ParseStatic(bits);
@@ -1156,9 +1155,9 @@ CL_ParseServerMessage(void)
 	    CL_ParseStaticSound();
 	    break;
 
-	case svc_spawnstaticsound2:
+	case svc_fitz_spawnstaticsound2:
 	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
-	    CL_ParseStaticSound2();
+	    CL_ParseFitzStaticSound2();
 	    break;
 
 	case svc_cdtrack:
@@ -1196,15 +1195,15 @@ CL_ParseServerMessage(void)
 	    break;
 
 	/* Various FITZ protocol messages - FIXME - !protocol => Host_Error */
-	case svc_skybox:
+	case svc_fitz_skybox:
 	    MSG_ReadString(); // FIXME - TODO
 	    break;
 
-	case svc_bf:
+	case svc_fitz_bf:
 	    Cmd_ExecuteString("bf", src_command);
 	    break;
 
-	case svc_fog:
+	case svc_fitz_fog:
 	    /* FIXME - TODO */
 	    MSG_ReadByte(); // density
 	    MSG_ReadByte(); // red

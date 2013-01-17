@@ -654,7 +654,7 @@ PF_ambientsound(void)
 // add an svc_spawnambient command to the level signon packet
 #ifdef NQ_HACK
     if (sv.protocol == PROTOCOL_VERSION_FITZ && soundnum > 255)
-	MSG_WriteByte(&sv.signon, svc_spawnstaticsound2);
+	MSG_WriteByte(&sv.signon, svc_fitz_spawnstaticsound2);
     else
 	MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
 #endif
@@ -1774,17 +1774,17 @@ PF_makestatic(void)
     bits = 0;
     if (sv.protocol == PROTOCOL_VERSION_FITZ) {
 	if (SV_ModelIndex(PR_GetString(ent->v.model)) & 0xff00)
-	    bits |= B_LARGEMODEL;
+	    bits |= B_FITZ_LARGEMODEL;
 	if ((int)ent->v.frame & 0xff00)
-	    bits |= B_LARGEFRAME;
+	    bits |= B_FITZ_LARGEFRAME;
 #if 0
 	if (ent->alpha != ENTALPHA_DEFAULT)
-	    bits |= B_ALPHA;
+	    bits |= B_FITZ_ALPHA;
 #endif
     }
 
     if (bits)
-	MSG_WriteByte(&sv.signon, svc_spawnstatic2);
+	MSG_WriteByte(&sv.signon, svc_fitz_spawnstatic2);
     else
 	MSG_WriteByte(&sv.signon, svc_spawnstatic);
     SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)), bits);
