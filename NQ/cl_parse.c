@@ -1105,6 +1105,7 @@ CL_ParseServerMessage(void)
 	    bits = MSG_ReadByte();
 	    // must use CL_EntityNum() to force cl.num_entities up
 	    CL_ParseBaseline(CL_EntityNum(i), bits);
+	    break;
 
 	case svc_spawnstatic:
 	    CL_ParseStatic(0);
