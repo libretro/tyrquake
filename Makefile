@@ -207,8 +207,6 @@ I386_GUESS  := $(call cc-i386)
 # Special include/lib dirs
 # -------------------------
 DX_INC    = $(TOPDIR)/wine-dx
-ST_INC    = $(TOPDIR)/scitech/include
-ST_LIBDIR = scitech/lib/win32/vc
 
 # ---------------------------------------
 # Define some build variables
@@ -702,13 +700,10 @@ endif
 endif
 ifeq ($(VID_TARGET),win)
 CL_CPPFLAGS += -idirafter $(DX_INC)
-SW_CPPFLAGS += -idirafter $(ST_INC)
 SW_OBJS += vid_win.o
 GL_OBJS += vid_wgl.o
-SW_LIBS += mgllt gdi32 # gdi32 needs to come after mgllt
-GL_LIBS += gdi32
+CL_LIBS += gdi32
 GL_LIBS += comctl32
-SW_LFLAGS += $(call libdir-check,$(ST_LIBDIR))
 endif
 ifeq ($(VID_TARGET),sdl)
 SW_OBJS += vid_sdl.o sdl_common.o

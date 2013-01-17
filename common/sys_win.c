@@ -95,9 +95,6 @@ Sys_FileTime(const char *path)
     FILE *f;
     int ret;
 
-#ifndef SERVERONLY
-    int t = VID_ForceUnlockedAndReturnState();
-#endif
     f = fopen(path, "rb");
     if (f) {
 	fclose(f);
@@ -105,9 +102,6 @@ Sys_FileTime(const char *path)
     } else {
 	ret = -1;
     }
-#ifndef SERVERONLY
-    VID_ForceLockState(t);
-#endif
 
     return ret;
 }
@@ -206,7 +200,6 @@ Sys_Error(const char *error, ...)
 
     if (!in_sys_error3) {
 	in_sys_error3 = 1;
-	VID_ForceUnlockedAndReturnState();
     }
 
     va_start(argptr, error);
@@ -311,7 +304,6 @@ void
 Sys_Quit(void)
 {
 #ifndef SERVERONLY
-    VID_ForceUnlockedAndReturnState();
     Host_Shutdown();
     if (tevent)
 	CloseHandle(tevent);
