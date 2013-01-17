@@ -1783,10 +1783,12 @@ PF_makestatic(void)
 #endif
     }
 
-    if (bits)
+    if (bits) {
 	MSG_WriteByte(&sv.signon, svc_fitz_spawnstatic2);
-    else
+	MSG_WriteByte(&sv.signon, bits);
+    } else {
 	MSG_WriteByte(&sv.signon, svc_spawnstatic);
+    }
     SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)), bits);
 #endif
 #ifdef QW_HACK
