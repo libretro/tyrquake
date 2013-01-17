@@ -108,9 +108,6 @@ const char *gl_extensions;
 qboolean gl_mtexable = false;
 static int gl_num_texture_units;
 
-// FIXME - lose this hack?
-qboolean isPermedia = false;
-
 /*-----------------------------------------------------------------------*/
 void
 D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)

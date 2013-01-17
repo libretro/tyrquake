@@ -161,12 +161,6 @@ static PROC glTexCoordPointerEXT;
 static PROC glVertexPointerEXT;
 #endif
 
-// FIXME - Get rid of 3dfx specific extension?
-typedef void (APIENTRY *lp3DFXFUNC) (int, int, int, int, int, const void *);
-static lp3DFXFUNC glColorTableEXT;
-
-static qboolean is8bit = false;
-qboolean isPermedia = false;
 qboolean gl_mtexable = false;
 
 //====================================
@@ -564,12 +558,6 @@ GL_Init(void)
     Con_DPrintf("GL_EXTENSIONS: %s\n", gl_extensions);
 
 //      Con_Printf ("%s %s\n", gl_renderer, gl_version);
-
-    if (strncasecmp(gl_renderer, "PowerVR", 7) == 0)
-	fullsbardraw = true;
-
-    if (strncasecmp(gl_renderer, "Permedia", 8) == 0)
-	isPermedia = true;
 
     CheckMultiTextureExtensions();
 
@@ -1417,44 +1405,6 @@ VID_InitFullDIB(HINSTANCE hInstance)
 	Con_SafePrintf("No fullscreen DIB modes found\n");
 }
 
-qboolean
-VID_Is8bit()
-{
-    return is8bit;
-}
-
-// FIXME - use gl.h defines...
-#define GL_SHARED_TEXTURE_PALETTE_EXT 0x81FB
-
-static void
-VID_Init8bitPalette()
-{
-    // Check for 8bit Extensions and initialize them.
-    int i;
-    char thePalette[256 * 3];
-    char *oldPalette, *newPalette;
-
-    glColorTableEXT = (void *)wglGetProcAddress("glColorTableEXT");
-    if (!glColorTableEXT
-	|| strstr(gl_extensions, "GL_EXT_shared_texture_palette")
-	|| COM_CheckParm("-no8bit"))
-	return;
-
-    Con_SafePrintf("8-bit GL extensions enabled.\n");
-    glEnable(GL_SHARED_TEXTURE_PALETTE_EXT);
-    oldPalette = (char *)d_8to24table;	//d_8to24table3dfx;
-    newPalette = thePalette;
-    for (i = 0; i < 256; i++) {
-	*newPalette++ = *oldPalette++;
-	*newPalette++ = *oldPalette++;
-	*newPalette++ = *oldPalette++;
-	oldPalette++;
-    }
-    glColorTableEXT(GL_SHARED_TEXTURE_PALETTE_EXT, GL_RGB, 256, GL_RGB,
-		    GL_UNSIGNED_BYTE, (void *)thePalette);
-    is8bit = TRUE;
-}
-
 static void
 Check_Gamma(unsigned char *pal)
 {
@@ -1462,16 +1412,8 @@ Check_Gamma(unsigned char *pal)
     unsigned char palette[768];
     int i;
 
-    if ((i = COM_CheckParm("-gamma")) == 0) {
-	if ((gl_renderer && strstr(gl_renderer, "Voodoo")) ||
-	    (gl_vendor && strstr(gl_vendor, "3Dfx"))) {
-	    vid_gamma = 1;
-	} else {
-	    //vid_gamma = 0.7;  // default to 0.7 on non-3dfx hardware
-	    vid_gamma = 1.0;	// to behave like original GLQuake
-	}
-    } else
-	vid_gamma = Q_atof(com_argv[i + 1]);
+    i = COM_CheckParm("-gamma");
+    vid_gamma = i ? Q_atof(com_argv[i + 1]) : 1.0;
 
     for (i = 0; i < 768; i++) {
 	f = pow((pal[i] + 1) / 256.0, vid_gamma);
@@ -1714,10 +1656,6 @@ VID_Init(unsigned char *palette)
     Sys_mkdir(gldir);
 
     vid_realmode = vid_modenum;
-
-    // Check for 3DFX Extensions and initialize them.
-    VID_Init8bitPalette();
-
     vid_menudrawfn = VID_MenuDraw;
     vid_menukeyfn = VID_MenuKey;
 
