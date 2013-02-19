@@ -43,8 +43,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qboolean isDedicated;
 #endif
 
-#define	BASEWIDTH	320
-#define	BASEHEIGHT	200
+#define	BASEWIDTH	512
+#define	BASEHEIGHT	448
 
 static qboolean nostdout = false;
 
@@ -298,7 +298,7 @@ void Sys_SendKeyEvents(void)
 
 }
 
-static short finalimage[BASEWIDTH * BASEHEIGHT * 2];
+static short finalimage[BASEWIDTH * BASEHEIGHT];
 
 #define RGB2PIXEL565(r,g,b) (((r)) | ((g)) | ((b)))
 
