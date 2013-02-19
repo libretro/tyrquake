@@ -1,0 +1,214 @@
+DEBUG=0
+FRONTEND_SUPPORTS_RGB565=1
+CORE_NAME=tyrquake
+
+ifeq ($(platform),)
+platform = unix
+ifeq ($(shell uname -a),)
+   platform = win
+else ifneq ($(findstring MINGW,$(shell uname -a)),)
+   platform = win
+else ifneq ($(findstring Darwin,$(shell uname -a)),)
+   platform = osx
+else ifneq ($(findstring win,$(shell uname -a)),)
+   platform = win
+endif
+endif
+
+# system platform
+system_platform = unix
+ifeq ($(shell uname -a),)
+EXE_EXT = .exe
+   system_platform = win
+else ifneq ($(findstring Darwin,$(shell uname -a)),)
+   system_platform = osx
+else ifneq ($(findstring MINGW,$(shell uname -a)),)
+   system_platform = win
+endif
+
+CC         = gcc
+
+ifeq ($(platform), unix)
+   TARGET := $(CORE_NAME)_libretro.so
+   fpic := -fPIC
+   SHARED := -shared -Wl,--version-script=common/libretro-link.T
+else ifeq ($(platform), osx)
+   TARGET := $(CORE_NAME)_libretro.dylib
+   fpic := -fPIC
+   SHARED := -dynamiclib
+else ifeq ($(platform), ps3)
+   TARGET := $(CORE_NAME)_libretro_ps3.a
+   CC = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-gcc.exe
+   AR = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-ar.exe
+   CFLAGS += -DBLARGG_BIG_ENDIAN=1 -D__ppc__
+else ifeq ($(platform), sncps3)
+   TARGET := $(CORE_NAME)_libretro_ps3.a
+   CC = $(CELL_SDK)/host-win32/sn/bin/ps3ppusnc.exe
+   AR = $(CELL_SDK)/host-win32/sn/bin/ps3snarl.exe
+   CFLAGS += -DBLARGG_BIG_ENDIAN=1 -D__ppc__
+else ifeq ($(platform), psl1ght)
+   TARGET := $(CORE_NAME)_libretro_psl1ght.a
+   CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
+   AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
+   CFLAGS += -DBLARGG_BIG_ENDIAN=1 -D__ppc__
+else ifeq ($(platform), psp1)
+	TARGET := $(CORE_NAME)_libretro_psp1.a
+	CC = psp-gcc$(EXE_EXT)
+	AR = psp-ar$(EXE_EXT)
+	CFLAGS += -DPSP -G0
+else ifeq ($(platform), xenon)
+   TARGET := $(CORE_NAME)_libretro_xenon360.a
+   CC = xenon-gcc$(EXE_EXT)
+   AR = xenon-ar$(EXE_EXT)
+   CFLAGS += -D__LIBXENON__ -m32 -D__ppc__
+else ifeq ($(platform), ngc)
+   TARGET := $(CORE_NAME)_libretro_ngc.a
+   CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
+   AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
+   CFLAGS += -DGEKKO -DHW_DOL -mrvl -mcpu=750 -meabi -mhard-float -DBLARGG_BIG_ENDIAN=1 -D__ppc__
+else ifeq ($(platform), wii)
+   TARGET := $(CORE_NAME)_libretro_wii.a
+   CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
+   AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
+   CFLAGS += -DGEKKO -DHW_RVL -mrvl -mcpu=750 -meabi -mhard-float -DBLARGG_BIG_ENDIAN=1 -D__ppc__
+else
+   TARGET := $(CORE_NAME)_retro.dll
+   CC = gcc
+   fpic := -fPIC
+   LD_FLAGS := -fPIC
+   SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=libretro/link.T
+   CFLAGS += -D__WIN32__ -D__WIN32_LIBRETRO__
+endif
+
+ifeq ($(DEBUG), 1)
+CFLAGS += -O0 -g
+else
+CFLAGS += -O3
+endif
+
+
+OBJECTS    = NQ/cl_input.o \
+				 common/cd_common.o \
+				 common/alias_model.o \
+				 NQ/chase.o \
+				 NQ/cl_demo.o \
+				 NQ/cl_main.o \
+				 NQ/cl_parse.o \
+				 NQ/cl_tent.o \
+				 common/common.o \
+				 common/cmd.o \
+				 common/crc.o \
+				 common/console.o \
+				 common/cvar.o \
+				 common/d_edge.o \
+				 common/d_fill.o \
+				 common/d_init.o \
+				 common/d_part.o \
+				 common/d_modech.o \
+				 common/d_polyse.o \
+				 common/d_scan.o \
+				 common/d_sky.o \
+				 common/d_sprite.o \
+				 common/d_surf.o \
+				 common/d_vars.o \
+				 common/draw.o \
+				 NQ/host.o \
+				 NQ/host_cmd.o \
+				 common/keys.o \
+				 common/mathlib.o \
+				 NQ/menu.o \
+				 common/model.o \
+				 NQ/net_common.o \
+				 NQ/net_bsd.o \
+				 NQ/net_dgrm.o \
+				 NQ/net_loop.o \
+				 NQ/net_main.o \
+				 NQ/net_udp.o \
+				 common/nonintel.o \
+				 common/pr_cmds.o \
+				 common/pr_exec.o \
+				 common/pr_edict.o \
+				 common/r_aclip.o \
+				 common/r_alias.o \
+				 common/r_bsp.o \
+				 common/r_draw.o \
+				 common/r_edge.o \
+				 common/r_efrag.o \
+				 common/r_light.o \
+				 common/r_main.o \
+				 common/r_misc.o \
+				 common/r_model.o \
+				 common/r_part.o \
+				 common/r_sky.o \
+				 common/r_sprite.o \
+				 common/r_vars.o \
+				 common/r_surf.o \
+				 common/rb_tree.o \
+				 NQ/sbar.o \
+				 common/screen.o \
+				 common/shell.o \
+				 common/snd_dma.o \
+				 common/snd_mem.o \
+				 common/snd_mix.o \
+				 common/sprite_model.o \
+				 NQ/sv_main.o \
+				 common/sv_move.o \
+				 NQ/sv_phys.o \
+				 NQ/sv_user.o \
+				 common/sys_libretro.o \
+				 NQ/view.o \
+				 common/wad.o \
+				 common/zone.o \
+				 common/world.o
+
+INCLUDES   = -I. -INQ -Iinclude
+DEFINES    = -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -D__LIBRETRO__ -DINLINE=inline -DELF -DX11 -DUSE_XF86DGA -DNQ_HACK -DQBASEDIR=. -DTYR_VERSION=0.62
+
+ifeq ($(platform), sncps3)
+WARNINGS_DEFINES =
+CODE_DEFINES =
+else
+WARNINGS_DEFINES = -Wall -fweb -frename-registers
+CODE_DEFINES = -fomit-frame-pointer
+endif
+
+COMMON_DEFINES += $(CODE_DEFINES) $(WARNINGS_DEFINES) -DNDEBUG=1 $(fpic)
+
+CFLAGS     += $(DEFINES) $(COMMON_DEFINES)
+
+ifeq ($(FRONTEND_SUPPORTS_RGB565), 1)
+CFLAGS += -DFRONTEND_SUPPORTS_RGB565
+endif
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+ifeq ($(platform), ps3)
+	$(AR) rcs $@ $(OBJECTS)
+else ifeq ($(platform), sncps3)
+	$(AR) rcs $@ $(OBJECTS)
+else ifeq ($(platform), psl1ght)
+	$(AR) rcs $@ $(OBJECTS)
+else ifeq ($(platform), psp1)
+	$(AR) rcs $@ $(OBJECTS)
+else ifeq ($(platform), xenon)
+	$(AR) rcs $@ $(OBJECTS)
+else ifeq ($(platform), ngc)
+	$(AR) rcs $@ $(OBJECTS)
+else ifeq ($(platform), wii)
+	$(AR) rcs $@ $(OBJECTS)
+else
+	$(CC) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) -lm
+endif
+
+%.o: %.c
+	$(CC) $(INCLUDES) $(CFLAGS) -c -o $@ $<
+
+clean-objs:
+	rm -rf $(OBJECTS)
+
+clean:
+	rm -f $(OBJECTS) $(TARGET)
+
+.PHONY: clean
+
