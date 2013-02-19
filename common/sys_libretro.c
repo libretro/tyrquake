@@ -49,6 +49,7 @@ qboolean isDedicated;
 static qboolean nostdout = false;
 
 static char g_rom_dir[256];
+unsigned short	palette_data[256];
 
 unsigned char *heap;
 
@@ -297,6 +298,10 @@ void Sys_SendKeyEvents(void)
 
 }
 
+static short finalimage[BASEWIDTH * BASEHEIGHT * 2];
+
+#define RGB2PIXEL565(r,g,b) (((r)) | ((g)) | ((b)))
+
 void retro_run(void)
 {
    // find time spent rendering last frame
@@ -324,7 +329,21 @@ void retro_run(void)
 
    Host_Frame(time);
 
-   video_cb(vid.buffer, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
+   unsigned char *ilineptr = (unsigned char*)vid.buffer;
+   unsigned short *olineptr = (unsigned short*)finalimage;
+   unsigned index, y, x;
+
+   for (y = 0; y < BASEHEIGHT; ++y)
+   {
+      for (x = 0; x < BASEWIDTH; ++x)
+      {
+         index = *ilineptr++;
+         *olineptr++ = RGB2PIXEL565(palette_data[index + 0], palette_data[index + 1], palette_data[index + 2]);
+      }
+   }
+
+
+   video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
 }
 
 static void extract_directory(char *buf, const char *path, size_t size)
@@ -473,28 +492,20 @@ byte vid_buffer[BASEWIDTH * BASEHEIGHT];
 short zbuffer[BASEWIDTH * BASEHEIGHT];
 byte surfcache[256 * 1024];
 
-#define RGB15(r,g,b)  ((r)|((g)<<5)|((b)<<10))
-#define RGB5(r,g,b)  ((r)|((g)<<5)|((b)<<10))
-#define RGB8(r,g,b)  ((((r)>>3)|(((g)>>3)<<5)|(((b)>>3)<<10)) | (1 << 15))
-
 unsigned short d_8to16table[256];
+
+#define PACK_RGB565(r,g,b) (((r>>3)<<11)|((g>>2)<<5)|(b>>3))
 
 void VID_SetPalette(unsigned char *palette)
 {
-   int count;
-
-#if 0
-   for (count = 0; count < 256; count++)
-   {
-      unsigned char res_r, res_g, res_b;
-
-      res_r = palette[count * 3];
-      res_g = palette[count * 3 + 1];
-      res_b = palette[count * 3 + 2];
-
-      d_8to16table[count] = RGB8(res_r, res_g, res_b);
-   }
-#endif
+	int r, g, b, i;
+	for(i = 0; i < 256; i++)
+	{
+		r = *palette++;
+		g = *palette++;
+		b = *palette++;
+		palette_data[i] = PACK_RGB565(r, g, b);
+	}
 }
 
 void VID_ShiftPalette(unsigned char *palette)
