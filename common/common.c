@@ -1917,7 +1917,14 @@ COM_AddGameDirectory(const char *base, const char *dir)
 	snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
-	    break;
+   {
+      //try uppercase
+      snprintf(pakfile, sizeof(pakfile), "%s/PAK%i.PAK", com_gamedir, i);
+      pak = COM_LoadPackFile(pakfile);
+
+      if (!pak) // that doesn't work either? then break
+         break;
+   }
 	search = Hunk_Alloc(sizeof(searchpath_t));
 	search->pack = pak;
 	search->next = com_searchpaths;
