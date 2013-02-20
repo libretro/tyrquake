@@ -20,6 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "libretro.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -120,7 +123,11 @@ int Sys_FileTime(const char *path)
 
 void Sys_mkdir(const char *path)
 {
+#ifdef _WIN32
+   mkdir(path);
+#else
    mkdir(path, 0777);
+#endif
 }
 
 void Sys_DebugLog(const char *file, const char *fmt, ...)
@@ -148,6 +155,110 @@ double Sys_DoubleTime(void)
 // =======================================================================
 
 #ifdef NQ_HACK
+#ifdef _WIN32
+static qboolean sc_return_on_enter = false;
+static HANDLE hinput, houtput;
+
+/*
+ * For debugging - Print a Win32 system error string to stdout
+ */
+static void
+Print_Win32SystemError(DWORD err)
+{
+    static PVOID buf;
+
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
+		      | FORMAT_MESSAGE_FROM_SYSTEM,
+		      NULL, err, 0, (LPTSTR)(&buf), 0, NULL)) {
+	printf("%s: %s\n", __func__, (LPTSTR)buf);
+	fflush(stdout);
+	LocalFree(buf);
+    }
+}
+
+char *
+Sys_ConsoleInput(void)
+{
+    static char text[256];
+    static int len;
+    INPUT_RECORD recs[1024];
+    DWORD dummy;
+    int ch;
+    DWORD numread, numevents;
+
+    if (!isDedicated)
+	return NULL;
+
+    for (;;) {
+	if (!GetNumberOfConsoleInputEvents(hinput, &numevents)) {
+	    DWORD err = GetLastError();
+
+	    printf("GetNumberOfConsoleInputEvents: ");
+	    Print_Win32SystemError(err);
+	    Sys_Error("Error getting # of console events");
+	}
+
+	if (numevents <= 0)
+	    break;
+
+	if (!ReadConsoleInput(hinput, recs, 1, &numread))
+	    Sys_Error("Error reading console input");
+
+	if (numread != 1)
+	    Sys_Error("Couldn't read console input");
+
+	if (recs[0].EventType == KEY_EVENT) {
+	    if (!recs[0].Event.KeyEvent.bKeyDown) {
+		ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
+
+		switch (ch) {
+		case '\r':
+		    WriteFile(houtput, "\r\n", 2, &dummy, NULL);
+		    if (len) {
+			text[len] = 0;
+			len = 0;
+			return text;
+		    } else if (sc_return_on_enter) {
+			/*
+			 * special case to allow exiting from the error
+			 * handler on Enter
+			 */
+			text[0] = '\r';
+			len = 0;
+			return text;
+		    }
+		    break;
+		case '\b':
+		    WriteFile(houtput, "\b \b", 3, &dummy, NULL);
+		    if (len) {
+			len--;
+		    }
+		    break;
+		default:
+		    if (ch >= ' ') {
+			WriteFile(houtput, &ch, 1, &dummy, NULL);
+			text[len] = ch;
+			len = (len + 1) & 0xff;
+		    }
+		    break;
+		}
+	    }
+	}
+    }
+
+    return NULL;
+}
+
+qboolean
+window_visible(void)
+{
+    return true;
+}
+
+void
+IN_Accumulate(void)
+{}
+#else
 char * Sys_ConsoleInput(void)
 {
    static char text[256];
@@ -174,6 +285,7 @@ char * Sys_ConsoleInput(void)
    return NULL;
 }
 #endif
+#endif
 
 void Sys_HighFPPrecision(void)
 {
@@ -187,7 +299,7 @@ extern cvar_t cl_bob;
 extern cvar_t crosshair;
 extern cvar_t scr_viewsize;
 
-static double time;
+static double _time;
 static double oldtime;
 static double newtime;
 
@@ -306,28 +418,28 @@ void retro_run(void)
 {
    // find time spent rendering last frame
    newtime = Sys_DoubleTime();
-   time = newtime - oldtime;
+   _time = newtime - oldtime;
 
 #ifdef NQ_HACK
    if (cls.state == ca_dedicated) {
-      if (time < sys_ticrate.value) {
+      if (_time < sys_ticrate.value) {
          usleep(1);
          //TODO - do something proper for this instead of just 'returning'
          //continue;	// not time to run a server only tic yet
          return;
       }
-      time = sys_ticrate.value;
+      _time = sys_ticrate.value;
    }
-   if (time > sys_ticrate.value * 2)
+   if (_time > sys_ticrate.value * 2)
       oldtime = newtime;
    else
-      oldtime += time;
+      oldtime += _time;
 #endif
 #ifdef QW_HACK
    oldtime = newtime;
 #endif
 
-   Host_Frame(time);
+   Host_Frame(_time);
 
    unsigned char *ilineptr = (unsigned char*)vid.buffer;
    unsigned short *olineptr = (unsigned short*)finalimage;
