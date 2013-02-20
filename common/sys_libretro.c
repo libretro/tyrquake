@@ -388,6 +388,8 @@ void retro_reset(void)
 {
 }
 
+static bool run_mode;
+
 void Sys_SendKeyEvents(void)
 {
    poll_cb();
@@ -402,7 +404,18 @@ void Sys_SendKeyEvents(void)
 	Key_Event(K_MOUSE1, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y));
 	Key_Event(K_COMMA, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L));
 	Key_Event(K_PERIOD, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R));
-	Key_Event(K_SLASH, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2));
+	Key_Event(K_SLASH, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A));
+
+	if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
+   {
+      Cvar_SetValue("cl_forwardspeed", 200);
+      Cvar_SetValue("cl_backspeed", 200);
+   }
+   else
+   {
+      Cvar_SetValue("cl_forwardspeed", 400);
+      Cvar_SetValue("cl_backspeed", 400);
+   }
 
 }
 
