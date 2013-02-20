@@ -111,11 +111,7 @@ static cvar_t scr_printspeed = { "scr_printspeed", "8" };
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 static cvar_t scr_conspeed = { "scr_conspeed", "300" };
-#ifdef __LIBRETRO__
-static cvar_t scr_showram = { "showram", "0" };
-#else
 static cvar_t scr_showram = { "showram", "1" };
-#endif
 static cvar_t scr_showturtle = { "showturtle", "0" };
 static cvar_t scr_showpause = { "showpause", "1" };
 static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */

@@ -295,10 +295,6 @@ void Sys_LowFPPrecision(void)
 {
 }
 
-extern cvar_t cl_bob;
-extern cvar_t crosshair;
-extern cvar_t scr_viewsize;
-
 static double _time;
 static double oldtime;
 static double newtime;
@@ -499,9 +495,10 @@ bool retro_load_game(const struct retro_game_info *info)
    Sys_Init();
    Host_Init(&parms);
 
-   cl_bob.value = 0.02;
-   crosshair.value = 0;
-   scr_viewsize.value = 100.0f;
+   Cvar_Set("cl_bob", "0.02");
+   Cvar_Set("crosshair", "0");
+   Cvar_Set("viewsize", "100");
+   Cvar_Set("showram", "0");
 
    /* Set up key descriptors */
    struct retro_input_descriptor desc[] = {
