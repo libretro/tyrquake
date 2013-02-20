@@ -412,8 +412,6 @@ void Sys_SendKeyEvents(void)
 
 static short finalimage[BASEWIDTH * BASEHEIGHT];
 
-#define RGB2PIXEL565(r,g,b) (((r)) | ((g)) | ((b)))
-
 void retro_run(void)
 {
    // find time spent rendering last frame
@@ -443,14 +441,13 @@ void retro_run(void)
 
    unsigned char *ilineptr = (unsigned char*)vid.buffer;
    unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned index, y, x;
+   unsigned y, x;
 
    for (y = 0; y < BASEHEIGHT; ++y)
    {
       for (x = 0; x < BASEWIDTH; ++x)
       {
-         index = *ilineptr++;
-         *olineptr++ = RGB2PIXEL565(palette_data[index + 0], palette_data[index + 1], palette_data[index + 2]);
+         *olineptr++ = palette_data[*ilineptr++];
       }
    }
 
@@ -606,11 +603,11 @@ byte surfcache[256 * 1024];
 
 unsigned short d_8to16table[256];
 
-#define PACK_RGB565(r,g,b) (((r>>3)<<11)|((g>>2)<<5)|(b>>3))
+#define PACK_RGB565(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
 
 void VID_SetPalette(unsigned char *palette)
 {
-	int r, g, b, i;
+	unsigned r, g, b, i;
 	for(i = 0; i < 256; i++)
 	{
 		r = *palette++;
