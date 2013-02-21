@@ -51,7 +51,7 @@ qboolean isDedicated;
 
 static qboolean nostdout = false;
 
-static char g_rom_dir[256];
+char g_rom_dir[256];
 unsigned short	palette_data[256];
 
 unsigned char *heap;

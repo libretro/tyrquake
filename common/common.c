@@ -1893,7 +1893,12 @@ COM_AddGameDirectory(const char *base, const char *dir)
     if (!base)
 	return;
 
+#ifdef __LIBRETRO__
+    strcpy(com_gamedir, va("%s", base));
+#else
     strcpy(com_gamedir, va("%s/%s", base, dir));
+#endif
+
 #ifdef QW_HACK
     {
 	char *p;
@@ -1915,6 +1920,7 @@ COM_AddGameDirectory(const char *base, const char *dir)
 //
     for (i = 0;; i++) {
 	snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
+   fprintf(stderr, "pakfile: %s\n", pakfile);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
    {
@@ -2012,6 +2018,93 @@ COM_Gamedir(const char *dir)
 COM_InitFilesystem
 ================
 */
+#ifdef __LIBRETRO__
+extern char g_rom_dir[256];
+
+static void
+COM_InitFilesystem(void)
+{
+    int i;
+    char home[256];
+#ifdef NQ_HACK
+    searchpath_t *search;
+#endif
+    snprintf(home, sizeof(home), g_rom_dir);
+
+//
+// -basedir <path>
+// Overrides the system supplied base directory (under id1)
+//
+    i = COM_CheckParm("-basedir");
+    if (i && i < com_argc - 1)
+	strcpy(com_basedir, com_argv[i + 1]);
+    else
+	strcpy(com_basedir, host_parms.basedir);
+
+//
+// start up with id1 by default
+//
+    COM_AddGameDirectory(home, "id1");
+
+#ifdef NQ_HACK
+    if (COM_CheckParm("-rogue")) {
+	COM_AddGameDirectory(home, "rogue");
+    }
+    if (COM_CheckParm("-hipnotic")) {
+	COM_AddGameDirectory(home, "hipnotic");
+    }
+
+//
+// -game <gamedir>
+// Adds basedir/gamedir as an override game
+//
+    i = COM_CheckParm("-game");
+    if (i && i < com_argc - 1) {
+	com_modified = true;
+	COM_AddGameDirectory(home, va("%s", com_argv[i + 1]));
+    }
+#endif
+#ifdef QW_HACK
+    COM_AddGameDirectory(com_basedir, "qw");
+    COM_AddGameDirectory(home, "qw");
+#endif
+
+    /* If home is available, create the game directory */
+    COM_CreatePath(com_gamedir);
+    Sys_mkdir(com_gamedir);
+
+//
+// -path <dir or packfile> [<dir or packfile>] ...
+// Fully specifies the exact search path, overriding the generated one
+//
+#ifdef NQ_HACK
+    i = COM_CheckParm("-path");
+    if (i) {
+	com_modified = true;
+	com_searchpaths = NULL;
+	while (++i < com_argc) {
+	    if (!com_argv[i] || com_argv[i][0] == '+'
+		|| com_argv[i][0] == '-')
+		break;
+
+	    search = Hunk_Alloc(sizeof(searchpath_t));
+	    if (!strcmp(COM_FileExtension(com_argv[i]), "pak")) {
+		search->pack = COM_LoadPackFile(com_argv[i]);
+		if (!search->pack)
+		    Sys_Error("Couldn't load packfile: %s", com_argv[i]);
+	    } else
+		strcpy(search->filename, com_argv[i]);
+	    search->next = com_searchpaths;
+	    com_searchpaths = search;
+	}
+    }
+#endif
+#ifdef QW_HACK
+    // any set gamedirs will be freed up to here
+    com_base_searchpaths = com_searchpaths;
+#endif
+}
+#else
 static void
 COM_InitFilesystem(void)
 {
@@ -2102,6 +2195,7 @@ COM_InitFilesystem(void)
     com_base_searchpaths = com_searchpaths;
 #endif
 }
+#endif
 
 // FIXME - everything below is QW only... move it?
 #ifdef QW_HACK
