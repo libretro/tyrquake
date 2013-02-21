@@ -28,6 +28,10 @@ static cvar_t d_subdiv16 = { "d_subdiv16", "1" };
 static cvar_t d_mipcap = { "d_mipcap", "0" };
 static cvar_t d_mipscale = { "d_mipscale", "1" };
 
+#ifdef __LIBRETRO__
+cvar_t dither_filter = { "dither_filter", "0" };
+#endif
+
 surfcache_t *d_initial_rover;
 qboolean d_roverwrapped;
 int d_minmip;
@@ -51,6 +55,9 @@ D_Init(void)
     Cvar_RegisterVariable(&d_subdiv16);
     Cvar_RegisterVariable(&d_mipcap);
     Cvar_RegisterVariable(&d_mipscale);
+#ifdef __LIBRETRO__
+    Cvar_RegisterVariable(&dither_filter);
+#endif
 
     r_recursiveaffinetriangles = true;
     r_pixbytes = 1;

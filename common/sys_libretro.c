@@ -516,6 +516,7 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_Set("crosshair", "0");
    Cvar_Set("viewsize", "100");
    Cvar_Set("showram", "0");
+   Cvar_Set("dither_filter", "1");
 
    /* Set up key descriptors */
    struct retro_input_descriptor desc[] = {

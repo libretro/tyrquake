@@ -32,7 +32,6 @@ int r_turb_spancount;
 
 void D_DrawTurbulent8Span(void);
 
-
 /*
 =============
 D_WarpScreen
@@ -253,6 +252,21 @@ Turbulent8(espan_t *pspan)
 
 #ifndef USE_X86_ASM
 
+#ifdef __LIBRETRO__
+int kernel[2][2][2] =
+{
+   {
+      {16384,0},
+      {49152,32768}
+   }
+   ,
+      {
+         {32768,49152},
+         {0,16384}
+      }
+};
+#endif
+
 /*
 =============
 D_DrawSpans8
@@ -266,6 +280,9 @@ D_DrawSpans8(espan_t *pspan)
     fixed16_t s, t, snext, tnext, sstep, tstep;
     float sdivz, tdivz, zi, z, du, dv, spancountminus1;
     float sdivz8stepu, tdivz8stepu, zi8stepu;
+#ifdef __LIBRETRO__
+    cvar_t *cvar;
+#endif
 
     sstep = 0;			// keep compiler happy
     tstep = 0;			// ditto
@@ -366,6 +383,36 @@ D_DrawSpans8(espan_t *pspan)
 		}
 	    }
 
+#ifdef __LIBRETRO__
+       cvar = Cvar_FindVar("dither_filter");
+
+       if (cvar && cvar->value)
+       {
+          do
+          {
+             int idiths = s;
+             int iditht = t;
+
+             int X = (pspan->u + spancount) & 1;
+             int Y = (pspan->v) & 1;
+
+             //Using the kernel
+             idiths += kernel[X][Y][0];
+             iditht += kernel[X][Y][1];
+
+             idiths = idiths >> 16;
+             idiths = idiths ? idiths - 1 : idiths;
+
+             iditht = iditht >> 16;
+             iditht = iditht ? iditht - 1 : iditht;
+
+             *pdest++ = *(pbase + idiths + iditht * cachewidth);
+             s += sstep;
+             t += tstep;
+          } while (--spancount > 0);
+       }
+       else
+#endif
 	    do {
 		*pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
 		s += sstep;
