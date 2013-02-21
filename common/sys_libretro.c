@@ -52,6 +52,7 @@ qboolean isDedicated;
 static qboolean nostdout = false;
 
 char g_rom_dir[256];
+char g_pak_path[256];
 unsigned short	palette_data[256];
 
 unsigned char *heap;
@@ -388,8 +389,6 @@ void retro_reset(void)
 {
 }
 
-static bool run_mode;
-
 void Sys_SendKeyEvents(void)
 {
    poll_cb();
@@ -484,6 +483,11 @@ bool retro_load_game(const struct retro_game_info *info)
    quakeparms_t parms;
 
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
+
+   snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
+
+   if (strstr(info->path, "hipnotic") || strstr(info->path, "rogue"))
+      extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
 
    memset(&parms, 0, sizeof(parms));
 

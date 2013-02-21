@@ -50,6 +50,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+#ifdef __LIBRETRO__
+extern char g_rom_dir[256];
+extern char g_pak_path[256];
+#endif
+
 #define NUM_SAFE_ARGVS 7
 
 static const char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
@@ -1249,12 +1254,20 @@ COM_InitArgv(int argc, const char **argv)
     com_argv = largv;
 
 #ifdef NQ_HACK
+#ifdef __LIBRETRO__
+    if (strstr(g_pak_path, "rogue/")) {
+#else
     if (COM_CheckParm("-rogue")) {
+#endif
 	rogue = true;
 	standard_quake = false;
     }
 
+#ifdef __LIBRETRO__
+    if (strstr(g_pak_path, "hipnotic/")) {
+#else
     if (COM_CheckParm("-hipnotic")) {
+#endif
 	hipnotic = true;
 	standard_quake = false;
     }
@@ -2018,9 +2031,8 @@ COM_Gamedir(const char *dir)
 COM_InitFilesystem
 ================
 */
-#ifdef __LIBRETRO__
-extern char g_rom_dir[256];
 
+#ifdef __LIBRETRO__
 static void
 COM_InitFilesystem(void)
 {
@@ -2047,11 +2059,15 @@ COM_InitFilesystem(void)
     COM_AddGameDirectory(home, "id1");
 
 #ifdef NQ_HACK
-    if (COM_CheckParm("-rogue")) {
-	COM_AddGameDirectory(home, "rogue");
+    char mod_path[256];
+    if (strstr(g_pak_path, "rogue/")) {
+       snprintf(mod_path, sizeof(mod_path), "%s/rogue", home);
+       COM_AddGameDirectory(mod_path, "rogue");
     }
-    if (COM_CheckParm("-hipnotic")) {
-	COM_AddGameDirectory(home, "hipnotic");
+    else if (strstr(g_pak_path, "hipnotic/"))
+    {
+       snprintf(mod_path, sizeof(mod_path), "%s/hipnotic", home);
+       COM_AddGameDirectory(mod_path, "hipnotic");
     }
 
 //
