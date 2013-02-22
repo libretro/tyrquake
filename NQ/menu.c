@@ -865,7 +865,11 @@ M_Setup_Key(int k)
 //=============================================================================
 /* OPTIONS MENU */
 
+#ifdef __LIBRETRO__
+#define	OPTIONS_ITEMS	15
+#else
 #define	OPTIONS_ITEMS	14
+#endif
 #define	SLIDER_RANGE	10
 
 static int options_cursor;
@@ -965,6 +969,10 @@ M_AdjustSliders(int dir)
        cvar = Cvar_FindVar("dither_filter");
        Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
        break;
+   case 14:
+       cvar = Cvar_FindVar("d_mipscale");
+       Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
+       break;
 #else
     case 13:			// _windowed_mouse
 	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
@@ -1062,6 +1070,10 @@ M_Options_Draw(void)
 
     M_Print(16, 136, "      Dither Filtering");
 	M_DrawCheckbox(220, 136, cvar->value);
+
+   cvar = Cvar_FindVar("d_mipscale");
+   M_Print(16, 144, "      Mipscale");
+   M_DrawCheckbox(220, 144, cvar->value);
 #else
     if (!VID_IsFullScreen()) {
 	M_Print(16, 136, "             Use Mouse");
