@@ -164,8 +164,7 @@ ifeq ($(platform), win)
 OBJECTS += NQ/net_win.o \
 				 NQ/net_wins.o
 else
-OBJECTS += NQ/net_udp.o \
-				 NQ/net_bsd.o
+OBJECTS += NQ/net_none.o
 endif
 
 INCLUDES   = -I. -INQ -Iinclude
