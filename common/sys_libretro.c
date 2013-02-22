@@ -46,6 +46,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qboolean isDedicated;
 #endif
 
+#ifdef GEKKO
+#include <ogc/lwp_watchdog.h>
+#endif
+
 #define	BASEWIDTH	512
 #define	BASEHEIGHT	448
 #define MEMSIZE_MB 16
@@ -138,6 +142,9 @@ void Sys_DebugLog(const char *file, const char *fmt, ...)
 
 double Sys_DoubleTime(void)
 {
+#ifdef GEKKO
+   return ticks_to_microsecs(gettime()) / 1000000.0;
+#else
    struct timeval tp;
    struct timezone tzp;
    static int secbase;
@@ -150,6 +157,7 @@ double Sys_DoubleTime(void)
    }
 
    return (tp.tv_sec - secbase) + tp.tv_usec / 1000000.0;
+#endif
 }
 
 // =======================================================================
