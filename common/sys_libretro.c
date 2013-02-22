@@ -48,6 +48,7 @@ qboolean isDedicated;
 
 #define	BASEWIDTH	512
 #define	BASEHEIGHT	448
+#define MEMSIZE_MB 16
 
 static qboolean nostdout = false;
 
@@ -157,9 +158,6 @@ double Sys_DoubleTime(void)
 
 #ifdef NQ_HACK
 #ifdef _WIN32
-static qboolean sc_return_on_enter = false;
-static HANDLE hinput, houtput;
-
 /*
  * For debugging - Print a Win32 system error string to stdout
  */
@@ -176,78 +174,16 @@ Print_Win32SystemError(DWORD err)
 	LocalFree(buf);
     }
 }
+#endif
+#endif
 
-char *
-Sys_ConsoleInput(void)
+void
+IN_Accumulate(void)
+{}
+
+char * Sys_ConsoleInput(void)
 {
-    static char text[256];
-    static int len;
-    INPUT_RECORD recs[1024];
-    DWORD dummy;
-    int ch;
-    DWORD numread, numevents;
-
-    if (!isDedicated)
-	return NULL;
-
-    for (;;) {
-	if (!GetNumberOfConsoleInputEvents(hinput, &numevents)) {
-	    DWORD err = GetLastError();
-
-	    printf("GetNumberOfConsoleInputEvents: ");
-	    Print_Win32SystemError(err);
-	    Sys_Error("Error getting # of console events");
-	}
-
-	if (numevents <= 0)
-	    break;
-
-	if (!ReadConsoleInput(hinput, recs, 1, &numread))
-	    Sys_Error("Error reading console input");
-
-	if (numread != 1)
-	    Sys_Error("Couldn't read console input");
-
-	if (recs[0].EventType == KEY_EVENT) {
-	    if (!recs[0].Event.KeyEvent.bKeyDown) {
-		ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
-
-		switch (ch) {
-		case '\r':
-		    WriteFile(houtput, "\r\n", 2, &dummy, NULL);
-		    if (len) {
-			text[len] = 0;
-			len = 0;
-			return text;
-		    } else if (sc_return_on_enter) {
-			/*
-			 * special case to allow exiting from the error
-			 * handler on Enter
-			 */
-			text[0] = '\r';
-			len = 0;
-			return text;
-		    }
-		    break;
-		case '\b':
-		    WriteFile(houtput, "\b \b", 3, &dummy, NULL);
-		    if (len) {
-			len--;
-		    }
-		    break;
-		default:
-		    if (ch >= ' ') {
-			WriteFile(houtput, &ch, 1, &dummy, NULL);
-			text[len] = ch;
-			len = (len + 1) & 0xff;
-		    }
-		    break;
-		}
-	    }
-	}
-    }
-
-    return NULL;
+   return NULL;
 }
 
 qboolean
@@ -255,17 +191,6 @@ window_visible(void)
 {
     return true;
 }
-
-void
-IN_Accumulate(void)
-{}
-#else
-char * Sys_ConsoleInput(void)
-{
-   return NULL;
-}
-#endif
-#endif
 
 void Sys_HighFPPrecision(void)
 {
@@ -475,7 +400,7 @@ bool retro_load_game(const struct retro_game_info *info)
    parms.argc = com_argc;
    parms.argv = com_argv;
    parms.basedir = g_rom_dir;
-   parms.memsize = 16 * 1024 * 1024;
+   parms.memsize = MEMSIZE_MB * 1024 * 1024;
 
    heap = (unsigned char*)malloc(parms.memsize);
 
