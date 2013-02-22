@@ -877,14 +877,19 @@ M_Menu_Options_f(void)
     m_state = m_options;
     m_entersound = true;
 
+#ifndef __LIBRETRO__
     if ((options_cursor == 13) && VID_IsFullScreen())
 	options_cursor = 0;
+#endif
 }
 
 
 static void
 M_AdjustSliders(int dir)
 {
+#ifdef __LIBRETRO__
+    cvar_t *cvar = NULL;
+#endif
     S_LocalSound("misc/menu3.wav");
 
     switch (options_cursor) {
@@ -955,9 +960,16 @@ M_AdjustSliders(int dir)
 	Cvar_SetValue("lookstrafe", !lookstrafe.value);
 	break;
 
+#ifdef __LIBRETRO__
+   case 13:
+       cvar = Cvar_FindVar("dither_filter");
+       Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
+       break;
+#else
     case 13:			// _windowed_mouse
 	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
 	break;
+#endif
     }
 }
 
@@ -998,6 +1010,9 @@ M_Options_Draw(void)
 {
     float r;
     const qpic_t *p;
+#ifdef __LIBRETRO__
+    cvar_t *cvar = NULL;
+#endif
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_option.lmp");
@@ -1042,10 +1057,18 @@ M_Options_Draw(void)
     if (vid_menudrawfn)
 	M_Print(16, 128, "         Video Options");
 
+#ifdef __LIBRETRO__
+    cvar = Cvar_FindVar("dither_filter");
+
+    M_Print(16, 136, "      Dither Filtering");
+	M_DrawCheckbox(220, 136, cvar->value);
+#else
     if (!VID_IsFullScreen()) {
 	M_Print(16, 136, "             Use Mouse");
 	M_DrawCheckbox(220, 136, _windowed_mouse.value);
     }
+#endif
+
 
 // cursor
     M_DrawCharacter(200, 32 + options_cursor * 8,
@@ -1056,6 +1079,7 @@ M_Options_Draw(void)
 static void
 M_Options_Key(int k)
 {
+
     switch (k) {
     case K_ESCAPE:
 	M_Menu_Main_f();
@@ -1112,6 +1136,7 @@ M_Options_Key(int k)
 	else
 	    options_cursor = 13;
     }
+#ifndef __LIBRETRO__
     if ((options_cursor == 13) && VID_IsFullScreen()) {
 	if (k == K_UPARROW) {
 	    if (!vid_menudrawfn)
@@ -1121,6 +1146,7 @@ M_Options_Key(int k)
 	} else
 	    options_cursor = 0;
     }
+#endif
 }
 
 //=============================================================================
