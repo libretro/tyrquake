@@ -120,6 +120,8 @@ OBJECTS    = NQ/cl_input.o \
 				 NQ/menu.o \
 				 common/model.o \
 				 NQ/net_common.o \
+				 NQ/net_loop.o \
+				 NQ/net_main.o \
 				 common/nonintel.o \
 				 common/pr_cmds.o \
 				 common/pr_exec.o \
