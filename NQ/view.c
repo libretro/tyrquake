@@ -509,6 +509,12 @@ V_CalcBlend(void)
 V_UpdatePalette
 =============
 */
+#ifdef __LIBRETRO__
+extern unsigned short	palette_data[256];
+
+#define PACK_RGB565(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
+#endif
+
 #ifdef	GLQUAKE
 void
 V_UpdatePalette(void)
@@ -551,6 +557,9 @@ V_UpdatePalette(void)
     byte pal[768];
     int r, g, b;
     qboolean force;
+#ifdef __LIBRETRO__
+    unsigned short *pal_data;
+#endif
 
     V_CalcPowerupCshift();
 
@@ -585,6 +594,9 @@ V_UpdatePalette(void)
     basepal = host_basepal;
     newpal = pal;
 
+#ifdef __LIBRETRO__
+    pal_data = &palette_data[0];
+#endif
     for (i = 0; i < 256; i++) {
 	r = basepal[0];
 	g = basepal[1];
@@ -604,6 +616,9 @@ V_UpdatePalette(void)
 	newpal[1] = gammatable[g];
 	newpal[2] = gammatable[b];
 	newpal += 3;
+#ifdef __LIBRETRO__
+   *pal_data++ = PACK_RGB565(r, g, b);
+#endif
     }
 
     VID_ShiftPalette(pal);

@@ -339,6 +339,10 @@ static short finalimage[BASEWIDTH * BASEHEIGHT];
 
 void retro_run(void)
 {
+   unsigned char *ilineptr = (unsigned char*)vid.buffer;
+   unsigned short *olineptr = (unsigned short*)finalimage;
+   unsigned y, x;
+
    // find time spent rendering last frame
    newtime = Sys_DoubleTime();
    _time = newtime - oldtime;
@@ -364,10 +368,6 @@ void retro_run(void)
 
    Host_Frame(_time);
 
-   unsigned char *ilineptr = (unsigned char*)vid.buffer;
-   unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned y, x;
-
    for (y = 0; y < BASEHEIGHT; ++y)
    {
       for (x = 0; x < BASEWIDTH; ++x)
@@ -375,7 +375,6 @@ void retro_run(void)
          *olineptr++ = palette_data[*ilineptr++];
       }
    }
-
 
    video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
 }
@@ -535,23 +534,13 @@ byte surfcache[256 * 1024];
 
 unsigned short d_8to16table[256];
 
-#define PACK_RGB565(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
 
 void VID_SetPalette(unsigned char *palette)
 {
-	unsigned r, g, b, i;
-	for(i = 0; i < 256; i++)
-	{
-		r = *palette++;
-		g = *palette++;
-		b = *palette++;
-		palette_data[i] = PACK_RGB565(r, g, b);
-	}
 }
 
 void VID_ShiftPalette(unsigned char *palette)
 {
-    VID_SetPalette(palette);
 }
 
 void VID_Init(unsigned char *palette)
