@@ -54,8 +54,8 @@ qboolean isDedicated;
 #define BASEWIDTH 320
 #define BASEHEIGHT 224
 #else
-#define BASEWIDTH 512
-#define BASEHEIGHT 448
+#define BASEWIDTH 400
+#define BASEHEIGHT 240
 #endif
 #define MEMSIZE_MB 16
 
