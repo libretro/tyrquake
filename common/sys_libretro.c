@@ -50,8 +50,13 @@ qboolean isDedicated;
 #include <ogc/lwp_watchdog.h>
 #endif
 
-#define	BASEWIDTH	512
-#define	BASEHEIGHT	448
+#if defined(GEKKO) || defined(_XBOX1)
+#define BASEWIDTH 320
+#define BASEHEIGHT 224
+#else
+#define BASEWIDTH 512
+#define BASEHEIGHT 448
+#endif
 #define MEMSIZE_MB 16
 
 static qboolean nostdout = false;
