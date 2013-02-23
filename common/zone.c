@@ -677,13 +677,13 @@ typedef struct cache_system_s {
 static cache_system_t cache_head;
 static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom);
 
-static inline cache_system_t *
+static INLINE cache_system_t *
 Cache_System(const cache_user_t *c)
 {
     return (cache_system_t *)((byte *)c->data - c->pad) - 1;
 }
 
-static inline void *
+static INLINE void *
 Cache_Data(const cache_system_t *c)
 {
     return (byte *)(c + 1) + c->user->pad;

@@ -34,6 +34,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cvar.h"
 #include "mathlib.h"
 
+#ifdef _WIN32
+#define __func__ __FUNCTION__
+#endif
+
 //define        PARANOID                        // speed sapping error checking
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!

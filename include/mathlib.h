@@ -37,18 +37,8 @@ typedef int fixed16_t;
 #define FIXED16_MAX INT_MAX;
 
 /* min and max macros with type checking */
-#define qmax(a,b) ({       \
-    typeof(a) a_ = (a);   \
-    typeof(b) b_ = (b);   \
-    (void)(&a_ == &b_);   \
-    (a_ > b_) ? a_ : b_;  \
-})
-#define qmin(a,b) ({       \
-    typeof(a) a_ = (a);   \
-    typeof(b) b_ = (b);   \
-    (void)(&a_ == &b_);   \
-    (a_ < b_) ? a_ : b_;  \
-})
+#define qmax(a,b) ((a > b) ? a : b)
+#define qmin(a,b) ((a < b) ? a : b)
 
 /* clamp macro with type checking */
 #define qclamp(var,min,max) qmax(qmin(var,max),min)
