@@ -51,11 +51,11 @@ qboolean isDedicated;
 #endif
 
 #if defined(GEKKO) || defined(_XBOX1)
-#define BASEWIDTH 320
+#define BASEWIDTH 512
 #define BASEHEIGHT 224
 #else
-#define BASEWIDTH 400
-#define BASEHEIGHT 240
+#define BASEWIDTH 640
+#define BASEHEIGHT 448
 #endif
 #define MEMSIZE_MB 16
 
