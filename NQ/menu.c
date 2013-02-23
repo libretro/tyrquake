@@ -905,6 +905,7 @@ M_AdjustSliders(int dir)
 	    scr_viewsize.value = 120;
 	Cvar_SetValue("viewsize", scr_viewsize.value);
 	break;
+#ifndef __LIBRETRO__
     case 4:			// gamma
 	v_gamma.value -= dir * 0.05;
 	if (v_gamma.value < 0.5)
@@ -913,6 +914,7 @@ M_AdjustSliders(int dir)
 	    v_gamma.value = 1;
 	Cvar_SetValue("gamma", v_gamma.value);
 	break;
+#endif
     case 5:			// mouse speed
 	sensitivity.value += dir * 0.5;
 	if (sensitivity.value < 1)
@@ -1034,9 +1036,11 @@ M_Options_Draw(void)
     r = (scr_viewsize.value - 30) / (120 - 30);
     M_DrawSlider(220, 56, r);
 
+#ifndef __LIBRETRO__
     M_Print(16, 64, "            Brightness");
     r = (1.0 - v_gamma.value) / 0.5;
     M_DrawSlider(220, 64, r);
+#endif
 
     M_Print(16, 72, "           Mouse Speed");
     r = (sensitivity.value - 1) / 10;
@@ -1142,6 +1146,15 @@ M_Options_Key(int k)
 	break;
     }
 
+#ifdef __LIBRETRO__
+    if (options_cursor == 4)
+    {
+       if (k == K_UPARROW)
+          options_cursor = 3;
+       else
+          options_cursor = 5;
+    }
+#endif
     if (options_cursor == 12 && !vid_menudrawfn) {
 	if (k == K_UPARROW)
 	    options_cursor = 11;
