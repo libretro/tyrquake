@@ -47,7 +47,7 @@ void Cbuf_Init(void);
 
 // allocates an initial text buffer that will grow as needed
 
-void Cbuf_AddText(const char *fmt, ...) __attribute__((format(printf,1,2)));
+void Cbuf_AddText(const char *fmt, ...);
 
 // as new commands are generated from the console or keybindings,
 // the text is added to the end of the command buffer.

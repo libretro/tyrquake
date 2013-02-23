@@ -63,7 +63,7 @@ extern void rb_insert_color(struct rb_node *, struct rb_root *);
  */
 extern void rb_erase(struct rb_node *, struct rb_root *);
 
-static inline void
+static INLINE void
 rb_link_node(struct rb_node *node, struct rb_node *parent,
 	     struct rb_node **rb_link)
 {

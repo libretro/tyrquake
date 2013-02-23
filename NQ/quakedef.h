@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef QUAKEDEF_H
 #define QUAKEDEF_H
 
-#include <inttypes.h>
+#include <stdint.h>
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>

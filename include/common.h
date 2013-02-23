@@ -117,10 +117,8 @@ void MSG_WriteShort(sizebuf_t *sb, int c);
 void MSG_WriteLong(sizebuf_t *sb, int c);
 void MSG_WriteFloat(sizebuf_t *sb, float f);
 void MSG_WriteString(sizebuf_t *sb, const char *s);
-void MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...)
-    __attribute__((format(printf,2,3)));
-void MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
-    __attribute__((format(printf,2,0)));
+void MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...);
+void MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap);
 void MSG_WriteCoord(sizebuf_t *sb, float f);
 void MSG_WriteAngle(sizebuf_t *sb, float f);
 void MSG_WriteAngle16(sizebuf_t *sb, float f);
@@ -188,7 +186,7 @@ void COM_FileBase(const char *in, char *out, size_t buflen);
 void COM_DefaultExtension(char *path, const char *extension);
 int COM_CheckExtension(const char *path, const char *extn);
 
-char *va(const char *format, ...) __attribute__((format(printf,1,2)));
+char *va(const char *format, ...);
 
 // does a varargs printf into a temp buffer
 

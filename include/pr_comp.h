@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef PR_COMP_H
 #define PR_COMP_H
 
-#include <inttypes.h>
+#include <stdint.h>
 
 #include "qtypes.h"
 

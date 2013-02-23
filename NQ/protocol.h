@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PROTOCOL_VERSION_BJP2 10001
 #define PROTOCOL_VERSION_BJP3 10002
 
-static inline qboolean
+static INLINE qboolean
 Protocol_Known(int version)
 {
     switch (version) {
@@ -46,7 +46,7 @@ Protocol_Known(int version)
     }
 }
 
-static inline int
+static INLINE int
 max_models(int protocol)
 {
     switch (protocol) {
@@ -62,7 +62,7 @@ max_models(int protocol)
     }
 }
 
-static inline int
+static INLINE int
 max_sounds_static(int protocol)
 {
     switch (protocol) {
@@ -78,7 +78,7 @@ max_sounds_static(int protocol)
     }
 }
 
-static inline int
+static INLINE int
 max_sounds_dynamic(int protocol)
 {
     switch (protocol) {
@@ -94,7 +94,7 @@ max_sounds_dynamic(int protocol)
     }
 }
 
-static inline int
+static INLINE int
 max_sounds(int p)
 {
     return qmax(max_sounds_dynamic(p), max_sounds_static(p));

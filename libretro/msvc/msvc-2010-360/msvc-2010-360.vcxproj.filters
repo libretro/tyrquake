@@ -1,0 +1,234 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Source Files\NQ">
+      <UniqueIdentifier>{9b62c5a5-3b2c-4a7b-a181-4541021e400e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\common">
+      <UniqueIdentifier>{c44b1527-5dba-4ac5-b698-052e8156c6cb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\NQ\view.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\chase.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\cl_demo.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\cl_input.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\cl_main.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\cl_parse.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\cl_tent.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\host.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\host_cmd.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\menu.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\net_common.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\net_loop.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\net_main.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\sbar.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\sv_main.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\sv_phys.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\NQ\sv_user.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\zone.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\alias_model.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\cd_common.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\cmd.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\common.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\console.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\crc.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\cvar.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_edge.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_fill.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_init.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_modech.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_part.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_polyse.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_scan.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_sky.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_sprite.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_surf.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\d_vars.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\draw.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\drawhulls.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\keys.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\mathlib.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\model.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\nonintel.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\pr_cmds.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\pr_edict.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\pr_exec.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_aclip.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_alias.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_bsp.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_draw.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_edge.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_efrag.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_light.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_main.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_misc.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_model.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_part.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_sky.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_sprite.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_surf.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\r_vars.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\rb_tree.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\screen.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\shell.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\snd_dma.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\snd_mem.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\snd_mix.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\sprite_model.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\sv_move.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\sys_libretro.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\wad.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\common\world.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

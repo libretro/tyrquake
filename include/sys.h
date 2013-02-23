@@ -50,16 +50,14 @@ void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
 
 #define MAX_PRINTMSG 4096
 
-void Sys_Printf(const char *fmt, ...) __attribute__((format(printf,1,2)));
-void Sys_DebugLog(const char *file, const char *fmt, ...)
-    __attribute__((format(printf,2,3)));
-void Sys_Error(const char *error, ...)
-    __attribute__((format(printf,1,2), noreturn));
+void Sys_Printf(const char *fmt, ...);
+void Sys_DebugLog(const char *file, const char *fmt, ...);
+void Sys_Error(const char *error, ...);
 
 // send text to the console
 // an error will cause the entire program to exit
 
-void Sys_Quit(void) __attribute__((noreturn));
+void Sys_Quit(void);
 
 double Sys_DoubleTime(void);
 

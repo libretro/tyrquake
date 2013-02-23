@@ -339,7 +339,7 @@ typedef struct {
     aliashdr_t ahdr;
 } gl_aliashdr_t;
 
-static inline gl_aliashdr_t *
+static INLINE gl_aliashdr_t *
 GL_Aliashdr(aliashdr_t *h)
 {
     return container_of(h, gl_aliashdr_t, ahdr);
@@ -353,7 +353,7 @@ typedef struct {
     aliashdr_t ahdr;
 } sw_aliashdr_t;
 
-static inline sw_aliashdr_t *
+static INLINE sw_aliashdr_t *
 SW_Aliashdr(aliashdr_t *h)
 {
     return container_of(h, sw_aliashdr_t, ahdr);
@@ -491,19 +491,19 @@ int __ERRORLONGSIZE(void); /* to generate an error at link time */
 #define LEAFSHIFT QBYTESHIFT(sizeof(leafblock_t))
 #define LEAFMASK  ((sizeof(leafblock_t) << 3) - 1UL)
 
-static inline qboolean
+static INLINE qboolean
 Mod_TestLeafBit(const leafbits_t *bits, int leafnum)
 {
     return !!(bits->bits[leafnum >> LEAFSHIFT] & (1UL << (leafnum & LEAFMASK)));
 }
 
-static inline size_t
+static INLINE size_t
 Mod_LeafbitsSize(int numleafs)
 {
     return offsetof(leafbits_t, bits[(numleafs + LEAFMASK) >> LEAFSHIFT]);
 }
 
-static inline int
+static INLINE int
 Mod_NextLeafBit(const leafbits_t *leafbits, int leafnum, leafblock_t *check)
 {
     int bit;
