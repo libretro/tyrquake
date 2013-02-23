@@ -154,7 +154,8 @@ D_SetupFrame(void)
     else
 	D_DrawSpans = D_DrawSpans8;
 #else
-    D_DrawSpans = D_DrawSpans8;
+    D_DrawSpans = D_DrawSpans16;
+    //D_DrawSpans = D_DrawSpans8;
 #endif
 }
 
