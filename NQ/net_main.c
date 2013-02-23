@@ -21,8 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* FIXME - just for the htons() call below */
 #if defined(WIN32)
 #include <winsock2.h>
-#elif defined(GEKKO)
-// Wii is already big-endian
+#elif defined(GEKKO) || defined(__CELLOS_LV2__) || defined(_XBOX360)
+// Is already big-endian
 #ifndef htons
 #define htons(x) (x)
 #define ntohs(x) (x)

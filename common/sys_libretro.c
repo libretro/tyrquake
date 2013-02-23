@@ -50,7 +50,12 @@ qboolean isDedicated;
 #include <ogc/lwp_watchdog.h>
 #endif
 
-#if defined(GEKKO) || defined(_XBOX1)
+#ifdef __CELLOS_LV2__
+#include <sys/sys_time.h>
+#include <sys/timer.h>
+#endif
+
+#if defined(GEKKO) || defined(_XBOX) || defined(__CELLOS_LV2__)
 #define BASEWIDTH 512
 #define BASEHEIGHT 224
 #else
@@ -147,8 +152,10 @@ void Sys_DebugLog(const char *file, const char *fmt, ...)
 
 double Sys_DoubleTime(void)
 {
-#ifdef GEKKO
+#if defined(GEKKO)
    return ticks_to_microsecs(gettime()) / 1000000.0;
+#elif defined(__CELLOS_LV2__)
+   return sys_time_get_system_time();
 #else
    struct timeval tp;
    struct timezone tzp;
@@ -337,6 +344,15 @@ void Sys_SendKeyEvents(void)
 
 static short finalimage[BASEWIDTH * BASEHEIGHT];
 
+void Sys_Sleep(void)
+{
+#ifdef __CELLOS_LV2__
+   sys_timer_usleep(1);
+#else
+   usleep(1);
+#endif
+}
+
 void retro_run(void)
 {
    unsigned char *ilineptr = (unsigned char*)vid.buffer;
@@ -350,7 +366,7 @@ void retro_run(void)
 #ifdef NQ_HACK
    if (cls.state == ca_dedicated) {
       if (_time < sys_ticrate.value) {
-         usleep(1);
+         Sys_Sleep();
          //TODO - do something proper for this instead of just 'returning'
          //continue;	// not time to run a server only tic yet
          return;
