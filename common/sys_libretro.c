@@ -155,7 +155,7 @@ double Sys_DoubleTime(void)
 #if defined(GEKKO)
    return ticks_to_microsecs(gettime()) / 1000000.0;
 #elif defined(__CELLOS_LV2__)
-   return sys_time_get_system_time();
+   return sys_time_get_system_time() / 1000000.0;
 #else
    struct timeval tp;
    struct timezone tzp;
