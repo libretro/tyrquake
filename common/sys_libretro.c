@@ -259,7 +259,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing = (struct retro_system_timing) {
       .fps = 60.0,
-      .sample_rate = 30000.0,
+      .sample_rate = 44100.0,
    };
 
    info->geometry = (struct retro_game_geometry) {
@@ -353,6 +353,10 @@ void Sys_Sleep(void)
 #endif
 }
 
+#define SAMPLES_PER_FRAME (2 * 44100 / 60)
+#define AUDIO_BUFFER_SAMPLES (8 * 1024)
+static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
+static unsigned audio_buffer_ptr;
 void retro_run(void)
 {
    unsigned char *ilineptr = (unsigned char*)vid.buffer;
@@ -393,6 +397,17 @@ void retro_run(void)
    }
 
    video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
+
+   unsigned read_end = audio_buffer_ptr + SAMPLES_PER_FRAME;
+   if (read_end > AUDIO_BUFFER_SAMPLES)
+      read_end = AUDIO_BUFFER_SAMPLES;
+
+   unsigned read_first  = read_end - audio_buffer_ptr;
+   unsigned read_second = SAMPLES_PER_FRAME - read_first;
+
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
+   audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
 }
 
 static void extract_directory(char *buf, const char *path, size_t size)
@@ -450,17 +465,6 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_Set("showram", "0");
    Cvar_Set("dither_filter", "1");
 
-   /* Set up key descriptors */
-   struct retro_input_descriptor desc[] = {
-      { .port = 0, .device = RETRO_DEVICE_JOYPAD, .index = 0, .id = RETRO_DEVICE_ID_JOYPAD_LEFT,  .description = "Left" },
-      { .port = 0, .device = RETRO_DEVICE_JOYPAD, .index = 0, .id = RETRO_DEVICE_ID_JOYPAD_UP,    .description = "Up" },
-      { .port = 0, .device = RETRO_DEVICE_JOYPAD, .index = 0, .id = RETRO_DEVICE_ID_JOYPAD_DOWN,  .description = "Down" },
-      { .port = 0, .device = RETRO_DEVICE_JOYPAD, .index = 0, .id = RETRO_DEVICE_ID_JOYPAD_RIGHT, .description = "Right" },
-      { 0 },
-   };
-
-   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
-
    enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
    if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
    {
@@ -504,7 +508,7 @@ bool retro_load_game_special(unsigned type, const struct retro_game_info *info, 
 
 size_t retro_serialize_size(void)
 {
-   return 2;
+   return 0;
 }
 
 bool retro_serialize(void *data_, size_t size)
@@ -615,14 +619,20 @@ void D_EndDirectRect(int x, int y, int width, int height)
 
 qboolean SNDDMA_Init(void)
 {
-   return false;
+   shm = &sn;
+   shm->speed = 44100;
+   shm->channels = 2;
+   shm->samplepos = 0;
+   shm->samplebits = 16;
+   shm->samples = AUDIO_BUFFER_SAMPLES;
+   shm->buffer = audio_buffer;
+   return true;
 }
 
 int SNDDMA_GetDMAPos(void)
 {
-   return 0;
+   return shm->samplepos = audio_buffer_ptr;
 }
-
 
 int SNDDMA_LockBuffer(void)
 {
