@@ -30,8 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.h"
 #include "view.h"
 
-#define LIBRETRO_NO_GAMMA
-
 /*
  * The view is allowed to move slightly from it's true position for bobbing,
  * but if it exceeds 8 pixels linear distance (spherical, not box), the list
@@ -261,9 +259,7 @@ cshift_t cshift_lava = { {255, 80, 0}, 150 };
 
 cvar_t v_gamma = { "gamma", "1", true };
 
-#ifndef LIBRETRO_NO_GAMMA
 byte gammatable[256];		// palette is sent through this
-#endif
 
 #ifdef	GLQUAKE
 unsigned short ramps[3][256];
@@ -273,7 +269,6 @@ float v_blend[4];		// rgba 0.0 - 1.0
 void
 BuildGammaTable(float g)
 {
-#ifndef LIBRETRO_NO_GAMMA
     int i, inf;
 
     if (g == 1.0) {
@@ -290,7 +285,6 @@ BuildGammaTable(float g)
 	    inf = 255;
 	gammatable[i] = inf;
     }
-#endif
 }
 
 /*
@@ -618,12 +612,10 @@ V_UpdatePalette(void)
 		  (cl.cshifts[j].destcolor[2] - b)) >> 8;
 	}
 
-#ifndef LIBRETRO_NO_GAMMA
 	newpal[0] = gammatable[r];
 	newpal[1] = gammatable[g];
 	newpal[2] = gammatable[b];
 	newpal += 3;
-#endif
 #ifdef __LIBRETRO__
    *pal_data++ = PACK_RGB565(r, g, b);
 #endif
