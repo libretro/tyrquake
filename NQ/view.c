@@ -542,9 +542,11 @@ V_UpdatePalette(void)
 	    ramps[1][i] = gammatable[i] << 8;
 	    ramps[2][i] = gammatable[i] << 8;
 	}
+#ifndef __LIBRETRO__
 	if (VID_IsFullScreen() && VID_SetGammaRamp)
 	    VID_SetGammaRamp(ramps);
 	//VID_ShiftPalette(NULL);
+#endif
     }
 }
 #else // !GLQUAKE
@@ -553,13 +555,15 @@ V_UpdatePalette(void)
 {
     int i, j;
     qboolean new;
-    byte *basepal, *newpal;
-    byte pal[768];
-    int r, g, b;
-    qboolean force;
+    byte *basepal;
 #ifdef __LIBRETRO__
     unsigned short *pal_data;
+#else
+    byte pal[768];
+    byte *newpal;
 #endif
+    int r, g, b;
+    qboolean force;
 
     V_CalcPowerupCshift();
 
@@ -592,11 +596,12 @@ V_UpdatePalette(void)
 	return;
 
     basepal = host_basepal;
-    newpal = pal;
-
 #ifdef __LIBRETRO__
     pal_data = &palette_data[0];
+#else
+    newpal = pal;
 #endif
+
     for (i = 0; i < 256; i++) {
 	r = basepal[0];
 	g = basepal[1];
@@ -612,16 +617,19 @@ V_UpdatePalette(void)
 		  (cl.cshifts[j].destcolor[2] - b)) >> 8;
 	}
 
-	newpal[0] = gammatable[r];
-	newpal[1] = gammatable[g];
-	newpal[2] = gammatable[b];
-	newpal += 3;
 #ifdef __LIBRETRO__
-   *pal_data++ = PACK_RGB565(r, g, b);
+   *pal_data++ = PACK_RGB565(gammatable[r], gammatable[g], gammatable[b]);
+#else
+	newpal[0] = r = gammatable[r];
+	newpal[1] = g = gammatable[g];
+	newpal[2] = b = gammatable[b];
+	newpal += 3;
 #endif
     }
 
+#ifndef __LIBRETRO__
     VID_ShiftPalette(pal);
+#endif
 }
 #endif // !GLQUAKE
 
