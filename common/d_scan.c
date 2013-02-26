@@ -271,14 +271,14 @@ int dither_kernel[2][2][2] =
 #define DITHERED_SOLID_B(i)		pdest[i] = pbase[idiths_b + iditht_b * cachewidth]
 
 #define DITHERED_SOLID_B_UPDATE() \
-       idiths_b = s + dither_val_s_b; iditht_b = t + dither_val_t_b; \
-       idiths_b = (idiths_b >> 16) ? ((idiths_b >> 16) - 1) : (idiths_b >> 16); \
-       iditht_b = (iditht_b >> 16) ? ((iditht_b >> 16) - 1) : (iditht_b >> 16)
+       idiths_b = (s + dither_val_s_b) >> 16; iditht_b = (t + dither_val_t_b) >> 16; \
+       idiths_b = idiths_b ? ((idiths_b) - 1) : idiths_b; \
+       iditht_b = iditht_b ? ((iditht_b) - 1) : iditht_b
 
 #define DITHERED_SOLID_UPDATE() \
-       idiths = s + dither_val_s; iditht = t + dither_val_t; \
-       idiths = (idiths >> 16) ? ((idiths >> 16) - 1) : (idiths >> 16); \
-       iditht = (iditht >> 16) ? ((iditht >> 16) - 1) : (iditht >> 16)
+       idiths = (s + dither_val_s) >> 16; iditht = (t + dither_val_t) >> 16; \
+       idiths = idiths ? ((idiths) - 1) : idiths; \
+       iditht = iditht ? ((iditht) - 1) : iditht
 #endif
 
 /*
