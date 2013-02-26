@@ -32,6 +32,10 @@ static sspan_t *sprite_spans;
 
 #ifndef USE_X86_ASM
 
+#ifdef __LIBRETRO__
+extern int dither_kernel[2][2][2];
+#endif
+
 /*
 =====================
 D_SpriteDrawSpans
@@ -48,6 +52,9 @@ D_SpriteDrawSpans(sspan_t * pspan)
     float sdivz8stepu, tdivz8stepu, zi8stepu;
     byte btemp;
     short *pz;
+#ifdef __LIBRETRO__
+    cvar_t *cvar;
+#endif
 
     sstep = 0;			// keep compiler happy
     tstep = 0;			// ditto
@@ -156,21 +163,58 @@ D_SpriteDrawSpans(sspan_t * pspan)
 		}
 	    }
 
-	    do {
-		btemp = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
-		if (btemp != 255) {
-		    if (*pz <= (izi >> 16)) {
-			*pz = izi >> 16;
-			*pdest = btemp;
-		    }
-		}
+       cvar = Cvar_FindVar("dither_filter");
 
-		izi += izistep;
-		pdest++;
-		pz++;
-		s += sstep;
-		t += tstep;
-	    } while (--spancount > 0);
+       if (cvar && cvar->value)
+       {
+          do {
+             int idiths = s;
+             int iditht = t;
+
+             int X= (pspan->u + spancount) & 1;
+             int Y= (pspan->v)&1;
+
+             //Using the kernel
+             idiths += dither_kernel[X][Y][0];
+             iditht += dither_kernel[X][Y][1];
+             idiths = idiths >> 16;
+             idiths = idiths ? idiths -1 : idiths;
+             iditht = iditht >> 16;
+             iditht = iditht ? iditht -1 : iditht;
+
+             btemp = *(pbase + idiths + iditht * cachewidth);
+             if (btemp != 255) {
+                if (*pz <= (izi >> 16)) {
+                   *pz = izi >> 16;
+                   *pdest = btemp;
+                }
+             }
+
+             izi += izistep;
+             pdest++;
+             pz++;
+             s += sstep;
+             t += tstep;
+          } while (--spancount > 0);
+       }
+       else
+       {
+          do {
+             btemp = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
+             if (btemp != 255) {
+                if (*pz <= (izi >> 16)) {
+                   *pz = izi >> 16;
+                   *pdest = btemp;
+                }
+             }
+
+             izi += izistep;
+             pdest++;
+             pz++;
+             s += sstep;
+             t += tstep;
+          } while (--spancount > 0);
+       }
 
 	    s = snext;
 	    t = tnext;
