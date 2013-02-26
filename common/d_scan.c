@@ -253,7 +253,7 @@ Turbulent8(espan_t *pspan)
 #ifndef USE_X86_ASM
 
 #ifdef __LIBRETRO__
-int kernel[2][2][2] =
+int dither_kernel[2][2][2] =
 {
    {
       {16384,0},
@@ -265,6 +265,20 @@ int kernel[2][2][2] =
          {0,16384}
       }
 };
+
+#define SOLID(i)						pdest[i] = pbase[(s >> 16) + (t >> 16) * cachewidth]
+#define DITHERED_SOLID(i)		pdest[i] = pbase[idiths + iditht * cachewidth]
+#define DITHERED_SOLID_B(i)		pdest[i] = pbase[idiths_b + iditht_b * cachewidth]
+
+#define DITHERED_SOLID_B_UPDATE() \
+       idiths_b = s + dither_val_s_b; iditht_b = t + dither_val_t_b; \
+       idiths_b = (idiths_b >> 16) ? ((idiths_b >> 16) - 1) : (idiths_b >> 16); \
+       iditht_b = (iditht_b >> 16) ? ((iditht_b >> 16) - 1) : (iditht_b >> 16)
+
+#define DITHERED_SOLID_UPDATE() \
+       idiths = s + dither_val_s; iditht = t + dither_val_t; \
+       idiths = (idiths >> 16) ? ((idiths >> 16) - 1) : (idiths >> 16); \
+       iditht = (iditht >> 16) ? ((iditht >> 16) - 1) : (iditht >> 16)
 #endif
 
 /*
@@ -280,9 +294,6 @@ D_DrawSpans8(espan_t *pspan)
     fixed16_t s, t, snext, tnext, sstep, tstep;
     float sdivz, tdivz, zi, z, du, dv, spancountminus1;
     float sdivz8stepu, tdivz8stepu, zi8stepu;
-#ifdef __LIBRETRO__
-    cvar_t *cvar;
-#endif
 
     sstep = 0;			// keep compiler happy
     tstep = 0;			// ditto
@@ -383,36 +394,6 @@ D_DrawSpans8(espan_t *pspan)
 		}
 	    }
 
-#ifdef __LIBRETRO__
-       cvar = Cvar_FindVar("dither_filter");
-
-       if (cvar && cvar->value)
-       {
-          do
-          {
-             int idiths = s;
-             int iditht = t;
-
-             int X = (pspan->u + spancount) & 1;
-             int Y = (pspan->v) & 1;
-
-             //Using the kernel
-             idiths += kernel[X][Y][0];
-             iditht += kernel[X][Y][1];
-
-             idiths = idiths >> 16;
-             idiths = idiths ? idiths - 1 : idiths;
-
-             iditht = iditht >> 16;
-             iditht = iditht ? iditht - 1 : iditht;
-
-             *pdest++ = *(pbase + idiths + iditht * cachewidth);
-             s += sstep;
-             t += tstep;
-          } while (--spancount > 0);
-       }
-       else
-#endif
        {
 #if 0
           do {
@@ -458,6 +439,9 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
    fixed16_t      s, t, snext, tnext, sstep, tstep;
    float         sdivz, tdivz, zi, z, du, dv, spancountminus1;
    float         sdivzstepu, tdivzstepu, zistepu;
+#ifdef __LIBRETRO__
+    cvar_t *cvar;
+#endif
 
    sstep = 0;   // keep compiler happy
    tstep = 0;   // ditto
@@ -564,27 +548,86 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
             }
          }
 
-//qbism- Duff's Device loop unroll per mh.
-         pdest += spancount;
-         switch (spancount)
-         {
-         case 16: pdest[-16] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 15: pdest[-15] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 14: pdest[-14] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 13: pdest[-13] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 12: pdest[-12] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 11: pdest[-11] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 10: pdest[-10] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 9: pdest[-9] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 8: pdest[-8] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 7: pdest[-7] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 6: pdest[-6] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 5: pdest[-5] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 4: pdest[-4] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 3: pdest[-3] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 2: pdest[-2] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         case 1: pdest[-1] = pbase[(s >> 16) + (t >> 16) * cachewidth]; s += sstep; t += tstep;
-         }
+#ifdef __LIBRETRO__
+       cvar = Cvar_FindVar("dither_filter");
+
+
+       if (cvar && cvar->value)
+       {
+          int X = (pspan->u + spancount) & 1;
+          int Y = (pspan->v) & 1;
+          int dither_val_s = dither_kernel[X][Y][0];
+          int dither_val_t = dither_kernel[X][Y][1];
+          int dither_val_s_b = dither_kernel[!X][Y][0];
+          int dither_val_t_b = dither_kernel[!X][Y][1];
+          int idiths, iditht, idiths_b, iditht_b;
+
+          DITHERED_SOLID_UPDATE();
+          DITHERED_SOLID_B_UPDATE();
+
+          //qbism- Duff's Device loop unroll per mh.
+          pdest += spancount;
+          switch (spancount)
+          {
+             case 16: DITHERED_SOLID(-16); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case 15: DITHERED_SOLID_B(-15); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case 14: DITHERED_SOLID(-14); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case 13: DITHERED_SOLID_B(-13); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case 12: DITHERED_SOLID(-12); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case 11: DITHERED_SOLID_B(-11); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case 10: DITHERED_SOLID(-10); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case  9: DITHERED_SOLID_B(-9); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case  8: DITHERED_SOLID(-8); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case  7: DITHERED_SOLID_B(-7); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case  6: DITHERED_SOLID(-6); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case  5: DITHERED_SOLID_B(-5); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case  4: DITHERED_SOLID(-4); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case  3: DITHERED_SOLID_B(-3); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+             case  2: DITHERED_SOLID(-2); s += sstep; t += tstep;
+                      DITHERED_SOLID_B_UPDATE();
+             case  1: DITHERED_SOLID_B(-1); s += sstep; t += tstep;
+                      DITHERED_SOLID_UPDATE();
+          }
+       }
+       else
+#endif
+       {
+          //qbism- Duff's Device loop unroll per mh.
+          pdest += spancount;
+          switch (spancount)
+          {
+             case 16: SOLID(-16); s += sstep; t += tstep;
+             case 15: SOLID(-15); s += sstep; t += tstep;
+             case 14: SOLID(-14); s += sstep; t += tstep;
+             case 13: SOLID(-13); s += sstep; t += tstep;
+             case 12: SOLID(-12); s += sstep; t += tstep;
+             case 11: SOLID(-11); s += sstep; t += tstep;
+             case 10: SOLID(-10); s += sstep; t += tstep;
+             case 9: SOLID(-9); s += sstep; t += tstep;
+             case 8: SOLID(-8); s += sstep; t += tstep;
+             case 7: SOLID(-7); s += sstep; t += tstep;
+             case 6: SOLID(-6); s += sstep; t += tstep;
+             case 5: SOLID(-5); s += sstep; t += tstep;
+             case 4: SOLID(-4); s += sstep; t += tstep;
+             case 3: SOLID(-3); s += sstep; t += tstep;
+             case 2: SOLID(-2); s += sstep; t += tstep;
+             case 1: SOLID(-1); s += sstep; t += tstep;
+          }
+       }
 
          s = snext;
          t = tnext;
