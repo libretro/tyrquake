@@ -866,7 +866,7 @@ M_Setup_Key(int k)
 /* OPTIONS MENU */
 
 #ifdef __LIBRETRO__
-#define	OPTIONS_ITEMS	15
+#define	OPTIONS_ITEMS	16
 #else
 #define	OPTIONS_ITEMS	14
 #endif
@@ -973,6 +973,12 @@ M_AdjustSliders(int dir)
        cvar = Cvar_FindVar("d_mipscale");
        Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
        break;
+   case 15:
+       cvar = Cvar_FindVar("r_lerpmodels");
+       Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
+       cvar = Cvar_FindVar("r_lerpmove");
+       Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
+       break;
 #else
     case 13:			// _windowed_mouse
 	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
@@ -1072,8 +1078,12 @@ M_Options_Draw(void)
 	M_DrawCheckbox(220, 136, cvar->value);
 
    cvar = Cvar_FindVar("d_mipscale");
-   M_Print(16, 144, "      Mipscale");
+   M_Print(16, 144, "      Level of Detail");
    M_DrawCheckbox(220, 144, cvar->value);
+
+   cvar = Cvar_FindVar("r_lerpmodels");
+   M_Print(16, 152, "      Smooth Animation");
+   M_DrawCheckbox(220, 152, cvar->value);
 #else
     if (!VID_IsFullScreen()) {
 	M_Print(16, 136, "             Use Mouse");
