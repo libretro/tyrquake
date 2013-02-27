@@ -866,7 +866,7 @@ M_Setup_Key(int k)
 /* OPTIONS MENU */
 
 #ifdef __LIBRETRO__
-#define	OPTIONS_ITEMS	16
+#define	OPTIONS_ITEMS	17
 #else
 #define	OPTIONS_ITEMS	14
 #endif
@@ -979,6 +979,9 @@ M_AdjustSliders(int dir)
        cvar = Cvar_FindVar("r_lerpmove");
        Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
        break;
+   case 16:
+       cvar = Cvar_FindVar("crosshair");
+       Cvar_SetValue("crosshair", cvar->value ? 0.0f : 1.0f);
 #else
     case 13:			// _windowed_mouse
 	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
@@ -1084,6 +1087,10 @@ M_Options_Draw(void)
    cvar = Cvar_FindVar("r_lerpmodels");
    M_Print(16, 152, "      Smooth Animation");
    M_DrawCheckbox(220, 152, cvar->value);
+
+   cvar = Cvar_FindVar("crosshair");
+   M_Print(16, 160, "      Crosshair");
+   M_DrawCheckbox(220, 160, cvar->value);
 #else
     if (!VID_IsFullScreen()) {
 	M_Print(16, 136, "             Use Mouse");
