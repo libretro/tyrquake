@@ -433,7 +433,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
 
-   if (strstr(info->path, "hipnotic") || strstr(info->path, "rogue"))
+   if (strstr(info->path, "hipnotic") || strstr(info->path, "rogue")
+         || strstr(info->path, "HIPNOTIC")
+         || strstr(info->path, "ROGUE"))
       extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
 
    memset(&parms, 0, sizeof(parms));
