@@ -55,14 +55,14 @@ struct stree_root {
     struct stree_stack *stack; /* used in STree_ForEach() */
 };
 
-#define STREE_ROOT (struct stree_root) { 0, 0, -1, QRB_ROOT, NULL }
+#define STREE_ROOT (struct stree_root) { 0, 0, -1, {NULL}, NULL }
 #define DECLARE_STREE_ROOT(_x) \
 	struct stree_root _x = { \
-		.entries = 0,    \
-		.maxlen = 0,     \
-		.minlen = -1,    \
-      		.root = QRB_ROOT,\
-		.stack = NULL    \
+		0,    \
+		0,     \
+		-1,    \
+      {NULL},\
+		NULL    \
 	}
 
 void STree_AllocInit(void);

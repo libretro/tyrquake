@@ -58,6 +58,9 @@ qboolean isDedicated;
 #if defined(GEKKO) || defined(_XBOX) || defined(__CELLOS_LV2__)
 #define BASEWIDTH 512
 #define BASEHEIGHT 224
+#elif defined(ANDROID)
+#define BASEWIDTH 320
+#define BASEHEIGHT 224
 #else
 #define BASEWIDTH 640
 #define BASEHEIGHT 448
