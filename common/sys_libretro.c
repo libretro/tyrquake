@@ -63,8 +63,8 @@ qboolean isDedicated;
 #define BASEWIDTH 360
 #define BASEHEIGHT 224
 #ifdef HW_DOL
-#define MEMSIZE_MB 16
-#undef BASEWIDTH 360
+#define MEMSIZE_MB 8
+#undef BASEWIDTH
 #define BASEWIDTH 320
 #else
 #define MEMSIZE_MB 32
