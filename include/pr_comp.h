@@ -30,10 +30,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef int32_t func_t;
 typedef int32_t string_t;
 
+#ifdef _MSC_VER
+typedef int etype_t;
+
+#define ev_void 0
+#define ev_string 1
+#define ev_float 2
+#define ev_vector 3
+#define ev_entity 4
+#define ev_field 5
+#define ev_function 6
+#define ev_pointer 7
+#else
 typedef enum {
     ev_void, ev_string, ev_float, ev_vector, ev_entity, ev_field,
     ev_function, ev_pointer
 } etype_t;
+#endif
 
 
 #define	OFS_NULL	0
