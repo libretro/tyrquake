@@ -44,10 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CACHE_SIZE	32	// used to align key data structures
 #define CACHE_PAD_ARRAY(elements, type)	\
     ((elements) + ((CACHE_SIZE - 1) / sizeof(type)) + 1)
-#define CACHE_ALIGN_PTR(dst) ({						\
-	const uintptr_t p = (uintptr_t)&(dst)[0];			\
-	(typeof(&(dst)[0]))((p + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));	\
-})
+#define CACHE_ALIGN_PTR(dst) ((typeof(&(dst)[0]))(((uintptr_t)&(dst)[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1)))
 
 #define	MINIMUM_MEMORY		0x550000
 #define	MINIMUM_MEMORY_LEVELPAK	(MINIMUM_MEMORY + 0x100000)

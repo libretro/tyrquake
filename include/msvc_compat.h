@@ -38,6 +38,10 @@ typedef int ssize_t;
 #undef strncasecmp
 #define strncasecmp _strnicmp
 
+#ifdef _XBOX360
+#define typeof decltype
+#endif
+
 // Disable some of the annoying warnings.
 #pragma warning(disable : 4800)
 #pragma warning(disable : 4244)
