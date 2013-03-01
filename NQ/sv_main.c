@@ -48,13 +48,13 @@ typedef struct {
     const char *description;
 } sv_protocol_t;
 
-#define PROT(v, n, d) { .version = v, .name = n, .description = d }
+#define PROT(v, n, d) { v, n, d }
 static sv_protocol_t sv_protocols[] = {
-    PROT(PROTOCOL_VERSION_NQ,   "nq",   "Standard NetQuake protocol"),
-    PROT(PROTOCOL_VERSION_FITZ, "fitz", "FitzQuake protocol"),
-    PROT(PROTOCOL_VERSION_BJP,  "bjp",  "BJP protocol (v1)"),
-    PROT(PROTOCOL_VERSION_BJP2, "bjp2", "BJP protocol (v2)"),
-    PROT(PROTOCOL_VERSION_BJP3, "bjp3", "BJP protocol (v3)"),
+    {PROTOCOL_VERSION_NQ,   "nq",   "Standard NetQuake protocol"},
+    {PROTOCOL_VERSION_FITZ, "fitz", "FitzQuake protocol"},
+    {PROTOCOL_VERSION_BJP,  "bjp",  "BJP protocol (v1)"},
+    {PROTOCOL_VERSION_BJP2, "bjp2", "BJP protocol (v2)"},
+    {PROTOCOL_VERSION_BJP3, "bjp3", "BJP protocol (v3)"},
 };
 
 static int sv_protocol = PROTOCOL_VERSION_NQ;
@@ -116,8 +116,13 @@ SV_Protocol_Arg_f(const char *arg)
 
     root = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
     if (root) {
-	*root = STREE_ROOT;
-	STree_AllocInit();
+	root->entries = 0;
+    root->maxlen = 0;
+    root->minlen = -1;
+    //root->root = {NULL};
+    root->stack = NULL;
+
+    STree_AllocInit();
 	arg_len = arg ? strlen(arg) : 0;
 	for (i = 0; i < ARRAY_SIZE(sv_protocols); i++) {
 	    if (!arg || !strncasecmp(sv_protocols[i].name, arg, arg_len))

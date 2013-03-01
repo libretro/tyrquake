@@ -1296,15 +1296,17 @@ COM_AddParm(const char *parm)
 COM_Init
 ================
 */
+
+    union swaptest {
+	byte b[2];
+	short s;
+    } swaptest;
+
 void
 COM_Init(void)
 {
-    union {
-	byte b[2];
-	short s;
-    } swaptest = {
-	.b = { 1, 0 }
-    };
+   swaptest.b[0] = 1;
+   swaptest.b[1] = 0;
 
 // set the byte swapping variables in a portable manner
     if (swaptest.s == 1) {
@@ -1598,8 +1600,7 @@ COM_FOpenFile(const char *filename, FILE **file)
     return -1;
 }
 
-static void
-COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
+static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	       const char *ext, qboolean stripext)
 {
     int pfx_len, ext_len;

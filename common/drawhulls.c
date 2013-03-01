@@ -68,17 +68,15 @@ list_add__(struct list_node *new,
 }
 
 /* Add the new entry after the give list entry */
-static inline void
-list_add(struct list_node *new, struct list_node *head)
+static inline void list_add(struct list_node *newobj, struct list_node *head)
 {
-    list_add__(new, head, head->next);
+    list_add__(newobj, head, head->next);
 }
 
 /* Add the new entry before the given list entry (list is circular) */
-static inline void
-list_add_tail(struct list_node *new, struct list_node *head)
+static inline void list_add_tail(struct list_node *newobj, struct list_node *head)
 {
-    list_add__(new, head->prev, head);
+    list_add__(newobj, head->prev, head);
 }
 
 static inline void
@@ -96,10 +94,9 @@ typedef struct winding_s {
     vec3_t points[0];		/* variable sized */
 } winding_t;
 
-static winding_t *
-winding_alloc(unsigned numverts)
+static winding_t * winding_alloc(unsigned numverts)
 {
-    return malloc(sizeof(winding_t) + numverts * sizeof(vec3_t));
+    return (winding_t*)malloc(sizeof(winding_t) + numverts * sizeof(vec3_t));
 }
 
 static winding_t *
@@ -302,8 +299,8 @@ winding_clip(winding_t *in, const mplane_t *split,
     int maxpts;
     int insize = in->numpoints; /* save for dists/sides free */
 
-    dists = malloc((insize + 1) * sizeof(vec_t));
-    sides = malloc((insize + 1) * sizeof(int));
+    dists = (vec_t*)malloc((insize + 1) * sizeof(vec_t));
+    sides = (int*)malloc((insize + 1) * sizeof(int));
 
     CalcSides(in, split, sides, dists, counts, epsilon);
 
@@ -397,8 +394,8 @@ winding_split(winding_t *in, const mplane_t *split,
     vec_t *p1, *p2, *mid;
     int maxpts;
 
-    dists = malloc((in->numpoints + 1) * sizeof(vec_t));
-    sides = malloc((in->numpoints + 1) * sizeof(int));
+    dists = (vec_t*)malloc((in->numpoints + 1) * sizeof(vec_t));
+    sides = (int*)malloc((in->numpoints + 1) * sizeof(int));
 
     CalcSides(in, split, sides, dists, counts, 0.0001 /* ON_EPSILON */);
 
@@ -658,8 +655,7 @@ remove_paired_polys(void)
     }
 }
 
-static void
-make_hull_windings(hull_t *hull)
+static void make_hull_windings(hull_t *hull)
 {
     float t1, t2;
     struct list_node head = LIST_HEAD_INIT(head);

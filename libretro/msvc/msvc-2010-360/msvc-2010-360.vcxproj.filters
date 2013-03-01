@@ -128,9 +128,6 @@
     <ClCompile Include="..\..\..\common\draw.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\common\drawhulls.c">
-      <Filter>Source Files\common</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\common\keys.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>

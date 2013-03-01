@@ -21,7 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GLQUAKE_H
 #define GLQUAKE_H
 
-#ifdef _WIN32 && !defined(_XBOX)
+#ifndef __LIBRETRO__
+#if defined(_WIN32 && !defined(_XBOX)
 #include <windows.h>
 #endif
 
@@ -318,5 +319,5 @@ extern cvar_t gl_ztrick;
 //
 extern float r_avertexnormals[][3];
 
-
+#endif
 #endif /* GLQUAKE_H */

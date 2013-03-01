@@ -121,11 +121,7 @@ cvar_t r_numedges = { "r_numedges", "0" };
 cvar_t r_lockpvs = { "r_lockpvs", "0" };
 cvar_t r_lockfrustum = { "r_lockfrustum", "0" };
 
-cvar_t r_fullbright = {
-    .name = "r_fullbright",
-    .string = "0",
-    .flags = CVAR_DEVELOPER
-};
+cvar_t r_fullbright = { "r_fullbright", "0" };
 
 #ifdef QW_HACK
 cvar_t r_netgraph = { "r_netgraph", "0" };
@@ -300,7 +296,7 @@ R_NewMap(void)
 	r_cnumsurfs = MINSURFACES;
 
     if (r_cnumsurfs > NUMSTACKSURFACES) {
-	surfaces = (surf_t*)unk_AllocName(r_cnumsurfs * sizeof(surf_t), "surfaces");
+	surfaces = (surf_t*)Hunk_AllocName(r_cnumsurfs * sizeof(surf_t), "surfaces");
 	surface_p = surfaces;
 	surf_max = &surfaces[r_cnumsurfs];
 	r_surfsonstack = false;

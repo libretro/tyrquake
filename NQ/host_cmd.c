@@ -305,7 +305,11 @@ Host_Map_Arg_f(const char *arg)
 
     root = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
     if (root) {
-	*root = STREE_ROOT;
+    root->entries = 0;
+    root->maxlen = 0;
+    root->minlen = -1;
+    //root->root = NULL;
+    root->stack = NULL;
 
 	STree_AllocInit();
 	COM_ScanDir(root, "maps", arg, ".bsp", true);

@@ -448,7 +448,7 @@ PR_GlobalString(int ofs)
     if (!def)
 	snprintf(line, sizeof(line), "%i(???"")", ofs);
     else {
-	s = (eval_t*)PR_ValueString((etype_t)def->type, val);
+	s = (char*)PR_ValueString((etype_t)def->type, (eval_t*)val);
 	snprintf(line, sizeof(line), "%i(%s)%s", ofs,
 		 PR_GetString(def->s_name), s);
     }

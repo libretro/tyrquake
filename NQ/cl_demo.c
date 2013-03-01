@@ -318,8 +318,13 @@ CL_Demo_Arg_f(const char *arg)
     struct stree_root *root;
 
     root = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
-    if (root) {
-	*root = STREE_ROOT;
+    if (root)
+    {
+    root->entries = 0;
+    root->maxlen = 0;
+    root->minlen = -1;
+    //root->root = NULL;
+    root->stack = NULL;
 	STree_AllocInit();
 	COM_ScanDir(root, "", arg, ".dem", true);
     }

@@ -750,8 +750,14 @@ Con_ShowTree(struct stree_root *root)
 void
 Con_Maplist_f()
 {
-    struct stree_root st_root = STREE_ROOT;
+    struct stree_root st_root;
     const char *pfx = NULL;
+
+    st_root.entries = 0;
+    st_root.maxlen = 0;
+    st_root.minlen = -1;
+    //st_root.root = NULL;
+    st_root.stack = NULL;
 
     if (Cmd_Argc() == 2)
 	pfx = Cmd_Argv(1);
@@ -772,7 +778,7 @@ Con_Init(void)
 {
     debuglog = COM_CheckParm("-condebug");
 
-    con_main.text = Hunk_AllocName(CON_TEXTSIZE, "conmain");
+    con_main.text = (char*)Hunk_AllocName(CON_TEXTSIZE, "conmain");
 
     con = &con_main;
     con_linewidth = -1;

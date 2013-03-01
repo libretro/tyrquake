@@ -1509,7 +1509,7 @@ M_Quit_Key(int key)
     case 'n':
     case 'N':
 	if (wasInMenus) {
-	    m_state = m_quit_prevstate;
+	    m_state = (m_state_enum)m_quit_prevstate;
 	    m_entersound = true;
 	} else {
 	    key_dest = key_game;
@@ -1534,7 +1534,7 @@ static void
 M_Quit_Draw(void)
 {
     if (wasInMenus) {
-	m_state = m_quit_prevstate;
+	m_state = (m_state_enum)m_quit_prevstate;
 	m_recursiveDraw = true;
 	M_Draw();
 	m_state = m_quit;

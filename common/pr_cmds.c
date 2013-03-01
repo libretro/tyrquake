@@ -479,15 +479,15 @@ static void
 PF_vlen(void)
 {
     float *value1;
-    float new;
+    float newobj;
 
     value1 = G_VECTOR(OFS_PARM0);
 
-    new =
+    newobj =
 	value1[0] * value1[0] + value1[1] * value1[1] + value1[2] * value1[2];
-    new = sqrt(new);
+    newobj = sqrt(newobj);
 
-    G_FLOAT(OFS_RETURN) = new;
+    G_FLOAT(OFS_RETURN) = newobj;
 }
 
 /*

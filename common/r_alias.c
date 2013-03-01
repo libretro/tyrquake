@@ -161,9 +161,9 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 }
 
 static model_loader_t SW_Model_Loader = {
-    .Aliashdr_Padding = SW_Aliashdr_Padding,
-    .LoadSkinData = SW_LoadSkinData,
-    .LoadMeshData = SW_LoadMeshData
+    SW_Aliashdr_Padding,
+    SW_LoadSkinData,
+    SW_LoadMeshData
 };
 
 const model_loader_t *

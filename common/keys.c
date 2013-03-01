@@ -351,7 +351,7 @@ Interactive line editing and console scrollback
 void
 Key_Console(int key)
 {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__LIBRETRO__)
     int i;
     HANDLE th;
     char *clipText, *textCopied;
