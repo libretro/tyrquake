@@ -240,7 +240,7 @@ CompleteCommand(void)
 	cmd = strchr(s, ' ');
 	if (cmd) {
 	    len = cmd - s;
-	    newcmd = Z_Malloc(len + 1);
+	    newcmd = (char*)Z_Malloc(len + 1);
 	    strncpy(newcmd, s, len);
 	    newcmd[len] = 0;
 
@@ -283,10 +283,10 @@ ShowCompletions(void)
 	Con_ShowTree(root);
 	Z_Free(root);
     } else {
-	char *cmd = strchr(s, ' ');
+	char *cmd = (char*)strchr(s, ' ');
 	if (cmd) {
 	    len = cmd - s;
-	    cmd = Z_Malloc(len + 1);
+	    cmd = (char*)Z_Malloc(len + 1);
 	    strncpy(cmd, s, len);
 	    cmd[len] = 0;
 
@@ -446,7 +446,7 @@ Key_Console(int key)
 	return;
     }
 
-#ifdef _WIN32
+#if 0
     if ((key == 'V' || key == 'v') && GetKeyState(VK_CONTROL) < 0) {
 	if (OpenClipboard(NULL)) {
 	    th = GetClipboardData(CF_TEXT);
@@ -612,7 +612,7 @@ Key_SetBinding(knum_t keynum, const char *binding)
 
     if (binding) {
 	/* allocate memory for new binding */
-	newbinding = Z_Malloc(strlen(binding) + 1);
+	newbinding = (char*)Z_Malloc(strlen(binding) + 1);
 	strcpy(newbinding, binding);
 	keybindings[keynum] = newbinding;
     }
@@ -639,7 +639,7 @@ Key_Unbind_f(void)
 	return;
     }
 
-    Key_SetBinding(b, NULL);
+    Key_SetBinding((knum_t)b, NULL);
 }
 
 void
@@ -649,7 +649,7 @@ Key_Unbindall_f(void)
 
     for (i = 0; i < K_LAST; i++)
 	if (keybindings[i])
-	    Key_SetBinding(i, NULL);
+	    Key_SetBinding((knum_t)i, NULL);
 }
 
 
@@ -699,7 +699,7 @@ Key_Bind_f(void)
 	strcat(cmd, Cmd_Argv(i));
     }
 
-    Key_SetBinding(keynum, cmd);
+    Key_SetBinding((knum_t)keynum, cmd);
 }
 
 /*
@@ -914,7 +914,7 @@ Key_Event(knum_t key, qboolean down)
 	return;			// other systems only care about key down events
 
     if (lshift_down || rshift_down)
-	key = keyshift[key];
+	key = (knum_t)keyshift[key];
 
     switch (key_dest) {
     case key_message:

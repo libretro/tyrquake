@@ -165,7 +165,7 @@ static void *
 Z_TagMalloc(int size, int tag)
 {
     int extra;
-    memblock_t *start, *rover, *new, *base;
+    memblock_t *start, *rover, *newobj, *base;
 
     if (!tag)
 	Sys_Error("%s: tried to use a 0 tag", __func__);
@@ -196,14 +196,14 @@ Z_TagMalloc(int size, int tag)
     extra = base->size - size;
     if (extra > MINFRAGMENT) {
 	/* there will be a free fragment after the allocated block */
-	new = (memblock_t *)((byte *)base + size);
-	new->size = extra;
-	new->tag = 0;		/* free block */
-	new->prev = base;
-	new->id = ZONEID;
-	new->next = base->next;
-	new->next->prev = new;
-	base->next = new;
+	newobj = (memblock_t *)((byte *)base + size);
+	newobj->size = extra;
+	newobj->tag = 0;		/* free block */
+	newobj->prev = base;
+	newobj->id = ZONEID;
+	newobj->next = base->next;
+	newobj->next->prev = newobj;
+	base->next = newobj;
 	base->size = size;
     }
 
@@ -628,7 +628,7 @@ Hunk_TempAlloc(int size)
 void *
 Hunk_TempAllocExtend(int size)
 {
-    hunk_t *old, *new;
+    hunk_t *old, *newobj;
 
     if (!hunk_tempactive)
 	Sys_Error("%s: temp hunk not active", __func__);
@@ -649,11 +649,11 @@ Hunk_TempAllocExtend(int size)
     hunk_high_used += size;
     Cache_FreeHigh(hunk_high_used);
 
-    new = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
-    memmove(new, old, sizeof(hunk_t));
-    new->size += size;
+    newobj = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
+    memmove(newobj, old, sizeof(hunk_t));
+    newobj->size += size;
 
-    return (void *)(new + 1);
+    return (void *)(newobj + 1);
 }
 
 /*
@@ -697,19 +697,19 @@ Cache_Data(const cache_system_t *c)
 static void
 Cache_Move(cache_system_t *c)
 {
-    cache_system_t *new;
+    cache_system_t *newobj;
     int pad;
 
     /* we are clearing up space at the bottom, so only allocate it late */
-    new = Cache_TryAlloc(c->size, true);
-    if (new) {
-	memcpy(new + 1, c + 1, c->size - sizeof(cache_system_t));
-	new->user = c->user;
-	memcpy(new->name, c->name, sizeof(new->name));
+    newobj = Cache_TryAlloc(c->size, true);
+    if (newobj) {
+	memcpy(newobj + 1, c + 1, c->size - sizeof(cache_system_t));
+	newobj->user = c->user;
+	memcpy(newobj->name, c->name, sizeof(newobj->name));
 	pad = c->user->pad;
 	Cache_Free(c->user);
-	new->user->pad = pad;
-	new->user->data = Cache_Data(new);
+	newobj->user->pad = pad;
+	newobj->user->data = Cache_Data(newobj);
     } else {
 	/* tough luck... */
 	Cache_Free(c->user);
@@ -801,64 +801,64 @@ Cache_MakeLRU(cache_system_t *cs)
 static cache_system_t *
 Cache_TryAlloc(int size, qboolean nobottom)
 {
-    cache_system_t *cs, *new;
+    cache_system_t *cs, *newobj;
 
     /* is the cache completely empty? */
     if (!nobottom && cache_head.prev == &cache_head) {
 	if (hunk_size - hunk_high_used - hunk_low_used < size)
 	    Sys_Error("%s: %i is greater than free hunk", __func__, size);
 
-	new = (cache_system_t *)(hunk_base + hunk_low_used);
-	memset(new, 0, sizeof(*new));
-	new->size = size;
+	newobj = (cache_system_t *)(hunk_base + hunk_low_used);
+	memset(newobj, 0, sizeof(*newobj));
+	newobj->size = size;
 
-	cache_head.prev = cache_head.next = new;
-	new->prev = new->next = &cache_head;
+	cache_head.prev = cache_head.next = newobj;
+	newobj->prev = newobj->next = &cache_head;
 
-	Cache_MakeLRU(new);
-	return new;
+	Cache_MakeLRU(newobj);
+	return newobj;
     }
 
     /* search from the bottom up for space */
-    new = (cache_system_t *)(hunk_base + hunk_low_used);
+    newobj = (cache_system_t *)(hunk_base + hunk_low_used);
     cs = cache_head.next;
 
     do {
 	if (!nobottom || cs != cache_head.next) {
-	    if ((byte *)cs - (byte *)new >= size) {	/* found space */
-		memset(new, 0, sizeof(*new));
-		new->size = size;
+	    if ((byte *)cs - (byte *)newobj >= size) {	/* found space */
+		memset(newobj, 0, sizeof(*newobj));
+		newobj->size = size;
 
-		new->next = cs;
-		new->prev = cs->prev;
-		cs->prev->next = new;
-		cs->prev = new;
+		newobj->next = cs;
+		newobj->prev = cs->prev;
+		cs->prev->next = newobj;
+		cs->prev = newobj;
 
-		Cache_MakeLRU(new);
+		Cache_MakeLRU(newobj);
 
-		return new;
+		return newobj;
 	    }
 	}
 
 	/* continue looking */
-	new = (cache_system_t *)((byte *)cs + cs->size);
+	newobj = (cache_system_t *)((byte *)cs + cs->size);
 	cs = cs->next;
 
     } while (cs != &cache_head);
 
     /* try to allocate one at the very end */
-    if (hunk_base + hunk_size - hunk_high_used - (byte *)new >= size) {
-	memset(new, 0, sizeof(*new));
-	new->size = size;
+    if (hunk_base + hunk_size - hunk_high_used - (byte *)newobj >= size) {
+	memset(newobj, 0, sizeof(*newobj));
+	newobj->size = size;
 
-	new->next = &cache_head;
-	new->prev = cache_head.prev;
-	cache_head.prev->next = new;
-	cache_head.prev = new;
+	newobj->next = &cache_head;
+	newobj->prev = cache_head.prev;
+	cache_head.prev->next = newobj;
+	cache_head.prev = newobj;
 
-	Cache_MakeLRU(new);
+	Cache_MakeLRU(newobj);
 
-	return new;
+	return newobj;
     }
 
     return NULL;		/* couldn't allocate */

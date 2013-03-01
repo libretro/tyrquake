@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
+#elif defined(_WIN32) && defined(_XBOX)
+#include <xtl.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
@@ -175,6 +177,25 @@ double Sys_DoubleTime(void)
    return ticks_to_microsecs(gettime()) / 1000000.0;
 #elif defined(__CELLOS_LV2__)
    return sys_time_get_system_time() / 1000000.0;
+#elif defined(_WIN32)
+   static double pfreq;
+   static __int64 startcount;
+   __int64 pcount;
+
+   if (!pfreq)
+   {
+      __int64 freq;
+     if (QueryPerformanceFrequency((LARGE_INTEGER*)&freq) && freq > 0)
+     {
+        //hardware timer available
+        pfreq = (double)freq;
+        QueryPerformanceCounter((LARGE_INTEGER*)&startcount);
+     }
+   }
+
+   QueryPerformanceCounter((LARGE_INTEGER*)&pcount);
+   /* TODO -check for wrapping - is it necessary? */
+   return (pcount - startcount) / pfreq;
 #else
    struct timeval tp;
    struct timezone tzp;
@@ -194,27 +215,6 @@ double Sys_DoubleTime(void)
 // =======================================================================
 // Sleeps for microseconds
 // =======================================================================
-
-#ifdef NQ_HACK
-#ifdef _WIN32
-/*
- * For debugging - Print a Win32 system error string to stdout
- */
-static void
-Print_Win32SystemError(DWORD err)
-{
-    static PVOID buf;
-
-    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
-		      | FORMAT_MESSAGE_FROM_SYSTEM,
-		      NULL, err, 0, (LPTSTR)(&buf), 0, NULL)) {
-	printf("%s: %s\n", __func__, (LPTSTR)buf);
-	fflush(stdout);
-	LocalFree(buf);
-    }
-}
-#endif
-#endif
 
 void
 IN_Accumulate(void)
@@ -365,7 +365,9 @@ static short finalimage[BASEWIDTH * BASEHEIGHT];
 
 void Sys_Sleep(void)
 {
-#ifdef __CELLOS_LV2__
+#if defined(_WIN32)
+   Sleep(1 * 1000);
+#elif defined(__CELLOS_LV2__)
    sys_timer_usleep(1);
 #else
    usleep(1);
@@ -646,7 +648,7 @@ qboolean SNDDMA_Init(void)
    shm->samplepos = 0;
    shm->samplebits = 16;
    shm->samples = AUDIO_BUFFER_SAMPLES;
-   shm->buffer = audio_buffer;
+   shm->buffer = (unsigned char *volatile)audio_buffer;
    return true;
 }
 

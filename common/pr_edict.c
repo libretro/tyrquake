@@ -448,7 +448,7 @@ PR_GlobalString(int ofs)
     if (!def)
 	snprintf(line, sizeof(line), "%i(???"")", ofs);
     else {
-	s = PR_ValueString(def->type, val);
+	s = (eval_t*)PR_ValueString((etype_t)def->type, val);
 	snprintf(line, sizeof(line), "%i(%s)%s", ofs,
 		 PR_GetString(def->s_name), s);
     }
@@ -752,12 +752,12 @@ ED_NewString
 static char *
 ED_NewString(const char *string)
 {
-    char *new, *new_p;
+    char *newobj, *new_p;
     int i, l;
 
     l = strlen(string) + 1;
-    new = Hunk_Alloc(l);
-    new_p = new;
+    newobj = (char*)Hunk_Alloc(l);
+    new_p = newobj;
 
     for (i = 0; i < l; i++) {
 	if (string[i] == '\\' && i < l - 1) {
@@ -770,7 +770,7 @@ ED_NewString(const char *string)
 	    *new_p++ = string[i];
     }
 
-    return new;
+    return newobj;
 }
 
 

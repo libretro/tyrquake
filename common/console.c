@@ -688,7 +688,7 @@ Con_ShowList(const char **list, int cnt, int maxlen)
     char *line;
 
     /* Lay them out in columns */
-    line = Z_Malloc(Con_GetWidth() + 1);
+    line = (char*)Z_Malloc(Con_GetWidth() + 1);
     cols = Con_GetWidth() / (maxlen + 2);
     rows = cnt / cols + ((cnt % cols) ? 1 : 0);
 
@@ -737,7 +737,7 @@ void
 Con_ShowTree(struct stree_root *root)
 {
     /* FIXME - cheating with malloc */
-    showtree_list = malloc(root->entries * sizeof(char *));
+    showtree_list = (const char**)malloc(root->entries * sizeof(char *));
     if (showtree_list) {
 	showtree_idx = 0;
 	Con_ShowTree_Populate(root->root.rb_node);

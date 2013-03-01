@@ -725,9 +725,7 @@ PF_break
 break()
 =================
 */
- __attribute__((noreturn))
-static void
-PF_break(void)
+static void PF_break(void)
 {
     Con_Printf("break statement\n");
     abort(); /* dump to debugger */

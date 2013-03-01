@@ -278,7 +278,7 @@ BuildGammaTable(float g)
     }
 
     for (i = 0; i < 256; i++) {
-	inf = 255 * pow((i + 0.5) / 255.5, g) + 0.5;
+	inf = 255 * powf((i + 0.5) / 255.5, g) + 0.5;
 	if (inf < 0)
 	    inf = 0;
 	if (inf > 255)
@@ -554,7 +554,7 @@ void
 V_UpdatePalette(void)
 {
     int i, j;
-    qboolean new;
+    qboolean newobj;
     byte *basepal;
 #ifdef __LIBRETRO__
     unsigned short *pal_data;
@@ -567,16 +567,16 @@ V_UpdatePalette(void)
 
     V_CalcPowerupCshift();
 
-    new = false;
+    newobj = false;
 
     for (i = 0; i < NUM_CSHIFTS; i++) {
 	if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent) {
-	    new = true;
+	    newobj = true;
 	    cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
 	}
 	for (j = 0; j < 3; j++)
 	    if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j]) {
-		new = true;
+		newobj = true;
 		cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
 	    }
     }
@@ -592,7 +592,7 @@ V_UpdatePalette(void)
 	cl.cshifts[CSHIFT_BONUS].percent = 0;
 
     force = V_CheckGamma();
-    if (!new && !force)
+    if (!newobj && !force)
 	return;
 
     basepal = host_basepal;

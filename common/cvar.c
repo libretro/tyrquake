@@ -215,7 +215,7 @@ Cvar_Set(const char *var_name, const char *value)
 
     Z_Free(var->string);	// free the old value string
 
-    newstring = Z_Malloc(strlen(value) + 1);
+    newstring = (char*)Z_Malloc(strlen(value) + 1);
     strcpy(newstring, value);
     var->string = newstring;
     var->value = Q_atof(var->string);
@@ -287,7 +287,7 @@ Cvar_RegisterVariable(cvar_t *variable)
 // copy the value off, because future sets will Z_Free it
     strncpy(value, variable->string, 511);
     value[511] = '\0';
-    variable->string = Z_Malloc(1);
+    variable->string = (const char*)Z_Malloc(1);
 
     /*
      * FIXME (BARF) - readonly cvars need to be initialised

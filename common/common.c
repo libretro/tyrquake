@@ -950,7 +950,7 @@ COM_StripExtension(char *filename)
     const char *start;
 
     start = COM_SkipPath(filename);
-    char *pos = strrchr(start, '.');
+    char *pos = (char*)strrchr(start, '.');
     if (pos && *pos)
 	*pos = 0;
 }
@@ -1034,7 +1034,7 @@ COM_CheckExtension(const char *path, const char *extn)
     char *pos;
     int ret = 0;
 
-    pos = strrchr(path, '.');
+    pos = (char*)strrchr(path, '.');
     if (pos) {
 	if (extn[0] != '.')
 	    pos++;
