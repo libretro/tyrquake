@@ -815,7 +815,12 @@ NET_Poll(void)
 	if (pp->nextTime > net_time)
 	    break;
 	pollProcedureList = pp->next;
+#ifdef _WIN32
+//not sure what is going on here - params is void in NQ/net.h?
+    pp->procedure();
+#else
 	pp->procedure(pp->arg);
+#endif
     }
 }
 
