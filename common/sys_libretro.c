@@ -276,18 +276,14 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-   info->timing = (struct retro_system_timing) {
-      .fps = 60.0,
-      .sample_rate = 44100.0,
-   };
+   info->timing.fps = 60.0;
+   info->timing.sample_rate = 44100.0;
 
-   info->geometry = (struct retro_game_geometry) {
-      .base_width   = BASEWIDTH,
-      .base_height  = BASEHEIGHT,
-      .max_width    = BASEWIDTH,
-      .max_height   = BASEHEIGHT,
-      .aspect_ratio = 4.0 / 3.0,
-   };
+   info->geometry.base_width   = BASEWIDTH;
+   info->geometry.base_height  = BASEHEIGHT;
+   info->geometry.max_width    = BASEWIDTH;
+   info->geometry.max_height   = BASEHEIGHT;
+   info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
 

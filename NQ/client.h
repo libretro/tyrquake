@@ -282,7 +282,7 @@ enum {
     DLIGHT_RED = 2,
     DLIGHT_PURPLE = 3
 };
-float dl_colors[4][4]; /* Use enums to reference the colors */
+extern float dl_colors[4][4]; /* Use enums to reference the colors */
 
 void CL_DecayLights(void);
 void CL_RunParticles(void);
