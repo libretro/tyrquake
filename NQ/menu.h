@@ -49,5 +49,8 @@ enum m_state_enum {
     m_options, m_video, m_keys, m_help, m_quit, m_lanconfig, m_gameoptions,
     m_search, m_slist
 } m_state;
+#ifndef _WIN32
+typedef int m_state_enum;
+#endif
 
 #endif /* MENU_H */
