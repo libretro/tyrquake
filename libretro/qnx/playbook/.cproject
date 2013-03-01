@@ -47,6 +47,11 @@
 									<listOptionValue builtIn="false" value="HAVE_STDINT_H"/>
 									<listOptionValue builtIn="false" value="NQ_HACK"/>
 								</option>
+								<option id="com.qnx.qcc.option.compiler.qccoptions.442294301" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
+									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
+								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.1197540198" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
 							<tool id="com.qnx.qcc.tool.assembler.722030696" name="QCC Assembler" superClass="com.qnx.qcc.tool.assembler">
@@ -121,6 +126,8 @@
 								</option>
 								<option id="com.qnx.qcc.option.compiler.qccoptions.636615743" name="QCC Options" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
 									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
 								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.2014488851" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
@@ -193,6 +200,11 @@
 									<listOptionValue builtIn="false" value="HAVE_INTTYPES_H"/>
 									<listOptionValue builtIn="false" value="HAVE_STDINT_H"/>
 									<listOptionValue builtIn="false" value="NQ_HACK"/>
+								</option>
+								<option id="com.qnx.qcc.option.compiler.qccoptions.1103326380" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
+									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
 								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.2028411598" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
@@ -269,6 +281,11 @@
 									<listOptionValue builtIn="false" value="HAVE_STDINT_H"/>
 									<listOptionValue builtIn="false" value="NQ_HACK"/>
 								</option>
+								<option id="com.qnx.qcc.option.compiler.qccoptions.2049946389" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
+									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
+								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.1453944608" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
 							<tool id="com.qnx.qcc.tool.assembler.544200497" name="QCC Assembler" superClass="com.qnx.qcc.tool.assembler">
@@ -342,6 +359,11 @@
 									<listOptionValue builtIn="false" value="HAVE_STDINT_H"/>
 									<listOptionValue builtIn="false" value="NQ_HACK"/>
 								</option>
+								<option id="com.qnx.qcc.option.compiler.qccoptions.1800907928" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
+									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
+								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.226487915" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
 							<tool id="com.qnx.qcc.tool.assembler.929720157" name="QCC Assembler" superClass="com.qnx.qcc.tool.assembler">
@@ -414,6 +436,11 @@
 									<listOptionValue builtIn="false" value="HAVE_INTTYPES_H"/>
 									<listOptionValue builtIn="false" value="HAVE_STDINT_H"/>
 									<listOptionValue builtIn="false" value="NQ_HACK"/>
+								</option>
+								<option id="com.qnx.qcc.option.compiler.qccoptions.1140799537" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
+									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
 								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.1784392582" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
@@ -489,6 +516,11 @@
 									<listOptionValue builtIn="false" value="HAVE_STDINT_H"/>
 									<listOptionValue builtIn="false" value="NQ_HACK"/>
 								</option>
+								<option id="com.qnx.qcc.option.compiler.qccoptions.997177662" superClass="com.qnx.qcc.option.compiler.qccoptions" valueType="stringList">
+									<listOptionValue builtIn="false" value="-frecord-gcc-switches"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-a9"/>
+									<listOptionValue builtIn="false" value="-mfpu=neon"/>
+								</option>
 								<inputType id="com.qnx.qcc.inputType.compiler.1056442933" superClass="com.qnx.qcc.inputType.compiler"/>
 							</tool>
 							<tool id="com.qnx.qcc.tool.assembler.1917821156" name="QCC Assembler" superClass="com.qnx.qcc.tool.assembler">
@@ -547,4 +579,6 @@
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.qnx.tools.ide.qde.managedbuilder.core.qccScannerInfo"/>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>

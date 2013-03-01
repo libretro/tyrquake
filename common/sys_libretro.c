@@ -55,17 +55,29 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
-#if defined(GEKKO) || defined(_XBOX) || defined(__CELLOS_LV2__)
-#define BASEWIDTH 512
+#if defined(__CELLOS_LV2__) || defined(_XBOX360)
+#define BASEWIDTH 400
 #define BASEHEIGHT 224
+#define MEMSIZE_MB 32
+#elif defined(GEKKO) || defined(_XBOX1)
+#define BASEWIDTH 360
+#define BASEHEIGHT 224
+#ifdef HW_DOL
+#define MEMSIZE_MB 16
+#undef BASEWIDTH 360
+#define BASEWIDTH 320
+#else
+#define MEMSIZE_MB 32
+#endif
 #elif defined(ANDROID)|| defined(__QNX__)
 #define BASEWIDTH 320
 #define BASEHEIGHT 224
+#define MEMSIZE_MB 32
 #else
 #define BASEWIDTH 640
 #define BASEHEIGHT 448
+#define MEMSIZE_MB 32
 #endif
-#define MEMSIZE_MB 16
 
 static qboolean nostdout = false;
 
