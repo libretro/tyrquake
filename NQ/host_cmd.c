@@ -69,7 +69,7 @@ Host_Status_f(void)
     int minutes;
     int hours = 0;
     int j;
-    void (*print)(const char *fmt, ...) __attribute__((format(printf,1,2)));
+    void (*print)(const char *fmt, ...);
 
     if (cmd_source == src_command) {
 	if (!sv.active) {
@@ -303,7 +303,7 @@ Host_Map_Arg_f(const char *arg)
 {
     struct stree_root *root;
 
-    root = Z_Malloc(sizeof(struct stree_root));
+    root = (stree_root*)Z_Malloc(sizeof(struct stree_root));
     if (root) {
 	*root = STREE_ROOT;
 
@@ -320,8 +320,7 @@ Host_Changelevel_f
 Goes to a new map, taking all clients along
 ==================
 */
-void
-Host_Changelevel_f(void)
+void Host_Changelevel_f(void)
 {
     char level[MAX_QPATH];
 
@@ -611,7 +610,7 @@ Host_Loadgame_f(void)
 
     for (i = 0; i < MAX_LIGHTSTYLES; i++) {
 	fscanf(f, "%s\n", str);
-	lightstyle = Hunk_Alloc(strlen(str) + 1);
+	lightstyle = (char*)Hunk_Alloc(strlen(str) + 1);
 	strcpy(lightstyle, str);
 	sv.lightstyles[i] = lightstyle;
     }
@@ -1409,7 +1408,7 @@ PrintFrameName(model_t *m, int frame)
     aliashdr_t *hdr;
     maliasframedesc_t *pframedesc;
 
-    hdr = Mod_Extradata(m);
+    hdr = (aliashdr_t*)Mod_Extradata(m);
     if (!hdr)
 	return;
     pframedesc = &hdr->frames[frame];

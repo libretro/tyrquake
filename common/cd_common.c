@@ -48,10 +48,19 @@ static float cdvolume;
 static void CDAudio_SetVolume_f(struct cvar_s *var);
 
 cvar_t bgmvolume = {
-    .name = "bgmvolume",
-    .string = "1",
-    .archive = true,
-    .callback = CDAudio_SetVolume_f
+    "bgmvolume",
+    "1",
+    true,
+#ifdef NQ_HACK
+0,
+#endif
+#ifdef QW_HACK
+0,
+#endif
+0,
+    CDAudio_SetVolume_f,
+NULL,
+NULL
 };
 
 static void

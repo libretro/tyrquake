@@ -388,7 +388,7 @@ D_PolysetUpdateTables(void)
     if (r_affinetridesc.skinwidth != skinwidth ||
 	r_affinetridesc.pskin != skinstart) {
 	skinwidth = r_affinetridesc.skinwidth;
-	skinstart = r_affinetridesc.pskin;
+	skinstart = (byte*)r_affinetridesc.pskin;
 	s = skinstart;
 	for (i = 0; i < MAX_LBM_HEIGHT; i++, s += skinwidth)
 	    skintable[i] = s;
@@ -586,7 +586,7 @@ D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 	}
 
 	if (lcount) {
-	    lpdest = pspanpackage->pdest;
+	    lpdest = (byte*)pspanpackage->pdest;
 	    lptex = pspanpackage->ptex;
 	    lpz = pspanpackage->pz;
 	    lsfrac = pspanpackage->sfrac;

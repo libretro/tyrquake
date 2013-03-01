@@ -448,21 +448,21 @@ PF_normalize(void)
 {
     float *value1;
     vec3_t newvalue;
-    float new;
+    float newval;
 
     value1 = G_VECTOR(OFS_PARM0);
 
-    new =
+    newval =
 	value1[0] * value1[0] + value1[1] * value1[1] + value1[2] * value1[2];
-    new = sqrt(new);
+    newval = sqrt(newval);
 
-    if (new == 0)
+    if (newval == 0)
 	newvalue[0] = newvalue[1] = newvalue[2] = 0;
     else {
-	new = 1 / new;
-	newvalue[0] = value1[0] * new;
-	newvalue[1] = value1[1] * new;
-	newvalue[2] = value1[2] * new;
+	newval = 1 / newval;
+	newvalue[0] = value1[0] * newval;
+	newvalue[1] = value1[1] * newval;
+	newvalue[2] = value1[2] * newval;
     }
 
     VectorCopy(newvalue, G_VECTOR(OFS_RETURN));

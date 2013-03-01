@@ -286,7 +286,7 @@ CL_ParseServerInfo(void)
 	Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
 	return;
     }
-    cl.players = Hunk_AllocName(cl.maxclients * sizeof(*cl.players), "players");
+    cl.players = (player_info_t*)Hunk_AllocName(cl.maxclients * sizeof(*cl.players), "players");
 
 // parse gametype
     cl.gametype = MSG_ReadByte();

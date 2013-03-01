@@ -262,7 +262,7 @@ R_DrawSprite(const entity_t *e)
     vec3_t tvec;
     float dot, angle, sr, cr;
 
-    psprite = e->model->cache.data;
+    psprite = (msprite_t*)e->model->cache.data;
 
     r_spritedesc.pspriteframe = Mod_GetSpriteFrame(e, psprite, cl.time + e->syncbase);
 

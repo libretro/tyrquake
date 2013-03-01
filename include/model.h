@@ -25,8 +25,38 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 /* Use the GCC builtin ffsl function */
+#if defined(_XBOX360)
+#include <ppcintrinsics.h>
+static __forceinline int ffsl(long x)
+{
+   return _CountLeadingZeros(x);
+}
+
+static __forceinline int ffs(int x)
+{
+	return _CountLeadingZeros(x);
+}
+
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#pragma intrinsic(_BitScanForward)
+static __forceinline int ffsl(long x)
+{
+	unsigned long i;
+
+	if (_BitScanForward(&i, x))
+		return (i + 1);
+	return (0);
+}
+
+static __forceinline int ffs(int x)
+{
+	return ffsl(x);
+}
+#else
 #ifndef ffsl
 #define ffsl __builtin_ffsl
+#endif
 #endif
 
 #ifdef GLQUAKE

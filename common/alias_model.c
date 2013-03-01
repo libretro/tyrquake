@@ -132,8 +132,8 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
     byte *pdata;
     int i;
 
-    pinskingroup = pin;
-    pskindesc->firstframe = skinnum;
+    pinskingroup = (daliasskingroup_t*)pin;
+    pskindesc->firstframe = (int)((daliasskingroup_t*)skinnum);
     pskindesc->numframes = LittleLong(pinskingroup->numskins);
     pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
 
@@ -179,12 +179,12 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
 	Sys_Error("%s: skinwidth not multiple of 4", __func__);
 
     skinsize = pheader->skinwidth * pheader->skinheight;
-    pskindesc = Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
+    pskindesc = (maliasskindesc_t*)Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
     pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
 
     skinnum = 0;
     for (i = 0; i < numskins; i++) {
-	aliasskintype_t skintype = LittleLong(pskintype->type);
+	aliasskintype_t skintype = (aliasskintype_t)LittleLong(pskintype->type);
 	if (skintype == ALIAS_SKIN_SINGLE) {
 	    pskindesc[i].firstframe = skinnum;
 	    pskindesc[i].numframes = 1;
@@ -193,17 +193,17 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
 	    skinnum++;
 	    pskintype = (daliasskintype_t *)((byte *)(pskintype + 1) + skinsize);
 	} else {
-	    pskintype = Mod_LoadAliasSkinGroup(pskintype + 1, pskindesc + i,
+	    pskintype = (daliasskintype_t*)Mod_LoadAliasSkinGroup(pskintype + 1, pskindesc + i,
 					       skinsize);
 	}
     }
 
-    pskinintervals = Hunk_Alloc(skinnum * sizeof(float));
+    pskinintervals = (float*)Hunk_Alloc(skinnum * sizeof(float));
     pheader->skinintervals = (byte *)pskinintervals - (byte *)pheader;
     memcpy(pskinintervals, skinintervals, skinnum * sizeof(float));
 
     /* Hand off saving the skin data to the loader */
-    pskindata = loader->LoadSkinData(loadmodel->name, pheader, skinnum, skindata);
+    pskindata = (byte*)loader->LoadSkinData(loadmodel->name, pheader, skinnum, skindata);
     pheader->skindata = (byte *)pskindata - (byte *)pheader;
 
     return pskintype;
@@ -269,7 +269,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     size = pad + sizeof(aliashdr_t) +
 	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
 
-    container = Hunk_AllocName(size, loadname);
+    container = (byte*)Hunk_AllocName(size, loadname);
     pheader = (aliashdr_t *)(container + pad);
 
     mod->flags = LittleLong(pinmodel->flags);
@@ -300,7 +300,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 
     pheader->numframes = LittleLong(pinmodel->numframes);
     pheader->size = LittleFloat(pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
-    mod->synctype = LittleLong(pinmodel->synctype);
+    mod->synctype = (synctype_t)LittleLong(pinmodel->synctype);
     mod->numframes = pheader->numframes;
 
     for (i = 0; i < 3; i++) {
@@ -312,7 +312,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 // load the skins
 //
     pskintype = (daliasskintype_t *)&pinmodel[1];
-    pskintype = Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
+    pskintype = (daliasskintype_t *)Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
 				 pskintype, loadname);
 
 //
@@ -372,7 +372,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     /*
      * Save the frame intervals
      */
-    intervals = Hunk_Alloc(pheader->numposes * sizeof(float));
+    intervals = (float*)Hunk_Alloc(pheader->numposes * sizeof(float));
     pheader->poseintervals = (byte *)intervals - (byte *)pheader;
     for (i = 0; i < pheader->numposes; i++)
 	intervals[i] = poseintervals[i];

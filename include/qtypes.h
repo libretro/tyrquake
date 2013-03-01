@@ -27,7 +27,11 @@ typedef unsigned char byte;
 #undef true
 #undef false
 
-typedef enum { false, true } qboolean;
+#ifdef _MSC_VER
+typedef int qboolean;
+#else
+typedef enum{ false, true } qboolean;
+#endif
 
 #ifndef offsetof
 #define offsetof(type, member)  __builtin_offsetof (type, member)
@@ -44,8 +48,12 @@ typedef enum { false, true } qboolean;
  * @member:     the name of the member within the struct.
  *
  */
+#ifdef _MSC_VER
+# define container_of(p, c, m) ((c *)((char *)(p) - offsetof(c,m)))
+#else
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
 
 #endif /* QTYPES_H */

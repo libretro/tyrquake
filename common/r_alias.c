@@ -102,7 +102,7 @@ SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
     byte *ret, *out;
 
     skinsize = ahdr->skinwidth * ahdr->skinheight;
-    ret = out = Hunk_Alloc(skinnum * skinsize * r_pixbytes);
+    ret = out = (byte*)Hunk_Alloc(skinnum * skinsize * r_pixbytes);
 
     for (i = 0; i < skinnum; i++) {
 	if (r_pixbytes == 1) {
@@ -133,7 +133,7 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
     /*
      * Save the pose vertex data
      */
-    pverts = Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
+    pverts = (trivertx_t*)Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
     hdr->posedata = (byte *)pverts - (byte *)hdr;
     for (i = 0; i < hdr->numposes; i++) {
 	memcpy(pverts, verts[i], hdr->numverts * sizeof(*pverts));
@@ -144,7 +144,7 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
      * Save the s/t verts
      * => put s and t in 16.16 format
      */
-    pstverts = Hunk_Alloc(hdr->numverts * sizeof(*pstverts));
+    pstverts = (stvert_t*)Hunk_Alloc(hdr->numverts * sizeof(*pstverts));
     SW_Aliashdr(hdr)->stverts = (byte *)pstverts - (byte *)hdr;
     for (i = 0; i < hdr->numverts; i++) {
 	pstverts[i].onseam = stverts[i].onseam;
@@ -155,7 +155,7 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
     /*
      * Save the triangle data
      */
-    ptris = Hunk_Alloc(hdr->numtris * sizeof(*ptris));
+    ptris = (mtriangle_t*)Hunk_Alloc(hdr->numtris * sizeof(*ptris));
     SW_Aliashdr(hdr)->triangles = (byte *)ptris - (byte *)hdr;
     memcpy(ptris, tris, hdr->numtris * sizeof(*ptris));
 }
@@ -194,7 +194,7 @@ R_AliasCheckBBox(entity_t *e)
 
     e->trivial_accept = 0;
     pmodel = e->model;
-    pahdr = Mod_Extradata(pmodel);
+    pahdr = (aliashdr_t*)Mod_Extradata(pmodel);
 
     R_AliasSetUpTransform(e, pahdr, 0);
 
@@ -874,7 +874,7 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
     pfinalverts = CACHE_ALIGN_PTR(finalverts);
     pauxverts = &auxverts[0];
 
-    pahdr = Mod_Extradata(e->model);
+    pahdr = (aliashdr_t*)Mod_Extradata(e->model);
 
     R_AliasSetupSkin(e, pahdr);
     R_AliasSetUpTransform(e, pahdr, e->trivial_accept);

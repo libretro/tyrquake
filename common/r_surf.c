@@ -322,7 +322,7 @@ R_DrawSurfaceBlock8_mip0(void)
     unsigned char pix, *psource, *prowdest;
 
     psource = pbasesource;
-    prowdest = prowdestbase;
+    prowdest = (unsigned char*)prowdestbase;
 
     for (v = 0; v < r_numvblocks; v++) {
 	// FIXME: make these locals?
@@ -370,7 +370,7 @@ R_DrawSurfaceBlock8_mip1(void)
     unsigned char pix, *psource, *prowdest;
 
     psource = pbasesource;
-    prowdest = prowdestbase;
+    prowdest = (unsigned char*)prowdestbase;
 
     for (v = 0; v < r_numvblocks; v++) {
 	// FIXME: make these locals?
@@ -418,7 +418,7 @@ R_DrawSurfaceBlock8_mip2(void)
     unsigned char pix, *psource, *prowdest;
 
     psource = pbasesource;
-    prowdest = prowdestbase;
+    prowdest = (unsigned char*)prowdestbase;
 
     for (v = 0; v < r_numvblocks; v++) {
 	// FIXME: make these locals?
@@ -466,7 +466,7 @@ R_DrawSurfaceBlock8_mip3(void)
     unsigned char pix, *psource, *prowdest;
 
     psource = pbasesource;
-    prowdest = prowdestbase;
+    prowdest = (unsigned char*)prowdestbase;
 
     for (v = 0; v < r_numvblocks; v++) {
 	// FIXME: make these locals?

@@ -211,8 +211,7 @@ Host_FindMaxClients(void)
     svs.maxclientslimit = svs.maxclients;
     if (svs.maxclientslimit < 4)
 	svs.maxclientslimit = 4;
-    svs.clients =
-	Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
+    svs.clients = (client_s*)Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
 
     if (svs.maxclients > 1)
 	Cvar_SetValue("deathmatch", 1.0);
@@ -833,10 +832,10 @@ Host_Init(quakeparms_t *parms)
     R_InitTextures();		// needed even for dedicated servers
 
     if (cls.state != ca_dedicated) {
-	host_basepal = COM_LoadHunkFile("gfx/palette.lmp");
+	host_basepal = (byte*)COM_LoadHunkFile("gfx/palette.lmp");
 	if (!host_basepal)
 	    Sys_Error("Couldn't load gfx/palette.lmp");
-	host_colormap = COM_LoadHunkFile("gfx/colormap.lmp");
+	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
 	    Sys_Error("Couldn't load gfx/colormap.lmp");
 

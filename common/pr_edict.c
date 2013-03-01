@@ -527,7 +527,7 @@ ED_Print(edict_t *ed)
 	while (l++ < 15)
 	    Con_Printf(" ");
 
-	Con_Printf("%s\n", PR_ValueString(d->type, (eval_t *)v));
+	Con_Printf("%s\n", PR_ValueString((etype_t)d->type, (eval_t *)v));
     }
 }
 
@@ -571,7 +571,7 @@ ED_Write(FILE *f, edict_t *ed)
 	    continue;
 
 	fprintf(f, "\"%s\" ", name);
-	fprintf(f, "\"%s\"\n", PR_UglyValueString(d->type, (eval_t *)v));
+	fprintf(f, "\"%s\"\n", PR_UglyValueString((etype_t)d->type, (eval_t *)v));
     }
 
     fprintf(f, "}\n");
@@ -691,7 +691,7 @@ ED_WriteGlobals(FILE *f)
 	name = PR_GetString(def->s_name);
 	fprintf(f, "\"%s\" ", name);
 	fprintf(f, "\"%s\"\n",
-		PR_UglyValueString(type, (eval_t *)&pr_globals[def->ofs]));
+		PR_UglyValueString((etype_t)type, (eval_t *)&pr_globals[def->ofs]));
     }
     fprintf(f, "}\n");
 }
@@ -1055,7 +1055,7 @@ PR_LoadProgs(void)
 	gefvCache[i].field[0] = 0;
 
 #ifdef NQ_HACK
-    progs = COM_LoadHunkFile("progs.dat");
+    progs = (dprograms_t*)COM_LoadHunkFile("progs.dat");
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
     progs = COM_LoadHunkFile("qwprogs.dat");

@@ -20,7 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include <ctype.h>
+#ifndef _WIN32
 #include <dirent.h>
+#endif
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -417,7 +419,7 @@ MSG_WriteChar(sizebuf_t *sb, int c)
 	Sys_Error("%s: range error", __func__);
 #endif
 
-    buf = SZ_GetSpace(sb, 1);
+    buf = (byte*)SZ_GetSpace(sb, 1);
     buf[0] = c;
 }
 
@@ -431,7 +433,7 @@ MSG_WriteByte(sizebuf_t *sb, int c)
 	Sys_Error("%s: range error", __func__);
 #endif
 
-    buf = SZ_GetSpace(sb, 1);
+    buf = (byte*)SZ_GetSpace(sb, 1);
     buf[0] = c;
 }
 
@@ -445,7 +447,7 @@ MSG_WriteShort(sizebuf_t *sb, int c)
 	Sys_Error("%s: range error", __func__);
 #endif
 
-    buf = SZ_GetSpace(sb, 2);
+    buf = (byte*)SZ_GetSpace(sb, 2);
     buf[0] = c & 0xff;
     buf[1] = c >> 8;
 }
@@ -455,7 +457,7 @@ MSG_WriteLong(sizebuf_t *sb, int c)
 {
     byte *buf;
 
-    buf = SZ_GetSpace(sb, 4);
+    buf = (byte*)SZ_GetSpace(sb, 4);
     buf[0] = c & 0xff;
     buf[1] = (c >> 8) & 0xff;
     buf[2] = (c >> 16) & 0xff;
@@ -851,7 +853,7 @@ SZ_Alloc(sizebuf_t *buf, int startsize)
 {
     if (startsize < 256)
 	startsize = 256;
-    buf->data = Hunk_AllocName(startsize, "sizebuf");
+    buf->data = (byte*)Hunk_AllocName(startsize, "sizebuf");
     buf->maxsize = startsize;
     buf->cursize = 0;
 }
@@ -1342,8 +1344,7 @@ does a varargs printf into a temp buffer, so I don't need to have
 varargs versions of all text functions.
 ============
 */
-char *
-va(const char *format, ...)
+char *va(const char *format, ...)
 {
     va_list argptr;
     char *buf;

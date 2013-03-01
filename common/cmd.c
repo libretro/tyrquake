@@ -264,7 +264,7 @@ Cmd_StuffCmds_f(void)
     if (!s)
 	return;
 
-    text = Z_Malloc(s + 1);
+    text = (char*)Z_Malloc(s + 1);
     text[0] = 0;
     for (i = 1; i < com_argc; i++) {
 	if (!com_argv[i])
@@ -275,7 +275,7 @@ Cmd_StuffCmds_f(void)
     }
 
 // pull out the commands
-    build = Z_Malloc(s + 1);
+    build = (char*)Z_Malloc(s + 1);
     build[0] = 0;
 
     for (i = 0; i < s - 1; i++) {
@@ -320,7 +320,7 @@ Cmd_Exec_f(void)
     }
     // FIXME: is this safe freeing the hunk here???
     mark = Hunk_LowMark();
-    f = COM_LoadHunkFile(Cmd_Argv(1));
+    f = (char*)COM_LoadHunkFile(Cmd_Argv(1));
     if (!f) {
 	Con_Printf("couldn't exec %s\n", Cmd_Argv(1));
 	return;
@@ -403,7 +403,7 @@ Cmd_Alias_f(void)
 	Z_Free(a->value);
 
     if (!a) {
-	a = Z_Malloc(sizeof(cmdalias_t));
+	a = (cmdalias_t*)Z_Malloc(sizeof(cmdalias_t));
 	strcpy(a->name, s);
 	a->stree.string = a->name;
 	STree_Insert(&cmdalias_tree, &a->stree);
@@ -428,7 +428,7 @@ Cmd_Alias_f(void)
     }
     strcat(cmd, "\n");
 
-    newval = Z_Malloc(strlen(cmd) + 1);
+    newval = (char*)Z_Malloc(strlen(cmd) + 1);
     strcpy(newval, cmd);
     a->value = newval;
 }
@@ -567,7 +567,7 @@ Cmd_TokenizeString(const char *text)
 	    return;
 
 	if (cmd_argc < MAX_ARGS) {
-	    arg = Z_Malloc(strlen(com_token) + 1);
+	    arg = (char*)Z_Malloc(strlen(com_token) + 1);
 	    strcpy(arg, com_token);
 	    cmd_argv[cmd_argc] = arg;
 	    cmd_argc++;
@@ -613,7 +613,7 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
 	return;
     }
 
-    cmd = Hunk_Alloc(sizeof(cmd_function_t));
+    cmd = (cmd_function_t*)Hunk_Alloc(sizeof(cmd_function_t));
     cmd->name = cmd_name;
     cmd->function = function;
     cmd->completion = NULL;
@@ -853,25 +853,23 @@ Cmd_CheckParm(const char *parm)
     return 0;
 }
 
-struct stree_root *
-Cmd_CommandCompletions(const char *buf)
+struct stree_root *Cmd_CommandCompletions(const char *buf)
 {
-    struct stree_root *root;
+    struct stree_root *root_tree;
 
-    root = Z_Malloc(sizeof(struct stree_root));
-    *root = STREE_ROOT;
+    root_tree = (stree_root*)Z_Malloc(sizeof(struct stree_root));
+    *root_tree = STREE_ROOT;
 
     STree_AllocInit();
 
-    STree_Completions(root, &cmd_tree, buf);
-    STree_Completions(root, &cmdalias_tree, buf);
-    STree_Completions(root, &cvar_tree, buf);
+    STree_Completions(root_tree, &cmd_tree, buf);
+    STree_Completions(root_tree, &cmdalias_tree, buf);
+    STree_Completions(root_tree, &cvar_tree, buf);
 
-    return root;
+    return root_tree;
 }
 
-const char *
-Cmd_CommandComplete(const char *buf)
+const char *Cmd_CommandComplete(const char *buf)
 {
     struct stree_root *root;
     char *ret;

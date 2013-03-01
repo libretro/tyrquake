@@ -114,7 +114,7 @@ SV_Protocol_Arg_f(const char *arg)
     char digits[10];
     struct stree_root *root;
 
-    root = Z_Malloc(sizeof(struct stree_root));
+    root = (stree_root*)Z_Malloc(sizeof(struct stree_root));
     if (root) {
 	*root = STREE_ROOT;
 	STree_AllocInit();
@@ -135,8 +135,7 @@ SV_Protocol_Arg_f(const char *arg)
 SV_Init
 ===============
 */
-void
-SV_Init(void)
+void SV_Init(void)
 {
     int i;
 
@@ -1276,7 +1275,7 @@ SV_SpawnServer(char *server)
 
 // allocate server memory
     sv.max_edicts = MAX_EDICTS;
-    sv.edicts = Hunk_AllocName(sv.max_edicts * pr_edict_size, "edicts");
+    sv.edicts = (edict_t*)Hunk_AllocName(sv.max_edicts * pr_edict_size, "edicts");
 
     sv.datagram.maxsize = sizeof(sv.datagram_buf);
     sv.datagram.cursize = 0;

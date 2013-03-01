@@ -51,7 +51,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
     int sample, samplefrac, fracstep;
     sfxcache_t *sc;
 
-    sc = Cache_Check(&sfx->cache);
+    sc = (sfxcache_t*)Cache_Check(&sfx->cache);
     if (!sc)
 	return;
 
@@ -114,7 +114,7 @@ S_LoadSound(sfx_t *s)
     byte stackbuf[1024];	// avoid dirtying the cache heap
 
 // see if still in memory
-    sc = Cache_Check(&s->cache);
+    sc = (sfxcache_t*)Cache_Check(&s->cache);
     if (sc)
 	return sc;
 
@@ -125,7 +125,7 @@ S_LoadSound(sfx_t *s)
 
 //      Con_Printf ("loading %s\n",namebuffer);
 
-    data = COM_LoadStackFile(namebuffer, stackbuf, sizeof(stackbuf), NULL);
+    data = (byte*)COM_LoadStackFile(namebuffer, stackbuf, sizeof(stackbuf), NULL);
 
     if (!data) {
 	Con_Printf("Couldn't load %s\n", namebuffer);
@@ -143,7 +143,7 @@ S_LoadSound(sfx_t *s)
 
     len = len * info->width * info->channels;
 
-    sc = Cache_Alloc(&s->cache, len + sizeof(sfxcache_t), s->name);
+    sc = (sfxcache_t*)Cache_Alloc(&s->cache, len + sizeof(sfxcache_t), s->name);
     if (!sc)
 	return NULL;
 

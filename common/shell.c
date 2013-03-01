@@ -53,7 +53,7 @@ void
 STree_AllocInit(void)
 {
     /* Init the temp hunk */
-    st_node_next = Hunk_TempAlloc(ST_NODE_CHUNK);
+    st_node_next = (stree_node*)Hunk_TempAlloc(ST_NODE_CHUNK);
     st_node_space = ST_NODE_CHUNK;
 
     /* Allocate string space on demand */
@@ -66,7 +66,7 @@ STree_AllocNode(void)
     struct stree_node *ret = NULL;
 
     if (st_node_space < sizeof(struct stree_node)) {
-	st_node_next = Hunk_TempAllocExtend(ST_NODE_CHUNK);
+	st_node_next = (stree_node*)Hunk_TempAllocExtend(ST_NODE_CHUNK);
 	st_node_space = st_node_next ? ST_NODE_CHUNK : 0;
     }
     if (st_node_space >= sizeof(struct stree_node)) {
@@ -90,7 +90,7 @@ STree_AllocString(unsigned int length)
 	 * Cache_FreeHigh, so maybe only do it if wasting more than that
 	 * (32/64/?).
 	 */
-	st_string_next = Hunk_TempAllocExtend(ST_STRING_CHUNK);
+	st_string_next = (char*)Hunk_TempAllocExtend(ST_STRING_CHUNK);
 	st_string_space = st_string_next ? ST_STRING_CHUNK : 0;
     }
     if (st_string_space >= length) {
@@ -150,7 +150,7 @@ STree_InsertAlloc(struct stree_root *root, const char *s, qboolean alloc_str)
     n = STree_AllocNode();
     if (n) {
 	if (alloc_str) {
-	    tmp = STree_AllocString(strlen(s) + 1);
+	    tmp = (char*)STree_AllocString(strlen(s) + 1);
 	    if (tmp) {
 		strcpy(tmp, s);
 		n->string = tmp;
@@ -210,7 +210,7 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
 
     if (root->entries == 1) {
 	match = strlen(sn->string);
-	result = Z_Malloc(match + 2);
+	result = (char*)Z_Malloc(match + 2);
 	if (result) {
 	    strncpy(result, sn->string, match);
 	    result[match] = ' ';
@@ -218,7 +218,7 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
 	}
     } else if (root->entries > 1) {
 	match = ST_node_match(n, sn->string, min_match, max_match);
-	result = Z_Malloc(match + 1);
+	result = (char*)Z_Malloc(match + 1);
 	if (result) {
 	    strncpy(result, sn->string, match);
 	    result[match] = 0;
@@ -262,21 +262,23 @@ STree_MaxDepth(struct stree_root *root)
 static void
 STree_StackInit(struct stree_root *root)
 {
-    root->stack = Z_Malloc(sizeof(struct stree_stack));
+    root->stack = (stree_stack*)Z_Malloc(sizeof(struct stree_stack));
     if (root->stack) {
 	struct stree_stack *s = root->stack;
 	s->depth = 0;
 	s->max_depth = STree_MaxDepth(root);
-	s->stack = Z_Malloc(s->max_depth * sizeof(struct rb_node *));
+	s->stack = (rb_node**)Z_Malloc(s->max_depth * sizeof(struct rb_node *));
 	if (!s->stack) {
 	    Z_Free(s);
 	    root->stack = NULL;
 	}
     }
     /* Possibly this harsh failure is not suitable in all cases? */
+#ifndef _WIN32
     if (!root->stack)
 	Sys_Error("%s: not enough mem for stack! (%i)", __func__,
 		  STree_MaxDepth(root));
+#endif
 }
 
 void

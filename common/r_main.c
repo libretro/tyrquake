@@ -154,8 +154,7 @@ R_InitTextures(void)
     byte *dest;
 
 // create a simple checkerboard texture for the default
-    r_notexture_mip =
-	Hunk_AllocName(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2,
+    r_notexture_mip = (texture_s*)Hunk_AllocName(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2,
 		       "notexture");
 
     r_notexture_mip->width = r_notexture_mip->height = 16;
@@ -301,7 +300,7 @@ R_NewMap(void)
 	r_cnumsurfs = MINSURFACES;
 
     if (r_cnumsurfs > NUMSTACKSURFACES) {
-	surfaces = Hunk_AllocName(r_cnumsurfs * sizeof(surf_t), "surfaces");
+	surfaces = (surf_t*)unk_AllocName(r_cnumsurfs * sizeof(surf_t), "surfaces");
 	surface_p = surfaces;
 	surf_max = &surfaces[r_cnumsurfs];
 	r_surfsonstack = false;
@@ -324,7 +323,7 @@ R_NewMap(void)
     if (r_numallocatededges <= NUMSTACKEDGES) {
 	auxedges = NULL;
     } else {
-	auxedges = Hunk_AllocName(r_numallocatededges * sizeof(edge_t),
+	auxedges = (edge_t*)Hunk_AllocName(r_numallocatededges * sizeof(edge_t),
 				  "edges");
     }
 
@@ -1040,9 +1039,7 @@ R_DrawBEntitiesOnList(void)
 R_EdgeDrawing
 ================
 */
- __attribute__((noinline))
-static void
-R_EdgeDrawing(void)
+static void R_EdgeDrawing(void)
 {
     edge_t ledges[CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t)];
     surf_t lsurfs[CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t)];

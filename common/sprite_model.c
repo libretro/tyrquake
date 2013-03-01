@@ -53,7 +53,7 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
     numpixels = width * height;
     size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
 
-    pspriteframe = Hunk_AllocName(size, loadname);
+    pspriteframe = (mspriteframe_t*)Hunk_AllocName(size, loadname);
     memset(pspriteframe, 0, size);
     *ppframe = pspriteframe;
 
@@ -93,14 +93,14 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
     pingroup = (dspritegroup_t *)pin;
     numframes = LittleLong(pingroup->numframes);
 
-    pspritegroup = Hunk_AllocName(sizeof(*pspritegroup) +
+    pspritegroup = (mspritegroup_t*)Hunk_AllocName(sizeof(*pspritegroup) +
 				  numframes * sizeof(pspritegroup->frames[0]),
 				  loadname);
 
     pspritegroup->numframes = numframes;
     *ppframe = (mspriteframe_t *)pspritegroup;
     pin_intervals = (dspriteinterval_t *)(pingroup + 1);
-    poutintervals = Hunk_AllocName(numframes * sizeof(float), loadname);
+    poutintervals = (float*)Hunk_AllocName(numframes * sizeof(float), loadname);
     pspritegroup->intervals = poutintervals;
 
     for (i = 0; i < numframes; i++) {
@@ -148,14 +148,14 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
 
     numframes = LittleLong(pin->numframes);
     size = sizeof(*psprite) + numframes * sizeof(psprite->frames[0]);
-    psprite = Hunk_AllocName(size, loadname);
+    psprite = (msprite_t*)Hunk_AllocName(size, loadname);
     mod->cache.data = psprite;
 
     psprite->type = LittleLong(pin->type);
     psprite->maxwidth = LittleLong(pin->width);
     psprite->maxheight = LittleLong(pin->height);
     psprite->beamlength = LittleFloat(pin->beamlength);
-    mod->synctype = LittleLong(pin->synctype);
+    mod->synctype = (synctype_t)LittleLong(pin->synctype);
     psprite->numframes = numframes;
 
     mod->mins[0] = mod->mins[1] = -psprite->maxwidth / 2;
@@ -177,7 +177,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
     for (i = 0; i < numframes; i++) {
 	spriteframetype_t frametype;
 
-	frametype = LittleLong(pframetype->type);
+	frametype = (spriteframetype_t)LittleLong(pframetype->type);
 	psprite->frames[i].type = frametype;
 
 	if (frametype == SPR_SINGLE) {
