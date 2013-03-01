@@ -53,7 +53,7 @@ void
 STree_AllocInit(void)
 {
     /* Init the temp hunk */
-    st_node_next = (stree_node*)Hunk_TempAlloc(ST_NODE_CHUNK);
+    st_node_next = (struct stree_node*)Hunk_TempAlloc(ST_NODE_CHUNK);
     st_node_space = ST_NODE_CHUNK;
 
     /* Allocate string space on demand */
@@ -66,7 +66,7 @@ STree_AllocNode(void)
     struct stree_node *ret = NULL;
 
     if (st_node_space < sizeof(struct stree_node)) {
-	st_node_next = (stree_node*)Hunk_TempAllocExtend(ST_NODE_CHUNK);
+	st_node_next = (struct stree_node*)Hunk_TempAllocExtend(ST_NODE_CHUNK);
 	st_node_space = st_node_next ? ST_NODE_CHUNK : 0;
     }
     if (st_node_space >= sizeof(struct stree_node)) {
@@ -262,12 +262,12 @@ STree_MaxDepth(struct stree_root *root)
 static void
 STree_StackInit(struct stree_root *root)
 {
-    root->stack = (stree_stack*)Z_Malloc(sizeof(struct stree_stack));
+    root->stack = (struct stree_stack*)Z_Malloc(sizeof(struct stree_stack));
     if (root->stack) {
 	struct stree_stack *s = root->stack;
 	s->depth = 0;
 	s->max_depth = STree_MaxDepth(root);
-	s->stack = (rb_node**)Z_Malloc(s->max_depth * sizeof(struct rb_node *));
+	s->stack = (struct rb_node**)Z_Malloc(s->max_depth * sizeof(struct rb_node *));
 	if (!s->stack) {
 	    Z_Free(s);
 	    root->stack = NULL;

@@ -357,7 +357,7 @@ SetPal(int i)
 #endif
 }
 
-const float dl_colors[4][4] = {
+float dl_colors[4][4] = {
     { 0.2, 0.1, 0.05, 0.7 },	/* FLASH */
     { 0.05, 0.05, 0.3, 0.7 },	/* BLUE */
     { 0.5, 0.05, 0.05, 0.7 },	/* RED */

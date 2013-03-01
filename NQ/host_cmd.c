@@ -303,7 +303,7 @@ Host_Map_Arg_f(const char *arg)
 {
     struct stree_root *root;
 
-    root = (stree_root*)Z_Malloc(sizeof(struct stree_root));
+    root = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
     if (root) {
 	*root = STREE_ROOT;
 

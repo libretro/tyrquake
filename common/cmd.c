@@ -857,7 +857,7 @@ struct stree_root *Cmd_CommandCompletions(const char *buf)
 {
     struct stree_root *root_tree;
 
-    root_tree = (stree_root*)Z_Malloc(sizeof(struct stree_root));
+    root_tree = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
     *root_tree = STREE_ROOT;
 
     STree_AllocInit();
