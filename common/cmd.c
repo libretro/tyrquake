@@ -384,7 +384,7 @@ Cmd_Alias_f(void)
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("Current alias commands:\n");
-	STree_ForEach(&cmdalias_tree, node) {
+	STree_ForEach_After(&cmdalias_tree, node, NULL) {
 	    a = cmdalias_entry(node);
 	    Con_Printf("%s : %s\n", a->name, a->value);
 	}

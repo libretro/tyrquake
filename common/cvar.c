@@ -345,7 +345,7 @@ Cvar_WriteVariables(FILE *f)
     cvar_t *var;
     struct stree_node *n;
 
-    STree_ForEach(&cvar_tree, n) {
+    STree_ForEach_After(&cvar_tree, n, NULL) {
 	var = cvar_entry(n);
 	if (var->archive)
 	    fprintf(f, "%s \"%s\"\n", var->name, var->string);
