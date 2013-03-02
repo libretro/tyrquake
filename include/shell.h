@@ -110,6 +110,8 @@ void STree_ForEach_Cleanup__(struct stree_root *root);
 	({ if (str__) STree_ForEach_After__((root__), &(node__), (str__));}); \
 	STree_WalkLeft__((root__), &(node__)) ;				      \
 	STree_WalkRight__(&(node__)) )
+#define STree_ForEach_After_NullStr(root__, node__) for (		      \
+	STree_ForEach_Init__((root__), &(node__)); STree_WalkLeft__((root__), &(node__)) ; STree_WalkRight__(&(node__)) )
 #define STree_ForEach_break(root__) STree_ForEach_Cleanup__(root__); break
 
 #endif /* SHELL_H */
