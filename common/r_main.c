@@ -842,7 +842,7 @@ R_DrawViewModel(void)
     dlight_t *dl;
 
 #ifdef NQ_HACK
-    if (!r_drawviewmodel.value)
+    if (!r_drawviewmodel.value || chase_active.value)
 	return;
 #endif
 #ifdef QW_HACK

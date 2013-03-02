@@ -866,7 +866,7 @@ M_Setup_Key(int k)
 /* OPTIONS MENU */
 
 #ifdef __LIBRETRO__
-#define	OPTIONS_ITEMS	18
+#define	OPTIONS_ITEMS	19
 #else
 #define	OPTIONS_ITEMS	14
 #endif
@@ -980,9 +980,15 @@ M_AdjustSliders(int dir)
    case 16:
        cvar = Cvar_FindVar("crosshair");
        Cvar_SetValue("crosshair", cvar->value ? 0.0f : 1.0f);
+       break;
    case 17:
        cvar = Cvar_FindVar("framerate");
        Cvar_SetValue("framerate", (cvar->value == 60) ? 50.0f : 60.0f);
+       break;
+   case 18:
+       cvar = Cvar_FindVar("chase_active");
+       Cvar_SetValue("chase_active", (cvar->value) ? 0 : 1);
+       break;
 #else
     case 13:			// _windowed_mouse
 	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
@@ -1099,6 +1105,10 @@ M_Options_Draw(void)
       M_Print(220,168, "60fps");
    else
       M_Print(220,168,"50fps");
+
+   cvar = Cvar_FindVar("chase_active");
+   M_Print(16, 176, "      First Person");
+   M_DrawCheckbox(220, 176, cvar->value ? 0 : 1);
 #else
     if (!VID_IsFullScreen()) {
 	M_Print(16, 136, "             Use Mouse");
