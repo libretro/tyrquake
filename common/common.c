@@ -1600,6 +1600,13 @@ COM_FOpenFile(const char *filename, FILE **file)
     return -1;
 }
 
+#ifdef _WIN32
+static void COM_ScanDirDir(struct stree_root *root, const char *dir_name, const char *pfx,
+	       const char *ext, qboolean stripext)
+{
+   /* TODO - stub */
+}
+#else
 static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	       const char *ext, qboolean stripext)
 {
@@ -1626,6 +1633,7 @@ static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	}
     }
 }
+#endif
 
 static void
 COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
@@ -1663,7 +1671,7 @@ COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
 	len = strlen(pak_f);
 	if (ext && stripext)
 	    len -= ext_len;
-	fname = Z_Malloc(len + 1);
+	fname = (char*)Z_Malloc(len + 1);
 	if (fname) {
 	    strncpy(fname, pak_f, len);
 	    fname[len] = '\0';
@@ -1688,7 +1696,9 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 {
     searchpath_t *search;
     char fullpath[MAX_OSPATH];
+#ifndef _WIN32
     DIR *dir;
+#endif
 
     for (search = com_searchpaths; search; search = search->next) {
 	if (search->pack) {
@@ -1696,11 +1706,15 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 	} else {
 	    snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
 	    fullpath[MAX_OSPATH - 1] = '\0';
+#ifdef _WIN32
+        COM_ScanDirDir(root, fullpath, pfx, ext, stripext);
+#else
 	    dir = opendir(fullpath);
 	    if (dir) {
 		COM_ScanDirDir(root, dir, pfx, ext, stripext);
 		closedir(dir);
 	    }
+#endif
 	}
     }
 }
@@ -1740,16 +1754,16 @@ COM_LoadFile(const char *path, int usehunk, unsigned long *length)
     COM_FileBase(path, base, sizeof(base));
 
     if (usehunk == 1)
-	buf = Hunk_AllocName(len + 1, base);
+	buf = (byte*)Hunk_AllocName(len + 1, base);
     else if (usehunk == 2)
-	buf = Hunk_TempAlloc(len + 1);
+	buf = (byte*)Hunk_TempAlloc(len + 1);
     else if (usehunk == 0)
-	buf = Z_Malloc(len + 1);
+	buf = (byte*)Z_Malloc(len + 1);
     else if (usehunk == 3)
-	buf = Cache_Alloc(loadcache, len + 1, base);
+	buf = (byte*)Cache_Alloc(loadcache, len + 1, base);
     else if (usehunk == 4) {
 	if (len + 1 > loadsize)
-	    buf = Hunk_TempAlloc(len + 1);
+	    buf = (byte*)Hunk_TempAlloc(len + 1);
 	else
 	    buf = loadbuf;
     } else
@@ -1801,7 +1815,7 @@ COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 
     loadbuf = (byte *)buffer;
     loadsize = bufsize;
-    buf = COM_LoadFile(path, 4, length);
+    buf = (byte*)COM_LoadFile(path, 4, length);
 
     return buf;
 }
@@ -1847,7 +1861,7 @@ COM_LoadPackFile(const char *packfile)
 	com_modified = true;	// not the original file
 
 #ifdef NQ_HACK
-    newfiles = Hunk_AllocName(numpackfiles * sizeof(packfile_t), "packfile");
+    newfiles = (packfile_t*)Hunk_AllocName(numpackfiles * sizeof(packfile_t), "packfile");
 #endif
 #ifdef QW_HACK
     newfiles = Z_Malloc(numpackfiles * sizeof(packfile_t));
@@ -1875,7 +1889,7 @@ COM_LoadPackFile(const char *packfile)
     }
 
 #ifdef NQ_HACK
-    pack = Hunk_Alloc(sizeof(pack_t));
+    pack = (pack_t*)Hunk_Alloc(sizeof(pack_t));
 #endif
 #ifdef QW_HACK
     pack = Z_Malloc(sizeof(pack_t));
@@ -1925,7 +1939,7 @@ COM_AddGameDirectory(const char *base, const char *dir)
 //
 // add the directory to the search path
 //
-    search = Hunk_Alloc(sizeof(searchpath_t));
+    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
     strcpy(search->filename, com_gamedir);
     search->next = com_searchpaths;
     com_searchpaths = search;
@@ -1946,7 +1960,7 @@ COM_AddGameDirectory(const char *base, const char *dir)
       if (!pak) // that doesn't work either? then break
          break;
    }
-	search = Hunk_Alloc(sizeof(searchpath_t));
+	search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
 	search->pack = pak;
 	search->next = com_searchpaths;
 	com_searchpaths = search;
@@ -2105,7 +2119,7 @@ COM_InitFilesystem(void)
 		|| com_argv[i][0] == '-')
 		break;
 
-	    search = Hunk_Alloc(sizeof(searchpath_t));
+	    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
 	    if (!strcmp(COM_FileExtension(com_argv[i]), "pak")) {
 		search->pack = COM_LoadPackFile(com_argv[i]);
 		if (!search->pack)
