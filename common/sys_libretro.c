@@ -85,7 +85,11 @@ qboolean isDedicated;
 #define MEMSIZE_MB 32
 #endif
 
+#define SAMPLERATE 44100
+
 static qboolean nostdout = false;
+
+cvar_t framerate = { "framerate", "60" };
 
 char g_rom_dir[256];
 char g_pak_path[256];
@@ -276,8 +280,8 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-   info->timing.fps = 60.0;
-   info->timing.sample_rate = 44100.0;
+   info->timing.fps = framerate.value;
+   info->timing.sample_rate = SAMPLERATE;
 
    info->geometry.base_width   = BASEWIDTH;
    info->geometry.base_height  = BASEHEIGHT;
@@ -370,7 +374,6 @@ void Sys_Sleep(void)
 #endif
 }
 
-#define SAMPLES_PER_FRAME (2 * 44100 / 60)
 #define AUDIO_BUFFER_SAMPLES (8 * 1024)
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
@@ -408,19 +411,17 @@ void retro_run(void)
    for (y = 0; y < BASEHEIGHT; ++y)
    {
       for (x = 0; x < BASEWIDTH; ++x)
-      {
          *olineptr++ = palette_data[*ilineptr++];
-      }
    }
 
    video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
-
-   unsigned read_end = audio_buffer_ptr + SAMPLES_PER_FRAME;
+   float samples_per_frame = 2 * SAMPLERATE / framerate.value;
+   unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)
       read_end = AUDIO_BUFFER_SAMPLES;
 
    unsigned read_first  = read_end - audio_buffer_ptr;
-   unsigned read_second = SAMPLES_PER_FRAME - read_first;
+   unsigned read_second = samples_per_frame - read_first;
 
    audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
    audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
@@ -483,6 +484,8 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_Set("viewsize", "100");
    Cvar_Set("showram", "0");
    Cvar_Set("dither_filter", "1");
+   Cvar_RegisterVariable(&framerate);
+   Cvar_Set("framerate", "60");
 
    enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
    if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
@@ -639,7 +642,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
 qboolean SNDDMA_Init(void)
 {
    shm = &sn;
-   shm->speed = 44100;
+   shm->speed = SAMPLERATE;
    shm->channels = 2;
    shm->samplepos = 0;
    shm->samplebits = 16;
