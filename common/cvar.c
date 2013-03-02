@@ -120,7 +120,8 @@ Cvar_NextServerVar(const char *var_name)
 	var = cvar_entry(n);
 	if (var->server) {
 	    ret = var;
-	    STree_ForEach_break(&cvar_tree);
+        STree_ForEach_Cleanup__(&cvar_tree);
+        return ret;
 	}
     }
 
