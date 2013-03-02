@@ -116,13 +116,30 @@ Cvar_NextServerVar(const char *var_name)
     if (var_name[0] == '\0')
 	var_name = NULL;
 
-    STree_ForEach_After(&cvar_tree, n, var_name) {
+    if (var_name)
+    {
+    STree_ForEach_Init__(&cvar_tree, &n);
+    STree_ForEach_After__(&cvar_tree, &n, var_name);
+    for (; STree_WalkLeft__(&cvar_tree, &n) ; STree_WalkRight__(&n)) {
 	var = cvar_entry(n);
 	if (var->server) {
 	    ret = var;
         STree_ForEach_Cleanup__(&cvar_tree);
         return ret;
 	}
+    }
+    }
+    else
+    {
+    STree_ForEach_After_NullStr(&cvar_tree, n) {
+	var = cvar_entry(n);
+	if (var->server) {
+	    ret = var;
+        STree_ForEach_Cleanup__(&cvar_tree);
+        return ret;
+	}
+    }
+    }
     }
 
     return ret;
