@@ -976,8 +976,6 @@ M_AdjustSliders(int dir)
    case 15:
        cvar = Cvar_FindVar("r_lerpmodels");
        Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
-       cvar = Cvar_FindVar("r_lerpmove");
-       Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
        break;
    case 16:
        cvar = Cvar_FindVar("crosshair");
