@@ -27,6 +27,7 @@ cvar_t chase_back = { "chase_back", "100" };
 cvar_t chase_up = { "chase_up", "16" };
 cvar_t chase_right = { "chase_right", "0" };
 cvar_t chase_active = { "chase_active", "0" };
+cvar_t chase_type = {"chase_type", "0"};
 
 vec3_t chase_pos;
 vec3_t chase_angles;
@@ -42,6 +43,7 @@ Chase_Init(void)
     Cvar_RegisterVariable(&chase_up);
     Cvar_RegisterVariable(&chase_right);
     Cvar_RegisterVariable(&chase_active);
+    Cvar_RegisterVariable(&chase_type);
 }
 
 void
@@ -92,5 +94,11 @@ Chase_Update(void)
     r_refdef.viewangles[PITCH] = -atan(stop[2] / dist) / M_PI * 180;
 
     // move towards destination
+    if (chase_type.value)
+    {
+       TraceLine(r_refdef.vieworg, chase_dest, stop);
+       if (Length(stop) != 0)
+          VectorCopy(stop, chase_dest);
+    }
     VectorCopy(chase_dest, r_refdef.vieworg);
 }
