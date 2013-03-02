@@ -95,6 +95,11 @@ qboolean m_return_onerror;
 char m_return_reason[32];
 int m_return_state;
 
+#ifdef __LIBRETRO__
+#include "../include/libretro.h"
+extern retro_environment_t environ_cb;
+#endif
+
 #define StartingGame	(m_multiplayer_cursor == 1)
 #define JoiningGame	(m_multiplayer_cursor == 0)
 
@@ -415,15 +420,18 @@ M_SinglePlayer_Key(int key)
 
 	switch (m_singleplayer_cursor) {
 	case 0:
+#if 0
 	    if (sv.active)
 		if (!SCR_ModalMessage("Are you sure you want to\n"
 				      "start a new game?\n"))
 		    break;
+#endif
 	    key_dest = key_game;
 	    if (sv.active)
 		Cbuf_AddText("disconnect\n");
 	    Cbuf_AddText("maxplayers 1\n");
 	    Cbuf_AddText("map start\n");
+
 	    break;
 
 	case 1:
@@ -1535,6 +1543,7 @@ M_Menu_Quit_f(void)
 static void
 M_Quit_Key(int key)
 {
+#if 0
     switch (key) {
     case K_ESCAPE:
     case 'n':
@@ -1557,7 +1566,11 @@ M_Quit_Key(int key)
     default:
 	break;
     }
-
+#else
+	key_dest = key_console;
+	Host_Quit_f();
+   environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+#endif
 }
 
 
