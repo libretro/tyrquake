@@ -606,6 +606,13 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
        else
 #endif
        {
+#if 1
+          do {
+             *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
+             s += sstep;
+             t += tstep;
+          } while (--spancount > 0);
+#else
           //qbism- Duff's Device loop unroll per mh.
           pdest += spancount;
           switch (spancount)
@@ -627,6 +634,7 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
              case 2: SOLID(-2); s += sstep; t += tstep;
              case 1: SOLID(-1); s += sstep; t += tstep;
           }
+#endif
        }
 
          s = snext;
