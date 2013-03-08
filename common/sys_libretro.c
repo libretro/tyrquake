@@ -64,24 +64,17 @@ qboolean isDedicated;
 #if defined(__CELLOS_LV2__) || defined(_XBOX360)
 #define BASEWIDTH 400
 #define BASEHEIGHT 224
-#define MEMSIZE_MB 32
-#elif defined(GEKKO) || defined(_XBOX1)
-#define BASEWIDTH 360
-#define BASEHEIGHT 224
-#ifdef HW_DOL
-#define MEMSIZE_MB 8
-#undef BASEWIDTH
+#elif defined(ANDROID)|| defined(__QNX__) || defined(GEKKO) || defined(_XBOX1)
 #define BASEWIDTH 320
-#else
-#define MEMSIZE_MB 32
-#endif
-#elif defined(ANDROID)|| defined(__QNX__)
-#define BASEWIDTH 320
-#define BASEHEIGHT 224
-#define MEMSIZE_MB 32
-#else
+#define BASEHEIGHT 200
+#else /* for PC */
 #define BASEWIDTH 640
 #define BASEHEIGHT 448
+#endif
+
+#ifdef HW_DOL
+#define MEMSIZE_MB 8
+#else
 #define MEMSIZE_MB 32
 #endif
 
