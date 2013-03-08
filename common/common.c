@@ -913,7 +913,7 @@ SZ_Print(sizebuf_t *buf, const char *data)
     if (!buf->cursize || buf->data[buf->cursize - 1])
 	memcpy(SZ_GetSpace(buf, len + 1), data, len + 1);
     else
-	memcpy(SZ_GetSpace(buf, len) - 1, data, len + 1);
+	memcpy((byte*)SZ_GetSpace(buf, len) - 1, data, len + 1);
 }
 
 
