@@ -227,5 +227,8 @@
     <ClCompile Include="..\..\..\common\world.c">
       <Filter>Source Files\common</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\NQ\net_none.c">
+      <Filter>Source Files\NQ</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
