@@ -31,7 +31,6 @@ static int miplevel;
 static vec3_t transformed_modelorg;
 
 float scale_for_mip;
-int screenwidth;
 int ubasestep, errorterm, erroradjustup, erroradjustdown;
 
 /*
