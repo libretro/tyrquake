@@ -69,7 +69,7 @@ static int menu_numcachepics;
 
 void *Draw_PicFromWad(const char *name)
 {
-    return (const qpic_t*)W_GetLumpName(name);
+    return (qpic_t*)W_GetLumpName(name);
 }
 
 /*
