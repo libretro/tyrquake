@@ -95,6 +95,12 @@ qboolean m_return_onerror;
 char m_return_reason[32];
 int m_return_state;
 
+enum m_state_enum {
+    m_none, m_main, m_singleplayer, m_load, m_save, m_multiplayer, m_setup,
+    m_options, m_video, m_keys, m_help, m_quit, m_lanconfig, m_gameoptions,
+    m_search, m_slist
+} m_state;
+
 #ifdef __LIBRETRO__
 #include "../include/libretro.h"
 extern retro_environment_t environ_cb;
