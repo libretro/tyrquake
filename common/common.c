@@ -1170,7 +1170,11 @@ COM_CheckRegistered(void)
     unsigned short check[128];
     int i;
 
+#ifdef _WIN32
+    COM_FOpenFile("gfx\\pop.lmp", &f);
+#else
     COM_FOpenFile("gfx/pop.lmp", &f);
+#endif
     static_registered = 0;
 
     if (!f) {
@@ -1918,6 +1922,11 @@ COM_AddGameDirectory(const char *base, const char *dir)
     searchpath_t *search;
     pack_t *pak;
     char pakfile[MAX_OSPATH];
+#ifdef _WIN32
+    const char slash = '\\';
+#else
+    const char slash = '/';
+#endif
 
     if (!base)
 	return;
@@ -1948,13 +1957,13 @@ COM_AddGameDirectory(const char *base, const char *dir)
 // add any pak files in the format pak0.pak pak1.pak, ...
 //
     for (i = 0;; i++) {
-	snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
+	snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
    fprintf(stderr, "pakfile: %s\n", pakfile);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
    {
       //try uppercase
-      snprintf(pakfile, sizeof(pakfile), "%s/PAK%i.PAK", com_gamedir, i);
+      snprintf(pakfile, sizeof(pakfile), "%s%cPAK%i.PAK", com_gamedir, slash, i);
       pak = COM_LoadPackFile(pakfile);
 
       if (!pak) // that doesn't work either? then break
@@ -1984,6 +1993,11 @@ COM_Gamedir(const char *dir)
     int i;
     pack_t *pak;
     char pakfile[MAX_OSPATH];
+#ifdef _WIN32
+    const char slash = '\\';
+#else
+    const char slash = '/';
+#endif
 
     if (strstr(dir, "..") || strstr(dir, "/")
 	|| strstr(dir, "\\") || strstr(dir, ":")) {
@@ -2016,7 +2030,7 @@ COM_Gamedir(const char *dir)
     if (!strcmp(dir, "id1") || !strcmp(dir, "qw"))
 	return;
 
-    snprintf(com_gamedir, sizeof(com_gamedir), "%s/%s", com_basedir, dir);
+    snprintf(com_gamedir, sizeof(com_gamedir), "%s%c%s", com_basedir, slash, dir);
 
     //
     // add the directory to the search path
@@ -2030,7 +2044,7 @@ COM_Gamedir(const char *dir)
     // add any pak files in the format pak0.pak pak1.pak, ...
     //
     for (i = 0;; i++) {
-	snprintf(pakfile, sizeof(pakfile), "%s/pak%i.pak", com_gamedir, i);
+	snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
 	    break;
@@ -2057,6 +2071,11 @@ COM_InitFilesystem(void)
 #ifdef NQ_HACK
     searchpath_t *search;
 #endif
+#ifdef _WIN32
+    char slash = '\\';
+#else
+    char slash = '/';
+#endif
     snprintf(home, sizeof(home), g_rom_dir);
 
 //
@@ -2077,12 +2096,12 @@ COM_InitFilesystem(void)
 #ifdef NQ_HACK
     char mod_path[256];
     if (strstr(g_pak_path, "rogue/")) {
-       snprintf(mod_path, sizeof(mod_path), "%s/rogue", home);
+       snprintf(mod_path, sizeof(mod_path), "%s%crogue", home, slash);
        COM_AddGameDirectory(mod_path, "rogue");
     }
     else if (strstr(g_pak_path, "hipnotic/"))
     {
-       snprintf(mod_path, sizeof(mod_path), "%s/hipnotic", home);
+       snprintf(mod_path, sizeof(mod_path), "%s%chipnotic", home, slash);
        COM_AddGameDirectory(mod_path, "hipnotic");
     }
 
@@ -2162,16 +2181,28 @@ COM_InitFilesystem(void)
 // start up with id1 by default
 //
     COM_AddGameDirectory(com_basedir, "id1");
+#ifdef _WIN32
+    COM_AddGameDirectory(home, ".tyrquake\\id1");
+#else
     COM_AddGameDirectory(home, ".tyrquake/id1");
+#endif
 
 #ifdef NQ_HACK
     if (COM_CheckParm("-rogue")) {
 	COM_AddGameDirectory(com_basedir, "rogue");
+#ifdef _WIN32
+	COM_AddGameDirectory(home, ".tyrquake\\rogue");
+#else
 	COM_AddGameDirectory(home, ".tyrquake/rogue");
+#endif
     }
     if (COM_CheckParm("-hipnotic")) {
 	COM_AddGameDirectory(com_basedir, "hipnotic");
+#ifdef _WIN32
+	COM_AddGameDirectory(home, ".tyrquake\\hipnotic");
+#else
 	COM_AddGameDirectory(home, ".tyrquake/hipnotic");
+#endif
     }
 
 //
@@ -2182,12 +2213,20 @@ COM_InitFilesystem(void)
     if (i && i < com_argc - 1) {
 	com_modified = true;
 	COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
+#ifdef _WIN32
+	COM_AddGameDirectory(home, va(".tyrquake\\%s", com_argv[i + 1]));
+#else
 	COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
+#endif
     }
 #endif
 #ifdef QW_HACK
     COM_AddGameDirectory(com_basedir, "qw");
+#ifdef _WIN32
+    COM_AddGameDirectory(home, ".tyrquake\\qw");
+#else
     COM_AddGameDirectory(home, ".tyrquake/qw");
+#endif
 #endif
 
     /* If home is available, create the game directory */
