@@ -1170,11 +1170,7 @@ COM_CheckRegistered(void)
     unsigned short check[128];
     int i;
 
-#ifdef _WIN32
-    COM_FOpenFile("gfx\\pop.lmp", &f);
-#else
     COM_FOpenFile("gfx/pop.lmp", &f);
-#endif
     static_registered = 0;
 
     if (!f) {
