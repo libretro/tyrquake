@@ -330,10 +330,10 @@ Sbar_DrawString(int x, int y, const char *str)
 {
     if (cl.gametype == GAME_DEATHMATCH)
 	Draw_String(x /*+ ((vid.width - 320)>>1) */ ,
-		    y + vid.height - SBAR_HEIGHT, str);
+		    y + vid.height - SBAR_HEIGHT, (char*)str);
     else
 	Draw_String(x + ((vid.width - 320) >> 1),
-		    y + vid.height - SBAR_HEIGHT, str);
+		    y + vid.height - SBAR_HEIGHT, (char*)str);
 }
 
 /*
