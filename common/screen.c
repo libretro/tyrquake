@@ -1495,9 +1495,9 @@ SCR_Init(void)
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
 
 #ifdef NQ_HACK
-    scr_ram = Draw_PicFromWad("ram");
-    scr_net = Draw_PicFromWad("net");
-    scr_turtle = Draw_PicFromWad("turtle");
+    scr_ram = (qpic_t*)Draw_PicFromWad("ram");
+    scr_net = (qpic_t*)Draw_PicFromWad("net");
+    scr_turtle = (qpic_t*)Draw_PicFromWad("turtle");
 #endif
 #ifdef QW_HACK
     scr_ram = W_GetLumpName("ram");

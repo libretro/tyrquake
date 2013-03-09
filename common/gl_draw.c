@@ -208,8 +208,7 @@ static byte menuplyr_pixels[4096];
 static int pic_texels;
 static int pic_count;
 
-const qpic_t *
-Draw_PicFromWad(const char *name)
+const void *Draw_PicFromWad(const char *name)
 {
     const qpic_t *p;
     glpic_t *gl;
@@ -526,8 +525,8 @@ Draw_Init(void)
     //
     // get the other pics we need
     //
-    draw_disc = Draw_PicFromWad("disc");
-    draw_backtile = Draw_PicFromWad("backtile");
+    draw_disc = (qpic_t*)Draw_PicFromWad("disc");
+    draw_backtile = (qpic_t*)Draw_PicFromWad("backtile");
 }
 
 

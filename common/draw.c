@@ -67,8 +67,7 @@ static cachepic_t menu_cachepics[MAX_CACHED_PICS];
 static int menu_numcachepics;
 
 
-const qpic_t *
-Draw_PicFromWad(const char *name)
+const void *Draw_PicFromWad(const char *name)
 {
     return (const qpic_t*)W_GetLumpName(name);
 }
