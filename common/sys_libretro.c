@@ -72,8 +72,10 @@ qboolean isDedicated;
 #define BASEHEIGHT 448
 #endif
 
-#ifdef HW_DOL
+#if defined(HW_DOL)
 #define MEMSIZE_MB 8
+#elif defined(HW_RVL) || defined(_XBOX1)
+#define MEMSIZE_MB 16
 #else
 #define MEMSIZE_MB 32
 #endif
