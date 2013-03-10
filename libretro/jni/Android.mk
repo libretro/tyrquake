@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 
 APP_DIR := ../../src
 
-LOCAL_MODULE    := retro_tyrquake
+LOCAL_MODULE    := retro
 
 ifeq ($(TARGET_ARCH),arm)
 LOCAL_CFLAGS += -DANDROID_ARM
