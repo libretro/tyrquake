@@ -72,12 +72,14 @@ qboolean isDedicated;
 #define BASEHEIGHT 448
 #endif
 
+unsigned MEMSIZE_MB;
+
 #if defined(HW_DOL)
-#define MEMSIZE_MB 8
+#define DEFAULT_MEMSIZE_MB 8
 #elif defined(HW_RVL) || defined(_XBOX1)
-#define MEMSIZE_MB 16
+#define DEFAULT_MEMSIZE_MB 24
 #else
-#define MEMSIZE_MB 32
+#define DEFAULT_MEMSIZE_MB 32
 #endif
 
 #define SAMPLERATE 44100
@@ -447,10 +449,17 @@ bool retro_load_game(const struct retro_game_info *info)
 
    snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
 
+   MEMSIZE_MB = DEFAULT_MEMSIZE_MB;
+
    if (strstr(info->path, "hipnotic") || strstr(info->path, "rogue")
          || strstr(info->path, "HIPNOTIC")
          || strstr(info->path, "ROGUE"))
+   {
+#if defined(HW_RVL) || defined(_XBOX1)
+      MEMSIZE_MB = 16;
+#endif
       extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
+   }
 
    memset(&parms, 0, sizeof(parms));
 
