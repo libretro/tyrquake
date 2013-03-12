@@ -345,6 +345,37 @@ void Sys_SendKeyEvents(void)
 	Key_Event(K_COMMA, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L));
 	Key_Event(K_PERIOD, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R));
 	Key_Event(K_SLASH, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A));
+	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
+
+   int analog_left_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+         RETRO_DEVICE_ID_ANALOG_X);
+   int analog_left_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+         RETRO_DEVICE_ID_ANALOG_Y);
+   int analog_right_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+         RETRO_DEVICE_ID_ANALOG_X);
+   int analog_right_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+         RETRO_DEVICE_ID_ANALOG_Y);
+
+   if (analog_left_x > 0)
+      Key_Event(K_PERIOD, 1);
+
+   if (analog_left_x < 0)
+      Key_Event(K_COMMA, 1);
+
+   if (analog_left_y > 0)
+      Key_Event(K_DOWNARROW, 1);
+
+   if (analog_left_y < 0)
+      Key_Event(K_UPARROW, 1);
+
+   if (analog_right_x > 0)
+      Key_Event(K_RIGHTARROW, 1);
+
+   if (analog_right_x < 0)
+      Key_Event(K_LEFTARROW, 1);
+
+   Key_Event(K_DEL, analog_right_y > 0);
+   Key_Event(K_PGDN, analog_right_y < 0);
 
 	if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
    {
