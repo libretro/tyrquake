@@ -36,6 +36,13 @@ else ifeq ($(platform), osx)
    TARGET := $(CORE_NAME)_libretro.dylib
    fpic := -fPIC
    SHARED := -dynamiclib
+else ifeq ($(platform), ios)
+   TARGET := $(CORE_NAME)_libretro.dylib
+   fpic := -fPIC
+   SHARED := -dynamiclib
+
+   CC = clang -arch armv7 -isysroot $(IOSSDK)
+   CXX = clang++ -arch armv7 -isysroot $(IOSSDK)
 else ifeq ($(platform), ps3)
    TARGET := $(CORE_NAME)_libretro_ps3.a
    CC = $(CELL_SDK)/host-win32/ppu/bin/ppu-lv2-gcc.exe
