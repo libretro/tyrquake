@@ -88,25 +88,16 @@ W_LoadWadFile(const char *filename)
 	|| header->identification[3] != '2')
 	Sys_Error("Wad file %s doesn't have WAD2 id", filename);
 
-#ifdef MSB_FIRST
     wad_numlumps = LittleLong(header->numlumps);
     infotableofs = LittleLong(header->infotableofs);
-#else
-    wad_numlumps = header->numlumps;
-    infotableofs = header->infotableofs;
-#endif
     wad_lumps = (lumpinfo_t *)(wad_base + infotableofs);
 
     for (i = 0, lump_p = wad_lumps; i < wad_numlumps; i++, lump_p++) {
-#ifdef MSB_FIRST
 	lump_p->filepos = LittleLong(lump_p->filepos);
 	lump_p->size = LittleLong(lump_p->size);
-#endif
 	W_CleanupName(lump_p->name, lump_p->name);
-#ifdef MSB_FIRST
 	if (lump_p->type == TYP_QPIC)
 	    SwapPic((qpic_t *)(wad_base + lump_p->filepos));
-#endif
     }
 }
 

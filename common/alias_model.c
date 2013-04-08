@@ -93,11 +93,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
     int i, numframes;
     daliasframe_t *dframe;
 
-#ifdef MSB_FIRST
     numframes = LittleLong(in->numframes);
-#else
-    numframes = in->numframes;
-#endif
     frame->firstpose = posenum;
     frame->numposes = numframes;
 
@@ -138,11 +134,7 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
 
     pinskingroup = (daliasskingroup_t*)pin;
     pskindesc->firstframe = (int)((daliasskingroup_t*)skinnum);
-#ifdef MSB_FIRST
     pskindesc->numframes = LittleLong(pinskingroup->numskins);
-#else
-    pskindesc->numframes = pinskingroup->numskins;
-#endif
     pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
 
     for (i = 0; i < pskindesc->numframes; i++) {
@@ -192,11 +184,7 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
 
     skinnum = 0;
     for (i = 0; i < numskins; i++) {
-#ifdef MSB_FIRST
 	aliasskintype_t skintype = (aliasskintype_t)LittleLong(pskintype->type);
-#else
-	aliasskintype_t skintype = (aliasskintype_t)pskintype->type;
-#endif
 	if (skintype == ALIAS_SKIN_SINGLE) {
 	    pskindesc[i].firstframe = skinnum;
 	    pskindesc[i].numframes = 1;
@@ -268,11 +256,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 
     pinmodel = (mdl_t *)buffer;
 
-#ifdef MSB_FIRST
     version = LittleLong(pinmodel->version);
-#else
-    version = pinmodel->version;
-#endif
     if (version != ALIAS_VERSION)
 	Sys_Error("%s has wrong version number (%i should be %i)",
 		  mod->name, version, ALIAS_VERSION);
@@ -283,43 +267,25 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 //
     pad = loader->Aliashdr_Padding();
     size = pad + sizeof(aliashdr_t) +
-#ifdef MSB_FIRST
 	LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
-#else
-	pinmodel->numframes * sizeof(pheader->frames[0]);
-#endif
 
     container = (byte*)Hunk_AllocName(size, loadname);
     pheader = (aliashdr_t *)(container + pad);
 
-#ifdef MSB_FIRST
     mod->flags = LittleLong(pinmodel->flags);
-#else
-    mod->flags = pinmodel->flags;
-#endif
 
 //
 // endian-adjust and copy the data, starting with the alias model header
 //
-#ifdef MSB_FIRST
     pheader->numskins = LittleLong(pinmodel->numskins);
     pheader->skinwidth = LittleLong(pinmodel->skinwidth);
     pheader->skinheight = LittleLong(pinmodel->skinheight);
-#else
-    pheader->numskins = pinmodel->numskins;
-    pheader->skinwidth = pinmodel->skinwidth;
-    pheader->skinheight = pinmodel->skinheight;
-#endif
 
     if (pheader->skinheight > MAX_LBM_HEIGHT)
 	Sys_Error("model %s has a skin taller than %d", mod->name,
 		  MAX_LBM_HEIGHT);
 
-#ifdef MSB_FIRST
     pheader->numverts = LittleLong(pinmodel->numverts);
-#else
-    pheader->numverts = pinmodel->numverts;
-#endif
 
     if (pheader->numverts <= 0)
 	Sys_Error("model %s has no vertices", mod->name);
@@ -327,26 +293,14 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     if (pheader->numverts > MAXALIASVERTS)
 	Sys_Error("model %s has too many vertices", mod->name);
 
-#ifdef MSB_FIRST
     pheader->numtris = LittleLong(pinmodel->numtris);
-#else
-    pheader->numtris = pinmodel->numtris;
-#endif
 
     if (pheader->numtris <= 0)
 	Sys_Error("model %s has no triangles", mod->name);
 
-#ifdef MSB_FIRST
     pheader->numframes = LittleLong(pinmodel->numframes);
-#else
-    pheader->numframes = pinmodel->numframes;
-#endif
     pheader->size = LittleFloat(pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
-#ifdef MSB_FIRST
     mod->synctype = (synctype_t)LittleLong(pinmodel->synctype);
-#else
-    mod->synctype = (synctype_t)pinmodel->synctype;
-#endif
     mod->numframes = pheader->numframes;
 
     for (i = 0; i < 3; i++) {
@@ -366,15 +320,9 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 //
     pinstverts = (stvert_t *)pskintype;
     for (i = 0; i < pheader->numverts; i++) {
-#ifdef MSB_FIRST
 	stverts[i].onseam = LittleLong(pinstverts[i].onseam);
 	stverts[i].s = LittleLong(pinstverts[i].s);
 	stverts[i].t = LittleLong(pinstverts[i].t);
-#else
-	stverts[i].onseam = pinstverts[i].onseam;
-	stverts[i].s = pinstverts[i].s;
-	stverts[i].t = pinstverts[i].t;
-#endif
     }
 
 //
@@ -382,17 +330,9 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 //
     pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
     for (i = 0; i < pheader->numtris; i++) {
-#ifdef MSB_FIRST
 	triangles[i].facesfront = LittleLong(pintriangles[i].facesfront);
-#else
-	triangles[i].facesfront = pintriangles[i].facesfront;
-#endif
 	for (j = 0; j < 3; j++) {
-#ifdef MSB_FIRST
 	    triangles[i].vertindex[j] = LittleLong(pintriangles[i].vertindex[j]);
-#else
-	    triangles[i].vertindex[j] = pintriangles[i].vertindex[j];
-#endif
 	    if (triangles[i].vertindex[j] < 0 ||
 		triangles[i].vertindex[j] >= pheader->numverts)
 		Sys_Error("%s: invalid vertex index (%d of %d) in %s\n",
@@ -412,11 +352,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
     pframetype = (daliasframetype_t *)&pintriangles[pheader->numtris];
 
     for (i = 0; i < numframes; i++) {
-#ifdef MSB_FIRST
 	if (LittleLong(pframetype->type) == ALIAS_SINGLE) {
-#else
-	if (pframetype->type == ALIAS_SINGLE) {
-#endif
 	    frame = (daliasframe_t *)(pframetype + 1);
 	    Mod_LoadAliasFrame(frame, &pheader->frames[i]);
 	    pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];

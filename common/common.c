@@ -473,9 +473,7 @@ MSG_WriteFloat(sizebuf_t *sb, float f)
     } dat;
 
     dat.f = f;
-#ifdef MSB_FIRST
     dat.l = LittleLong(dat.l);
-#endif
 
     SZ_Write(sb, &dat.l, 4);
 }
@@ -714,9 +712,7 @@ MSG_ReadFloat(void)
     dat.b[3] = net_message.data[msg_readcount + 3];
     msg_readcount += 4;
 
-#ifdef MSB_FIRST
     dat.l = LittleLong(dat.l);
-#endif
 
     return dat.f;
 }
@@ -1853,10 +1849,8 @@ COM_LoadPackFile(const char *packfile)
     if (header.id[0] != 'P' || header.id[1] != 'A'
 	|| header.id[2] != 'C' || header.id[3] != 'K')
 	Sys_Error("%s is not a packfile", packfile);
-#ifdef MSB_FIRST
     header.dirofs = LittleLong(header.dirofs);
     header.dirlen = LittleLong(header.dirlen);
-#endif
 
     numpackfiles = header.dirlen / sizeof(dpackfile_t);
 
@@ -1890,13 +1884,8 @@ COM_LoadPackFile(const char *packfile)
 // parse the directory
     for (i = 0; i < numpackfiles; i++) {
 	strcpy(newfiles[i].name, info[i].name);
-#ifdef MSB_FIRST
 	newfiles[i].filepos = LittleLong(info[i].filepos);
 	newfiles[i].filelen = LittleLong(info[i].filelen);
-#else
-	newfiles[i].filepos = info[i].filepos;
-	newfiles[i].filelen = info[i].filelen;
-#endif
     }
 
 #ifdef NQ_HACK

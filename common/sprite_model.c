@@ -48,13 +48,8 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
 
     pinframe = (dspriteframe_t *)pin;
 
-#ifdef MSB_FIRST
     width = LittleLong(pinframe->width);
     height = LittleLong(pinframe->height);
-#else
-    width = pinframe->width;
-    height = pinframe->height;
-#endif
     numpixels = width * height;
     size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
 
@@ -64,13 +59,8 @@ Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
 
     pspriteframe->width = width;
     pspriteframe->height = height;
-#ifdef MSB_FIRST
     origin[0] = LittleLong(pinframe->origin[0]);
     origin[1] = LittleLong(pinframe->origin[1]);
-#else
-    origin[0] = pinframe->origin[0];
-    origin[1] = pinframe->origin[1];
-#endif
 
     pspriteframe->up = origin[1];
     pspriteframe->down = origin[1] - height;
@@ -101,11 +91,7 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
     void *ptemp;
 
     pingroup = (dspritegroup_t *)pin;
-#ifdef MSB_FIRST
     numframes = LittleLong(pingroup->numframes);
-#else
-    numframes = pingroup->numframes;
-#endif
 
     pspritegroup = (mspritegroup_t*)Hunk_AllocName(sizeof(*pspritegroup) +
 				  numframes * sizeof(pspritegroup->frames[0]),
@@ -118,11 +104,7 @@ Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
     pspritegroup->intervals = poutintervals;
 
     for (i = 0; i < numframes; i++) {
-#ifdef MSB_FIRST
 	*poutintervals = LittleFloat(pin_intervals->interval);
-#else
-	*poutintervals = pin_intervals->interval;
-#endif
 	if (*poutintervals <= 0.0)
 	    Sys_Error("%s: interval <= 0", __func__);
 
@@ -159,37 +141,21 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
 
     pin = (dsprite_t *)buffer;
 
-#ifdef MSB_FIRST
     version = LittleLong(pin->version);
-#else
-    version = pin->version;
-#endif
     if (version != SPRITE_VERSION)
 	Sys_Error("%s: %s has wrong version number (%i should be %i)",
 		  __func__, mod->name, version, SPRITE_VERSION);
 
-#ifdef MSB_FIRST
     numframes = LittleLong(pin->numframes);
-#else
-    numframes = pin->numframes;
-#endif
     size = sizeof(*psprite) + numframes * sizeof(psprite->frames[0]);
     psprite = (msprite_t*)Hunk_AllocName(size, loadname);
     mod->cache.data = psprite;
 
-#ifdef MSB_FIRST
     psprite->type = LittleLong(pin->type);
     psprite->maxwidth = LittleLong(pin->width);
     psprite->maxheight = LittleLong(pin->height);
     psprite->beamlength = LittleFloat(pin->beamlength);
     mod->synctype = (synctype_t)LittleLong(pin->synctype);
-#else
-    psprite->type = pin->type;
-    psprite->maxwidth = pin->width;
-    psprite->maxheight = pin->height;
-    psprite->beamlength = pin->beamlength;
-    mod->synctype = (synctype_t)pin->synctype;
-#endif
     psprite->numframes = numframes;
 
     mod->mins[0] = mod->mins[1] = -psprite->maxwidth / 2;
@@ -211,11 +177,7 @@ Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
     for (i = 0; i < numframes; i++) {
 	spriteframetype_t frametype;
 
-#ifdef MSB_FIRST
 	frametype = (spriteframetype_t)LittleLong(pframetype->type);
-#else
-	frametype = (spriteframetype_t)pframetype->type;
-#endif
 	psprite->frames[i].type = frametype;
 
 	if (frametype == SPR_SINGLE) {

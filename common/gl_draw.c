@@ -276,9 +276,7 @@ Draw_CachePic(const char *path)
     dat = COM_LoadTempFile(path);
     if (!dat)
 	Sys_Error("%s: failed to load %s", __func__, path);
-#ifdef MSB_FIRST
     SwapPic(dat);
-#endif
 
     // HACK HACK HACK --- we need to keep the bytes for
     // the translatable player picture just for the menu

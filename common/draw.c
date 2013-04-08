@@ -110,9 +110,7 @@ Draw_CachePic(const char *path)
 	Sys_Error("%s: failed to load %s", __func__, path);
     }
 
-#ifdef MSB_FIRST
     SwapPic(dat);
-#endif
 
     return dat;
 }
