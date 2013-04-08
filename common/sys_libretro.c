@@ -69,7 +69,7 @@ qboolean isDedicated;
 #define BASEHEIGHT 200
 #else /* for PC */
 #define BASEWIDTH 640
-#define BASEHEIGHT 448
+#define BASEHEIGHT 480
 #endif
 
 unsigned MEMSIZE_MB;
