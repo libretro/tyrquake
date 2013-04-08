@@ -1267,11 +1267,9 @@ Mod_LoadNodes_BSP2(lump_t *l)
 	out->plane = loadmodel->planes + p;
 
 #ifdef MSB_FIRST
+#else
 	out->firstsurface = (uint32_t)LittleLong(in->firstface);
 	out->numsurfaces = (uint32_t)LittleLong(in->numfaces);
-#else
-	out->firstsurface = (uint32_t)in->firstface;
-	out->numsurfaces = (uint32_t)in->numfaces;
 #endif
 
 	for (j = 0; j < 2; j++) {
