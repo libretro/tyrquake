@@ -443,7 +443,11 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 // call the apropriate loader
     mod->needload = false;
 
+#ifdef MSB_FIRST
     switch (LittleLong(*(unsigned *)buf)) {
+#else
+    switch (*(unsigned *)buf) {
+#endif
 #ifndef SERVERONLY
     case IDPOLYHEADER:
 	Mod_LoadAliasModel(mod_loader, mod, buf, loadmodel, loadname);
@@ -511,20 +515,26 @@ Mod_LoadTextures(lump_t *l)
     }
     m = (dmiptexlump_t *)(mod_base + l->fileofs);
 
+#ifdef MSB_FIRST
     m->nummiptex = LittleLong(m->nummiptex);
+#endif
 
     loadmodel->numtextures = m->nummiptex;
     loadmodel->textures = (texture_t**)Hunk_AllocName(m->nummiptex * sizeof(*loadmodel->textures), loadname);
 
     for (i = 0; i < m->nummiptex; i++) {
+#ifdef MSB_FIRST
 	m->dataofs[i] = LittleLong(m->dataofs[i]);
+#endif
 	if (m->dataofs[i] == -1)
 	    continue;
 	mt = (miptex_t *)((byte *)m + m->dataofs[i]);
+#ifdef MSB_FIRST
 	mt->width = (uint32_t)LittleLong(mt->width);
 	mt->height = (uint32_t)LittleLong(mt->height);
 	for (j = 0; j < MIPLEVELS; j++)
 	    mt->offsets[j] = (uint32_t)LittleLong(mt->offsets[j]);
+#endif
 
 	if ((mt->width & 15) || (mt->height & 15))
 	    SV_Error("Texture %s is not 16 aligned", mt->name);
@@ -710,9 +720,15 @@ Mod_LoadVertexes(lump_t *l)
     loadmodel->numvertexes = count;
 
     for (i = 0; i < count; i++, in++, out++) {
+#ifdef MSB_FIRST
 	out->position[0] = LittleFloat(in->point[0]);
 	out->position[1] = LittleFloat(in->point[1]);
 	out->position[2] = LittleFloat(in->point[2]);
+#else
+	out->position[0] = in->point[0];
+	out->position[1] = in->point[1];
+	out->position[2] = in->point[2];
+#endif
     }
 }
 
@@ -739,15 +755,33 @@ Mod_LoadSubmodels(lump_t *l)
 
     for (i = 0; i < count; i++, in++, out++) {
 	for (j = 0; j < 3; j++) {	// spread the mins / maxs by a pixel
+#ifdef MSB_FIRST
 	    out->mins[j] = LittleFloat(in->mins[j]) - 1;
 	    out->maxs[j] = LittleFloat(in->maxs[j]) + 1;
 	    out->origin[j] = LittleFloat(in->origin[j]);
+#else
+	    out->mins[j] = in->mins[j] - 1;
+	    out->maxs[j] = in->maxs[j] + 1;
+	    out->origin[j] = in->origin[j];
+#endif
 	}
 	for (j = 0; j < MAX_MAP_HULLS; j++)
+   {
+#ifdef MSB_FIRST
 	    out->headnode[j] = LittleLong(in->headnode[j]);
+#else
+	    out->headnode[j] = in->headnode[j];
+#endif
+   }
+#ifdef MSB_FIRST
 	out->visleafs = LittleLong(in->visleafs);
 	out->firstface = LittleLong(in->firstface);
 	out->numfaces = LittleLong(in->numfaces);
+#else
+	out->visleafs = in->visleafs;
+	out->firstface = in->firstface;
+	out->numfaces = in->numfaces;
+#endif
     }
 }
 
@@ -774,8 +808,13 @@ Mod_LoadEdges_BSP29(lump_t *l)
     loadmodel->numedges = count;
 
     for (i = 0; i < count; i++, in++, out++) {
+#ifdef MSB_FIRST
 	out->v[0] = (uint16_t)LittleShort(in->v[0]);
 	out->v[1] = (uint16_t)LittleShort(in->v[1]);
+#else
+	out->v[0] = (uint16_t)in->v[0];
+	out->v[1] = (uint16_t)in->v[1];
+#endif
     }
 }
 
@@ -796,8 +835,13 @@ Mod_LoadEdges_BSP2(lump_t *l)
     loadmodel->numedges = count;
 
     for (i = 0; i < count; i++, in++, out++) {
+#ifdef MSB_FIRST
 	out->v[0] = (uint32_t)LittleLong(in->v[0]);
 	out->v[1] = (uint32_t)LittleLong(in->v[1]);
+#else
+	out->v[0] = (uint32_t)in->v[0];
+	out->v[1] = (uint32_t)in->v[1];
+#endif
     }
 }
 
@@ -826,8 +870,13 @@ Mod_LoadTexinfo(lump_t *l)
 
     for (i = 0; i < count; i++, in++, out++) {
 	for (j = 0; j < 4; j++) {
+#ifdef MSB_FIRST
 	    out->vecs[0][j] = LittleFloat(in->vecs[0][j]);
 	    out->vecs[1][j] = LittleFloat(in->vecs[1][j]);
+#else
+	    out->vecs[0][j] = in->vecs[0][j];
+	    out->vecs[1][j] = in->vecs[1][j];
+#endif
 	}
 	len1 = Length(out->vecs[0]);
 	len2 = Length(out->vecs[1]);
@@ -841,8 +890,13 @@ Mod_LoadTexinfo(lump_t *l)
 	else
 	    out->mipadjust = 1;
 
+#ifdef MSB_FIRST
 	miptex = LittleLong(in->miptex);
 	out->flags = LittleLong(in->flags);
+#else
+	miptex = in->miptex;
+	out->flags = in->flags;
+#endif
 
 	if (!loadmodel->textures) {
 #ifndef SERVERONLY
@@ -970,8 +1024,13 @@ Mod_LoadFaces_BSP29(lump_t *l)
     loadmodel->numsurfaces = count;
 
     for (surfnum = 0; surfnum < count; surfnum++, in++, out++) {
+#ifdef MSB_FIRST
 	out->firstedge = LittleLong(in->firstedge);
 	out->numedges = LittleShort(in->numedges);
+#else
+	out->firstedge = in->firstedge;
+	out->numedges = in->numedges;
+#endif
 	out->flags = 0;
 
 	/* FIXME - Also check numedges doesn't overflow edges */
@@ -979,13 +1038,22 @@ Mod_LoadFaces_BSP29(lump_t *l)
 	    SV_Error("%s: bmodel %s has surface with no edges", __func__,
 		     loadmodel->name);
 
+#ifdef MSB_FIRST
 	planenum = LittleShort(in->planenum);
 	side = LittleShort(in->side);
+#else
+	planenum = in->planenum;
+	side = in->side;
+#endif
 	if (side)
 	    out->flags |= SURF_PLANEBACK;
 
 	out->plane = loadmodel->planes + planenum;
+#ifdef MSB_FIRST
 	out->texinfo = loadmodel->texinfo + LittleShort(in->texinfo);
+#else
+	out->texinfo = loadmodel->texinfo + in->texinfo;
+#endif
 
 	CalcSurfaceExtents(out);
 	CalcSurfaceBounds(out);
@@ -994,7 +1062,11 @@ Mod_LoadFaces_BSP29(lump_t *l)
 
 	for (i = 0; i < MAXLIGHTMAPS; i++)
 	    out->styles[i] = in->styles[i];
+#ifdef MSB_FIRST
 	i = LittleLong(in->lightofs);
+#else
+	i = in->lightofs;
+#endif
 	if (i == -1)
 	    out->samples = NULL;
 	else
@@ -1120,18 +1192,36 @@ Mod_LoadNodes_BSP29(lump_t *l)
 
     for (i = 0; i < count; i++, in++, out++) {
 	for (j = 0; j < 3; j++) {
+#ifdef MSB_FIRST
 	    out->mins[j] = LittleShort(in->mins[j]);
 	    out->maxs[j] = LittleShort(in->maxs[j]);
+#else
+	    out->mins[j] = in->mins[j];
+	    out->maxs[j] = in->maxs[j];
+#endif
 	}
 
+#ifdef MSB_FIRST
 	p = LittleLong(in->planenum);
+#else
+	p = in->planenum;
+#endif
 	out->plane = loadmodel->planes + p;
 
+#ifdef MSB_FIRST
 	out->firstsurface = (uint16_t)LittleShort(in->firstface);
 	out->numsurfaces = (uint16_t)LittleShort(in->numfaces);
+#else
+	out->firstsurface = (uint16_t)in->firstface;
+	out->numsurfaces = (uint16_t)in->numfaces;
+#endif
 
 	for (j = 0; j < 2; j++) {
+#ifdef MSB_FIRST
 	    p = LittleShort(in->children[j]);
+#else
+	    p = in->children[j];
+#endif
 	    if (p >= 0)
 		out->children[j] = loadmodel->nodes + p;
 	    else
@@ -1160,18 +1250,34 @@ Mod_LoadNodes_BSP2(lump_t *l)
 
     for (i = 0; i < count; i++, in++, out++) {
 	for (j = 0; j < 3; j++) {
+#ifdef MSB_FIRST
 	    out->mins[j] = LittleShort(in->mins[j]);
 	    out->maxs[j] = LittleShort(in->maxs[j]);
+#else
+	    out->mins[j] = in->mins[j];
+	    out->maxs[j] = in->maxs[j];
+#endif
 	}
 
+#ifdef MSB_FIRST
 	p = LittleLong(in->planenum);
+#else
+	p = in->planenum;
+#endif
 	out->plane = loadmodel->planes + p;
 
+#ifdef MSB_FIRST
+#else
 	out->firstsurface = (uint32_t)LittleLong(in->firstface);
 	out->numsurfaces = (uint32_t)LittleLong(in->numfaces);
+#endif
 
 	for (j = 0; j < 2; j++) {
+#ifdef MSB_FIRST
 	    p = LittleLong(in->children[j]);
+#else
+	    p = in->children[j];
+#endif
 	    if (p >= 0)
 		out->children[j] = loadmodel->nodes + p;
 	    else
@@ -1206,16 +1312,31 @@ Mod_LoadLeafs_BSP29(lump_t *l)
 
     for (i = 0; i < count; i++, in++, out++) {
 	for (j = 0; j < 3; j++) {
+#ifdef MSB_FIRST
 	    out->mins[j] = LittleShort(in->mins[j]);
 	    out->maxs[j] = LittleShort(in->maxs[j]);
+#else
+	    out->mins[j] = in->mins[j];
+	    out->maxs[j] = in->maxs[j];
+#endif
 	}
 
+#ifdef MSB_FIRST
 	p = LittleLong(in->contents);
+#else
+	p = in->contents;
+#endif
 	out->contents = p;
 
+#ifdef MSB_FIRST
 	out->firstmarksurface = loadmodel->marksurfaces +
 	    (uint16_t)LittleShort(in->firstmarksurface);
 	out->nummarksurfaces = (uint16_t)LittleShort(in->nummarksurfaces);
+#else
+	out->firstmarksurface = loadmodel->marksurfaces +
+	    (uint16_t)in->firstmarksurface;
+	out->nummarksurfaces = (uint16_t)in->nummarksurfaces;
+#endif
 
 	p = LittleLong(in->visofs);
 	if (p == -1)
@@ -1271,8 +1392,13 @@ Mod_LoadLeafs_BSP2(lump_t *l)
 
     for (i = 0; i < count; i++, in++, out++) {
 	for (j = 0; j < 3; j++) {
+#ifdef MSB_FIRST
 	    out->mins[j] = LittleShort(in->mins[j]);
 	    out->maxs[j] = LittleShort(in->maxs[j]);
+#else
+	    out->mins[j] = in->mins[j];
+	    out->maxs[j] = in->maxs[j];
+#endif
 	}
 
 	p = LittleLong(in->contents);
@@ -1368,7 +1494,11 @@ Mod_LoadClipnodes_BSP29(lump_t *l)
     for (i = 0; i < count; i++, out++, in++) {
 	out->planenum = LittleLong(in->planenum);
 	for (j = 0; j < 2; j++) {
+#ifdef MSB_FIRST
 	    out->children[j] = (uint16_t)LittleShort(in->children[j]);
+#else
+	    out->children[j] = (uint16_t)in->children[j];
+#endif
 	    if (out->children[j] > 0xfff0)
 		out->children[j] -= 0x10000;
 	    if (out->children[j] >= count)
@@ -1489,7 +1619,11 @@ Mod_LoadMarksurfaces_BSP29(lump_t *l)
     loadmodel->nummarksurfaces = count;
 
     for (i = 0; i < count; i++) {
+#ifdef MSB_FIRST
 	j = (uint16_t)LittleShort(in[i]);
+#else
+	j = (uint16_t)in[i];
+#endif
 	if (j >= loadmodel->numsurfaces)
 	    SV_Error("%s: bad surface number", __func__);
 	out[i] = loadmodel->surfaces + j;
@@ -1570,12 +1704,20 @@ Mod_LoadPlanes(lump_t *l)
     for (i = 0; i < count; i++, in++, out++) {
 	bits = 0;
 	for (j = 0; j < 3; j++) {
+#ifdef MSB_FIRST
 	    out->normal[j] = LittleFloat(in->normal[j]);
+#else
+	    out->normal[j] = in->normal[j];
+#endif
 	    if (out->normal[j] < 0)
 		bits |= 1 << j;
 	}
 
+#ifdef MSB_FIRST
 	out->dist = LittleFloat(in->dist);
+#else
+	out->dist = in->dist;
+#endif
 	out->type = LittleLong(in->type);
 	out->signbits = bits;
     }

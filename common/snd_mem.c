@@ -84,7 +84,11 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
 	    srcsample = samplefrac >> 8;
 	    samplefrac += fracstep;
 	    if (inwidth == 2)
+#ifdef MSB_FIRST
 		sample = LittleShort(((const short *)data)[srcsample]);
+#else
+		sample = ((const short *)data)[srcsample];
+#endif
 	    else
 		sample = (int)((unsigned char)(data[srcsample]) - 128) << 8;
 	    if (sc->width == 2)

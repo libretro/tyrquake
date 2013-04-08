@@ -1077,7 +1077,9 @@ PR_LoadProgs(void)
 
 // byte swap the header
     for (i = 0; i < sizeof(*progs) / 4; i++)
+#ifdef MSB_FIRST
 	((int *)progs)[i] = LittleLong(((int *)progs)[i]);
+#endif
 
     if (progs->version != PROG_VERSION)
 	SV_Error("progs.dat has wrong version number (%i should be %i)",
@@ -1113,6 +1115,7 @@ PR_LoadProgs(void)
     pr_edict_size =
 	progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
 
+#ifdef MSB_FIRST
 // byte swap the lumps
     for (i = 0; i < progs->numstatements; i++) {
 	pr_statements[i].op = LittleShort(pr_statements[i].op);
@@ -1147,6 +1150,7 @@ PR_LoadProgs(void)
 
     for (i = 0; i < progs->numglobals; i++)
 	((int *)pr_globals)[i] = LittleLong(((int *)pr_globals)[i]);
+#endif
 
 #if defined(QW_HACK) && defined(SERVERONLY)
     // Zoid, find the spectator functions

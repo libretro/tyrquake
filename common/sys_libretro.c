@@ -632,7 +632,11 @@ void VID_Init(unsigned char *palette)
     vid.conheight = vid.height;
     vid.numpages = 1;
     vid.colormap = host_colormap;
+#ifdef MSB_FIRST
     vid.fullbright = 256 - LittleLong(*((int *)vid.colormap + 2048));
+#else
+    vid.fullbright = 256 - *((int *)vid.colormap + 2048);
+#endif
     vid.buffer = vid.conbuffer = vid_buffer;
     vid.rowbytes = BASEWIDTH;
     vid.conrowbytes = vid.rowbytes;
