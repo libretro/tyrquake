@@ -499,17 +499,21 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
 
 // TODO: collect 386-specific code in one place
 #ifdef USE_X86_ASM
+#if 0
     if (r_pixbytes == 1) {
+#endif
 	Sys_MakeCodeWriteable((long)R_Surf8Start,
 			      (long)R_Surf8End - (long)R_Surf8Start);
 	colormap = vid.colormap;
 	R_Surf8Patch();
+#if 0
     } else {
 	Sys_MakeCodeWriteable((long)R_Surf16Start,
 			      (long)R_Surf16End - (long)R_Surf16Start);
 	colormap = vid.colormap16;
 	R_Surf16Patch();
     }
+#endif
 #endif
 
     D_ViewChanged();
