@@ -104,6 +104,15 @@ unsigned char *heap;
 
 void Sys_Printf(const char *fmt, ...)
 {
+#ifdef _XBOX1
+   char msg_new[1024], buffer[1024];
+   snprintf(msg_new, sizeof(msg_new), "TyrQuake: %s", fmt);
+   va_list ap;
+   va_start(ap, fmt);
+   wvsprintf(buffer, msg_new, ap);
+   OutputDebugStringA(buffer);
+   va_end(ap);
+#else
    va_list argptr;
    char text[MAX_PRINTMSG];
    unsigned char *p;
@@ -121,6 +130,7 @@ void Sys_Printf(const char *fmt, ...)
       else
          putc(*p, stdout);
    }
+#endif
 }
 
 void Sys_Quit(void)
