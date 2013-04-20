@@ -101,9 +101,13 @@ unsigned char *heap;
 // General routines
 // =======================================================================
 //
+#ifdef _XBOX1
+#define DEBUG_SYS_PRINTF
+#endif
 
 void Sys_Printf(const char *fmt, ...)
 {
+#ifdef DEBUG_SYS_PRINTF
 #ifdef _XBOX1
    char msg_new[1024], buffer[1024];
    snprintf(msg_new, sizeof(msg_new), "TyrQuake: %s", fmt);
@@ -130,6 +134,7 @@ void Sys_Printf(const char *fmt, ...)
       else
          putc(*p, stdout);
    }
+#endif
 #endif
 }
 
