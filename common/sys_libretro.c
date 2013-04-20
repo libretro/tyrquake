@@ -61,8 +61,11 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
-#if defined(__CELLOS_LV2__) || defined(_XBOX360)
+#if defined(__CELLOS_LV2__)
 #define BASEWIDTH 400
+#define BASEHEIGHT 224
+#elif defined(_XBOX360)
+#define BASEWIDTH 512
 #define BASEHEIGHT 224
 #elif defined(ANDROID)|| defined(__QNX__) || defined(GEKKO) || defined(_XBOX1) || defined(IOS)
 #define BASEWIDTH 320
