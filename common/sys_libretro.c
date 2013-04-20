@@ -419,7 +419,7 @@ void retro_run(void)
 #ifdef NQ_HACK
    if (cls.state == ca_dedicated) {
       if (_time < sys_ticrate.value) {
-         Sys_Sleep();
+         //Sys_Sleep();
          //TODO - do something proper for this instead of just 'returning'
          //continue;	// not time to run a server only tic yet
          return;
@@ -444,7 +444,7 @@ void retro_run(void)
    }
 
    video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
-   float samples_per_frame = 2 * SAMPLERATE / framerate.value;
+   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)
       read_end = AUDIO_BUFFER_SAMPLES;

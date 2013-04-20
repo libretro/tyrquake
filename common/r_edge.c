@@ -652,9 +652,11 @@ R_ScanEdges(void)
 	// FIXME - which is correct QW had >, NQ had >= (and QF has >)
 	//if (span_p >= max_span_p) {
 	if (span_p > max_span_p) {
+#if 0
 	    VID_UnlockBuffer();
 	    S_ExtraUpdate();	// don't let sound get messed up if going slow
 	    VID_LockBuffer();
+#endif
 
 	    D_DrawSurfaces();
 
