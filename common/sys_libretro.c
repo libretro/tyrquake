@@ -350,6 +350,7 @@ void Sys_SendKeyEvents(void)
 	Key_Event(K_SLASH, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A));
 	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
 
+#if !defined(_XBOX) || defined(__CELLOS_LV2__) || defined(GEKKO)
    int analog_left_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
          RETRO_DEVICE_ID_ANALOG_X);
    int analog_left_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
@@ -379,6 +380,7 @@ void Sys_SendKeyEvents(void)
 
    Key_Event(K_DEL, analog_right_y > 0);
    Key_Event(K_PGDN, analog_right_y < 0);
+#endif
 
 	if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
    {
