@@ -722,14 +722,14 @@ _Host_Frame(float time)
 	CL_ReadFromServer();
 
     /* update video */
-    if (host_speeds.value)
-	time1 = Sys_DoubleTime();
+    //if (host_speeds.value)
+	//time1 = Sys_DoubleTime();
 
     SCR_UpdateScreen();
     CL_RunParticles();
 
-    if (host_speeds.value)
-	time2 = Sys_DoubleTime();
+    //if (host_speeds.value)
+	//time2 = Sys_DoubleTime();
 
     /* update audio */
     if (cls.state == ca_active) {
@@ -740,6 +740,7 @@ _Host_Frame(float time)
 
     CDAudio_Update();
 
+#if 0
     if (host_speeds.value) {
 	pass1 = (time1 - time3) * 1000;
 	time3 = Sys_DoubleTime();
@@ -748,6 +749,7 @@ _Host_Frame(float time)
 	Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
 		   pass1 + pass2 + pass3, pass1, pass2, pass3);
     }
+#endif
 
     host_framecount++;
     fps_count++;

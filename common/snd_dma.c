@@ -765,12 +765,14 @@ GetSoundtime(void)
 void
 S_ExtraUpdate(void)
 {
+#if 0
 #ifdef _WIN32
     IN_Accumulate();
 #endif
     if (snd_noextraupdate.value)
 	return;			/* don't pollute timings */
     S_Update_();
+#endif
 }
 
 
