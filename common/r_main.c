@@ -316,12 +316,14 @@ R_NewMap(void)
     if (r_numallocatededges < MINEDGES)
 	r_numallocatededges = MINEDGES;
 
+#if 0
     if (r_numallocatededges <= NUMSTACKEDGES) {
 	auxedges = NULL;
     } else {
 	auxedges = (edge_t*)Hunk_AllocName(r_numallocatededges * sizeof(edge_t),
 				  "edges");
     }
+#endif
 
     r_dowarpold = false;
     r_viewchanged = false;
@@ -1044,11 +1046,12 @@ static void R_EdgeDrawing(void)
     edge_t ledges[CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t)];
     surf_t lsurfs[CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t)];
 
+#if 0
     if (auxedges) {
 	r_edges = auxedges;
-    } else {
+    } else
+#endif
 	r_edges = CACHE_ALIGN_PTR(ledges);
-    }
 
     if (r_surfsonstack) {
 	surfaces = CACHE_ALIGN_PTR(lsurfs);
