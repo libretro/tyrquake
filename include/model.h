@@ -516,7 +516,15 @@ mleaf_t *Mod_PointInLeaf(const model_t *model, const vec3_t point);
 const leafbits_t *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
 const leafbits_t *Mod_FatPVS(const model_t *model, const vec3_t point);
 
+#ifdef _WIN32
+static inline int __ERRORLONGSIZE(void)
+{
+   fprintf(stderr, "Error occurred.\n");
+   return 0;
+}
+#else
 int __ERRORLONGSIZE(void); /* to generate an error at link time */
+#endif
 #define QBYTESHIFT(x) ((x) == 8 ? 6 : ((x) == 4 ? 5 : __ERRORLONGSIZE() ))
 #define LEAFSHIFT QBYTESHIFT(sizeof(leafblock_t))
 #define LEAFMASK  ((sizeof(leafblock_t) << 3) - 1UL)
