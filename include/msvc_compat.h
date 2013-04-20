@@ -38,7 +38,12 @@ typedef int ssize_t;
 #define strcasecmp _stricmp
 #undef strncasecmp
 #define strncasecmp _strnicmp
+
+#ifdef _XBOX1
+#include "msvc_typeof.h"
+#else
 #define typeof decltype
+#endif
 
 #ifdef _XBOX1
 #define vsnprintf _vsnprintf

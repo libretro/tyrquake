@@ -34,6 +34,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cvar.h"
 #include "mathlib.h"
 
+#ifdef _XBOX1
+#include "msvc_compat.h"
+#endif
+
 #ifdef _WIN32
 #define __func__ __FUNCTION__
 #endif

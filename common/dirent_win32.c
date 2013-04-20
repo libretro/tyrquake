@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <io.h> /* _findfirst and _findnext set errno iff they return -1 */
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 
 #ifdef __cplusplus
