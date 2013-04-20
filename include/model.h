@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_XBOX1)
+#if defined(_XBOX)
 static inline int ffsl (long bits)
 {
 	unsigned long int shift;
@@ -57,17 +57,6 @@ static inline int ffsl (long bits)
 static inline int ffs (int x)
 {
    return ffsl(x);
-}
-#elif defined(_XBOX360)
-#include <ppcintrinsics.h>
-static __forceinline int ffsl(long x)
-{
-   return _CountLeadingZeros(x);
-}
-
-static __forceinline int ffs(int x)
-{
-	return _CountLeadingZeros(x);
 }
 #elif defined(_MSC_VER)
 #include <intrin.h>
