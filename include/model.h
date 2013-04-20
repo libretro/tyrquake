@@ -24,8 +24,41 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
-/* Use the GCC builtin ffsl function */
-#if defined(_XBOX360)
+#if defined(_XBOX1)
+static inline int ffsl (long bits)
+{
+	unsigned long int shift;
+	unsigned long int ind = (bits & -bits);
+	
+	static const unsigned char lookup[] = {
+		0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+		6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+		6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+		7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+		7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+		7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+		7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+		8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+	};
+	
+	shift = (ind > 0xffff) ? (ind > 0xffffff ? 24 : 16)
+				 : (ind > 0xff ? 8 : 0);
+	return lookup[ind >> shift] + shift;
+}
+
+static inline int ffs (int x)
+{
+   return ffsl(x);
+}
+#elif defined(_XBOX360)
 #include <ppcintrinsics.h>
 static __forceinline int ffsl(long x)
 {
@@ -36,7 +69,6 @@ static __forceinline int ffs(int x)
 {
 	return _CountLeadingZeros(x);
 }
-
 #elif defined(_MSC_VER)
 #include <intrin.h>
 #pragma intrinsic(_BitScanForward)
@@ -54,6 +86,7 @@ static __forceinline int ffs(int x)
 	return ffsl(x);
 }
 #else
+/* Use the GCC builtin ffsl function */
 #ifndef ffsl
 #define ffsl __builtin_ffsl
 #endif
