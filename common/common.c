@@ -20,7 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include <ctype.h>
-#ifndef _WIN32
+#ifdef _WIN32
+#include "dirent_win32.h"
+#else
 #include <dirent.h>
 #endif
 #include <stdarg.h>
@@ -1571,13 +1573,6 @@ COM_FOpenFile(const char *filename, FILE **file)
     return -1;
 }
 
-#ifdef _WIN32
-static void COM_ScanDirDir(struct stree_root *root, const char *dir_name, const char *pfx,
-	       const char *ext, qboolean stripext)
-{
-   /* TODO - stub */
-}
-#else
 static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	       const char *ext, qboolean stripext)
 {
@@ -1594,7 +1589,7 @@ static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	    int len = strlen(d->d_name);
 	    if (ext && stripext)
 		len -= ext_len;
-	    fname = Z_Malloc(len + 1);
+	    fname = (char*)Z_Malloc(len + 1);
 	    if (fname) {
 		strncpy(fname, d->d_name, len);
 		fname[len] = '\0';
@@ -1604,7 +1599,6 @@ static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
 	}
     }
 }
-#endif
 
 static void
 COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
@@ -1667,9 +1661,7 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 {
     searchpath_t *search;
     char fullpath[MAX_OSPATH];
-#ifndef _WIN32
     DIR *dir;
-#endif
 
     for (search = com_searchpaths; search; search = search->next) {
 	if (search->pack) {
@@ -1677,15 +1669,11 @@ COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 	} else {
 	    snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
 	    fullpath[MAX_OSPATH - 1] = '\0';
-#ifdef _WIN32
-        COM_ScanDirDir(root, fullpath, pfx, ext, stripext);
-#else
 	    dir = opendir(fullpath);
 	    if (dir) {
 		COM_ScanDirDir(root, dir, pfx, ext, stripext);
 		closedir(dir);
 	    }
-#endif
 	}
     }
 }

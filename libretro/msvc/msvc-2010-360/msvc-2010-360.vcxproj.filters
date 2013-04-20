@@ -230,5 +230,8 @@
     <ClCompile Include="..\..\..\NQ\net_none.c">
       <Filter>Source Files\NQ</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\common\dirent_win32.c">
+      <Filter>Source Files\common</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

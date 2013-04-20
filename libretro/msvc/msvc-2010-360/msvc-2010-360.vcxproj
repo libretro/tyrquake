@@ -83,6 +83,7 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|Xbox 360'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release_LTCG|Xbox 360'">CompileAsCpp</CompileAs>
     </ClCompile>
+    <ClCompile Include="..\..\..\common\dirent_win32.c" />
     <ClCompile Include="..\..\..\common\draw.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='CodeAnalysis|Xbox 360'">CompileAsCpp</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Xbox 360'">CompileAsCpp</CompileAs>
@@ -670,7 +671,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <PreprocessorDefinitions>_DEBUG;_XBOX;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_XBOX;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__;MSB_FIRST</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
       <AdditionalIncludeDirectories>../../../include;../../../NQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -690,7 +691,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <PreprocessorDefinitions>_DEBUG;_XBOX;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_XBOX;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__;MSB_FIRST</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
       <AdditionalIncludeDirectories>../../../include;../../../NQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -711,7 +712,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>NDEBUG;_XBOX;PROFILE;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_XBOX;PROFILE;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__;MSB_FIRST</PreprocessorDefinitions>
       <CallAttributedProfiling>Callcap</CallAttributedProfiling>
       <AdditionalIncludeDirectories>../../../include;../../../NQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -736,7 +737,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>NDEBUG;_XBOX;PROFILE;FASTCAP;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_XBOX;PROFILE;FASTCAP;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__;MSB_FIRST</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../../../include;../../../NQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -758,7 +759,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>NDEBUG;_XBOX;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_XBOX;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__;MSB_FIRST</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../../../include;../../../NQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -780,7 +781,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderOutputFile>$(OutDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <PreprocessorDefinitions>NDEBUG;_XBOX;LTCG;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_XBOX;LTCG;_LIB;%(PreprocessorDefinitions);INLINE=_inline;QBASEDIR=.;TYR_VERSION=0.62;ELF;NQ_HACK;_XBOX360;__LIBRETRO__;MSB_FIRST</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../../../include;../../../NQ;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
