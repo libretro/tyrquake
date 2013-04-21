@@ -281,6 +281,7 @@ int dither_kernel[2][2][2] =
        iditht = iditht ? ((iditht) - 1) : iditht
 #endif
 
+#if 0
 /*
 =============
 D_DrawSpans8
@@ -425,6 +426,7 @@ D_DrawSpans8(espan_t *pspan)
 
     } while ((pspan = pspan->pnext) != NULL);
 }
+#endif
 
 /*
 =============
