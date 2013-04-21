@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_XBOX)
+#if defined(_WIN32)
 static inline int ffsl (long bits)
 {
 	unsigned long int shift;
@@ -57,22 +57,6 @@ static inline int ffsl (long bits)
 static inline int ffs (int x)
 {
    return ffsl(x);
-}
-#elif defined(_MSC_VER)
-#include <intrin.h>
-#pragma intrinsic(_BitScanForward)
-static __forceinline int ffsl(long x)
-{
-	unsigned long i;
-
-	if (_BitScanForward(&i, x))
-		return (i + 1);
-	return (0);
-}
-
-static __forceinline int ffs(int x)
-{
-	return ffsl(x);
 }
 #else
 /* Use the GCC builtin ffsl function */
