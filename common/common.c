@@ -1792,14 +1792,19 @@ of the list so they override previous pack files.
 static pack_t *
 COM_LoadPackFile(const char *packfile)
 {
-    dpackheader_t header;
-    int i;
-    packfile_t *newfiles;
-    int numpackfiles;
-    pack_t *pack;
-    FILE *packhandle;
-    dpackfile_t info[MAX_FILES_IN_PACK];
-    unsigned short crc;
+#ifdef _XBOX1
+#define STATIC_PKG static
+#else
+#define STATIC_PKG
+#endif
+STATIC_PKG dpackheader_t header;
+STATIC_PKG int i;
+STATIC_PKG packfile_t *newfiles;
+STATIC_PKG int numpackfiles;
+STATIC_PKG pack_t *pack;
+STATIC_PKG FILE *packhandle;
+STATIC_PKG dpackfile_t info[MAX_FILES_IN_PACK];
+STATIC_PKG unsigned short crc;
 
     if (COM_FileOpenRead(packfile, &packhandle) == -1)
 	return NULL;
@@ -1858,6 +1863,7 @@ COM_LoadPackFile(const char *packfile)
     pack->files = newfiles;
 
     Con_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
+    Sys_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
     return pack;
 }
 
@@ -1913,7 +1919,9 @@ COM_AddGameDirectory(const char *base, const char *dir)
 //
     for (i = 0;; i++) {
 	snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
-   fprintf(stderr, "pakfile: %s\n", pakfile);
+   Sys_Printf("pakfile is:\n");
+   Sys_Printf(pakfile);
+   Sys_Printf("\n");
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
    {
@@ -2032,6 +2040,8 @@ COM_InitFilesystem(void)
     char slash = '/';
 #endif
     snprintf(home, sizeof(home), g_rom_dir);
+    Sys_Printf("home is:\n");
+    Sys_Printf(home);
 
 //
 // -basedir <path>
@@ -2074,7 +2084,6 @@ COM_InitFilesystem(void)
     COM_AddGameDirectory(com_basedir, "qw");
     COM_AddGameDirectory(home, "qw");
 #endif
-
     /* If home is available, create the game directory */
     COM_CreatePath(com_gamedir);
     Sys_mkdir(com_gamedir);
