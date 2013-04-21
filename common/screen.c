@@ -1252,8 +1252,8 @@ SCR_UpdateScreen(void)
 #ifndef GLQUAKE
     vrect_t vrect;
 
-    if (scr_skipupdate)
-	return;
+    //if (scr_skipupdate)
+	//return;
 #endif
     if (scr_block_drawing)
 	return;
@@ -1283,8 +1283,8 @@ SCR_UpdateScreen(void)
 
 #if defined(_WIN32) && !defined(GLQUAKE)
     /* Don't suck up CPU if minimized */
-    if (!window_visible())
-	return;
+    //if (!window_visible())
+	//return;
 #endif
 
 #ifdef NQ_HACK
@@ -1329,7 +1329,7 @@ SCR_UpdateScreen(void)
 #ifdef GLQUAKE
     SCR_SetUpToDrawConsole();
 #else
-    D_EnableBackBufferAccess();	/* for overlay stuff, if drawing directly */
+    //D_EnableBackBufferAccess();	/* for overlay stuff, if drawing directly */
 
     if (scr_fullupdate++ < vid.numpages) {
 	/* clear the entire screen */
@@ -1342,9 +1342,9 @@ SCR_UpdateScreen(void)
     SCR_EraseCenterString();
 
     /* for adapters that can't stay mapped in for linear writes all the time */
-    D_DisableBackBufferAccess();
+    //D_DisableBackBufferAccess();
 
-    VID_LockBuffer();
+    //VID_LockBuffer();
 #endif /* !GLQUAKE */
 
     V_RenderView();
@@ -1361,8 +1361,8 @@ SCR_UpdateScreen(void)
 #endif
 
 #else /* !GLQUAKE */
-    VID_UnlockBuffer();
-    D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
+    //VID_UnlockBuffer();
+    //D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
 #endif /* !GLQUAKE */
 
     if (scr_drawdialog) {
@@ -1396,18 +1396,18 @@ SCR_UpdateScreen(void)
 	if (crosshair.value)
 	    Draw_Crosshair();
 #endif
-	SCR_DrawRam();
+	//SCR_DrawRam();
 	SCR_DrawNet();
-	SCR_DrawFPS();
-	SCR_DrawTurtle();
-	SCR_DrawPause();
+	//SCR_DrawFPS();
+	//SCR_DrawTurtle();
+	//SCR_DrawPause();
 	SCR_DrawCenterString();
 	Sbar_Draw();
 	SCR_DrawConsole();
 	M_Draw();
     }
 
-#ifndef GLQUAKE
+#if 0
     /* for adapters that can't stay mapped in for linear writes all the time */
     D_DisableBackBufferAccess();
     if (pconupdate)
