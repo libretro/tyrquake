@@ -149,6 +149,15 @@ void Sys_Init(void)
 
 void Sys_Error(const char *error, ...)
 {
+#ifdef _XBOX1
+   char msg_new[1024], buffer[1024];
+   snprintf(msg_new, sizeof(msg_new), "Error: %s", error);
+   va_list ap;
+   va_start(ap, error);
+   wvsprintf(buffer, msg_new, ap);
+   OutputDebugStringA(buffer);
+   va_end(ap);
+#else
    va_list argptr;
    char string[MAX_PRINTMSG];
 
@@ -156,6 +165,7 @@ void Sys_Error(const char *error, ...)
    vsnprintf(string, sizeof(string), error, argptr);
    va_end(argptr);
    fprintf(stderr, "Error: %s\n", string);
+#endif
 
    Host_Shutdown();
    exit(1);
