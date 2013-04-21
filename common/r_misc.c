@@ -437,12 +437,13 @@ R_SetupFrame(void)
     }
 #endif
 #ifdef QW_HACK
-    r_draworder.value = 0;
+    //r_draworder.value = 0;
     r_fullbright.value = 0;
     r_ambient.value = 0;
     r_drawflat.value = 0;
 #endif
 
+#if 0
     if (r_numsurfs.value) {
 	if ((surface_p - surfaces) > r_maxsurfsseen)
 	    r_maxsurfsseen = surface_p - surfaces;
@@ -461,6 +462,7 @@ R_SetupFrame(void)
 	Con_Printf("Used %d of %d edges; %d max\n", edgecount,
 		   r_numallocatededges, r_maxedgesseen);
     }
+#endif
 
     r_refdef.ambientlight = r_ambient.value;
 
@@ -468,11 +470,11 @@ R_SetupFrame(void)
 	r_refdef.ambientlight = 0;
 
 #ifdef NQ_HACK
-    if (!sv.active)
-	r_draworder.value = 0;	// don't let cheaters look behind walls
+    //if (!sv.active)
+	//r_draworder.value = 0;	// don't let cheaters look behind walls
 #endif
 #ifdef QW_HACK
-    r_draworder.value = 0;	// don't let cheaters look behind walls
+    //r_draworder.value = 0;	// don't let cheaters look behind walls
 #endif
 
     R_CheckVariables();
