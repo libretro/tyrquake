@@ -551,7 +551,7 @@ V_UpdatePalette(void)
 }
 #else // !GLQUAKE
 #ifdef __LIBRETRO__
-unsigned short finalimage[BASEWIDTH * BASEHEIGHT];
+extern unsigned short finalimage[BASEWIDTH * BASEHEIGHT];
 #endif
 void
 V_UpdatePalette(void)
