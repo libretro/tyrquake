@@ -467,11 +467,16 @@ M_ScanSaves(void)
     char name[MAX_OSPATH];
     FILE *f;
     int version;
+#ifdef _WIN32
+    char slash = '\\';
+#else
+    char slash = '/';
+#endif
 
     for (i = 0; i < MAX_SAVEGAMES; i++) {
 	strcpy(m_filenames[i], "--- UNUSED SLOT ---");
 	loadable[i] = false;
-	sprintf(name, "%s/s%i.sav", com_gamedir, i);
+	sprintf(name, "%s%cs%i.sav", com_gamedir, slash, i);
 	f = fopen(name, "r");
 	if (!f)
 	    continue;
