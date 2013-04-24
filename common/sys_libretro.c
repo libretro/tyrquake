@@ -96,7 +96,7 @@ void Sys_Printf(const char *fmt, ...)
 #ifdef DEBUG_SYS_PRINTF
 #ifdef _XBOX1
    char msg_new[1024], buffer[1024];
-   snprintf(msg_new, sizeof(msg_new), "TyrQuake: %s", fmt);
+   snprintf(msg_new, sizeof(msg_new), "%s", fmt);
    va_list ap;
    va_start(ap, fmt);
    wvsprintf(buffer, msg_new, ap);
