@@ -287,7 +287,7 @@ void retro_get_system_info(struct retro_system_info *info)
    info->library_name     = "TyrQuake";
    info->library_version  = "v" stringify(TYR_VERSION);
    info->need_fullpath    = false;
-   info->valid_extensions = "pak|PAK|zip|ZIP"; // Anything is fine, we don't care.
+   info->valid_extensions = "pak";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
