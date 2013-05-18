@@ -99,7 +99,9 @@ enum m_state_enum {
     m_none, m_main, m_singleplayer, m_load, m_save, m_multiplayer, m_setup,
     m_options, m_video, m_keys, m_help, m_quit, m_lanconfig, m_gameoptions,
     m_search, m_slist
-} m_state;
+};
+
+static int m_state;
 
 #ifdef __LIBRETRO__
 #include "../include/libretro.h"
@@ -1589,7 +1591,7 @@ static void
 M_Quit_Draw(void)
 {
     if (wasInMenus) {
-	m_state = (m_state_enum)m_quit_prevstate;
+	m_state = m_quit_prevstate;
 	m_recursiveDraw = true;
 	M_Draw();
 	m_state = m_quit;

@@ -180,12 +180,7 @@ OBJECTS    = NQ/cl_input.o \
 				 common/zone.o \
 				 common/world.o
 
-ifeq ($(platform), win)
-OBJECTS += NQ/net_win.o \
-				 NQ/net_wins.o
-else
 OBJECTS += NQ/net_none.o
-endif
 
 INCLUDES   = -I. -INQ -Iinclude
 DEFINES    = -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -D__LIBRETRO__ -DINLINE=inline -DNQ_HACK -DQBASEDIR=. -DTYR_VERSION=0.62
