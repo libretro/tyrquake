@@ -214,7 +214,7 @@ Host_FindMaxClients(void)
 #if defined(_WIN32) && !defined(__LIBRETRO__)
     svs.clients = (client_s*)Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
 #else
-    svs.clients = Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
+    svs.clients = (client_s*)Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
 #endif
 
     if (svs.maxclients > 1)
