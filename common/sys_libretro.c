@@ -61,6 +61,20 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
+#if defined(__CELLOS_LV2__)
+#define BASEWIDTH 400
+#define BASEHEIGHT 224
+#elif defined(_XBOX360)
+#define BASEWIDTH 512
+#define BASEHEIGHT 224
+#elif defined(ANDROID)|| defined(__QNX__) || defined(GEKKO) || defined(_XBOX1) || defined(IOS)
+#define BASEWIDTH 320
+#define BASEHEIGHT 200
+#else /* for PC */
+#define BASEWIDTH 640
+#define BASEHEIGHT 480
+#endif
+
 unsigned MEMSIZE_MB;
 
 #if defined(HW_DOL)
@@ -406,7 +420,7 @@ void Sys_SendKeyEvents(void)
 
 }
 
-unsigned short finalimage[BASEWIDTH * BASEHEIGHT];
+static short finalimage[BASEWIDTH * BASEHEIGHT];
 
 void Sys_Sleep(void)
 {
@@ -420,12 +434,14 @@ void Sys_Sleep(void)
 }
 
 #define AUDIO_BUFFER_SAMPLES (8 * 1024)
-#define UNPACK_RGB565(r, g, b) ((((r) & 0xf800) >> 11) | (((g) & 0x7e0) >> 5) | (((b) & 0x1f)))
-
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
 void retro_run(void)
 {
+   unsigned char *ilineptr = (unsigned char*)vid.buffer;
+   unsigned short *olineptr = (unsigned short*)finalimage;
+   unsigned y, x;
+
    // find time spent rendering last frame
    newtime = Sys_DoubleTime();
    _time = newtime - oldtime;
@@ -450,6 +466,12 @@ void retro_run(void)
 #endif
 
    Host_Frame(_time);
+
+   for (y = 0; y < BASEHEIGHT; ++y)
+   {
+      for (x = 0; x < BASEWIDTH; ++x)
+         *olineptr++ = palette_data[*ilineptr++];
+   }
 
    video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;

@@ -550,9 +550,6 @@ V_UpdatePalette(void)
     }
 }
 #else // !GLQUAKE
-#ifdef __LIBRETRO__
-unsigned short finalimage[BASEWIDTH * BASEHEIGHT];
-#endif
 void
 V_UpdatePalette(void)
 {
@@ -560,11 +557,7 @@ V_UpdatePalette(void)
     qboolean newobj;
     byte *basepal;
 #ifdef __LIBRETRO__
-    unsigned short *pal_data = &palette_data[0];
-   unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned char *ilineptr = (unsigned char*)vid.buffer;
-   for (j = 0; j < BASEWIDTH * BASEHEIGHT; j++)
-      *olineptr++ = (pal_data[*ilineptr++]);
+    unsigned short *pal_data;
 #else
     byte pal[768];
     byte *newpal;
@@ -603,7 +596,9 @@ V_UpdatePalette(void)
 	return;
 
     basepal = host_basepal;
-#ifndef __LIBRETRO__
+#ifdef __LIBRETRO__
+    pal_data = &palette_data[0];
+#else
     newpal = pal;
 #endif
 
@@ -631,7 +626,6 @@ V_UpdatePalette(void)
 	newpal += 3;
 #endif
     }
-
 
 #ifndef __LIBRETRO__
     VID_ShiftPalette(pal);
