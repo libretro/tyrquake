@@ -61,19 +61,8 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
-#if defined(__CELLOS_LV2__)
-#define BASEWIDTH 400
-#define BASEHEIGHT 224
-#elif defined(_XBOX360)
-#define BASEWIDTH 512
-#define BASEHEIGHT 224
-#elif defined(ANDROID)|| defined(__QNX__) || defined(GEKKO) || defined(_XBOX1) || defined(IOS)
-#define BASEWIDTH 320
-#define BASEHEIGHT 200
-#else /* for PC */
-#define BASEWIDTH 640
-#define BASEHEIGHT 480
-#endif
+unsigned width;
+unsigned height;
 
 unsigned MEMSIZE_MB;
 
@@ -90,6 +79,7 @@ unsigned MEMSIZE_MB;
 static qboolean nostdout = false;
 
 cvar_t framerate = { "framerate", "60" };
+static bool initial_resolution_set;
 
 char g_rom_dir[256];
 char g_pak_path[256];
@@ -278,6 +268,7 @@ viddef_t vid;			// global video state
 
 void retro_init(void)
 {
+   initial_resolution_set = true;
 }
 
 void retro_deinit(void)
@@ -309,10 +300,10 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->timing.fps = framerate.value;
    info->timing.sample_rate = SAMPLERATE;
 
-   info->geometry.base_width   = BASEWIDTH;
-   info->geometry.base_height  = BASEHEIGHT;
-   info->geometry.max_width    = BASEWIDTH;
-   info->geometry.max_height   = BASEHEIGHT;
+   info->geometry.base_width   = width;
+   info->geometry.base_height  = height;
+   info->geometry.max_width    = width;
+   info->geometry.max_height   = height;
    info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
@@ -327,6 +318,14 @@ static retro_input_state_t input_cb;
 void retro_set_environment(retro_environment_t cb)
 {
    environ_cb = cb;
+
+   struct retro_variable variables[] = {
+      { "resolution",
+         "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x384|512x512|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1280x1024|1600x1080|1920x1080" },
+      { NULL, NULL },
+   };
+
+   cb(RETRO_ENVIRONMENT_SET_VARIABLES, variables);
 }
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
@@ -420,7 +419,6 @@ void Sys_SendKeyEvents(void)
 
 }
 
-static short finalimage[BASEWIDTH * BASEHEIGHT];
 
 void Sys_Sleep(void)
 {
@@ -433,6 +431,139 @@ void Sys_Sleep(void)
 #endif
 }
 
+static void update_variables(void)
+{
+   struct retro_variable var;
+   
+   var.key = "resolution";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && initial_resolution_set)
+   {
+      if (strcmp(var.value, "320x200") == 0)
+      {
+         width = 320;
+         height = 200;
+      }
+      else if (strcmp(var.value, "320x240") == 0)
+      {
+         width = 320;
+         height = 240;
+      }
+      else if (strcmp(var.value, "320x480") == 0)
+      {
+         width = 320;
+         height = 480;
+      }
+      else if (strcmp(var.value, "360x200") == 0)
+      {
+         width = 360;
+         height = 200;
+      }
+      else if (strcmp(var.value, "360x240") == 0)
+      {
+         width = 360;
+         height = 240;
+      }
+      else if (strcmp(var.value, "360x400") == 0)
+      {
+         width = 360;
+         height = 400;
+      }
+      else if (strcmp(var.value, "360x480") == 0)
+      {
+         width = 360;
+         height = 480;
+      }
+      else if (strcmp(var.value, "400x224") == 0)
+      {
+         width = 400;
+         height = 224;
+      }
+      else if (strcmp(var.value, "480x272") == 0)
+      {
+         width = 480;
+         height = 272;
+      }
+      else if (strcmp(var.value, "512x224") == 0)
+      {
+         width = 512;
+         height = 224;
+      }
+      else if (strcmp(var.value, "512x384") == 0)
+      {
+         width = 512;
+         height = 384;
+      }
+      else if (strcmp(var.value, "640x240") == 0)
+      {
+         width = 640;
+         height = 240;
+      }
+      else if (strcmp(var.value, "640x448") == 0)
+      {
+         width = 640;
+         height = 448;
+      }
+      else if (strcmp(var.value, "640x480") == 0)
+      {
+         width = 640;
+         height = 480;
+      }
+      else if (strcmp(var.value, "720x576") == 0)
+      {
+         width = 720;
+         height = 576;
+      }
+      else if (strcmp(var.value, "800x480") == 0)
+      {
+         width = 800;
+         height = 480;
+      }
+      else if (strcmp(var.value, "800x600") == 0)
+      {
+         width = 800;
+         height = 600;
+      }
+      else if (strcmp(var.value, "960x720") == 0)
+      {
+         width = 960;
+         height = 720;
+      }
+      else if (strcmp(var.value, "1024x768") == 0)
+      {
+         width = 1024;
+         height = 768;
+      }
+      else if (strcmp(var.value, "1280x720") == 0)
+      {
+         width = 1280;
+         height = 720;
+      }
+      else if (strcmp(var.value, "1280x1024") == 0)
+      {
+         width = 1280;
+         height = 1024; 
+      }
+      else if (strcmp(var.value, "1600x1080") == 0)
+      {
+         width = 1600;
+         height = 1080; 
+      }
+      else if (strcmp(var.value, "1920x1080") == 0)
+      {
+         width = 1920;
+         height = 1080;
+      }
+      initial_resolution_set = false;
+   }
+}
+
+byte *vid_buffer;
+short *zbuffer;
+short *finalimage;
+byte surfcache[256 * 1024];
+
 #define AUDIO_BUFFER_SAMPLES (8 * 1024)
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
@@ -440,7 +571,11 @@ void retro_run(void)
 {
    unsigned char *ilineptr = (unsigned char*)vid.buffer;
    unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned y, x;
+   unsigned y;
+
+   bool updated = false;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+      update_variables();
 
    // find time spent rendering last frame
    newtime = Sys_DoubleTime();
@@ -467,13 +602,10 @@ void retro_run(void)
 
    Host_Frame(_time);
 
-   for (y = 0; y < BASEHEIGHT; ++y)
-   {
-      for (x = 0; x < BASEWIDTH; ++x)
-         *olineptr++ = palette_data[*ilineptr++];
-   }
+   for (y = 0; y < width * height; ++y)
+      *olineptr++ = palette_data[*ilineptr++];
 
-   video_cb(finalimage, BASEWIDTH, BASEHEIGHT, BASEWIDTH << 1);
+   video_cb(finalimage, width, height, width << 1);
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)
@@ -502,9 +634,12 @@ static void extract_directory(char *buf, const char *path, size_t size)
       buf[0] = '\0';
 }
 
+
 bool retro_load_game(const struct retro_game_info *info)
 {
    quakeparms_t parms;
+
+   update_variables();
 
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 
@@ -636,9 +771,6 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
  */
 
 
-byte vid_buffer[BASEWIDTH * BASEHEIGHT];
-short zbuffer[BASEWIDTH * BASEHEIGHT];
-byte surfcache[256 * 1024];
 
 unsigned short d_8to16table[256];
 
@@ -654,8 +786,12 @@ void VID_ShiftPalette(unsigned char *palette)
 void VID_Init(unsigned char *palette)
 {
    /* TODO */
-    vid.width = BASEWIDTH;
-    vid.height = BASEHEIGHT;
+   vid_buffer = (byte*)malloc(width * height * sizeof(byte));
+   zbuffer = (short*)malloc(width * height * sizeof(short));
+   finalimage = (short*)malloc(width * height * sizeof(short));
+
+    vid.width = width;
+    vid.height = height;
     vid.maxwarpwidth = WARP_WIDTH;
     vid.maxwarpheight = WARP_HEIGHT;
     vid.conwidth = vid.width;
@@ -664,7 +800,7 @@ void VID_Init(unsigned char *palette)
     vid.colormap = host_colormap;
     vid.fullbright = 256 - LittleLong(*((int *)vid.colormap + 2048));
     vid.buffer = vid.conbuffer = vid_buffer;
-    vid.rowbytes = BASEWIDTH;
+    vid.rowbytes = width;
     vid.conrowbytes = vid.rowbytes;
     vid.aspect = ((float)vid.height / (float)vid.width) * (320.0 / 240.0);
 
@@ -674,6 +810,12 @@ void VID_Init(unsigned char *palette)
 
 void VID_Shutdown(void)
 {
+   if (vid_buffer)
+      free(vid_buffer);
+   if (zbuffer)
+      free(zbuffer);
+   if (finalimage)
+      free(finalimage);
 }
 
 void VID_Update(vrect_t *rects)
