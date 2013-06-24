@@ -361,17 +361,104 @@ void Sys_SendKeyEvents(void)
 {
    poll_cb();
 
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_w))
+      Key_Event(K_UPARROW, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
+      Key_Event(K_UPARROW, 1);
+   else
+      Key_Event(K_UPARROW, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_s))
+      Key_Event(K_DOWNARROW, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
+      Key_Event(K_DOWNARROW, 1);
+   else
+      Key_Event(K_DOWNARROW, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_a))
+      Key_Event(K_COMMA, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
+      Key_Event(K_COMMA, 1);
+   else
+      Key_Event(K_COMMA, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_d))
+      Key_Event(K_PERIOD, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
+      Key_Event(K_PERIOD, 1);
+   else
+      Key_Event(K_PERIOD, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE))
+      Key_Event(K_ENTER, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
+      Key_Event(K_ENTER, 1);
+   else
+      Key_Event(K_ENTER, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_1))
+      Key_Event(K_1, 1);
+   else
+      Key_Event(K_1, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_2))
+      Key_Event(K_2, 1);
+   else
+      Key_Event(K_2, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_3))
+      Key_Event(K_3, 1);
+   else
+      Key_Event(K_3, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_4))
+      Key_Event(K_4, 1);
+   else
+      Key_Event(K_4, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_5))
+      Key_Event(K_5, 1);
+   else
+      Key_Event(K_5, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_6))
+      Key_Event(K_6, 1);
+   else
+      Key_Event(K_6, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_7))
+      Key_Event(K_7, 1);
+   else
+      Key_Event(K_7, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_8))
+      Key_Event(K_8, 1);
+   else
+      Key_Event(K_8, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_TAB))
+      Key_Event(K_TAB, 1);
+   else
+      Key_Event(K_TAB, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_c))
+      Key_Event(K_SLASH, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
+      Key_Event(K_SLASH, 1);
+   else
+      Key_Event(K_SLASH, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL))
+      Key_Event(K_MOUSE1, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
+      Key_Event(K_MOUSE1, 1);
+   else
+      Key_Event(K_MOUSE1, 0);
+
 	Key_Event(K_ESCAPE, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START));
 	Key_Event(K_INS, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X));
-	Key_Event(K_UPARROW, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP));
-	Key_Event(K_DOWNARROW, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN));
 	Key_Event(K_LEFTARROW, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT));
 	Key_Event(K_RIGHTARROW, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT));
-	Key_Event(K_ENTER, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B));
-	Key_Event(K_MOUSE1, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y));
-	Key_Event(K_COMMA, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L));
-	Key_Event(K_PERIOD, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R));
-	Key_Event(K_SLASH, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A));
 	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
 
 #if 0
@@ -694,11 +781,6 @@ bool retro_load_game(const struct retro_game_info *info)
       fprintf(stderr, "RGB565 is not supported.\n");
       return false;
    }
-
-   /* set keyboard callback */
-
-   //struct retro_keyboard_callback cb = { keyboard_cb };
-   //environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
 
 #ifdef NQ_HACK
    oldtime = Sys_DoubleTime() - 0.1;
