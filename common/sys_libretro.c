@@ -363,12 +363,16 @@ void Sys_SendKeyEvents(void)
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_w))
       Key_Event(K_UPARROW, 1);
+   else if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
+      Key_Event(K_UPARROW, 1);
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
       Key_Event(K_UPARROW, 1);
    else
       Key_Event(K_UPARROW, 0);
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_s))
+      Key_Event(K_DOWNARROW, 1);
+   else if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
       Key_Event(K_DOWNARROW, 1);
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
       Key_Event(K_DOWNARROW, 1);
@@ -389,7 +393,7 @@ void Sys_SendKeyEvents(void)
    else
       Key_Event(K_PERIOD, 0);
 
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE))
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) || input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN))
       Key_Event(K_ENTER, 1);
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
       Key_Event(K_ENTER, 1);
@@ -457,8 +461,21 @@ void Sys_SendKeyEvents(void)
 
 	Key_Event(K_ESCAPE, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START));
 	Key_Event(K_INS, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X));
-	Key_Event(K_LEFTARROW, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT));
-	Key_Event(K_RIGHTARROW, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT));
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
+      Key_Event(K_LEFTARROW, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
+      Key_Event(K_LEFTARROW, 1);
+   else
+      Key_Event(K_LEFTARROW, 0);
+
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
+      Key_Event(K_RIGHTARROW, 1);
+   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
+      Key_Event(K_RIGHTARROW, 1);
+   else
+      Key_Event(K_RIGHTARROW, 0);
+
 	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
 
 #if 0
