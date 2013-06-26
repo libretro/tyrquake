@@ -393,7 +393,10 @@ void Sys_SendKeyEvents(void)
    else
       Key_Event(K_PERIOD, 0);
 
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) || input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN))
+   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) ||
+         input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN) ||
+         input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)
+         )
       Key_Event(K_ENTER, 1);
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
       Key_Event(K_ENTER, 1);
@@ -452,7 +455,8 @@ void Sys_SendKeyEvents(void)
    else
       Key_Event(K_SLASH, 0);
 
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL))
+   if (input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ||
+         (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL)))
       Key_Event(K_MOUSE1, 1);
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
       Key_Event(K_MOUSE1, 1);
@@ -1024,6 +1028,32 @@ IN_Commands(void)
 void
 IN_Move(usercmd_t *cmd)
 {
+   static int cur_mx;
+   static int cur_my;
+   int mx, my;
+
+   mx = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
+   my = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
+
+   if (mx != cur_mx || my != cur_my)
+   {
+
+      mx *= sensitivity.value;
+      my *= sensitivity.value;
+
+      cl.viewangles[YAW] -= m_yaw.value * mx;
+
+      V_StopPitchDrift();
+
+      cl.viewangles[PITCH] += m_pitch.value * my;
+
+      if (cl.viewangles[PITCH] > 80)
+         cl.viewangles[PITCH] = 80;
+      if (cl.viewangles[PITCH] < -70)
+         cl.viewangles[PITCH] = -70;
+      cur_mx = mx;
+      cur_my = my;
+   }
 }
 
 /*
