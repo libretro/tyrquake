@@ -63,6 +63,7 @@ qboolean isDedicated;
 
 unsigned width;
 unsigned height;
+unsigned device_type = 0;
 
 unsigned MEMSIZE_MB;
 
@@ -322,6 +323,8 @@ void retro_set_environment(retro_environment_t cb)
    struct retro_variable variables[] = {
       { "resolution",
          "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x384|512x512|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1280x1024|1600x1080|1920x1080" },
+      { "gamepad",
+         "Gamepad type; gamepad|dual-analog" },
       { NULL, NULL },
    };
 
@@ -482,38 +485,6 @@ void Sys_SendKeyEvents(void)
 
 	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
 
-#if 0
-   int analog_left_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-         RETRO_DEVICE_ID_ANALOG_X);
-   int analog_left_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-         RETRO_DEVICE_ID_ANALOG_Y);
-   int analog_right_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-         RETRO_DEVICE_ID_ANALOG_X);
-   int analog_right_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-         RETRO_DEVICE_ID_ANALOG_Y);
-
-   if (analog_left_x > 0)
-      Key_Event(K_PERIOD, 1);
-
-   if (analog_left_x < 0)
-      Key_Event(K_COMMA, 1);
-
-   if (analog_left_y > 0)
-      Key_Event(K_DOWNARROW, 1);
-
-   if (analog_left_y < 0)
-      Key_Event(K_UPARROW, 1);
-
-   if (analog_right_x > 0)
-      Key_Event(K_RIGHTARROW, 1);
-
-   if (analog_right_x < 0)
-      Key_Event(K_LEFTARROW, 1);
-
-   Key_Event(K_DEL, analog_right_y > 0);
-   Key_Event(K_PGDN, analog_right_y < 0);
-#endif
-
 	if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
    {
       Cvar_SetValue("cl_forwardspeed", 200);
@@ -525,6 +496,39 @@ void Sys_SendKeyEvents(void)
       Cvar_SetValue("cl_backspeed", 400);
    }
 
+   if (device_type == 1)
+   {
+      int analog_left_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+            RETRO_DEVICE_ID_ANALOG_X);
+      int analog_left_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+            RETRO_DEVICE_ID_ANALOG_Y);
+      int analog_right_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+            RETRO_DEVICE_ID_ANALOG_X);
+      int analog_right_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+            RETRO_DEVICE_ID_ANALOG_Y);
+
+
+      if (analog_left_x > 0)
+         Key_Event(K_PERIOD, 1);
+
+      if (analog_left_x < 0)
+         Key_Event(K_COMMA, 1);
+
+      if (analog_left_y > 0)
+         Key_Event(K_DOWNARROW, 1);
+
+      if (analog_left_y < 0)
+         Key_Event(K_UPARROW, 1);
+
+      if (analog_right_x > 0)
+         Key_Event(K_RIGHTARROW, 1);
+
+      if (analog_right_x < 0)
+         Key_Event(K_LEFTARROW, 1);
+
+      Key_Event(K_DEL, analog_right_y > 0);
+      Key_Event(K_PGDN, analog_right_y < 0);
+   }
 }
 
 
@@ -664,6 +668,17 @@ static void update_variables(void)
          height = 1080;
       }
       initial_resolution_set = false;
+   }
+
+   var.key = "gamepad";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+   {
+      if (strcmp(var.value, "gamepad") == 0)
+         device_type = 0;
+      else if (strcmp(var.value, "dual-analog") == 0)
+         device_type = 1;
    }
 }
 
