@@ -296,6 +296,9 @@ void retro_get_system_info(struct retro_system_info *info)
    info->valid_extensions = "pak";
 }
 
+#define MAX_WIDTH 1024
+#define MAX_HEIGHT 768
+
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing.fps = framerate.value;
@@ -303,8 +306,8 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
    info->geometry.base_width   = width;
    info->geometry.base_height  = height;
-   info->geometry.max_width    = width;
-   info->geometry.max_height   = height;
+   info->geometry.max_width    = MAX_WIDTH;
+   info->geometry.max_height   = MAX_HEIGHT;
    info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
@@ -322,7 +325,7 @@ void retro_set_environment(retro_environment_t cb)
 
    struct retro_variable variables[] = {
       { "resolution",
-         "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x384|512x512|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1280x1024|1600x1080|1920x1080" },
+         "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768" },
       { "gamepad",
          "Gamepad type; gamepad|dual-analog" },
       { NULL, NULL },
@@ -557,14 +560,13 @@ static void update_variables(void)
       snprintf(str, sizeof(str), var.value);
 
       pch = strtok(str, "x");
-
-      if (pch != NULL)
-         width = atoi(pch);
-
+      if (pch)
+         width = strtoul(pch, NULL, 0);
       pch = strtok(str, "x");
+      if (pch)
+         height = strtoul(pch, NULL, 0);
 
-      if (pch != NULL)
-         height = atoi(pch);
+      fprintf(stderr, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = false;
    }
