@@ -76,6 +76,7 @@ unsigned MEMSIZE_MB;
 #endif
 
 #define SAMPLERATE 44100
+#define ANALOG_THRESHOLD 4096
 
 static qboolean nostdout = false;
 
@@ -511,26 +512,26 @@ void Sys_SendKeyEvents(void)
             RETRO_DEVICE_ID_ANALOG_Y);
 
 
-      if (analog_left_x > 0)
+      if (analog_left_x > ANALOG_THRESHOLD)
          Key_Event(K_PERIOD, 1);
 
-      if (analog_left_x < 0)
+      if (analog_left_x < -ANALOG_THRESHOLD)
          Key_Event(K_COMMA, 1);
 
-      if (analog_left_y > 0)
+      if (analog_left_y > ANALOG_THRESHOLD)
          Key_Event(K_DOWNARROW, 1);
 
-      if (analog_left_y < 0)
+      if (analog_left_y < -ANALOG_THRESHOLD)
          Key_Event(K_UPARROW, 1);
 
-      if (analog_right_x > 0)
+      if (analog_right_x > ANALOG_THRESHOLD)
          Key_Event(K_RIGHTARROW, 1);
 
-      if (analog_right_x < 0)
+      if (analog_right_x < -ANALOG_THRESHOLD)
          Key_Event(K_LEFTARROW, 1);
 
-      Key_Event(K_DEL, analog_right_y > 0);
-      Key_Event(K_PGDN, analog_right_y < 0);
+      Key_Event(K_DEL, analog_right_y > ANALOG_THRESHOLD);
+      Key_Event(K_PGDN, analog_right_y < -ANALOG_THRESHOLD);
    }
 }
 
