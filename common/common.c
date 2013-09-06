@@ -2039,7 +2039,7 @@ COM_InitFilesystem(void)
 #else
     char slash = '/';
 #endif
-    snprintf(home, sizeof(home), g_rom_dir);
+    snprintf(home, sizeof(home), "%s", g_rom_dir);
     Sys_Printf("home is:\n");
     Sys_Printf(home);
 
