@@ -372,8 +372,10 @@ void Sys_SendKeyEvents(void)
       Key_Event(K_UPARROW, 1);
    else if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
       Key_Event(K_UPARROW, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
       Key_Event(K_UPARROW, 1);
+#endif
    else
       Key_Event(K_UPARROW, 0);
 
@@ -381,22 +383,28 @@ void Sys_SendKeyEvents(void)
       Key_Event(K_DOWNARROW, 1);
    else if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
       Key_Event(K_DOWNARROW, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
       Key_Event(K_DOWNARROW, 1);
+#endif
    else
       Key_Event(K_DOWNARROW, 0);
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_a))
       Key_Event(K_COMMA, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
       Key_Event(K_COMMA, 1);
+#endif
    else
       Key_Event(K_COMMA, 0);
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_d))
       Key_Event(K_PERIOD, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
       Key_Event(K_PERIOD, 1);
+#endif
    else
       Key_Event(K_PERIOD, 0);
 
@@ -405,8 +413,10 @@ void Sys_SendKeyEvents(void)
          input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)
          )
       Key_Event(K_ENTER, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
       Key_Event(K_ENTER, 1);
+#endif
    else
       Key_Event(K_ENTER, 0);
 
@@ -457,44 +467,58 @@ void Sys_SendKeyEvents(void)
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_c))
       Key_Event(K_SLASH, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
       Key_Event(K_SLASH, 1);
+#endif
    else
       Key_Event(K_SLASH, 0);
 
    if (input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ||
          (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL)))
       Key_Event(K_MOUSE1, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
       Key_Event(K_MOUSE1, 1);
+#endif
    else
       Key_Event(K_MOUSE1, 0);
 
+#ifndef EMSCRIPTEN
 	Key_Event(K_ESCAPE, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START));
 	Key_Event(K_INS, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X));
+#endif
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
       Key_Event(K_LEFTARROW, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
       Key_Event(K_LEFTARROW, 1);
+#endif
    else
       Key_Event(K_LEFTARROW, 0);
 
    if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
       Key_Event(K_RIGHTARROW, 1);
+#ifndef EMSCRIPTEN
    else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
       Key_Event(K_RIGHTARROW, 1);
+#endif
    else
       Key_Event(K_RIGHTARROW, 0);
 
+#ifndef EMSCRIPTEN
 	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
+#endif
 
+#ifndef EMSCRIPTEN
 	if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
    {
       Cvar_SetValue("cl_forwardspeed", 200);
       Cvar_SetValue("cl_backspeed", 200);
    }
    else
+#endif
    {
       Cvar_SetValue("cl_forwardspeed", 400);
       Cvar_SetValue("cl_backspeed", 400);
