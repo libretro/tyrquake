@@ -553,83 +553,69 @@ V_UpdatePalette(void)
 void
 V_UpdatePalette(void)
 {
-    int i, j;
-    qboolean newobj;
-    byte *basepal;
-#ifdef __LIBRETRO__
-    unsigned short *pal_data;
-#else
-    byte pal[768];
-    byte *newpal;
-#endif
-    int r, g, b;
-    qboolean force;
+   int i, j;
+   qboolean newobj;
+   byte *basepal;
+   unsigned short *pal_data;
+   int r, g, b;
+   qboolean force;
 
-    V_CalcPowerupCshift();
+   V_CalcPowerupCshift();
 
-    newobj = false;
+   newobj = false;
 
-    for (i = 0; i < NUM_CSHIFTS; i++) {
-	if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent) {
-	    newobj = true;
-	    cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
-	}
-	for (j = 0; j < 3; j++)
-	    if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j]) {
-		newobj = true;
-		cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
-	    }
-    }
+   for (i = 0; i < NUM_CSHIFTS; i++)
+   {
+      if (cl.cshifts[i].percent != cl.prev_cshifts[i].percent)
+      {
+         newobj = true;
+         cl.prev_cshifts[i].percent = cl.cshifts[i].percent;
+      }
+      for (j = 0; j < 3; j++)
+         if (cl.cshifts[i].destcolor[j] != cl.prev_cshifts[i].destcolor[j])
+         {
+            newobj = true;
+            cl.prev_cshifts[i].destcolor[j] = cl.cshifts[i].destcolor[j];
+         }
+   }
 
-// drop the damage value
-    cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime * 150;
-    if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
-	cl.cshifts[CSHIFT_DAMAGE].percent = 0;
+   // drop the damage value
+   cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime * 150;
+   if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
+      cl.cshifts[CSHIFT_DAMAGE].percent = 0;
 
-// drop the bonus value
-    cl.cshifts[CSHIFT_BONUS].percent -= host_frametime * 100;
-    if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
-	cl.cshifts[CSHIFT_BONUS].percent = 0;
+   // drop the bonus value
+   cl.cshifts[CSHIFT_BONUS].percent -= host_frametime * 100;
+   if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
+      cl.cshifts[CSHIFT_BONUS].percent = 0;
 
-    force = V_CheckGamma();
-    if (!newobj && !force)
-	return;
+   VID_ShiftPalette((unsigned char*)pal_data);
 
-    basepal = host_basepal;
-#ifdef __LIBRETRO__
-    pal_data = &palette_data[0];
-#else
-    newpal = pal;
-#endif
+   force = V_CheckGamma();
+   if (!newobj && !force)
+      return;
 
-    for (i = 0; i < 256; i++) {
-	r = basepal[0];
-	g = basepal[1];
-	b = basepal[2];
-	basepal += 3;
+   basepal = host_basepal;
+   pal_data = &palette_data[0];
 
-	for (j = 0; j < NUM_CSHIFTS; j++) {
-	    r += (cl.cshifts[j].percent *
-		  (cl.cshifts[j].destcolor[0] - r)) >> 8;
-	    g += (cl.cshifts[j].percent *
-		  (cl.cshifts[j].destcolor[1] - g)) >> 8;
-	    b += (cl.cshifts[j].percent *
-		  (cl.cshifts[j].destcolor[2] - b)) >> 8;
-	}
+   for (i = 0; i < 256; i++)
+   {
+      r = basepal[0];
+      g = basepal[1];
+      b = basepal[2];
+      basepal += 3;
 
-#ifdef __LIBRETRO__
-   *pal_data++ = PACK_RGB565(gammatable[r], gammatable[g], gammatable[b]);
-#else
-	newpal[0] = r = gammatable[r];
-	newpal[1] = g = gammatable[g];
-	newpal[2] = b = gammatable[b];
-	newpal += 3;
-#endif
-    }
+      for (j = 0; j < NUM_CSHIFTS; j++) {
+         r += (cl.cshifts[j].percent *
+               (cl.cshifts[j].destcolor[0] - r)) >> 8;
+         g += (cl.cshifts[j].percent *
+               (cl.cshifts[j].destcolor[1] - g)) >> 8;
+         b += (cl.cshifts[j].percent *
+               (cl.cshifts[j].destcolor[2] - b)) >> 8;
+      }
 
-#ifndef __LIBRETRO__
-    VID_ShiftPalette(pal);
-#endif
+      *pal_data++ = PACK_RGB565(gammatable[r], gammatable[g], gammatable[b]);
+   }
 }
 #endif // !GLQUAKE
 

@@ -618,11 +618,9 @@ static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
 void retro_run(void)
 {
-   unsigned char *ilineptr = (unsigned char*)vid.buffer;
-   unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned y;
 
    bool updated = false;
+   bool video_updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
 
@@ -643,7 +641,10 @@ void retro_run(void)
    if (_time > sys_ticrate.value * 2)
       oldtime = newtime;
    else
+   {
       oldtime += _time;
+      video_updated = true;
+   }
 #endif
 #ifdef QW_HACK
    oldtime = newtime;
@@ -651,10 +652,7 @@ void retro_run(void)
 
    Host_Frame(_time);
 
-   for (y = 0; y < width * height; ++y)
-      *olineptr++ = palette_data[*ilineptr++];
-
-   video_cb(finalimage, width, height, width << 1);
+   video_cb(video_updated ? finalimage : NULL, width, height, width << 1);
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)
@@ -825,6 +823,12 @@ void VID_SetPalette(unsigned char *palette)
 
 void VID_ShiftPalette(unsigned char *palette)
 {
+   unsigned char *ilineptr = (unsigned char*)vid.buffer;
+   unsigned short *olineptr = (unsigned short*)finalimage;
+   unsigned y;
+
+   for (y = 0; y < width * height; ++y)
+      *olineptr++ = palette_data[*ilineptr++];
 }
 
 void VID_Init(unsigned char *palette)
