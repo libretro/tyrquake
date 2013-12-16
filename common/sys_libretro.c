@@ -78,8 +78,6 @@ unsigned MEMSIZE_MB;
 #define SAMPLERATE 44100
 #define ANALOG_THRESHOLD 4096
 
-static qboolean nostdout = false;
-
 cvar_t framerate = { "framerate", "60" };
 static bool initial_resolution_set;
 
@@ -93,41 +91,18 @@ unsigned char *heap;
 // General routines
 // =======================================================================
 //
-#ifdef _XBOX1
-#define DEBUG_SYS_PRINTF
-#endif
+static retro_log_printf_t log_cb;
+static retro_video_refresh_t video_cb;
+static retro_audio_sample_t audio_cb;
+static retro_audio_sample_batch_t audio_batch_cb;
+retro_environment_t environ_cb;
+static retro_input_poll_t poll_cb;
+static retro_input_state_t input_cb;
 
 void Sys_Printf(const char *fmt, ...)
 {
-#ifdef DEBUG_SYS_PRINTF
-#ifdef _XBOX1
-   char msg_new[1024], buffer[1024];
-   snprintf(msg_new, sizeof(msg_new), "%s", fmt);
-   va_list ap;
-   va_start(ap, fmt);
-   wvsprintf(buffer, msg_new, ap);
-   OutputDebugStringA(buffer);
-   va_end(ap);
-#else
-   va_list argptr;
-   char text[MAX_PRINTMSG];
-   unsigned char *p;
-
-   va_start(argptr, fmt);
-   vsnprintf(text, sizeof(text), fmt, argptr);
-   va_end(argptr);
-
-   if (nostdout)
-      return;
-
-   for (p = (unsigned char *)text; *p; p++) {
-      if ((*p > 128 || *p < 32) && *p != 10 && *p != 13 && *p != 9)
-         printf("[%02x]", *p);
-      else
-         putc(*p, stdout);
-   }
-#endif
-#endif
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO, "%s\n", fmt);
 }
 
 void Sys_Quit(void)
@@ -141,23 +116,8 @@ void Sys_Init(void)
 
 void Sys_Error(const char *error, ...)
 {
-#ifdef _XBOX1
-   char msg_new[1024], buffer[1024];
-   snprintf(msg_new, sizeof(msg_new), "Error: %s", error);
-   va_list ap;
-   va_start(ap, error);
-   wvsprintf(buffer, msg_new, ap);
-   OutputDebugStringA(buffer);
-   va_end(ap);
-#else
-   va_list argptr;
-   char string[MAX_PRINTMSG];
-
-   va_start(argptr, error);
-   vsnprintf(string, sizeof(string), error, argptr);
-   va_end(argptr);
-   fprintf(stderr, "Error: %s\n", string);
-#endif
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO, "%s\n", error);
 
    Host_Shutdown();
    exit(1);
@@ -270,6 +230,12 @@ viddef_t vid;			// global video state
 
 void retro_init(void)
 {
+   struct retro_log_callback log;
+
+   environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log);
+   if (log.log)
+      log_cb = log.log;
+
    initial_resolution_set = true;
 }
 
@@ -312,13 +278,6 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
-
-static retro_video_refresh_t video_cb;
-static retro_audio_sample_t audio_cb;
-static retro_audio_sample_batch_t audio_batch_cb;
-retro_environment_t environ_cb;
-static retro_input_poll_t poll_cb;
-static retro_input_state_t input_cb;
 
 void retro_set_environment(retro_environment_t cb)
 {
@@ -591,7 +550,8 @@ static void update_variables(void)
       if (pch)
          height = strtoul(pch, NULL, 0);
 
-      fprintf(stderr, "Got size: %u x %u.\n", width, height);
+      if (log_cb)
+         log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = false;
    }
@@ -718,10 +678,12 @@ bool retro_load_game(const struct retro_game_info *info)
    parms.membase = heap;
 
 #ifdef NQ_HACK
-   fprintf(stderr, "Quake Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO, "Quake Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
 #endif
 #ifdef QW_HACK
-   fprintf(stderr, "QuakeWorld Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
+   if (log_cb)
+      log_cb(RETRO_LOG_INFO, "QuakeWorld Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
 #endif
 
    Sys_Init();
@@ -738,7 +700,8 @@ bool retro_load_game(const struct retro_game_info *info)
    enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
    if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
    {
-      fprintf(stderr, "RGB565 is not supported.\n");
+      if (log_cb)
+         log_cb(RETRO_LOG_ERROR, "RGB565 is not supported.\n");
       return false;
    }
 
