@@ -107,7 +107,7 @@ void Sys_Printf(const char *fmt, ...)
    va_start(ap, fmt);
    vsprintf(buffer, fmt, ap);
    if (log_cb)
-      log_cb(RETRO_LOG_INFO, buffer);
+      log_cb(RETRO_LOG_INFO, "%s\n", buffer);
    va_end(ap);
 #endif
 }
@@ -128,7 +128,7 @@ void Sys_Error(const char *error, ...)
    va_start(ap, error);
    vsprintf(buffer, error, ap);
    if (log_cb)
-      log_cb(RETRO_LOG_ERROR, buffer);
+      log_cb(RETRO_LOG_ERROR, "%s\n", buffer);
    va_end(ap);
 
    Host_Shutdown();
