@@ -1256,7 +1256,7 @@ SCR_UpdateScreen(void)
 	//return;
 #endif
     if (scr_block_drawing)
-	return;
+       return;
 
 #ifdef GLQUAKE
     vid.numpages = 2 + gl_triplebuffer.value;

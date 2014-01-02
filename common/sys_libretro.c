@@ -101,8 +101,15 @@ static retro_input_state_t input_cb;
 
 void Sys_Printf(const char *fmt, ...)
 {
+#if 0
+   char buffer[256];
+   va_list ap;
+   va_start(ap, fmt);
+   vsprintf(buffer, fmt, ap);
    if (log_cb)
-      log_cb(RETRO_LOG_INFO, "%s\n", fmt);
+      log_cb(RETRO_LOG_INFO, buffer);
+   va_end(ap);
+#endif
 }
 
 void Sys_Quit(void)
@@ -116,8 +123,13 @@ void Sys_Init(void)
 
 void Sys_Error(const char *error, ...)
 {
+   char buffer[256];
+   va_list ap;
+   va_start(ap, error);
+   vsprintf(buffer, error, ap);
    if (log_cb)
-      log_cb(RETRO_LOG_INFO, "%s\n", error);
+      log_cb(RETRO_LOG_ERROR, buffer);
+   va_end(ap);
 
    Host_Shutdown();
    exit(1);
@@ -232,9 +244,10 @@ void retro_init(void)
 {
    struct retro_log_callback log;
 
-   environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log);
-   if (log.log)
+   if(environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
       log_cb = log.log;
+   else
+      log_cb = NULL;
 
    initial_resolution_set = true;
 }
