@@ -9,6 +9,9 @@ LOCAL_MODULE    := retro
 ifeq ($(TARGET_ARCH),arm)
 LOCAL_CFLAGS += -DANDROID_ARM
 LOCAL_ARM_MODE := arm
+ifeq ($(TARGET_ARCH_ABI),armeabi-v7a)
+LOCAL_CFLAGS += -D__ARM_NEON__ -mfpu=neon
+endif
 endif
 
 ifeq ($(TARGET_ARCH),x86)
@@ -18,6 +21,7 @@ endif
 ifeq ($(TARGET_ARCH),mips)
 LOCAL_CFLAGS += -DANDROID_MIPS -D__mips__ -D__MIPSEL__
 endif
+
 
 BASE_DIR=../..
 
