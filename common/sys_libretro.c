@@ -589,6 +589,9 @@ byte surfcache[256 * 1024];
 #define AUDIO_BUFFER_SAMPLES (8 * 1024)
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
+
+extern void Host_Frame_sound(void);
+
 void retro_run(void)
 {
 
@@ -626,6 +629,9 @@ void retro_run(void)
    Host_Frame(_time);
 
    video_cb(video_updated ? finalimage : NULL, width, height, width << 1);
+
+   Host_Frame_sound();
+
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)

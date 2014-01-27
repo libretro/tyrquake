@@ -649,6 +649,20 @@ Host_Frame
 Runs all active servers
 ==================
 */
+void Host_Frame_sound(void)
+{
+   /* update audio */
+   if (cls.state == ca_active)
+   {
+      S_Update(r_origin, vpn, vright, vup);
+      CL_DecayLights();
+   }
+   else
+      S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
+
+   CDAudio_Update();
+}
+
 void
 _Host_Frame(float time)
 {
@@ -727,14 +741,6 @@ _Host_Frame(float time)
     //if (host_speeds.value)
 	//time2 = Sys_DoubleTime();
 
-    /* update audio */
-    if (cls.state == ca_active) {
-	S_Update(r_origin, vpn, vright, vup);
-	CL_DecayLights();
-    } else
-	S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
-
-    CDAudio_Update();
 
 #if 0
     if (host_speeds.value) {
