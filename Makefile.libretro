@@ -223,7 +223,7 @@ else ifeq ($(platform), emscripten)
 WARNINGS_DEFINES = -Wall
 CODE_DEFINES = -fomit-frame-pointer
 else
-WARNINGS_DEFINES = -Wall -fweb -frename-registers
+WARNINGS_DEFINES = -Wall
 CODE_DEFINES = -fomit-frame-pointer
 endif
 
