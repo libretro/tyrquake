@@ -592,7 +592,7 @@ byte surfcache[256 * 1024];
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
 
-static void audio_callback(void)
+static void audio_process(void)
 {
    /* update audio */
    if (cls.state == ca_active)
@@ -604,7 +604,11 @@ static void audio_callback(void)
       S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
 
    CDAudio_Update();
-
+}
+static void audio_callback(void)
+{
+   //audio_process();
+  
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)
@@ -653,6 +657,9 @@ void retro_run(void)
    Host_Frame(_time);
 
    video_cb(finalimage, width, height, width << 1);
+#if 1
+   audio_process();
+#endif
    if (!use_audio_cb)
       audio_callback();
 }
@@ -676,6 +683,7 @@ static void audio_set_state(bool enable)
 {
    (void)enable;
 }
+
 
 bool retro_load_game(const struct retro_game_info *info)
 {
