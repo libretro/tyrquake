@@ -590,7 +590,31 @@ byte surfcache[256 * 1024];
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
 
-extern void Host_Frame_sound(void);
+static void audio_callback(void)
+{
+   /* update audio */
+   if (cls.state == ca_active)
+   {
+      S_Update(r_origin, vpn, vright, vup);
+      CL_DecayLights();
+   }
+   else
+      S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
+
+   CDAudio_Update();
+
+   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
+   unsigned read_end = audio_buffer_ptr + samples_per_frame;
+   if (read_end > AUDIO_BUFFER_SAMPLES)
+      read_end = AUDIO_BUFFER_SAMPLES;
+
+   unsigned read_first  = read_end - audio_buffer_ptr;
+   unsigned read_second = samples_per_frame - read_first;
+
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
+   audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
+}
 
 void retro_run(void)
 {
@@ -629,20 +653,7 @@ void retro_run(void)
    Host_Frame(_time);
 
    video_cb(video_updated ? finalimage : NULL, width, height, width << 1);
-
-   Host_Frame_sound();
-
-   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
-   unsigned read_end = audio_buffer_ptr + samples_per_frame;
-   if (read_end > AUDIO_BUFFER_SAMPLES)
-      read_end = AUDIO_BUFFER_SAMPLES;
-
-   unsigned read_first  = read_end - audio_buffer_ptr;
-   unsigned read_second = samples_per_frame - read_first;
-
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
-   audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
+   audio_callback();
 }
 
 static void extract_directory(char *buf, const char *path, size_t size)
