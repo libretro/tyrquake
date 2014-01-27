@@ -65,6 +65,8 @@ unsigned width;
 unsigned height;
 unsigned device_type = 0;
 
+static bool use_audio_cb;
+
 unsigned MEMSIZE_MB;
 
 #if defined(HW_DOL)
@@ -620,7 +622,6 @@ void retro_run(void)
 {
 
    bool updated = false;
-   bool video_updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
 
@@ -643,7 +644,6 @@ void retro_run(void)
    else
    {
       oldtime += _time;
-      video_updated = true;
    }
 #endif
 #ifdef QW_HACK
@@ -652,8 +652,9 @@ void retro_run(void)
 
    Host_Frame(_time);
 
-   video_cb(video_updated ? finalimage : NULL, width, height, width << 1);
-   audio_callback();
+   video_cb(finalimage, width, height, width << 1);
+   if (!use_audio_cb)
+      audio_callback();
 }
 
 static void extract_directory(char *buf, const char *path, size_t size)
@@ -671,9 +672,14 @@ static void extract_directory(char *buf, const char *path, size_t size)
       buf[0] = '\0';
 }
 
+static void audio_set_state(bool enable)
+{
+   (void)enable;
+}
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+   struct retro_audio_callback cb = { audio_callback, audio_set_state };
    quakeparms_t parms;
 
    update_variables();
@@ -741,6 +747,8 @@ bool retro_load_game(const struct retro_game_info *info)
 #ifdef QW_HACK
    oldtime = Sys_DoubleTime();
 #endif
+
+   use_audio_cb = environ_cb(RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, &cb);
 
    return true;
 }
