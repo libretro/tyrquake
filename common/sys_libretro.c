@@ -61,6 +61,8 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
+extern void CDAudio_Update(void);
+
 unsigned width;
 unsigned height;
 unsigned device_type = 0;
