@@ -741,6 +741,11 @@ bool retro_load_game(const struct retro_game_info *info)
       parms.argc++;
       argv[1] = "-hipnotic";
    }
+   else if (strstr(g_pak_path, "quoth/"))
+   {
+      parms.argc++;
+      argv[1] = "-quoth";
+   }
 
    parms.argv = argv;
 
