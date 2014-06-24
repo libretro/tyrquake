@@ -329,11 +329,15 @@ Q_atof(const char *str)
 
 qboolean bigendien;
 
-#ifdef MSB_FIRST
-short LittleShort(short l)
-#else
-short BigShort(short l)
-#endif
+short (*BigShort) (short l);
+short (*LittleShort) (short l);
+int (*BigLong) (int l);
+int (*LittleLong) (int l);
+float (*BigFloat) (float l);
+float (*LittleFloat) (float l);
+
+short
+ShortSwap(short l)
 {
     byte b1, b2;
 
@@ -343,11 +347,14 @@ short BigShort(short l)
     return (b1 << 8) + b2;
 }
 
-#ifdef MSB_FIRST
-int LittleLong(int l)
-#else
-int BigLong(int l)
-#endif
+short
+ShortNoSwap(short l)
+{
+    return l;
+}
+
+int
+LongSwap(int l)
 {
     byte b1, b2, b3, b4;
 
@@ -359,11 +366,14 @@ int BigLong(int l)
     return ((int)b1 << 24) + ((int)b2 << 16) + ((int)b3 << 8) + b4;
 }
 
-#ifdef MSB_FIRST
-float LittleFloat(float f)
-#else
-float BigFloat(float f)
-#endif
+int
+LongNoSwap(int l)
+{
+    return l;
+}
+
+float
+FloatSwap(float f)
 {
     union {
 	float f;
@@ -376,6 +386,12 @@ float BigFloat(float f)
     dat2.b[2] = dat1.b[1];
     dat2.b[3] = dat1.b[0];
     return dat2.f;
+}
+
+float
+FloatNoSwap(float f)
+{
+    return f;
 }
 
 /*
@@ -1295,10 +1311,23 @@ COM_Init(void)
    swaptest.b[1] = 0;
 
 // set the byte swapping variables in a portable manner
-   if (swaptest.s == 1)
-      bigendien = false;
-   else
-      bigendien = true;
+    if (swaptest.s == 1) {
+	bigendien = false;
+	BigShort = ShortSwap;
+	LittleShort = ShortNoSwap;
+	BigLong = LongSwap;
+	LittleLong = LongNoSwap;
+	BigFloat = FloatSwap;
+	LittleFloat = FloatNoSwap;
+    } else {
+	bigendien = true;
+	BigShort = ShortNoSwap;
+	LittleShort = ShortSwap;
+	BigLong = LongNoSwap;
+	LittleLong = LongSwap;
+	BigFloat = FloatNoSwap;
+	LittleFloat = FloatSwap;
+    }
 
     Cvar_RegisterVariable(&registered);
 #ifdef NQ_HACK

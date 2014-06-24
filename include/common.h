@@ -98,21 +98,12 @@ void InsertLinkAfter(link_t *l, link_t *after);
 
 extern qboolean bigendien;
 
-#ifdef MSB_FIRST
-#define BigShort(l)     (l)
-#define BigLong(l)      (l)
-#define BigFloat(l)     (l)
-extern short LittleShort (short l);
-extern int LittleLong (int l);
-extern float LittleFloat(float f);
-#else
-#define LittleShort(l)  (l)
-#define LittleLong(l)   (l)
-#define LittleFloat(l)  (l)
-extern short BigShort(short l);
-extern int BigLong (int l);
-extern float BigFloat(float f);
-#endif
+extern short (*BigShort) (short l);
+extern short (*LittleShort) (short l);
+extern int (*BigLong) (int l);
+extern int (*LittleLong) (int l);
+extern float (*BigFloat) (float l);
+extern float (*LittleFloat) (float l);
 
 //============================================================================
 
