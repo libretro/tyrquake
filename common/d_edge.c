@@ -168,7 +168,6 @@ D_DrawSurfaces(void)
     VectorCopy(transformed_modelorg, world_transformed_modelorg);
 
 // TODO: could preset a lot of this at mode set time
-#if 0
     if (r_drawflat.value) {
 	for (s = &surfaces[1]; s < surface_p; s++) {
 	    if (!s->spans)
@@ -182,7 +181,6 @@ D_DrawSurfaces(void)
 	    D_DrawZSpans(s->spans);
 	}
     } else {
-#endif
 	for (s = &surfaces[1]; s < surface_p; s++) {
 	    if (!s->spans)
 		continue;
@@ -292,7 +290,5 @@ D_DrawSurfaces(void)
 		}
 	    }
 	}
-#if 0
     }
-#endif
 }
