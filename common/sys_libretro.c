@@ -179,10 +179,13 @@ void Sys_DebugLog(const char *file, const char *fmt, ...)
 
 double Sys_DoubleTime(void)
 {
+   static int first = true;
+   static double oldtime = 0.0, curtime = 0.0;
+   double newtime;
 #if defined(GEKKO)
-   return ticks_to_microsecs(gettime()) / 1000000.0;
+   newtime = ticks_to_microsecs(gettime()) / 1000000.0;
 #elif defined(__CELLOS_LV2__)
-   return sys_time_get_system_time() / 1000000.0;
+   newtime = sys_time_get_system_time() / 1000000.0;
 #elif defined(_WIN32)
    static double pfreq;
    static __int64 startcount;
@@ -191,31 +194,40 @@ double Sys_DoubleTime(void)
    if (!pfreq)
    {
       __int64 freq;
-     if (QueryPerformanceFrequency((LARGE_INTEGER*)&freq) && freq > 0)
-     {
-        //hardware timer available
-        pfreq = (double)freq;
-        QueryPerformanceCounter((LARGE_INTEGER*)&startcount);
-     }
+      if (QueryPerformanceFrequency((LARGE_INTEGER*)&freq) && freq > 0)
+      {
+         //hardware timer available
+         pfreq = (double)freq;
+         QueryPerformanceCounter((LARGE_INTEGER*)&startcount);
+      }
    }
 
    QueryPerformanceCounter((LARGE_INTEGER*)&pcount);
    /* TODO -check for wrapping - is it necessary? */
-   return (pcount - startcount) / pfreq;
+   newtime = (pcount - startcount) / pfreq;
 #else
    struct timeval tp;
-   struct timezone tzp;
-   static int secbase;
+   gettimeofday(&tp, NULL);
+   newtime = (double)tp.tv_sec + tp.tv_usec / 1000000.0;
+#endif
 
-   gettimeofday(&tp, &tzp);
-
-   if (!secbase) {
-      secbase = tp.tv_sec;
-      return tp.tv_usec / 1000000.0;
+   if (first)
+   {
+      first = false;
+      oldtime = newtime;
    }
 
-   return (tp.tv_sec - secbase) + tp.tv_usec / 1000000.0;
-#endif
+   if (newtime < oldtime)
+   {
+      // warn if it's significant
+      if (newtime - oldtime < -0.01)
+         Con_Printf("Sys_DoubleTime: time stepped backwards (went from %f to %f, difference %f)\n", oldtime, newtime, newtime - oldtime);
+   }
+   else
+      curtime += newtime - oldtime;
+   oldtime = newtime;
+
+   return curtime;
 }
 
 // =======================================================================
