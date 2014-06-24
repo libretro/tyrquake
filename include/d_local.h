@@ -70,10 +70,14 @@ extern float d_sdivzorigin, d_tdivzorigin, d_ziorigin;
 extern fixed16_t sadjust, tadjust;
 extern fixed16_t bbextents, bbextentt;
 
-void D_DrawSpans8Dither(espan_t *pspans);
 void D_DrawSpans8(espan_t *pspans);
 void D_DrawSpans16(espan_t *pspans);
 extern void (*D_DrawSpans)(espan_t *pspan);
+
+#ifdef __LIBRETRO__
+void D_DrawSpans16Qb(espan_t *pspans);
+void D_DrawSpans16QbDither(espan_t *pspans);
+#endif
 
 void D_DrawZSpans(espan_t *pspans);
 void Turbulent8(espan_t *pspan);

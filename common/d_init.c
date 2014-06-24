@@ -161,10 +161,7 @@ D_SetupFrame(void)
 #endif
 
 #ifdef __LIBRETRO__
-   if (cvar && cvar->value == 1.0f)
-      D_DrawSpans = D_DrawSpans8Dither;
-   else
-      D_DrawSpans = D_DrawSpans8;
+    D_DrawSpans = D_DrawSpans16Qb;
 #endif
 }
 
