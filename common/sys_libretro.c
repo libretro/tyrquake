@@ -91,6 +91,9 @@ unsigned short	palette_data[256];
 
 unsigned char *heap;
 
+#define MAX_PADS 1
+static unsigned quake_devices[1];
+
 // =======================================================================
 // General routines
 // =======================================================================
@@ -246,12 +249,16 @@ viddef_t vid;			// global video state
 
 void retro_init(void)
 {
+   int i;
    struct retro_log_callback log;
 
    if(environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
       log_cb = log.log;
    else
       log_cb = NULL;
+
+   for (i = 0; i < MAX_PADS; i++)
+      quake_devices[i] = RETRO_DEVICE_JOYPAD;
 
    initial_resolution_set = true;
 }
@@ -267,8 +274,18 @@ unsigned retro_api_version(void)
 
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-   (void)port;
-   (void)device;
+   switch (device)
+   {
+      case RETRO_DEVICE_JOYPAD:
+         quake_devices[port] = RETRO_DEVICE_JOYPAD;
+         break;
+      case RETRO_DEVICE_KEYBOARD:
+         quake_devices[port] = RETRO_DEVICE_KEYBOARD;
+         break;
+      default:
+         if (log_cb)
+            log_cb(RETRO_LOG_ERROR, "[libretro]: Invalid device.\n");
+   }
 }
 
 void retro_get_system_info(struct retro_system_info *info)
@@ -303,12 +320,21 @@ void retro_set_environment(retro_environment_t cb)
    struct retro_variable variables[] = {
       { "resolution",
          "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768" },
-      { "gamepad",
-         "Gamepad type; gamepad|dual-analog" },
       { NULL, NULL },
    };
 
+   static const struct retro_controller_description port_1[] = {
+      { "RetroPad", RETRO_DEVICE_JOYPAD },
+      { "RetroKeyboard + RetroMouse", RETRO_DEVICE_KEYBOARD },
+   };
+
+   static const struct retro_controller_info ports[] = {
+      { port_1, 2 },
+      { 0 },
+   };
+
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, variables);
+   cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
 }
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
@@ -342,196 +368,202 @@ void retro_reset(void)
 
 void Sys_SendKeyEvents(void)
 {
+   int port;
    poll_cb();
 
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_w))
-      Key_Event(K_UPARROW, 1);
-   else if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
-      Key_Event(K_UPARROW, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
-      Key_Event(K_UPARROW, 1);
-#endif
-   else
-      Key_Event(K_UPARROW, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_s))
-      Key_Event(K_DOWNARROW, 1);
-   else if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
-      Key_Event(K_DOWNARROW, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
-      Key_Event(K_DOWNARROW, 1);
-#endif
-   else
-      Key_Event(K_DOWNARROW, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_a))
-      Key_Event(K_COMMA, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
-      Key_Event(K_COMMA, 1);
-#endif
-   else
-      Key_Event(K_COMMA, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_d))
-      Key_Event(K_PERIOD, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
-      Key_Event(K_PERIOD, 1);
-#endif
-   else
-      Key_Event(K_PERIOD, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) ||
-         input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN) ||
-         input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)
-         )
-      Key_Event(K_ENTER, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
-      Key_Event(K_ENTER, 1);
-#endif
-   else
-      Key_Event(K_ENTER, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_1))
-      Key_Event(K_1, 1);
-   else
-      Key_Event(K_1, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_2))
-      Key_Event(K_2, 1);
-   else
-      Key_Event(K_2, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_3))
-      Key_Event(K_3, 1);
-   else
-      Key_Event(K_3, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_4))
-      Key_Event(K_4, 1);
-   else
-      Key_Event(K_4, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_5))
-      Key_Event(K_5, 1);
-   else
-      Key_Event(K_5, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_6))
-      Key_Event(K_6, 1);
-   else
-      Key_Event(K_6, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_7))
-      Key_Event(K_7, 1);
-   else
-      Key_Event(K_7, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_8))
-      Key_Event(K_8, 1);
-   else
-      Key_Event(K_8, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_TAB))
-      Key_Event(K_TAB, 1);
-   else
-      Key_Event(K_TAB, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_c))
-      Key_Event(K_SLASH, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
-      Key_Event(K_SLASH, 1);
-#endif
-   else
-      Key_Event(K_SLASH, 0);
-
-   if (input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ||
-         (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL)))
-      Key_Event(K_MOUSE1, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
-      Key_Event(K_MOUSE1, 1);
-#endif
-   else
-      Key_Event(K_MOUSE1, 0);
-
-#ifndef EMSCRIPTEN
-	Key_Event(K_ESCAPE, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START));
-	Key_Event(K_INS, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X));
-#endif
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
-      Key_Event(K_LEFTARROW, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
-      Key_Event(K_LEFTARROW, 1);
-#endif
-   else
-      Key_Event(K_LEFTARROW, 0);
-
-   if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
-      Key_Event(K_RIGHTARROW, 1);
-#ifndef EMSCRIPTEN
-   else if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
-      Key_Event(K_RIGHTARROW, 1);
-#endif
-   else
-      Key_Event(K_RIGHTARROW, 0);
-
-#ifndef EMSCRIPTEN
-	Key_Event(K_END, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
-#endif
-
-#ifndef EMSCRIPTEN
-	if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
+   for (port = 0; port < MAX_PADS; port++)
    {
-      Cvar_SetValue("cl_forwardspeed", 200);
-      Cvar_SetValue("cl_backspeed", 200);
-   }
-   else
-#endif
-   {
-      Cvar_SetValue("cl_forwardspeed", 400);
-      Cvar_SetValue("cl_backspeed", 400);
-   }
+      switch (quake_devices[port])
+      {
+         case RETRO_DEVICE_JOYPAD:
+            {
+               int lsx, lsy, rsx, rsy;
+               lsx = 0;
+               lsy = 0;
+               rsx = 0;
+               rsy = 0;
 
-   if (device_type == 1)
-   {
-      int analog_left_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-            RETRO_DEVICE_ID_ANALOG_X);
-      int analog_left_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-            RETRO_DEVICE_ID_ANALOG_Y);
-      int analog_right_x = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-            RETRO_DEVICE_ID_ANALOG_X);
-      int analog_right_y = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-            RETRO_DEVICE_ID_ANALOG_Y);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
+                  Key_Event(K_UPARROW, 1);
+               else
+                  Key_Event(K_UPARROW, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
+                  Key_Event(K_DOWNARROW, 1);
+               else
+                  Key_Event(K_DOWNARROW, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
+                  Key_Event(K_COMMA, 1);
+               else
+                  Key_Event(K_COMMA, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
+                  Key_Event(K_PERIOD, 1);
+               else
+                  Key_Event(K_PERIOD, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
+                  Key_Event(K_ENTER, 1);
+               else
+                  Key_Event(K_ENTER, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
+                  Key_Event(K_SLASH, 1);
+               else
+                  Key_Event(K_SLASH, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
+                  Key_Event(K_MOUSE1, 1);
+               else
+                  Key_Event(K_MOUSE1, 0);
+               Key_Event(K_ESCAPE, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START));
+               Key_Event(K_INS, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X));
+               if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
+                  Key_Event(K_LEFTARROW, 1);
+               else
+                  Key_Event(K_LEFTARROW, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
+                  Key_Event(K_RIGHTARROW, 1);
+               else
+                  Key_Event(K_RIGHTARROW, 0);
 
+               Key_Event(K_END, input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
+               {
+                  Cvar_SetValue("cl_forwardspeed", 200);
+                  Cvar_SetValue("cl_backspeed", 200);
+               }
+               else
+               {
+                  Cvar_SetValue("cl_forwardspeed", 400);
+                  Cvar_SetValue("cl_backspeed", 400);
+               }
+               lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+                     RETRO_DEVICE_ID_ANALOG_X);
+               lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+                     RETRO_DEVICE_ID_ANALOG_Y);
+               rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                     RETRO_DEVICE_ID_ANALOG_X);
+               rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+                     RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (analog_left_x > ANALOG_THRESHOLD)
-         Key_Event(K_PERIOD, 1);
+               if (lsx > ANALOG_THRESHOLD)
+                  Key_Event(K_PERIOD, 1);
 
-      if (analog_left_x < -ANALOG_THRESHOLD)
-         Key_Event(K_COMMA, 1);
+               if (lsx < -ANALOG_THRESHOLD)
+                  Key_Event(K_COMMA, 1);
 
-      if (analog_left_y > ANALOG_THRESHOLD)
-         Key_Event(K_DOWNARROW, 1);
+               if (lsy > ANALOG_THRESHOLD)
+                  Key_Event(K_DOWNARROW, 1);
 
-      if (analog_left_y < -ANALOG_THRESHOLD)
-         Key_Event(K_UPARROW, 1);
+               if (lsy < -ANALOG_THRESHOLD)
+                  Key_Event(K_UPARROW, 1);
 
-      if (analog_right_x > ANALOG_THRESHOLD)
-         Key_Event(K_RIGHTARROW, 1);
+               if (rsx > ANALOG_THRESHOLD)
+                  Key_Event(K_RIGHTARROW, 1);
 
-      if (analog_right_x < -ANALOG_THRESHOLD)
-         Key_Event(K_LEFTARROW, 1);
+               if (rsx < -ANALOG_THRESHOLD)
+                  Key_Event(K_LEFTARROW, 1);
 
-      Key_Event(K_DEL, analog_right_y > ANALOG_THRESHOLD);
-      Key_Event(K_PGDN, analog_right_y < -ANALOG_THRESHOLD);
+               Key_Event(K_DEL, rsy > ANALOG_THRESHOLD);
+               Key_Event(K_PGDN, rsy < -ANALOG_THRESHOLD);
+            }
+            break;
+         case RETRO_DEVICE_KEYBOARD:
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_w))
+               Key_Event(K_UPARROW, 1);
+            else if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
+               Key_Event(K_UPARROW, 1);
+            else
+               Key_Event(K_UPARROW, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_s))
+               Key_Event(K_DOWNARROW, 1);
+            else if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
+               Key_Event(K_DOWNARROW, 1);
+            else
+               Key_Event(K_DOWNARROW, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_a))
+               Key_Event(K_COMMA, 1);
+            else
+               Key_Event(K_COMMA, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_d))
+               Key_Event(K_PERIOD, 1);
+            else
+               Key_Event(K_PERIOD, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) ||
+                  input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN) ||
+                  input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)
+               )
+               Key_Event(K_ENTER, 1);
+            else
+               Key_Event(K_ENTER, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_1))
+               Key_Event(K_1, 1);
+            else
+               Key_Event(K_1, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_2))
+               Key_Event(K_2, 1);
+            else
+               Key_Event(K_2, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_3))
+               Key_Event(K_3, 1);
+            else
+               Key_Event(K_3, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_4))
+               Key_Event(K_4, 1);
+            else
+               Key_Event(K_4, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_5))
+               Key_Event(K_5, 1);
+            else
+               Key_Event(K_5, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_6))
+               Key_Event(K_6, 1);
+            else
+               Key_Event(K_6, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_7))
+               Key_Event(K_7, 1);
+            else
+               Key_Event(K_7, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_8))
+               Key_Event(K_8, 1);
+            else
+               Key_Event(K_8, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_TAB))
+               Key_Event(K_TAB, 1);
+            else
+               Key_Event(K_TAB, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_c))
+               Key_Event(K_SLASH, 1);
+            else
+               Key_Event(K_SLASH, 0);
+
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ||
+                  (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL)))
+               Key_Event(K_MOUSE1, 1);
+            else
+               Key_Event(K_MOUSE1, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
+               Key_Event(K_LEFTARROW, 1);
+            else
+               Key_Event(K_LEFTARROW, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
+               Key_Event(K_RIGHTARROW, 1);
+            else
+               Key_Event(K_RIGHTARROW, 0);
+            break;
+      }
    }
 }
 
@@ -571,17 +603,6 @@ static void update_variables(void)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = false;
-   }
-
-   var.key = "gamepad";
-   var.value = NULL;
-
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
-   {
-      if (strcmp(var.value, "gamepad") == 0)
-         device_type = 0;
-      else if (strcmp(var.value, "dual-analog") == 0)
-         device_type = 1;
    }
 }
 
@@ -987,6 +1008,9 @@ IN_Move(usercmd_t *cmd)
    static int cur_mx;
    static int cur_my;
    int mx, my;
+
+   if (quake_devices[0] != RETRO_DEVICE_KEYBOARD)
+      return;
 
    mx = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
    my = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
