@@ -270,17 +270,12 @@ viddef_t vid;			// global video state
 
 void retro_init(void)
 {
-   int i;
    struct retro_log_callback log;
 
    if(environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log))
       log_cb = log.log;
    else
       log_cb = NULL;
-
-   for (i = 0; i < MAX_PADS; i++)
-      quake_devices[i] = RETRO_DEVICE_JOYPAD;
-
 }
 
 void retro_deinit(void)
@@ -699,7 +694,6 @@ static const char *empty_string = "";
 bool retro_load_game(const struct retro_game_info *info)
 {
    char g_rom_dir[256], g_pak_path[256];
-   struct retro_audio_callback cb = { audio_callback, audio_set_state };
    quakeparms_t parms;
 
    update_variables();
@@ -787,7 +781,6 @@ bool retro_load_game(const struct retro_game_info *info)
    oldtime = Sys_DoubleTime();
 #endif
 
-   use_audio_cb = environ_cb(RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, &cb);
 
    return true;
 }
@@ -983,6 +976,8 @@ static void audio_callback(void)
 
 qboolean SNDDMA_Init(void)
 {
+   struct retro_audio_callback cb = { audio_callback, audio_set_state };
+
    shm = &sn;
    shm->speed = SAMPLERATE;
    shm->channels = 2;
@@ -990,6 +985,9 @@ qboolean SNDDMA_Init(void)
    shm->samplebits = 16;
    shm->samples = AUDIO_BUFFER_SAMPLES;
    shm->buffer = (unsigned char *volatile)audio_buffer;
+
+   use_audio_cb = environ_cb(RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, &cb);
+   
    return true;
 }
 
@@ -1044,6 +1042,9 @@ cvar_t _windowed_mouse = { "_windowed_mouse", "0", true, false, 0, windowed_mous
 void
 IN_Init(void)
 {
+   int i;
+   for (i = 0; i < MAX_PADS; i++)
+      quake_devices[i] = RETRO_DEVICE_JOYPAD;
 }
 
 void
