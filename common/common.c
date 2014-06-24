@@ -2037,7 +2037,6 @@ COM_InitFilesystem
 ================
 */
 
-#ifdef __LIBRETRO__
 static void
 COM_InitFilesystem(void)
 {
@@ -2046,6 +2045,7 @@ COM_InitFilesystem(void)
 #ifdef NQ_HACK
     searchpath_t *search;
 #endif
+
     home = getenv("HOME");
 
 //
@@ -2053,12 +2053,18 @@ COM_InitFilesystem(void)
 // Overrides the system supplied base directory (under id1)
 //
     i = COM_CheckParm("-basedir");
+#ifndef __LIBRETRO__
+    if (i && i < com_argc - 1)
+	strcpy(com_basedir, com_argv[i + 1]);
+    else
+#endif
     strcpy(com_basedir, host_parms.basedir);
 
 //
 // start up with id1 by default
 //
     COM_AddGameDirectory(com_basedir, "");
+    COM_AddGameDirectory(home, ".tyrquake/id1");
 
 #ifdef NQ_HACK
     if (COM_CheckParm("-rogue")) {
@@ -2126,118 +2132,6 @@ COM_InitFilesystem(void)
     com_base_searchpaths = com_searchpaths;
 #endif
 }
-#else
-static void
-COM_InitFilesystem(void)
-{
-    int i;
-    char *home;
-#ifdef NQ_HACK
-    searchpath_t *search;
-#endif
-
-    home = getenv("HOME");
-
-//
-// -basedir <path>
-// Overrides the system supplied base directory (under id1)
-//
-    i = COM_CheckParm("-basedir");
-    if (i && i < com_argc - 1)
-	strcpy(com_basedir, com_argv[i + 1]);
-    else
-	strcpy(com_basedir, host_parms.basedir);
-
-//
-// start up with id1 by default
-//
-    COM_AddGameDirectory(com_basedir, "id1");
-#ifdef _WIN32
-    COM_AddGameDirectory(home, ".tyrquake\\id1");
-#else
-    COM_AddGameDirectory(home, ".tyrquake/id1");
-#endif
-
-#ifdef NQ_HACK
-    if (COM_CheckParm("-rogue")) {
-	COM_AddGameDirectory(com_basedir, "rogue");
-#ifdef _WIN32
-	COM_AddGameDirectory(home, ".tyrquake\\rogue");
-#else
-	COM_AddGameDirectory(home, ".tyrquake/rogue");
-#endif
-    }
-    if (COM_CheckParm("-hipnotic")) {
-	COM_AddGameDirectory(com_basedir, "hipnotic");
-#ifdef _WIN32
-	COM_AddGameDirectory(home, ".tyrquake\\hipnotic");
-#else
-	COM_AddGameDirectory(home, ".tyrquake/hipnotic");
-#endif
-    }
-
-//
-// -game <gamedir>
-// Adds basedir/gamedir as an override game
-//
-    i = COM_CheckParm("-game");
-    if (i && i < com_argc - 1) {
-	com_modified = true;
-	COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
-#ifdef _WIN32
-	COM_AddGameDirectory(home, va(".tyrquake\\%s", com_argv[i + 1]));
-#else
-	COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
-#endif
-    }
-#endif
-#ifdef QW_HACK
-    COM_AddGameDirectory(com_basedir, "qw");
-#ifdef _WIN32
-    COM_AddGameDirectory(home, ".tyrquake\\qw");
-#else
-    COM_AddGameDirectory(home, ".tyrquake/qw");
-#endif
-#endif
-
-    /* If home is available, create the game directory */
-    if (home) {
-	COM_CreatePath(com_gamedir);
-	Sys_mkdir(com_gamedir);
-    }
-
-//
-// -path <dir or packfile> [<dir or packfile>] ...
-// Fully specifies the exact search path, overriding the generated one
-//
-#ifdef NQ_HACK
-    i = COM_CheckParm("-path");
-    if (i) {
-	com_modified = true;
-	com_searchpaths = NULL;
-	while (++i < com_argc) {
-	    if (!com_argv[i] || com_argv[i][0] == '+'
-		|| com_argv[i][0] == '-')
-		break;
-
-	    search = Hunk_Alloc(sizeof(searchpath_t));
-	    if (!strcmp(COM_FileExtension(com_argv[i]), "pak")) {
-		search->pack = COM_LoadPackFile(com_argv[i]);
-		if (!search->pack)
-		    Sys_Error("Couldn't load packfile: %s", com_argv[i]);
-	    } else
-		strcpy(search->filename, com_argv[i]);
-	    search->next = com_searchpaths;
-	    com_searchpaths = search;
-	}
-    }
-#endif
-#ifdef QW_HACK
-    // any set gamedirs will be freed up to here
-    com_base_searchpaths = com_searchpaths;
-#endif
-}
-#endif
 
 // FIXME - everything below is QW only... move it?
 #ifdef QW_HACK
