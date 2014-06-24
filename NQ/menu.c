@@ -887,7 +887,7 @@ M_Setup_Key(int k)
 /* OPTIONS MENU */
 
 #ifdef __LIBRETRO__
-#define	OPTIONS_ITEMS	20
+#define	OPTIONS_ITEMS	21
 #else
 #define	OPTIONS_ITEMS	14
 #endif
@@ -908,6 +908,7 @@ M_Menu_Options_f(void)
 #endif
 }
 
+extern void D_SetupFrame();
 
 static void
 M_AdjustSliders(int dir)
@@ -985,40 +986,39 @@ M_AdjustSliders(int dir)
 	Cvar_SetValue("lookstrafe", !lookstrafe.value);
 	break;
 
+    case 13:			// _windowed_mouse
+   Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
+   break;
 #ifdef __LIBRETRO__
-   case 13:
+   case 14:
        cvar = Cvar_FindVar("dither_filter");
        Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
        D_SetupFrame();
        break;
-   case 14:
+   case 15:
        cvar = Cvar_FindVar("d_mipscale");
        Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
        break;
-   case 15:
+   case 16:
        cvar = Cvar_FindVar("r_lerpmodels");
        Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
        break;
-   case 16:
+   case 17:
        cvar = Cvar_FindVar("crosshair");
        Cvar_SetValue("crosshair", cvar->value ? 0.0f : 1.0f);
        break;
-   case 17:
+   case 18:
        cvar = Cvar_FindVar("framerate");
        Cvar_SetValue("framerate", (cvar->value == 60) ? 50.0f : 60.0f);
        break;
-   case 18:
+   case 19:
        cvar = Cvar_FindVar("chase_type");
        Cvar_SetValue("chase_type", (cvar->value) ? 0 : 1);
        break;
-   case 19:
+   case 20:
        cvar = Cvar_FindVar("chase_active");
        Cvar_SetValue("chase_active", (cvar->value) ? 0 : 1);
        break;
-#else
-    case 13:			// _windowed_mouse
-	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
-	break;
 #endif
     }
 }
@@ -1107,48 +1107,48 @@ M_Options_Draw(void)
     if (vid_menudrawfn)
 	M_Print(16, 128, "         Video Options");
 
+    if (!VID_IsFullScreen()) {
+       M_Print(16, 136, "             Use Mouse");
+       M_DrawCheckbox(220, 136, _windowed_mouse.value);
+    }
+
 #ifdef __LIBRETRO__
     cvar = Cvar_FindVar("dither_filter");
 
-    M_Print(16, 136, "      Dither Filtering");
-	M_DrawCheckbox(220, 136, cvar->value);
+    M_Print(16, 144, "      Dither Filtering");
+	M_DrawCheckbox(220, 144, cvar->value);
 
    cvar = Cvar_FindVar("d_mipscale");
-   M_Print(16, 144, "      Level of Detail");
-   M_DrawCheckbox(220, 144, cvar->value);
-
-   cvar = Cvar_FindVar("r_lerpmodels");
-   M_Print(16, 152, "      Smooth Animation");
+   M_Print(16, 152, "      Level of Detail");
    M_DrawCheckbox(220, 152, cvar->value);
 
-   cvar = Cvar_FindVar("crosshair");
-   M_Print(16, 160, "      Crosshair");
+   cvar = Cvar_FindVar("r_lerpmodels");
+   M_Print(16, 160, "      Smooth Animation");
    M_DrawCheckbox(220, 160, cvar->value);
 
+   cvar = Cvar_FindVar("crosshair");
+   M_Print(16, 168, "      Crosshair");
+   M_DrawCheckbox(220, 168, cvar->value);
+
    cvar = Cvar_FindVar("framerate");
-   M_Print(16,168, "      Framerate");
+   M_Print(16,176, "      Framerate");
    if (cvar->value == 60)
-      M_Print(220,168, "60fps");
+      M_Print(220,176, "60fps");
    else
-      M_Print(220,168,"50fps");
+      M_Print(220,176,"50fps");
 
 
    cvar = Cvar_FindVar("chase_type");
-   M_Print(16, 176, "      Camera Type");
+   M_Print(16, 182, "      Camera Type");
 
    if (cvar->value == 1)
-      M_Print(220,176, "Clamped");
+      M_Print(220,182, "Clamped");
    else
-      M_Print(220,176,"Clipped");
+      M_Print(220,182,"Clipped");
 
    cvar = Cvar_FindVar("chase_active");
-   M_Print(16, 182, "      First Person");
-   M_DrawCheckbox(220, 182, cvar->value ? 0 : 1);
-#else
-    if (!VID_IsFullScreen()) {
-	M_Print(16, 136, "             Use Mouse");
-	M_DrawCheckbox(220, 136, _windowed_mouse.value);
-    }
+   M_Print(16, 188, "      First Person");
+   M_DrawCheckbox(220, 188, cvar->value ? 0 : 1);
 #endif
 
 
@@ -1218,7 +1218,6 @@ M_Options_Key(int k)
 	else
 	    options_cursor = 13;
     }
-#ifndef __LIBRETRO__
     if ((options_cursor == 13) && VID_IsFullScreen()) {
 	if (k == K_UPARROW) {
 	    if (!vid_menudrawfn)
@@ -1226,9 +1225,12 @@ M_Options_Key(int k)
 	    else
 		options_cursor = 12;
 	} else
+#ifdef __LIBRETRO__
+      options_cursor = 14;
+#else
 	    options_cursor = 0;
-    }
 #endif
+    }
 }
 
 //=============================================================================
