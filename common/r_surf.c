@@ -260,19 +260,15 @@ R_DrawSurface(void)
 
 //==============================
 
-#if 0
     if (r_pixbytes == 1) {
-#endif
 	pblockdrawer = surfmiptable[r_drawsurf.surfmip];
 	// TODO: only needs to be set when there is a display settings change
 	horzblockstep = blocksize;
-#if 0
     } else {
 	pblockdrawer = R_DrawSurfaceBlock16;
 	// TODO: only needs to be set when there is a display settings change
 	horzblockstep = blocksize << 1;
     }
-#endif
 
     smax = mt->width >> r_drawsurf.surfmip;
     twidth = texwidth;

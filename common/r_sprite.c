@@ -34,7 +34,7 @@ spritedesc_t r_spritedesc;
 int
 R_SpriteDataSize(int pixels)
 {
-    return pixels/* * r_pixbytes*/;
+    return pixels * r_pixbytes;
 }
 
 void
@@ -44,11 +44,8 @@ R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
     int i, size;
 
     size = frame->width * frame->height;
-#if 0
     if (r_pixbytes == 1) {
-#endif
 	memcpy(&frame->rdata[0], pixels, size);
-#if 0
     } else if (r_pixbytes == 2) {
 	unsigned short *pixout = (unsigned short *)&frame->rdata[0];
 	for (i = 0; i < size; i++)
@@ -57,7 +54,6 @@ R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
 	Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
 		  r_pixbytes);
     }
-#endif
 }
 
 /*

@@ -102,14 +102,11 @@ SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
     byte *ret, *out;
 
     skinsize = ahdr->skinwidth * ahdr->skinheight;
-    ret = out = (byte*)Hunk_Alloc(skinnum * skinsize/* * r_pixbytes*/);
+    ret = out = (byte*)Hunk_Alloc(skinnum * skinsize * r_pixbytes);
 
     for (i = 0; i < skinnum; i++) {
-#if 0
 	if (r_pixbytes == 1) {
-#endif
 	    memcpy(out, skindata[i], skinsize);
-#if 0
 	} else if (r_pixbytes == 2) {
 	    unsigned short *skin16 = (unsigned short *)out;
 	    for (j = 0; j < skinsize; j++)
@@ -118,8 +115,7 @@ SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 	    Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
 		      r_pixbytes);
 	}
-#endif
-	out += skinsize/* * r_pixbytes*/;
+	out += skinsize * r_pixbytes;
     }
 
     return ret;
@@ -689,7 +685,7 @@ R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 	frame += Mod_FindInterval(intervals, numframes, cl.time + e->syncbase);
     }
 
-    skinbytes = pahdr->skinwidth * pahdr->skinheight/* * r_pixbytes*/;
+    skinbytes = pahdr->skinwidth * pahdr->skinheight * r_pixbytes;
     pdata = (byte *)pahdr + pahdr->skindata;
     pdata += frame * skinbytes;
 
