@@ -153,13 +153,18 @@ D_CalcGradients(msurface_t *pface)
 D_DrawSurfaces
 ==============
 */
+#ifdef __LIBRETRO__
+surfcache_t *pcurrentcache;
+#endif
 void
 D_DrawSurfaces(void)
 {
     const entity_t *e;
     surf_t *s;
     msurface_t *pface;
+#ifndef __LIBRETRO__
     surfcache_t *pcurrentcache;
+#endif
     vec3_t world_transformed_modelorg;
     vec3_t local_modelorg;
 
