@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "libretro.h"
+#include "thread.h"
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
@@ -574,13 +575,7 @@ void Sys_SendKeyEvents(void)
 
 void Sys_Sleep(void)
 {
-#if defined(_WIN32)
-   Sleep(1 * 1000);
-#elif defined(__CELLOS_LV2__)
-   sys_timer_usleep(1);
-#else
-   usleep(1);
-#endif
+   retro_sleep(1);
 }
 
 static void update_variables(void)
