@@ -662,7 +662,7 @@ void retro_run(void)
 #ifdef NQ_HACK
    if (cls.state == ca_dedicated) {
       if (_time < sys_ticrate.value) {
-         //Sys_Sleep();
+         Sys_Sleep();
          //TODO - do something proper for this instead of just 'returning'
          //continue;	// not time to run a server only tic yet
          return;

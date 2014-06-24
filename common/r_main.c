@@ -1061,15 +1061,12 @@ static void R_EdgeDrawing(void)
 
     R_BeginEdgeFrame();
 
-#if 0
     if (r_dspeeds.value) {
 	rw_time1 = Sys_DoubleTime();
     }
-#endif
 
     R_RenderWorld();
 
-#if 0
     // only the world can be drawn back to front with no z reads or compares,
     // just z writes, so have the driver turn z compares on now
     D_TurnZOn();
@@ -1078,11 +1075,9 @@ static void R_EdgeDrawing(void)
 	rw_time2 = Sys_DoubleTime();
 	db_time1 = rw_time2;
     }
-#endif
 
     R_DrawBEntitiesOnList();
 
-#if 0
     if (r_dspeeds.value) {
 	db_time2 = Sys_DoubleTime();
 	se_time1 = db_time2;
@@ -1093,7 +1088,6 @@ static void R_EdgeDrawing(void)
 	S_ExtraUpdate();	// don't let sound get messed up if going slow
 	VID_LockBuffer();
     }
-#endif
 
     R_ScanEdges();
 }
@@ -1113,10 +1107,8 @@ R_RenderView_(void)
 
     r_warpbuffer = warpbuffer;
 
-#if 0
     if (r_timegraph.value || r_speeds.value || r_dspeeds.value)
 	r_time1 = Sys_DoubleTime();
-#endif
 
     R_SetupFrame();
     R_MarkSurfaces();		// done here so we know if we're in water
@@ -1131,62 +1123,49 @@ R_RenderView_(void)
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
-#if 0
     if (!r_dspeeds.value) {
 	VID_UnlockBuffer();
 	S_ExtraUpdate();	// don't let sound get messed up if going slow
 	VID_LockBuffer();
     }
-#endif
 
     R_EdgeDrawing();
 
-#if 0
     if (!r_dspeeds.value) {
 	VID_UnlockBuffer();
 	S_ExtraUpdate();	// don't let sound get messed up if going slow
 	VID_LockBuffer();
     }
-#endif
 
-#if 0
     if (r_dspeeds.value) {
 	se_time2 = Sys_DoubleTime();
 	de_time1 = se_time2;
     }
-#endif
 
     R_DrawEntitiesOnList();
 
-#if 0
     if (r_dspeeds.value) {
 	de_time2 = Sys_DoubleTime();
 	dv_time1 = de_time2;
     }
-#endif
 
     R_DrawViewModel();
 
-#if 0
     if (r_dspeeds.value) {
 	dv_time2 = Sys_DoubleTime();
 	dp_time1 = Sys_DoubleTime();
     }
-#endif
 
     R_DrawParticles();
 
-#if 0
     if (r_dspeeds.value)
 	dp_time2 = Sys_DoubleTime();
-#endif
 
     if (r_dowarp)
 	D_WarpScreen();
 
     V_SetContentsColor(r_viewleaf->contents);
 
-#if 0
     if (r_timegraph.value)
 	R_TimeGraph();
 
@@ -1212,7 +1191,6 @@ R_RenderView_(void)
 
     if (r_reportedgeout.value && r_outofedges)
 	Con_Printf("Short roughly %d edges\n", r_outofedges * 2 / 3);
-#endif
 
     // back to high floating-point precision
     Sys_HighFPPrecision();

@@ -932,11 +932,9 @@ Draw_FadeScreen(void)
     int x, y;
     byte *pbuf;
 
-#if 0
     VID_UnlockBuffer();
     S_ExtraUpdate();
     VID_LockBuffer();
-#endif
 
     for (y = 0; y < vid.height; y++) {
 	int t;
@@ -950,11 +948,9 @@ Draw_FadeScreen(void)
 	}
     }
 
-#if 0
     VID_UnlockBuffer();
     S_ExtraUpdate();
     VID_LockBuffer();
-#endif
 }
 
 //=============================================================================
