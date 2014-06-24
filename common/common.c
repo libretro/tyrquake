@@ -1931,9 +1931,6 @@ COM_AddGameDirectory(const char *base, const char *dir)
 //
     for (i = 0;; i++) {
 	snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
-   Sys_Printf("pakfile is:\n");
-   Sys_Printf(pakfile);
-   Sys_Printf("\n");
 	pak = COM_LoadPackFile(pakfile);
 	if (!pak)
    {
