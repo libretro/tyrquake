@@ -857,16 +857,11 @@ unsigned short d_8to16table[256];
 
 void VID_SetPalette(unsigned char *palette)
 {
-   unsigned r, g, b, i;
+   unsigned i, j;
    unsigned short *pal = &d_8to16table[0];
 
-   for(i = 0; i < 256; i++)
-   {
-      r = *palette++;
-      g = *palette++;
-      b = *palette++;
-      *pal++ = MAKECOLOR(r, g, b);
-   }
+   for(i = 0, j = 0; i < 256; i++, j += 3)
+      *pal++ = MAKECOLOR(palette[j], palette[j+1], palette[j+2]);
 }
 
 void VID_ShiftPalette(unsigned char *palette)
