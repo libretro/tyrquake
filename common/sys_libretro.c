@@ -90,8 +90,6 @@ unsigned MEMSIZE_MB;
 cvar_t framerate = { "framerate", "60" };
 static bool initial_resolution_set = false;
 
-char g_rom_dir[256];
-char g_pak_path[256];
 
 unsigned char *heap;
 
@@ -694,9 +692,12 @@ static void audio_set_state(bool enable)
    (void)enable;
 }
 
+const char *argv[MAX_NUM_ARGVS];
+static const char *empty_string = "";
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+   char g_rom_dir[256], g_pak_path[256];
    struct retro_audio_callback cb = { audio_callback, audio_set_state };
    quakeparms_t parms;
 
@@ -708,9 +709,14 @@ bool retro_load_game(const struct retro_game_info *info)
 
    MEMSIZE_MB = DEFAULT_MEMSIZE_MB;
 
-   if (strstr(info->path, "hipnotic") || strstr(info->path, "rogue")
-         || strstr(info->path, "HIPNOTIC")
-         || strstr(info->path, "ROGUE"))
+   if (
+         strstr(info->path, "quoth") ||
+         strstr(info->path, "hipnotic") ||
+         strstr(info->path, "rogue") ||
+         strstr(info->path, "HIPNOTIC") ||
+         strstr(info->path, "ROGUE") ||
+         strstr(info->path, "QUOTH")
+         )
    {
 #if defined(HW_RVL) || defined(_XBOX1)
       MEMSIZE_MB = 16;
@@ -720,12 +726,28 @@ bool retro_load_game(const struct retro_game_info *info)
 
    memset(&parms, 0, sizeof(parms));
 
-   COM_InitArgv(0, NULL);
+   parms.argc = 1;
+   parms.basedir = g_rom_dir;
+   parms.memsize = MEMSIZE_MB * 1024 * 1024;
+   argv[0] = empty_string;
+
+   if (strstr(g_pak_path, "rogue/"))
+   {
+      parms.argc++;
+      argv[1] = "-rogue";
+   }
+   else if (strstr(g_pak_path, "hipnotic/"))
+   {
+      parms.argc++;
+      argv[1] = "-hipnotic";
+   }
+
+   parms.argv = argv;
+
+   COM_InitArgv(parms.argc, parms.argv);
 
    parms.argc = com_argc;
    parms.argv = com_argv;
-   parms.basedir = g_rom_dir;
-   parms.memsize = MEMSIZE_MB * 1024 * 1024;
 
    heap = (unsigned char*)malloc(parms.memsize);
 

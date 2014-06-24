@@ -54,11 +54,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-#ifdef __LIBRETRO__
-extern char g_rom_dir[256];
-extern char g_pak_path[256];
-#endif
-
 #define NUM_SAFE_ARGVS 7
 
 static const char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
@@ -1258,20 +1253,12 @@ COM_InitArgv(int argc, const char **argv)
     com_argv = largv;
 
 #ifdef NQ_HACK
-#ifdef __LIBRETRO__
-    if (strstr(g_pak_path, "rogue/")) {
-#else
     if (COM_CheckParm("-rogue")) {
-#endif
 	rogue = true;
 	standard_quake = false;
     }
 
-#ifdef __LIBRETRO__
-    if (strstr(g_pak_path, "hipnotic/")) {
-#else
-    if (COM_CheckParm("-hipnotic")) {
-#endif
+    if (COM_CheckParm("-hipnotic") || COM_CheckParm("-quoth")) {
 	hipnotic = true;
 	standard_quake = false;
     }
@@ -1921,16 +1908,12 @@ COM_AddGameDirectory(const char *base, const char *dir)
     if (!base)
 	return;
 
-#ifdef __LIBRETRO__
-    strcpy(com_gamedir, va("%s", base));
-#else
-    strcpy(com_gamedir, va("%s/%s", base, dir));
-#endif
+    strcpy(com_gamedir, va("%s%c%s", base, slash, dir));
 
 #ifdef QW_HACK
     {
 	char *p;
-	p = strrchr(com_gamedir, '/');
+	p = strrchr(com_gamedir, slash);
 	strcpy(gamedirfile, ++p);
     }
 #endif
@@ -2059,44 +2042,36 @@ static void
 COM_InitFilesystem(void)
 {
     int i;
-    char home[256];
+    char *home;
 #ifdef NQ_HACK
     searchpath_t *search;
 #endif
-#ifdef _WIN32
-    char slash = '\\';
-#else
-    char slash = '/';
-#endif
-    snprintf(home, sizeof(home), "%s", g_rom_dir);
-    Sys_Printf("home is:\n");
-    Sys_Printf(home);
+    home = getenv("HOME");
 
 //
 // -basedir <path>
 // Overrides the system supplied base directory (under id1)
 //
     i = COM_CheckParm("-basedir");
-    if (i && i < com_argc - 1)
-	strcpy(com_basedir, com_argv[i + 1]);
-    else
-	strcpy(com_basedir, host_parms.basedir);
+    strcpy(com_basedir, host_parms.basedir);
 
 //
 // start up with id1 by default
 //
-    COM_AddGameDirectory(home, "id1");
+    COM_AddGameDirectory(com_basedir, "");
 
 #ifdef NQ_HACK
-    char mod_path[256];
-    if (strstr(g_pak_path, "rogue/")) {
-       snprintf(mod_path, sizeof(mod_path), "%s%crogue", home, slash);
-       COM_AddGameDirectory(mod_path, "rogue");
+    if (COM_CheckParm("-rogue")) {
+       COM_AddGameDirectory(com_basedir, "rogue");
+       COM_AddGameDirectory(home, ".tyrquake/rogue");
     }
-    else if (strstr(g_pak_path, "hipnotic/"))
-    {
-       snprintf(mod_path, sizeof(mod_path), "%s%chipnotic", home, slash);
-       COM_AddGameDirectory(mod_path, "hipnotic");
+    if (COM_CheckParm("-hipnotic")) {
+	COM_AddGameDirectory(com_basedir, "hipnotic");
+	COM_AddGameDirectory(home, ".tyrquake/hipnotic");
+    }
+    if (COM_CheckParm("-quoth")) {
+	COM_AddGameDirectory(com_basedir, "quoth");
+	COM_AddGameDirectory(home, ".tyrquake/quoth");
     }
 
 //
@@ -2106,7 +2081,8 @@ COM_InitFilesystem(void)
     i = COM_CheckParm("-game");
     if (i && i < com_argc - 1) {
 	com_modified = true;
-	COM_AddGameDirectory(home, va("%s", com_argv[i + 1]));
+	COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
+	COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
     }
 #endif
 #ifdef QW_HACK
@@ -2114,8 +2090,10 @@ COM_InitFilesystem(void)
     COM_AddGameDirectory(home, "qw");
 #endif
     /* If home is available, create the game directory */
+    if (home) {
     COM_CreatePath(com_gamedir);
     Sys_mkdir(com_gamedir);
+    }
 
 //
 // -path <dir or packfile> [<dir or packfile>] ...
