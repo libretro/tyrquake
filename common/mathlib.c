@@ -418,17 +418,7 @@ CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
 #endif
 }
 
-static float squareRoot(float x)
-{
-  unsigned int i = *(unsigned int*) &x;
-
-  // adjust bias
-  i  += 127 << 23;
-  // approximation of square root
-  i >>= 1;
-
-  return *(float*) &i;
-}
+double sqrt(double x);
 
 vec_t
 Length(vec3_t v)
@@ -439,7 +429,7 @@ Length(vec3_t v)
     length = 0;
     for (i = 0; i < 3; i++)
 	length += v[i] * v[i];
-    length = squareRoot(length);	// FIXME
+    length = sqrt(length);	// FIXME
 
     return length;
 }
@@ -450,7 +440,7 @@ VectorNormalize(vec3_t v)
     float length, ilength;
 
     length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-    length = squareRoot(length);	// FIXME
+    length = sqrt(length);	// FIXME
 
     if (length) {
 	ilength = 1 / length;
