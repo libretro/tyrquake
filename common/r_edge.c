@@ -57,7 +57,7 @@ int current_iv;
 
 int edge_head_u_shift20, edge_tail_u_shift20;
 
-//static void (*pdrawfunc) (void);
+static void (*pdrawfunc) (void);
 
 edge_t edge_head;
 edge_t edge_tail;
@@ -93,20 +93,16 @@ R_BeginEdgeFrame(void)
     surfaces[1].spans = NULL;	// no background spans yet
     surfaces[1].flags = SURF_DRAWBACKGROUND;
 
-#if 0
 // put the background behind everything in the world
     if (r_draworder.value) {
 	pdrawfunc = R_GenerateSpansBackward;
 	surfaces[1].key = 0;
 	r_currentkey = 1;
-    }
-    else
-    {
-#endif
-	//pdrawfunc = R_GenerateSpans;
+    } else {
+	pdrawfunc = R_GenerateSpans;
 	surfaces[1].key = 0x7FFFFFFF;
 	r_currentkey = 0;
-    //}
+    }
 
 // FIXME: set with memset
     for (v = r_refdef.vrect.y; v < r_refdef.vrectbottom; v++) {
@@ -648,7 +644,7 @@ R_ScanEdges(void)
 	    R_InsertNewEdges(newedges[iv], edge_head.next);
 	}
 
-	R_GenerateSpans();
+	(*pdrawfunc) ();
 
 	// flush the span list if we can't be sure we have enough spans left
 	// for the next scan
@@ -689,7 +685,7 @@ R_ScanEdges(void)
     if (newedges[iv])
 	R_InsertNewEdges(newedges[iv], edge_head.next);
 
-	R_GenerateSpans();
+    (*pdrawfunc) ();
 
 // draw whatever's left in the span list
     D_DrawSurfaces();
