@@ -226,9 +226,11 @@ double Sys_DoubleTime(void)
 
    if (newtime < oldtime)
    {
+#if 0
       // warn if it's significant
       if (newtime - oldtime < -0.01)
          Con_Printf("Sys_DoubleTime: time stepped backwards (went from %f to %f, difference %f)\n", oldtime, newtime, newtime - oldtime);
+#endif
    }
    else
       curtime += newtime - oldtime;
@@ -628,39 +630,8 @@ short *zbuffer;
 short *finalimage;
 byte surfcache[256 * 1024];
 
-#define AUDIO_BUFFER_SAMPLES (8 * 1024)
-static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
-static unsigned audio_buffer_ptr;
-
-static void audio_process(void)
-{
-   /* update audio */
-   if (cls.state == ca_active)
-   {
-      S_Update(r_origin, vpn, vright, vup);
-      CL_DecayLights();
-   }
-   else
-      S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
-
-   CDAudio_Update();
-}
-static void audio_callback(void)
-{
-   //audio_process();
-  
-   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
-   unsigned read_end = audio_buffer_ptr + samples_per_frame;
-   if (read_end > AUDIO_BUFFER_SAMPLES)
-      read_end = AUDIO_BUFFER_SAMPLES;
-
-   unsigned read_first  = read_end - audio_buffer_ptr;
-   unsigned read_second = samples_per_frame - read_first;
-
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
-   audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
-}
+static void audio_process(void);
+static void audio_callback(void);
 
 void retro_run(void)
 {
@@ -943,6 +914,42 @@ void D_EndDirectRect(int x, int y, int width, int height)
 /*
  * SOUND (TODO)
  */
+
+#define AUDIO_BUFFER_SAMPLES (8 * 1024)
+
+static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
+static unsigned audio_buffer_ptr;
+
+static void audio_process(void)
+{
+   /* update audio */
+   if (cls.state == ca_active)
+   {
+      S_Update(r_origin, vpn, vright, vup);
+      CL_DecayLights();
+   }
+   else
+      S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
+
+   CDAudio_Update();
+}
+
+static void audio_callback(void)
+{
+   //audio_process();
+  
+   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
+   unsigned read_end = audio_buffer_ptr + samples_per_frame;
+   if (read_end > AUDIO_BUFFER_SAMPLES)
+      read_end = AUDIO_BUFFER_SAMPLES;
+
+   unsigned read_first  = read_end - audio_buffer_ptr;
+   unsigned read_second = samples_per_frame - read_first;
+
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
+   audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
+}
 
 qboolean SNDDMA_Init(void)
 {
