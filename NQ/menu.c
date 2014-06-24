@@ -989,6 +989,7 @@ M_AdjustSliders(int dir)
    case 13:
        cvar = Cvar_FindVar("dither_filter");
        Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
+       D_SetupFrame();
        break;
    case 14:
        cvar = Cvar_FindVar("d_mipscale");

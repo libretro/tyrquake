@@ -125,6 +125,9 @@ void
 D_SetupFrame(void)
 {
     int i;
+#ifdef __LIBRETRO__
+   cvar_t *cvar = Cvar_FindVar("dither_filter");
+#endif
 
     if (r_dowarp)
 	d_viewbuffer = r_warpbuffer;
@@ -155,6 +158,13 @@ D_SetupFrame(void)
 	D_DrawSpans = D_DrawSpans8;
 #else
     D_DrawSpans = D_DrawSpans8;
+#endif
+
+#ifdef __LIBRETRO__
+   if (cvar && cvar->value == 1.0f)
+      D_DrawSpans = D_DrawSpans8Dither;
+   else
+      D_DrawSpans = D_DrawSpans8;
 #endif
 }
 

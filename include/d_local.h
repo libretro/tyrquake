@@ -70,6 +70,7 @@ extern float d_sdivzorigin, d_tdivzorigin, d_ziorigin;
 extern fixed16_t sadjust, tadjust;
 extern fixed16_t bbextents, bbextentt;
 
+void D_DrawSpans8Dither(espan_t *pspans);
 void D_DrawSpans8(espan_t *pspans);
 void D_DrawSpans16(espan_t *pspans);
 extern void (*D_DrawSpans)(espan_t *pspan);
