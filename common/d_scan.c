@@ -395,7 +395,7 @@ D_DrawSpans8(espan_t *pspan)
 	    }
 
        {
-#if 0
+#if 1
           do {
              *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
              s += sstep;
@@ -606,7 +606,7 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
        else
 #endif
        {
-#if 1
+#if 0
           do {
              *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
              s += sstep;
