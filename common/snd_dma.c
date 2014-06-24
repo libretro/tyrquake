@@ -715,7 +715,6 @@ S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 	}
     }
 
-#if 0
     /*
      * debugging output
      */
@@ -727,7 +726,6 @@ S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 		total++;
 	Con_Printf("----(%i)----\n", total);
     }
-#endif
     /* mix some sound */
     S_Update_();
 }
