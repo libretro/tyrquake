@@ -88,11 +88,10 @@ unsigned MEMSIZE_MB;
 #endif
 
 cvar_t framerate = { "framerate", "60" };
-static bool initial_resolution_set;
+static bool initial_resolution_set = false;
 
 char g_rom_dir[256];
 char g_pak_path[256];
-unsigned short	palette_data[256];
 
 unsigned char *heap;
 
@@ -127,10 +126,18 @@ void Sys_Printf(const char *fmt, ...)
 void Sys_Quit(void)
 {
    Host_Shutdown();
+   if (heap)
+      free(heap);
 }
 
 void Sys_Init(void)
 {
+   enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+   {
+      if (log_cb)
+         log_cb(RETRO_LOG_ERROR, "RGB565 is not supported.\n");
+   }
 }
 
 void Sys_Error(const char *error, ...)
@@ -277,7 +284,6 @@ void retro_init(void)
    for (i = 0; i < MAX_PADS; i++)
       quake_devices[i] = RETRO_DEVICE_JOYPAD;
 
-   initial_resolution_set = true;
 }
 
 void retro_deinit(void)
@@ -597,7 +603,7 @@ static void update_variables(void)
    var.key = "resolution";
    var.value = NULL;
 
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && initial_resolution_set)
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
    {
       char *pch;
       char str[100];
@@ -613,7 +619,7 @@ static void update_variables(void)
       if (log_cb)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
-      initial_resolution_set = false;
+      initial_resolution_set = true;
    }
 }
 
@@ -774,13 +780,6 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_RegisterVariable(&framerate);
    Cvar_Set("framerate", "60");
 
-   enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
-   if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-   {
-      if (log_cb)
-         log_cb(RETRO_LOG_ERROR, "RGB565 is not supported.\n");
-      return false;
-   }
 
 #ifdef NQ_HACK
    oldtime = Sys_DoubleTime() - 0.1;
@@ -797,7 +796,6 @@ bool retro_load_game(const struct retro_game_info *info)
 void retro_unload_game(void)
 {
    Sys_Quit();
-   free(heap);
 }
 
 unsigned retro_get_region(void)
@@ -851,10 +849,8 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 }
 
 /*
- * VIDEO (TODO)
+ * VIDEO
  */
-
-
 
 unsigned short d_8to16table[256];
 
@@ -868,7 +864,7 @@ void VID_SetPalette(unsigned char *palette)
       r = *palette++;
       g = *palette++;
       b = *palette++;
-      palette_data[i] = MAKECOLOR(r, g, b);
+      d_8to16table[i] = MAKECOLOR(r, g, b);
    }
 }
 
@@ -920,7 +916,7 @@ void VID_Update(vrect_t *rects)
    unsigned y;
 
    for (y = 0; y < rects->width * rects->height; ++y)
-      *olineptr++ = palette_data[*ilineptr++];
+      *olineptr++ = d_8to16table[*ilineptr++];
 }
 
 qboolean VID_IsFullScreen(void)
