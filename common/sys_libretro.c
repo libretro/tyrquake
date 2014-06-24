@@ -68,8 +68,6 @@ unsigned width;
 unsigned height;
 unsigned device_type = 0;
 
-static bool use_audio_cb;
-
 unsigned MEMSIZE_MB;
 
 #if defined(HW_DOL)
@@ -661,11 +659,8 @@ void retro_run(void)
 
    if (!did_flip)
       video_cb(NULL, width, height, width << 1); /* dupe */
-#if 1
    audio_process();
-#endif
-   if (!use_audio_cb)
-      audio_callback();
+   audio_callback();
 }
 
 static void extract_directory(char *buf, const char *path, size_t size)
@@ -681,11 +676,6 @@ static void extract_directory(char *buf, const char *path, size_t size)
       *base = '\0';
    else
       buf[0] = '\0';
-}
-
-static void audio_set_state(bool enable)
-{
-   (void)enable;
 }
 
 const char *argv[MAX_NUM_ARGVS];
@@ -976,8 +966,6 @@ static void audio_callback(void)
 
 qboolean SNDDMA_Init(void)
 {
-   struct retro_audio_callback cb = { audio_callback, audio_set_state };
-
    shm = &sn;
    shm->speed = SAMPLERATE;
    shm->channels = 2;
@@ -986,8 +974,6 @@ qboolean SNDDMA_Init(void)
    shm->samples = AUDIO_BUFFER_SAMPLES;
    shm->buffer = (unsigned char *volatile)audio_buffer;
 
-   use_audio_cb = environ_cb(RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, &cb);
-   
    return true;
 }
 
