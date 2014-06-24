@@ -272,7 +272,7 @@ D_DrawSurfaces(void)
 		cachewidth = pcurrentcache->width;
 
 		D_CalcGradients(pface);
-		D_DrawSpans16(s->spans);
+		D_DrawSpans(s->spans);
 		D_DrawZSpans(s->spans);
 
 		if (s->insubmodel) {
