@@ -631,8 +631,11 @@ byte surfcache[256 * 1024];
 static void audio_process(void);
 static void audio_callback(void);
 
+static bool did_flip;
+
 void retro_run(void)
 {
+   did_flip = false;
    bool updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
@@ -664,7 +667,8 @@ void retro_run(void)
 
    Host_Frame(_time);
 
-   video_cb(finalimage, width, height, width << 1);
+   if (!did_flip)
+      video_cb(NULL, width, height, width << 1); /* dupe */
 #if 1
    audio_process();
 #endif
@@ -915,6 +919,10 @@ void VID_Update(vrect_t *rects)
 
    for (y = 0; y < rects->width * rects->height; ++y)
       *olineptr++ = d_8to16table[*ilineptr++];
+
+   if (video_cb)
+      video_cb(finalimage, width, height, width << 1);
+   did_flip = true;
 }
 
 qboolean VID_IsFullScreen(void)
