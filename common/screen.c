@@ -1422,7 +1422,6 @@ SCR_UpdateScreen(void)
     /*
      * update one of three areas
      */
-#if 0
     if (scr_copyeverything) {
 	vrect.x = 0;
 	vrect.y = 0;
@@ -1448,7 +1447,6 @@ SCR_UpdateScreen(void)
 
 	VID_Update(&vrect);
     }
-#endif
 #endif
 }
 

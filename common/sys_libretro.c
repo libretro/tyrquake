@@ -82,6 +82,10 @@ unsigned MEMSIZE_MB;
 #define SAMPLERATE 44100
 #define ANALOG_THRESHOLD 4096
 
+#ifdef __LIBRETRO__
+#define MAKECOLOR(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
+#endif
+
 cvar_t framerate = { "framerate", "60" };
 static bool initial_resolution_set;
 
@@ -647,7 +651,6 @@ static void audio_callback(void)
 
 void retro_run(void)
 {
-
    bool updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
@@ -851,16 +854,21 @@ unsigned short d_8to16table[256];
 
 void VID_SetPalette(unsigned char *palette)
 {
+   unsigned r, g, b, i;
+
+   for(i = 0; i < 256; i++)
+   {
+      r = *palette++;
+      g = *palette++;
+      b = *palette++;
+      palette_data[i] = MAKECOLOR(r, g, b);
+   }
 }
 
 void VID_ShiftPalette(unsigned char *palette)
 {
-   unsigned char *ilineptr = (unsigned char*)vid.buffer;
-   unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned y;
 
-   for (y = 0; y < width * height; ++y)
-      *olineptr++ = palette_data[*ilineptr++];
+   VID_SetPalette(palette);
 }
 
 void VID_Init(unsigned char *palette)
@@ -900,6 +908,12 @@ void VID_Shutdown(void)
 
 void VID_Update(vrect_t *rects)
 {
+   unsigned char *ilineptr = (unsigned char*)vid.buffer;
+   unsigned short *olineptr = (unsigned short*)finalimage;
+   unsigned y;
+
+   for (y = 0; y < rects->width * rects->height; ++y)
+      *olineptr++ = palette_data[*ilineptr++];
 }
 
 qboolean VID_IsFullScreen(void)

@@ -509,12 +509,6 @@ V_CalcBlend(void)
 V_UpdatePalette
 =============
 */
-#ifdef __LIBRETRO__
-extern unsigned short	palette_data[256];
-
-#define PACK_RGB565(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
-#endif
-
 #ifdef	GLQUAKE
 void
 V_UpdatePalette(void)
@@ -542,11 +536,9 @@ V_UpdatePalette(void)
 	    ramps[1][i] = gammatable[i] << 8;
 	    ramps[2][i] = gammatable[i] << 8;
 	}
-#ifndef __LIBRETRO__
 	if (VID_IsFullScreen() && VID_SetGammaRamp)
 	    VID_SetGammaRamp(ramps);
 	//VID_ShiftPalette(NULL);
-#endif
     }
 }
 #else // !GLQUAKE
@@ -555,8 +547,8 @@ V_UpdatePalette(void)
 {
    int i, j;
    qboolean newobj;
-   byte *basepal;
-   unsigned short *pal_data;
+   byte *basepal, *newpal;
+   byte pal[768];
    int r, g, b;
    qboolean force;
 
@@ -589,14 +581,12 @@ V_UpdatePalette(void)
    if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
       cl.cshifts[CSHIFT_BONUS].percent = 0;
 
-   VID_ShiftPalette((unsigned char*)pal_data);
-
    force = V_CheckGamma();
    if (!newobj && !force)
       return;
 
    basepal = host_basepal;
-   pal_data = &palette_data[0];
+   newpal = pal;
 
    for (i = 0; i < 256; i++)
    {
@@ -614,8 +604,13 @@ V_UpdatePalette(void)
                (cl.cshifts[j].destcolor[2] - b)) >> 8;
       }
 
-      *pal_data++ = PACK_RGB565(gammatable[r], gammatable[g], gammatable[b]);
+      newpal[0] = gammatable[r];
+      newpal[1] = gammatable[g];
+      newpal[2] = gammatable[b];
+      newpal += 3;
    }
+
+   VID_ShiftPalette(pal);
 }
 #endif // !GLQUAKE
 

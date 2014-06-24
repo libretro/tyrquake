@@ -59,7 +59,6 @@ Debugging use
 void
 Show(void)
 {
-#if 0
     vrect_t vr;
 
     vr.x = vr.y = 0;
@@ -67,7 +66,6 @@ Show(void)
     vr.height = vid.height;
     vr.pnext = NULL;
     VID_Update(&vr);
-#endif
 }
 
 /*
