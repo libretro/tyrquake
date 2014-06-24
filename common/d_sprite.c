@@ -48,9 +48,6 @@ D_SpriteDrawSpans(sspan_t * pspan)
     float sdivz8stepu, tdivz8stepu, zi8stepu;
     byte btemp;
     short *pz;
-#ifdef __LIBRETRO__
-    cvar_t *cvar;
-#endif
 
     sstep = 0;			// keep compiler happy
     tstep = 0;			// ditto
