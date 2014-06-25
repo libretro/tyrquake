@@ -96,7 +96,7 @@ else ifeq ($(platform), psp1)
 	TARGET := $(TARGET_NAME)_libretro_psp1.a
 	CC = psp-gcc$(EXE_EXT)
 	AR = psp-ar$(EXE_EXT)
-	CFLAGS += -DPSP -G0 -I$(PSPSDK)/psp/sdk/include
+	CFLAGS += -DPSP -G0 -I$(shell psp-config --pspsdk-path)/include
 	STATIC_LINKING = 1
 else ifeq ($(platform), xenon)
 TARGET := $(TARGET_NAME)_libretro_xenon360.a
