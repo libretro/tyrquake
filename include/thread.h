@@ -20,10 +20,6 @@
 #include "boolean.h"
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Implements the bare minimum needed for RetroArch. :)
 
 typedef struct sthread sthread_t;
@@ -71,7 +67,7 @@ void scond_signal(scond_t *cond);
 #include <time.h>
 #endif
 
-static inline void retro_sleep(unsigned msec)
+static INLINE void retro_sleep(unsigned msec)
 {
 #if defined(__CELLOS_LV2__) && !defined(__PSL1GHT__)
    sys_timer_usleep(1000 * msec);
@@ -89,10 +85,6 @@ static inline void retro_sleep(unsigned msec)
    tv.tv_nsec = (msec % 1000) * 1000000;
    nanosleep(&tv, NULL);
 #endif
-}
-#endif
-
-#ifdef __cplusplus
 }
 #endif
 

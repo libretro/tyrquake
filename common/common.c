@@ -2043,7 +2043,9 @@ COM_InitFilesystem(void)
     searchpath_t *search;
 #endif
 
+#ifndef __LIBRETRO__
     home = getenv("HOME");
+#endif
 
 //
 // -basedir <path>

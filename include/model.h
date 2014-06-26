@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string.h>
 
 #if defined(_WIN32)
-static inline int ffsl (long bits)
+static INLINE int ffsl (long bits)
 {
 	unsigned long int shift;
 	unsigned long int ind = (bits & -bits);

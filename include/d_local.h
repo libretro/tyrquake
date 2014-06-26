@@ -87,7 +87,7 @@ void D_DrawSkyScans8(espan_t *pspan);
 void D_DrawSkyScans16(espan_t *pspan);
 
 void R_ShowSubDiv(void);
-void (*prealspandrawer) (void);
+extern void (*prealspandrawer) (void);
 surfcache_t *D_CacheSurface(const entity_t *e, msurface_t *surface,
 			    int miplevel);
 
