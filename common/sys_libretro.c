@@ -375,13 +375,17 @@ void retro_set_video_refresh(retro_video_refresh_t cb)
    video_cb = cb;
 }
 
+extern void M_Game_StartNewGame(void);
+
 void retro_reset(void)
 {
+   M_Game_StartNewGame();
 }
 
 void Sys_SendKeyEvents(void)
 {
    int port;
+
    poll_cb();
 
    for (port = 0; port < MAX_PADS; port++)

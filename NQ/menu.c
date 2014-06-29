@@ -2207,6 +2207,30 @@ M_NetStart_Change(int dir)
     }
 }
 
+void M_Game_StartNewGame(void)
+{
+   if (sv.active)
+      Cbuf_AddText("disconnect\n");
+   Cbuf_AddText("listen 0\n");	// so host_netport will be re-examined
+   Cbuf_AddText("maxplayers %u\n", maxplayers);
+   SCR_BeginLoadingPlaque();
+
+   if (hipnotic)
+      Cbuf_AddText("map %s\n",
+            hipnoticlevels[hipnoticepisodes[startepisode].
+            firstLevel +
+            startlevel].name);
+   else if (rogue)
+      Cbuf_AddText("map %s\n",
+            roguelevels[rogueepisodes[startepisode].
+            firstLevel + startlevel].name);
+   else
+      Cbuf_AddText("map %s\n",
+            levels[episodes[startepisode].firstLevel +
+            startlevel].name);
+
+}
+
 static void
 M_GameOptions_Key(int key)
 {
@@ -2246,27 +2270,8 @@ M_GameOptions_Key(int key)
     case K_ENTER:
 	S_LocalSound("misc/menu2.wav");
 	if (gameoptions_cursor == 0) {
-	    if (sv.active)
-		Cbuf_AddText("disconnect\n");
-	    Cbuf_AddText("listen 0\n");	// so host_netport will be re-examined
-	    Cbuf_AddText("maxplayers %u\n", maxplayers);
-	    SCR_BeginLoadingPlaque();
-
-	    if (hipnotic)
-		Cbuf_AddText("map %s\n",
-			     hipnoticlevels[hipnoticepisodes[startepisode].
-					    firstLevel +
-					    startlevel].name);
-	    else if (rogue)
-		Cbuf_AddText("map %s\n",
-			     roguelevels[rogueepisodes[startepisode].
-					 firstLevel + startlevel].name);
-	    else
-		Cbuf_AddText("map %s\n",
-			     levels[episodes[startepisode].firstLevel +
-				    startlevel].name);
-
-	    return;
+      M_Game_StartNewGame();
+      return;
 	}
 
 	M_NetStart_Change(1);
