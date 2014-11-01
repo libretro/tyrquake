@@ -160,82 +160,13 @@ else
 CFLAGS += -O3 -ffast-math
 endif
 
+CORE_DIR := .
 
-OBJECTS    = NQ/cl_input.o \
-				 common/cd_common.o \
-				 common/alias_model.o \
-				 NQ/chase.o \
-				 NQ/cl_demo.o \
-				 NQ/cl_main.o \
-				 NQ/cl_parse.o \
-				 NQ/cl_tent.o \
-				 common/common.o \
-				 common/cmd.o \
-				 common/crc.o \
-				 common/console.o \
-				 common/cvar.o \
-				 common/d_edge.o \
-				 common/d_fill.o \
-				 common/d_init.o \
-				 common/d_part.o \
-				 common/d_modech.o \
-				 common/d_polyse.o \
-				 common/d_scan.o \
-				 common/d_sky.o \
-				 common/d_sprite.o \
-				 common/d_surf.o \
-				 common/d_vars.o \
-				 common/draw.o \
-				 NQ/host.o \
-				 NQ/host_cmd.o \
-				 common/keys.o \
-				 common/mathlib.o \
-				 NQ/menu.o \
-				 common/model.o \
-				 NQ/net_common.o \
-				 NQ/net_loop.o \
-				 NQ/net_main.o \
-				 common/nonintel.o \
-				 common/pr_cmds.o \
-				 common/pr_exec.o \
-				 common/pr_edict.o \
-				 common/r_aclip.o \
-				 common/r_alias.o \
-				 common/r_bsp.o \
-				 common/r_draw.o \
-				 common/r_edge.o \
-				 common/r_efrag.o \
-				 common/r_light.o \
-				 common/r_main.o \
-				 common/r_misc.o \
-				 common/r_model.o \
-				 common/r_part.o \
-				 common/r_sky.o \
-				 common/r_sprite.o \
-				 common/r_vars.o \
-				 common/r_surf.o \
-				 common/rb_tree.o \
-				 NQ/sbar.o \
-				 common/screen.o \
-				 common/shell.o \
-				 common/snd_dma.o \
-				 common/snd_mem.o \
-				 common/snd_mix.o \
-				 common/sprite_model.o \
-				 NQ/sv_main.o \
-				 common/sv_move.o \
-				 NQ/sv_phys.o \
-				 NQ/sv_user.o \
-				 common/sys_libretro.o \
-				 NQ/view.o \
-				 common/wad.o \
-				 common/zone.o \
-				 common/world.o
+include Makefile.common
 
-OBJECTS += NQ/net_none.o
+OBJECTS    = $(SOURCES_C:.c=.o)
 
-INCLUDES   = -I. -INQ -Iinclude
-DEFINES    = -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -D__LIBRETRO__ -DINLINE=inline -DNQ_HACK -DQBASEDIR=. -DTYR_VERSION=0.62
+DEFINES    = -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -D__LIBRETRO__ -DINLINE=inline -DNQ_HACK -DQBASEDIR=$(CORE_DIR) -DTYR_VERSION=0.62
 
 ifeq ($(platform), sncps3)
 WARNINGS_DEFINES =
@@ -265,11 +196,11 @@ $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
-	$(CC) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) -lm $(WINSOCKS)
+	$(CC) $(fpic) $(SHARED) $(INCFLAGS) -o $@ $(OBJECTS) -lm $(WINSOCKS)
 endif
 
 %.o: %.c
-	$(CC) $(INCLUDES) $(CFLAGS) -c -o $@ $<
+	$(CC) $(INCFLAGS) $(CFLAGS) -c -o $@ $<
 
 clean-objs:
 	rm -rf $(OBJECTS)
