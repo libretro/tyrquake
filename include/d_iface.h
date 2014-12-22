@@ -157,7 +157,7 @@ void D_PolysetUpdateTables(void);
 
 // these are currently for internal use only, and should not be used by drivers
 extern int r_skydirect;
-extern byte *r_skysource;
+extern byte   *skyunderlay, *skyoverlay; // Manoel Kasimier - smooth sky
 
 // transparency types for D_DrawRect ()
 #define DR_SOLID		0

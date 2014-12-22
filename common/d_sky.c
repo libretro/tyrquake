@@ -26,107 +26,138 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SKY_SPAN_SHIFT	5
 #define SKY_SPAN_MAX	(1 << SKY_SPAN_SHIFT)
 
+static float   timespeed1, timespeed2; // Manoel Kasimier - smooth sky
+
+byte *skyunderlay;
+byte *skyoverlay;
 
 /*
 =================
 D_Sky_uv_To_st
 =================
 */
-static void
-D_Sky_uv_To_st(int u, int v, fixed16_t *s, fixed16_t *t)
+void D_Sky_uv_To_st (int u, int v, fixed16_t *s, fixed16_t *t
+               , fixed16_t *s2, fixed16_t *t2) // Manoel Kasimier - smooth sky
 {
-    float wu, wv, temp;
-    vec3_t end;
+   float   wu, wv;//, temp; // Manoel Kasimier - edited
+   vec3_t   end;
 
-    if (r_refdef.vrect.width >= r_refdef.vrect.height)
-	temp = (float)r_refdef.vrect.width;
-    else
-	temp = (float)r_refdef.vrect.height;
+   // ToChriS - begin
+   wu = (u - xcenter) / xscale;
+   wv = (ycenter - v) / yscale;
 
-    wu = 8192.0 * (float)(u - ((int)vid.width >> 1)) / temp;
-    wv = 8192.0 * (float)(((int)vid.height >> 1) - v) / temp;
-
-    end[0] = 4096 * vpn[0] + wu * vright[0] + wv * vup[0];
-    end[1] = 4096 * vpn[1] + wu * vright[1] + wv * vup[1];
-    end[2] = 4096 * vpn[2] + wu * vright[2] + wv * vup[2];
-    end[2] *= 3;
-    VectorNormalize(end);
-
-    temp = skytime * skyspeed;	// TODO: add D_SetupFrame & set this there
-    *s = (int)((temp + 6 * (SKYSIZE / 2 - 1) * end[0]) * 0x10000);
-    *t = (int)((temp + 6 * (SKYSIZE / 2 - 1) * end[1]) * 0x10000);
+   end[0] = vpn[0] + wu*vright[0] + wv*vup[0];
+   end[1] = vpn[1] + wu*vright[1] + wv*vup[1];
+   end[2] = vpn[2] + wu*vright[2] + wv*vup[2];
+   // ToChriS - end
+   end[2] *= 3;
+   VectorNormalize (end);
+   *s = (int)((timespeed1 + 6*(SKYSIZE/2-1)*end[0]) * 0x10000); // Manoel Kasimier - smooth sky - edited
+   *t = (int)((timespeed1 + 6*(SKYSIZE/2-1)*end[1]) * 0x10000); // Manoel Kasimier - smooth sky - edited
+   *s2 = (int)((timespeed2 + 6*(SKYSIZE/2-1)*end[0]) * 0x10000); // Manoel Kasimier - smooth sky
+   *t2 = (int)((timespeed2 + 6*(SKYSIZE/2-1)*end[1]) * 0x10000); // Manoel Kasimier - smooth sky
 }
 
+
+unsigned char D_DrawSkyPixelOpaque (unsigned char pixel1, unsigned char pixel2)
+{
+   return pixel2 ? pixel2 : pixel1;
+}
 
 /*
 =================
 D_DrawSkyScans8
 =================
 */
-void
-D_DrawSkyScans8(espan_t *pspan)
+void D_DrawSkyScans8 (espan_t *pspan)
 {
-    int count, spancount, u, v;
-    unsigned char *pdest;
-    fixed16_t s, t, snext, tnext, sstep, tstep;
-    int spancountminus1;
+   int            count, spancount, u, v;
+   unsigned char   *pdest;
+   fixed16_t      s, t, snext, tnext, sstep, tstep;
+   int            spancountminus1;
 
-    sstep = 0;			// keep compiler happy
-    tstep = 0;			// ditto
+   fixed16_t      s2, t2, snext2, tnext2, sstep2, tstep2; // Manoel Kasimier - smooth sky
+   timespeed1=skytime*skyspeed;//*4; // Fightoon modification
+   timespeed2=timespeed1*2.0;//*-1; // Fightoon modification
+   sstep2 = 0;
+   tstep2 = 0;
+   // Manoel Kasimier - smooth sky - end
 
-    do {
-	pdest = (unsigned char *)((byte *)d_viewbuffer +
-				  (screenwidth * pspan->v) + pspan->u);
+   sstep = 0;   // keep compiler happy
+   tstep = 0;   // ditto
 
-	count = pspan->count;
+   do
+   {
+      pdest = (unsigned char *)((byte *)d_viewbuffer +
+            (screenwidth * pspan->v) + pspan->u);
 
-	// calculate the initial s & t
-	u = pspan->u;
-	v = pspan->v;
-	D_Sky_uv_To_st(u, v, &s, &t);
+      count = pspan->count;
 
-	do {
-	    if (count >= SKY_SPAN_MAX)
-		spancount = SKY_SPAN_MAX;
-	    else
-		spancount = count;
+   // calculate the initial s & t
+      u = pspan->u;
+      v = pspan->v;
+      D_Sky_uv_To_st (u, v, &s, &t, &s2, &t2); // Manoel Kasimier - smooth sky - edited
 
-	    count -= spancount;
+      do
+      {
+         if (count >= SKY_SPAN_MAX)
+            spancount = SKY_SPAN_MAX;
+         else
+            spancount = count;
 
-	    if (count) {
-		u += spancount;
+         count -= spancount;
 
-		// calculate s and t at far end of span,
-		// calculate s and t steps across span by shifting
-		D_Sky_uv_To_st(u, v, &snext, &tnext);
+         if (count)
+         {
+            u += spancount;
 
-		sstep = (snext - s) >> SKY_SPAN_SHIFT;
-		tstep = (tnext - t) >> SKY_SPAN_SHIFT;
-	    } else {
-		// calculate s and t at last pixel in span,
-		// calculate s and t steps across span by division
-		spancountminus1 = (float)(spancount - 1);
+         // calculate s and t at far end of span,
+         // calculate s and t steps across span by shifting
+            D_Sky_uv_To_st (u, v, &snext, &tnext, &snext2, &tnext2); // Manoel Kasimier - smooth sky - edited
+            
+            sstep = (snext - s) >> SKY_SPAN_SHIFT;
+            tstep = (tnext - t) >> SKY_SPAN_SHIFT;
 
-		if (spancountminus1 > 0) {
-		    u += spancountminus1;
-		    D_Sky_uv_To_st(u, v, &snext, &tnext);
+            sstep2 = (snext2 - s2) >> SKY_SPAN_SHIFT; // Manoel Kasimier - smooth sky
+            tstep2 = (tnext2 - t2) >> SKY_SPAN_SHIFT; // Manoel Kasimier - smooth sky
 
-		    sstep = (snext - s) / spancountminus1;
-		    tstep = (tnext - t) / spancountminus1;
-		}
-	    }
+         }
+         else
+         {
+         // calculate s and t at last pixel in span,
+         // calculate s and t steps across span by division
+            spancountminus1 = (float)(spancount - 1);
 
-	    do {
-		*pdest++ = r_skysource[((t & R_SKY_TMASK) >> 8) +
-				       ((s & R_SKY_SMASK) >> 16)];
-		s += sstep;
-		t += tstep;
-	    } while (--spancount > 0);
+            if (spancountminus1 > 0)
+            {
+               u += spancountminus1;
+               D_Sky_uv_To_st (u, v, &snext, &tnext, &snext2, &tnext2); // Manoel Kasimier - smooth sky - edited
 
-	    s = snext;
-	    t = tnext;
+               sstep = (snext - s) / spancountminus1;
+               tstep = (tnext - t) / spancountminus1;
+               sstep2 = (snext2 - s2) / spancountminus1; // Manoel Kasimier - smooth sky
+               tstep2 = (tnext2 - t2) / spancountminus1; // Manoel Kasimier - smooth sky
+            }
+         }
 
-	} while (count > 0);
+         do
+         {
+            // Manoel Kasimier - smooth sky - begin
+            *pdest++ = D_DrawSkyPixelOpaque(skyunderlay[((t  & R_SKY_TMASK) >> 8) + ((s  & R_SKY_SMASK) >> 16)],
+                              skyoverlay [((t2 & R_SKY_TMASK) >> 8) + ((s2 & R_SKY_SMASK) >> 16)]);
+            // Manoel Kasimier - smooth sky - end
+            s += sstep;
+            t += tstep;
+            s2 += sstep2; // Manoel Kasimier - smooth sky
+            t2 += tstep2; // Manoel Kasimier - smooth sky
+         } while (--spancount > 0);
 
-    } while ((pspan = pspan->pnext) != NULL);
+         s = snext;
+         t = tnext;
+         s2 = snext2; // Manoel Kasimier - smooth sky
+         t2 = tnext2; // Manoel Kasimier - smooth sky
+
+      } while (count > 0);
+
+   } while ((pspan = pspan->pnext) != NULL);
 }

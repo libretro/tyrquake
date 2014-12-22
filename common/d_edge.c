@@ -197,9 +197,6 @@ D_DrawSurfaces(void)
 	    d_ziorigin = s->d_ziorigin;
 
 	    if (s->flags & SURF_DRAWSKY) {
-		if (!r_skymade) {
-		    R_MakeSky();
-		}
 
 		D_DrawSkyScans8(s->spans);
 		D_DrawZSpans(s->spans);

@@ -604,33 +604,4 @@ R_GenTurbTile16(pixel_t *pbasetex, void *pdest)
     }
 }
 
-
-/*
-================
-R_GenTile
-================
-*/
-static void
-R_GenTile(msurface_t *psurf, void *pdest)
-{
-    if (psurf->flags & SURF_DRAWTURB) {
-	if (r_pixbytes == 1) {
-	    R_GenTurbTile((pixel_t *)
-			  ((byte *)psurf->texinfo->texture +
-			   psurf->texinfo->texture->offsets[0]), pdest);
-	} else {
-	    R_GenTurbTile16((pixel_t *)
-			    ((byte *)psurf->texinfo->texture +
-			     psurf->texinfo->texture->offsets[0]), pdest);
-	}
-    } else if (psurf->flags & SURF_DRAWSKY) {
-	if (r_pixbytes == 1) {
-	    R_GenSkyTile(pdest);
-	} else {
-	    R_GenSkyTile16(pdest);
-	}
-    } else {
-	Sys_Error("Unknown tile type");
-    }
-}
 #endif
