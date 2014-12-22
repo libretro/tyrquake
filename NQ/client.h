@@ -69,6 +69,8 @@ typedef struct player_info_s {
 typedef struct {
     int destcolor[3];
     int percent;		// 0-256
+    double time;
+    int initialpct;
 } cshift_t;
 
 #define	CSHIFT_CONTENTS	0

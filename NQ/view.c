@@ -373,6 +373,11 @@ V_ParseDamage(void)
     v_dmg_pitch = count * side * v_kickpitch.value;
 
     v_dmg_time = v_kicktime.value;
+
+    /* BOF - Frame-rate independent damage and bonus shifts */
+    cl.cshifts[CSHIFT_DAMAGE].initialpct = cl.cshifts[CSHIFT_DAMAGE].percent;
+    cl.cshifts[CSHIFT_DAMAGE].time = cl.time;
+    /* EOF - Frame-rate independent damage and bonus shifts */
 }
 
 
@@ -405,6 +410,11 @@ V_BonusFlash_f(void)
     cl.cshifts[CSHIFT_BONUS].destcolor[1] = 186;
     cl.cshifts[CSHIFT_BONUS].destcolor[2] = 69;
     cl.cshifts[CSHIFT_BONUS].percent = 50;
+
+    /* BOF - Frame-rate independent damage and bonus shifts */
+    cl.cshifts[CSHIFT_BONUS].initialpct = 50;
+    cl.cshifts[CSHIFT_BONUS].time = cl.time;
+    /* EOF - Frame-rate independent damage and bonus shifts */
 }
 
 /*
@@ -504,6 +514,17 @@ V_CalcBlend(void)
 }
 #endif
 
+void V_DropCShift (cshift_t *cs, float droprate)
+{
+   if (cs->time < 0)
+      cs->percent = 0;
+   else if ((cs->percent = cs->initialpct - (cl.time - cs->time) * droprate) <= 0)
+   {
+      cs->percent = 0;
+      cs->time = -1;
+   }
+}
+
 /*
 =============
 V_UpdatePalette
@@ -518,15 +539,9 @@ V_UpdatePalette(void)
 
     V_CalcPowerupCshift();
 
-    /* drop the damage value */
-    cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime * 150;
-    if (cl.cshifts[CSHIFT_DAMAGE].percent < 0)
-	cl.cshifts[CSHIFT_DAMAGE].percent = 0;
-
-    /* drop the bonus value */
-    cl.cshifts[CSHIFT_BONUS].percent -= host_frametime * 100;
-    if (cl.cshifts[CSHIFT_BONUS].percent < 0)
-	cl.cshifts[CSHIFT_BONUS].percent = 0;
+    // drop the damage and bonus values
+    V_DropCShift (&cl.cshifts[CSHIFT_DAMAGE], 150);
+    V_DropCShift (&cl.cshifts[CSHIFT_BONUS], 100);
 
     force = V_CheckGamma();
 
@@ -571,15 +586,9 @@ V_UpdatePalette(void)
          }
    }
 
-   // drop the damage value
-   cl.cshifts[CSHIFT_DAMAGE].percent -= host_frametime * 150;
-   if (cl.cshifts[CSHIFT_DAMAGE].percent <= 0)
-      cl.cshifts[CSHIFT_DAMAGE].percent = 0;
-
-   // drop the bonus value
-   cl.cshifts[CSHIFT_BONUS].percent -= host_frametime * 100;
-   if (cl.cshifts[CSHIFT_BONUS].percent <= 0)
-      cl.cshifts[CSHIFT_BONUS].percent = 0;
+   // drop the damage and bonus values
+   V_DropCShift (&cl.cshifts[CSHIFT_DAMAGE], 150);
+   V_DropCShift (&cl.cshifts[CSHIFT_BONUS], 100);
 
    force = V_CheckGamma();
    if (!newobj && !force)
