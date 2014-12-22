@@ -72,6 +72,11 @@ cvar_t gl_cshiftpercent = { "gl_cshiftpercent", "100", false };
 
 float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
+/* BOF - Framerate-independent stair-step smoothing */
+float   v_oldz, v_stepz;
+float   v_steptime;
+/* EOF - Framerate-independent stair-step smoothing */
+
 /*
 ===============
 V_CalcRoll
@@ -80,6 +85,12 @@ Used by view and sv_user
 ===============
 */
 vec3_t forward, right, up;
+
+void V_NewMap (void)
+{
+   v_oldz = v_stepz = 0;
+   v_steptime = 0;
+}
 
 float
 V_CalcRoll(vec3_t angles, vec3_t velocity)
@@ -904,24 +915,31 @@ V_CalcRefdef(void)
 // set up the refresh position
     VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
 
-// smooth out stair step ups
-    if (cl.onground && ent->origin[2] - oldz > 0) {
-	float steptime;
+    // smooth out stair step ups
+    if (cl.onground && ent->origin[2] - v_stepz > 0)
+    {
+       v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
 
-	steptime = cl.time - cl.oldtime;
-	if (steptime < 0)
-//FIXME         I_Error ("steptime < 0");
-	    steptime = 0;
+       if (v_stepz > ent->origin[2])
+       {
+          v_steptime = cl.time;
+          v_stepz = v_oldz = ent->origin[2];
+       }
 
-	oldz += steptime * 80;
-	if (oldz > ent->origin[2])
-	    oldz = ent->origin[2];
-	if (ent->origin[2] - oldz > 12)
-	    oldz = ent->origin[2] - 12;
-	r_refdef.vieworg[2] += oldz - ent->origin[2];
-	view->origin[2] += oldz - ent->origin[2];
-    } else
-	oldz = ent->origin[2];
+       if (ent->origin[2] - v_stepz > 12)
+       {
+          v_steptime = cl.time;
+          v_stepz = v_oldz = ent->origin[2] - 12;
+       }
+
+       r_refdef.vieworg[2] += v_stepz - ent->origin[2];
+       view->origin[2] += v_stepz - ent->origin[2];
+    }
+    else
+    {
+       v_oldz = v_stepz = ent->origin[2];
+       v_steptime = cl.time;
+    }
 
     if (chase_active.value)
 	Chase_Update();

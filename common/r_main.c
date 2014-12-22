@@ -269,6 +269,8 @@ R_Init(void)
     D_Init();
 }
 
+extern void V_NewMap (void);
+
 /*
 ===============
 R_NewMap
@@ -325,6 +327,8 @@ R_NewMap(void)
 
     r_dowarpold = false;
     r_viewchanged = false;
+
+    V_NewMap();
 }
 
 

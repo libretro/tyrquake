@@ -71,6 +71,17 @@ float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 frame_t *view_frame;
 player_state_t *view_message;
 
+/* BOF - Framerate-independent stair-step smoothing */
+float   v_oldz, v_stepz;
+float   v_steptime;
+/* EOF - Framerate-independent stair-step smoothing */
+
+void V_NewMap (void)
+{
+   v_oldz = v_stepz = 0;
+   v_steptime = 0;
+}
+
 /*
 ===============
 V_CalcRoll
@@ -883,24 +894,34 @@ V_CalcRefdef(void)
     view->frame = view_message->weaponframe;
     view->colormap = vid.colormap;
 
-// set up the refresh position
+    // set up the refresh position
     r_refdef.viewangles[PITCH] += cl.punchangle;
 
-// smooth out stair step ups
-    if ((view_message->onground != -1) && (cl.simorg[2] - oldz > 0)) {
-	float steptime;
+    // smooth out stair step ups
+    if (cl.onground && ent->origin[2] - v_stepz > 0)
+    {
+       v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
 
-	steptime = host_frametime;
+       if (v_stepz > ent->origin[2])
+       {
+          v_steptime = cl.time;
+          v_stepz = v_oldz = ent->origin[2];
+       }
 
-	oldz += steptime * 80;
-	if (oldz > cl.simorg[2])
-	    oldz = cl.simorg[2];
-	if (cl.simorg[2] - oldz > 12)
-	    oldz = cl.simorg[2] - 12;
-	r_refdef.vieworg[2] += oldz - cl.simorg[2];
-	view->origin[2] += oldz - cl.simorg[2];
-    } else
-	oldz = cl.simorg[2];
+       if (ent->origin[2] - v_stepz > 12)
+       {
+          v_steptime = cl.time;
+          v_stepz = v_oldz = ent->origin[2] - 12;
+       }
+
+       r_refdef.vieworg[2] += v_stepz - ent->origin[2];
+       view->origin[2] += v_stepz - ent->origin[2];
+    }
+    else
+    {
+       v_oldz = v_stepz = ent->origin[2];
+       v_steptime = cl.time;
+    }
 }
 
 /*
