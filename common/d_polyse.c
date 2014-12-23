@@ -516,53 +516,53 @@ D_PolysetCalcGradients
 void
 D_PolysetCalcGradients(int skinwidth)
 {
-    float xstepdenominv, ystepdenominv, t0, t1;
-    float p01_minus_p21, p11_minus_p21, p00_minus_p20, p10_minus_p20;
+          static float
+          xstepdenominv
+       ,   ystepdenominv
+       ,   t0
+       ,   t1
+       ,   p01_minus_p21
+       ,   p11_minus_p21
+       ,   p00_minus_p20
+       ,   p10_minus_p20
+          ;
 
-    p00_minus_p20 = r_p0[0] - r_p2[0];
-    p01_minus_p21 = r_p0[1] - r_p2[1];
-    p10_minus_p20 = r_p1[0] - r_p2[0];
-    p11_minus_p21 = r_p1[1] - r_p2[1];
+       xstepdenominv = 1.0 / (float)d_xdenom;
+       ystepdenominv = -xstepdenominv;
 
-    xstepdenominv = 1.0 / (float)d_xdenom;
+       // mankrip - optimization
+       p00_minus_p20 = (r_p0[0] - r_p2[0]) * ystepdenominv;
+       p01_minus_p21 = (r_p0[1] - r_p2[1]) * xstepdenominv;
+       p10_minus_p20 = (r_p1[0] - r_p2[0]) * ystepdenominv;
+       p11_minus_p21 = (r_p1[1] - r_p2[1]) * xstepdenominv;
 
-    ystepdenominv = -xstepdenominv;
+       t0 = r_p0[2] - r_p2[2];
+       t1 = r_p1[2] - r_p2[2];
+       r_sstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+       r_sstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-// ceil () for light so positive steps are exaggerated, negative steps
-// diminished,  pushing us away from underflow toward overflow. Underflow is
-// very visible, overflow is very unlikely, because of ambient lighting
-    t0 = r_p0[4] - r_p2[4];
-    t1 = r_p1[4] - r_p2[4];
-    r_lstepx = (int)
-	ceil((t1 * p01_minus_p21 - t0 * p11_minus_p21) * xstepdenominv);
-    r_lstepy = (int)
-	ceil((t1 * p00_minus_p20 - t0 * p10_minus_p20) * ystepdenominv);
+       t0 = r_p0[3] - r_p2[3];
+       t1 = r_p1[3] - r_p2[3];
+       r_tstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+       r_tstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-    t0 = r_p0[2] - r_p2[2];
-    t1 = r_p1[2] - r_p2[2];
-    r_sstepx = (int)((t1 * p01_minus_p21 - t0 * p11_minus_p21) *
-		     xstepdenominv);
-    r_sstepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
-		     ystepdenominv);
+       // ceil () for light so positive steps are exaggerated, negative steps diminished,
+       // pushing us away from underflow toward overflow.
+       // Underflow is very visible, overflow is very unlikely, because of ambient lighting
+       t0 = r_p0[4] - r_p2[4];
+       t1 = r_p1[4] - r_p2[4];
+       r_lstepx  = (int) ceil (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+       r_lstepy  = (int) ceil (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-    t0 = r_p0[3] - r_p2[3];
-    t1 = r_p1[3] - r_p2[3];
-    r_tstepx = (int)((t1 * p01_minus_p21 - t0 * p11_minus_p21) *
-		     xstepdenominv);
-    r_tstepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
-		     ystepdenominv);
+       t0 = r_p0[5] - r_p2[5];
+       t1 = r_p1[5] - r_p2[5];
+       r_zistepx = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+       r_zistepy = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-    t0 = r_p0[5] - r_p2[5];
-    t1 = r_p1[5] - r_p2[5];
-    r_zistepx = (int)((t1 * p01_minus_p21 - t0 * p11_minus_p21) *
-		      xstepdenominv);
-    r_zistepy = (int)((t1 * p00_minus_p20 - t0 * p10_minus_p20) *
-		      ystepdenominv);
+       a_sstepxfrac = r_sstepx & 0xFFFF;
+       a_tstepxfrac = r_tstepx & 0xFFFF;
 
-    a_sstepxfrac = r_sstepx & 0xFFFF;
-    a_tstepxfrac = r_tstepx & 0xFFFF;
-
-    a_ststepxwhole = skinwidth * (r_tstepx >> 16) + (r_sstepx >> 16);
+       a_ststepxwhole = skinwidth * (r_tstepx >> 16) + (r_sstepx >> 16);
 }
 
 
