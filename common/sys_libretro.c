@@ -617,6 +617,21 @@ static void update_variables(void)
    }
 }
 
+static void update_env_variables(void)
+{
+   const char *default_username = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_USERNAME, &default_username))
+   {
+      if (default_username[0] != '\0')
+      {
+         char setplayer[256];
+         sprintf(setplayer, "name %s", default_username);
+         retro_cheat_set(0, true, setplayer);
+      }
+   }
+}
+
 byte *vid_buffer;
 short *zbuffer;
 short *finalimage;
@@ -629,10 +644,16 @@ static bool did_flip;
 
 void retro_run(void)
 {
+   static bool has_set_username = false;
    did_flip = false;
    bool updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables();
+   if (!has_set_username)
+   {
+      update_env_variables();
+      has_set_username = true;
+   }
 
    // find time spent rendering last frame
    newtime = Sys_DoubleTime();
@@ -793,7 +814,7 @@ bool retro_load_game(const struct retro_game_info *info)
 #ifdef QW_HACK
    oldtime = Sys_DoubleTime();
 #endif
-
+ 
 
    return true;
 }
