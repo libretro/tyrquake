@@ -144,26 +144,34 @@ D_PolysetDrawFinalVerts
 void
 D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
 {
-    int i, z;
-    short *zbuf;
+   int i, z;
+   short *zbuf;
 
-    for (i = 0; i < numverts; i++, fv++) {
-	// valid triangle coordinates for filling can include the bottom and
-	// right clip edges, due to the fill rule; these shouldn't be drawn
-	if ((fv->v[0] < r_refdef.vrectright) &&
-	    (fv->v[1] < r_refdef.vrectbottom)) {
-	    z = fv->v[5] >> 16;
-	    zbuf = zspantable[fv->v[1]] + fv->v[0];
-	    if (z >= *zbuf) {
-		int pix;
+   for (i = 0; i < numverts; i++, fv++)
+   {
+      // valid triangle coordinates for filling can include the bottom and
+      // right clip edges, due to the fill rule; these shouldn't be drawn
+      if ((fv->v[0] < r_refdef.vrectright) &&
+            (fv->v[1] < r_refdef.vrectbottom))
+      {
+         /* Baker - in very rare occassions, these may have 
+          * negative values and can result in a memory access violation */
+         if (fv->v[0] >=0 && fv->v[1] >=0)
+         {
+            z = fv->v[5] >> 16;
+            zbuf = zspantable[fv->v[1]] + fv->v[0];
+            if (z >= *zbuf)
+            {
+               int pix;
 
-		*zbuf = z;
-		pix = skintable[fv->v[3] >> 16][fv->v[2] >> 16];
-		pix = ((byte *)acolormap)[pix + (fv->v[4] & 0xFF00)];
-		d_viewbuffer[d_scantable[fv->v[1]] + fv->v[0]] = pix;
-	    }
-	}
-    }
+               *zbuf = z;
+               pix = skintable[fv->v[3] >> 16][fv->v[2] >> 16];
+               pix = ((byte *)acolormap)[pix + (fv->v[4] & 0xFF00)];
+               d_viewbuffer[d_scantable[fv->v[1]] + fv->v[0]] = pix;
+            }
+         }
+      }
+   }
 }
 
 
