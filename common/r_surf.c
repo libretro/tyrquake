@@ -80,8 +80,7 @@ R_AddDynamicLights(void)
     tex = surf->texinfo;
 
     for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
-	if (!(surf->dlightbits & (1 << lnum)))
-	    continue;		// not lit by this light
+       if (!(surf->dlightbits[lnum >> 5] & (1 << (lnum & 31)))) continue;  //qbism from MH
 
 	rad = cl_dlights[lnum].radius;
 	dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -

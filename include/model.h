@@ -24,6 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef MAX_DLIGHTS
+#define MAX_DLIGHTS 32
+#endif
+
 #if defined(_WIN32)
 static INLINE int ffsl (long bits)
 {
@@ -202,7 +206,7 @@ typedef struct msurface_s {
 
 // lighting info
     int dlightframe;
-    unsigned dlightbits;
+    unsigned dlightbits[(MAX_DLIGHTS + 31) >> 5]; /* qbism from MH - increase max_dlights */
 
     byte styles[MAXLIGHTMAPS];
     byte *samples;		// [numstyles*surfsize]

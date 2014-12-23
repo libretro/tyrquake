@@ -963,7 +963,6 @@ R_DrawBEntitiesOnList(void)
 
     VectorCopy(modelorg, oldorigin);
     insubmodel = true;
-    r_dlightframecount = r_framecount;
 
     for (i = 0; i < cl_numvisedicts; i++) {
 	e = &cl_visedicts[i];
@@ -990,14 +989,8 @@ R_DrawBEntitiesOnList(void)
 
 	// calculate dynamic lighting for bmodel if it's not an
 	// instanced model
-	if (model->firstmodelsurface != 0) {
-	    for (j = 0; j < MAX_DLIGHTS; j++) {
-		if ((cl_dlights[j].die < cl.time) || (!cl_dlights[j].radius))
-		    continue;
-		R_MarkLights(&cl_dlights[j], 1 << j,
-			     model->nodes + model->hulls[0].firstclipnode);
-	    }
-	}
+	if (model->firstmodelsurface != 0)
+       R_PushDlights (model->nodes + model->hulls[0].firstclipnode);  /*qbism - from MH */
 
 	r_pefragtopnode = NULL;
 	VectorCopy(mins, r_emins);
@@ -1111,6 +1104,7 @@ R_RenderView_(void)
 	r_time1 = Sys_DoubleTime();
 
     R_SetupFrame();
+    R_PushDlights (cl.worldmodel->nodes);  /* qbism - moved here from view.c */
     R_MarkSurfaces();		// done here so we know if we're in water
     R_CullSurfaces(r_worldentity.model, r_refdef.vieworg);
 

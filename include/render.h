@@ -82,7 +82,10 @@ typedef struct entity_s {
     int effects;		// light, particals, etc
 #endif
     int dlightframe;		// dynamic lighting
+    /* qbism - not used here... */
+#if 0
     int dlightbits;
+#endif
 
 // FIXME: could turn these into a union
     int trivial_accept;
@@ -183,8 +186,6 @@ void R_TeleportSplash(vec3_t org);
 void R_EntityParticles(const entity_t *ent);
 void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength);
 #endif
-
-void R_PushDlights(void);
 
 void R_InitParticles(void);
 void R_ClearParticles(void);

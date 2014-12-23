@@ -209,6 +209,8 @@ void R_ClearParticles(void);
 void R_ReadPointFile_f(void);
 void R_SurfacePatch(void);
 
+void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
+
 extern int r_amodels_drawn;
 extern edge_t *auxedges;
 extern int r_numallocatededges;
@@ -253,7 +255,6 @@ extern mleaf_t *r_viewleaf, *r_oldviewleaf;
 extern vec3_t r_emins, r_emaxs;
 extern mnode_t *r_pefragtopnode;
 extern int r_clipflags;
-extern int r_dlightframecount;
 
 void R_StoreEfrags(efrag_t **ppefrag);
 void R_TimeRefresh_f(void);
