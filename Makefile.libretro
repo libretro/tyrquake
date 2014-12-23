@@ -166,9 +166,9 @@ endif
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g
 else ifeq ($(platform), emscripten)
-CFLAGS += -O2
+CFLAGS += -O2 -DNDEBUG
 else
-CFLAGS += -O3 -ffast-math
+CFLAGS += -O3 -ffast-math -DNDEBUG
 endif
 
 CORE_DIR := .
@@ -193,7 +193,7 @@ WARNINGS_DEFINES = -Wall
 CODE_DEFINES = -fomit-frame-pointer
 endif
 
-COMMON_DEFINES += $(CODE_DEFINES) $(WARNINGS_DEFINES) -DNDEBUG=1 $(fpic)
+COMMON_DEFINES += $(CODE_DEFINES) $(WARNINGS_DEFINES) $(fpic)
 
 CFLAGS     += $(DEFINES) $(COMMON_DEFINES)
 
