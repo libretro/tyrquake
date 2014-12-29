@@ -655,32 +655,7 @@ void retro_run(void)
       has_set_username = true;
    }
 
-   // find time spent rendering last frame
-   newtime = Sys_DoubleTime();
-   _time = newtime - oldtime;
-
-#ifdef NQ_HACK
-   if (cls.state == ca_dedicated) {
-      if (_time < sys_ticrate.value) {
-         Sys_Sleep();
-         //TODO - do something proper for this instead of just 'returning'
-         //continue;	// not time to run a server only tic yet
-         return;
-      }
-      _time = sys_ticrate.value;
-   }
-   if (_time > sys_ticrate.value * 2)
-      oldtime = newtime;
-   else
-   {
-      oldtime += _time;
-   }
-#endif
-#ifdef QW_HACK
-   oldtime = newtime;
-#endif
-
-   Host_Frame(_time);
+   Host_Frame(0.016667);
 
    if (!did_flip)
       video_cb(NULL, width, height, width << 1); /* dupe */
