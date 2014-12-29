@@ -103,9 +103,6 @@ float r_aliastransition, r_resfudge;
 
 int d_lightstylevalue[256];	// 8.8 fraction of base light value
 
-float dp_time1, dp_time2, db_time1, db_time2, rw_time1, rw_time2;
-float se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
-
 cvar_t r_draworder = { "r_draworder", "0" };
 cvar_t r_speeds = { "r_speeds", "0" };
 cvar_t r_graphheight = { "r_graphheight", "15" };
@@ -1054,29 +1051,15 @@ static void R_EdgeDrawing(void)
 
     R_BeginEdgeFrame();
 
-    if (r_dspeeds.value) {
-	rw_time1 = Sys_DoubleTime();
-    }
-
     R_RenderWorld();
 
     // only the world can be drawn back to front with no z reads or compares,
     // just z writes, so have the driver turn z compares on now
     D_TurnZOn();
 
-    if (r_dspeeds.value) {
-	rw_time2 = Sys_DoubleTime();
-	db_time1 = rw_time2;
-    }
-
     R_DrawBEntitiesOnList();
 
-    if (r_dspeeds.value) {
-	db_time2 = Sys_DoubleTime();
-	se_time1 = db_time2;
-    }
-
-    if (!r_dspeeds.value) {
+    {
 	VID_UnlockBuffer();
 	S_ExtraUpdate();	// don't let sound get messed up if going slow
 	VID_LockBuffer();
@@ -1100,9 +1083,6 @@ R_RenderView_(void)
 
     r_warpbuffer = warpbuffer;
 
-    if (r_timegraph.value || r_speeds.value || r_dspeeds.value)
-	r_time1 = Sys_DoubleTime();
-
     R_SetupFrame();
     R_PushDlights (cl.worldmodel->nodes);  /* qbism - moved here from view.c */
     R_MarkSurfaces();		// done here so we know if we're in water
@@ -1117,68 +1097,34 @@ R_RenderView_(void)
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
-    if (!r_dspeeds.value) {
-	VID_UnlockBuffer();
-	S_ExtraUpdate();	// don't let sound get messed up if going slow
-	VID_LockBuffer();
+    {
+       VID_UnlockBuffer();
+       S_ExtraUpdate();	// don't let sound get messed up if going slow
+       VID_LockBuffer();
     }
 
     R_EdgeDrawing();
 
-    if (!r_dspeeds.value) {
-	VID_UnlockBuffer();
-	S_ExtraUpdate();	// don't let sound get messed up if going slow
-	VID_LockBuffer();
+    {
+       VID_UnlockBuffer();
+       S_ExtraUpdate();	// don't let sound get messed up if going slow
+       VID_LockBuffer();
     }
 
-    if (r_dspeeds.value) {
-	se_time2 = Sys_DoubleTime();
-	de_time1 = se_time2;
-    }
 
     R_DrawEntitiesOnList();
 
-    if (r_dspeeds.value) {
-	de_time2 = Sys_DoubleTime();
-	dv_time1 = de_time2;
-    }
-
     R_DrawViewModel();
 
-    if (r_dspeeds.value) {
-	dv_time2 = Sys_DoubleTime();
-	dp_time1 = Sys_DoubleTime();
-    }
-
     R_DrawParticles();
-
-    if (r_dspeeds.value)
-	dp_time2 = Sys_DoubleTime();
 
     if (r_dowarp)
 	D_WarpScreen();
 
     V_SetContentsColor(r_viewleaf->contents);
 
-    if (r_timegraph.value)
-	R_TimeGraph();
-
-#ifdef QW_HACK
-    if (r_netgraph.value)
-	R_NetGraph();
-
-    if (r_zgraph.value)
-	R_ZGraph();
-#endif
-
     if (r_aliasstats.value)
 	R_PrintAliasStats();
-
-    if (r_speeds.value)
-	R_PrintTimes();
-
-    if (r_dspeeds.value)
-	R_PrintDSpeeds();
 
     if (r_reportsurfout.value && r_outofsurfaces)
 	Con_Printf("Short %d surfaces\n", r_outofsurfaces);

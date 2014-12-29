@@ -77,37 +77,7 @@ For program optimization
 */
 void
 R_TimeRefresh_f(void)
-{
-    int i;
-    float start, stop, time;
-    int startangle;
-    vrect_t vr;
-
-    startangle = r_refdef.viewangles[1];
-
-    start = Sys_DoubleTime();
-    for (i = 0; i < 128; i++) {
-	r_refdef.viewangles[1] = i / 128.0 * 360.0;
-
-	VID_LockBuffer();
-
-	R_RenderView();
-
-	VID_UnlockBuffer();
-
-	vr.x = r_refdef.vrect.x;
-	vr.y = r_refdef.vrect.y;
-	vr.width = r_refdef.vrect.width;
-	vr.height = r_refdef.vrect.height;
-	vr.pnext = NULL;
-	VID_Update(&vr);
-    }
-    stop = Sys_DoubleTime();
-    time = stop - start;
-    Con_Printf("%f seconds (%f fps)\n", time, 128 / time);
-
-    r_refdef.viewangles[1] = startangle;
-}
+{ }
 
 /*
 ================
@@ -161,50 +131,6 @@ Performance monitoring tool
 void
 R_TimeGraph(void)
 {
-    static byte r_timings[MAX_TIMINGS];
-    static int timex;
-    float r_time2;
-    int a, x, y, y2, w, i;
-    char st[80];
-
-    r_time2 = Sys_DoubleTime();
-
-    a = (r_time2 - r_time1) / 0.001;
-//a = fabs(mouse_y * 0.05);
-//a = (int)((r_refdef.vieworg[2] + 1024)/1)%(int)r_graphheight.value;
-//a = (int)((pmove.velocity[2] + 500)/10);
-//a = fabs(velocity[0])/20;
-//a = ((int)fabs(origin[0])/8)%20;
-//a = (cl.idealpitch + 30)/5;
-//a = (int)(cl.simangles[YAW] * 64/360) & 63;
-
-    r_timings[timex] = a;
-
-    if (vid.width - 16 <= MAX_TIMINGS)
-	w = vid.width - 16;
-    else
-	w = MAX_TIMINGS;
-
-    x = -((vid.width - 320) >> 1);
-    y = vid.height - sb_lines - 24 - (int)r_graphheight.value * 2 - 2;
-    y2 = y + 8;
-
-    M_DrawTextBox(x, y, (w + 7) / 8,
-		  ((int)r_graphheight.value * 2 + 7) / 8 + 1);
-
-    x = 8;
-    y = vid.height - sb_lines - 8 - 2;
-
-    for (a = MAX_TIMINGS - w; a < w; a++) {
-	i = timex - a;
-	if (i < 0)
-	    i += MAX_TIMINGS;
-	R_LineGraph(x + w - 1 - a, y, r_timings[i]);
-    }
-    sprintf(st, "Render time %dms", r_timings[timex]);
-    Draw_String(8, y2, st);
-
-    timex = (timex + 1) % MAX_TIMINGS;
 }
 
 #ifdef QW_HACK
@@ -277,16 +203,6 @@ R_PrintTimes
 void
 R_PrintTimes(void)
 {
-    float r_time2;
-    float ms;
-
-    r_time2 = Sys_DoubleTime();
-
-    ms = 1000 * (r_time2 - r_time1);
-
-    Con_Printf("%5.1f ms %3i/%3i/%3i poly %3i surf\n",
-	       ms, c_faceclip, r_polycount, r_drawnpolycount, c_surf);
-    c_surf = 0;
 }
 
 /*
@@ -297,21 +213,6 @@ R_PrintDSpeeds
 void
 R_PrintDSpeeds(void)
 {
-    float ms, dp_time, r_time2, rw_time, db_time, se_time, de_time, dv_time;
-
-    r_time2 = Sys_DoubleTime();
-
-    dp_time = (dp_time2 - dp_time1) * 1000;
-    rw_time = (rw_time2 - rw_time1) * 1000;
-    db_time = (db_time2 - db_time1) * 1000;
-    se_time = (se_time2 - se_time1) * 1000;
-    de_time = (de_time2 - de_time1) * 1000;
-    dv_time = (dv_time2 - dv_time1) * 1000;
-    ms = (r_time2 - r_time1) * 1000;
-
-    Con_Printf("%3i %4.1fp %3iw %4.1fb %3is %4.1fe %4.1fv\n",
-	       (int)ms, dp_time, (int)rw_time, db_time, (int)se_time,
-	       de_time, dv_time);
 }
 
 /*

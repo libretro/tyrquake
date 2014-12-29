@@ -642,12 +642,13 @@ Con_NotifyBox(char *text)
     key_count = -2;		// wait for a key down and up
     key_dest = key_console;
 
-    do {
-	t1 = Sys_DoubleTime();
-	SCR_UpdateScreen();
-	Sys_SendKeyEvents();
-	t2 = Sys_DoubleTime();
-	realtime += t2 - t1;	// make the cursor blink
+    do
+    {
+       t1 = Sys_DoubleTime();
+       SCR_UpdateScreen();
+       Sys_SendKeyEvents();
+       t2 = Sys_DoubleTime();
+       realtime += t2 - t1;	// make the cursor blink
     } while (key_count < 0);
 
     Con_Printf("\n");

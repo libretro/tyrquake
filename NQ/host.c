@@ -652,128 +652,99 @@ Runs all active servers
 void
 _Host_Frame(float time)
 {
-    static double time1 = 0;
-    static double time2 = 0;
-    static double time3 = 0;
-    int pass1, pass2, pass3;
+   /* something bad happened, or the server disconnected */
+   if (setjmp(host_abort))
+      return;
 
-    /* something bad happened, or the server disconnected */
-    if (setjmp(host_abort))
-	return;
+   /* keep the random time dependent */
+   rand();
 
-    /* keep the random time dependent */
-    rand();
+   /*
+    * Decide the simulation time. Don't run too fast, or packets will flood
+    * out.
+    */
+   if (!Host_FilterTime(time))
+      return;
 
-    /*
-     * Decide the simulation time. Don't run too fast, or packets will flood
-     * out.
-     */
-    if (!Host_FilterTime(time))
-	return;
+   /* get new key events */
+   Sys_SendKeyEvents();
 
-    /* get new key events */
-    Sys_SendKeyEvents();
+   /* allow mice or other external controllers to add commands */
+   IN_Commands();
 
-    /* allow mice or other external controllers to add commands */
-    IN_Commands();
+   /* process console commands */
+   Cbuf_Execute();
 
-    /* process console commands */
-    Cbuf_Execute();
+   NET_Poll();
 
-    NET_Poll();
+   /* if running the server locally, make intentions now */
+   if (sv.active)
+      CL_SendCmd();
 
-    /* if running the server locally, make intentions now */
-    if (sv.active)
-	CL_SendCmd();
+   //-------------------
+   //
+   // server operations
+   //
+   //-------------------
 
-//-------------------
-//
-// server operations
-//
-//-------------------
+   /* check for commands typed to the host */
+   Host_GetConsoleCommands();
 
-    /* check for commands typed to the host */
-    Host_GetConsoleCommands();
+   if (sv.active)
+      Host_ServerFrame();
 
-    if (sv.active)
-	Host_ServerFrame();
+   //-------------------
+   //
+   // client operations
+   //
+   //-------------------
 
-//-------------------
-//
-// client operations
-//
-//-------------------
+   /*
+    * if running the server remotely, send intentions now after the incoming
+    * messages have been read
+    */
+   if (!sv.active)
+      CL_SendCmd();
 
-    /*
-     * if running the server remotely, send intentions now after the incoming
-     * messages have been read
-     */
-    if (!sv.active)
-	CL_SendCmd();
+   host_time += host_frametime;
 
-    host_time += host_frametime;
+   /* fetch results from server */
+   if (cls.state >= ca_connected)
+      CL_ReadFromServer();
 
-    /* fetch results from server */
-    if (cls.state >= ca_connected)
-	CL_ReadFromServer();
+   SCR_UpdateScreen();
+   CL_RunParticles();
 
-    /* update video */
-    if (host_speeds.value)
-	time1 = Sys_DoubleTime();
-
-    SCR_UpdateScreen();
-    CL_RunParticles();
-
-    if (host_speeds.value)
-	time2 = Sys_DoubleTime();
-
-
-    if (host_speeds.value) {
-	pass1 = (time1 - time3) * 1000;
-	time3 = Sys_DoubleTime();
-	pass2 = (time2 - time1) * 1000;
-	pass3 = (time3 - time2) * 1000;
-	Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
-		   pass1 + pass2 + pass3, pass1, pass2, pass3);
-    }
-
-    host_framecount++;
-    fps_count++;
+   host_framecount++;
+   fps_count++;
 }
 
 void
 Host_Frame(float time)
 {
-    double time1, time2;
-    static double timetotal;
-    static int timecount;
-    int i, c, m;
+   static int timecount;
+   int i, c, m;
 
-    if (!serverprofile.value) {
-	_Host_Frame(time);
-	return;
-    }
+   if (!serverprofile.value)
+   {
+      _Host_Frame(time);
+      return;
+   }
 
-    time1 = Sys_DoubleTime();
-    _Host_Frame(time);
-    time2 = Sys_DoubleTime();
+   _Host_Frame(time);
 
-    timetotal += time2 - time1;
-    timecount++;
+   timecount++;
 
-    if (timecount < 1000)
-	return;
+   if (timecount < 1000)
+      return;
 
-    m = timetotal * 1000 / timecount;
-    timecount = 0;
-    timetotal = 0;
-    c = 0;
-    for (i = 0; i < svs.maxclients; i++) {
-	if (svs.clients[i].active)
-	    c++;
-    }
-
-    Con_Printf("serverprofile: %2i clients %2i msec\n", c, m);
+   timecount = 0;
+   c = 0;
+   for (i = 0; i < svs.maxclients; i++)
+   {
+      if (svs.clients[i].active)
+         c++;
+   }
 }
 
 

@@ -657,27 +657,19 @@ remove_paired_polys(void)
 
 static void make_hull_windings(hull_t *hull)
 {
-    float t1, t2;
-    struct list_node head = LIST_HEAD_INIT(head);
+   struct list_node head = LIST_HEAD_INIT(head);
 
-    Con_DPrintf("%i clipnodes...\n", hull->lastclipnode - hull->firstclipnode);
+   Con_DPrintf("%i clipnodes...\n", hull->lastclipnode - hull->firstclipnode);
 
-    t1 = Sys_DoubleTime();
-
-    /*
-     * FIXME(s):
-     * - Make sure a map is loaded
-     * - Reset cvar to zero and flush data on map load (unload?)
-     */
-    num_hull_polys = 0;
-    node_stack_depth = 0;
-    hull_windings_r(hull, hull->clipnodes + hull->firstclipnode, &head);
-    remove_paired_polys();
-
-    t2 = Sys_DoubleTime();
-
-    Con_DPrintf("Generated %u polys in %f seconds.\n", num_hull_polys,
-		t2 - t1);
+   /*
+    * FIXME(s):
+    * - Make sure a map is loaded
+    * - Reset cvar to zero and flush data on map load (unload?)
+    */
+   num_hull_polys = 0;
+   node_stack_depth = 0;
+   hull_windings_r(hull, hull->clipnodes + hull->firstclipnode, &head);
+   remove_paired_polys();
 }
 
 static void

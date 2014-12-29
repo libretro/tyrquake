@@ -259,11 +259,6 @@ void Sys_LowFPPrecision(void)
 {
 }
 
-static double _time;
-static double oldtime;
-static double newtime;
-
-
 viddef_t vid;			// global video state
 
 void retro_init(void)
@@ -782,14 +777,6 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_RegisterVariable(&framerate);
    Cvar_Set("framerate", "60");
    Cvar_Set("sys_ticrate", "0.016667");
-
-#ifdef NQ_HACK
-   oldtime = Sys_DoubleTime() - 0.1;
-#endif
-#ifdef QW_HACK
-   oldtime = Sys_DoubleTime();
-#endif
- 
 
    return true;
 }
