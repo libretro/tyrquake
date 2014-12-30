@@ -601,7 +601,7 @@ static void update_variables(void)
       pch = strtok(str, "x");
       if (pch)
          width = strtoul(pch, NULL, 0);
-      pch = strtok(str, "x");
+      pch = strtok(NULL, "x");
       if (pch)
          height = strtoul(pch, NULL, 0);
 
