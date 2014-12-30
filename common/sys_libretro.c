@@ -618,7 +618,7 @@ static void update_env_variables(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_USERNAME, &default_username))
    {
-      if (default_username[0] != '\0')
+      if (default_username && default_username[0] != '\0')
       {
          char setplayer[256];
          sprintf(setplayer, "name %s", default_username);
