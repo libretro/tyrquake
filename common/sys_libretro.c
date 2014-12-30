@@ -305,9 +305,6 @@ void retro_get_system_info(struct retro_system_info *info)
    info->valid_extensions = "pak";
 }
 
-#define MAX_WIDTH 1024
-#define MAX_HEIGHT 768
-
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing.fps = framerate.value;
@@ -315,8 +312,8 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
    info->geometry.base_width   = width;
    info->geometry.base_height  = height;
-   info->geometry.max_width    = MAX_WIDTH;
-   info->geometry.max_height   = MAX_HEIGHT;
+   info->geometry.max_width    = width;
+   info->geometry.max_height   = height;
    info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
@@ -327,7 +324,7 @@ void retro_set_environment(retro_environment_t cb)
 
    struct retro_variable variables[] = {
       { "tyrquake_resolution",
-         "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768" },
+         "Resolution (restart); 320x200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1920x1080" },
       { NULL, NULL },
    };
 
