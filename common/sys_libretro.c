@@ -832,7 +832,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
    (void)index;
    (void)enabled;
 
-   Cmd_ExecuteString(code);
+   Cmd_ExecuteString(code, src_command);
 }
 
 /*
