@@ -1908,6 +1908,11 @@ COM_AddGameDirectory(const char *base, const char *dir)
     if (!base)
 	return;
 
+#ifdef _XBOX360
+    if (dir == "")
+		strcpy(com_gamedir, base);
+	else
+#endif
     strcpy(com_gamedir, va("%s%c%s", base, slash, dir));
 
 #ifdef QW_HACK
