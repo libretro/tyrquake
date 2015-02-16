@@ -379,10 +379,19 @@ void Sys_SendKeyEvents(void)
 {
    int port;
 
+   if (!poll_cb)
+      return;
+
    poll_cb();
+
+   if (!input_cb)
+      return;
 
    for (port = 0; port < MAX_PADS; port++)
    {
+      if (!input_cb)
+         break;
+
       switch (quake_devices[port])
       {
          case RETRO_DEVICE_JOYPAD:
