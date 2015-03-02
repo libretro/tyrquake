@@ -38,10 +38,18 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
    system_platform = win
 endif
 
+LIBM := -lm
+
 ifeq ($(platform), unix)
    TARGET := $(TARGET_NAME)_libretro.so
    fpic := -fPIC
    SHARED := -shared -Wl,--version-script=common/libretro-link.T
+else ifeq ($(platform), linux-portable)
+   TARGET := $(TARGET_NAME)_libretro.so
+   fpic := -fPIC -nostdlib
+   SHARED := -shared -Wl,--version-script=common/libretro-link.T
+	LIBM :=
+	LDFLAGS += -L. -lmusl
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC
@@ -163,6 +171,8 @@ else
    WINSOCKS := -lws2_32
 endif
 
+LDFLAGS += $(LIBM)
+
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g
 else ifeq ($(platform), emscripten)
@@ -213,7 +223,7 @@ $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
-	$(CC) $(fpic) $(SHARED) $(INCFLAGS) -o $@ $(OBJECTS) -lm $(WINSOCKS)
+	$(CC) $(fpic) $(SHARED) $(INCFLAGS) -o $@ $(OBJECTS) $(LDFLAGS) $(WINSOCKS)
 endif
 
 %.o: %.c
