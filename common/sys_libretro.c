@@ -581,6 +581,11 @@ void Sys_SendKeyEvents(void)
                Key_Event(K_RIGHTARROW, 1);
             else
                Key_Event(K_RIGHTARROW, 0);
+
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELUP))
+               Key_Event(K_SLASH, 1);
+            else
+               Key_Event(K_SLASH, 0);
             break;
       }
    }
