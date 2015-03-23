@@ -120,8 +120,6 @@ void Sys_Printf(const char *fmt, ...)
 void Sys_Quit(void)
 {
    Host_Shutdown();
-   if (heap)
-      free(heap);
 }
 
 void Sys_Init(void)
@@ -796,6 +794,8 @@ bool retro_load_game(const struct retro_game_info *info)
 void retro_unload_game(void)
 {
    Sys_Quit();
+   if (heap)
+      free(heap);
 }
 
 unsigned retro_get_region(void)
