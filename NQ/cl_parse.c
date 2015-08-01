@@ -877,21 +877,21 @@ CL_ParseStatic(unsigned int bits)
 }
 
 
-static int
-CL_ReadSoundNum_Static(void)
+static int CL_ReadSoundNum_Static(void)
 {
-    switch (cl.protocol) {
-    case PROTOCOL_VERSION_NQ:
-    case PROTOCOL_VERSION_BJP:
-    case PROTOCOL_VERSION_BJP3:
-    case PROTOCOL_VERSION_FITZ:
-	return MSG_ReadByte();
-    case PROTOCOL_VERSION_BJP2:
-	return MSG_ReadShort();
-    default:
-	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-		   cl.protocol);
-    }
+   switch (cl.protocol)
+   {
+      case PROTOCOL_VERSION_NQ:
+      case PROTOCOL_VERSION_BJP:
+      case PROTOCOL_VERSION_BJP3:
+      case PROTOCOL_VERSION_FITZ:
+         return MSG_ReadByte();
+      case PROTOCOL_VERSION_BJP2:
+         return MSG_ReadShort();
+      default:
+         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+               cl.protocol);
+   }
 }
 
 /*

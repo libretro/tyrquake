@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_DLIGHTS 32
 #endif
 
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__SNC__)
 static INLINE int ffsl (long bits)
 {
 	unsigned long int shift;

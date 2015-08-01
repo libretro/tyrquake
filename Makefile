@@ -177,7 +177,7 @@ CFLAGS += -O0 -g
 else ifeq ($(platform), emscripten)
 CFLAGS += -O2 -DNDEBUG
 else
-CFLAGS += -O3 -ffast-math -DNDEBUG
+CFLAGS += -O3 -DNDEBUG
 endif
 
 CORE_DIR := .
