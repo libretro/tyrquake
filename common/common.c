@@ -20,11 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include <ctype.h>
-#ifdef _WIN32
-#include "dirent_win32.h"
-#else
-#include <dirent.h>
-#endif
+#include <retro_dirent.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1589,30 +1585,30 @@ COM_FOpenFile(const char *filename, FILE **file)
     return -1;
 }
 
-static void COM_ScanDirDir(struct stree_root *root, DIR *dir, const char *pfx,
+static void COM_ScanDirDir(struct stree_root *root, struct RDIR *dir, const char *pfx,
 	       const char *ext, qboolean stripext)
 {
-    int pfx_len, ext_len;
-    struct dirent *d;
     char *fname;
+    int pfx_len = pfx ? strlen(pfx) : 0;
+    int ext_len = ext ? strlen(ext) : 0;
 
-    pfx_len = pfx ? strlen(pfx) : 0;
-    ext_len = ext ? strlen(ext) : 0;
-
-    while ((d = readdir(dir))) {
-	if ((!pfx || !strncasecmp(d->d_name, pfx, pfx_len)) &&
-	    (!ext || COM_CheckExtension(d->d_name, ext))) {
-	    int len = strlen(d->d_name);
-	    if (ext && stripext)
-		len -= ext_len;
-	    fname = (char*)Z_Malloc(len + 1);
-	    if (fname) {
-		strncpy(fname, d->d_name, len);
-		fname[len] = '\0';
-		STree_InsertAlloc(root, fname, true);
-		Z_Free(fname);
-	    }
-	}
+    while (retro_readdir(dir))
+    {
+       if ((!pfx || !strncasecmp(retro_dirent_get_name(dir), pfx, pfx_len)) &&
+             (!ext || COM_CheckExtension(retro_dirent_get_name(dir), ext)))
+       {
+          int len = strlen(retro_dirent_get_name(dir));
+          if (ext && stripext)
+             len -= ext_len;
+          fname = (char*)Z_Malloc(len + 1);
+          if (fname)
+          {
+             strncpy(fname, retro_dirent_get_name(dir), len);
+             fname[len] = '\0';
+             STree_InsertAlloc(root, fname, true);
+             Z_Free(fname);
+          }
+       }
     }
 }
 
@@ -1675,23 +1671,27 @@ void
 COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
 	    const char *ext, qboolean stripext)
 {
-    searchpath_t *search;
-    char fullpath[MAX_OSPATH];
-    DIR *dir;
+   searchpath_t *search;
+   char fullpath[MAX_OSPATH];
+   struct RDIR *dir;
 
-    for (search = com_searchpaths; search; search = search->next) {
-	if (search->pack) {
-	    COM_ScanDirPak(root, search->pack, path, pfx, ext, stripext);
-	} else {
-	    snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
-	    fullpath[MAX_OSPATH - 1] = '\0';
-	    dir = opendir(fullpath);
-	    if (dir) {
-		COM_ScanDirDir(root, dir, pfx, ext, stripext);
-		closedir(dir);
-	    }
-	}
-    }
+   for (search = com_searchpaths; search; search = search->next)
+   {
+      if (search->pack)
+         COM_ScanDirPak(root, search->pack, path, pfx, ext, stripext);
+      else
+      {
+         snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
+         fullpath[MAX_OSPATH - 1] = '\0';
+         dir = retro_opendir(fullpath);
+
+         if (dir)
+         {
+            COM_ScanDirDir(root, dir, pfx, ext, stripext);
+            retro_closedir(dir);
+         }
+      }
+   }
 }
 
 /*
