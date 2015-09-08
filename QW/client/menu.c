@@ -884,7 +884,6 @@ M_Draw(void)
 
       if (scr_con_current) {
          Draw_ConsoleBackground(vid.height);
-         S_ExtraUpdate();
       } else
          Draw_FadeScreen();
 
@@ -922,8 +921,6 @@ M_Draw(void)
       S_LocalSound("misc/menu2.wav");
       m_entersound = false;
    }
-
-   S_ExtraUpdate();
 }
 
 

@@ -1035,8 +1035,6 @@ static void R_EdgeDrawing(void)
 
    R_DrawBEntitiesOnList();
 
-   S_ExtraUpdate();	// don't let sound get messed up if going slow
-
    R_ScanEdges();
 }
 
@@ -1069,12 +1067,7 @@ R_RenderView_(void)
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
-    S_ExtraUpdate();	// don't let sound get messed up if going slow
-
     R_EdgeDrawing();
-
-    S_ExtraUpdate();	// don't let sound get messed up if going slow
-
 
     R_DrawEntitiesOnList();
 

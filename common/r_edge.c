@@ -631,8 +631,6 @@ R_ScanEdges(void)
       // FIXME - which is correct QW had >, NQ had >= (and QF has >)
       if (span_p > max_span_p)
       {
-         S_ExtraUpdate();	// don't let sound get messed up if going slow
-
          D_DrawSurfaces();
 
          // clear the surface span pointers

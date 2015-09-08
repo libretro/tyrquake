@@ -2464,94 +2464,91 @@ M_Init(void)
 void
 M_Draw(void)
 {
-    if (m_state == m_none || key_dest != key_menu)
-	return;
+   if (m_state == m_none || key_dest != key_menu)
+      return;
 
-    if (!m_recursiveDraw) {
-	scr_copyeverything = 1;
+   if (!m_recursiveDraw) {
+      scr_copyeverything = 1;
 
-	if (scr_con_current) {
-	    Draw_ConsoleBackground(vid.height);
-	    S_ExtraUpdate();
-	} else
-	    Draw_FadeScreen();
+      if (scr_con_current) {
+         Draw_ConsoleBackground(vid.height);
+      } else
+         Draw_FadeScreen();
 
-	scr_fullupdate = 0;
-    } else {
-	m_recursiveDraw = false;
-    }
+      scr_fullupdate = 0;
+   } else {
+      m_recursiveDraw = false;
+   }
 
-    switch (m_state) {
-    case m_none:
-	break;
+   switch (m_state) {
+      case m_none:
+         break;
 
-    case m_main:
-	M_Main_Draw();
-	break;
+      case m_main:
+         M_Main_Draw();
+         break;
 
-    case m_singleplayer:
-	M_SinglePlayer_Draw();
-	break;
+      case m_singleplayer:
+         M_SinglePlayer_Draw();
+         break;
 
-    case m_load:
-	M_Load_Draw();
-	break;
+      case m_load:
+         M_Load_Draw();
+         break;
 
-    case m_save:
-	M_Save_Draw();
-	break;
+      case m_save:
+         M_Save_Draw();
+         break;
 
-    case m_multiplayer:
-	M_MultiPlayer_Draw();
-	break;
+      case m_multiplayer:
+         M_MultiPlayer_Draw();
+         break;
 
-    case m_setup:
-	M_Setup_Draw();
-	break;
+      case m_setup:
+         M_Setup_Draw();
+         break;
 
-    case m_options:
-	M_Options_Draw();
-	break;
+      case m_options:
+         M_Options_Draw();
+         break;
 
-    case m_keys:
-	M_Keys_Draw();
-	break;
+      case m_keys:
+         M_Keys_Draw();
+         break;
 
-    case m_video:
-	M_Video_Draw();
-	break;
+      case m_video:
+         M_Video_Draw();
+         break;
 
-    case m_help:
-	M_Help_Draw();
-	break;
+      case m_help:
+         M_Help_Draw();
+         break;
 
-    case m_quit:
-	M_Quit_Draw();
-	break;
+      case m_quit:
+         M_Quit_Draw();
+         break;
 
-    case m_lanconfig:
-	M_LanConfig_Draw();
-	break;
+      case m_lanconfig:
+         M_LanConfig_Draw();
+         break;
 
-    case m_gameoptions:
-	M_GameOptions_Draw();
-	break;
+      case m_gameoptions:
+         M_GameOptions_Draw();
+         break;
 
-    case m_search:
-	M_Search_Draw();
-	break;
+      case m_search:
+         M_Search_Draw();
+         break;
 
-    case m_slist:
-	M_ServerList_Draw();
-	break;
-    }
+      case m_slist:
+         M_ServerList_Draw();
+         break;
+   }
 
-    if (m_entersound) {
-	S_LocalSound("misc/menu2.wav");
-	m_entersound = false;
-    }
-
-    S_ExtraUpdate();
+   if (m_entersound) {
+      S_LocalSound("misc/menu2.wav");
+      m_entersound = false;
+   }
 }
 
 

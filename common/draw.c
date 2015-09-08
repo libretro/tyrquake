@@ -894,9 +894,8 @@ Draw_FadeScreen(void)
    int x, y;
    byte *pbuf;
 
-   S_ExtraUpdate();
-
-   for (y = 0; y < vid.height; y++) {
+   for (y = 0; y < vid.height; y++)
+   {
       int t;
 
       pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
@@ -907,8 +906,6 @@ Draw_FadeScreen(void)
             pbuf[x] = 0;
       }
    }
-
-   S_ExtraUpdate();
 }
 
 //=============================================================================

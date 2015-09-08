@@ -41,7 +41,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static void S_Play(void);
 static void S_PlayVol(void);
 static void S_SoundList(void);
-static void S_Update_();
 static void S_StopAllSoundsC(void);
 
 /*
@@ -608,6 +607,63 @@ S_UpdateAmbientSounds(void)
    }
 }
 
+static void GetSoundtime(void)
+{
+   int samplepos;
+   static int buffers;
+   static int oldsamplepos;
+   int fullsamples;
+
+   fullsamples = shm->samples / shm->channels;
+
+   /*
+    * it is possible to miscount buffers if it has wrapped twice between
+    * calls to S_Update.  Oh well.
+    */
+   samplepos = SNDDMA_GetDMAPos();
+
+   /* Check for buffer wrap */
+   if (samplepos < oldsamplepos) {
+      buffers++;
+
+      /* time to chop things off to avoid 32 bit limits */
+      if (paintedtime > 0x40000000) {
+         buffers = 0;
+         paintedtime = fullsamples;
+         S_StopAllSounds(true);
+      }
+   }
+   oldsamplepos = samplepos;
+
+   soundtime = buffers * fullsamples + samplepos / shm->channels;
+}
+
+static void S_Update_(void)
+{
+   unsigned endtime;
+   int samps;
+
+   if (!sound_started || (snd_blocked > 0))
+      return;
+
+   /* Updates DMA time */
+   GetSoundtime();
+
+   /* check to make sure that we haven't overshot */
+   if (paintedtime < soundtime) {
+      /* FIXME - handle init & wrap properly and report actual overflow */
+      //Con_DPrintf("%s: overflow\n", __func__);
+      paintedtime = soundtime;
+   }
+   /* mix ahead of current position */
+   endtime = soundtime + _snd_mixahead.value * shm->speed;
+   samps = shm->samples >> (shm->channels - 1);
+   if (endtime - soundtime > samps)
+      endtime = soundtime + samps;
+
+   S_PaintChannels(endtime);
+   SNDDMA_Submit();
+}
 
 /*
  * ============
@@ -693,74 +749,7 @@ S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
    S_Update_();
 }
 
-static void GetSoundtime(void)
-{
-   int samplepos;
-   static int buffers;
-   static int oldsamplepos;
-   int fullsamples;
 
-   fullsamples = shm->samples / shm->channels;
-
-   /*
-    * it is possible to miscount buffers if it has wrapped twice between
-    * calls to S_Update.  Oh well.
-    */
-   samplepos = SNDDMA_GetDMAPos();
-
-   /* Check for buffer wrap */
-   if (samplepos < oldsamplepos) {
-      buffers++;
-
-      /* time to chop things off to avoid 32 bit limits */
-      if (paintedtime > 0x40000000) {
-         buffers = 0;
-         paintedtime = fullsamples;
-         S_StopAllSounds(true);
-      }
-   }
-   oldsamplepos = samplepos;
-
-   soundtime = buffers * fullsamples + samplepos / shm->channels;
-}
-
-void
-S_ExtraUpdate(void)
-{
-#ifdef _WIN32
-   IN_Accumulate();
-#endif
-   if (snd_noextraupdate.value)
-      return;			/* don't pollute timings */
-   S_Update_();
-}
-
-static void S_Update_(void)
-{
-   unsigned endtime;
-   int samps;
-
-   if (!sound_started || (snd_blocked > 0))
-      return;
-
-   /* Updates DMA time */
-   GetSoundtime();
-
-   /* check to make sure that we haven't overshot */
-   if (paintedtime < soundtime) {
-      /* FIXME - handle init & wrap properly and report actual overflow */
-      //Con_DPrintf("%s: overflow\n", __func__);
-      paintedtime = soundtime;
-   }
-   /* mix ahead of current position */
-   endtime = soundtime + _snd_mixahead.value * shm->speed;
-   samps = shm->samples >> (shm->channels - 1);
-   if (endtime - soundtime > samps)
-      endtime = soundtime + samps;
-
-   S_PaintChannels(endtime);
-   SNDDMA_Submit();
-}
 
 /*
 ===============================================================================
