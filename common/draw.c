@@ -891,28 +891,24 @@ Draw_FadeScreen
 void
 Draw_FadeScreen(void)
 {
-    int x, y;
-    byte *pbuf;
+   int x, y;
+   byte *pbuf;
 
-    VID_UnlockBuffer();
-    S_ExtraUpdate();
-    VID_LockBuffer();
+   S_ExtraUpdate();
 
-    for (y = 0; y < vid.height; y++) {
-	int t;
+   for (y = 0; y < vid.height; y++) {
+      int t;
 
-	pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
-	t = (y & 1) << 1;
+      pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
+      t = (y & 1) << 1;
 
-	for (x = 0; x < vid.width; x++) {
-	    if ((x & 3) != t)
-		pbuf[x] = 0;
-	}
-    }
+      for (x = 0; x < vid.width; x++) {
+         if ((x & 3) != t)
+            pbuf[x] = 0;
+      }
+   }
 
-    VID_UnlockBuffer();
-    S_ExtraUpdate();
-    VID_LockBuffer();
+   S_ExtraUpdate();
 }
 
 //=============================================================================

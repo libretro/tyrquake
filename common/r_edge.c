@@ -570,100 +570,98 @@ Each surface has a linked list of its visible spans
 void
 R_ScanEdges(void)
 {
-    int iv, bottom;
-    espan_t basespans[CACHE_PAD_ARRAY(MAXSPANS, espan_t)];
-    espan_t *basespan_p;
-    surf_t *s;
+   int iv, bottom;
+   espan_t basespans[CACHE_PAD_ARRAY(MAXSPANS, espan_t)];
+   espan_t *basespan_p;
+   surf_t *s;
 
-    basespan_p = CACHE_ALIGN_PTR(basespans);
-    max_span_p = &basespan_p[MAXSPANS - r_refdef.vrect.width];
+   basespan_p = CACHE_ALIGN_PTR(basespans);
+   max_span_p = &basespan_p[MAXSPANS - r_refdef.vrect.width];
 
-    span_p = basespan_p;
+   span_p = basespan_p;
 
-// clear active edges to just the background edges around the whole screen
-// FIXME: most of this only needs to be set up once
-    edge_head.u = r_refdef.vrect.x << 20;
-    edge_head_u_shift20 = edge_head.u >> 20;
-    edge_head.u_step = 0;
-    edge_head.prev = NULL;
-    edge_head.next = &edge_tail;
-    edge_head.surfs[0] = 0;
-    edge_head.surfs[1] = 1;
+   // clear active edges to just the background edges around the whole screen
+   // FIXME: most of this only needs to be set up once
+   edge_head.u = r_refdef.vrect.x << 20;
+   edge_head_u_shift20 = edge_head.u >> 20;
+   edge_head.u_step = 0;
+   edge_head.prev = NULL;
+   edge_head.next = &edge_tail;
+   edge_head.surfs[0] = 0;
+   edge_head.surfs[1] = 1;
 
-    edge_tail.u = (r_refdef.vrectright << 20) + 0xFFFFF;
-    edge_tail_u_shift20 = edge_tail.u >> 20;
-    edge_tail.u_step = 0;
-    edge_tail.prev = &edge_head;
-    edge_tail.next = &edge_aftertail;
-    edge_tail.surfs[0] = 1;
-    edge_tail.surfs[1] = 0;
+   edge_tail.u = (r_refdef.vrectright << 20) + 0xFFFFF;
+   edge_tail_u_shift20 = edge_tail.u >> 20;
+   edge_tail.u_step = 0;
+   edge_tail.prev = &edge_head;
+   edge_tail.next = &edge_aftertail;
+   edge_tail.surfs[0] = 1;
+   edge_tail.surfs[1] = 0;
 
-    edge_aftertail.u = -1;	// force a move
-    edge_aftertail.u_step = 0;
-    edge_aftertail.next = &edge_sentinel;
-    edge_aftertail.prev = &edge_tail;
+   edge_aftertail.u = -1;	// force a move
+   edge_aftertail.u_step = 0;
+   edge_aftertail.next = &edge_sentinel;
+   edge_aftertail.prev = &edge_tail;
 
-// FIXME: do we need this now that we clamp x in r_draw.c?
-    edge_sentinel.u = FIXED16_MAX;	// make sure nothing sorts past this
-    edge_sentinel.prev = &edge_aftertail;
+   // FIXME: do we need this now that we clamp x in r_draw.c?
+   edge_sentinel.u = FIXED16_MAX;	// make sure nothing sorts past this
+   edge_sentinel.prev = &edge_aftertail;
 
-//
-// process all scan lines
-//
-    bottom = r_refdef.vrectbottom - 1;
+   //
+   // process all scan lines
+   //
+   bottom = r_refdef.vrectbottom - 1;
 
-    for (iv = r_refdef.vrect.y; iv < bottom; iv++) {
-	current_iv = iv;
-	fv = (float)iv;
+   for (iv = r_refdef.vrect.y; iv < bottom; iv++) {
+      current_iv = iv;
+      fv = (float)iv;
 
-	// mark that the head (background start) span is pre-included
-	surfaces[1].spanstate = 1;
+      // mark that the head (background start) span is pre-included
+      surfaces[1].spanstate = 1;
 
-	if (newedges[iv]) {
-	    R_InsertNewEdges(newedges[iv], edge_head.next);
-	}
+      if (newedges[iv]) {
+         R_InsertNewEdges(newedges[iv], edge_head.next);
+      }
 
-	(*pdrawfunc) ();
+      (*pdrawfunc) ();
 
-	// flush the span list if we can't be sure we have enough spans left
-	// for the next scan
+      // flush the span list if we can't be sure we have enough spans left
+      // for the next scan
 
-	// FIXME - which is correct QW had >, NQ had >= (and QF has >)
-	//if (span_p >= max_span_p) {
-	if (span_p > max_span_p) {
-	    VID_UnlockBuffer();
-	    S_ExtraUpdate();	// don't let sound get messed up if going slow
-	    VID_LockBuffer();
+      // FIXME - which is correct QW had >, NQ had >= (and QF has >)
+      if (span_p > max_span_p)
+      {
+         S_ExtraUpdate();	// don't let sound get messed up if going slow
 
-	    D_DrawSurfaces();
+         D_DrawSurfaces();
 
-	    // clear the surface span pointers
-	    for (s = &surfaces[1]; s < surface_p; s++)
-		s->spans = NULL;
+         // clear the surface span pointers
+         for (s = &surfaces[1]; s < surface_p; s++)
+            s->spans = NULL;
 
-	    span_p = basespan_p;
-	}
+         span_p = basespan_p;
+      }
 
-	if (removeedges[iv])
-	    R_RemoveEdges(removeedges[iv]);
+      if (removeedges[iv])
+         R_RemoveEdges(removeedges[iv]);
 
-	if (edge_head.next != &edge_tail)
-	    R_StepActiveU(edge_head.next);
-    }
+      if (edge_head.next != &edge_tail)
+         R_StepActiveU(edge_head.next);
+   }
 
-// do the last scan (no need to step or sort or remove on the last scan)
+   // do the last scan (no need to step or sort or remove on the last scan)
 
-    current_iv = iv;
-    fv = (float)iv;
+   current_iv = iv;
+   fv = (float)iv;
 
-// mark that the head (background start) span is pre-included
-    surfaces[1].spanstate = 1;
+   // mark that the head (background start) span is pre-included
+   surfaces[1].spanstate = 1;
 
-    if (newedges[iv])
-	R_InsertNewEdges(newedges[iv], edge_head.next);
+   if (newedges[iv])
+      R_InsertNewEdges(newedges[iv], edge_head.next);
 
-    (*pdrawfunc) ();
+   (*pdrawfunc) ();
 
-// draw whatever's left in the span list
-    D_DrawSurfaces();
+   // draw whatever's left in the span list
+   D_DrawSurfaces();
 }

@@ -756,7 +756,6 @@ SCR_UpdateScreen(void)
    /*
     * do 3D refresh drawing, and then update the screen
     */
-   D_EnableBackBufferAccess();	/* for overlay stuff, if drawing directly */
 
    if (scr_fullupdate++ < vid.numpages) {
       /* clear the entire screen */
@@ -768,15 +767,7 @@ SCR_UpdateScreen(void)
    SCR_SetUpToDrawConsole();
    SCR_EraseCenterString();
 
-   /* for adapters that can't stay mapped in for linear writes all the time */
-   D_DisableBackBufferAccess();
-
-   VID_LockBuffer();
-
    V_RenderView();
-
-   VID_UnlockBuffer();
-   D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
 
    if (scr_drawdialog) {
       Sbar_Draw();
@@ -809,8 +800,6 @@ SCR_UpdateScreen(void)
       M_Draw();
    }
 
-   /* for adapters that can't stay mapped in for linear writes all the time */
-   D_DisableBackBufferAccess();
    if (pconupdate)
       D_UpdateRects(pconupdate);
 

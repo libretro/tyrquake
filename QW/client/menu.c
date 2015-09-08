@@ -876,58 +876,54 @@ M_Init(void)
 void
 M_Draw(void)
 {
-    if (m_state == m_none || key_dest != key_menu)
-	return;
+   if (m_state == m_none || key_dest != key_menu)
+      return;
 
-    if (!m_recursiveDraw) {
-	scr_copyeverything = 1;
+   if (!m_recursiveDraw) {
+      scr_copyeverything = 1;
 
-	if (scr_con_current) {
-	    Draw_ConsoleBackground(vid.height);
-	    VID_UnlockBuffer();
-	    S_ExtraUpdate();
-	    VID_LockBuffer();
-	} else
-	    Draw_FadeScreen();
+      if (scr_con_current) {
+         Draw_ConsoleBackground(vid.height);
+         S_ExtraUpdate();
+      } else
+         Draw_FadeScreen();
 
-	scr_fullupdate = 0;
-    } else {
-	m_recursiveDraw = false;
-    }
+      scr_fullupdate = 0;
+   } else {
+      m_recursiveDraw = false;
+   }
 
-    switch (m_state) {
-    case m_main:
-	M_Main_Draw();
-	break;
+   switch (m_state) {
+      case m_main:
+         M_Main_Draw();
+         break;
 
-    case m_options:
-	M_Options_Draw();
-	break;
+      case m_options:
+         M_Options_Draw();
+         break;
 
-    case m_keys:
-	M_Keys_Draw();
-	break;
+      case m_keys:
+         M_Keys_Draw();
+         break;
 
-    case m_video:
-	M_Video_Draw();
-	break;
+      case m_video:
+         M_Video_Draw();
+         break;
 
-    case m_quit:
-	M_Quit_Draw();
-	break;
+      case m_quit:
+         M_Quit_Draw();
+         break;
 
-    case m_none:
-	break;
-    }
+      case m_none:
+         break;
+   }
 
-    if (m_entersound) {
-	S_LocalSound("misc/menu2.wav");
-	m_entersound = false;
-    }
+   if (m_entersound) {
+      S_LocalSound("misc/menu2.wav");
+      m_entersound = false;
+   }
 
-    VID_UnlockBuffer();
-    S_ExtraUpdate();
-    VID_LockBuffer();
+   S_ExtraUpdate();
 }
 
 

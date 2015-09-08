@@ -1008,40 +1008,36 @@ R_EdgeDrawing
 */
 static void R_EdgeDrawing(void)
 {
-    edge_t ledges[CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t)];
-    surf_t lsurfs[CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t)];
+   edge_t ledges[CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t)];
+   surf_t lsurfs[CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t)];
 
-    if (auxedges) {
-	r_edges = auxedges;
-    } else {
-	r_edges = CACHE_ALIGN_PTR(ledges);
-    }
+   if (auxedges) {
+      r_edges = auxedges;
+   } else {
+      r_edges = CACHE_ALIGN_PTR(ledges);
+   }
 
-    if (r_surfsonstack) {
-	surfaces = CACHE_ALIGN_PTR(lsurfs);
-	surf_max = &surfaces[r_cnumsurfs];
-	// surface 0 doesn't really exist; it's just a dummy because index 0
-	// is used to indicate no edge attached to surface
-	surfaces--;
-    }
+   if (r_surfsonstack) {
+      surfaces = CACHE_ALIGN_PTR(lsurfs);
+      surf_max = &surfaces[r_cnumsurfs];
+      // surface 0 doesn't really exist; it's just a dummy because index 0
+      // is used to indicate no edge attached to surface
+      surfaces--;
+   }
 
-    R_BeginEdgeFrame();
+   R_BeginEdgeFrame();
 
-    R_RenderWorld();
+   R_RenderWorld();
 
-    // only the world can be drawn back to front with no z reads or compares,
-    // just z writes, so have the driver turn z compares on now
-    D_TurnZOn();
+   // only the world can be drawn back to front with no z reads or compares,
+   // just z writes, so have the driver turn z compares on now
+   D_TurnZOn();
 
-    R_DrawBEntitiesOnList();
+   R_DrawBEntitiesOnList();
 
-    {
-	VID_UnlockBuffer();
-	S_ExtraUpdate();	// don't let sound get messed up if going slow
-	VID_LockBuffer();
-    }
+   S_ExtraUpdate();	// don't let sound get messed up if going slow
 
-    R_ScanEdges();
+   R_ScanEdges();
 }
 
 
@@ -1073,19 +1069,11 @@ R_RenderView_(void)
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
-    {
-       VID_UnlockBuffer();
-       S_ExtraUpdate();	// don't let sound get messed up if going slow
-       VID_LockBuffer();
-    }
+    S_ExtraUpdate();	// don't let sound get messed up if going slow
 
     R_EdgeDrawing();
 
-    {
-       VID_UnlockBuffer();
-       S_ExtraUpdate();	// don't let sound get messed up if going slow
-       VID_LockBuffer();
-    }
+    S_ExtraUpdate();	// don't let sound get messed up if going slow
 
 
     R_DrawEntitiesOnList();

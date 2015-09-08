@@ -2472,9 +2472,7 @@ M_Draw(void)
 
 	if (scr_con_current) {
 	    Draw_ConsoleBackground(vid.height);
-	    VID_UnlockBuffer();
 	    S_ExtraUpdate();
-	    VID_LockBuffer();
 	} else
 	    Draw_FadeScreen();
 
@@ -2553,9 +2551,7 @@ M_Draw(void)
 	m_entersound = false;
     }
 
-    VID_UnlockBuffer();
     S_ExtraUpdate();
-    VID_LockBuffer();
 }
 
 
