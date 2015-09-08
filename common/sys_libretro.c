@@ -589,7 +589,6 @@ void Sys_SendKeyEvents(void)
    }
 }
 
-
 void Sys_Sleep(void)
 {
    retro_sleep(1);

@@ -22,33 +22,6 @@
 
 // Implements the bare minimum needed for RetroArch. :)
 
-typedef struct sthread sthread_t;
-
-// Threading
-sthread_t *sthread_create(void (*thread_func)(void*), void *userdata);
-int sthread_detach(sthread_t *thread);
-void sthread_join(sthread_t *thread);
-
-// Mutexes
-typedef struct slock slock_t;
-
-slock_t *slock_new(void);
-void slock_free(slock_t *lock);
-
-void slock_lock(slock_t *lock);
-void slock_unlock(slock_t *lock);
-
-// Condition variables.
-typedef struct scond scond_t;
-
-scond_t *scond_new(void);
-void scond_free(scond_t *cond);
-
-void scond_wait(scond_t *cond, slock_t *lock);
-bool scond_wait_timeout(scond_t *cond, slock_t *lock, int64_t timeout_us);
-int scond_broadcast(scond_t *cond);
-void scond_signal(scond_t *cond);
-
 #ifndef RARCH_INTERNAL
 #if defined(__CELLOS_LV2__) && !defined(__PSL1GHT__)
 #include <sys/timer.h>
@@ -58,7 +31,8 @@ void scond_signal(scond_t *cond);
 #include <unistd.h>
 #elif defined(PSP)
 #include <pspthreadman.h>
-#include <psputils.h>
+#elif defined(VITA)
+#include <psp2/kernel/threadmgr.h>
 #elif defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
 #elif defined(_XBOX)
@@ -71,7 +45,7 @@ static INLINE void retro_sleep(unsigned msec)
 {
 #if defined(__CELLOS_LV2__) && !defined(__PSL1GHT__)
    sys_timer_usleep(1000 * msec);
-#elif defined(PSP)
+#elif defined(PSP) || defined(VITA)
    sceKernelDelayThread(1000 * msec);
 #elif defined(_WIN32)
    Sleep(msec);

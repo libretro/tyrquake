@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define htons(x) (x)
 #define ntohs(x) (x)
 #endif
+#elif defined(VITA)
 #else
 #include <arpa/inet.h>
 #endif
