@@ -64,7 +64,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
 
    sc->speed = shm->speed;
    sc->width = inwidth;
-   sc->stereo = 0;
+   sc->stereo = 1;
 
    // resample / decimate to the current source rate
 
@@ -75,6 +75,15 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
          ((signed char *)sc->data)[i]
          = (int)((unsigned char)(data[i]) - 128);
    }
+   else if (stepscale == 1/* && inwidth == 2*/ && sc->width == 2) // LordHavoc: quick case for 16bit
+	{
+		if (sc->stereo) // LordHavoc: stereo sound support
+			for (i=0 ; i<outcount*2 ;i++)
+				((short *)sc->data)[i] = LittleShort (((short *)data)[i]);
+		else
+			for (i=0 ; i<outcount ;i++)
+				((short *)sc->data)[i] = LittleShort (((short *)data)[i]);
+	}
    else
    {
       // general case
