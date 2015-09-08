@@ -98,7 +98,7 @@ void S_TransferPaintBuffer(int endtime)
    int snd_vol;
    int err;
 
-   if (shm->samplebits == 16 && shm->channels == 2)
+   if (shm->channels == 2)
    {
       S_TransferStereo16(endtime);
       return;
@@ -119,23 +119,8 @@ void S_TransferPaintBuffer(int endtime)
       return;
    }
 
-   if (shm->samplebits == 16)
    {
       short *out = (short *)shm->buffer;
-      while (count--) {
-         val = (*p * snd_vol) >> 8;
-         p += step;
-         if (val > 0x7fff)
-            val = 0x7fff;
-         else if (val < (short)0x8000)
-            val = (short)0x8000;
-         out[out_idx] = val;
-         out_idx = (out_idx + 1) & out_mask;
-      }
-   }
-   else if (shm->samplebits == 8)
-   {
-      unsigned char *out = (unsigned char *)shm->buffer;
       while (count--)
       {
          val = (*p * snd_vol) >> 8;
@@ -144,7 +129,7 @@ void S_TransferPaintBuffer(int endtime)
             val = 0x7fff;
          else if (val < (short)0x8000)
             val = (short)0x8000;
-         out[out_idx] = (val >> 8) + 128;
+         out[out_idx] = val;
          out_idx = (out_idx + 1) & out_mask;
       }
    }
