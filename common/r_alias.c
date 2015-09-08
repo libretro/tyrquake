@@ -779,73 +779,74 @@ set r_apverts
 static void
 R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 {
-    int frame, pose, numposes;
-    float *intervals;
+   int pose, numposes;
+   float *intervals = NULL;
+   int frame = e->frame;
 
-    frame = e->frame;
-    if ((frame >= pahdr->numframes) || (frame < 0)) {
-	Con_DPrintf("%s: no such frame %d\n", __func__, frame);
-	frame = 0;
-    }
+   if ((frame >= pahdr->numframes) || (frame < 0))
+   {
+      Con_DPrintf("%s: no such frame %d\n", __func__, frame);
+      frame = 0;
+   }
 
-    pose = pahdr->frames[frame].firstpose;
-    numposes = pahdr->frames[frame].numposes;
+   pose = pahdr->frames[frame].firstpose;
+   numposes = pahdr->frames[frame].numposes;
 
-    if (numposes > 1) {
-	intervals = (float *)((byte *)pahdr + pahdr->poseintervals) + pose;
-	pose += Mod_FindInterval(intervals, numposes, cl.time + e->syncbase);
-    }
+   if (numposes > 1) {
+      intervals = (float *)((byte *)pahdr + pahdr->poseintervals) + pose;
+      pose += Mod_FindInterval(intervals, numposes, cl.time + e->syncbase);
+   }
 
 #ifdef NQ_HACK
-    if (r_lerpmodels.value) {
-	float delta, time, blend;
+   if (r_lerpmodels.value) {
+      float delta, time, blend;
 
-	/* A few quick sanity checks to abort lerping */
-	if (e->currentframetime < e->previousframetime)
-	    goto nolerp;
-	if (e->currentframetime - e->previousframetime > 1.0f)
-	    goto nolerp;
-	/* FIXME - hack to skip the viewent (weapon) */
-	if (e == &cl.viewent)
-	    goto nolerp;
+      /* A few quick sanity checks to abort lerping */
+      if (e->currentframetime < e->previousframetime)
+         goto nolerp;
+      if (e->currentframetime - e->previousframetime > 1.0f)
+         goto nolerp;
+      /* FIXME - hack to skip the viewent (weapon) */
+      if (e == &cl.viewent)
+         goto nolerp;
 
-	if (numposes > 1) {
-	    /* FIXME - merge with Mod_FindInterval? */
-	    int i;
-	    float fullinterval, targettime;
-	    fullinterval = intervals[numposes - 1];
-	    time = cl.time + e->syncbase;
-	    targettime = time - (int)(time / fullinterval) * fullinterval;
-	    for (i = 0; i < numposes - 1; i++)
-		if (intervals[i] > targettime)
-		    break;
+      if (numposes > 1) {
+         /* FIXME - merge with Mod_FindInterval? */
+         int i;
+         float fullinterval, targettime;
+         fullinterval = intervals[numposes - 1];
+         time = cl.time + e->syncbase;
+         targettime = time - (int)(time / fullinterval) * fullinterval;
+         for (i = 0; i < numposes - 1; i++)
+            if (intervals[i] > targettime)
+               break;
 
-	    e->currentpose = pahdr->frames[e->currentframe].firstpose + i;
-	    if (i == 0) {
-		e->previouspose = pahdr->frames[e->currentframe].firstpose;
-		e->previouspose += numposes - 1;
-		time = targettime;
-		delta = intervals[0];
-	    } else {
-		e->previouspose = e->currentpose - 1;
-		time = targettime - intervals[i - 1];
-		delta = intervals[i] - intervals[i - 1];
-	    }
-	} else {
-	    e->currentpose = pahdr->frames[e->currentframe].firstpose;
-	    e->previouspose = pahdr->frames[e->previousframe].firstpose;
-	    time = cl.time - e->currentframetime;
-	    delta = e->currentframetime - e->previousframetime;
-	}
-	blend = qclamp(time / delta, 0.0f, 1.0f);
-	r_apverts = R_AliasBlendPoseVerts(e, pahdr, blend);
+         e->currentpose = pahdr->frames[e->currentframe].firstpose + i;
+         if (i == 0) {
+            e->previouspose = pahdr->frames[e->currentframe].firstpose;
+            e->previouspose += numposes - 1;
+            time = targettime;
+            delta = intervals[0];
+         } else {
+            e->previouspose = e->currentpose - 1;
+            time = targettime - intervals[i - 1];
+            delta = intervals[i] - intervals[i - 1];
+         }
+      } else {
+         e->currentpose = pahdr->frames[e->currentframe].firstpose;
+         e->previouspose = pahdr->frames[e->previousframe].firstpose;
+         time = cl.time - e->currentframetime;
+         delta = e->currentframetime - e->previousframetime;
+      }
+      blend = qclamp(time / delta, 0.0f, 1.0f);
+      r_apverts = R_AliasBlendPoseVerts(e, pahdr, blend);
 
-	return;
-    }
- nolerp:
+      return;
+   }
+nolerp:
 #endif
-    r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
-    r_apverts += pose * pahdr->numverts;
+   r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
+   r_apverts += pose * pahdr->numverts;
 }
 
 

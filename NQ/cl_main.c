@@ -406,36 +406,38 @@ should be put at.
 float
 CL_LerpPoint(void)
 {
-    float f, frac;
+   float frac;
+   float f = cl.mtime[0] - cl.mtime[1];
 
-    f = cl.mtime[0] - cl.mtime[1];
+   if (!f || cl_nolerp.value || cls.timedemo || sv.active)
+   {
+      cl.time = cl.mtime[0];
+      return 1;
+   }
 
-    if (!f || cl_nolerp.value || cls.timedemo || sv.active) {
-	cl.time = cl.mtime[0];
-	return 1;
-    }
+   if (f > 0.1)
+   {
+      /* dropped packet, or start of demo */
+      cl.mtime[1] = cl.mtime[0] - 0.1;
+      f = 0.1;
+   }
 
-    if (f > 0.1) {		// dropped packet, or start of demo
-	cl.mtime[1] = cl.mtime[0] - 0.1;
-	f = 0.1;
-    }
-    frac = (cl.time - cl.mtime[1]) / f;
-//Con_Printf ("frac: %f\n",frac);
-    if (frac < 0) {
-	if (frac < -0.01) {
-	    cl.time = cl.mtime[1];
-//                              Con_Printf ("low frac\n");
-	}
-	frac = 0;
-    } else if (frac > 1) {
-	if (frac > 1.01) {
-	    cl.time = cl.mtime[0];
-//                              Con_Printf ("high frac\n");
-	}
-	frac = 1;
-    } else
+   frac = (cl.time - cl.mtime[1]) / f;
 
-    return frac;
+   if (frac < 0)
+   {
+      if (frac < -0.01) /* low frac */
+         cl.time = cl.mtime[1];
+      frac = 0;
+   }
+   else if (frac > 1)
+   {
+      if (frac > 1.01) /* high frac */
+         cl.time = cl.mtime[0];
+      frac = 1;
+   }
+
+   return frac;
 }
 
 

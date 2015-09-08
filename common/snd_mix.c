@@ -90,7 +90,6 @@ void S_TransferPaintBuffer(int endtime)
    int step;
    int val;
    int snd_vol;
-   int err;
    short *out;
 
    if (shm->channels == 2)

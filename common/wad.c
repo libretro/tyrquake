@@ -117,21 +117,21 @@ W_LoadWadFile(const char *filename)
 W_GetLumpinfo
 =============
 */
-lumpinfo_t *
-W_GetLumpinfo(const char *name)
+lumpinfo_t * W_GetLumpinfo(const char *name)
 {
-    int i;
-    lumpinfo_t *lump_p;
-    char clean[16];
+   int i;
+   lumpinfo_t *lump_p;
+   char clean[16];
 
-    W_CleanupName(name, clean);
+   W_CleanupName(name, clean);
 
-    for (lump_p = wad_lumps, i = 0; i < wad_numlumps; i++, lump_p++) {
-	if (!strcmp(clean, lump_p->name))
-	    return lump_p;
-    }
+   for (lump_p = wad_lumps, i = 0; i < wad_numlumps; i++, lump_p++) {
+      if (!strcmp(clean, lump_p->name))
+         return lump_p;
+   }
 
-    Sys_Error("%s: %s not found", __func__, name);
+   Sys_Error("%s: %s not found", __func__, name);
+   return NULL;
 }
 
 void *

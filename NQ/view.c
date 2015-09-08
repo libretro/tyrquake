@@ -753,120 +753,119 @@ V_CalcRefdef
 void
 V_CalcRefdef(void)
 {
-    entity_t *ent, *view;
-    int i;
-    vec3_t forward, right, up;
-    vec3_t angles;
-    float bob;
-    static float oldz = 0;
+   entity_t *ent, *view;
+   int i;
+   vec3_t forward, right, up;
+   vec3_t angles;
+   float bob;
 
-    V_DriftPitch();
+   V_DriftPitch();
 
-// ent is the player model (visible when out of body)
-    ent = &cl_entities[cl.viewentity];
-// view is the weapon model (only visible from inside body)
-    view = &cl.viewent;
+   // ent is the player model (visible when out of body)
+   ent = &cl_entities[cl.viewentity];
+   // view is the weapon model (only visible from inside body)
+   view = &cl.viewent;
 
-// transform the view offset by the model's matrix to get the offset from
-// model origin for the view
-    ent->angles[YAW] = cl.viewangles[YAW];	// the model should face
-    // the view dir
-    ent->angles[PITCH] = -cl.viewangles[PITCH];	// the model should face
-    // the view dir
+   // transform the view offset by the model's matrix to get the offset from
+   // model origin for the view
+   ent->angles[YAW] = cl.viewangles[YAW];	// the model should face
+   // the view dir
+   ent->angles[PITCH] = -cl.viewangles[PITCH];	// the model should face
+   // the view dir
 
-    bob = V_CalcBob();
+   bob = V_CalcBob();
 
-// refresh position
-    VectorCopy(ent->origin, r_refdef.vieworg);
-    r_refdef.vieworg[2] += cl.viewheight + bob;
+   // refresh position
+   VectorCopy(ent->origin, r_refdef.vieworg);
+   r_refdef.vieworg[2] += cl.viewheight + bob;
 
-// never let it sit exactly on a node line, because a water plane can
-// dissapear when viewed with the eye exactly on it.
-// the server protocol only specifies to 1/16 pixel, so add 1/32 in each axis
-    r_refdef.vieworg[0] += 1.0 / 32;
-    r_refdef.vieworg[1] += 1.0 / 32;
-    r_refdef.vieworg[2] += 1.0 / 32;
+   // never let it sit exactly on a node line, because a water plane can
+   // dissapear when viewed with the eye exactly on it.
+   // the server protocol only specifies to 1/16 pixel, so add 1/32 in each axis
+   r_refdef.vieworg[0] += 1.0 / 32;
+   r_refdef.vieworg[1] += 1.0 / 32;
+   r_refdef.vieworg[2] += 1.0 / 32;
 
-    VectorCopy(cl.viewangles, r_refdef.viewangles);
-    V_CalcViewRoll();
-    V_AddIdle();
+   VectorCopy(cl.viewangles, r_refdef.viewangles);
+   V_CalcViewRoll();
+   V_AddIdle();
 
-// offsets
-    angles[PITCH] = -ent->angles[PITCH];	// because entity pitches are
-    //  actually backward
-    angles[YAW] = ent->angles[YAW];
-    angles[ROLL] = ent->angles[ROLL];
+   // offsets
+   angles[PITCH] = -ent->angles[PITCH];	// because entity pitches are
+   //  actually backward
+   angles[YAW] = ent->angles[YAW];
+   angles[ROLL] = ent->angles[ROLL];
 
-    AngleVectors(angles, forward, right, up);
+   AngleVectors(angles, forward, right, up);
 
-    for (i = 0; i < 3; i++)
-	r_refdef.vieworg[i] += scr_ofsx.value * forward[i]
-	    + scr_ofsy.value * right[i]
-	    + scr_ofsz.value * up[i];
+   for (i = 0; i < 3; i++)
+      r_refdef.vieworg[i] += scr_ofsx.value * forward[i]
+      + scr_ofsy.value * right[i]
+      + scr_ofsz.value * up[i];
 
-    V_BoundOffsets();
+      V_BoundOffsets();
 
-// set up gun position
-    VectorCopy(cl.viewangles, view->angles);
+      // set up gun position
+      VectorCopy(cl.viewangles, view->angles);
 
-    CalcGunAngle();
+      CalcGunAngle();
 
-    VectorCopy(ent->origin, view->origin);
-    view->origin[2] += cl.viewheight;
+      VectorCopy(ent->origin, view->origin);
+      view->origin[2] += cl.viewheight;
 
-    for (i = 0; i < 3; i++) {
-	view->origin[i] += forward[i] * bob * 0.4;
-//              view->origin[i] += right[i]*bob*0.4;
-//              view->origin[i] += up[i]*bob*0.8;
-    }
-    view->origin[2] += bob;
+      for (i = 0; i < 3; i++) {
+         view->origin[i] += forward[i] * bob * 0.4;
+         //              view->origin[i] += right[i]*bob*0.4;
+         //              view->origin[i] += up[i]*bob*0.8;
+      }
+      view->origin[2] += bob;
 
-// fudge position around to keep amount of weapon visible
-// roughly equal with different FOV
-    if (scr_viewsize.value == 110)
-	view->origin[2] += 1;
-    else if (scr_viewsize.value == 100)
-	view->origin[2] += 2;
-    else if (scr_viewsize.value == 90)
-	view->origin[2] += 1;
-    else if (scr_viewsize.value == 80)
-	view->origin[2] += 0.5;
+      // fudge position around to keep amount of weapon visible
+      // roughly equal with different FOV
+      if (scr_viewsize.value == 110)
+         view->origin[2] += 1;
+      else if (scr_viewsize.value == 100)
+         view->origin[2] += 2;
+      else if (scr_viewsize.value == 90)
+         view->origin[2] += 1;
+      else if (scr_viewsize.value == 80)
+         view->origin[2] += 0.5;
 
-    view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
-    view->frame = cl.stats[STAT_WEAPONFRAME];
-    view->colormap = vid.colormap;
+      view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
+      view->frame = cl.stats[STAT_WEAPONFRAME];
+      view->colormap = vid.colormap;
 
-// set up the refresh position
-    VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
+      // set up the refresh position
+      VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
 
-    // smooth out stair step ups
-    if (cl.onground && ent->origin[2] - v_stepz > 0)
-    {
-       v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
+      // smooth out stair step ups
+      if (cl.onground && ent->origin[2] - v_stepz > 0)
+      {
+         v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
 
-       if (v_stepz > ent->origin[2])
-       {
-          v_steptime = cl.time;
-          v_stepz = v_oldz = ent->origin[2];
-       }
+         if (v_stepz > ent->origin[2])
+         {
+            v_steptime = cl.time;
+            v_stepz = v_oldz = ent->origin[2];
+         }
 
-       if (ent->origin[2] - v_stepz > 12)
-       {
-          v_steptime = cl.time;
-          v_stepz = v_oldz = ent->origin[2] - 12;
-       }
+         if (ent->origin[2] - v_stepz > 12)
+         {
+            v_steptime = cl.time;
+            v_stepz = v_oldz = ent->origin[2] - 12;
+         }
 
-       r_refdef.vieworg[2] += v_stepz - ent->origin[2];
-       view->origin[2] += v_stepz - ent->origin[2];
-    }
-    else
-    {
-       v_oldz = v_stepz = ent->origin[2];
-       v_steptime = cl.time;
-    }
+         r_refdef.vieworg[2] += v_stepz - ent->origin[2];
+         view->origin[2] += v_stepz - ent->origin[2];
+      }
+      else
+      {
+         v_oldz = v_stepz = ent->origin[2];
+         v_steptime = cl.time;
+      }
 
-    if (chase_active.value)
-	Chase_Update();
+      if (chase_active.value)
+         Chase_Update();
 }
 
 /*

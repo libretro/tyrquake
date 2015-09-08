@@ -924,11 +924,10 @@ R_BmodelCheckBBox(const entity_t *e, model_t *clmodel,
 R_DrawBEntitiesOnList
 =============
 */
-static void
-R_DrawBEntitiesOnList(void)
+static void R_DrawBEntitiesOnList(void)
 {
     entity_t *e;
-    int i, j, clipflags;
+    int i, clipflags;
     vec3_t oldorigin;
     model_t *model;
     vec3_t mins, maxs;

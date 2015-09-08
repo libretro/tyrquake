@@ -119,25 +119,25 @@ CL_EntityNum(int num)
 }
 
 
-static int
-CL_ReadSoundNum(int field_mask)
+static int CL_ReadSoundNum(int field_mask)
 {
-    switch (cl.protocol) {
-    case PROTOCOL_VERSION_NQ:
-    case PROTOCOL_VERSION_BJP:
-	return MSG_ReadByte();
-    case PROTOCOL_VERSION_BJP2:
-    case PROTOCOL_VERSION_BJP3:
-	return (unsigned short)MSG_ReadShort();
-    case PROTOCOL_VERSION_FITZ:
-	if (field_mask & SND_FITZ_LARGESOUND)
-	    return (unsigned short)MSG_ReadShort();
-	else
-	    return MSG_ReadByte();
-    default:
-	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-		   cl.protocol);
-    }
+   switch (cl.protocol)
+   {
+      case PROTOCOL_VERSION_NQ:
+      case PROTOCOL_VERSION_BJP:
+         return MSG_ReadByte();
+      case PROTOCOL_VERSION_BJP2:
+      case PROTOCOL_VERSION_BJP3:
+         return (unsigned short)MSG_ReadShort();
+      case PROTOCOL_VERSION_FITZ:
+         if (field_mask & SND_FITZ_LARGESOUND)
+            return (unsigned short)MSG_ReadShort();
+         else
+            return MSG_ReadByte();
+      default:
+         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+               cl.protocol);
+   }
 }
 
 /*
@@ -380,40 +380,42 @@ CL_ParseServerInfo(void)
 static int
 CL_ReadModelIndex(unsigned int bits)
 {
-    switch (cl.protocol) {
-    case PROTOCOL_VERSION_NQ:
-	return MSG_ReadByte();
-    case PROTOCOL_VERSION_BJP:
-    case PROTOCOL_VERSION_BJP2:
-    case PROTOCOL_VERSION_BJP3:
-	return MSG_ReadShort();
-    case PROTOCOL_VERSION_FITZ:
-	if (bits & B_FITZ_LARGEMODEL)
-	    return MSG_ReadShort();
-	return MSG_ReadByte();
-    default:
-	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-		   cl.protocol);
-    }
+   switch (cl.protocol)
+   {
+      case PROTOCOL_VERSION_NQ:
+         return MSG_ReadByte();
+      case PROTOCOL_VERSION_BJP:
+      case PROTOCOL_VERSION_BJP2:
+      case PROTOCOL_VERSION_BJP3:
+         return MSG_ReadShort();
+      case PROTOCOL_VERSION_FITZ:
+         if (bits & B_FITZ_LARGEMODEL)
+            return MSG_ReadShort();
+         return MSG_ReadByte();
+      default:
+         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+               cl.protocol);
+   }
 }
 
 static int
 CL_ReadModelFrame(unsigned int bits)
 {
-    switch (cl.protocol) {
-    case PROTOCOL_VERSION_NQ:
-    case PROTOCOL_VERSION_BJP:
-    case PROTOCOL_VERSION_BJP2:
-    case PROTOCOL_VERSION_BJP3:
-	return MSG_ReadByte();
-    case PROTOCOL_VERSION_FITZ:
-	if (bits & B_FITZ_LARGEFRAME)
-	    return MSG_ReadShort();
-	return MSG_ReadByte();
-    default:
-	Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-		   cl.protocol);
-    }
+   switch (cl.protocol)
+   {
+      case PROTOCOL_VERSION_NQ:
+      case PROTOCOL_VERSION_BJP:
+      case PROTOCOL_VERSION_BJP2:
+      case PROTOCOL_VERSION_BJP3:
+         return MSG_ReadByte();
+      case PROTOCOL_VERSION_FITZ:
+         if (bits & B_FITZ_LARGEFRAME)
+            return MSG_ReadShort();
+         return MSG_ReadByte();
+      default:
+         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+               cl.protocol);
+   }
 }
 
 /*

@@ -192,7 +192,7 @@ Returns PSIDE_FRONT, PSIDE_BACK, or PSIDE_BOTH (PSIDE_FRONT | PSIDE_BACK)
 int
 BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
 {
-   float dist1, dist2;
+   float dist1 = 0.0f, dist2 = 0.0f;
    int sides;
 
    /* general case */

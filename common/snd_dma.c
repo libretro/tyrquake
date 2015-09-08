@@ -509,8 +509,6 @@ S_StopAllSoundsC(void)
 
 void S_ClearBuffer(void)
 {
-   int clear;
-
    if (!sound_started || !shm)
       return;
 

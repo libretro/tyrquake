@@ -485,7 +485,7 @@ Mod_LoadTextures
 static void
 Mod_LoadTextures(lump_t *l)
 {
-   int i, j, pixels, num, max, altmax;
+   int i, j, pixels, num, max, altmax = 0;
    miptex_t *mt;
    texture_t *tx, *tx2;
    texture_t *anims[10];
