@@ -35,18 +35,18 @@ short *snd_out;
 
 void S_TransferPaintBuffer(int endtime)
 {
-   int i, lpaintedtime;
+   int i;
    int snd_vol = volume.value * 256;
    int *snd_p = (int *)paintbuffer;
-   lpaintedtime = paintedtime;
+   int lpaintedtime = paintedtime;
 
    while (lpaintedtime < endtime)
    {
-      int snd_linear_count;
       // handle recirculating buffer issues
       int lpos = lpaintedtime & ((shm->samples >> 1) - 1);
+      int snd_linear_count = (shm->samples >> 1) - lpos;
+
       snd_out = (short *)shm->buffer + (lpos << 1);
-      snd_linear_count = (shm->samples >> 1) - lpos;
       if (lpaintedtime + snd_linear_count > endtime)
          snd_linear_count = endtime - lpaintedtime;
       snd_linear_count <<= 1;
