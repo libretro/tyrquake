@@ -25,12 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 
 #define PAINTBUFFER_SIZE 512
+#define CHANNELS 2
+
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
 int snd_scaletable[32][256];
 int *snd_p, snd_linear_count, snd_vol;
 short *snd_out;
 
-void Snd_WriteLinearBlastStereo16(void)
+static INLINE void Snd_WriteLinearBlastStereo16(void)
 {
    int i;
    int val;
@@ -55,7 +57,7 @@ void Snd_WriteLinearBlastStereo16(void)
    }
 }
 
-void S_TransferStereo16(int endtime)
+void S_TransferPaintBuffer(int endtime)
 {
    int lpos;
    int lpaintedtime;
@@ -78,44 +80,6 @@ void S_TransferStereo16(int endtime)
       Snd_WriteLinearBlastStereo16();
       snd_p += snd_linear_count;
       lpaintedtime += (snd_linear_count >> 1);
-   }
-}
-
-void S_TransferPaintBuffer(int endtime)
-{
-   int out_idx;
-   int count;
-   int out_mask;
-   int *p;
-   int step;
-   int val;
-   int snd_vol;
-   short *out;
-
-   if (shm->channels == 2)
-   {
-      S_TransferStereo16(endtime);
-      return;
-   }
-
-   p = (int *)paintbuffer;
-   count = (endtime - paintedtime) * shm->channels;
-   out_mask = shm->samples - 1;
-   out_idx = paintedtime * shm->channels & out_mask;
-   step = 3 - shm->channels;
-   snd_vol = volume.value * 256;
-
-   out = (short *)shm->buffer;
-   while (count--)
-   {
-      val = (*p * snd_vol) >> 8;
-      p += step;
-      if (val > 0x7fff)
-         val = 0x7fff;
-      else if (val < (short)0x8000)
-         val = (short)0x8000;
-      out[out_idx] = val;
-      out_idx = (out_idx + 1) & out_mask;
    }
 }
 

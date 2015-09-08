@@ -54,6 +54,8 @@ int snd_blocked = 0;
 static qboolean snd_ambient = 1;
 static qboolean snd_initialized = false;
 
+#define CHANNELS 2
+
 /* pointer should go away (JC?) */
 volatile dma_t *shm = 0;
 volatile dma_t sn;
@@ -101,8 +103,7 @@ static void S_SoundInfo_f(void)
       return;
    }
 
-   Con_Printf("%5d channels (%s)\n", shm->channels,
-         shm->channels == 1 ? "mono" : "stereo");
+   Con_Printf("%5d channels (%s)\n", "stereo");
    Con_Printf("%5d samples\n", shm->samples);
    Con_Printf("%5d samplepos\n", shm->samplepos);
    Con_Printf("%5d samplebits\n", shm->samplebits);
@@ -374,14 +375,9 @@ SND_Spatialize(channel_t *ch)
     VectorSubtract(ch->origin, listener_origin, source_vec);
     dist = VectorNormalize(source_vec) * ch->dist_mult;
 
-    if (shm->channels == 1) {
-	rscale = 1.0;
-	lscale = 1.0;
-    } else {
-	dot = DotProduct(listener_right, source_vec);
-	rscale = 1.0 + dot;
-	lscale = 1.0 - dot;
-    }
+    dot = DotProduct(listener_right, source_vec);
+    rscale = 1.0 + dot;
+    lscale = 1.0 - dot;
 
     /* add in distance effect */
     scale = (1.0 - dist) * rscale;
@@ -612,7 +608,7 @@ static void GetSoundtime(void)
    static int oldsamplepos;
    int fullsamples;
 
-   fullsamples = shm->samples / shm->channels;
+   fullsamples = shm->samples / CHANNELS;
 
    /*
     * it is possible to miscount buffers if it has wrapped twice between
@@ -633,7 +629,7 @@ static void GetSoundtime(void)
    }
    oldsamplepos = samplepos;
 
-   soundtime = buffers * fullsamples + samplepos / shm->channels;
+   soundtime = buffers * fullsamples + samplepos / CHANNELS;
 }
 
 static void S_Update_(void)
@@ -655,7 +651,7 @@ static void S_Update_(void)
    }
    /* mix ahead of current position */
    endtime = soundtime + _snd_mixahead.value * shm->speed;
-   samps = shm->samples >> (shm->channels - 1);
+   samps = shm->samples >> 1;
    if (endtime - soundtime > samps)
       endtime = soundtime + samps;
 
