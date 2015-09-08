@@ -150,16 +150,15 @@ static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 SCR_DrawRam
 ==============
 */
-static void
-SCR_DrawRam(void)
+static void SCR_DrawRam(void)
 {
-    if (!scr_showram.value)
-	return;
+   if (!scr_showram.value)
+      return;
 
-    if (!r_cache_thrash)
-	return;
+   if (!r_cache_thrash)
+      return;
 
-    Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
+   Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
 }
 
 
@@ -168,24 +167,23 @@ SCR_DrawRam(void)
 SCR_DrawTurtle
 ==============
 */
-static void
-SCR_DrawTurtle(void)
+static void SCR_DrawTurtle(void)
 {
-    static int count;
+   static int count;
 
-    if (!scr_showturtle.value)
-	return;
+   if (!scr_showturtle.value)
+      return;
 
-    if (host_frametime < 0.1) {
-	count = 0;
-	return;
-    }
+   if (host_frametime < 0.1) {
+      count = 0;
+      return;
+   }
 
-    count++;
-    if (count < 3)
-	return;
+   count++;
+   if (count < 3)
+      return;
 
-    Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
+   Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
 }
 
 
@@ -198,19 +196,19 @@ static void
 SCR_DrawNet(void)
 {
 #ifdef NQ_HACK
-    if (realtime - cl.last_received_message < 0.3)
-	return;
+   if (realtime - cl.last_received_message < 0.3)
+      return;
 #endif
 #ifdef QW_HACK
-    if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
-	UPDATE_BACKUP - 1)
-	return;
+   if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
+         UPDATE_BACKUP - 1)
+      return;
 #endif
 
-    if (cls.demoplayback)
-	return;
+   if (cls.demoplayback)
+      return;
 
-    Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
+   Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
 }
 
 
@@ -227,17 +225,17 @@ DrawPause
 static void
 SCR_DrawPause(void)
 {
-    const qpic_t *pic;
+   const qpic_t *pic;
 
-    if (!scr_showpause.value)	// turn off for screenshots
-	return;
+   if (!scr_showpause.value)	// turn off for screenshots
+      return;
 
-    if (!cl.paused)
-	return;
+   if (!cl.paused)
+      return;
 
-    pic = Draw_CachePic("gfx/pause.lmp");
-    Draw_Pic((vid.width - pic->width) / 2,
-	     (vid.height - 48 - pic->height) / 2, pic);
+   pic = Draw_CachePic("gfx/pause.lmp");
+   Draw_Pic((vid.width - pic->width) / 2,
+         (vid.height - 48 - pic->height) / 2, pic);
 }
 
 //=============================================================================
@@ -247,55 +245,54 @@ SCR_DrawPause(void)
 SCR_SetUpToDrawConsole
 ==================
 */
-static void
-SCR_SetUpToDrawConsole(void)
+static void SCR_SetUpToDrawConsole(void)
 {
-    Con_CheckResize();
+   Con_CheckResize();
 
 #ifdef NQ_HACK
-    if (scr_drawloading)
-	return;			// never a console with loading plaque
+   if (scr_drawloading)
+      return;			// never a console with loading plaque
 #endif
 
-// decide on the height of the console
+   // decide on the height of the console
 #ifdef NQ_HACK
-    con_forcedup = !cl.worldmodel || cls.state != ca_active;
+   con_forcedup = !cl.worldmodel || cls.state != ca_active;
 #endif
 #ifdef QW_HACK
-    con_forcedup = cls.state != ca_active;
+   con_forcedup = cls.state != ca_active;
 #endif
 
-    if (con_forcedup) {
-	scr_conlines = vid.height;	// full screen
-	scr_con_current = scr_conlines;
-    } else if (key_dest == key_console)
-	scr_conlines = vid.height / 2;	// half screen
-    else
-	scr_conlines = 0;	// none visible
+   if (con_forcedup) {
+      scr_conlines = vid.height;	// full screen
+      scr_con_current = scr_conlines;
+   } else if (key_dest == key_console)
+      scr_conlines = vid.height / 2;	// half screen
+   else
+      scr_conlines = 0;	// none visible
 
-    if (scr_conlines < scr_con_current) {
-	scr_con_current -= scr_conspeed.value * host_frametime;
-	if (scr_conlines > scr_con_current)
-	    scr_con_current = scr_conlines;
+   if (scr_conlines < scr_con_current) {
+      scr_con_current -= scr_conspeed.value * host_frametime;
+      if (scr_conlines > scr_con_current)
+         scr_con_current = scr_conlines;
 
-    } else if (scr_conlines > scr_con_current) {
-	scr_con_current += scr_conspeed.value * host_frametime;
-	if (scr_conlines < scr_con_current)
-	    scr_con_current = scr_conlines;
-    }
+   } else if (scr_conlines > scr_con_current) {
+      scr_con_current += scr_conspeed.value * host_frametime;
+      if (scr_conlines < scr_con_current)
+         scr_con_current = scr_conlines;
+   }
 
-    if (clearconsole++ < vid.numpages) {
+   if (clearconsole++ < vid.numpages) {
 #ifdef GLQUAKE
-	scr_copytop = 1;
-	Draw_TileClear(0, (int)scr_con_current, vid.width,
-		       vid.height - (int)scr_con_current);
+      scr_copytop = 1;
+      Draw_TileClear(0, (int)scr_con_current, vid.width,
+            vid.height - (int)scr_con_current);
 #endif
-	Sbar_Changed();
-    } else if (clearnotify++ < vid.numpages) {
-	scr_copytop = 1;
-	Draw_TileClear(0, 0, vid.width, con_notifylines);
-    } else
-	con_notifylines = 0;
+      Sbar_Changed();
+   } else if (clearnotify++ < vid.numpages) {
+      scr_copytop = 1;
+      Draw_TileClear(0, 0, vid.width, con_notifylines);
+   } else
+      con_notifylines = 0;
 }
 
 
@@ -304,17 +301,19 @@ SCR_SetUpToDrawConsole(void)
 SCR_DrawConsole
 ==================
 */
-static void
-SCR_DrawConsole(void)
+static void SCR_DrawConsole(void)
 {
-    if (scr_con_current) {
-	scr_copyeverything = 1;
-	Con_DrawConsole(scr_con_current);
-	clearconsole = 0;
-    } else {
-	if (key_dest == key_game || key_dest == key_message)
-	    Con_DrawNotify();	// only draw notify in game
-    }
+   if (scr_con_current)
+   {
+      scr_copyeverything = 1;
+      Con_DrawConsole(scr_con_current);
+      clearconsole = 0;
+   }
+   else
+   {
+      if (key_dest == key_game || key_dest == key_message)
+         Con_DrawNotify();	// only draw notify in game
+   }
 }
 
 /*
@@ -336,21 +335,21 @@ for a few moments
 void
 SCR_CenterPrint(const char *str)
 {
-    strncpy(scr_centerstring, str, sizeof(scr_centerstring));
-    scr_centerstring[sizeof(scr_centerstring) - 1] = 0;
-    scr_centertime_off = scr_centertime.value;
-    scr_centertime_start = cl.time;
+   strncpy(scr_centerstring, str, sizeof(scr_centerstring));
+   scr_centerstring[sizeof(scr_centerstring) - 1] = 0;
+   scr_centertime_off = scr_centertime.value;
+   scr_centertime_start = cl.time;
 
-    /* count the number of lines for centering */
-    scr_center_lines = 1;
-    while (*str) {
-	if (*str == '\n')
-	    scr_center_lines++;
-	str++;
-    }
+   /* count the number of lines for centering */
+   scr_center_lines = 1;
+   while (*str)
+   {
+      if (*str == '\n')
+         scr_center_lines++;
+      str++;
+   }
 }
 
-#ifndef GLQUAKE
 static void
 SCR_EraseCenterString(void)
 {
@@ -372,7 +371,6 @@ SCR_EraseCenterString(void)
     scr_copytop = 1;
     Draw_TileClear(0, y, vid.width, height);
 }
-#endif
 
 static void
 SCR_DrawCenterString(void)
@@ -542,70 +540,62 @@ Internal use only
 static void
 SCR_CalcRefdef(void)
 {
-    vrect_t vrect;
-    float size;
+   vrect_t vrect;
+   float size;
 
-    scr_fullupdate = 0;		// force a background redraw
-    vid.recalc_refdef = 0;
+   scr_fullupdate = 0;		// force a background redraw
+   vid.recalc_refdef = 0;
 
-// force the status bar to redraw
-    Sbar_Changed();
+   // force the status bar to redraw
+   Sbar_Changed();
 
-//========================================
+   //========================================
 
-// bound viewsize
-    if (scr_viewsize.value < 30)
-	Cvar_Set("viewsize", "30");
-    if (scr_viewsize.value > 120)
-	Cvar_Set("viewsize", "120");
+   // bound viewsize
+   if (scr_viewsize.value < 30)
+      Cvar_Set("viewsize", "30");
+   if (scr_viewsize.value > 120)
+      Cvar_Set("viewsize", "120");
 
-// bound field of view
-    if (scr_fov.value < 10)
-	Cvar_Set("fov", "10");
-    if (scr_fov.value > 170)
-	Cvar_Set("fov", "170");
+   // bound field of view
+   if (scr_fov.value < 10)
+      Cvar_Set("fov", "10");
+   if (scr_fov.value > 170)
+      Cvar_Set("fov", "170");
 
-// intermission is always full screen
-    if (cl.intermission)
-	size = 120;
-    else
-	size = scr_viewsize.value;
+   // intermission is always full screen
+   if (cl.intermission)
+      size = 120;
+   else
+      size = scr_viewsize.value;
 
-    if (size >= 120)
-	sb_lines = 0;		// no status bar at all
-    else if (size >= 110)
-	sb_lines = 24;		// no inventory
-    else
-	sb_lines = 24 + 16 + 8;
+   if (size >= 120)
+      sb_lines = 0;		// no status bar at all
+   else if (size >= 110)
+      sb_lines = 24;		// no inventory
+   else
+      sb_lines = 24 + 16 + 8;
 
-// these calculations mirror those in R_Init() for r_refdef, but take no
-// account of water warping
-    vrect.x = 0;
-    vrect.y = 0;
-    vrect.width = vid.width;
-    vrect.height = vid.height;
+   // these calculations mirror those in R_Init() for r_refdef, but take no
+   // account of water warping
+   vrect.x = 0;
+   vrect.y = 0;
+   vrect.width = vid.width;
+   vrect.height = vid.height;
 
-#ifdef GLQUAKE
-    R_SetVrect(&vrect, &r_refdef.vrect, sb_lines);
-#else
-    R_SetVrect(&vrect, &scr_vrect, sb_lines);
-#endif
+   R_SetVrect(&vrect, &scr_vrect, sb_lines);
 
-    r_refdef.fov_x = scr_fov.value;
-    r_refdef.fov_y =
-	CalcFov(r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
+   r_refdef.fov_x = scr_fov.value;
+   r_refdef.fov_y =
+      CalcFov(r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
 
-#ifdef GLQUAKE
-    scr_vrect = r_refdef.vrect;
-#else
-// guard against going from one mode to another that's less than half the
-// vertical resolution
-    if (scr_con_current > vid.height)
-	scr_con_current = vid.height;
+   // guard against going from one mode to another that's less than half the
+   // vertical resolution
+   if (scr_con_current > vid.height)
+      scr_con_current = vid.height;
 
-// notify the refresh of the change
-    R_ViewChanged(&vrect, sb_lines, vid.aspect);
-#endif
+   // notify the refresh of the change
+   R_ViewChanged(&vrect, sb_lines, vid.aspect);
 }
 
 /*
@@ -636,501 +626,6 @@ SCR_SizeDown_f(void)
     Cvar_SetValue("viewsize", scr_viewsize.value - 10);
     vid.recalc_refdef = 1;
 }
-
-/*
-==============================================================================
-
-				SCREEN SHOTS
-
-==============================================================================
-*/
-
-#if !defined(NQ_HACK) || !defined(GLQUAKE)
-/*
-==============
-WritePCXfile
-==============
-*/
-static void
-WritePCXfile(const char *filename, const byte *data, int width, int height,
-	     int rowbytes, const byte *palette, qboolean upload)
-{
-    int i, j, length;
-    pcx_t *pcx;
-    byte *pack;
-
-    pcx = (pcx_t*)Hunk_TempAlloc(width * height * 2 + 1000);
-    if (pcx == NULL) {
-	Con_Printf("SCR_ScreenShot_f: not enough memory\n");
-	return;
-    }
-
-    pcx->manufacturer = 0x0a;	// PCX id
-    pcx->version = 5;		// 256 color
-    pcx->encoding = 1;		// uncompressed
-    pcx->bits_per_pixel = 8;	// 256 color
-    pcx->xmin = 0;
-    pcx->ymin = 0;
-#ifdef MSB_FIRST
-    pcx->xmax = LittleShort((short)(width - 1));
-    pcx->ymax = LittleShort((short)(height - 1));
-    pcx->hres = LittleShort((short)width);
-    pcx->vres = LittleShort((short)height);
-#else
-    pcx->xmax = ((short)(width - 1));
-    pcx->ymax = ((short)(height - 1));
-    pcx->hres = ((short)width);
-    pcx->vres = ((short)height);
-#endif
-    memset(pcx->palette, 0, sizeof(pcx->palette));
-    pcx->color_planes = 1;	// chunky image
-#ifdef MSB_FIRST
-    pcx->bytes_per_line = LittleShort((short)width);
-    pcx->palette_type = LittleShort(1);	// not a grey scale
-#else
-    pcx->bytes_per_line = ((short)width);
-    pcx->palette_type = (1);	// not a grey scale
-#endif
-    memset(pcx->filler, 0, sizeof(pcx->filler));
-
-    // pack the image
-    pack = &pcx->data;
-
-#ifdef GLQUAKE
-    // The GL buffer addressing is bottom to top?
-    data += rowbytes * (height - 1);
-    for (i = 0; i < height; i++) {
-	for (j = 0; j < width; j++) {
-	    if ((*data & 0xc0) != 0xc0) {
-		*pack++ = *data++;
-	    } else {
-		*pack++ = 0xc1;
-		*pack++ = *data++;
-	    }
-	}
-	data += rowbytes - width;
-	data -= rowbytes * 2;
-    }
-#else
-    for (i = 0; i < height; i++) {
-	for (j = 0; j < width; j++) {
-	    if ((*data & 0xc0) != 0xc0) {
-		*pack++ = *data++;
-	    } else {
-		*pack++ = 0xc1;
-		*pack++ = *data++;
-	    }
-	}
-	data += rowbytes - width;
-    }
-#endif
-
-    // write the palette
-    *pack++ = 0x0c;		// palette ID byte
-    for (i = 0; i < 768; i++)
-	*pack++ = *palette++;
-
-    // write output file
-    length = pack - (byte *)pcx;
-
-#ifdef QW_HACK
-    if (upload) {
-	CL_StartUpload((byte *)pcx, length);
-	return;
-    }
-#endif
-
-    COM_WriteFile(filename, pcx, length);
-}
-#endif /* !defined(NQ_HACK) && !defined(GLQUAKE) */
-
-
-#ifdef QW_HACK
-/*
-Find closest color in the palette for named color
-*/
-static int
-MipColor(int r, int g, int b)
-{
-    int i;
-    float dist;
-    int best;
-    float bestdist;
-    int r1, g1, b1;
-    static int lr = -1, lg = -1, lb = -1;
-    static int lastbest;
-
-    if (r == lr && g == lg && b == lb)
-	return lastbest;
-
-    bestdist = 256 * 256 * 3;
-
-    best = 0;			// FIXME - Uninitialised? Zero ok?
-    for (i = 0; i < 256; i++) {
-	r1 = host_basepal[i * 3] - r;
-	g1 = host_basepal[i * 3 + 1] - g;
-	b1 = host_basepal[i * 3 + 2] - b;
-	dist = r1 * r1 + g1 * g1 + b1 * b1;
-	if (dist < bestdist) {
-	    bestdist = dist;
-	    best = i;
-	}
-    }
-    lr = r;
-    lg = g;
-    lb = b;
-    lastbest = best;
-    return best;
-}
-
-static void
-SCR_DrawCharToSnap(int num, byte *dest, int width)
-{
-    int row, col;
-    const byte *source;
-    int drawline;
-    int x, stride;
-
-    row = num >> 4;
-    col = num & 15;
-    source = draw_chars + (row << 10) + (col << 3);
-
-#ifdef GLQUAKE
-    stride = -128;
-#else
-    stride = 128;
-#endif
-
-    if (stride < 0)
-	source -= 7 * stride;
-
-    drawline = 8;
-    while (drawline--) {
-	for (x = 0; x < 8; x++)
-	    if (source[x])
-		dest[x] = source[x];
-	    else
-		dest[x] = 98;
-	source += stride;
-	dest += width;
-    }
-}
-
-static void
-SCR_DrawStringToSnap(const char *s, byte *buf, int x, int y, int width, int height)
-{
-    byte *dest;
-    const unsigned char *p;
-
-#ifdef GLQUAKE
-    dest = buf + (height - y - 8) * width + x;
-#else
-    dest = buf + y * width + x;
-#endif
-
-    p = (const unsigned char *)s;
-    while (*p) {
-	SCR_DrawCharToSnap(*p++, dest, width);
-	dest += 8;
-    }
-}
-
-
-/*
-==================
-SCR_RSShot_f
-==================
-*/
-static void
-SCR_RSShot_f(void)
-{
-    int i;
-    int x, y;
-    unsigned char *src, *dest;
-    char pcxname[80];
-    unsigned char *newbuf;
-    int w, h;
-    int dx, dy, dex, dey, nx;
-    int r, b, g;
-    int count;
-    float fracw, frach;
-    char st[80];
-    time_t now;
-
-    if (CL_IsUploading())
-	return;			// already one pending
-
-    if (cls.state < ca_onserver)
-	return;			// gotta be connected
-
-#ifndef GLQUAKE /* <- probably a bug, should check always? */
-    if (!scr_allowsnap.value) {
-	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	MSG_WriteString(&cls.netchan.message, "snap\n");
-	Con_Printf("Refusing remote screen shot request.\n");
-	return;
-    }
-#endif
-
-    Con_Printf("Remote screen shot requested.\n");
-
-//
-// find a file name to save it to
-//
-    strcpy(pcxname, "mquake00.pcx");
-
-    for (i = 0; i <= 99; i++) {
-	pcxname[6] = i / 10 + '0';
-	pcxname[7] = i % 10 + '0';
-	if (Sys_FileTime(va("%s/%s", com_gamedir, pcxname)) == -1)
-	    break;		// file doesn't exist
-    }
-    if (i == 100) {
-	Con_Printf("SCR_ScreenShot_f: Couldn't create a PCX\n");
-	return;
-    }
-
-//
-// save the pcx file
-//
-#ifdef GLQUAKE /* FIXME - consolidate common bits */
-    newbuf = malloc(glheight * glwidth * 4);
-
-    glReadPixels(glx, gly, glwidth, glheight, GL_RGBA, GL_UNSIGNED_BYTE,
-		 newbuf);
-
-    w = (vid.width < RSSHOT_WIDTH) ? glwidth : RSSHOT_WIDTH;
-    h = (vid.height < RSSHOT_HEIGHT) ? glheight : RSSHOT_HEIGHT;
-
-    fracw = (float)glwidth / (float)w;
-    frach = (float)glheight / (float)h;
-
-    for (y = 0; y < h; y++) {
-	dest = newbuf + (w * 4 * y);
-
-	for (x = 0; x < w; x++) {
-	    r = g = b = 0;
-
-	    dx = x * fracw;
-	    dex = (x + 1) * fracw;
-	    if (dex == dx)
-		dex++;		// at least one
-	    dy = y * frach;
-	    dey = (y + 1) * frach;
-	    if (dey == dy)
-		dey++;		// at least one
-
-	    count = 0;
-	    for ( /* */ ; dy < dey; dy++) {
-		src = newbuf + (glwidth * 4 * dy) + dx * 4;
-		for (nx = dx; nx < dex; nx++) {
-		    r += *src++;
-		    g += *src++;
-		    b += *src++;
-		    src++;
-		    count++;
-		}
-	    }
-	    r /= count;
-	    g /= count;
-	    b /= count;
-	    *dest++ = r;
-	    *dest++ = g;
-	    *dest++ = b;
-	    dest++;
-	}
-    }
-
-    // convert to eight bit
-    for (y = 0; y < h; y++) {
-	src = newbuf + (w * 4 * y);
-	dest = newbuf + (w * y);
-
-	for (x = 0; x < w; x++) {
-	    *dest++ = MipColor(src[0], src[1], src[2]);
-	    src += 4;
-	}
-    }
-#else
-    D_EnableBackBufferAccess();	// enable direct drawing of console to back
-    //  buffer
-
-    w = (vid.width < RSSHOT_WIDTH) ? vid.width : RSSHOT_WIDTH;
-    h = (vid.height < RSSHOT_HEIGHT) ? vid.height : RSSHOT_HEIGHT;
-
-    fracw = (float)vid.width / (float)w;
-    frach = (float)vid.height / (float)h;
-
-    newbuf = malloc(w * h);
-
-    for (y = 0; y < h; y++) {
-	dest = newbuf + (w * y);
-
-	for (x = 0; x < w; x++) {
-	    r = g = b = 0;
-
-	    dx = x * fracw;
-	    dex = (x + 1) * fracw;
-	    if (dex == dx)
-		dex++;		// at least one
-	    dy = y * frach;
-	    dey = (y + 1) * frach;
-	    if (dey == dy)
-		dey++;		// at least one
-
-	    count = 0;
-	    for ( /* */ ; dy < dey; dy++) {
-		src = vid.buffer + (vid.rowbytes * dy) + dx;
-		for (nx = dx; nx < dex; nx++) {
-		    r += host_basepal[*src * 3];
-		    g += host_basepal[*src * 3 + 1];
-		    b += host_basepal[*src * 3 + 2];
-		    src++;
-		    count++;
-		}
-	    }
-	    r /= count;
-	    g /= count;
-	    b /= count;
-	    *dest++ = MipColor(r, g, b);
-	}
-    }
-#endif
-
-    time(&now);
-    strcpy(st, ctime(&now));
-    st[strlen(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 0, w, h);
-
-    strncpy(st, cls.servername, sizeof(st));
-    st[sizeof(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 10, w, h);
-
-    strncpy(st, name.string, sizeof(st));
-    st[sizeof(st) - 1] = 0;
-    SCR_DrawStringToSnap(st, newbuf, w - strlen(st) * 8, 20, w, h);
-
-    WritePCXfile(pcxname, newbuf, w, h, w, host_basepal, true);
-
-    free(newbuf);
-
-#ifndef GLQUAKE
-    /* for adapters that can't stay mapped in for linear writes all the time */
-    D_DisableBackBufferAccess();
-#endif
-
-    Con_Printf("Wrote %s\n", pcxname);
-    Con_Printf("Sending shot to server...\n");
-}
-
-#endif /* QW_HACK */
-
-#ifdef GLQUAKE
-typedef struct _TargaHeader {
-    unsigned char id_length, colormap_type, image_type;
-    unsigned short colormap_index, colormap_length;
-    unsigned char colormap_size;
-    unsigned short x_origin, y_origin, width, height;
-    unsigned char pixel_size, attributes;
-} TargaHeader;
-
-/* FIXME - poorly chosen globals? need to be global? */
-int glx, gly, glwidth, glheight;
-#endif
-
-/*
-==================
-SCR_ScreenShot_f
-==================
-*/
-static void
-SCR_ScreenShot_f(void)
-{
-#ifdef GLQUAKE
-    byte *buffer;
-    char tganame[80];
-    char checkname[MAX_OSPATH];
-    int i, c, temp;
-
-//
-// find a file name to save it to
-//
-    strcpy(tganame, "quake00.tga");
-
-    for (i = 0; i <= 99; i++) {
-	tganame[5] = i / 10 + '0';
-	tganame[6] = i % 10 + '0';
-	sprintf(checkname, "%s/%s", com_gamedir, tganame);
-	if (Sys_FileTime(checkname) == -1)
-	    break;		// file doesn't exist
-    }
-    if (i == 100) {
-	Con_Printf("%s: Couldn't create a TGA file\n", __func__);
-	return;
-    }
-
-    /* Construct the TGA header */
-    buffer = malloc(glwidth * glheight * 3 + 18);
-    memset(buffer, 0, 18);
-    buffer[2] = 2;		// uncompressed type
-    buffer[12] = glwidth & 255;
-    buffer[13] = glwidth >> 8;
-    buffer[14] = glheight & 255;
-    buffer[15] = glheight >> 8;
-    buffer[16] = 24;		// pixel size
-
-    glReadPixels(glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE,
-		 buffer + 18);
-
-    // swap rgb to bgr
-    c = 18 + glwidth * glheight * 3;
-    for (i = 18; i < c; i += 3) {
-	temp = buffer[i];
-	buffer[i] = buffer[i + 2];
-	buffer[i + 2] = temp;
-    }
-    COM_WriteFile(tganame, buffer, glwidth * glheight * 3 + 18);
-
-    free(buffer);
-    Con_Printf("Wrote %s\n", tganame);
-#else
-    int i;
-    char pcxname[80];
-    char checkname[MAX_OSPATH];
-
-//
-// find a file name to save it to
-//
-    strcpy(pcxname, "quake00.pcx");
-
-    for (i = 0; i <= 99; i++) {
-	pcxname[5] = i / 10 + '0';
-	pcxname[6] = i % 10 + '0';
-	sprintf(checkname, "%s/%s", com_gamedir, pcxname);
-	if (Sys_FileTime(checkname) == -1)
-	    break;		// file doesn't exist
-    }
-    if (i == 100) {
-	Con_Printf("%s: Couldn't create a PCX file\n", __func__);
-	return;
-    }
-//
-// save the pcx file
-//
-    D_EnableBackBufferAccess();	// enable direct drawing of console to back
-    //  buffer
-
-    WritePCXfile(pcxname, vid.buffer, vid.width, vid.height, vid.rowbytes,
-		 host_basepal, false);
-
-    D_DisableBackBufferAccess();	// for adapters that can't stay mapped in
-    //  for linear writes all the time
-
-    Con_Printf("Wrote %s\n", pcxname);
-#endif
-}
-
-//=============================================================================
 
 #ifdef NQ_HACK
 /*
@@ -1479,7 +974,6 @@ SCR_Init(void)
     Cvar_RegisterVariable(&gl_triplebuffer);
 #endif
 
-    Cmd_AddCommand("screenshot", SCR_ScreenShot_f);
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
 
@@ -1494,7 +988,6 @@ SCR_Init(void)
     scr_turtle = W_GetLumpName("turtle");
 
     Cvar_RegisterVariable(&scr_allowsnap);
-    Cmd_AddCommand("snap", SCR_RSShot_f);
 #endif
 
     scr_initialized = true;

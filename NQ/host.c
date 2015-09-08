@@ -723,7 +723,7 @@ void
 Host_Frame(float time)
 {
    static int timecount;
-   int i, c, m;
+   int i, c;
 
    if (!serverprofile.value)
    {

@@ -121,16 +121,15 @@ D_PolysetDraw
 void
 D_PolysetDraw(void)
 {
-    spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
-    /* one extra because of cache line pretouching */
+   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
+   /* one extra because of cache line pretouching */
 
-    a_spans = CACHE_ALIGN_PTR(spans);
+   a_spans = CACHE_ALIGN_PTR(spans);
 
-    if (r_affinetridesc.drawtype) {
-	D_DrawSubdiv();
-    } else {
-	D_DrawNonSubdiv();
-    }
+   if (r_affinetridesc.drawtype)
+      D_DrawSubdiv();
+   else
+      D_DrawNonSubdiv();
 }
 
 
@@ -181,52 +180,53 @@ D_DrawSubdiv
 static void
 D_DrawSubdiv(void)
 {
-    mtriangle_t *ptri;
-    finalvert_t *pfv, *index0, *index1, *index2;
-    int i;
-    int lnumtriangles;
+   mtriangle_t *ptri;
+   finalvert_t *pfv, *index0, *index1, *index2;
+   int i;
+   int lnumtriangles;
 
-    pfv = r_affinetridesc.pfinalverts;
-    ptri = r_affinetridesc.ptriangles;
-    lnumtriangles = r_affinetridesc.numtriangles;
+   pfv = r_affinetridesc.pfinalverts;
+   ptri = r_affinetridesc.ptriangles;
+   lnumtriangles = r_affinetridesc.numtriangles;
 
-    for (i = 0; i < lnumtriangles; i++) {
-	index0 = pfv + ptri[i].vertindex[0];
-	index1 = pfv + ptri[i].vertindex[1];
-	index2 = pfv + ptri[i].vertindex[2];
+   for (i = 0; i < lnumtriangles; i++)
+   {
+      index0 = pfv + ptri[i].vertindex[0];
+      index1 = pfv + ptri[i].vertindex[1];
+      index2 = pfv + ptri[i].vertindex[2];
 
-	if (((index0->v[1] - index1->v[1]) *
-	     (index0->v[0] - index2->v[0]) -
-	     (index0->v[0] - index1->v[0]) *
-	     (index0->v[1] - index2->v[1])) >= 0) {
-	    continue;
-	}
+      if (((index0->v[1] - index1->v[1]) *
+               (index0->v[0] - index2->v[0]) -
+               (index0->v[0] - index1->v[0]) *
+               (index0->v[1] - index2->v[1])) >= 0)
+         continue;
 
-	d_pcolormap = &((byte *)acolormap)[index0->v[4] & 0xFF00];
+      d_pcolormap = &((byte *)acolormap)[index0->v[4] & 0xFF00];
 
-	if (ptri[i].facesfront) {
-	    D_PolysetRecursiveTriangle(index0->v, index1->v, index2->v);
-	} else {
-	    int s0, s1, s2;
+      if (ptri[i].facesfront)
+         D_PolysetRecursiveTriangle(index0->v, index1->v, index2->v);
+      else
+      {
+         int s0, s1, s2;
 
-	    s0 = index0->v[2];
-	    s1 = index1->v[2];
-	    s2 = index2->v[2];
+         s0 = index0->v[2];
+         s1 = index1->v[2];
+         s2 = index2->v[2];
 
-	    if (index0->flags & ALIAS_ONSEAM)
-		index0->v[2] += r_affinetridesc.seamfixupX16;
-	    if (index1->flags & ALIAS_ONSEAM)
-		index1->v[2] += r_affinetridesc.seamfixupX16;
-	    if (index2->flags & ALIAS_ONSEAM)
-		index2->v[2] += r_affinetridesc.seamfixupX16;
+         if (index0->flags & ALIAS_ONSEAM)
+            index0->v[2] += r_affinetridesc.seamfixupX16;
+         if (index1->flags & ALIAS_ONSEAM)
+            index1->v[2] += r_affinetridesc.seamfixupX16;
+         if (index2->flags & ALIAS_ONSEAM)
+            index2->v[2] += r_affinetridesc.seamfixupX16;
 
-	    D_PolysetRecursiveTriangle(index0->v, index1->v, index2->v);
+         D_PolysetRecursiveTriangle(index0->v, index1->v, index2->v);
 
-	    index0->v[2] = s0;
-	    index1->v[2] = s1;
-	    index2->v[2] = s2;
-	}
-    }
+         index0->v[2] = s0;
+         index1->v[2] = s1;
+         index2->v[2] = s2;
+      }
+   }
 }
 
 
@@ -238,61 +238,61 @@ D_DrawNonSubdiv
 static void
 D_DrawNonSubdiv(void)
 {
-    mtriangle_t *ptri;
-    finalvert_t *pfv, *index0, *index1, *index2;
-    int i;
-    int lnumtriangles;
+   mtriangle_t *ptri;
+   finalvert_t *pfv, *index0, *index1, *index2;
+   int i;
+   int lnumtriangles;
 
-    pfv = r_affinetridesc.pfinalverts;
-    ptri = r_affinetridesc.ptriangles;
-    lnumtriangles = r_affinetridesc.numtriangles;
+   pfv = r_affinetridesc.pfinalverts;
+   ptri = r_affinetridesc.ptriangles;
+   lnumtriangles = r_affinetridesc.numtriangles;
 
-    for (i = 0; i < lnumtriangles; i++, ptri++) {
-	index0 = pfv + ptri->vertindex[0];
-	index1 = pfv + ptri->vertindex[1];
-	index2 = pfv + ptri->vertindex[2];
+   for (i = 0; i < lnumtriangles; i++, ptri++) {
+      index0 = pfv + ptri->vertindex[0];
+      index1 = pfv + ptri->vertindex[1];
+      index2 = pfv + ptri->vertindex[2];
 
-	d_xdenom = (index0->v[1] - index1->v[1]) *
-	    (index0->v[0] - index2->v[0]) -
-	    (index0->v[0] - index1->v[0]) * (index0->v[1] - index2->v[1]);
+      d_xdenom = (index0->v[1] - index1->v[1]) *
+         (index0->v[0] - index2->v[0]) -
+         (index0->v[0] - index1->v[0]) * (index0->v[1] - index2->v[1]);
 
-	if (d_xdenom >= 0) {
-	    continue;
-	}
+      if (d_xdenom >= 0) {
+         continue;
+      }
 
-	r_p0[0] = index0->v[0];	// u
-	r_p0[1] = index0->v[1];	// v
-	r_p0[2] = index0->v[2];	// s
-	r_p0[3] = index0->v[3];	// t
-	r_p0[4] = index0->v[4];	// light
-	r_p0[5] = index0->v[5];	// iz
+      r_p0[0] = index0->v[0];	// u
+      r_p0[1] = index0->v[1];	// v
+      r_p0[2] = index0->v[2];	// s
+      r_p0[3] = index0->v[3];	// t
+      r_p0[4] = index0->v[4];	// light
+      r_p0[5] = index0->v[5];	// iz
 
-	r_p1[0] = index1->v[0];
-	r_p1[1] = index1->v[1];
-	r_p1[2] = index1->v[2];
-	r_p1[3] = index1->v[3];
-	r_p1[4] = index1->v[4];
-	r_p1[5] = index1->v[5];
+      r_p1[0] = index1->v[0];
+      r_p1[1] = index1->v[1];
+      r_p1[2] = index1->v[2];
+      r_p1[3] = index1->v[3];
+      r_p1[4] = index1->v[4];
+      r_p1[5] = index1->v[5];
 
-	r_p2[0] = index2->v[0];
-	r_p2[1] = index2->v[1];
-	r_p2[2] = index2->v[2];
-	r_p2[3] = index2->v[3];
-	r_p2[4] = index2->v[4];
-	r_p2[5] = index2->v[5];
+      r_p2[0] = index2->v[0];
+      r_p2[1] = index2->v[1];
+      r_p2[2] = index2->v[2];
+      r_p2[3] = index2->v[3];
+      r_p2[4] = index2->v[4];
+      r_p2[5] = index2->v[5];
 
-	if (!ptri->facesfront) {
-	    if (index0->flags & ALIAS_ONSEAM)
-		r_p0[2] += r_affinetridesc.seamfixupX16;
-	    if (index1->flags & ALIAS_ONSEAM)
-		r_p1[2] += r_affinetridesc.seamfixupX16;
-	    if (index2->flags & ALIAS_ONSEAM)
-		r_p2[2] += r_affinetridesc.seamfixupX16;
-	}
+      if (!ptri->facesfront) {
+         if (index0->flags & ALIAS_ONSEAM)
+            r_p0[2] += r_affinetridesc.seamfixupX16;
+         if (index1->flags & ALIAS_ONSEAM)
+            r_p1[2] += r_affinetridesc.seamfixupX16;
+         if (index2->flags & ALIAS_ONSEAM)
+            r_p2[2] += r_affinetridesc.seamfixupX16;
+      }
 
-	D_PolysetSetEdgeTable();
-	D_RasterizeAliasPolySmooth();
-    }
+      D_PolysetSetEdgeTable();
+      D_RasterizeAliasPolySmooth();
+   }
 }
 
 
@@ -406,57 +406,57 @@ D_PolysetScanLeftEdge
 void
 D_PolysetScanLeftEdge(int height)
 {
+   do
+   {
+      d_pedgespanpackage->pdest = d_pdest;
+      d_pedgespanpackage->pz = d_pz;
+      d_pedgespanpackage->count = d_aspancount;
+      d_pedgespanpackage->ptex = d_ptex;
 
-    do {
-	d_pedgespanpackage->pdest = d_pdest;
-	d_pedgespanpackage->pz = d_pz;
-	d_pedgespanpackage->count = d_aspancount;
-	d_pedgespanpackage->ptex = d_ptex;
+      d_pedgespanpackage->sfrac = d_sfrac;
+      d_pedgespanpackage->tfrac = d_tfrac;
 
-	d_pedgespanpackage->sfrac = d_sfrac;
-	d_pedgespanpackage->tfrac = d_tfrac;
+      // FIXME: need to clamp l, s, t, at both ends?
+      d_pedgespanpackage->light = d_light;
+      d_pedgespanpackage->zi = d_zi;
 
-	// FIXME: need to clamp l, s, t, at both ends?
-	d_pedgespanpackage->light = d_light;
-	d_pedgespanpackage->zi = d_zi;
+      d_pedgespanpackage++;
 
-	d_pedgespanpackage++;
+      errorterm += erroradjustup;
+      if (errorterm >= 0) {
+         d_pdest += d_pdestextrastep;
+         d_pz += d_pzextrastep;
+         d_aspancount += d_countextrastep;
+         d_ptex += d_ptexextrastep;
+         d_sfrac += d_sfracextrastep;
+         d_ptex += d_sfrac >> 16;
 
-	errorterm += erroradjustup;
-	if (errorterm >= 0) {
-	    d_pdest += d_pdestextrastep;
-	    d_pz += d_pzextrastep;
-	    d_aspancount += d_countextrastep;
-	    d_ptex += d_ptexextrastep;
-	    d_sfrac += d_sfracextrastep;
-	    d_ptex += d_sfrac >> 16;
-
-	    d_sfrac &= 0xFFFF;
-	    d_tfrac += d_tfracextrastep;
-	    if (d_tfrac & 0x10000) {
-		d_ptex += r_affinetridesc.skinwidth;
-		d_tfrac &= 0xFFFF;
-	    }
-	    d_light += d_lightextrastep;
-	    d_zi += d_ziextrastep;
-	    errorterm -= erroradjustdown;
-	} else {
-	    d_pdest += d_pdestbasestep;
-	    d_pz += d_pzbasestep;
-	    d_aspancount += ubasestep;
-	    d_ptex += d_ptexbasestep;
-	    d_sfrac += d_sfracbasestep;
-	    d_ptex += d_sfrac >> 16;
-	    d_sfrac &= 0xFFFF;
-	    d_tfrac += d_tfracbasestep;
-	    if (d_tfrac & 0x10000) {
-		d_ptex += r_affinetridesc.skinwidth;
-		d_tfrac &= 0xFFFF;
-	    }
-	    d_light += d_lightbasestep;
-	    d_zi += d_zibasestep;
-	}
-    } while (--height);
+         d_sfrac &= 0xFFFF;
+         d_tfrac += d_tfracextrastep;
+         if (d_tfrac & 0x10000) {
+            d_ptex += r_affinetridesc.skinwidth;
+            d_tfrac &= 0xFFFF;
+         }
+         d_light += d_lightextrastep;
+         d_zi += d_ziextrastep;
+         errorterm -= erroradjustdown;
+      } else {
+         d_pdest += d_pdestbasestep;
+         d_pz += d_pzbasestep;
+         d_aspancount += ubasestep;
+         d_ptex += d_ptexbasestep;
+         d_sfrac += d_sfracbasestep;
+         d_ptex += d_sfrac >> 16;
+         d_sfrac &= 0xFFFF;
+         d_tfrac += d_tfracbasestep;
+         if (d_tfrac & 0x10000) {
+            d_ptex += r_affinetridesc.skinwidth;
+            d_tfrac &= 0xFFFF;
+         }
+         d_light += d_lightbasestep;
+         d_zi += d_zibasestep;
+      }
+   } while (--height);
 }
 
 /*
@@ -801,49 +801,47 @@ D_PolysetSetEdgeTable
 void
 D_PolysetSetEdgeTable(void)
 {
-    int edgetableindex;
+   int edgetableindex;
 
-    edgetableindex = 0;		// assume the vertices are already in
-    //  top to bottom order
+   edgetableindex = 0;		// assume the vertices are already in
+   //  top to bottom order
 
-//
-// determine which edges are right & left, and the order in which
-// to rasterize them
-//
-    if (r_p0[1] >= r_p1[1]) {
-	if (r_p0[1] == r_p1[1]) {
-	    if (r_p0[1] < r_p2[1])
-		pedgetable = &edgetables[2];
-	    else
-		pedgetable = &edgetables[5];
+   // determine which edges are right & left, and the order in which
+   // to rasterize them
+   if (r_p0[1] >= r_p1[1]) {
+      if (r_p0[1] == r_p1[1]) {
+         if (r_p0[1] < r_p2[1])
+            pedgetable = &edgetables[2];
+         else
+            pedgetable = &edgetables[5];
 
-	    return;
-	} else {
-	    edgetableindex = 1;
-	}
-    }
+         return;
+      } else {
+         edgetableindex = 1;
+      }
+   }
 
-    if (r_p0[1] == r_p2[1]) {
-	if (edgetableindex)
-	    pedgetable = &edgetables[8];
-	else
-	    pedgetable = &edgetables[9];
+   if (r_p0[1] == r_p2[1]) {
+      if (edgetableindex)
+         pedgetable = &edgetables[8];
+      else
+         pedgetable = &edgetables[9];
 
-	return;
-    } else if (r_p1[1] == r_p2[1]) {
-	if (edgetableindex)
-	    pedgetable = &edgetables[10];
-	else
-	    pedgetable = &edgetables[11];
+      return;
+   } else if (r_p1[1] == r_p2[1]) {
+      if (edgetableindex)
+         pedgetable = &edgetables[10];
+      else
+         pedgetable = &edgetables[11];
 
-	return;
-    }
+      return;
+   }
 
-    if (r_p0[1] > r_p2[1])
-	edgetableindex += 2;
+   if (r_p0[1] > r_p2[1])
+      edgetableindex += 2;
 
-    if (r_p1[1] > r_p2[1])
-	edgetableindex += 4;
+   if (r_p1[1] > r_p2[1])
+      edgetableindex += 4;
 
-    pedgetable = &edgetables[edgetableindex];
+   pedgetable = &edgetables[edgetableindex];
 }

@@ -41,21 +41,17 @@ int nanmask = 255 << 23;
 void
 ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
 {
-    float d;
-    vec3_t n;
-    float inv_denom;
+   vec3_t n;
+   float inv_denom = 1.0F / DotProduct(normal, normal);
+   float d = DotProduct(normal, p) * inv_denom;
 
-    inv_denom = 1.0F / DotProduct(normal, normal);
+   n[0] = normal[0] * inv_denom;
+   n[1] = normal[1] * inv_denom;
+   n[2] = normal[2] * inv_denom;
 
-    d = DotProduct(normal, p) * inv_denom;
-
-    n[0] = normal[0] * inv_denom;
-    n[1] = normal[1] * inv_denom;
-    n[2] = normal[2] * inv_denom;
-
-    dst[0] = p[0] - d * n[0];
-    dst[1] = p[1] - d * n[1];
-    dst[2] = p[2] - d * n[2];
+   dst[0] = p[0] - d * n[0];
+   dst[1] = p[1] - d * n[1];
+   dst[2] = p[2] - d * n[2];
 }
 
 /*
@@ -64,32 +60,32 @@ ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal)
 void
 PerpendicularVector(vec3_t dst, const vec3_t src)
 {
-    int pos;
-    int i;
-    float minelem = 1.0F;
-    vec3_t tempvec;
+   int pos;
+   int i;
+   float minelem = 1.0F;
+   vec3_t tempvec;
 
-    /*
-       ** find the smallest magnitude axially aligned vector
-     */
-    for (pos = 0, i = 0; i < 3; i++) {
-	if (fabs(src[i]) < minelem) {
-	    pos = i;
-	    minelem = fabs(src[i]);
-	}
-    }
-    tempvec[0] = tempvec[1] = tempvec[2] = 0.0F;
-    tempvec[pos] = 1.0F;
+   /*
+    ** find the smallest magnitude axially aligned vector
+    */
+   for (pos = 0, i = 0; i < 3; i++) {
+      if (fabs(src[i]) < minelem) {
+         pos = i;
+         minelem = fabs(src[i]);
+      }
+   }
+   tempvec[0] = tempvec[1] = tempvec[2] = 0.0F;
+   tempvec[pos] = 1.0F;
 
-    /*
-       ** project the point onto the plane defined by src
-     */
-    ProjectPointOnPlane(dst, tempvec, src);
+   /*
+    ** project the point onto the plane defined by src
+    */
+   ProjectPointOnPlane(dst, tempvec, src);
 
-    /*
-       ** normalize the result
-     */
-    VectorNormalize(dst);
+   /*
+    ** normalize the result
+    */
+   VectorNormalize(dst);
 }
 
 
@@ -97,58 +93,58 @@ void
 RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
 			float degrees)
 {
-    float m[3][3];
-    float im[3][3];
-    float zrot[3][3];
-    float tmpmat[3][3];
-    float rot[3][3];
-    int i;
-    vec3_t vr, vup, vf;
+   float m[3][3];
+   float im[3][3];
+   float zrot[3][3];
+   float tmpmat[3][3];
+   float rot[3][3];
+   int i;
+   vec3_t vr, vup, vf;
 
-    vf[0] = dir[0];
-    vf[1] = dir[1];
-    vf[2] = dir[2];
+   vf[0] = dir[0];
+   vf[1] = dir[1];
+   vf[2] = dir[2];
 
-    PerpendicularVector(vr, dir);
-    CrossProduct(vr, vf, vup);
+   PerpendicularVector(vr, dir);
+   CrossProduct(vr, vf, vup);
 
-    m[0][0] = vr[0];
-    m[1][0] = vr[1];
-    m[2][0] = vr[2];
+   m[0][0] = vr[0];
+   m[1][0] = vr[1];
+   m[2][0] = vr[2];
 
-    m[0][1] = vup[0];
-    m[1][1] = vup[1];
-    m[2][1] = vup[2];
+   m[0][1] = vup[0];
+   m[1][1] = vup[1];
+   m[2][1] = vup[2];
 
-    m[0][2] = vf[0];
-    m[1][2] = vf[1];
-    m[2][2] = vf[2];
+   m[0][2] = vf[0];
+   m[1][2] = vf[1];
+   m[2][2] = vf[2];
 
-    memcpy(im, m, sizeof(im));
+   memcpy(im, m, sizeof(im));
 
-    im[0][1] = m[1][0];
-    im[0][2] = m[2][0];
-    im[1][0] = m[0][1];
-    im[1][2] = m[2][1];
-    im[2][0] = m[0][2];
-    im[2][1] = m[1][2];
+   im[0][1] = m[1][0];
+   im[0][2] = m[2][0];
+   im[1][0] = m[0][1];
+   im[1][2] = m[2][1];
+   im[2][0] = m[0][2];
+   im[2][1] = m[1][2];
 
-    memset(zrot, 0, sizeof(zrot));
-    zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
+   memset(zrot, 0, sizeof(zrot));
+   zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
 
-    zrot[0][0] = cos(DEG2RAD(degrees));
-    zrot[0][1] = sin(DEG2RAD(degrees));
-    zrot[1][0] = -sin(DEG2RAD(degrees));
-    zrot[1][1] = cos(DEG2RAD(degrees));
+   zrot[0][0] = cos(DEG2RAD(degrees));
+   zrot[0][1] = sin(DEG2RAD(degrees));
+   zrot[1][0] = -sin(DEG2RAD(degrees));
+   zrot[1][1] = cos(DEG2RAD(degrees));
 
-    R_ConcatRotations(m, zrot, tmpmat);
-    R_ConcatRotations(tmpmat, im, rot);
+   R_ConcatRotations(m, zrot, tmpmat);
+   R_ConcatRotations(tmpmat, im, rot);
 
-    for (i = 0; i < 3; i++) {
-	dst[i] =
-	    rot[i][0] * point[0] + rot[i][1] * point[1] +
-	    rot[i][2] * point[2];
-    }
+   for (i = 0; i < 3; i++) {
+      dst[i] =
+         rot[i][0] * point[0] + rot[i][1] * point[1] +
+         rot[i][2] * point[2];
+   }
 }
 
 /*-----------------------------------------------------------------*/
@@ -156,22 +152,22 @@ RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
 float
 anglemod(float a)
 {
-    a = (360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535);
-    return a;
+   a = (360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535);
+   return a;
 }
 
 int
 SignbitsForPlane(const mplane_t *plane)
 {
-    int i, bits;
-
-    // for fast box on planeside test
-    bits = 0;
-    for (i = 0; i < 3; i++) {
-	if (plane->normal[i] < 0)
-	    bits |= 1 << i;
-    }
-    return bits;
+   int i;
+   /* for fast box on planeside test */
+   int bits = 0;
+   for (i = 0; i < 3; i++)
+   {
+      if (plane->normal[i] < 0)
+         bits |= 1 << i;
+   }
+   return bits;
 }
 
 /*
@@ -196,174 +192,168 @@ Returns PSIDE_FRONT, PSIDE_BACK, or PSIDE_BOTH (PSIDE_FRONT | PSIDE_BACK)
 int
 BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
 {
-    float dist1, dist2;
-    int sides;
+   float dist1, dist2;
+   int sides;
 
-// general case
-    switch (p->signbits) {
-    case 0:
-	dist1 =
-	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * maxs[2];
-	dist2 =
-	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * mins[2];
-	break;
-    case 1:
-	dist1 =
-	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * maxs[2];
-	dist2 =
-	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * mins[2];
-	break;
-    case 2:
-	dist1 =
-	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * maxs[2];
-	dist2 =
-	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * mins[2];
-	break;
-    case 3:
-	dist1 =
-	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * maxs[2];
-	dist2 =
-	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * mins[2];
-	break;
-    case 4:
-	dist1 =
-	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * mins[2];
-	dist2 =
-	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * maxs[2];
-	break;
-    case 5:
-	dist1 =
-	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * mins[2];
-	dist2 =
-	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * maxs[2];
-	break;
-    case 6:
-	dist1 =
-	    p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * mins[2];
-	dist2 =
-	    p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * maxs[2];
-	break;
-    case 7:
-	dist1 =
-	    p->normal[0] * mins[0] + p->normal[1] * mins[1] +
-	    p->normal[2] * mins[2];
-	dist2 =
-	    p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
-	    p->normal[2] * maxs[2];
-	break;
-    default:
-	BOPS_Error();
-	break;
-    }
+   /* general case */
+   switch (p->signbits)
+   {
+      case 0:
+         dist1 =
+            p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * maxs[2];
+         dist2 =
+            p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+            p->normal[2] * mins[2];
+         break;
+      case 1:
+         dist1 =
+            p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * maxs[2];
+         dist2 =
+            p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+            p->normal[2] * mins[2];
+         break;
+      case 2:
+         dist1 =
+            p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+            p->normal[2] * maxs[2];
+         dist2 =
+            p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * mins[2];
+         break;
+      case 3:
+         dist1 =
+            p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+            p->normal[2] * maxs[2];
+         dist2 =
+            p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * mins[2];
+         break;
+      case 4:
+         dist1 =
+            p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * mins[2];
+         dist2 =
+            p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+            p->normal[2] * maxs[2];
+         break;
+      case 5:
+         dist1 =
+            p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * mins[2];
+         dist2 =
+            p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+            p->normal[2] * maxs[2];
+         break;
+      case 6:
+         dist1 =
+            p->normal[0] * maxs[0] + p->normal[1] * mins[1] +
+            p->normal[2] * mins[2];
+         dist2 =
+            p->normal[0] * mins[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * maxs[2];
+         break;
+      case 7:
+         dist1 =
+            p->normal[0] * mins[0] + p->normal[1] * mins[1] +
+            p->normal[2] * mins[2];
+         dist2 =
+            p->normal[0] * maxs[0] + p->normal[1] * maxs[1] +
+            p->normal[2] * maxs[2];
+         break;
+      default:
+         BOPS_Error();
+         break;
+   }
 
-    sides = 0;
-    if (dist1 >= p->dist)
-	sides = PSIDE_FRONT;
-    if (dist2 < p->dist)
-	sides |= PSIDE_BACK;
+   sides = 0;
+   if (dist1 >= p->dist)
+      sides = PSIDE_FRONT;
+   if (dist2 < p->dist)
+      sides |= PSIDE_BACK;
 
 #ifdef PARANOID
-    if (sides == 0)
-	Sys_Error("%s: sides == 0", __func__);
+   if (sides == 0)
+      Sys_Error("%s: sides == 0", __func__);
 #endif
 
-    return sides;
+   return sides;
 }
 
 void
 AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 {
-    float angle;
-    float sr, sp, sy, cr, cp, cy;
+   float sr, sp, cr, cp;
 
-    angle = angles[YAW] * (M_PI * 2 / 360);
-    sy = sin(angle);
-    cy = cos(angle);
-    angle = angles[PITCH] * (M_PI * 2 / 360);
-    sp = sin(angle);
-    cp = cos(angle);
-    angle = angles[ROLL] * (M_PI * 2 / 360);
-    sr = sin(angle);
-    cr = cos(angle);
+   float angle = angles[YAW] * (M_PI * 2 / 360);
+   float sy = sin(angle);
+   float cy = cos(angle);
+   angle = angles[PITCH] * (M_PI * 2 / 360);
+   sp = sin(angle);
+   cp = cos(angle);
+   angle = angles[ROLL] * (M_PI * 2 / 360);
+   sr = sin(angle);
+   cr = cos(angle);
 
-    forward[0] = cp * cy;
-    forward[1] = cp * sy;
-    forward[2] = -sp;
-    right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
-    right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
-    right[2] = -1 * sr * cp;
-    up[0] = (cr * sp * cy + -sr * -sy);
-    up[1] = (cr * sp * sy + -sr * cy);
-    up[2] = cr * cp;
+   forward[0] = cp * cy;
+   forward[1] = cp * sy;
+   forward[2] = -sp;
+   right[0] = (-1 * sr * sp * cy + -1 * cr * -sy);
+   right[1] = (-1 * sr * sp * sy + -1 * cr * cy);
+   right[2] = -1 * sr * cp;
+   up[0] = (cr * sp * cy + -sr * -sy);
+   up[1] = (cr * sp * sy + -sr * cy);
+   up[2] = cr * cp;
 }
 
 int
 VectorCompare(vec3_t v1, vec3_t v2)
 {
-    int i;
+   int i;
 
-    for (i = 0; i < 3; i++)
-	if (v1[i] != v2[i])
-	    return 0;
+   for (i = 0; i < 3; i++)
+      if (v1[i] != v2[i])
+         return 0;
 
-    return 1;
+   return 1;
 }
 
-void
-VectorMA(const vec3_t veca, const float scale, const vec3_t vecb, vec3_t vecc)
+void VectorMA(const vec3_t veca, const float scale, const vec3_t vecb, vec3_t vecc)
 {
-    vecc[0] = veca[0] + scale * vecb[0];
-    vecc[1] = veca[1] + scale * vecb[1];
-    vecc[2] = veca[2] + scale * vecb[2];
+   vecc[0] = veca[0] + scale * vecb[0];
+   vecc[1] = veca[1] + scale * vecb[1];
+   vecc[2] = veca[2] + scale * vecb[2];
 }
 
 
-vec_t
-_DotProduct(vec3_t v1, vec3_t v2)
+vec_t _DotProduct(vec3_t v1, vec3_t v2)
 {
-    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+   return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
-void
-_VectorSubtract(vec3_t veca, vec3_t vecb, vec3_t out)
+void _VectorSubtract(vec3_t veca, vec3_t vecb, vec3_t out)
 {
-    out[0] = veca[0] - vecb[0];
-    out[1] = veca[1] - vecb[1];
-    out[2] = veca[2] - vecb[2];
+   out[0] = veca[0] - vecb[0];
+   out[1] = veca[1] - vecb[1];
+   out[2] = veca[2] - vecb[2];
 }
 
-void
-_VectorAdd(vec3_t veca, vec3_t vecb, vec3_t out)
+void _VectorAdd(vec3_t veca, vec3_t vecb, vec3_t out)
 {
-    out[0] = veca[0] + vecb[0];
-    out[1] = veca[1] + vecb[1];
-    out[2] = veca[2] + vecb[2];
+   out[0] = veca[0] + vecb[0];
+   out[1] = veca[1] + vecb[1];
+   out[2] = veca[2] + vecb[2];
 }
 
-void
-_VectorCopy(vec3_t in, vec3_t out)
+void _VectorCopy(vec3_t in, vec3_t out)
 {
-    out[0] = in[0];
-    out[1] = in[1];
-    out[2] = in[2];
+   out[0] = in[0];
+   out[1] = in[1];
+   out[2] = in[2];
 }
 
-void
-CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
+void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
 {
 #ifdef __ARM_NEON__
    asm volatile (
@@ -390,44 +380,43 @@ CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
             : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
                ); 
 #else
-    cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
-    cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
-    cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
+         cross[0] = v1[1] * v2[2] - v1[2] * v2[1];
+         cross[1] = v1[2] * v2[0] - v1[0] * v2[2];
+         cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
 #endif
 }
 
 double sqrt(double x);
 
-vec_t
-Length(vec3_t v)
+vec_t Length(vec3_t v)
 {
-    int i;
-    float length;
+   int i;
+   float length;
 
-    length = 0;
-    for (i = 0; i < 3; i++)
-	length += v[i] * v[i];
-    length = sqrt(length);	// FIXME
+   length = 0;
+   for (i = 0; i < 3; i++)
+      length += v[i] * v[i];
+   length = sqrt(length);	// FIXME
 
-    return length;
+   return length;
 }
 
-float
-VectorNormalize(vec3_t v)
+float VectorNormalize(vec3_t v)
 {
-    float length, ilength;
+   float length, ilength;
 
-    length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-    length = sqrt(length);	// FIXME
+   length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+   length = sqrt(length);	// FIXME
 
-    if (length) {
-	ilength = 1 / length;
-	v[0] *= ilength;
-	v[1] *= ilength;
-	v[2] *= ilength;
-    }
+   if (length)
+   {
+      ilength = 1 / length;
+      v[0] *= ilength;
+      v[1] *= ilength;
+      v[2] *= ilength;
+   }
 
-    return length;
+   return length;
 }
 
 void
@@ -535,38 +524,42 @@ quotient must fit in 32 bits.
 void
 FloorDivMod(double numer, double denom, int *quotient, int *rem)
 {
-    int q, r;
-    double x;
+   int q, r;
+   double x;
 
 #ifndef PARANOID
-    if (denom <= 0.0)
-	Sys_Error("%s: bad denominator %lf", __func__, denom);
+   if (denom <= 0.0)
+      Sys_Error("%s: bad denominator %lf", __func__, denom);
 
-//      if ((floor(numer) != numer) || (floor(denom) != denom))
-//              Sys_Error ("%s: non-integer numer or denom %f %f", __func__
-//                              numer, denom);
+#if 0
+   if ((floor(numer) != numer) || (floor(denom) != denom))
+      Sys_Error ("%s: non-integer numer or denom %f %f", __func__
+            numer, denom);
+#endif
 #endif
 
-    if (numer >= 0.0) {
+   if (numer >= 0.0)
+   {
+      x = floor(numer / denom);
+      q = (int)x;
+      r = (int)floor(numer - (x * denom));
+   }
+   else
+   {
+      /* perform operations with positive values, 
+       * and fix mod to make floor-based */
+      x = floor(-numer / denom);
+      q = -(int)x;
+      r = (int)floor(-numer - (x * denom));
+      if (r != 0)
+      {
+         q--;
+         r = (int)denom - r;
+      }
+   }
 
-	x = floor(numer / denom);
-	q = (int)x;
-	r = (int)floor(numer - (x * denom));
-    } else {
-	//
-	// perform operations with positive values, and fix mod to make floor-based
-	//
-	x = floor(-numer / denom);
-	q = -(int)x;
-	r = (int)floor(-numer - (x * denom));
-	if (r != 0) {
-	    q--;
-	    r = (int)denom - r;
-	}
-    }
-
-    *quotient = q;
-    *rem = r;
+   *quotient = q;
+   *rem = r;
 }
 
 
@@ -578,15 +571,18 @@ GreatestCommonDivisor
 int
 GreatestCommonDivisor(int i1, int i2)
 {
-    if (i1 > i2) {
-	if (i2 == 0)
-	    return (i1);
-	return GreatestCommonDivisor(i2, i1 % i2);
-    } else {
-	if (i1 == 0)
-	    return (i2);
-	return GreatestCommonDivisor(i1, i2 % i1);
-    }
+   if (i1 > i2)
+   {
+      if (i2 == 0)
+         return (i1);
+      return GreatestCommonDivisor(i2, i1 % i2);
+   }
+   else
+   {
+      if (i1 == 0)
+         return (i2);
+      return GreatestCommonDivisor(i1, i2 % i1);
+   }
 }
 
 
@@ -598,12 +594,11 @@ Inverts an 8.24 value to a 16.16 value
 ====================
 */
 
-fixed16_t
-Invert24To16(fixed16_t val)
+fixed16_t Invert24To16(fixed16_t val)
 {
-    if (val < 256)
-	return (0xFFFFFFFF);
+   if (val < 256)
+      return (0xFFFFFFFF);
 
-    return (fixed16_t)
-	(((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
+   return (fixed16_t)
+      (((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
 }

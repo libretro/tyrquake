@@ -244,11 +244,12 @@ Draw_String
 void
 Draw_String(int x, int y, char *str)
 {
-    while (*str) {
-	Draw_Character(x, y, *str);
-	str++;
-	x += 8;
-    }
+   while (*str)
+   {
+      Draw_Character(x, y, *str);
+      str++;
+      x += 8;
+   }
 }
 
 /*
@@ -259,28 +260,32 @@ Draw_Alt_String
 void
 Draw_Alt_String(int x, int y, char *str)
 {
-    while (*str) {
-	Draw_Character(x, y, (*str) | 0x80);
-	str++;
-	x += 8;
-    }
+   while (*str)
+   {
+      Draw_Character(x, y, (*str) | 0x80);
+      str++;
+      x += 8;
+   }
 }
 
 static void
 Draw_Pixel(int x, int y, byte color)
 {
-    byte *dest;
-    unsigned short *pusdest;
+   byte *dest;
+   unsigned short *pusdest;
 
-    if (r_pixbytes == 1) {
-	dest = vid.conbuffer + y * vid.conrowbytes + x;
-	*dest = color;
-    } else {
-	// FIXME: pre-expand to native format?
-	pusdest = (unsigned short *)
-	    ((byte *)vid.conbuffer + y * vid.conrowbytes + (x << 1));
-	*pusdest = d_8to16table[color];
-    }
+   if (r_pixbytes == 1)
+   {
+      dest = vid.conbuffer + y * vid.conrowbytes + x;
+      *dest = color;
+   }
+   else
+   {
+      // FIXME: pre-expand to native format?
+      pusdest = (unsigned short *)
+         ((byte *)vid.conbuffer + y * vid.conrowbytes + (x << 1));
+      *pusdest = d_8to16table[color];
+   }
 }
 
 void
