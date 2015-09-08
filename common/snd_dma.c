@@ -83,7 +83,6 @@ static cvar_t bgmbuffer = { "bgmbuffer", "4096" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
 static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
-static cvar_t snd_show = { "snd_show", "0" };
 static cvar_t _snd_mixahead = { "_snd_mixahead", "0.1", true };
 
 /*
@@ -166,7 +165,6 @@ S_Init(void)
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
     Cvar_RegisterVariable(&snd_noextraupdate);
-    Cvar_RegisterVariable(&snd_show);
     Cvar_RegisterVariable(&_snd_mixahead);
 
     snd_initialized = true;
@@ -182,7 +180,7 @@ S_Init(void)
     if (fakedma) {
 	shm = (volatile dma_t*)(void *)Hunk_AllocName(sizeof(*shm), "shm");
 	shm->samplebits = 16;
-	shm->speed = 22050;
+	shm->speed = 44100;
 	shm->channels = 2;
 	shm->samples = 32768;
 	shm->samplepos = 0;
@@ -734,17 +732,6 @@ S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
       }
    }
 
-   /*
-    * debugging output
-    */
-   if (snd_show.value) {
-      total = 0;
-      ch = channels;
-      for (i = 0; i < total_channels; i++, ch++)
-         if (ch->sfx && (ch->leftvol || ch->rightvol))
-            total++;
-      Con_Printf("----(%i)----\n", total);
-   }
    /* mix some sound */
    S_Update_();
 }
