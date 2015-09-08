@@ -59,19 +59,10 @@ void S_TransferStereo16(int endtime)
 {
    int lpos;
    int lpaintedtime;
-   int err;
 
    snd_vol = volume.value * 256;
    snd_p = (int *)paintbuffer;
    lpaintedtime = paintedtime;
-
-   err = SNDDMA_LockBuffer();
-   if (err)
-   {
-      S_Shutdown();
-      S_Startup();
-      return;
-   }
 
    while (lpaintedtime < endtime)
    {
@@ -88,7 +79,6 @@ void S_TransferStereo16(int endtime)
       snd_p += snd_linear_count;
       lpaintedtime += (snd_linear_count >> 1);
    }
-   SNDDMA_UnlockBuffer();
 }
 
 void S_TransferPaintBuffer(int endtime)
@@ -101,6 +91,7 @@ void S_TransferPaintBuffer(int endtime)
    int val;
    int snd_vol;
    int err;
+   short *out;
 
    if (shm->channels == 2)
    {
@@ -115,29 +106,18 @@ void S_TransferPaintBuffer(int endtime)
    step = 3 - shm->channels;
    snd_vol = volume.value * 256;
 
-   err = SNDDMA_LockBuffer();
-   if (err)
+   out = (short *)shm->buffer;
+   while (count--)
    {
-      S_Shutdown();
-      S_Startup();
-      return;
+      val = (*p * snd_vol) >> 8;
+      p += step;
+      if (val > 0x7fff)
+         val = 0x7fff;
+      else if (val < (short)0x8000)
+         val = (short)0x8000;
+      out[out_idx] = val;
+      out_idx = (out_idx + 1) & out_mask;
    }
-
-   {
-      short *out = (short *)shm->buffer;
-      while (count--)
-      {
-         val = (*p * snd_vol) >> 8;
-         p += step;
-         if (val > 0x7fff)
-            val = 0x7fff;
-         else if (val < (short)0x8000)
-            val = (short)0x8000;
-         out[out_idx] = val;
-         out_idx = (out_idx + 1) & out_mask;
-      }
-   }
-   SNDDMA_UnlockBuffer();
 }
 
 

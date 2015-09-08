@@ -507,24 +507,14 @@ S_StopAllSoundsC(void)
     S_StopAllSounds(true);
 }
 
-void
-S_ClearBuffer(void)
+void S_ClearBuffer(void)
 {
-   int err;
    int clear;
 
    if (!sound_started || !shm)
       return;
 
-   err = SNDDMA_LockBuffer();
-   if (err)
-   {
-      S_Shutdown();
-      return;
-   }
-
    memset(shm->buffer, 0, shm->samples * shm->samplebits / 8);
-   SNDDMA_UnlockBuffer();
 }
 
 
