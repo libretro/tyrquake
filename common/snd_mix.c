@@ -29,47 +29,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
 int snd_scaletable[32][256];
-int *snd_p, snd_linear_count, snd_vol;
 short *snd_out;
 
-static INLINE void Snd_WriteLinearBlastStereo16(void)
-{
-   int i;
-   int val;
-
-   for (i = 0; i < snd_linear_count; i += 2)
-   {
-      val = (snd_p[i] * snd_vol) >> 8;
-      if (val > 0x7fff)
-         snd_out[i] = 0x7fff;
-      else if (val < (short)0x8000)
-         snd_out[i] = (short)0x8000;
-      else
-         snd_out[i] = val;
-
-      val = (snd_p[i + 1] * snd_vol) >> 8;
-      if (val > 0x7fff)
-         snd_out[i + 1] = 0x7fff;
-      else if (val < (short)0x8000)
-         snd_out[i + 1] = (short)0x8000;
-      else
-         snd_out[i + 1] = val;
-   }
-}
+#define CLAMP16(x) (((x) > 0x7fff) ? 0x7fff : (((x) < -0x7fff) ? -0x7fff : (x)))
 
 void S_TransferPaintBuffer(int endtime)
 {
-   int lpos;
-   int lpaintedtime;
-
-   snd_vol = volume.value * 256;
-   snd_p = (int *)paintbuffer;
+   int i, lpaintedtime;
+   int snd_vol = volume.value * 256;
+   int *snd_p = (int *)paintbuffer;
    lpaintedtime = paintedtime;
 
    while (lpaintedtime < endtime)
    {
+      int snd_linear_count;
       // handle recirculating buffer issues
-      lpos = lpaintedtime & ((shm->samples >> 1) - 1);
+      int lpos = lpaintedtime & ((shm->samples >> 1) - 1);
       snd_out = (short *)shm->buffer + (lpos << 1);
       snd_linear_count = (shm->samples >> 1) - lpos;
       if (lpaintedtime + snd_linear_count > endtime)
@@ -77,8 +52,13 @@ void S_TransferPaintBuffer(int endtime)
       snd_linear_count <<= 1;
 
       // write a linear blast of samples
-      Snd_WriteLinearBlastStereo16();
-      snd_p += snd_linear_count;
+      for (i = 0; i < snd_linear_count; i += 2)
+      {
+         snd_out[i]   = CLAMP16((snd_p[i]     * snd_vol) >> 8);
+         snd_out[i+1] = CLAMP16((snd_p[i + 1] * snd_vol) >> 8);
+      }
+
+      snd_p        += snd_linear_count;
       lpaintedtime += (snd_linear_count >> 1);
    }
 }
