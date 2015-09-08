@@ -2,10 +2,6 @@ DEBUG=0
 FRONTEND_SUPPORTS_RGB565=1
 TARGET_NAME=tyrquake
 
-ifneq ($(EMSCRIPTEN),)
-   platform = emscripten
-endif
-
 ifeq ($(platform),)
 platform = unix
 ifeq ($(shell uname -a),)
