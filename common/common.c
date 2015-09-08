@@ -460,15 +460,19 @@ MSG_WriteLong(sizebuf_t *sb, int c)
 void
 MSG_WriteFloat(sizebuf_t *sb, float f)
 {
-    union {
-	float f;
-	int l;
-    } dat;
+#ifdef MSB_FIRST
+   union {
+      float f;
+      int l;
+   } dat;
 
-    dat.f = f;
-    dat.l = LittleLong(dat.l);
+   dat.f = f;
+   dat.l = LittleLong(dat.l);
 
-    SZ_Write(sb, &dat.l, 4);
+   SZ_Write(sb, &dat.l, 4);
+#else
+   SZ_Write (sb, &f, 4);
+#endif
 }
 
 void
@@ -693,21 +697,25 @@ MSG_ReadLong(void)
 float
 MSG_ReadFloat(void)
 {
-    union {
-	byte b[4];
-	float f;
-	int l;
-    } dat;
+   union {
+      byte b[4];
+      float f;
+#ifdef MSB_FIRST
+      int l;
+#endif
+   } dat;
 
-    dat.b[0] = net_message.data[msg_readcount];
-    dat.b[1] = net_message.data[msg_readcount + 1];
-    dat.b[2] = net_message.data[msg_readcount + 2];
-    dat.b[3] = net_message.data[msg_readcount + 3];
-    msg_readcount += 4;
+   dat.b[0] = net_message.data[msg_readcount];
+   dat.b[1] = net_message.data[msg_readcount + 1];
+   dat.b[2] = net_message.data[msg_readcount + 2];
+   dat.b[3] = net_message.data[msg_readcount + 3];
+   msg_readcount += 4;
 
-    dat.l = LittleLong(dat.l);
+#ifdef MSB_FIRST
+   dat.l = LittleLong(dat.l);
+#endif
 
-    return dat.f;
+   return dat.f;
 }
 
 char *
@@ -1813,74 +1821,82 @@ COM_LoadPackFile(const char *packfile)
 #else
 #define STATIC_PKG
 #endif
-STATIC_PKG dpackheader_t header;
-STATIC_PKG int i;
-STATIC_PKG packfile_t *newfiles;
-STATIC_PKG int numpackfiles;
-STATIC_PKG pack_t *pack;
-STATIC_PKG FILE *packhandle;
-STATIC_PKG dpackfile_t info[MAX_FILES_IN_PACK];
-STATIC_PKG unsigned short crc;
+   STATIC_PKG dpackheader_t header;
+   STATIC_PKG int i;
+   STATIC_PKG packfile_t *newfiles;
+   STATIC_PKG int numpackfiles;
+   STATIC_PKG pack_t *pack;
+   STATIC_PKG FILE *packhandle;
+   STATIC_PKG dpackfile_t info[MAX_FILES_IN_PACK];
+   STATIC_PKG unsigned short crc;
 
-    if (COM_FileOpenRead(packfile, &packhandle) == -1)
-	return NULL;
+   if (COM_FileOpenRead(packfile, &packhandle) == -1)
+      return NULL;
 
-    fread(&header, 1, sizeof(header), packhandle);
-    if (header.id[0] != 'P' || header.id[1] != 'A'
-	|| header.id[2] != 'C' || header.id[3] != 'K')
-	Sys_Error("%s is not a packfile", packfile);
-    header.dirofs = LittleLong(header.dirofs);
-    header.dirlen = LittleLong(header.dirlen);
+   fread(&header, 1, sizeof(header), packhandle);
+   if (header.id[0] != 'P' || header.id[1] != 'A'
+         || header.id[2] != 'C' || header.id[3] != 'K')
+      Sys_Error("%s is not a packfile", packfile);
 
-    numpackfiles = header.dirlen / sizeof(dpackfile_t);
+#ifdef MSB_FIRST
+   header.dirofs = LittleLong(header.dirofs);
+   header.dirlen = LittleLong(header.dirlen);
+#endif
 
-    if (numpackfiles > MAX_FILES_IN_PACK)
-	Sys_Error("%s has %i files", packfile, numpackfiles);
+   numpackfiles = header.dirlen / sizeof(dpackfile_t);
 
-    if (numpackfiles != PAK0_COUNT)
-	com_modified = true;	// not the original file
+   if (numpackfiles > MAX_FILES_IN_PACK)
+      Sys_Error("%s has %i files", packfile, numpackfiles);
+
+   if (numpackfiles != PAK0_COUNT)
+      com_modified = true;	// not the original file
 
 #ifdef NQ_HACK
-    newfiles = (packfile_t*)Hunk_AllocName(numpackfiles * sizeof(packfile_t), "packfile");
+   newfiles = (packfile_t*)Hunk_AllocName(numpackfiles * sizeof(packfile_t), "packfile");
 #endif
 #ifdef QW_HACK
-    newfiles = Z_Malloc(numpackfiles * sizeof(packfile_t));
+   newfiles = Z_Malloc(numpackfiles * sizeof(packfile_t));
 #endif
 
-    fseek(packhandle, header.dirofs, SEEK_SET);
-    fread(&info, 1, header.dirlen, packhandle);
+   fseek(packhandle, header.dirofs, SEEK_SET);
+   fread(&info, 1, header.dirlen, packhandle);
 
-// crc the directory to check for modifications
-    crc = CRC_Block((byte *)info, header.dirlen);
+   // crc the directory to check for modifications
+   crc = CRC_Block((byte *)info, header.dirlen);
 #ifdef NQ_HACK
-    if (crc != NQ_PAK0_CRC)
-	com_modified = true;
+   if (crc != NQ_PAK0_CRC)
+      com_modified = true;
 #endif
 #ifdef QW_HACK
-    if (crc != QW_PAK0_CRC)
-	com_modified = true;
+   if (crc != QW_PAK0_CRC)
+      com_modified = true;
 #endif
 
-// parse the directory
-    for (i = 0; i < numpackfiles; i++) {
-	strcpy(newfiles[i].name, info[i].name);
-	newfiles[i].filepos = LittleLong(info[i].filepos);
-	newfiles[i].filelen = LittleLong(info[i].filelen);
-    }
+   // parse the directory
+   for (i = 0; i < numpackfiles; i++) {
+      strcpy(newfiles[i].name, info[i].name);
+#ifdef MSB_FIRST
+      newfiles[i].filepos = LittleLong(info[i].filepos);
+      newfiles[i].filelen = LittleLong(info[i].filelen);
+#else
+      newfiles[i].filepos = (info[i].filepos);
+      newfiles[i].filelen = (info[i].filelen);
+#endif
+   }
 
 #ifdef NQ_HACK
-    pack = (pack_t*)Hunk_Alloc(sizeof(pack_t));
+   pack = (pack_t*)Hunk_Alloc(sizeof(pack_t));
 #endif
 #ifdef QW_HACK
-    pack = Z_Malloc(sizeof(pack_t));
+   pack = Z_Malloc(sizeof(pack_t));
 #endif
-    strcpy(pack->filename, packfile);
-    pack->numfiles = numpackfiles;
-    pack->files = newfiles;
+   strcpy(pack->filename, packfile);
+   pack->numfiles = numpackfiles;
+   pack->files = newfiles;
 
-    Con_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
-    Sys_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
-    return pack;
+   Con_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
+   Sys_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
+   return pack;
 }
 
 

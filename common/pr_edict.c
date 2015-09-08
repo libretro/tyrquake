@@ -1044,120 +1044,131 @@ PR_LoadProgs
 void
 PR_LoadProgs(void)
 {
-    int i;
+   int i;
 #if defined(QW_HACK) && defined(SERVERONLY)
-    char num[32];
-    dfunction_t *f;
+   char num[32];
+   dfunction_t *f;
 #endif
 
-// flush the non-C variable lookup cache
-    for (i = 0; i < GEFV_CACHESIZE; i++)
-	gefvCache[i].field[0] = 0;
+   // flush the non-C variable lookup cache
+   for (i = 0; i < GEFV_CACHESIZE; i++)
+      gefvCache[i].field[0] = 0;
 
 #ifdef NQ_HACK
-    progs = (dprograms_t*)COM_LoadHunkFile("progs.dat");
+   progs = (dprograms_t*)COM_LoadHunkFile("progs.dat");
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-    progs = COM_LoadHunkFile("qwprogs.dat");
-    if (!progs)
-	progs = COM_LoadHunkFile("progs.dat");
+   progs = COM_LoadHunkFile("qwprogs.dat");
+   if (!progs)
+      progs = COM_LoadHunkFile("progs.dat");
 #endif
-    if (!progs)
-	SV_Error("%s: couldn't load progs.dat", __func__);
-    Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
+   if (!progs)
+      SV_Error("%s: couldn't load progs.dat", __func__);
+   Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
 #ifdef NQ_HACK
-    pr_crc = CRC_Block((byte *)progs, com_filesize);
+   pr_crc = CRC_Block((byte *)progs, com_filesize);
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-// add prog crc to the serverinfo
-    sprintf(num, "%i", CRC_Block((byte *)progs, com_filesize));
-    Info_SetValueForStarKey(svs.info, "*progs", num, MAX_SERVERINFO_STRING);
+   // add prog crc to the serverinfo
+   sprintf(num, "%i", CRC_Block((byte *)progs, com_filesize));
+   Info_SetValueForStarKey(svs.info, "*progs", num, MAX_SERVERINFO_STRING);
 #endif
 
-// byte swap the header
-    for (i = 0; i < sizeof(*progs) / 4; i++)
-	((int *)progs)[i] = LittleLong(((int *)progs)[i]);
+#ifdef MSB_FIRST
+   // byte swap the header
+   for (i = 0; i < sizeof(*progs) / 4; i++)
+      ((int *)progs)[i] = LittleLong(((int *)progs)[i]);
+#endif
 
-    if (progs->version != PROG_VERSION)
-	SV_Error("progs.dat has wrong version number (%i should be %i)",
-		 progs->version, PROG_VERSION);
-    if (progs->crc != PROGHEADER_CRC)
+   if (progs->version != PROG_VERSION)
+      SV_Error("progs.dat has wrong version number (%i should be %i)",
+            progs->version, PROG_VERSION);
+   if (progs->crc != PROGHEADER_CRC)
 #ifdef NQ_HACK
-	SV_Error("progs.dat system vars have been modified, "
-		 "progdefs.h is out of date");
+      SV_Error("progs.dat system vars have been modified, "
+            "progdefs.h is out of date");
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-	SV_Error("You must have the progs.dat from QuakeWorld installed");
+   SV_Error("You must have the progs.dat from QuakeWorld installed");
 #endif
 
-    pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
-    pr_strings = (char *)progs + progs->ofs_strings;
-    pr_strings_size = progs->strings_size;
-    if (progs->ofs_strings + pr_strings_size >= com_filesize)
+   pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
+   pr_strings = (char *)progs + progs->ofs_strings;
+   pr_strings_size = progs->strings_size;
+   if (progs->ofs_strings + pr_strings_size >= com_filesize)
 #ifdef NQ_HACK
-	Host_Error("progs.dat strings extend past end of file\n");
+      Host_Error("progs.dat strings extend past end of file\n");
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-	SV_Error("progs.dat strings extend past end of file\n");
+   SV_Error("progs.dat strings extend past end of file\n");
 #endif
-    PR_InitStringTable();
+   PR_InitStringTable();
 
-    pr_globaldefs = (ddef_t *)((byte *)progs + progs->ofs_globaldefs);
-    pr_fielddefs = (ddef_t *)((byte *)progs + progs->ofs_fielddefs);
-    pr_statements = (dstatement_t *)((byte *)progs + progs->ofs_statements);
+   pr_globaldefs = (ddef_t *)((byte *)progs + progs->ofs_globaldefs);
+   pr_fielddefs = (ddef_t *)((byte *)progs + progs->ofs_fielddefs);
+   pr_statements = (dstatement_t *)((byte *)progs + progs->ofs_statements);
 
-    pr_global_struct = (globalvars_t *)((byte *)progs + progs->ofs_globals);
-    pr_globals = (float *)pr_global_struct;
+   pr_global_struct = (globalvars_t *)((byte *)progs + progs->ofs_globals);
+   pr_globals = (float *)pr_global_struct;
 
-    pr_edict_size =
-	progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
+   pr_edict_size =
+      progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
 
-// byte swap the lumps
-    for (i = 0; i < progs->numstatements; i++) {
-	pr_statements[i].op = LittleShort(pr_statements[i].op);
-	pr_statements[i].a = LittleShort(pr_statements[i].a);
-	pr_statements[i].b = LittleShort(pr_statements[i].b);
-	pr_statements[i].c = LittleShort(pr_statements[i].c);
-    }
+#ifdef MSB_FIRST
+   // byte swap the lumps
+   for (i = 0; i < progs->numstatements; i++)
+   {
+      pr_statements[i].op = LittleShort(pr_statements[i].op);
+      pr_statements[i].a = LittleShort(pr_statements[i].a);
+      pr_statements[i].b = LittleShort(pr_statements[i].b);
+      pr_statements[i].c = LittleShort(pr_statements[i].c);
+   }
 
-    for (i = 0; i < progs->numfunctions; i++) {
-	pr_functions[i].first_statement =
-	    LittleLong(pr_functions[i].first_statement);
-	pr_functions[i].parm_start = LittleLong(pr_functions[i].parm_start);
-	pr_functions[i].s_name = LittleLong(pr_functions[i].s_name);
-	pr_functions[i].s_file = LittleLong(pr_functions[i].s_file);
-	pr_functions[i].numparms = LittleLong(pr_functions[i].numparms);
-	pr_functions[i].locals = LittleLong(pr_functions[i].locals);
-    }
+   for (i = 0; i < progs->numfunctions; i++) {
+      pr_functions[i].first_statement =
+         LittleLong(pr_functions[i].first_statement);
+      pr_functions[i].parm_start = LittleLong(pr_functions[i].parm_start);
+      pr_functions[i].s_name = LittleLong(pr_functions[i].s_name);
+      pr_functions[i].s_file = LittleLong(pr_functions[i].s_file);
+      pr_functions[i].numparms = LittleLong(pr_functions[i].numparms);
+      pr_functions[i].locals = LittleLong(pr_functions[i].locals);
+   }
 
-    for (i = 0; i < progs->numglobaldefs; i++) {
-	pr_globaldefs[i].type = LittleShort(pr_globaldefs[i].type);
-	pr_globaldefs[i].ofs = LittleShort(pr_globaldefs[i].ofs);
-	pr_globaldefs[i].s_name = LittleLong(pr_globaldefs[i].s_name);
-    }
+   for (i = 0; i < progs->numglobaldefs; i++) {
+      pr_globaldefs[i].type = LittleShort(pr_globaldefs[i].type);
+      pr_globaldefs[i].ofs = LittleShort(pr_globaldefs[i].ofs);
+      pr_globaldefs[i].s_name = LittleLong(pr_globaldefs[i].s_name);
+   }
+#endif
 
-    for (i = 0; i < progs->numfielddefs; i++) {
-	pr_fielddefs[i].type = LittleShort(pr_fielddefs[i].type);
-	if (pr_fielddefs[i].type & DEF_SAVEGLOBAL)
-	    SV_Error("%s: pr_fielddefs[i].type & DEF_SAVEGLOBAL", __func__);
-	pr_fielddefs[i].ofs = LittleShort(pr_fielddefs[i].ofs);
-	pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
-    }
+   for (i = 0; i < progs->numfielddefs; i++) {
+#ifdef MSB_FIRST
+      pr_fielddefs[i].type = LittleShort(pr_fielddefs[i].type);
+#endif
+      if (pr_fielddefs[i].type & DEF_SAVEGLOBAL)
+         SV_Error("%s: pr_fielddefs[i].type & DEF_SAVEGLOBAL", __func__);
+#ifdef MSB_FIRST
+      pr_fielddefs[i].ofs    = LittleShort(pr_fielddefs[i].ofs);
+      pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
+#endif
+   }
 
-    for (i = 0; i < progs->numglobals; i++)
-	((int *)pr_globals)[i] = LittleLong(((int *)pr_globals)[i]);
+#ifdef MSB_FIRST
+   for (i = 0; i < progs->numglobals; i++)
+      ((int *)pr_globals)[i] = LittleLong(((int *)pr_globals)[i]);
+#endif
 
 #if defined(QW_HACK) && defined(SERVERONLY)
-    // Zoid, find the spectator functions
-    SpectatorConnect = SpectatorThink = SpectatorDisconnect = 0;
+   // Zoid, find the spectator functions
+   SpectatorConnect = SpectatorThink = SpectatorDisconnect = 0;
 
-    if ((f = ED_FindFunction("SpectatorConnect")) != NULL)
-	SpectatorConnect = (func_t)(f - pr_functions);
-    if ((f = ED_FindFunction("SpectatorThink")) != NULL)
-	SpectatorThink = (func_t)(f - pr_functions);
-    if ((f = ED_FindFunction("SpectatorDisconnect")) != NULL)
-	SpectatorDisconnect = (func_t)(f - pr_functions);
+   if ((f = ED_FindFunction("SpectatorConnect")) != NULL)
+      SpectatorConnect = (func_t)(f - pr_functions);
+   if ((f = ED_FindFunction("SpectatorThink")) != NULL)
+      SpectatorThink = (func_t)(f - pr_functions);
+   if ((f = ED_FindFunction("SpectatorDisconnect")) != NULL)
+      SpectatorDisconnect = (func_t)(f - pr_functions);
 #endif
 }
 

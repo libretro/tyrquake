@@ -75,18 +75,24 @@ Dumps the current net message, prefixed by the length and view angles
 static void
 CL_WriteDemoMessage(void)
 {
-    int len;
-    int i;
-    float f;
+   int i;
+#ifdef MSB_FIRST
+   int len;
+   float f;
 
-    len = LittleLong(net_message.cursize);
-    fwrite(&len, 4, 1, cls.demofile);
-    for (i = 0; i < 3; i++) {
-	f = LittleFloat(cl.viewangles[i]);
-	fwrite(&f, 4, 1, cls.demofile);
-    }
-    fwrite(net_message.data, net_message.cursize, 1, cls.demofile);
-    fflush(cls.demofile);
+   len = LittleLong(net_message.cursize);
+   fwrite(&len, 4, 1, cls.demofile);
+   for (i = 0; i < 3; i++) {
+      f = LittleFloat(cl.viewangles[i]);
+      fwrite(&f, 4, 1, cls.demofile);
+   }
+#else
+   fwrite (&net_message.cursize, 4, 1, cls.demofile);
+   for (i = 0 ; i < 3 ; i++)
+      fwrite (&cl.viewangles[i], 4, 1, cls.demofile);
+#endif
+   fwrite(net_message.data, net_message.cursize, 1, cls.demofile);
+   fflush(cls.demofile);
 }
 
 /*
@@ -99,65 +105,73 @@ Handles recording and playback of demos, on top of NET_ code
 int
 CL_GetMessage(void)
 {
-    int r, i;
-    float f;
+   int r, i;
+#ifdef MSB_FIRST
+   float f;
+#endif
 
-    if (cls.demoplayback) {
-	// decide if it is time to grab the next message
-	// allways grab until fully connected
-	if (cls.state == ca_active) {
-	    if (cls.timedemo) {
-		if (host_framecount == cls.td_lastframe)
-		    return 0;	// allready read this frame's message
+   if (cls.demoplayback) {
+      // decide if it is time to grab the next message
+      // allways grab until fully connected
+      if (cls.state == ca_active) {
+         if (cls.timedemo) {
+            if (host_framecount == cls.td_lastframe)
+               return 0;	// allready read this frame's message
 
-		cls.td_lastframe = host_framecount;
+            cls.td_lastframe = host_framecount;
 
-		// if this is the second frame, grab the real td_starttime
-		// so the bogus time on the first frame doesn't count
-		if (host_framecount == cls.td_startframe + 1)
-		    cls.td_starttime = realtime;
-	    } else if (cl.time <= cl.mtime[0]) {
-		// don't need another message yet
-		return 0;
-	    }
-	}
-	// get the next message
-	fread(&net_message.cursize, 4, 1, cls.demofile);
-	VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
-	for (i = 0; i < 3; i++) {
-	    fread(&f, 4, 1, cls.demofile);
-	    cl.mviewangles[0][i] = LittleFloat(f);
-	}
+            // if this is the second frame, grab the real td_starttime
+            // so the bogus time on the first frame doesn't count
+            if (host_framecount == cls.td_startframe + 1)
+               cls.td_starttime = realtime;
+         } else if (cl.time <= cl.mtime[0]) {
+            // don't need another message yet
+            return 0;
+         }
+      }
+      // get the next message
+      fread(&net_message.cursize, 4, 1, cls.demofile);
+      VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
+      for (i = 0; i < 3; i++)
+#ifdef MSB_FIRST
+      {
+         fread(&f, 4, 1, cls.demofile);
+         cl.mviewangles[0][i] = LittleFloat(f);
+      }
 
-	net_message.cursize = LittleLong(net_message.cursize);
-	if (net_message.cursize > MAX_MSGLEN)
-	    Sys_Error("Demo message > MAX_MSGLEN");
-	r = fread(net_message.data, net_message.cursize, 1, cls.demofile);
-	if (r != 1) {
-	    CL_StopPlayback();
-	    return 0;
-	}
+      net_message.cursize = LittleLong(net_message.cursize);
+#else
+      r = fread (&cl.mviewangles[0][i], 4, 1, cls.demofile);
+#endif
 
-	return 1;
-    }
+      if (net_message.cursize > MAX_MSGLEN)
+         Sys_Error("Demo message > MAX_MSGLEN");
+      r = fread(net_message.data, net_message.cursize, 1, cls.demofile);
+      if (r != 1) {
+         CL_StopPlayback();
+         return 0;
+      }
 
-    while (1) {
-	r = NET_GetMessage(cls.netcon);
+      return 1;
+   }
 
-	if (r != 1 && r != 2)
-	    return r;
+   while (1) {
+      r = NET_GetMessage(cls.netcon);
 
-	// discard nop keepalive message
-	if (net_message.cursize == 1 && net_message.data[0] == svc_nop)
-	    Con_Printf("<-- server to client keepalive\n");
-	else
-	    break;
-    }
+      if (r != 1 && r != 2)
+         return r;
 
-    if (cls.demorecording)
-	CL_WriteDemoMessage();
+      // discard nop keepalive message
+      if (net_message.cursize == 1 && net_message.data[0] == svc_nop)
+         Con_Printf("<-- server to client keepalive\n");
+      else
+         break;
+   }
 
-    return r;
+   if (cls.demorecording)
+      CL_WriteDemoMessage();
+
+   return r;
 }
 
 
