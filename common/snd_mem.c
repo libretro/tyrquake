@@ -63,10 +63,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
       sc->loopstart = sc->loopstart / stepscale;
 
    sc->speed = shm->speed;
-   if (loadas8bit.value)
-      sc->width = 1;
-   else
-      sc->width = inwidth;
+   sc->width = inwidth;
    sc->stereo = 0;
 
    // resample / decimate to the current source rate

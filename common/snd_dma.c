@@ -77,7 +77,6 @@ static sfx_t *ambient_sfx[NUM_AMBIENTS];
 static int sound_started = 0;
 
 cvar_t volume = { "volume", "0.7", true };
-cvar_t loadas8bit = { "loadas8bit", "0" };
 
 static cvar_t nosound = { "nosound", "0" };
 static cvar_t precache = { "precache", "1" };
@@ -180,18 +179,12 @@ S_Init(void)
     Cvar_RegisterVariable(&nosound);
     Cvar_RegisterVariable(&volume);
     Cvar_RegisterVariable(&precache);
-    Cvar_RegisterVariable(&loadas8bit);
     Cvar_RegisterVariable(&bgmbuffer);
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
     Cvar_RegisterVariable(&snd_noextraupdate);
     Cvar_RegisterVariable(&snd_show);
     Cvar_RegisterVariable(&_snd_mixahead);
-
-    if (host_parms.memsize < 0x800000) {
-	Cvar_Set("loadas8bit", "1");
-	Con_Printf("loading all sounds as 8bit\n");
-    }
 
     snd_initialized = true;
 
