@@ -156,12 +156,6 @@ RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
 float
 anglemod(float a)
 {
-#if 0
-    if (a >= 0)
-	a -= 360 * (int)(a / 360);
-    else
-	a += 360 * (1 + (int)(-a / 360));
-#endif
     a = (360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535);
     return a;
 }
@@ -206,18 +200,6 @@ BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
 {
     float dist1, dist2;
     int sides;
-
-#if 0
-    // this is done by the BOX_ON_PLANE_SIDE macro before calling this function
-    // fast axial cases
-    if (p->type < 3) {
-	if (p->dist <= mins[p->type])
-	    return PSIDE_FRONT;
-	if (p->dist >= maxs[p->type])
-	    return PSIDE_BACK;
-	return PSIDE_BOTH;
-    }
-#endif
 
 // general case
     switch (p->signbits) {

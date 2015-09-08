@@ -521,48 +521,6 @@ Sbar_DrawScoreboard(void)
     Sbar_SoloScoreboard();
     if (cl.gametype == GAME_DEATHMATCH)
 	Sbar_DeathmatchOverlay();
-#if 0
-    int i, j, c;
-    int x, y;
-    int l;
-    int top, bottom;
-    player_info_t *p;
-
-    if (cl.gametype != GAME_DEATHMATCH) {
-	Sbar_SoloScoreboard();
-	return;
-    }
-
-    Sbar_UpdateScoreboard();
-
-    l = scoreboardlines <= 6 ? scoreboardlines : 6;
-
-    for (i = 0; i < l; i++) {
-	x = 20 * (i & 1);
-	y = i / 2 * 8;
-
-	p = &cl.players[fragsort[i]];
-	if (!p->name[0])
-	    continue;
-
-	// draw background
-	top = Sbar_ColorForMap(p->topcolor);
-	bottom = Sbar_ColorForMap(p->bottomcolor);
-
-	Draw_Fill(x * 8 + 10 + ((vid.width - 320) >> 1),
-		  y + vid.height - SBAR_HEIGHT, 28, 4, top);
-	Draw_Fill(x * 8 + 10 + ((vid.width - 320) >> 1),
-		  y + 4 + vid.height - SBAR_HEIGHT, 28, 4, bottom);
-
-	// draw text
-	for (j = 0; j < 20; j++) {
-	    c = scoreboardtext[i][j];
-	    if (c == 0 || c == ' ')
-		continue;
-	    Sbar_DrawCharacter((x + j) * 8, y, c);
-	}
-    }
-#endif
 }
 
 //=============================================================================
@@ -1084,23 +1042,6 @@ Sbar_DeathmatchOverlay(void)
 	if (k == cl.viewentity - 1)
 	    Draw_Character(x - 8, y, 12);
 
-#if 0
-	{
-	    int total;
-	    int n, minutes, tens, units;
-
-	    // draw time
-	    total = cl.completed_time - p->entertime;
-	    minutes = (int)total / 60;
-	    n = total - minutes * 60;
-	    tens = n / 10;
-	    units = n % 10;
-
-	    sprintf(num, "%3i:%i%i", minutes, tens, units);
-
-	    Draw_String(x + 48, y, num);
-	}
-#endif
 
 	// draw name
 	Draw_String(x + 64, y, p->name);
@@ -1181,23 +1122,6 @@ Sbar_MiniDeathmatchOverlay(void)
 	    Draw_Character(x, y, 16);
 	    Draw_Character(x + 32, y, 17);
 	}
-#if 0
-	{
-	    int total;
-	    int n, minutes, tens, units;
-
-	    // draw time
-	    total = cl.completed_time - p->entertime;
-	    minutes = (int)total / 60;
-	    n = total - minutes * 60;
-	    tens = n / 10;
-	    units = n % 10;
-
-	    sprintf(num, "%3i:%i%i", minutes, tens, units);
-
-	    Draw_String(x + 48, y, num);
-	}
-#endif
 
 	// draw name
 	Draw_String(x + 48, y, p->name);
