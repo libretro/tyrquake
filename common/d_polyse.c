@@ -109,8 +109,6 @@ void D_PolysetSetEdgeTable(void);
 void D_RasterizeAliasPolySmooth(void);
 void D_PolysetScanLeftEdge(int height);
 
-#ifndef USE_X86_ASM
-
 static void D_DrawSubdiv(void);
 static void D_DrawNonSubdiv(void);
 static void D_PolysetRecursiveTriangle(int *p1, int *p2, int *p3);
@@ -379,9 +377,6 @@ D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
     D_PolysetRecursiveTriangle(lp3, newobj, lp2);
 }
 
-#endif /* USE_X86_ASM */
-
-
 /*
 ================
 D_PolysetUpdateTables
@@ -402,9 +397,6 @@ D_PolysetUpdateTables(void)
 	    skintable[i] = s;
     }
 }
-
-
-#ifndef USE_X86_ASM
 
 /*
 ===================
@@ -467,9 +459,6 @@ D_PolysetScanLeftEdge(int height)
     } while (--height);
 }
 
-#endif /* USE_X86_ASM */
-
-
 /*
 ===================
 D_PolysetSetUpForLineScan
@@ -504,9 +493,6 @@ D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
 	erroradjustdown = dn;
     }
 }
-
-
-#ifndef USE_X86_ASM
 
 /*
 ================
@@ -626,8 +612,6 @@ D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 	pspanpackage++;
     } while (pspanpackage->count != -999999);
 }
-#endif /* USE_X86_ASM */
-
 
 /*
 ================
@@ -673,17 +657,10 @@ D_RasterizeAliasPolySmooth(void)
 
     d_ptex = (byte *)r_affinetridesc.pskin + (plefttop[2] >> 16) +
 	(plefttop[3] >> 16) * r_affinetridesc.skinwidth;
-#ifdef USE_X86_ASM
-    d_sfrac = (plefttop[2] & 0xFFFF) << 16;
-    d_tfrac = (plefttop[3] & 0xFFFF) << 16;
-    d_pzbasestep = (d_zwidth + ubasestep) << 1;
-    d_pzextrastep = d_pzbasestep + 2;
-#else
     d_sfrac = plefttop[2] & 0xFFFF;
     d_tfrac = plefttop[3] & 0xFFFF;
     d_pzbasestep = d_zwidth + ubasestep;
     d_pzextrastep = d_pzbasestep + 1;
-#endif
     d_light = plefttop[4];
     d_zi = plefttop[5];
 
@@ -707,26 +684,16 @@ D_RasterizeAliasPolySmooth(void)
     d_countextrastep = ubasestep + 1;
     d_ptexbasestep = ((r_sstepy + r_sstepx * ubasestep) >> 16) +
 	((r_tstepy + r_tstepx * ubasestep) >> 16) * r_affinetridesc.skinwidth;
-#ifdef USE_X86_ASM
-    d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) << 16;
-    d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) << 16;
-#else
     d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) & 0xFFFF;
     d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) & 0xFFFF;
-#endif
     d_lightbasestep = r_lstepy + working_lstepx * ubasestep;
     d_zibasestep = r_zistepy + r_zistepx * ubasestep;
 
     d_ptexextrastep = ((r_sstepy + r_sstepx * d_countextrastep) >> 16) +
 	((r_tstepy + r_tstepx * d_countextrastep) >> 16) *
 	r_affinetridesc.skinwidth;
-#ifdef USE_X86_ASM
-    d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) << 16;
-    d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) << 16;
-#else
     d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF;
     d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF;
-#endif
     d_lightextrastep = d_lightbasestep + working_lstepx;
     d_ziextrastep = d_zibasestep + r_zistepx;
 
@@ -760,13 +727,8 @@ D_RasterizeAliasPolySmooth(void)
 	d_pdestbasestep = screenwidth + ubasestep;
 	d_pdestextrastep = d_pdestbasestep + 1;
 	d_pdest = (byte *)d_viewbuffer + ystart * screenwidth + plefttop[0];
-#ifdef USE_X86_ASM
-	d_pzbasestep = (d_zwidth + ubasestep) << 1;
-	d_pzextrastep = d_pzbasestep + 2;
-#else
 	d_pzbasestep = d_zwidth + ubasestep;
 	d_pzextrastep = d_pzbasestep + 1;
-#endif
 	d_pz = d_pzbuffer + ystart * d_zwidth + plefttop[0];
 
 	if (ubasestep < 0)
@@ -778,28 +740,16 @@ D_RasterizeAliasPolySmooth(void)
 	d_ptexbasestep = ((r_sstepy + r_sstepx * ubasestep) >> 16) +
 	    ((r_tstepy + r_tstepx * ubasestep) >> 16) *
 	    r_affinetridesc.skinwidth;
-#ifdef USE_X86_ASM
-	d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) << 16;
-	d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) << 16;
-#else
 	d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) & 0xFFFF;
 	d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) & 0xFFFF;
-#endif
 	d_lightbasestep = r_lstepy + working_lstepx * ubasestep;
 	d_zibasestep = r_zistepy + r_zistepx * ubasestep;
 
 	d_ptexextrastep = ((r_sstepy + r_sstepx * d_countextrastep) >> 16) +
 	    ((r_tstepy + r_tstepx * d_countextrastep) >> 16) *
 	    r_affinetridesc.skinwidth;
-#ifdef USE_X86_ASM
-	d_sfracextrastep =
-	    ((r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF) << 16;
-	d_tfracextrastep =
-	    ((r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF) << 16;
-#else
 	d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF;
 	d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF;
-#endif
 	d_lightextrastep = d_lightbasestep + working_lstepx;
 	d_ziextrastep = d_zibasestep + r_zistepx;
 

@@ -78,9 +78,6 @@ R_Alias_clip_z(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 	out->flags |= ALIAS_BOTTOM_CLIP;
 }
 
-
-#ifndef USE_X86_ASM
-
 void
 R_Alias_clip_left(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 {
@@ -161,9 +158,6 @@ R_Alias_clip_bottom(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 	    out->v[i] = pfv1->v[i] + (pfv0->v[i] - pfv1->v[i]) * scale + 0.5;
     }
 }
-
-#endif
-
 
 static int
 R_AliasClip(finalvert_t *in, finalvert_t *out, int flag, int count,

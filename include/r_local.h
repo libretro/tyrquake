@@ -123,19 +123,8 @@ void R_SetSkyFrame(void);
 void R_DrawSurfaceBlock16(void);
 void R_DrawSurfaceBlock8(void);
 
-#ifdef USE_X86_ASM
-
-void R_DrawSurfaceBlock8_mip0(void);
-void R_DrawSurfaceBlock8_mip1(void);
-void R_DrawSurfaceBlock8_mip2(void);
-void R_DrawSurfaceBlock8_mip3(void);
-
-#endif
-
 void R_GenSkyTile(void *pdest);
 void R_GenSkyTile16(void *pdest);
-void R_Surf8Patch(void);
-void R_Surf16Patch(void);
 void R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags);
 void R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel);
 
@@ -207,7 +196,6 @@ void R_DrawParticles(void);
 void R_InitParticles(void);
 void R_ClearParticles(void);
 void R_ReadPointFile_f(void);
-void R_SurfacePatch(void);
 
 void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
 

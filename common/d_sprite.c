@@ -30,8 +30,6 @@ static int sprite_height;
 static int minindex, maxindex;
 static sspan_t *sprite_spans;
 
-#ifndef USE_X86_ASM
-
 /*
 =====================
 D_SpriteDrawSpans
@@ -184,9 +182,6 @@ D_SpriteDrawSpans(sspan_t * pspan)
 
     } while (pspan->count != DS_SPAN_LIST_END);
 }
-
-#endif
-
 
 /*
 =====================

@@ -53,9 +53,6 @@ int r_ceilv1;
 
 qboolean r_lastvertvalid;
 
-
-#ifndef USE_X86_ASM
-
 /*
 ================
 R_EmitEdge
@@ -311,9 +308,6 @@ R_ClipEdge(mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
 // add the edge
     R_EmitEdge(pv0, pv1);
 }
-
-#endif /* USE_X86_ASM */
-
 
 /*
 ================

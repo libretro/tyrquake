@@ -151,14 +151,7 @@ D_SetupFrame(void)
     for (i = 0; i < (NUM_MIPS - 1); i++)
 	d_scalemip[i] = basemip[i] * d_mipscale.value;
 
-#ifdef USE_X86_ASM
-    if (d_subdiv16.value)
-	D_DrawSpans = D_DrawSpans16;
-    else
-	D_DrawSpans = D_DrawSpans8;
-#else
     D_DrawSpans = D_DrawSpans8;
-#endif
 
 #ifdef __LIBRETRO__
    if (cvar && cvar->value == 1.0f)

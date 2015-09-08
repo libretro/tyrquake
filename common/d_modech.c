@@ -39,17 +39,6 @@ D_Patch
 void
 D_Patch(void)
 {
-#ifdef USE_X86_ASM
-
-    static qboolean protectset8 = false;
-
-    if (!protectset8) {
-	Sys_MakeCodeWriteable((unsigned long)D_PolysetAff8Start,
-			      (unsigned long)D_PolysetAff8End -
-			      (unsigned long)D_PolysetAff8Start);
-	protectset8 = true;
-    }
-#endif /* USE_X86_ASM */
 }
 
 

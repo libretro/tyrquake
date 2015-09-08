@@ -186,8 +186,6 @@ void BOPS_Error(void)
     Sys_Error("%s:  Bad signbits", __func__);
 }
 
-#ifndef USE_X86_ASM
-
 /*
 ==================
 BoxOnPlaneSide
@@ -285,8 +283,6 @@ BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
 
     return sides;
 }
-#endif /* USE_X86_ASM */
-
 
 void
 AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
@@ -594,10 +590,6 @@ GreatestCommonDivisor(int i1, int i2)
 }
 
 
-#ifndef USE_X86_ASM
-
-// TODO: move to nonintel.c
-
 /*
 ===================
 Invert24To16
@@ -615,5 +607,3 @@ Invert24To16(fixed16_t val)
     return (fixed16_t)
 	(((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
 }
-
-#endif /* USE_X86_ASM */

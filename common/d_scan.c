@@ -93,9 +93,6 @@ D_WarpScreen(void)
     free(column);
 }
 
-
-#ifndef USE_X86_ASM
-
 /*
 =============
 D_DrawTurbulent8Span
@@ -116,9 +113,6 @@ D_DrawTurbulent8Span(void)
 	r_turb_t += r_turb_tstep;
     } while (--r_turb_spancount > 0);
 }
-
-#endif /* USE_X86_ASM */
-
 
 /*
 =============
@@ -248,9 +242,6 @@ Turbulent8(espan_t *pspan)
 
     } while ((pspan = pspan->pnext) != NULL);
 }
-
-
-#ifndef USE_X86_ASM
 
 #ifdef __LIBRETRO__
 /*
@@ -886,11 +877,6 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
    } while ((pspan = pspan->pnext) != NULL);
 }
 
-#endif
-
-
-#ifndef USE_X86_ASM
-
 /*
 =============
 D_DrawZSpans
@@ -945,5 +931,3 @@ D_DrawZSpans(espan_t *pspan)
 
     } while ((pspan = pspan->pnext) != NULL);
 }
-
-#endif

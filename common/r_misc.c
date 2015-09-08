@@ -281,8 +281,6 @@ R_TransformFrustum(void)
     }
 }
 
-#ifndef USE_X86_ASM
-
 /*
 ================
 TransformVector
@@ -295,8 +293,6 @@ TransformVector(vec3_t in, vec3_t out)
     out[1] = DotProduct(in, vup);
     out[2] = DotProduct(in, vpn);
 }
-
-#endif
 
 /*
 ================

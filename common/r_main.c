@@ -257,12 +257,6 @@ R_Init(void)
 
     R_InitParticles();
 
-// TODO: collect 386-specific code in one place
-#ifdef USE_X86_ASM
-    Sys_MakeCodeWriteable((long)R_EdgeCodeStart,
-			  (long)R_EdgeCodeEnd - (long)R_EdgeCodeStart);
-#endif
-
     D_Init();
 }
 
@@ -302,7 +296,6 @@ R_NewMap(void)
 	// surface 0 doesn't really exist; it's just a dummy because index 0
 	// is used to indicate no edge attached to surface
 	surfaces--;
-	R_SurfacePatch();
     } else {
 	r_surfsonstack = true;
     }
@@ -497,21 +490,6 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
 	     (320.0 * 152.0)) * (2.0 / r_refdef.horizontalFieldOfView);
     r_aliastransition = r_aliastransbase.value * res_scale;
     r_resfudge = r_aliastransadj.value * res_scale;
-
-// TODO: collect 386-specific code in one place
-#ifdef USE_X86_ASM
-    if (r_pixbytes == 1) {
-	Sys_MakeCodeWriteable((long)R_Surf8Start,
-			      (long)R_Surf8End - (long)R_Surf8Start);
-	colormap = vid.colormap;
-	R_Surf8Patch();
-    } else {
-	Sys_MakeCodeWriteable((long)R_Surf16Start,
-			      (long)R_Surf16End - (long)R_Surf16Start);
-	colormap = vid.colormap16;
-	R_Surf16Patch();
-    }
-#endif
 
     D_ViewChanged();
 }
@@ -1046,7 +1024,6 @@ static void R_EdgeDrawing(void)
 	// surface 0 doesn't really exist; it's just a dummy because index 0
 	// is used to indicate no edge attached to surface
 	surfaces--;
-	R_SurfacePatch();
     }
 
     R_BeginEdgeFrame();

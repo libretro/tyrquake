@@ -47,8 +47,6 @@ D_StartParticles(void)
 }
 
 
-#ifndef USE_X86_ASM
-
 /*
 ==============
 D_DrawParticle
@@ -184,5 +182,3 @@ D_DrawParticle(particle_t *pparticle)
 	break;
     }
 }
-
-#endif /* USE_X86_ASM */

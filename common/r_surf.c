@@ -40,12 +40,10 @@ unsigned char *r_source, *r_sourcemax;
 static int r_numhblocks;
 int r_numvblocks;
 
-#ifndef USE_X86_ASM
 void R_DrawSurfaceBlock8_mip0(void);
 void R_DrawSurfaceBlock8_mip1(void);
 void R_DrawSurfaceBlock8_mip2(void);
 void R_DrawSurfaceBlock8_mip3(void);
-#endif
 
 static void (*surfmiptable[4]) (void) = {
     R_DrawSurfaceBlock8_mip0,
@@ -307,8 +305,6 @@ R_DrawSurface(void)
 
 //=============================================================================
 
-#ifndef USE_X86_ASM
-
 /*
 ================
 R_DrawSurfaceBlock8_mip0
@@ -546,9 +542,6 @@ R_DrawSurfaceBlock16(void)
 
     prowdestbase = prowdest;
 }
-
-#endif
-
 
 //============================================================================
 

@@ -19,8 +19,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // r_vars.c: global refresh variables
 
-#ifndef USE_X86_ASM
-
 #include "mathlib.h"
 #include "quakedef.h"
 #include "vid.h"
@@ -47,5 +45,3 @@ pixel_t *d_viewbuffer;
 short *d_pzbuffer;
 unsigned int d_zrowbytes;
 unsigned int d_zwidth;
-
-#endif /* USE_X86_ASM */

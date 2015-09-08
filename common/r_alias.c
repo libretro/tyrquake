@@ -551,8 +551,6 @@ R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
     fv->v[4] = temp;
 }
 
-#ifndef USE_X86_ASM
-
 /*
 ================
 R_AliasTransformAndProjectFinalVerts
@@ -603,9 +601,6 @@ R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts)
 	fv->v[4] = temp;
     }
 }
-
-#endif
-
 
 /*
 ================
@@ -887,13 +882,8 @@ R_AliasDrawModel(entity_t *e, alight_t *plighting)
     r_affinetridesc.drawtype = (e->trivial_accept == 3) &&
 	r_recursiveaffinetriangles;
 
-    if (r_affinetridesc.drawtype) {
-	D_PolysetUpdateTables();	// FIXME: precalc...
-    } else {
-#ifdef USE_X86_ASM
-	D_Aff8Patch(e->colormap);
-#endif
-    }
+    if (r_affinetridesc.drawtype)
+       D_PolysetUpdateTables();	// FIXME: precalc...
 
     acolormap = e->colormap;
 

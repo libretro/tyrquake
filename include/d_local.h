@@ -91,11 +91,6 @@ extern void (*prealspandrawer) (void);
 surfcache_t *D_CacheSurface(const entity_t *e, msurface_t *surface,
 			    int miplevel);
 
-#ifdef USE_X86_ASM
-extern void D_PolysetAff8Start(void);
-extern void D_PolysetAff8End(void);
-#endif
-
 extern short *d_pzbuffer;
 extern unsigned int d_zrowbytes, d_zwidth;
 

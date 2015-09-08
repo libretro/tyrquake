@@ -30,11 +30,7 @@ int snd_scaletable[32][256];
 int *snd_p, snd_linear_count, snd_vol;
 short *snd_out;
 
-void Snd_WriteLinearBlastStereo16(void);
-
-#ifndef USE_X86_ASM
-void
-Snd_WriteLinearBlastStereo16(void)
+void Snd_WriteLinearBlastStereo16(void)
 {
     int i;
     int val;
@@ -57,7 +53,6 @@ Snd_WriteLinearBlastStereo16(void)
 	    snd_out[i + 1] = val;
     }
 }
-#endif
 
 void
 S_TransferStereo16(int endtime)
@@ -240,11 +235,7 @@ SND_InitScaletable(void)
 	    snd_scaletable[i][j] = ((j < 128) ? j : j - 256) * i * 8;
 }
 
-
-#ifndef USE_X86_ASM
-
-void
-SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
+void SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
 {
     int data;
     int *lscale, *rscale;
@@ -268,9 +259,6 @@ SND_PaintChannelFrom8(channel_t *ch, sfxcache_t *sc, int count)
 
     ch->pos += count;
 }
-
-#endif /* USE_X86_ASM */
-
 
 void
 SND_PaintChannelFrom16(channel_t *ch, sfxcache_t *sc, int count)

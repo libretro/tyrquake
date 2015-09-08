@@ -39,7 +39,6 @@ SOURCES_C := $(CORE_DIR)/libretro-common/file/retro_dirent.c \
 	$(CORE_DIR)/NQ/net_common.c \
 	$(CORE_DIR)/NQ/net_loop.c \
 	$(CORE_DIR)/NQ/net_main.c \
-	$(CORE_DIR)/common/nonintel.c \
 	$(CORE_DIR)/common/pr_cmds.c \
 	$(CORE_DIR)/common/pr_exec.c \
 	$(CORE_DIR)/common/pr_edict.c \
