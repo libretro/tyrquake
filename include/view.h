@@ -29,10 +29,6 @@ extern cvar_t cl_crossy;
 extern cvar_t crosshair;
 extern cvar_t crosshaircolor;
 
-#ifdef GLQUAKE
-extern float v_blend[4];
-#endif
-
 void V_Init(void);
 void V_RenderView(void);
 void V_UpdatePalette(void);

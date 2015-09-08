@@ -34,10 +34,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 
-#ifdef GLQUAKE
-# include "glquake.h"
-#endif
-
 static const char *svc_strings[] = {
     "svc_bad",
     "svc_nop",
@@ -433,207 +429,184 @@ relinked.  Other attributes can change without relinking.
 void
 CL_ParseUpdate(unsigned int bits)
 {
-    int i;
-    model_t *model;
-    int modnum;
-    qboolean forcelink;
-    entity_t *ent;
-    int num;
+   int i;
+   model_t *model;
+   int modnum;
+   qboolean forcelink;
+   entity_t *ent;
+   int num;
 
-    // FIXME - do this cleanly...
-#ifdef GLQUAKE
-    int skin;
-#endif
+   if (cls.state == ca_firstupdate) {
+      // first update is the final signon stage
+      cls.signon = SIGNONS;
+      CL_SignonReply();
+   }
 
-    if (cls.state == ca_firstupdate) {
-	// first update is the final signon stage
-	cls.signon = SIGNONS;
-	CL_SignonReply();
-    }
+   if (bits & U_MOREBITS) {
+      i = MSG_ReadByte();
+      bits |= (i << 8);
+   }
 
-    if (bits & U_MOREBITS) {
-	i = MSG_ReadByte();
-	bits |= (i << 8);
-    }
+   if (cl.protocol == PROTOCOL_VERSION_FITZ) {
+      if (bits & U_FITZ_EXTEND1)
+         bits |= MSG_ReadByte() << 16;
+      if (bits & U_FITZ_EXTEND2)
+         bits |= MSG_ReadByte() << 24;
+   }
 
-    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
-	if (bits & U_FITZ_EXTEND1)
-	    bits |= MSG_ReadByte() << 16;
-	if (bits & U_FITZ_EXTEND2)
-	    bits |= MSG_ReadByte() << 24;
-    }
+   if (bits & U_LONGENTITY)
+      num = MSG_ReadShort();
+   else
+      num = MSG_ReadByte();
 
-    if (bits & U_LONGENTITY)
-	num = MSG_ReadShort();
-    else
-	num = MSG_ReadByte();
+   ent = CL_EntityNum(num);
 
-    ent = CL_EntityNum(num);
+   if (ent->msgtime != cl.mtime[1])
+      forcelink = true;	// no previous frame to lerp from
+   else
+      forcelink = false;
 
-    if (ent->msgtime != cl.mtime[1])
-	forcelink = true;	// no previous frame to lerp from
-    else
-	forcelink = false;
+   ent->msgtime = cl.mtime[0];
 
-    ent->msgtime = cl.mtime[0];
+   if (bits & U_MODEL) {
+      modnum = CL_ReadModelIndex(0);
+      if (modnum >= max_models(cl.protocol))
+         Host_Error("CL_ParseModel: bad modnum");
+   } else
+      modnum = ent->baseline.modelindex;
 
-    if (bits & U_MODEL) {
-	modnum = CL_ReadModelIndex(0);
-	if (modnum >= max_models(cl.protocol))
-	    Host_Error("CL_ParseModel: bad modnum");
-    } else
-	modnum = ent->baseline.modelindex;
+   if (bits & U_FRAME)
+      ent->frame = MSG_ReadByte();
+   else
+      ent->frame = ent->baseline.frame;
 
-    if (bits & U_FRAME)
-	ent->frame = MSG_ReadByte();
-    else
-	ent->frame = ent->baseline.frame;
+   /* ANIMATION LERPING INFO */
+   if (ent->currentframe != ent->frame) {
+      /* TODO: invalidate things when they fall off the
+         currententities list or haven't been updated for a while */
+      ent->previousframe = ent->currentframe;
+      ent->previousframetime = ent->currentframetime;
+      ent->currentframe = ent->frame;
+      ent->currentframetime = cl.time;
+   }
 
-    /* ANIMATION LERPING INFO */
-    if (ent->currentframe != ent->frame) {
-	/* TODO: invalidate things when they fall off the
-	   currententities list or haven't been updated for a while */
-	ent->previousframe = ent->currentframe;
-	ent->previousframetime = ent->currentframetime;
-	ent->currentframe = ent->frame;
-	ent->currentframetime = cl.time;
-    }
+   if (bits & U_COLORMAP)
+      i = MSG_ReadByte();
+   else
+      i = ent->baseline.colormap;
+   if (!i)
+      ent->colormap = vid.colormap;
+   else {
+      if (i > cl.maxclients)
+         Sys_Error("i >= cl.maxclients");
+      ent->colormap = cl.players[i - 1].translations;
+   }
 
-    if (bits & U_COLORMAP)
-	i = MSG_ReadByte();
-    else
-	i = ent->baseline.colormap;
-    if (!i)
-	ent->colormap = vid.colormap;
-    else {
-	if (i > cl.maxclients)
-	    Sys_Error("i >= cl.maxclients");
-	ent->colormap = cl.players[i - 1].translations;
-    }
+   if (bits & U_SKIN)
+      ent->skinnum = MSG_ReadByte();
+   else
+      ent->skinnum = ent->baseline.skinnum;
 
-#ifdef GLQUAKE
-    if (bits & U_SKIN)
-	skin = MSG_ReadByte();
-    else
-	skin = ent->baseline.skinnum;
-    if (skin != ent->skinnum) {
-	ent->skinnum = skin;
-	if (num > 0 && num <= cl.maxclients)
-	    R_TranslatePlayerSkin(num - 1);
-    }
-#else
+   if (bits & U_EFFECTS)
+      ent->effects = MSG_ReadByte();
+   else
+      ent->effects = ent->baseline.effects;
 
-    if (bits & U_SKIN)
-	ent->skinnum = MSG_ReadByte();
-    else
-	ent->skinnum = ent->baseline.skinnum;
-#endif
+   // shift the known values for interpolation
+   VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
+   VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
 
-    if (bits & U_EFFECTS)
-	ent->effects = MSG_ReadByte();
-    else
-	ent->effects = ent->baseline.effects;
+   if (bits & U_ORIGIN1)
+      ent->msg_origins[0][0] = MSG_ReadCoord();
+   else
+      ent->msg_origins[0][0] = ent->baseline.origin[0];
+   if (bits & U_ANGLE1)
+      ent->msg_angles[0][0] = MSG_ReadAngle();
+   else
+      ent->msg_angles[0][0] = ent->baseline.angles[0];
 
-// shift the known values for interpolation
-    VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
-    VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
+   if (bits & U_ORIGIN2)
+      ent->msg_origins[0][1] = MSG_ReadCoord();
+   else
+      ent->msg_origins[0][1] = ent->baseline.origin[1];
+   if (bits & U_ANGLE2)
+      ent->msg_angles[0][1] = MSG_ReadAngle();
+   else
+      ent->msg_angles[0][1] = ent->baseline.angles[1];
 
-    if (bits & U_ORIGIN1)
-	ent->msg_origins[0][0] = MSG_ReadCoord();
-    else
-	ent->msg_origins[0][0] = ent->baseline.origin[0];
-    if (bits & U_ANGLE1)
-	ent->msg_angles[0][0] = MSG_ReadAngle();
-    else
-	ent->msg_angles[0][0] = ent->baseline.angles[0];
+   if (bits & U_ORIGIN3)
+      ent->msg_origins[0][2] = MSG_ReadCoord();
+   else
+      ent->msg_origins[0][2] = ent->baseline.origin[2];
+   if (bits & U_ANGLE3)
+      ent->msg_angles[0][2] = MSG_ReadAngle();
+   else
+      ent->msg_angles[0][2] = ent->baseline.angles[2];
 
-    if (bits & U_ORIGIN2)
-	ent->msg_origins[0][1] = MSG_ReadCoord();
-    else
-	ent->msg_origins[0][1] = ent->baseline.origin[1];
-    if (bits & U_ANGLE2)
-	ent->msg_angles[0][1] = MSG_ReadAngle();
-    else
-	ent->msg_angles[0][1] = ent->baseline.angles[1];
+   if (cl.protocol == PROTOCOL_VERSION_FITZ) {
+      if (bits & U_NOLERP) {
+         // FIXME - TODO (called U_STEP in FQ)
+      }
+      if (bits & U_FITZ_ALPHA) {
+         MSG_ReadByte(); // FIXME - TODO
+      }
+      if (bits & U_FITZ_FRAME2)
+         ent->frame = (ent->frame & 0xFF) | (MSG_ReadByte() << 8);
+      if (bits & U_FITZ_MODEL2)
+         modnum = (modnum & 0xFF)| (MSG_ReadByte() << 8);
+      if (bits & U_FITZ_LERPFINISH) {
+         MSG_ReadByte(); // FIXME - TODO
+      }
+   }
 
-    if (bits & U_ORIGIN3)
-	ent->msg_origins[0][2] = MSG_ReadCoord();
-    else
-	ent->msg_origins[0][2] = ent->baseline.origin[2];
-    if (bits & U_ANGLE3)
-	ent->msg_angles[0][2] = MSG_ReadAngle();
-    else
-	ent->msg_angles[0][2] = ent->baseline.angles[2];
+   model = cl.model_precache[modnum];
+   if (model != ent->model) {
+      ent->model = model;
+      // automatic animation (torches, etc) can be either all together
+      // or randomized
+      if (model) {
+         if (model->synctype == ST_RAND)
+            ent->syncbase = (float)(rand() & 0x7fff) / 0x7fff;
+         else
+            ent->syncbase = 0.0;
+      } else
+         forcelink = true;	// hack to make null model players work
+   }
 
-    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
-	if (bits & U_NOLERP) {
-	    // FIXME - TODO (called U_STEP in FQ)
-	}
-	if (bits & U_FITZ_ALPHA) {
-	    MSG_ReadByte(); // FIXME - TODO
-	}
-	if (bits & U_FITZ_FRAME2)
-	    ent->frame = (ent->frame & 0xFF) | (MSG_ReadByte() << 8);
-	if (bits & U_FITZ_MODEL2)
-	    modnum = (modnum & 0xFF)| (MSG_ReadByte() << 8);
-	if (bits & U_FITZ_LERPFINISH) {
-	    MSG_ReadByte(); // FIXME - TODO
-	}
-    }
+   /* MOVEMENT LERP INFO - could I just extend baseline instead? */
+   if (!VectorCompare(ent->msg_origins[0], ent->currentorigin)) {
+      if (ent->currentorigintime) {
+         VectorCopy(ent->currentorigin, ent->previousorigin);
+         ent->previousorigintime = ent->currentorigintime;
+      } else {
+         VectorCopy(ent->msg_origins[0], ent->previousorigin);
+         ent->previousorigintime = cl.mtime[0];
+      }
+      VectorCopy(ent->msg_origins[0], ent->currentorigin);
+      ent->currentorigintime = cl.mtime[0];
+   }
+   if (!VectorCompare(ent->msg_angles[0], ent->currentangles)) {
+      if (ent->currentanglestime) {
+         VectorCopy(ent->currentangles, ent->previousangles);
+         ent->previousanglestime = ent->currentanglestime;
+      } else {
+         VectorCopy(ent->msg_angles[0], ent->previousangles);
+         ent->previousanglestime = cl.mtime[0];
+      }
+      VectorCopy(ent->msg_angles[0], ent->currentangles);
+      ent->currentanglestime = cl.mtime[0];
+   }
 
-    model = cl.model_precache[modnum];
-    if (model != ent->model) {
-	ent->model = model;
-	// automatic animation (torches, etc) can be either all together
-	// or randomized
-	if (model) {
-	    if (model->synctype == ST_RAND)
-		ent->syncbase = (float)(rand() & 0x7fff) / 0x7fff;
-	    else
-		ent->syncbase = 0.0;
-	} else
-	    forcelink = true;	// hack to make null model players work
+   if (bits & U_NOLERP)
+      ent->forcelink = true;
 
-#ifdef GLQUAKE
-	if (num > 0 && num <= cl.maxclients)
-	    R_TranslatePlayerSkin(num - 1);
-#endif
-    }
-
-    /* MOVEMENT LERP INFO - could I just extend baseline instead? */
-    if (!VectorCompare(ent->msg_origins[0], ent->currentorigin)) {
-	if (ent->currentorigintime) {
-	    VectorCopy(ent->currentorigin, ent->previousorigin);
-	    ent->previousorigintime = ent->currentorigintime;
-	} else {
-	    VectorCopy(ent->msg_origins[0], ent->previousorigin);
-	    ent->previousorigintime = cl.mtime[0];
-	}
-	VectorCopy(ent->msg_origins[0], ent->currentorigin);
-	ent->currentorigintime = cl.mtime[0];
-    }
-    if (!VectorCompare(ent->msg_angles[0], ent->currentangles)) {
-	if (ent->currentanglestime) {
-	    VectorCopy(ent->currentangles, ent->previousangles);
-	    ent->previousanglestime = ent->currentanglestime;
-	} else {
-	    VectorCopy(ent->msg_angles[0], ent->previousangles);
-	    ent->previousanglestime = cl.mtime[0];
-	}
-	VectorCopy(ent->msg_angles[0], ent->currentangles);
-	ent->currentanglestime = cl.mtime[0];
-    }
-
-    if (bits & U_NOLERP)
-	ent->forcelink = true;
-
-    if (forcelink) {		// didn't have an update last message
-	VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
-	VectorCopy(ent->msg_origins[0], ent->origin);
-	VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
-	VectorCopy(ent->msg_angles[0], ent->angles);
-	ent->forcelink = true;
-    }
+   if (forcelink) {		// didn't have an update last message
+      VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
+      VectorCopy(ent->msg_origins[0], ent->origin);
+      VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
+      VectorCopy(ent->msg_angles[0], ent->angles);
+      ent->forcelink = true;
+   }
 }
 
 /*
@@ -802,34 +775,31 @@ CL_NewTranslation
 void
 CL_NewTranslation(int slot)
 {
-    int i, j;
-    int top, bottom;
-    byte *dest, *source;
+   int i, j;
+   int top, bottom;
+   byte *dest, *source;
 
-    if (slot > cl.maxclients)
-	Sys_Error("%s: slot > cl.maxclients", __func__);
-    dest = cl.players[slot].translations;
-    source = vid.colormap;
-    memcpy(dest, vid.colormap, sizeof(cl.players[slot].translations));
-    top = cl.players[slot].topcolor;
-    bottom = cl.players[slot].bottomcolor;
-#ifdef GLQUAKE
-    R_TranslatePlayerSkin(slot);
-#endif
+   if (slot > cl.maxclients)
+      Sys_Error("%s: slot > cl.maxclients", __func__);
+   dest = cl.players[slot].translations;
+   source = vid.colormap;
+   memcpy(dest, vid.colormap, sizeof(cl.players[slot].translations));
+   top = cl.players[slot].topcolor;
+   bottom = cl.players[slot].bottomcolor;
 
-    for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256) {
-	if (top < 128)		// the artists made some backwards ranges.  sigh.
-	    memcpy(dest + TOP_RANGE, source + top, 16);
-	else
-	    for (j = 0; j < 16; j++)
-		dest[TOP_RANGE + j] = source[top + 15 - j];
+   for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256) {
+      if (top < 128)		// the artists made some backwards ranges.  sigh.
+         memcpy(dest + TOP_RANGE, source + top, 16);
+      else
+         for (j = 0; j < 16; j++)
+            dest[TOP_RANGE + j] = source[top + 15 - j];
 
-	if (bottom < 128)
-	    memcpy(dest + BOTTOM_RANGE, source + bottom, 16);
-	else
-	    for (j = 0; j < 16; j++)
-		dest[BOTTOM_RANGE + j] = source[bottom + 15 - j];
-    }
+      if (bottom < 128)
+         memcpy(dest + BOTTOM_RANGE, source + bottom, 16);
+      else
+         for (j = 0; j < 16; j++)
+            dest[BOTTOM_RANGE + j] = source[bottom + 15 - j];
+   }
 }
 
 /*

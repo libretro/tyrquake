@@ -69,14 +69,6 @@ static inline int ffs (int x)
 #endif
 #endif
 
-#ifdef GLQUAKE
-#ifdef APPLE_OPENGL
-#include <OpenGL/gl.h>
-#else
-#include <GL/gl.h>
-#endif
-#endif
-
 #include "bspfile.h"
 #include "modelgen.h"
 #include "spritegn.h"
@@ -126,11 +118,6 @@ typedef struct {
 typedef struct texture_s {
     char name[16];
     unsigned width, height;
-#ifdef GLQUAKE
-    GLuint gl_texturenum;
-    GLuint gl_texturenum_alpha;	// for sky texture
-    struct msurface_s *texturechain;
-#endif
     int anim_total;		// total tenths in sequence ( 0 = no)
     int anim_min, anim_max;	// time for this frame min <=time< max
     struct texture_s *anim_next;	// in the animation sequence
@@ -145,10 +132,6 @@ typedef struct texture_s {
 #define SURF_DRAWTURB		(1 << 4)
 #define SURF_DRAWTILED		(1 << 5)
 #define SURF_DRAWBACKGROUND	(1 << 6)
-#ifdef GLQUAKE
-#define SURF_UNDERWATER		(1 << 7)
-#define SURF_DONTWARP		(1 << 8)
-#endif
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct {
@@ -163,17 +146,6 @@ typedef struct {
     int flags;
 } mtexinfo_t;
 
-#ifdef GLQUAKE
-#define	VERTEXSIZE	7
-typedef struct glpoly_s {
-    struct glpoly_s *next;
-    struct glpoly_s *chain;
-    int numverts;
-    int flags;			// for SURF_UNDERWATER
-    float verts[0][VERTEXSIZE];	// variable sized (xyz s1t1 s2t2)
-} glpoly_t;
-#endif
-
 typedef struct msurface_s {
     int visframe;	// should be drawn when node is crossed
     int clipflags;	// flags for clipping against frustum
@@ -186,18 +158,8 @@ typedef struct msurface_s {
     int firstedge;	// look up in model->surfedges[], negative numbers
     int numedges;	// are backwards edges
 
-#ifdef GLQUAKE
-    int light_s;	// gl lightmap coordinates
-    int light_t;
-    int lightmaptexturenum;
-    int cached_light[MAXLIGHTMAPS];	// values currently used in lightmap
-    qboolean cached_dlight;	// true if dynamic light in cache
-    glpoly_t *polys;	// multiple if warped
-    struct msurface_s *texturechain;
-#else
-// surface generation data
+    // surface generation data
     struct surfcache_s *cachespots[MIPLEVELS];
-#endif
 
     short texturemins[2];
     short extents[2];
@@ -316,10 +278,6 @@ typedef struct {
     mspriteframedesc_t frames[1];	/* variable sized */
 } msprite_t;
 
-#if defined (GLQUAKE) && defined(QW_HACK)
-extern byte player_8bit_texels[320 * 200];
-#endif
-
 /*
 ==============================================================================
 
@@ -368,24 +326,6 @@ typedef struct {
     maliasframedesc_t frames[1];	// variable sized
 } aliashdr_t;
 
-#ifdef GLQUAKE
-
-typedef struct {
-    int commands;	// gl command list with embedded s/t
-#ifdef NQ_HACK
-#define	MAX_SKINS	32
-    int texels[MAX_SKINS];	// only for player skins
-#endif
-    aliashdr_t ahdr;
-} gl_aliashdr_t;
-
-static INLINE gl_aliashdr_t *
-GL_Aliashdr(aliashdr_t *h)
-{
-    return container_of(h, gl_aliashdr_t, ahdr);
-}
-
-#else
 
 typedef struct {
     int stverts;
@@ -393,13 +333,11 @@ typedef struct {
     aliashdr_t ahdr;
 } sw_aliashdr_t;
 
-static INLINE sw_aliashdr_t *
-SW_Aliashdr(aliashdr_t *h)
+static INLINE sw_aliashdr_t *SW_Aliashdr(aliashdr_t *h)
 {
-    return container_of(h, sw_aliashdr_t, ahdr);
+   return container_of(h, sw_aliashdr_t, ahdr);
 }
 
-#endif
 
 #define	MAXALIASVERTS	2048
 #define	MAXALIASFRAMES	512

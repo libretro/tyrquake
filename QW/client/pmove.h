@@ -24,9 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #include "protocol.h"
 
-#ifndef GLQUAKE
 #include "d_iface.h"
-#endif
 
 typedef struct {
     vec3_t normal;

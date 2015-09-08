@@ -39,12 +39,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.h"
 #include "wad.h"
 
-#ifdef GLQUAKE
-#include "glquake.h"
-#else
 #include "r_local.h"
 #include "render.h"
-#endif
 
 /*
  * A server can allways be started, even if the system started out as a client

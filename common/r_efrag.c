@@ -24,11 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "sys.h"
 
-#ifdef GLQUAKE
-#include "glquake.h"
-#else
 #include "r_local.h"
-#endif
 
 mnode_t *r_pefragtopnode;
 
@@ -151,8 +147,6 @@ R_SplitEntityOnNode(mnode_t *node)
 	R_SplitEntityOnNode(node->children[1]);
 }
 
-
-#ifndef GLQUAKE
 /*
 ===================
 R_SplitEntityOnNode2
@@ -191,7 +185,6 @@ R_SplitEntityOnNode2(mnode_t *node)
     else
 	R_SplitEntityOnNode2(node->children[1]);
 }
-#endif
 
 
 /*

@@ -21,10 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef D_IFACE_H
 #define D_IFACE_H
 
-#ifdef GLQUAKE
-#error "Don't use this file with GLQuake"
-#endif
-
 #include "cvar.h"
 #include "mathlib.h"
 #include "model.h"

@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef R_SHARED_H
 #define R_SHARED_H
 
-#ifndef GLQUAKE
 // r_shared.h: general refresh-related stuff shared between the refresh and the
 // driver
 
@@ -147,7 +146,5 @@ typedef struct edge_s {
     float nearzi;
     medge_t *owner;
 } edge_t;
-
-#endif // GLQUAKE
 
 #endif /* R_SHARED_H */

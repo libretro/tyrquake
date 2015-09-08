@@ -27,9 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 
-#ifndef GLQUAKE
 #include "d_iface.h"
-#endif
 
 #define	MAX_BEAMS	8
 typedef struct {

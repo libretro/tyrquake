@@ -774,87 +774,67 @@ Sbar_Draw
 void
 Sbar_Draw(void)
 {
-    qboolean headsup;
-    char st[512];
+   qboolean headsup;
+   char st[512];
 
-    headsup = !(cl_sbar.value || scr_viewsize.value < 100);
-    if ((sb_updates >= vid.numpages) && !headsup)
-	return;
+   headsup = !(cl_sbar.value || scr_viewsize.value < 100);
+   if ((sb_updates >= vid.numpages) && !headsup)
+      return;
 
-    if (scr_con_current == vid.height)
-	return;			// console is full screen
+   if (scr_con_current == vid.height)
+      return;			// console is full screen
 
-    scr_copyeverything = 1;
-//      scr_fullupdate = 0;
+   scr_copyeverything = 1;
+   //      scr_fullupdate = 0;
 
-    sb_updates++;
+   sb_updates++;
 
-// top line
-    if (sb_lines > 24) {
-	if (!cl.spectator || autocam == CAM_TRACK)
-	    Sbar_DrawInventory();
-	if (!headsup || vid.width < 512)
-	    Sbar_DrawFrags();
-    }
-// main area
-    if (sb_lines > 0) {
-	if (cl.spectator) {
-	    if (autocam != CAM_TRACK) {
-		Sbar_DrawPic(0, 0, sb_scorebar);
-		Sbar_DrawString(160 - 7 * 8, 4, "SPECTATOR MODE");
-		Sbar_DrawString(160 - 14 * 8 + 4, 12,
-				"Press [ATTACK] for AutoCamera");
-	    } else {
-		if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
-		    Sbar_SoloScoreboard();
-		else
-		    Sbar_DrawNormal();
+   // top line
+   if (sb_lines > 24) {
+      if (!cl.spectator || autocam == CAM_TRACK)
+         Sbar_DrawInventory();
+      if (!headsup || vid.width < 512)
+         Sbar_DrawFrags();
+   }
+   // main area
+   if (sb_lines > 0) {
+      if (cl.spectator) {
+         if (autocam != CAM_TRACK) {
+            Sbar_DrawPic(0, 0, sb_scorebar);
+            Sbar_DrawString(160 - 7 * 8, 4, "SPECTATOR MODE");
+            Sbar_DrawString(160 - 14 * 8 + 4, 12,
+                  "Press [ATTACK] for AutoCamera");
+         } else {
+            if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+               Sbar_SoloScoreboard();
+            else
+               Sbar_DrawNormal();
 
-//                                      Sbar_DrawString (160-14*8+4,4, "SPECTATOR MODE - TRACK CAMERA");
-		sprintf(st, "Tracking %-.13s, [JUMP] for next",
-			cl.players[spec_track].name);
-		Sbar_DrawString(0, -8, st);
-	    }
-	} else if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
-	    Sbar_SoloScoreboard();
-	else
-	    Sbar_DrawNormal();
-    }
-// main screen deathmatch rankings
-    // if we're dead show team scores in team games
-    if (cl.stats[STAT_HEALTH] <= 0 && !cl.spectator)
-	if (atoi(Info_ValueForKey(cl.serverinfo, "teamplay")) > 0 &&
-	    !sb_showscores)
-	    Sbar_TeamOverlay();
-	else
-	    Sbar_DeathmatchOverlay(0);
-    else if (sb_showscores)
-	Sbar_DeathmatchOverlay(0);
-    else if (sb_showteamscores)
-	Sbar_TeamOverlay();
+            //                                      Sbar_DrawString (160-14*8+4,4, "SPECTATOR MODE - TRACK CAMERA");
+            sprintf(st, "Tracking %-.13s, [JUMP] for next",
+                  cl.players[spec_track].name);
+            Sbar_DrawString(0, -8, st);
+         }
+      } else if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+         Sbar_SoloScoreboard();
+      else
+         Sbar_DrawNormal();
+   }
+   // main screen deathmatch rankings
+   // if we're dead show team scores in team games
+   if (cl.stats[STAT_HEALTH] <= 0 && !cl.spectator)
+      if (atoi(Info_ValueForKey(cl.serverinfo, "teamplay")) > 0 &&
+            !sb_showscores)
+         Sbar_TeamOverlay();
+      else
+         Sbar_DeathmatchOverlay(0);
+   else if (sb_showscores)
+      Sbar_DeathmatchOverlay(0);
+   else if (sb_showteamscores)
+      Sbar_TeamOverlay();
 
-#ifdef GLQUAKE
-    if (sb_showscores || sb_showteamscores || cl.stats[STAT_HEALTH] <= 0)
-	sb_updates = 0;
-    // clear unused areas in gl
-#if 0
-    {
-	int x = (vid.width - 320) >> 1;
-
-	// left
-	if (x > 0) {
-	    Draw_TileClear(0, vid.height - sb_lines, x, sb_lines);
-	    Draw_TileClear(x + 320, vid.height - sb_lines,
-			   vid.width - x + 320, sb_lines);
-	}
-    }
-#endif
-    if (vid.width > 320 && !headsup)
-	Draw_TileClear(320, vid.height - sb_lines, vid.width - 320, sb_lines);
-#endif
-
-    if (sb_lines > 0)
-	Sbar_MiniDeathmatchOverlay();
+   if (sb_lines > 0)
+      Sbar_MiniDeathmatchOverlay();
 }
 
 //=============================================================================

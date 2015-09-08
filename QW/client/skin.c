@@ -195,42 +195,39 @@ Skin_NextDownload
 void
 Skin_NextDownload(void)
 {
-    player_info_t *sc;
-    int i;
+   player_info_t *sc;
+   int i;
 
-    if (cls.downloadnumber == 0)
-	Con_Printf("Checking skins...\n");
-    cls.downloadtype = dl_skin;
+   if (cls.downloadnumber == 0)
+      Con_Printf("Checking skins...\n");
+   cls.downloadtype = dl_skin;
 
-    for (; cls.downloadnumber != MAX_CLIENTS; cls.downloadnumber++) {
-	sc = &cl.players[cls.downloadnumber];
-	if (!sc->name[0])
-	    continue;
-	Skin_Find(sc);
-	if (noskins.value)
-	    continue;
-	if (!CL_CheckOrDownloadFile(va("skins/%s.pcx", sc->skin->name)))
-	    return;		// started a download
-    }
+   for (; cls.downloadnumber != MAX_CLIENTS; cls.downloadnumber++) {
+      sc = &cl.players[cls.downloadnumber];
+      if (!sc->name[0])
+         continue;
+      Skin_Find(sc);
+      if (noskins.value)
+         continue;
+      if (!CL_CheckOrDownloadFile(va("skins/%s.pcx", sc->skin->name)))
+         return;		// started a download
+   }
 
-    cls.downloadtype = dl_none;
+   cls.downloadtype = dl_none;
 
-    // now load them in for real
-    for (i = 0; i < MAX_CLIENTS; i++) {
-	sc = &cl.players[i];
-	if (!sc->name[0])
-	    continue;
-	Skin_Cache(sc->skin);
-#ifdef GLQUAKE
-	sc->skin = NULL;
-#endif
-    }
+   // now load them in for real
+   for (i = 0; i < MAX_CLIENTS; i++) {
+      sc = &cl.players[i];
+      if (!sc->name[0])
+         continue;
+      Skin_Cache(sc->skin);
+   }
 
-    if (cls.state != ca_active) {	// get next signon phase
-	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	MSG_WriteStringf(&cls.netchan.message, "begin %i", cl.servercount);
-	Cache_Report();		// print remaining memory
-    }
+   if (cls.state != ca_active) {	// get next signon phase
+      MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+      MSG_WriteStringf(&cls.netchan.message, "begin %i", cl.servercount);
+      Cache_Report();		// print remaining memory
+   }
 }
 
 

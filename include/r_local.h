@@ -23,10 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // r_local.h -- private refresh defs
 
-#ifdef GLQUAKE
-#error "Shouldn't be including this file in GLQuake!"
-#endif
-
 #include "client.h"
 #include "model.h"
 #include "r_shared.h"

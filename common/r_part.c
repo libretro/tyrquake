@@ -25,12 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #endif
 
-#ifdef GLQUAKE
-#include "glquake.h"
-#else
 #include "d_iface.h"
 #include "r_local.h"
-#endif
 
 #define MAX_PARTICLES		2048	// default max # of particles at one
 					//  time
@@ -730,91 +726,16 @@ R_DrawParticles
 void
 R_DrawParticles(void)
 {
-    particle_t *p;
+   particle_t *p;
 
-#ifdef GLQUAKE
-#ifdef QW_HACK
-    unsigned char *at;
-    unsigned char theAlpha;
-#endif
-    qboolean alphaTestEnabled;
-    vec3_t up, right;
-    float scale;
+   D_StartParticles();
 
-#ifdef NQ_HACK
-    /*
-     * FIXME - shouldn't need to do this, just get the caller to make sure
-     *         multitexture is not enabled.
-     */
-    GL_DisableMultitexture();
-#endif
-    GL_Bind(particletexture);
+   VectorScale(vright, xscaleshrink, r_pright);
+   VectorScale(vup, yscaleshrink, r_pup);
+   VectorCopy(vpn, r_ppn);
 
-    alphaTestEnabled = glIsEnabled(GL_ALPHA_TEST);
-    if (alphaTestEnabled)
-	glDisable(GL_ALPHA_TEST);
+   for (p = active_particles; p; p = p->next)
+      D_DrawParticle(p);
 
-    glEnable(GL_BLEND);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glDepthMask(GL_FALSE);
-
-    glBegin(GL_TRIANGLES);
-
-    VectorScale(vup, 1.5, up);
-    VectorScale(vright, 1.5, right);
-#else
-    D_StartParticles();
-
-    VectorScale(vright, xscaleshrink, r_pright);
-    VectorScale(vup, yscaleshrink, r_pup);
-    VectorCopy(vpn, r_ppn);
-#endif
-
-    for (p = active_particles; p; p = p->next) {
-
-#ifdef GLQUAKE
-	// hack a scale up to keep particles from disapearing
-	scale =
-	    (p->org[0] - r_origin[0]) * vpn[0] + (p->org[1] -
-						  r_origin[1]) * vpn[1]
-	    + (p->org[2] - r_origin[2]) * vpn[2];
-	if (scale < 20)
-	    scale = 1;
-	else
-	    scale = 1 + scale * 0.004;
-#ifdef QW_HACK
-	at = (byte *)&d_8to24table[(int)p->color];
-	if (p->type == pt_fire)
-	    theAlpha = 255 * (6 - p->ramp) / 6;
-	else
-	    theAlpha = 255;
-	glColor4ub(*at, *(at + 1), *(at + 2), theAlpha);
-#endif
-#ifdef NQ_HACK
-	glColor3ubv((byte *)&d_8to24table[(int)p->color]);
-#endif
-	glTexCoord2f(0, 0);
-	glVertex3fv(p->org);
-	glTexCoord2f(1, 0);
-	glVertex3f(p->org[0] + up[0] * scale, p->org[1] + up[1] * scale,
-		   p->org[2] + up[2] * scale);
-	glTexCoord2f(0, 1);
-	glVertex3f(p->org[0] + right[0] * scale,
-		   p->org[1] + right[1] * scale,
-		   p->org[2] + right[2] * scale);
-#else
-	D_DrawParticle(p);
-#endif
-    }
-
-#ifdef GLQUAKE
-    glEnd();
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
-    if (alphaTestEnabled)
-	glEnable(GL_ALPHA_TEST);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-#else
-    D_EndParticles();
-#endif
+   D_EndParticles();
 }

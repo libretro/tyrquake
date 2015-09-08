@@ -29,9 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #endif
 
-#ifndef GLQUAKE
 #include "d_iface.h"
-#endif
 
 // FIXME - header hacks
 extern vec3_t player_mins;

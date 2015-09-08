@@ -25,11 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #include "sys.h"
 
-#ifdef GLQUAKE
-#include "glquake.h"
-#else
 #include "r_local.h"
-#endif
 
 static aliashdr_t *pheader;
 
@@ -185,11 +181,7 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
    float *pskinintervals;
    byte *pskindata;
 
-   if (numskins < 1
-#if defined(GLQUAKE) && defined(NQ_HACK)
-         || numskins > MAX_SKINS
-#endif
-      )
+   if (numskins < 1)
       Sys_Error("%s: Invalid # of skins: %d", __func__, numskins);
    if (pheader->skinwidth & 0x03)
       Sys_Error("%s: skinwidth not multiple of 4", __func__);

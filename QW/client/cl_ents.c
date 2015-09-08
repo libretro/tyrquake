@@ -30,11 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "view.h"
 
-#ifdef GLQUAKE
-#include "glquake.h"
-#else
 #include "d_iface.h"
-#endif
 
 // refresh list
 int cl_numvisedicts;
@@ -799,9 +795,6 @@ CL_LinkPlayers(void)
 	    continue;		// not present this frame
 
 	// spawn light flashes, even ones coming from invisible objects
-#ifdef GLQUAKE
-	if (!gl_flashblend.value || j != cl.playernum) {
-#endif
 	    if ((state->effects & (EF_BLUE | EF_RED)) == (EF_BLUE | EF_RED))
 		CL_NewDlight(j, state->origin[0], state->origin[1],
 			     state->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_PURPLE);
@@ -818,9 +811,6 @@ CL_LinkPlayers(void)
 	    else if (state->effects & EF_DIMLIGHT)
 		CL_NewDlight(j, state->origin[0], state->origin[1],
 			     state->origin[2], 200 + (rand() & 31), 0.1, DLIGHT_FLASH);
-#ifdef GLQUAKE
-	}
-#endif
 
 	// the player object never gets added
 	if (j == cl.playernum)

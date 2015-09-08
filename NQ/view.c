@@ -66,10 +66,6 @@ cvar_t crosshaircolor = { "crosshaircolor", "79", true };
 cvar_t cl_crossx = { "cl_crossx", "0", false };
 cvar_t cl_crossy = { "cl_crossy", "0", false };
 
-#ifdef GLQUAKE
-cvar_t gl_cshiftpercent = { "gl_cshiftpercent", "100", false };
-#endif
-
 float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 /* BOF - Framerate-independent stair-step smoothing */
@@ -271,11 +267,6 @@ cshift_t cshift_lava = { {255, 80, 0}, 150 };
 cvar_t v_gamma = { "gamma", "1", true };
 
 byte gammatable[256];		// palette is sent through this
-
-#ifdef	GLQUAKE
-unsigned short ramps[3][256];
-float v_blend[4];		// rgba 0.0 - 1.0
-#endif
 
 void
 BuildGammaTable(float g)
@@ -486,45 +477,6 @@ V_CalcPowerupCshift(void)
 	cl.cshifts[CSHIFT_POWERUP].percent = 0;
 }
 
-/*
-=============
-V_CalcBlend
-=============
-*/
-#ifdef	GLQUAKE
-void
-V_CalcBlend(void)
-{
-    float r, g, b, a, a2;
-    int j;
-
-    r = g = b = a = 0;
-
-    if (gl_cshiftpercent.value) {
-	for (j = 0; j < NUM_CSHIFTS; j++) {
-	    a2 = ((cl.cshifts[j].percent * gl_cshiftpercent.value) / 100.0) /
-		255.0;
-	    if (!a2)
-		continue;
-	    a = a + a2 * (1 - a);
-	    a2 = a2 / a;
-	    r = r * (1 - a2) + cl.cshifts[j].destcolor[0] * a2;
-	    g = g * (1 - a2) + cl.cshifts[j].destcolor[1] * a2;
-	    b = b * (1 - a2) + cl.cshifts[j].destcolor[2] * a2;
-	}
-    }
-
-    v_blend[0] = r / 255.0;
-    v_blend[1] = g / 255.0;
-    v_blend[2] = b / 255.0;
-    v_blend[3] = a;
-    if (v_blend[3] > 1)
-	v_blend[3] = 1;
-    if (v_blend[3] < 0)
-	v_blend[3] = 0;
-}
-#endif
-
 void V_DropCShift (cshift_t *cs, float droprate)
 {
    if (cs->time < 0)
@@ -541,33 +493,6 @@ void V_DropCShift (cshift_t *cs, float droprate)
 V_UpdatePalette
 =============
 */
-#ifdef	GLQUAKE
-void
-V_UpdatePalette(void)
-{
-    int i;
-    qboolean force;
-
-    V_CalcPowerupCshift();
-
-    // drop the damage and bonus values
-    V_DropCShift (&cl.cshifts[CSHIFT_DAMAGE], 150);
-    V_DropCShift (&cl.cshifts[CSHIFT_BONUS], 100);
-
-    force = V_CheckGamma();
-
-    if (force) {
-	for (i = 0; i < 256; i++) {
-	    ramps[0][i] = gammatable[i] << 8;
-	    ramps[1][i] = gammatable[i] << 8;
-	    ramps[2][i] = gammatable[i] << 8;
-	}
-	if (VID_IsFullScreen() && VID_SetGammaRamp)
-	    VID_SetGammaRamp(ramps);
-	//VID_ShiftPalette(NULL);
-    }
-}
-#else // !GLQUAKE
 void
 V_UpdatePalette(void)
 {
@@ -632,7 +557,6 @@ V_UpdatePalette(void)
 
    VID_ShiftPalette(pal);
 }
-#endif // !GLQUAKE
 
 /*
 ==============================================================================
@@ -956,30 +880,27 @@ the entity origin, so any view position inside that will be valid
 void
 V_RenderView(void)
 {
-    if (con_forcedup)
-	return;
+   if (con_forcedup)
+      return;
 
-// don't allow cheats in multiplayer
-    if (cl.maxclients > 1) {
-	Cvar_Set("scr_ofsx", "0");
-	Cvar_Set("scr_ofsy", "0");
-	Cvar_Set("scr_ofsz", "0");
-    }
+   // don't allow cheats in multiplayer
+   if (cl.maxclients > 1) {
+      Cvar_Set("scr_ofsx", "0");
+      Cvar_Set("scr_ofsy", "0");
+      Cvar_Set("scr_ofsz", "0");
+   }
 
-    if (cl.intermission) {	// intermission / finale rendering
-	V_CalcIntermissionRefdef();
-    } else {
-	if (!cl.paused /* && (sv.maxclients > 1 || key_dest == key_game) */ )
-	    V_CalcRefdef();
-    }
+   if (cl.intermission) {	// intermission / finale rendering
+      V_CalcIntermissionRefdef();
+   } else {
+      if (!cl.paused /* && (sv.maxclients > 1 || key_dest == key_game) */ )
+         V_CalcRefdef();
+   }
 
-    R_RenderView();
+   R_RenderView();
 
-#ifndef GLQUAKE
-    if (crosshair.value)
-	Draw_Crosshair();
-#endif
-
+   if (crosshair.value)
+      Draw_Crosshair();
 }
 
 //============================================================================
@@ -1011,9 +932,6 @@ V_Init(void)
     Cvar_RegisterVariable(&crosshaircolor);
     Cvar_RegisterVariable(&cl_crossx);
     Cvar_RegisterVariable(&cl_crossy);
-#ifdef GLQUAKE
-    Cvar_RegisterVariable(&gl_cshiftpercent);
-#endif
 
     Cvar_RegisterVariable(&scr_ofsx);
     Cvar_RegisterVariable(&scr_ofsy);

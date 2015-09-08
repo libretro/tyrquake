@@ -34,12 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "view.h"
 
-#ifdef GLQUAKE
-#include "glquake.h"
-#else
 #include "d_iface.h"
 #include "r_local.h"
-#endif
 
 #ifdef NQ_HACK
 #include "host.h"
@@ -115,12 +111,8 @@ static cvar_t scr_showram = { "showram", "1" };
 static cvar_t scr_showturtle = { "showturtle", "0" };
 static cvar_t scr_showpause = { "showpause", "1" };
 static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
-#ifdef GLQUAKE
-static cvar_t gl_triplebuffer = { "gl_triplebuffer", "1", true };
-#else
 static vrect_t *pconupdate;
 qboolean scr_skipupdate;
-#endif
 
 static const qpic_t *scr_ram;
 static const qpic_t *scr_net;
@@ -282,11 +274,6 @@ static void SCR_SetUpToDrawConsole(void)
    }
 
    if (clearconsole++ < vid.numpages) {
-#ifdef GLQUAKE
-      scr_copytop = 1;
-      Draw_TileClear(0, (int)scr_con_current, vid.width,
-            vid.height - (int)scr_con_current);
-#endif
       Sbar_Changed();
    } else if (clearnotify++ < vid.numpages) {
       scr_copytop = 1;
@@ -693,33 +680,6 @@ SCR_EndLoadingPlaque(void)
 
 //=============================================================================
 
-#ifdef GLQUAKE
-static void
-SCR_TileClear(void)
-{
-    if (r_refdef.vrect.x > 0) {
-	// left
-	Draw_TileClear(0, 0, r_refdef.vrect.x, vid.height - sb_lines);
-	// right
-	Draw_TileClear(r_refdef.vrect.x + r_refdef.vrect.width, 0,
-		       vid.width - r_refdef.vrect.x + r_refdef.vrect.width,
-		       vid.height - sb_lines);
-    }
-    if (r_refdef.vrect.y > 0) {
-	// top
-	Draw_TileClear(r_refdef.vrect.x, 0,
-		       r_refdef.vrect.x + r_refdef.vrect.width,
-		       r_refdef.vrect.y);
-	// bottom
-	Draw_TileClear(r_refdef.vrect.x,
-		       r_refdef.vrect.y + r_refdef.vrect.height,
-		       r_refdef.vrect.width,
-		       vid.height - sb_lines -
-		       (r_refdef.vrect.height + r_refdef.vrect.y));
-    }
-}
-#endif
-
 /*
 ==================
 SCR_UpdateScreen
@@ -734,222 +694,162 @@ needs almost the entire 256k of stack space!
 void
 SCR_UpdateScreen(void)
 {
-    static float old_viewsize, old_fov;
-#ifndef GLQUAKE
-    vrect_t vrect;
+   static float old_viewsize, old_fov;
+   vrect_t vrect;
 
-    if (scr_skipupdate)
-	return;
-#endif
-    if (scr_block_drawing)
-       return;
-
-#ifdef GLQUAKE
-    vid.numpages = 2 + gl_triplebuffer.value;
-#endif
+   if (scr_skipupdate)
+      return;
+   if (scr_block_drawing)
+      return;
 
 #ifdef NQ_HACK
-    if (scr_disabled_for_loading) {
-	/*
-	 * FIXME - this really needs to be fixed properly.
-	 * Simply starting a new game and typing "changelevel foo" will hang
-	 * the engine for 5s (was 60s!) if foo.bsp does not exist.
-	 */
-	if (realtime - scr_disabled_time > 5) {
-	    scr_disabled_for_loading = false;
-	    Con_Printf("load failed.\n");
-	} else
-	    return;
-    }
+   if (scr_disabled_for_loading) {
+      /*
+       * FIXME - this really needs to be fixed properly.
+       * Simply starting a new game and typing "changelevel foo" will hang
+       * the engine for 5s (was 60s!) if foo.bsp does not exist.
+       */
+      if (realtime - scr_disabled_time > 5) {
+         scr_disabled_for_loading = false;
+         Con_Printf("load failed.\n");
+      } else
+         return;
+   }
 #endif
 #ifdef QW_HACK
-    if (scr_disabled_for_loading)
-	return;
-#endif
-
-#if defined(_WIN32) && !defined(GLQUAKE)
-    /* Don't suck up CPU if minimized */
-    if (!window_visible())
-	return;
+   if (scr_disabled_for_loading)
+      return;
 #endif
 
 #ifdef NQ_HACK
-    if (cls.state == ca_dedicated)
-	return;			// stdout only
+   if (cls.state == ca_dedicated)
+      return;			// stdout only
 #endif
 
-    if (!scr_initialized || !con_initialized)
-	return;			// not initialized yet
+   if (!scr_initialized || !con_initialized)
+      return;			// not initialized yet
 
-    scr_copytop = 0;
-    scr_copyeverything = 0;
+   scr_copytop = 0;
+   scr_copyeverything = 0;
 
-#ifdef GLQUAKE
-    GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
-#endif
-
-    /*
-     * Check for vid setting changes
-     */
-    if (old_fov != scr_fov.value) {
-	old_fov = scr_fov.value;
-	vid.recalc_refdef = true;
-    }
-    if (old_viewsize != scr_viewsize.value) {
-	old_viewsize = scr_viewsize.value;
-	vid.recalc_refdef = true;
-    }
+   /*
+    * Check for vid setting changes
+    */
+   if (old_fov != scr_fov.value) {
+      old_fov = scr_fov.value;
+      vid.recalc_refdef = true;
+   }
+   if (old_viewsize != scr_viewsize.value) {
+      old_viewsize = scr_viewsize.value;
+      vid.recalc_refdef = true;
+   }
 #ifdef QW_HACK
-    if (oldsbar != cl_sbar.value) {
-	oldsbar = cl_sbar.value;
-	vid.recalc_refdef = true;
-    }
+   if (oldsbar != cl_sbar.value) {
+      oldsbar = cl_sbar.value;
+      vid.recalc_refdef = true;
+   }
 #endif
 
-    if (vid.recalc_refdef)
-	SCR_CalcRefdef();
+   if (vid.recalc_refdef)
+      SCR_CalcRefdef();
 
-    /*
-     * do 3D refresh drawing, and then update the screen
-     */
-#ifdef GLQUAKE
-    SCR_SetUpToDrawConsole();
-#else
-    D_EnableBackBufferAccess();	/* for overlay stuff, if drawing directly */
+   /*
+    * do 3D refresh drawing, and then update the screen
+    */
+   D_EnableBackBufferAccess();	/* for overlay stuff, if drawing directly */
 
-    if (scr_fullupdate++ < vid.numpages) {
-	/* clear the entire screen */
-	scr_copyeverything = 1;
-	Draw_TileClear(0, 0, vid.width, vid.height);
-	Sbar_Changed();
-    }
-    pconupdate = NULL;
-    SCR_SetUpToDrawConsole();
-    SCR_EraseCenterString();
+   if (scr_fullupdate++ < vid.numpages) {
+      /* clear the entire screen */
+      scr_copyeverything = 1;
+      Draw_TileClear(0, 0, vid.width, vid.height);
+      Sbar_Changed();
+   }
+   pconupdate = NULL;
+   SCR_SetUpToDrawConsole();
+   SCR_EraseCenterString();
 
-    /* for adapters that can't stay mapped in for linear writes all the time */
-    D_DisableBackBufferAccess();
+   /* for adapters that can't stay mapped in for linear writes all the time */
+   D_DisableBackBufferAccess();
 
-    VID_LockBuffer();
-#endif /* !GLQUAKE */
+   VID_LockBuffer();
 
-    V_RenderView();
+   V_RenderView();
 
-#ifdef GLQUAKE
-    GL_Set2D();
+   VID_UnlockBuffer();
+   D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
 
-    /* draw any areas not covered by the refresh */
-    SCR_TileClear();
-
-#ifdef QW_HACK /* FIXME - draw from same place as SW renderer? */
-    if (r_netgraph.value)
-	R_NetGraph();
-#endif
-
-#else /* !GLQUAKE */
-    VID_UnlockBuffer();
-    D_EnableBackBufferAccess();	// of all overlay stuff if drawing directly
-#endif /* !GLQUAKE */
-
-    if (scr_drawdialog) {
-	Sbar_Draw();
-	Draw_FadeScreen();
-	SCR_DrawNotifyString();
-	scr_copyeverything = true;
+   if (scr_drawdialog) {
+      Sbar_Draw();
+      Draw_FadeScreen();
+      SCR_DrawNotifyString();
+      scr_copyeverything = true;
 #ifdef NQ_HACK
-    } else if (scr_drawloading) {
-	SCR_DrawLoading();
-	Sbar_Draw();
+   } else if (scr_drawloading) {
+      SCR_DrawLoading();
+      Sbar_Draw();
 #endif
-    } else if (cl.intermission == 1 && key_dest == key_game) {
-	Sbar_IntermissionOverlay();
-    } else if (cl.intermission == 2 && key_dest == key_game) {
-	Sbar_FinaleOverlay();
-	SCR_DrawCenterString();
-#if defined(NQ_HACK) && !defined(GLQUAKE) /* FIXME? */
-    } else if (cl.intermission == 3 && key_dest == key_game) {
-	SCR_DrawCenterString();
+   } else if (cl.intermission == 1 && key_dest == key_game) {
+      Sbar_IntermissionOverlay();
+   } else if (cl.intermission == 2 && key_dest == key_game) {
+      Sbar_FinaleOverlay();
+      SCR_DrawCenterString();
+#if defined(NQ_HACK) /* FIXME? */
+   } else if (cl.intermission == 3 && key_dest == key_game) {
+      SCR_DrawCenterString();
 #endif
-    } else {
-#if defined(NQ_HACK) && defined(GLQUAKE)
-	if (crosshair.value) {
-	    //Draw_Crosshair();
-	    Draw_Character(scr_vrect.x + scr_vrect.width / 2,
-			   scr_vrect.y + scr_vrect.height / 2, '+');
-	}
-#endif
-#if defined(QW_HACK) && defined(GLQUAKE)
-	if (crosshair.value)
-	    Draw_Crosshair();
-#endif
-	SCR_DrawRam();
-	SCR_DrawNet();
-	SCR_DrawFPS();
-	SCR_DrawTurtle();
-	SCR_DrawPause();
-	SCR_DrawCenterString();
-	Sbar_Draw();
-	SCR_DrawConsole();
-	M_Draw();
-    }
+   } else {
+      SCR_DrawRam();
+      SCR_DrawNet();
+      SCR_DrawFPS();
+      SCR_DrawTurtle();
+      SCR_DrawPause();
+      SCR_DrawCenterString();
+      Sbar_Draw();
+      SCR_DrawConsole();
+      M_Draw();
+   }
 
-#ifndef GLQUAKE
-    /* for adapters that can't stay mapped in for linear writes all the time */
-    D_DisableBackBufferAccess();
-    if (pconupdate)
-	D_UpdateRects(pconupdate);
-#endif
+   /* for adapters that can't stay mapped in for linear writes all the time */
+   D_DisableBackBufferAccess();
+   if (pconupdate)
+      D_UpdateRects(pconupdate);
 
-    V_UpdatePalette();
+   V_UpdatePalette();
 
-#ifdef GLQUAKE
-    GL_EndRendering();
-#else
-    /*
-     * update one of three areas
-     */
-    if (scr_copyeverything) {
-	vrect.x = 0;
-	vrect.y = 0;
-	vrect.width = vid.width;
-	vrect.height = vid.height;
-	vrect.pnext = 0;
+   /*
+    * update one of three areas
+    */
+   if (scr_copyeverything)
+   {
+      vrect.x = 0;
+      vrect.y = 0;
+      vrect.width = vid.width;
+      vrect.height = vid.height;
+      vrect.pnext = 0;
 
-	VID_Update(&vrect);
-    } else if (scr_copytop) {
-	vrect.x = 0;
-	vrect.y = 0;
-	vrect.width = vid.width;
-	vrect.height = vid.height - sb_lines;
-	vrect.pnext = 0;
+      VID_Update(&vrect);
+   }
+   else if (scr_copytop)
+   {
+      vrect.x = 0;
+      vrect.y = 0;
+      vrect.width = vid.width;
+      vrect.height = vid.height - sb_lines;
+      vrect.pnext = 0;
 
-	VID_Update(&vrect);
-    } else {
-	vrect.x = scr_vrect.x;
-	vrect.y = scr_vrect.y;
-	vrect.width = scr_vrect.width;
-	vrect.height = scr_vrect.height;
-	vrect.pnext = 0;
+      VID_Update(&vrect);
+   }
+   else
+   {
+      vrect.x = scr_vrect.x;
+      vrect.y = scr_vrect.y;
+      vrect.width = scr_vrect.width;
+      vrect.height = scr_vrect.height;
+      vrect.pnext = 0;
 
-	VID_Update(&vrect);
-    }
-#endif
+      VID_Update(&vrect);
+   }
 }
-
-#if !defined(GLQUAKE) && defined(_WIN32)
-/*
-==================
-SCR_UpdateWholeScreen
-FIXME - vid_win.c only?
-==================
-*/
-void
-SCR_UpdateWholeScreen(void)
-{
-    scr_fullupdate = 0;
-    SCR_UpdateScreen();
-}
-#endif
 
 //=============================================================================
 
@@ -970,9 +870,6 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
     Cvar_RegisterVariable(&show_fps);
-#ifdef GLQUAKE
-    Cvar_RegisterVariable(&gl_triplebuffer);
-#endif
 
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
