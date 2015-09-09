@@ -38,8 +38,7 @@ int ubasestep, errorterm, erroradjustup, erroradjustdown;
 D_MipLevelForScale
 =============
 */
-static int
-D_MipLevelForScale(float scale)
+static int D_MipLevelForScale(float scale)
 {
    int lmiplevel;
 
@@ -67,19 +66,16 @@ D_DrawSolidSurface
 
 // FIXME: clean this up
 
-static void
-D_DrawSolidSurface(surf_t *surf, int color)
+static void D_DrawSolidSurface(surf_t *surf, int color)
 {
    espan_t *span;
-   byte *pdest;
-   int u, u2, pix;
+   int pix = (color << 24) | (color << 16) | (color << 8) | color;
 
-   pix = (color << 24) | (color << 16) | (color << 8) | color;
    for (span = surf->spans; span; span = span->pnext)
    {
-      pdest = (byte *)d_viewbuffer + screenwidth * span->v;
-      u = span->u;
-      u2 = span->u + span->count - 1;
+      byte *pdest = (byte *)d_viewbuffer + screenwidth * span->v;
+      int u = span->u;
+      int u2 = span->u + span->count - 1;
       ((byte *)pdest)[u] = pix;
 
       if (u2 - u < 8)
@@ -108,15 +104,12 @@ D_DrawSolidSurface(surf_t *surf, int color)
 D_CalcGradients
 ==============
 */
-static void
-D_CalcGradients(msurface_t *pface)
+static void D_CalcGradients(msurface_t *pface)
 {
-   float mipscale;
    vec3_t p_temp1;
    vec3_t p_saxis, p_taxis;
    float t;
-
-   mipscale = 1.0 / (float)(1 << miplevel);
+   float mipscale = 1.0 / (float)(1 << miplevel);
 
    TransformVector(pface->texinfo->vecs[0], p_saxis);
    TransformVector(pface->texinfo->vecs[1], p_taxis);
@@ -158,13 +151,12 @@ D_DrawSurfaces
 surfcache_t *pcurrentcache;
 void D_DrawSurfaces(void)
 {
-   const entity_t *e;
    surf_t *s;
    msurface_t *pface;
    vec3_t world_transformed_modelorg;
    vec3_t local_modelorg;
+   const entity_t *e = &r_worldentity;
 
-   e = &r_worldentity;
    TransformVector(modelorg, transformed_modelorg);
    VectorCopy(transformed_modelorg, world_transformed_modelorg);
 
