@@ -666,11 +666,9 @@ static void S_Update_(void)
  * Called once each time through the main loop
  * ============
  */
-void
-S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
+void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 {
    int i, j;
-   int total;
    channel_t *ch;
    channel_t *combine;
 
