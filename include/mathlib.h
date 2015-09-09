@@ -53,12 +53,7 @@ extern int nanmask;
 #ifdef _MSC_VER
 #define  IS_NAN(x) _isnan(x)
 #else
-#define	IS_NAN(x) ({ \
-	float *_x = &(x);		\
-	int tmp;			\
-	memcpy(&tmp, _x, sizeof(int));	\
-	((tmp & nanmask) == nanmask);	\
-})
+#define	IS_NAN(x) (((*(int *)&x)&nanmask)==nanmask)
 #endif
 
 #define DotProduct(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
