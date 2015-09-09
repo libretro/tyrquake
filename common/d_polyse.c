@@ -177,23 +177,18 @@ D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
 D_DrawSubdiv
 ================
 */
-static void
-D_DrawSubdiv(void)
+static void D_DrawSubdiv(void)
 {
-   mtriangle_t *ptri;
-   finalvert_t *pfv, *index0, *index1, *index2;
    int i;
-   int lnumtriangles;
-
-   pfv = r_affinetridesc.pfinalverts;
-   ptri = r_affinetridesc.ptriangles;
-   lnumtriangles = r_affinetridesc.numtriangles;
+   finalvert_t *pfv  = r_affinetridesc.pfinalverts;
+   mtriangle_t *ptri = r_affinetridesc.ptriangles;
+   int lnumtriangles = r_affinetridesc.numtriangles;
 
    for (i = 0; i < lnumtriangles; i++)
    {
-      index0 = pfv + ptri[i].vertindex[0];
-      index1 = pfv + ptri[i].vertindex[1];
-      index2 = pfv + ptri[i].vertindex[2];
+      finalvert_t *index0 = pfv + ptri[i].vertindex[0];
+      finalvert_t *index1 = pfv + ptri[i].vertindex[1];
+      finalvert_t *index2 = pfv + ptri[i].vertindex[2];
 
       if (((index0->v[1] - index1->v[1]) *
                (index0->v[0] - index2->v[0]) -
@@ -207,11 +202,9 @@ D_DrawSubdiv(void)
          D_PolysetRecursiveTriangle(index0->v, index1->v, index2->v);
       else
       {
-         int s0, s1, s2;
-
-         s0 = index0->v[2];
-         s1 = index1->v[2];
-         s2 = index2->v[2];
+         int s0 = index0->v[2];
+         int s1 = index1->v[2];
+         int s2 = index2->v[2];
 
          if (index0->flags & ALIAS_ONSEAM)
             index0->v[2] += r_affinetridesc.seamfixupX16;
@@ -235,22 +228,19 @@ D_DrawSubdiv(void)
 D_DrawNonSubdiv
 ================
 */
-static void
-D_DrawNonSubdiv(void)
+static void D_DrawNonSubdiv(void)
 {
-   mtriangle_t *ptri;
-   finalvert_t *pfv, *index0, *index1, *index2;
    int i;
-   int lnumtriangles;
 
-   pfv = r_affinetridesc.pfinalverts;
-   ptri = r_affinetridesc.ptriangles;
-   lnumtriangles = r_affinetridesc.numtriangles;
+   finalvert_t *pfv = r_affinetridesc.pfinalverts;
+   mtriangle_t *ptri = r_affinetridesc.ptriangles;
+   int lnumtriangles = r_affinetridesc.numtriangles;
 
-   for (i = 0; i < lnumtriangles; i++, ptri++) {
-      index0 = pfv + ptri->vertindex[0];
-      index1 = pfv + ptri->vertindex[1];
-      index2 = pfv + ptri->vertindex[2];
+   for (i = 0; i < lnumtriangles; i++, ptri++)
+   {
+      finalvert_t *index0 = pfv + ptri->vertindex[0];
+      finalvert_t *index1 = pfv + ptri->vertindex[1];
+      finalvert_t *index2 = pfv + ptri->vertindex[2];
 
       d_xdenom = (index0->v[1] - index1->v[1]) *
          (index0->v[0] - index2->v[0]) -
@@ -301,80 +291,78 @@ D_DrawNonSubdiv(void)
 D_PolysetRecursiveTriangle
 ================
 */
-static void
-D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
+static void D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
 {
-    int *temp;
-    int d;
-    int newobj[6];
-    int z;
-    short *zbuf;
+   int *temp;
+   int newobj[6];
+   int z;
+   short *zbuf;
 
-    d = lp2[0] - lp1[0];
-    if (d < -1 || d > 1)
-	goto split;
-    d = lp2[1] - lp1[1];
-    if (d < -1 || d > 1)
-	goto split;
+   int d = lp2[0] - lp1[0];
+   if (d < -1 || d > 1)
+      goto split;
+   d = lp2[1] - lp1[1];
+   if (d < -1 || d > 1)
+      goto split;
 
-    d = lp3[0] - lp2[0];
-    if (d < -1 || d > 1)
-	goto split2;
-    d = lp3[1] - lp2[1];
-    if (d < -1 || d > 1)
-	goto split2;
+   d = lp3[0] - lp2[0];
+   if (d < -1 || d > 1)
+      goto split2;
+   d = lp3[1] - lp2[1];
+   if (d < -1 || d > 1)
+      goto split2;
 
-    d = lp1[0] - lp3[0];
-    if (d < -1 || d > 1)
-	goto split3;
-    d = lp1[1] - lp3[1];
-    if (d < -1 || d > 1) {
-      split3:
-	temp = lp1;
-	lp1 = lp3;
-	lp3 = lp2;
-	lp2 = temp;
+   d = lp1[0] - lp3[0];
+   if (d < -1 || d > 1)
+      goto split3;
+   d = lp1[1] - lp3[1];
+   if (d < -1 || d > 1) {
+split3:
+      temp = lp1;
+      lp1 = lp3;
+      lp3 = lp2;
+      lp2 = temp;
 
-	goto split;
-    }
+      goto split;
+   }
 
-    return;			// entire tri is filled
+   return;			// entire tri is filled
 
-  split2:
-    temp = lp1;
-    lp1 = lp2;
-    lp2 = lp3;
-    lp3 = temp;
+split2:
+   temp = lp1;
+   lp1 = lp2;
+   lp2 = lp3;
+   lp3 = temp;
 
-  split:
-// split this edge
-    newobj[0] = (lp1[0] + lp2[0]) >> 1;
-    newobj[1] = (lp1[1] + lp2[1]) >> 1;
-    newobj[2] = (lp1[2] + lp2[2]) >> 1;
-    newobj[3] = (lp1[3] + lp2[3]) >> 1;
-    newobj[5] = (lp1[5] + lp2[5]) >> 1;
+split:
+   // split this edge
+   newobj[0] = (lp1[0] + lp2[0]) >> 1;
+   newobj[1] = (lp1[1] + lp2[1]) >> 1;
+   newobj[2] = (lp1[2] + lp2[2]) >> 1;
+   newobj[3] = (lp1[3] + lp2[3]) >> 1;
+   newobj[5] = (lp1[5] + lp2[5]) >> 1;
 
-// draw the point if splitting a leading edge
-    if (lp2[1] > lp1[1])
-	goto nodraw;
-    if ((lp2[1] == lp1[1]) && (lp2[0] < lp1[0]))
-	goto nodraw;
+   // draw the point if splitting a leading edge
+   if (lp2[1] > lp1[1])
+      goto nodraw;
+   if ((lp2[1] == lp1[1]) && (lp2[0] < lp1[0]))
+      goto nodraw;
 
 
-    z = newobj[5] >> 16;
-    zbuf = zspantable[newobj[1]] + newobj[0];
-    if (z >= *zbuf) {
-	int pix;
+   z = newobj[5] >> 16;
+   zbuf = zspantable[newobj[1]] + newobj[0];
+   if (z >= *zbuf) {
+      int pix;
 
-	*zbuf = z;
-	pix = d_pcolormap[skintable[newobj[3] >> 16][newobj[2] >> 16]];
-	d_viewbuffer[d_scantable[newobj[1]] + newobj[0]] = pix;
-    }
+      *zbuf = z;
+      pix = d_pcolormap[skintable[newobj[3] >> 16][newobj[2] >> 16]];
+      d_viewbuffer[d_scantable[newobj[1]] + newobj[0]] = pix;
+   }
 
-  nodraw:
-// recursively continue
-    D_PolysetRecursiveTriangle(lp3, lp1, newobj);
-    D_PolysetRecursiveTriangle(lp3, newobj, lp2);
+nodraw:
+   // recursively continue
+   D_PolysetRecursiveTriangle(lp3, lp1, newobj);
+   D_PolysetRecursiveTriangle(lp3, newobj, lp2);
 }
 
 /*
@@ -382,20 +370,20 @@ D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
 D_PolysetUpdateTables
 ================
 */
-void
-D_PolysetUpdateTables(void)
+void D_PolysetUpdateTables(void)
 {
-    int i;
-    byte *s;
+   int i;
+   byte *s;
 
-    if (r_affinetridesc.skinwidth != skinwidth ||
-	r_affinetridesc.pskin != skinstart) {
-	skinwidth = r_affinetridesc.skinwidth;
-	skinstart = (byte*)r_affinetridesc.pskin;
-	s = skinstart;
-	for (i = 0; i < MAX_LBM_HEIGHT; i++, s += skinwidth)
-	    skintable[i] = s;
-    }
+   if (r_affinetridesc.skinwidth != skinwidth ||
+         r_affinetridesc.pskin != skinstart)
+   {
+      skinwidth = r_affinetridesc.skinwidth;
+      skinstart = (byte*)r_affinetridesc.pskin;
+      s = skinstart;
+      for (i = 0; i < MAX_LBM_HEIGHT; i++, s += skinwidth)
+         skintable[i] = s;
+   }
 }
 
 /*
@@ -403,8 +391,7 @@ D_PolysetUpdateTables(void)
 D_PolysetScanLeftEdge
 ====================
 */
-void
-D_PolysetScanLeftEdge(int height)
+void D_PolysetScanLeftEdge(int height)
 {
    do
    {
@@ -464,34 +451,36 @@ D_PolysetScanLeftEdge(int height)
 D_PolysetSetUpForLineScan
 ====================
 */
-static void
-D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
+static void D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
 			  fixed8_t endvertu, fixed8_t endvertv)
 {
-    double dm, dn;
-    int tm, tn;
-    adivtab_t *ptemp;
+   double dm, dn;
+   int tm, tn;
+   adivtab_t *ptemp;
 
-// TODO: implement x86 version
+   // TODO: implement x86 version
 
-    errorterm = -1;
+   errorterm = -1;
 
-    tm = endvertu - startvertu;
-    tn = endvertv - startvertv;
+   tm = endvertu - startvertu;
+   tn = endvertv - startvertv;
 
-    if (((tm <= 16) && (tm >= -15)) && ((tn <= 16) && (tn >= -15))) {
-	ptemp = &adivtab[((tm + 15) << 5) + (tn + 15)];
-	ubasestep = ptemp->quotient;
-	erroradjustup = ptemp->remainder;
-	erroradjustdown = tn;
-    } else {
-	dm = (double)tm;
-	dn = (double)tn;
+   if (((tm <= 16) && (tm >= -15)) && ((tn <= 16) && (tn >= -15)))
+   {
+      ptemp = &adivtab[((tm + 15) << 5) + (tn + 15)];
+      ubasestep = ptemp->quotient;
+      erroradjustup = ptemp->remainder;
+      erroradjustdown = tn;
+   }
+   else
+   {
+      dm = (double)tm;
+      dn = (double)tn;
 
-	FloorDivMod(dm, dn, &ubasestep, &erroradjustup);
+      FloorDivMod(dm, dn, &ubasestep, &erroradjustup);
 
-	erroradjustdown = dn;
-    }
+      erroradjustdown = dn;
+   }
 }
 
 /*
@@ -499,56 +488,55 @@ D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
 D_PolysetCalcGradients
 ================
 */
-void
-D_PolysetCalcGradients(int skinwidth)
+void D_PolysetCalcGradients(int skinwidth)
 {
-          static float
-          xstepdenominv
-       ,   ystepdenominv
-       ,   t0
-       ,   t1
-       ,   p01_minus_p21
-       ,   p11_minus_p21
-       ,   p00_minus_p20
-       ,   p10_minus_p20
-          ;
+   static float
+      xstepdenominv
+      ,   ystepdenominv
+      ,   t0
+      ,   t1
+      ,   p01_minus_p21
+      ,   p11_minus_p21
+      ,   p00_minus_p20
+      ,   p10_minus_p20
+      ;
 
-       xstepdenominv = 1.0 / (float)d_xdenom;
-       ystepdenominv = -xstepdenominv;
+   xstepdenominv = 1.0 / (float)d_xdenom;
+   ystepdenominv = -xstepdenominv;
 
-       // mankrip - optimization
-       p00_minus_p20 = (r_p0[0] - r_p2[0]) * ystepdenominv;
-       p01_minus_p21 = (r_p0[1] - r_p2[1]) * xstepdenominv;
-       p10_minus_p20 = (r_p1[0] - r_p2[0]) * ystepdenominv;
-       p11_minus_p21 = (r_p1[1] - r_p2[1]) * xstepdenominv;
+   // mankrip - optimization
+   p00_minus_p20 = (r_p0[0] - r_p2[0]) * ystepdenominv;
+   p01_minus_p21 = (r_p0[1] - r_p2[1]) * xstepdenominv;
+   p10_minus_p20 = (r_p1[0] - r_p2[0]) * ystepdenominv;
+   p11_minus_p21 = (r_p1[1] - r_p2[1]) * xstepdenominv;
 
-       t0 = r_p0[2] - r_p2[2];
-       t1 = r_p1[2] - r_p2[2];
-       r_sstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
-       r_sstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
+   t0 = r_p0[2] - r_p2[2];
+   t1 = r_p1[2] - r_p2[2];
+   r_sstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+   r_sstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-       t0 = r_p0[3] - r_p2[3];
-       t1 = r_p1[3] - r_p2[3];
-       r_tstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
-       r_tstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
+   t0 = r_p0[3] - r_p2[3];
+   t1 = r_p1[3] - r_p2[3];
+   r_tstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+   r_tstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-       // ceil () for light so positive steps are exaggerated, negative steps diminished,
-       // pushing us away from underflow toward overflow.
-       // Underflow is very visible, overflow is very unlikely, because of ambient lighting
-       t0 = r_p0[4] - r_p2[4];
-       t1 = r_p1[4] - r_p2[4];
-       r_lstepx  = (int) ceil (t1 * p01_minus_p21 - t0 * p11_minus_p21);
-       r_lstepy  = (int) ceil (t1 * p00_minus_p20 - t0 * p10_minus_p20);
+   // ceil () for light so positive steps are exaggerated, negative steps diminished,
+   // pushing us away from underflow toward overflow.
+   // Underflow is very visible, overflow is very unlikely, because of ambient lighting
+   t0 = r_p0[4] - r_p2[4];
+   t1 = r_p1[4] - r_p2[4];
+   r_lstepx  = (int) ceil (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+   r_lstepy  = (int) ceil (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-       t0 = r_p0[5] - r_p2[5];
-       t1 = r_p1[5] - r_p2[5];
-       r_zistepx = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
-       r_zistepy = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
+   t0 = r_p0[5] - r_p2[5];
+   t1 = r_p1[5] - r_p2[5];
+   r_zistepx = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
+   r_zistepy = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-       a_sstepxfrac = r_sstepx & 0xFFFF;
-       a_tstepxfrac = r_tstepx & 0xFFFF;
+   a_sstepxfrac = r_sstepx & 0xFFFF;
+   a_tstepxfrac = r_tstepx & 0xFFFF;
 
-       a_ststepxwhole = skinwidth * (r_tstepx >> 16) + (r_sstepx >> 16);
+   a_ststepxwhole = skinwidth * (r_tstepx >> 16) + (r_sstepx >> 16);
 }
 
 
@@ -557,60 +545,62 @@ D_PolysetCalcGradients(int skinwidth)
 D_PolysetDrawSpans8
 ================
 */
-void
-D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
+void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 {
-    int lcount;
-    byte *lpdest;
-    byte *lptex;
-    int lsfrac, ltfrac;
-    int llight;
-    int lzi;
-    short *lpz;
+   byte *lpdest;
+   byte *lptex;
+   int lsfrac, ltfrac;
+   int llight;
+   int lzi;
+   short *lpz;
 
-    do {
-	lcount = d_aspancount - pspanpackage->count;
+   do
+   {
+      int lcount = d_aspancount - pspanpackage->count;
 
-	errorterm += erroradjustup;
-	if (errorterm >= 0) {
-	    d_aspancount += d_countextrastep;
-	    errorterm -= erroradjustdown;
-	} else {
-	    d_aspancount += ubasestep;
-	}
+      errorterm += erroradjustup;
+      if (errorterm >= 0)
+      {
+         d_aspancount += d_countextrastep;
+         errorterm -= erroradjustdown;
+      }
+      else
+         d_aspancount += ubasestep;
 
-	if (lcount) {
-	    lpdest = (byte*)pspanpackage->pdest;
-	    lptex = pspanpackage->ptex;
-	    lpz = pspanpackage->pz;
-	    lsfrac = pspanpackage->sfrac;
-	    ltfrac = pspanpackage->tfrac;
-	    llight = pspanpackage->light;
-	    lzi = pspanpackage->zi;
+      if (lcount)
+      {
+         lpdest = (byte*)pspanpackage->pdest;
+         lptex = pspanpackage->ptex;
+         lpz = pspanpackage->pz;
+         lsfrac = pspanpackage->sfrac;
+         ltfrac = pspanpackage->tfrac;
+         llight = pspanpackage->light;
+         lzi = pspanpackage->zi;
 
-	    do {
-		if ((lzi >> 16) >= *lpz) {
-		    *lpdest = ((byte *)acolormap)[*lptex + (llight & 0xFF00)];
-		    *lpz = lzi >> 16;
-		}
-		lpdest++;
-		lzi += r_zistepx;
-		lpz++;
-		llight += r_lstepx;
-		lptex += a_ststepxwhole;
-		lsfrac += a_sstepxfrac;
-		lptex += lsfrac >> 16;
-		lsfrac &= 0xFFFF;
-		ltfrac += a_tstepxfrac;
-		if (ltfrac & 0x10000) {
-		    lptex += r_affinetridesc.skinwidth;
-		    ltfrac &= 0xFFFF;
-		}
-	    } while (--lcount);
-	}
+         do
+         {
+            if ((lzi >> 16) >= *lpz) {
+               *lpdest = ((byte *)acolormap)[*lptex + (llight & 0xFF00)];
+               *lpz = lzi >> 16;
+            }
+            lpdest++;
+            lzi += r_zistepx;
+            lpz++;
+            llight += r_lstepx;
+            lptex += a_ststepxwhole;
+            lsfrac += a_sstepxfrac;
+            lptex += lsfrac >> 16;
+            lsfrac &= 0xFFFF;
+            ltfrac += a_tstepxfrac;
+            if (ltfrac & 0x10000) {
+               lptex += r_affinetridesc.skinwidth;
+               ltfrac &= 0xFFFF;
+            }
+         } while (--lcount);
+      }
 
-	pspanpackage++;
-    } while (pspanpackage->count != -999999);
+      pspanpackage++;
+   } while (pspanpackage->count != -999999);
 }
 
 /*
@@ -618,178 +608,175 @@ D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 D_RasterizeAliasPolySmooth
 ================
 */
-void
-D_RasterizeAliasPolySmooth(void)
+void D_RasterizeAliasPolySmooth(void)
 {
-    int initialleftheight, initialrightheight;
-    int *plefttop, *prighttop, *pleftbottom, *prightbottom;
-    int working_lstepx, originalcount;
+   int working_lstepx, originalcount;
 
-    plefttop = pedgetable->pleftedgevert0;
-    prighttop = pedgetable->prightedgevert0;
+   int *plefttop = pedgetable->pleftedgevert0;
+   int *prighttop = pedgetable->prightedgevert0;
 
-    pleftbottom = pedgetable->pleftedgevert1;
-    prightbottom = pedgetable->prightedgevert1;
+   int *pleftbottom = pedgetable->pleftedgevert1;
+   int *prightbottom = pedgetable->prightedgevert1;
 
-    initialleftheight = pleftbottom[1] - plefttop[1];
-    initialrightheight = prightbottom[1] - prighttop[1];
+   int initialleftheight = pleftbottom[1] - plefttop[1];
+   int initialrightheight = prightbottom[1] - prighttop[1];
 
-//
-// set the s, t, and light gradients, which are consistent across the triangle
-// because being a triangle, things are affine
-//
-    D_PolysetCalcGradients(r_affinetridesc.skinwidth);
+   //
+   // set the s, t, and light gradients, which are consistent across the triangle
+   // because being a triangle, things are affine
+   //
+   D_PolysetCalcGradients(r_affinetridesc.skinwidth);
 
-//
-// rasterize the polygon
-//
+   //
+   // rasterize the polygon
+   //
 
-//
-// scan out the top (and possibly only) part of the left edge
-//
-    D_PolysetSetUpForLineScan(plefttop[0], plefttop[1],
-			      pleftbottom[0], pleftbottom[1]);
+   //
+   // scan out the top (and possibly only) part of the left edge
+   //
+   D_PolysetSetUpForLineScan(plefttop[0], plefttop[1],
+         pleftbottom[0], pleftbottom[1]);
 
-    d_pedgespanpackage = a_spans;
+   d_pedgespanpackage = a_spans;
 
-    ystart = plefttop[1];
-    d_aspancount = plefttop[0] - prighttop[0];
+   ystart = plefttop[1];
+   d_aspancount = plefttop[0] - prighttop[0];
 
-    d_ptex = (byte *)r_affinetridesc.pskin + (plefttop[2] >> 16) +
-	(plefttop[3] >> 16) * r_affinetridesc.skinwidth;
-    d_sfrac = plefttop[2] & 0xFFFF;
-    d_tfrac = plefttop[3] & 0xFFFF;
-    d_pzbasestep = d_zwidth + ubasestep;
-    d_pzextrastep = d_pzbasestep + 1;
-    d_light = plefttop[4];
-    d_zi = plefttop[5];
+   d_ptex = (byte *)r_affinetridesc.pskin + (plefttop[2] >> 16) +
+      (plefttop[3] >> 16) * r_affinetridesc.skinwidth;
+   d_sfrac = plefttop[2] & 0xFFFF;
+   d_tfrac = plefttop[3] & 0xFFFF;
+   d_pzbasestep = d_zwidth + ubasestep;
+   d_pzextrastep = d_pzbasestep + 1;
+   d_light = plefttop[4];
+   d_zi = plefttop[5];
 
-    d_pdestbasestep = screenwidth + ubasestep;
-    d_pdestextrastep = d_pdestbasestep + 1;
-    d_pdest = (byte *)d_viewbuffer + ystart * screenwidth + plefttop[0];
-    d_pz = d_pzbuffer + ystart * d_zwidth + plefttop[0];
+   d_pdestbasestep = screenwidth + ubasestep;
+   d_pdestextrastep = d_pdestbasestep + 1;
+   d_pdest = (byte *)d_viewbuffer + ystart * screenwidth + plefttop[0];
+   d_pz = d_pzbuffer + ystart * d_zwidth + plefttop[0];
 
-    /* TODO: can reuse partial expressions here */
+   /* TODO: can reuse partial expressions here */
 
-    /*
-     * for negative steps in x along left edge, bias toward overflow rather
-     * than underflow (sort of turning the floor () we did in the gradient
-     * calcs into ceil (), but plus a little bit)
-     */
-    if (ubasestep < 0)
-	working_lstepx = r_lstepx - 1;
-    else
-	working_lstepx = r_lstepx;
+   /*
+    * for negative steps in x along left edge, bias toward overflow rather
+    * than underflow (sort of turning the floor () we did in the gradient
+    * calcs into ceil (), but plus a little bit)
+    */
+   if (ubasestep < 0)
+      working_lstepx = r_lstepx - 1;
+   else
+      working_lstepx = r_lstepx;
 
-    d_countextrastep = ubasestep + 1;
-    d_ptexbasestep = ((r_sstepy + r_sstepx * ubasestep) >> 16) +
-	((r_tstepy + r_tstepx * ubasestep) >> 16) * r_affinetridesc.skinwidth;
-    d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) & 0xFFFF;
-    d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) & 0xFFFF;
-    d_lightbasestep = r_lstepy + working_lstepx * ubasestep;
-    d_zibasestep = r_zistepy + r_zistepx * ubasestep;
+   d_countextrastep = ubasestep + 1;
+   d_ptexbasestep = ((r_sstepy + r_sstepx * ubasestep) >> 16) +
+      ((r_tstepy + r_tstepx * ubasestep) >> 16) * r_affinetridesc.skinwidth;
+   d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) & 0xFFFF;
+   d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) & 0xFFFF;
+   d_lightbasestep = r_lstepy + working_lstepx * ubasestep;
+   d_zibasestep = r_zistepy + r_zistepx * ubasestep;
 
-    d_ptexextrastep = ((r_sstepy + r_sstepx * d_countextrastep) >> 16) +
-	((r_tstepy + r_tstepx * d_countextrastep) >> 16) *
-	r_affinetridesc.skinwidth;
-    d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF;
-    d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF;
-    d_lightextrastep = d_lightbasestep + working_lstepx;
-    d_ziextrastep = d_zibasestep + r_zistepx;
+   d_ptexextrastep = ((r_sstepy + r_sstepx * d_countextrastep) >> 16) +
+      ((r_tstepy + r_tstepx * d_countextrastep) >> 16) *
+      r_affinetridesc.skinwidth;
+   d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF;
+   d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF;
+   d_lightextrastep = d_lightbasestep + working_lstepx;
+   d_ziextrastep = d_zibasestep + r_zistepx;
 
-    D_PolysetScanLeftEdge(initialleftheight);
+   D_PolysetScanLeftEdge(initialleftheight);
 
-//
-// scan out the bottom part of the left edge, if it exists
-//
-    if (pedgetable->numleftedges == 2) {
-	int height;
+   //
+   // scan out the bottom part of the left edge, if it exists
+   //
+   if (pedgetable->numleftedges == 2) {
+      int height;
 
-	plefttop = pleftbottom;
-	pleftbottom = pedgetable->pleftedgevert2;
+      plefttop = pleftbottom;
+      pleftbottom = pedgetable->pleftedgevert2;
 
-	D_PolysetSetUpForLineScan(plefttop[0], plefttop[1],
-				  pleftbottom[0], pleftbottom[1]);
+      D_PolysetSetUpForLineScan(plefttop[0], plefttop[1],
+            pleftbottom[0], pleftbottom[1]);
 
-	height = pleftbottom[1] - plefttop[1];
+      height = pleftbottom[1] - plefttop[1];
 
-// TODO: make this a function; modularize this function in general
+      // TODO: make this a function; modularize this function in general
 
-	ystart = plefttop[1];
-	d_aspancount = plefttop[0] - prighttop[0];
-	d_ptex = (byte *)r_affinetridesc.pskin + (plefttop[2] >> 16) +
-	    (plefttop[3] >> 16) * r_affinetridesc.skinwidth;
-	d_sfrac = 0;
-	d_tfrac = 0;
-	d_light = plefttop[4];
-	d_zi = plefttop[5];
+      ystart = plefttop[1];
+      d_aspancount = plefttop[0] - prighttop[0];
+      d_ptex = (byte *)r_affinetridesc.pskin + (plefttop[2] >> 16) +
+         (plefttop[3] >> 16) * r_affinetridesc.skinwidth;
+      d_sfrac = 0;
+      d_tfrac = 0;
+      d_light = plefttop[4];
+      d_zi = plefttop[5];
 
-	d_pdestbasestep = screenwidth + ubasestep;
-	d_pdestextrastep = d_pdestbasestep + 1;
-	d_pdest = (byte *)d_viewbuffer + ystart * screenwidth + plefttop[0];
-	d_pzbasestep = d_zwidth + ubasestep;
-	d_pzextrastep = d_pzbasestep + 1;
-	d_pz = d_pzbuffer + ystart * d_zwidth + plefttop[0];
+      d_pdestbasestep = screenwidth + ubasestep;
+      d_pdestextrastep = d_pdestbasestep + 1;
+      d_pdest = (byte *)d_viewbuffer + ystart * screenwidth + plefttop[0];
+      d_pzbasestep = d_zwidth + ubasestep;
+      d_pzextrastep = d_pzbasestep + 1;
+      d_pz = d_pzbuffer + ystart * d_zwidth + plefttop[0];
 
-	if (ubasestep < 0)
-	    working_lstepx = r_lstepx - 1;
-	else
-	    working_lstepx = r_lstepx;
+      if (ubasestep < 0)
+         working_lstepx = r_lstepx - 1;
+      else
+         working_lstepx = r_lstepx;
 
-	d_countextrastep = ubasestep + 1;
-	d_ptexbasestep = ((r_sstepy + r_sstepx * ubasestep) >> 16) +
-	    ((r_tstepy + r_tstepx * ubasestep) >> 16) *
-	    r_affinetridesc.skinwidth;
-	d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) & 0xFFFF;
-	d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) & 0xFFFF;
-	d_lightbasestep = r_lstepy + working_lstepx * ubasestep;
-	d_zibasestep = r_zistepy + r_zistepx * ubasestep;
+      d_countextrastep = ubasestep + 1;
+      d_ptexbasestep = ((r_sstepy + r_sstepx * ubasestep) >> 16) +
+         ((r_tstepy + r_tstepx * ubasestep) >> 16) *
+         r_affinetridesc.skinwidth;
+      d_sfracbasestep = (r_sstepy + r_sstepx * ubasestep) & 0xFFFF;
+      d_tfracbasestep = (r_tstepy + r_tstepx * ubasestep) & 0xFFFF;
+      d_lightbasestep = r_lstepy + working_lstepx * ubasestep;
+      d_zibasestep = r_zistepy + r_zistepx * ubasestep;
 
-	d_ptexextrastep = ((r_sstepy + r_sstepx * d_countextrastep) >> 16) +
-	    ((r_tstepy + r_tstepx * d_countextrastep) >> 16) *
-	    r_affinetridesc.skinwidth;
-	d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF;
-	d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF;
-	d_lightextrastep = d_lightbasestep + working_lstepx;
-	d_ziextrastep = d_zibasestep + r_zistepx;
+      d_ptexextrastep = ((r_sstepy + r_sstepx * d_countextrastep) >> 16) +
+         ((r_tstepy + r_tstepx * d_countextrastep) >> 16) *
+         r_affinetridesc.skinwidth;
+      d_sfracextrastep = (r_sstepy + r_sstepx * d_countextrastep) & 0xFFFF;
+      d_tfracextrastep = (r_tstepy + r_tstepx * d_countextrastep) & 0xFFFF;
+      d_lightextrastep = d_lightbasestep + working_lstepx;
+      d_ziextrastep = d_zibasestep + r_zistepx;
 
-	D_PolysetScanLeftEdge(height);
-    }
-// scan out the top (and possibly only) part of the right edge, updating the
-// count field
-    d_pedgespanpackage = a_spans;
+      D_PolysetScanLeftEdge(height);
+   }
+   // scan out the top (and possibly only) part of the right edge, updating the
+   // count field
+   d_pedgespanpackage = a_spans;
 
-    D_PolysetSetUpForLineScan(prighttop[0], prighttop[1],
-			      prightbottom[0], prightbottom[1]);
-    d_aspancount = 0;
-    d_countextrastep = ubasestep + 1;
-    originalcount = a_spans[initialrightheight].count;
-    a_spans[initialrightheight].count = -999999;	// mark end of the spanpackages
-    D_PolysetDrawSpans8(a_spans);
+   D_PolysetSetUpForLineScan(prighttop[0], prighttop[1],
+         prightbottom[0], prightbottom[1]);
+   d_aspancount = 0;
+   d_countextrastep = ubasestep + 1;
+   originalcount = a_spans[initialrightheight].count;
+   a_spans[initialrightheight].count = -999999;	// mark end of the spanpackages
+   D_PolysetDrawSpans8(a_spans);
 
-// scan out the bottom part of the right edge, if it exists
-    if (pedgetable->numrightedges == 2) {
-	int height;
-	spanpackage_t *pstart;
+   // scan out the bottom part of the right edge, if it exists
+   if (pedgetable->numrightedges == 2) {
+      int height;
+      spanpackage_t *pstart;
 
-	pstart = a_spans + initialrightheight;
-	pstart->count = originalcount;
+      pstart = a_spans + initialrightheight;
+      pstart->count = originalcount;
 
-	d_aspancount = prightbottom[0] - prighttop[0];
+      d_aspancount = prightbottom[0] - prighttop[0];
 
-	prighttop = prightbottom;
-	prightbottom = pedgetable->prightedgevert2;
+      prighttop = prightbottom;
+      prightbottom = pedgetable->prightedgevert2;
 
-	height = prightbottom[1] - prighttop[1];
+      height = prightbottom[1] - prighttop[1];
 
-	D_PolysetSetUpForLineScan(prighttop[0], prighttop[1],
-				  prightbottom[0], prightbottom[1]);
+      D_PolysetSetUpForLineScan(prighttop[0], prighttop[1],
+            prightbottom[0], prightbottom[1]);
 
-	d_countextrastep = ubasestep + 1;
-	a_spans[initialrightheight + height].count = -999999;
-	// mark end of the spanpackages
-	D_PolysetDrawSpans8(pstart);
-    }
+      d_countextrastep = ubasestep + 1;
+      a_spans[initialrightheight + height].count = -999999;
+      // mark end of the spanpackages
+      D_PolysetDrawSpans8(pstart);
+   }
 }
 
 
@@ -798,12 +785,9 @@ D_RasterizeAliasPolySmooth(void)
 D_PolysetSetEdgeTable
 ================
 */
-void
-D_PolysetSetEdgeTable(void)
+void D_PolysetSetEdgeTable(void)
 {
-   int edgetableindex;
-
-   edgetableindex = 0;		// assume the vertices are already in
+   int edgetableindex = 0;		// assume the vertices are already in
    //  top to bottom order
 
    // determine which edges are right & left, and the order in which
