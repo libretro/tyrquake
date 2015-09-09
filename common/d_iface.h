@@ -96,7 +96,6 @@ typedef struct {
     float nearzi;
 } spritedesc_t;
 
-extern cvar_t r_drawflat;
 extern int r_framecount;	// sequence # of current frame since Quake started
 extern qboolean r_recursiveaffinetriangles;	// true if a driver wants to use
 

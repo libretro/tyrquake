@@ -328,14 +328,12 @@ R_SetupFrame(void)
 	Cvar_Set("r_draworder", "0");
 	Cvar_Set("r_fullbright", "0");
 	Cvar_Set("r_ambient", "0");
-	Cvar_Set("r_drawflat", "0");
     }
 #endif
 #ifdef QW_HACK
     r_draworder.value = 0;
     r_fullbright.value = 0;
     r_ambient.value = 0;
-    r_drawflat.value = 0;
 #endif
 
     if (r_numsurfs.value) {

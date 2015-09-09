@@ -160,136 +160,117 @@ void D_DrawSurfaces(void)
    TransformVector(modelorg, transformed_modelorg);
    VectorCopy(transformed_modelorg, world_transformed_modelorg);
 
-   /* TODO: could preset a lot of this at mode set time */
-   if (r_drawflat.value)
+   for (s = &surfaces[1]; s < surface_p; s++)
    {
-      for (s = &surfaces[1]; s < surface_p; s++)
+      if (!s->spans)
+         continue;
+
+      r_drawnpolycount++;
+
+      d_zistepu = s->d_zistepu;
+      d_zistepv = s->d_zistepv;
+      d_ziorigin = s->d_ziorigin;
+
+      if (s->flags & SURF_DRAWSKY)
       {
-         if (!s->spans)
-            continue;
-
-         d_zistepu = s->d_zistepu;
-         d_zistepv = s->d_zistepv;
-         d_ziorigin = s->d_ziorigin;
-
-         D_DrawSolidSurface(s, (unsigned long)s->data & 0xFF);
+         D_DrawSkyScans8(s->spans);
          D_DrawZSpans(s->spans);
       }
-   }
-   else
-   {
-      for (s = &surfaces[1]; s < surface_p; s++)
+      else if (s->flags & SURF_DRAWBACKGROUND)
       {
-         if (!s->spans)
-            continue;
+         /* Set up a gradient for the background surface that places it
+          * effectively at infinity distance from the viewpoint */
+         d_zistepu = 0;
+         d_zistepv = 0;
+         d_ziorigin = -0.9;
 
-         r_drawnpolycount++;
+         D_DrawSolidSurface(s, (int)r_clearcolor.value & 0xFF);
+         D_DrawZSpans(s->spans);
+      }
+      else if (s->flags & SURF_DRAWTURB)
+      {
+         pface = (msurface_t*)s->data;
+         miplevel = 0;
+         cacheblock = (pixel_t *)
+            ((byte *)pface->texinfo->texture +
+             pface->texinfo->texture->offsets[0]);
+         cachewidth = 64;
 
-         d_zistepu = s->d_zistepu;
-         d_zistepv = s->d_zistepv;
-         d_ziorigin = s->d_ziorigin;
-
-         if (s->flags & SURF_DRAWSKY)
+         if (s->insubmodel)
          {
-            D_DrawSkyScans8(s->spans);
-            D_DrawZSpans(s->spans);
+            /* FIXME: we don't want to do all this for every polygon!
+             * TODO: store once at start of frame
+             */
+            e = s->entity;	/* FIXME: make this passed in to // R_RotateBmodel () */
+            VectorSubtract(r_origin, e->origin, local_modelorg);
+            TransformVector(local_modelorg, transformed_modelorg);
+
+            R_RotateBmodel(e);	/* FIXME: don't mess with the frustum, make entity passed in */
          }
-         else if (s->flags & SURF_DRAWBACKGROUND)
-         {
-            /* Set up a gradient for the background surface that places it
-             * effectively at infinity distance from the viewpoint */
-            d_zistepu = 0;
-            d_zistepv = 0;
-            d_ziorigin = -0.9;
 
-            D_DrawSolidSurface(s, (int)r_clearcolor.value & 0xFF);
-            D_DrawZSpans(s->spans);
+         D_CalcGradients(pface);
+         Turbulent8(s->spans);
+         D_DrawZSpans(s->spans);
+
+         if (s->insubmodel)
+         {
+            /* restore the old drawing state
+             *
+             * FIXME: we don't want to do this every time!
+             * TODO: speed up
+             */
+            e = &r_worldentity;
+            VectorCopy(world_transformed_modelorg,
+                  transformed_modelorg);
+            VectorCopy(base_vpn, vpn);
+            VectorCopy(base_vup, vup);
+            VectorCopy(base_vright, vright);
+            VectorCopy(base_modelorg, modelorg);
+            R_TransformFrustum();
          }
-         else if (s->flags & SURF_DRAWTURB)
+      }
+      else
+      {
+         if (s->insubmodel)
          {
-            pface = (msurface_t*)s->data;
-            miplevel = 0;
-            cacheblock = (pixel_t *)
-               ((byte *)pface->texinfo->texture +
-                pface->texinfo->texture->offsets[0]);
-            cachewidth = 64;
+            // FIXME: we don't want to do all this for every polygon!
+            // TODO: store once at start of frame
+            e = s->entity;	//FIXME: make this passed in to
+            // R_RotateBmodel ()
+            VectorSubtract(r_origin, e->origin, local_modelorg);
+            TransformVector(local_modelorg, transformed_modelorg);
 
-            if (s->insubmodel)
-            {
-               /* FIXME: we don't want to do all this for every polygon!
-                * TODO: store once at start of frame
-                */
-               e = s->entity;	/* FIXME: make this passed in to // R_RotateBmodel () */
-               VectorSubtract(r_origin, e->origin, local_modelorg);
-               TransformVector(local_modelorg, transformed_modelorg);
-
-               R_RotateBmodel(e);	/* FIXME: don't mess with the frustum, make entity passed in */
-            }
-
-            D_CalcGradients(pface);
-            Turbulent8(s->spans);
-            D_DrawZSpans(s->spans);
-
-            if (s->insubmodel)
-            {
-               /* restore the old drawing state
-                *
-                * FIXME: we don't want to do this every time!
-                * TODO: speed up
-                */
-               e = &r_worldentity;
-               VectorCopy(world_transformed_modelorg,
-                     transformed_modelorg);
-               VectorCopy(base_vpn, vpn);
-               VectorCopy(base_vup, vup);
-               VectorCopy(base_vright, vright);
-               VectorCopy(base_modelorg, modelorg);
-               R_TransformFrustum();
-            }
+            R_RotateBmodel(e);	// FIXME: don't mess with the frustum,
+            // make entity passed in
          }
-         else
+
+         pface = (msurface_t*)s->data;
+         miplevel = D_MipLevelForScale(s->nearzi * scale_for_mip
+               * pface->texinfo->mipadjust);
+
+         /* FIXME: make this passed in to D_CacheSurface */
+         pcurrentcache = D_CacheSurface(e, pface, miplevel);
+
+         cacheblock = (pixel_t *)pcurrentcache->data;
+         cachewidth = pcurrentcache->width;
+
+         D_CalcGradients(pface);
+         D_DrawSpans(s->spans);
+         D_DrawZSpans(s->spans);
+
+         if (s->insubmodel)
          {
-            if (s->insubmodel)
-            {
-               // FIXME: we don't want to do all this for every polygon!
-               // TODO: store once at start of frame
-               e = s->entity;	//FIXME: make this passed in to
-               // R_RotateBmodel ()
-               VectorSubtract(r_origin, e->origin, local_modelorg);
-               TransformVector(local_modelorg, transformed_modelorg);
-
-               R_RotateBmodel(e);	// FIXME: don't mess with the frustum,
-               // make entity passed in
-            }
-
-            pface = (msurface_t*)s->data;
-            miplevel = D_MipLevelForScale(s->nearzi * scale_for_mip
-                  * pface->texinfo->mipadjust);
-
-            /* FIXME: make this passed in to D_CacheSurface */
-            pcurrentcache = D_CacheSurface(e, pface, miplevel);
-
-            cacheblock = (pixel_t *)pcurrentcache->data;
-            cachewidth = pcurrentcache->width;
-
-            D_CalcGradients(pface);
-            D_DrawSpans(s->spans);
-            D_DrawZSpans(s->spans);
-
-            if (s->insubmodel)
-            {
-               // restore the old drawing state
-               // FIXME: we don't want to do this every time!
-               // TODO: speed up
-               e = &r_worldentity;
-               VectorCopy(world_transformed_modelorg,
-                     transformed_modelorg);
-               VectorCopy(base_vpn, vpn);
-               VectorCopy(base_vup, vup);
-               VectorCopy(base_vright, vright);
-               VectorCopy(base_modelorg, modelorg);
-               R_TransformFrustum();
-            }
+            // restore the old drawing state
+            // FIXME: we don't want to do this every time!
+            // TODO: speed up
+            e = &r_worldentity;
+            VectorCopy(world_transformed_modelorg,
+                  transformed_modelorg);
+            VectorCopy(base_vpn, vpn);
+            VectorCopy(base_vup, vup);
+            VectorCopy(base_vright, vright);
+            VectorCopy(base_modelorg, modelorg);
+            R_TransformFrustum();
          }
       }
    }

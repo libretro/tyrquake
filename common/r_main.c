@@ -110,7 +110,6 @@ cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
 cvar_t r_drawentities = { "r_drawentities", "1" };
 cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
-cvar_t r_drawflat = { "r_drawflat", "0" };
 cvar_t r_ambient = { "r_ambient", "0" };
 cvar_t r_numsurfs = { "r_numsurfs", "0" };
 cvar_t r_numedges = { "r_numedges", "0" };
@@ -214,7 +213,6 @@ R_Init(void)
     Cvar_RegisterVariable(&r_waterwarp);
     Cvar_RegisterVariable(&r_drawentities);
     Cvar_RegisterVariable(&r_drawviewmodel);
-    Cvar_RegisterVariable(&r_drawflat);
     Cvar_RegisterVariable(&r_ambient);
     Cvar_RegisterVariable(&r_numsurfs);
     Cvar_RegisterVariable(&r_numedges);
