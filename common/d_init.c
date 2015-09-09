@@ -28,9 +28,7 @@ static cvar_t d_subdiv16 = { "d_subdiv16", "1" };
 static cvar_t d_mipcap = { "d_mipcap", "0" };
 static cvar_t d_mipscale = { "d_mipscale", "1" };
 
-#ifdef __LIBRETRO__
 cvar_t dither_filter = { "dither_filter", "0" };
-#endif
 
 surfcache_t *d_initial_rover;
 qboolean d_roverwrapped;
@@ -55,9 +53,7 @@ D_Init(void)
     Cvar_RegisterVariable(&d_subdiv16);
     Cvar_RegisterVariable(&d_mipcap);
     Cvar_RegisterVariable(&d_mipscale);
-#ifdef __LIBRETRO__
     Cvar_RegisterVariable(&dither_filter);
-#endif
 
     r_recursiveaffinetriangles = true;
     r_pixbytes = 1;
@@ -100,9 +96,7 @@ void
 D_SetupFrame(void)
 {
     int i;
-#ifdef __LIBRETRO__
    cvar_t *cvar = Cvar_FindVar("dither_filter");
-#endif
 
     if (r_dowarp)
 	d_viewbuffer = r_warpbuffer;
@@ -128,12 +122,10 @@ D_SetupFrame(void)
 
     D_DrawSpans = D_DrawSpans8;
 
-#ifdef __LIBRETRO__
    if (cvar && cvar->value == 1.0f)
       D_DrawSpans = D_DrawSpans16QbDither;
    else
     D_DrawSpans = D_DrawSpans16Qb;
-#endif
 }
 
 

@@ -246,7 +246,6 @@ Turbulent8(espan_t *pspan)
    } while ((pspan = pspan->pnext) != NULL);
 }
 
-#ifdef __LIBRETRO__
 /*
    =============
    D_DrawSpans16
@@ -612,7 +611,6 @@ void D_DrawSpans16QbDither (espan_t *pspan) //qbism up it from 8 to 16. This + u
 
    } while ((pspan = pspan->pnext) != NULL);
 }
-#endif
 
 /*
 =============

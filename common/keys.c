@@ -351,12 +351,6 @@ Interactive line editing and console scrollback
 void
 Key_Console(int key)
 {
-#if defined(_WIN32) && !defined(__LIBRETRO__)
-    int i;
-    HANDLE th;
-    char *clipText, *textCopied;
-#endif
-
     /* detect double presses of tab key */
     static qboolean tab_once = false;
 

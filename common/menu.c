@@ -884,11 +884,7 @@ M_Setup_Key(int k)
 //=============================================================================
 /* OPTIONS MENU */
 
-#ifdef __LIBRETRO__
 #define	OPTIONS_ITEMS	21
-#else
-#define	OPTIONS_ITEMS	14
-#endif
 #define	SLIDER_RANGE	10
 
 static int options_cursor;
@@ -899,11 +895,6 @@ M_Menu_Options_f(void)
     key_dest = key_menu;
     m_state = m_options;
     m_entersound = true;
-
-#ifndef __LIBRETRO__
-    if ((options_cursor == 13) && VID_IsFullScreen())
-	options_cursor = 0;
-#endif
 }
 
 extern void D_SetupFrame();
@@ -911,9 +902,7 @@ extern void D_SetupFrame();
 static void
 M_AdjustSliders(int dir)
 {
-#ifdef __LIBRETRO__
     cvar_t *cvar = NULL;
-#endif
     S_LocalSound("misc/menu3.wav");
 
     switch (options_cursor) {
@@ -987,7 +976,6 @@ M_AdjustSliders(int dir)
     case 13:			// _windowed_mouse
    Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
    break;
-#ifdef __LIBRETRO__
    case 14:
        cvar = Cvar_FindVar("dither_filter");
        Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
@@ -1017,7 +1005,6 @@ M_AdjustSliders(int dir)
        cvar = Cvar_FindVar("chase_active");
        Cvar_SetValue("chase_active", (cvar->value) ? 0 : 1);
        break;
-#endif
     }
 }
 
@@ -1052,9 +1039,7 @@ M_Options_Draw(void)
 {
     float r;
     const qpic_t *p;
-#ifdef __LIBRETRO__
     cvar_t *cvar = NULL;
-#endif
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_option.lmp");
@@ -1104,7 +1089,6 @@ M_Options_Draw(void)
        M_DrawCheckbox(220, 136, _windowed_mouse.value);
     }
 
-#ifdef __LIBRETRO__
     cvar = Cvar_FindVar("dither_filter");
 
     M_Print(16, 144, "      Dither Filtering");
@@ -1141,7 +1125,6 @@ M_Options_Draw(void)
    cvar = Cvar_FindVar("chase_active");
    M_Print(16, 188, "      First Person");
    M_DrawCheckbox(220, 188, cvar->value ? 0 : 1);
-#endif
 
 
 // cursor
@@ -1217,11 +1200,7 @@ M_Options_Key(int k)
 	    else
 		options_cursor = 12;
 	} else
-#ifdef __LIBRETRO__
       options_cursor = 14;
-#else
-	    options_cursor = 0;
-#endif
     }
 }
 

@@ -2022,25 +2022,12 @@ COM_InitFilesystem(void)
     searchpath_t *search;
 #endif
 
-#ifndef __LIBRETRO__
-    home = getenv("HOME");
-#endif
-
-//
 // -basedir <path>
 // Overrides the system supplied base directory (under id1)
-//
     i = COM_CheckParm("-basedir");
-#ifndef __LIBRETRO__
-    if (i && i < com_argc - 1)
-	strcpy(com_basedir, com_argv[i + 1]);
-    else
-#endif
     strcpy(com_basedir, host_parms.basedir);
 
-//
 // start up with id1 by default
-//
     COM_AddGameDirectory(com_basedir, "");
     COM_AddGameDirectory(home, ".tyrquake/id1");
 
