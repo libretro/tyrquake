@@ -276,7 +276,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 #ifdef MSB_FIRST
    version = LittleLong(pinmodel->version);
 #else
-   version = LittleLong(pinmodel->version);
+   version = (pinmodel->version);
 #endif
    if (version != ALIAS_VERSION)
       Sys_Error("%s has wrong version number (%i should be %i)",
@@ -285,8 +285,13 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    // allocate space for a working header, plus all the data except the frames,
    // skin and group info
    pad = loader->Aliashdr_Padding();
+#ifdef MSB_FIRST
    size = pad + sizeof(aliashdr_t) +
       LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
+#else
+   size = pad + sizeof(aliashdr_t) +
+      (pinmodel->numframes) * sizeof(pheader->frames[0]);
+#endif
 
    container = (byte*)Hunk_AllocName(size, loadname);
    pheader = (aliashdr_t *)(container + pad);
