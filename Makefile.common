@@ -1,18 +1,17 @@
 INCFLAGS   := \
 	-I$(CORE_DIR) \
-	-I$(CORE_DIR)/NQ \
 	-I$(CORE_DIR)/libretro-common/include \
 	-I$(CORE_DIR)/include
 
 SOURCES_C := $(CORE_DIR)/libretro-common/file/retro_dirent.c \
-	$(CORE_DIR)/NQ/cl_input.c \
+	$(CORE_DIR)/common/cl_input.c \
 	$(CORE_DIR)/common/cd_common.c \
 	$(CORE_DIR)/common/alias_model.c \
-	$(CORE_DIR)/NQ/chase.c \
-	$(CORE_DIR)/NQ/cl_demo.c \
-	$(CORE_DIR)/NQ/cl_main.c \
-	$(CORE_DIR)/NQ/cl_parse.c \
-	$(CORE_DIR)/NQ/cl_tent.c \
+	$(CORE_DIR)/common/chase.c \
+	$(CORE_DIR)/common/cl_demo.c \
+	$(CORE_DIR)/common/cl_main.c \
+	$(CORE_DIR)/common/cl_parse.c \
+	$(CORE_DIR)/common/cl_tent.c \
 	$(CORE_DIR)/common/common.c \
 	$(CORE_DIR)/common/cmd.c \
 	$(CORE_DIR)/common/crc.c \
@@ -30,15 +29,15 @@ SOURCES_C := $(CORE_DIR)/libretro-common/file/retro_dirent.c \
 	$(CORE_DIR)/common/d_surf.c \
 	$(CORE_DIR)/common/d_vars.c \
 	$(CORE_DIR)/common/draw.c \
-	$(CORE_DIR)/NQ/host.c \
-	$(CORE_DIR)/NQ/host_cmd.c \
+	$(CORE_DIR)/common/host.c \
+	$(CORE_DIR)/common/host_cmd.c \
 	$(CORE_DIR)/common/keys.c \
 	$(CORE_DIR)/common/mathlib.c \
-	$(CORE_DIR)/NQ/menu.c \
+	$(CORE_DIR)/common/menu.c \
 	$(CORE_DIR)/common/model.c \
-	$(CORE_DIR)/NQ/net_common.c \
-	$(CORE_DIR)/NQ/net_loop.c \
-	$(CORE_DIR)/NQ/net_main.c \
+	$(CORE_DIR)/common/net_common.c \
+	$(CORE_DIR)/common/net_loop.c \
+	$(CORE_DIR)/common/net_main.c \
 	$(CORE_DIR)/common/pr_cmds.c \
 	$(CORE_DIR)/common/pr_exec.c \
 	$(CORE_DIR)/common/pr_edict.c \
@@ -58,21 +57,21 @@ SOURCES_C := $(CORE_DIR)/libretro-common/file/retro_dirent.c \
 	$(CORE_DIR)/common/r_vars.c \
 	$(CORE_DIR)/common/r_surf.c \
 	$(CORE_DIR)/common/rb_tree.c \
-	$(CORE_DIR)/NQ/sbar.c \
+	$(CORE_DIR)/common/sbar.c \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
 	$(CORE_DIR)/common/snd_dma.c \
 	$(CORE_DIR)/common/snd_mem.c \
 	$(CORE_DIR)/common/snd_mix.c \
 	$(CORE_DIR)/common/sprite_model.c \
-	$(CORE_DIR)/NQ/sv_main.c \
+	$(CORE_DIR)/common/sv_main.c \
 	$(CORE_DIR)/common/sv_move.c \
-	$(CORE_DIR)/NQ/sv_phys.c \
-	$(CORE_DIR)/NQ/sv_user.c \
+	$(CORE_DIR)/common/sv_phys.c \
+	$(CORE_DIR)/common/sv_user.c \
 	$(CORE_DIR)/common/sys_libretro.c \
-	$(CORE_DIR)/NQ/view.c \
+	$(CORE_DIR)/common/view.c \
 	$(CORE_DIR)/common/wad.c \
 	$(CORE_DIR)/common/zone.c \
 	$(CORE_DIR)/common/world.c
 
-SOURCES_C += $(CORE_DIR)/NQ/net_none.c
+SOURCES_C += $(CORE_DIR)/common/net_none.c

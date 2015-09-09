@@ -103,10 +103,8 @@ enum m_state_enum {
 
 static int m_state;
 
-#ifdef __LIBRETRO__
-#include "../include/libretro.h"
+#include "libretro.h"
 extern retro_environment_t environ_cb;
-#endif
 
 #define StartingGame	(m_multiplayer_cursor == 1)
 #define JoiningGame	(m_multiplayer_cursor == 0)
