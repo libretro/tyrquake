@@ -27,25 +27,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 R_AnimateLight
 ==================
 */
-void
-R_AnimateLight(void)
+void R_AnimateLight(void)
 {
-    int i, j, k;
+   int j, k;
 
-//
-// light animations
-// 'm' is normal light, 'a' is no light, 'z' is double bright
-    i = (int)(cl.time * 10);
-    for (j = 0; j < MAX_LIGHTSTYLES; j++) {
-	if (!cl_lightstyle[j].length) {
-	    d_lightstylevalue[j] = 256;
-	    continue;
-	}
-	k = i % cl_lightstyle[j].length;
-	k = cl_lightstyle[j].map[k] - 'a';
-	k = k * 22;
-	d_lightstylevalue[j] = k;
-    }
+   /* light animations
+    * 'm' is normal light, 'a' is no light, 'z' is double bright */
+   int i = (int)(cl.time * 10);
+
+   for (j = 0; j < MAX_LIGHTSTYLES; j++)
+   {
+      if (!cl_lightstyle[j].length)
+      {
+         d_lightstylevalue[j] = 256;
+         continue;
+      }
+      k = i % cl_lightstyle[j].length;
+      k = cl_lightstyle[j].map[k] - 'a';
+      k = k * 22;
+      d_lightstylevalue[j] = k;
+   }
 }
 
 
@@ -134,107 +135,106 @@ LIGHT SAMPLING
 =============================================================================
 */
 
-int
-RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
+int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
 {
-    int r;
-    float front, back, frac;
-    int side;
-    mplane_t *plane;
-    vec3_t mid;
-    msurface_t *surf;
-    int s, t, ds, dt;
-    int i;
-    mtexinfo_t *tex;
-    byte *lightmap;
-    unsigned scale;
-    int maps;
+   int r;
+   float front, back, frac;
+   int side;
+   mplane_t *plane;
+   vec3_t mid;
+   msurface_t *surf;
+   int s, t, ds, dt;
+   int i;
+   mtexinfo_t *tex;
+   byte *lightmap;
+   unsigned scale;
+   int maps;
 
-    if (node->contents < 0)
-	return -1;		// didn't hit anything
+   if (node->contents < 0)
+      return -1;		// didn't hit anything
 
-// calculate mid point
+   // calculate mid point
 
-    plane = node->plane;
-    switch (plane->type) {
-    case PLANE_X:
-    case PLANE_Y:
-    case PLANE_Z:
-	front = start[plane->type - PLANE_X] - plane->dist;
-	back = end[plane->type - PLANE_X] - plane->dist;
-	break;
-    default:
-	front = DotProduct(start, plane->normal) - plane->dist;
-	back = DotProduct(end, plane->normal) - plane->dist;
-	break;
-    }
-    side = front < 0;
+   plane = node->plane;
+   switch (plane->type) {
+      case PLANE_X:
+      case PLANE_Y:
+      case PLANE_Z:
+         front = start[plane->type - PLANE_X] - plane->dist;
+         back = end[plane->type - PLANE_X] - plane->dist;
+         break;
+      default:
+         front = DotProduct(start, plane->normal) - plane->dist;
+         back = DotProduct(end, plane->normal) - plane->dist;
+         break;
+   }
+   side = front < 0;
 
-    /* FIXME - tail recursion => optimize */
-    if ((back < 0) == side)
-	return RecursiveLightPoint(node->children[side], start, end);
+   /* FIXME - tail recursion => optimize */
+   if ((back < 0) == side)
+      return RecursiveLightPoint(node->children[side], start, end);
 
-    frac = front / (front - back);
-    mid[0] = start[0] + (end[0] - start[0]) * frac;
-    mid[1] = start[1] + (end[1] - start[1]) * frac;
-    mid[2] = start[2] + (end[2] - start[2]) * frac;
+   frac = front / (front - back);
+   mid[0] = start[0] + (end[0] - start[0]) * frac;
+   mid[1] = start[1] + (end[1] - start[1]) * frac;
+   mid[2] = start[2] + (end[2] - start[2]) * frac;
 
-// go down front side
-    r = RecursiveLightPoint(node->children[side], start, mid);
-    if (r >= 0)
-	return r;		// hit something
+   // go down front side
+   r = RecursiveLightPoint(node->children[side], start, mid);
+   if (r >= 0)
+      return r;		// hit something
 
-    if ((back < 0) == side)
-	return -1;		// didn't hit anuthing
+   if ((back < 0) == side)
+      return -1;		// didn't hit anuthing
 
-// check for impact on this node
+   // check for impact on this node
 
-    surf = cl.worldmodel->surfaces + node->firstsurface;
-    for (i = 0; i < node->numsurfaces; i++, surf++) {
-	if (surf->flags & SURF_DRAWTILED)
-	    continue;		// no lightmaps
+   surf = cl.worldmodel->surfaces + node->firstsurface;
+   for (i = 0; i < node->numsurfaces; i++, surf++) {
+      if (surf->flags & SURF_DRAWTILED)
+         continue;		// no lightmaps
 
-	tex = surf->texinfo;
+      tex = surf->texinfo;
 
-	s = DotProduct(mid, tex->vecs[0]) + tex->vecs[0][3];
-	t = DotProduct(mid, tex->vecs[1]) + tex->vecs[1][3];;
+      s = DotProduct(mid, tex->vecs[0]) + tex->vecs[0][3];
+      t = DotProduct(mid, tex->vecs[1]) + tex->vecs[1][3];;
 
-	if (s < surf->texturemins[0] || t < surf->texturemins[1])
-	    continue;
+      if (s < surf->texturemins[0] || t < surf->texturemins[1])
+         continue;
 
-	ds = s - surf->texturemins[0];
-	dt = t - surf->texturemins[1];
+      ds = s - surf->texturemins[0];
+      dt = t - surf->texturemins[1];
 
-	if (ds > surf->extents[0] || dt > surf->extents[1])
-	    continue;
+      if (ds > surf->extents[0] || dt > surf->extents[1])
+         continue;
 
-	if (!surf->samples)
-	    return 0;
+      if (!surf->samples)
+         return 0;
 
-	ds >>= 4;
-	dt >>= 4;
+      ds >>= 4;
+      dt >>= 4;
 
-	/* FIXME: does this account properly for dynamic lights? e.g. rocket */
-	lightmap = surf->samples;
-	r = 0;
-	if (lightmap) {
-	    lightmap += dt * ((surf->extents[0] >> 4) + 1) + ds;
-	    for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255;
-		 maps++) {
-		scale = d_lightstylevalue[surf->styles[maps]];
-		r += *lightmap * scale;
-		lightmap += ((surf->extents[0] >> 4) + 1) *
-		    ((surf->extents[1] >> 4) + 1);
-	    }
-	    r >>= 8;
-	}
+      /* FIXME: does this account properly for dynamic lights? e.g. rocket */
+      lightmap = surf->samples;
+      r = 0;
+      if (lightmap) {
+         lightmap += dt * ((surf->extents[0] >> 4) + 1) + ds;
+         for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255;
+               maps++) {
+            scale = d_lightstylevalue[surf->styles[maps]];
+            r += *lightmap * scale;
+            lightmap += ((surf->extents[0] >> 4) + 1) *
+               ((surf->extents[1] >> 4) + 1);
+         }
+         r >>= 8;
+      }
 
-	return r;
-    }
+      return r;
+   }
 
-    /* FIXME - tail recursion => optimize */
-    /* go down back side */
-    return RecursiveLightPoint(node->children[!side], mid, end);
+   /* FIXME - tail recursion => optimize */
+   /* go down back side */
+   return RecursiveLightPoint(node->children[!side], mid, end);
 }
 
 /*
@@ -242,26 +242,25 @@ RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
  * light value of a bmodel below the point. Models could easily be standing on
  * a func_plat or similar...
  */
-int
-R_LightPoint(vec3_t p)
+int R_LightPoint(vec3_t p)
 {
-    vec3_t end;
-    int r;
+   vec3_t end;
+   int r;
 
-    if (!cl.worldmodel->lightdata)
-	return 255;
+   if (!cl.worldmodel->lightdata)
+      return 255;
 
-    end[0] = p[0];
-    end[1] = p[1];
-    end[2] = p[2] - (8192 + 2); /* Max distance + error margin */
+   end[0] = p[0];
+   end[1] = p[1];
+   end[2] = p[2] - (8192 + 2); /* Max distance + error margin */
 
-    r = RecursiveLightPoint(cl.worldmodel->nodes, p, end);
+   r = RecursiveLightPoint(cl.worldmodel->nodes, p, end);
 
-    if (r == -1)
-	r = 0;
+   if (r == -1)
+      r = 0;
 
-    if (r < r_refdef.ambientlight)
-	r = r_refdef.ambientlight;
+   if (r < r_refdef.ambientlight)
+      r = r_refdef.ambientlight;
 
-    return r;
+   return r;
 }
