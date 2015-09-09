@@ -468,8 +468,7 @@ Must be called whenever vid changes
 Internal use only
 =================
 */
-static void
-SCR_CalcRefdef(void)
+static void SCR_CalcRefdef(void)
 {
    vrect_t vrect;
    float size;
@@ -551,11 +550,10 @@ SCR_SizeDown_f
 Keybinding command
 =================
 */
-static void
-SCR_SizeDown_f(void)
+static void SCR_SizeDown_f(void)
 {
-    Cvar_SetValue("viewsize", scr_viewsize.value - 10);
-    vid.recalc_refdef = 1;
+   Cvar_SetValue("viewsize", scr_viewsize.value - 10);
+   vid.recalc_refdef = 1;
 }
 
 #ifdef NQ_HACK
@@ -565,28 +563,27 @@ SCR_BeginLoadingPlaque
 
 ================
 */
-void
-SCR_BeginLoadingPlaque(void)
+void SCR_BeginLoadingPlaque(void)
 {
-    S_StopAllSounds(true);
+   S_StopAllSounds(true);
 
-    if (cls.state != ca_active)
-	return;
+   if (cls.state != ca_active)
+      return;
 
-// redraw with no console and the loading plaque
-    Con_ClearNotify();
-    scr_centertime_off = 0;
-    scr_con_current = 0;
+   // redraw with no console and the loading plaque
+   Con_ClearNotify();
+   scr_centertime_off = 0;
+   scr_con_current = 0;
 
-    scr_drawloading = true;
-    scr_fullupdate = 0;
-    Sbar_Changed();
-    SCR_UpdateScreen();
-    scr_drawloading = false;
+   scr_drawloading = true;
+   scr_fullupdate = 0;
+   Sbar_Changed();
+   SCR_UpdateScreen();
+   scr_drawloading = false;
 
-    scr_disabled_for_loading = true;
-    scr_disabled_time = realtime;
-    scr_fullupdate = 0;
+   scr_disabled_for_loading = true;
+   scr_disabled_time = realtime;
+   scr_fullupdate = 0;
 }
 
 /*
@@ -594,17 +591,16 @@ SCR_BeginLoadingPlaque(void)
 SCR_DrawLoading
 ==============
 */
-static void
-SCR_DrawLoading(void)
+static void SCR_DrawLoading(void)
 {
-    const qpic_t *pic;
+   const qpic_t *pic;
 
-    if (!scr_drawloading)
-	return;
+   if (!scr_drawloading)
+      return;
 
-    pic = Draw_CachePic("gfx/loading.lmp");
-    Draw_Pic((vid.width - pic->width) / 2,
-	     (vid.height - 48 - pic->height) / 2, pic);
+   pic = Draw_CachePic("gfx/loading.lmp");
+   Draw_Pic((vid.width - pic->width) / 2,
+         (vid.height - 48 - pic->height) / 2, pic);
 }
 
 /*
@@ -613,12 +609,11 @@ SCR_EndLoadingPlaque
 
 ================
 */
-void
-SCR_EndLoadingPlaque(void)
+void SCR_EndLoadingPlaque(void)
 {
-    scr_disabled_for_loading = false;
-    scr_fullupdate = 0;
-    Con_ClearNotify();
+   scr_disabled_for_loading = false;
+   scr_fullupdate = 0;
+   Con_ClearNotify();
 }
 #endif /* NQ_HACK */
 
@@ -755,9 +750,6 @@ SCR_UpdateScreen(void)
       vrect.y = 0;
       vrect.width = vid.width;
       vrect.height = vid.height;
-      vrect.pnext = 0;
-
-      VID_Update(&vrect);
    }
    else if (scr_copytop)
    {
@@ -765,9 +757,6 @@ SCR_UpdateScreen(void)
       vrect.y = 0;
       vrect.width = vid.width;
       vrect.height = vid.height - sb_lines;
-      vrect.pnext = 0;
-
-      VID_Update(&vrect);
    }
    else
    {
@@ -775,10 +764,9 @@ SCR_UpdateScreen(void)
       vrect.y = scr_vrect.y;
       vrect.width = scr_vrect.width;
       vrect.height = scr_vrect.height;
-      vrect.pnext = 0;
-
-      VID_Update(&vrect);
    }
+   vrect.pnext = 0;
+   VID_Update(&vrect);
 }
 
 //=============================================================================
