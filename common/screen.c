@@ -108,15 +108,11 @@ cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 static cvar_t scr_conspeed = { "scr_conspeed", "300" };
 static cvar_t scr_showram = { "showram", "1" };
-static cvar_t scr_showturtle = { "showturtle", "0" };
-static cvar_t scr_showpause = { "showpause", "1" };
-static cvar_t show_fps = { "show_fps", "0" };	/* set for running times */
 static vrect_t *pconupdate;
 qboolean scr_skipupdate;
 
 static const qpic_t *scr_ram;
 static const qpic_t *scr_net;
-static const qpic_t *scr_turtle;
 
 static char scr_centerstring[1024];
 static float scr_centertime_start;	// for slow victory printing
@@ -156,31 +152,6 @@ static void SCR_DrawRam(void)
 
 /*
 ==============
-SCR_DrawTurtle
-==============
-*/
-static void SCR_DrawTurtle(void)
-{
-   static int count;
-
-   if (!scr_showturtle.value)
-      return;
-
-   if (host_frametime < 0.1) {
-      count = 0;
-      return;
-   }
-
-   count++;
-   if (count < 3)
-      return;
-
-   Draw_Pic(scr_vrect.x, scr_vrect.y, scr_turtle);
-}
-
-
-/*
-==============
 SCR_DrawNet
 ==============
 */
@@ -201,33 +172,6 @@ SCR_DrawNet(void)
       return;
 
    Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
-}
-
-
-static void
-SCR_DrawFPS(void)
-{ }
-
-
-/*
-==============
-DrawPause
-==============
-*/
-static void
-SCR_DrawPause(void)
-{
-   const qpic_t *pic;
-
-   if (!scr_showpause.value)	// turn off for screenshots
-      return;
-
-   if (!cl.paused)
-      return;
-
-   pic = Draw_CachePic("gfx/pause.lmp");
-   Draw_Pic((vid.width - pic->width) / 2,
-         (vid.height - 48 - pic->height) / 2, pic);
 }
 
 //=============================================================================
@@ -791,9 +735,6 @@ SCR_UpdateScreen(void)
    } else {
       SCR_DrawRam();
       SCR_DrawNet();
-      SCR_DrawFPS();
-      SCR_DrawTurtle();
-      SCR_DrawPause();
       SCR_DrawCenterString();
       Sbar_Draw();
       SCR_DrawConsole();
@@ -854,11 +795,8 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_viewsize);
     Cvar_RegisterVariable(&scr_conspeed);
     Cvar_RegisterVariable(&scr_showram);
-    Cvar_RegisterVariable(&scr_showturtle);
-    Cvar_RegisterVariable(&scr_showpause);
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
-    Cvar_RegisterVariable(&show_fps);
 
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
@@ -866,12 +804,10 @@ SCR_Init(void)
 #ifdef NQ_HACK
     scr_ram = (qpic_t*)Draw_PicFromWad("ram");
     scr_net = (qpic_t*)Draw_PicFromWad("net");
-    scr_turtle = (qpic_t*)Draw_PicFromWad("turtle");
 #endif
 #ifdef QW_HACK
     scr_ram = W_GetLumpName("ram");
     scr_net = W_GetLumpName("net");
-    scr_turtle = W_GetLumpName("turtle");
 
     Cvar_RegisterVariable(&scr_allowsnap);
 #endif
