@@ -463,34 +463,34 @@ static int load_cursor;		// 0 < load_cursor < MAX_SAVEGAMES
 static void
 M_ScanSaves(void)
 {
-    int i, j;
-    char name[MAX_OSPATH];
-    FILE *f;
-    int version;
+   int i, j, unused, version;
+   char name[MAX_OSPATH];
+   FILE *f;
 #ifdef _WIN32
-    char slash = '\\';
+   char slash = '\\';
 #else
-    char slash = '/';
+   char slash = '/';
 #endif
 
-    for (i = 0; i < MAX_SAVEGAMES; i++) {
-	strcpy(m_filenames[i], "--- UNUSED SLOT ---");
-	loadable[i] = false;
-	sprintf(name, "%s%cs%i.sav", com_gamedir, slash, i);
-	f = fopen(name, "r");
-	if (!f)
-	    continue;
-	fscanf(f, "%i\n", &version);
-	fscanf(f, "%79s\n", name);
-	strncpy(m_filenames[i], name, sizeof(m_filenames[i]) - 1);
+   for (i = 0; i < MAX_SAVEGAMES; i++)
+   {
+      strcpy(m_filenames[i], "--- UNUSED SLOT ---");
+      loadable[i] = false;
+      sprintf(name, "%s%cs%i.sav", com_gamedir, slash, i);
+      f = fopen(name, "r");
+      if (!f)
+         continue;
+      unused = fscanf(f, "%i\n", &version);
+      unused = fscanf(f, "%79s\n", name);
+      strncpy(m_filenames[i], name, sizeof(m_filenames[i]) - 1);
 
-	// change _ back to space
-	for (j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
-	    if (m_filenames[i][j] == '_')
-		m_filenames[i][j] = ' ';
-	loadable[i] = true;
-	fclose(f);
-    }
+      // change _ back to space
+      for (j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
+         if (m_filenames[i][j] == '_')
+            m_filenames[i][j] = ' ';
+      loadable[i] = true;
+      fclose(f);
+   }
 }
 
 static void
