@@ -68,7 +68,7 @@ SOURCES_C := $(CORE_DIR)/libretro-common/file/retro_dirent.c \
 	$(CORE_DIR)/common/sv_move.c \
 	$(CORE_DIR)/common/sv_phys.c \
 	$(CORE_DIR)/common/sv_user.c \
-	$(CORE_DIR)/common/sys_libretro.c \
+	$(CORE_DIR)/common/libretro.c \
 	$(CORE_DIR)/common/view.c \
 	$(CORE_DIR)/common/wad.c \
 	$(CORE_DIR)/common/zone.c \
