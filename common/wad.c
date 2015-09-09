@@ -41,24 +41,24 @@ Space padding is so names can be printed nicely in tables.
 Can safely be performed in place.
 ==================
 */
-void
-W_CleanupName(const char *in, char *out)
+void W_CleanupName(const char *in, char *out)
 {
-    int i;
-    int c;
+   int i;
+   int c;
 
-    for (i = 0; i < 16; i++) {
-	c = in[i];
-	if (!c)
-	    break;
+   for (i = 0; i < 16; i++)
+   {
+      c = in[i];
+      if (!c)
+         break;
 
-	if (c >= 'A' && c <= 'Z')
-	    c += ('a' - 'A');
-	out[i] = c;
-    }
+      if (c >= 'A' && c <= 'Z')
+         c += ('a' - 'A');
+      out[i] = c;
+   }
 
-    for (; i < 16; i++)
-	out[i] = 0;
+   for (; i < 16; i++)
+      out[i] = 0;
 }
 
 
@@ -68,8 +68,7 @@ W_CleanupName(const char *in, char *out)
 W_LoadWadFile
 ====================
 */
-void
-W_LoadWadFile(const char *filename)
+void W_LoadWadFile(const char *filename)
 {
    lumpinfo_t *lump_p;
    wadinfo_t *header;
@@ -125,7 +124,8 @@ lumpinfo_t * W_GetLumpinfo(const char *name)
 
    W_CleanupName(name, clean);
 
-   for (lump_p = wad_lumps, i = 0; i < wad_numlumps; i++, lump_p++) {
+   for (lump_p = wad_lumps, i = 0; i < wad_numlumps; i++, lump_p++)
+   {
       if (!strcmp(clean, lump_p->name))
          return lump_p;
    }
@@ -134,27 +134,22 @@ lumpinfo_t * W_GetLumpinfo(const char *name)
    return NULL;
 }
 
-void *
-W_GetLumpName(const char *name)
+void * W_GetLumpName(const char *name)
 {
-    lumpinfo_t *lump;
-
-    lump = W_GetLumpinfo(name);
-
+    lumpinfo_t *lump = W_GetLumpinfo(name);
     return (void *)(wad_base + lump->filepos);
 }
 
-void *
-W_GetLumpNum(int num)
+void *W_GetLumpNum(int num)
 {
-    lumpinfo_t *lump;
+   lumpinfo_t *lump;
 
-    if (num < 0 || num > wad_numlumps)
-	Sys_Error("%s: bad number: %i", __func__, num);
+   if (num < 0 || num > wad_numlumps)
+      Sys_Error("%s: bad number: %i", __func__, num);
 
-    lump = wad_lumps + num;
+   lump = wad_lumps + num;
 
-    return (void *)(wad_base + lump->filepos);
+   return (void *)(wad_base + lump->filepos);
 }
 
 /*
@@ -165,8 +160,7 @@ automatic byte swapping
 =============================================================================
 */
 
-void
-SwapPic(qpic_t *pic)
+void SwapPic(qpic_t *pic)
 {
 #ifdef MSB_FIRST
     pic->width  = LittleLong(pic->width);
