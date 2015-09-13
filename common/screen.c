@@ -107,7 +107,6 @@ static cvar_t scr_printspeed = { "scr_printspeed", "8" };
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	// 10 - 170
 static cvar_t scr_conspeed = { "scr_conspeed", "300" };
-static cvar_t scr_showram = { "showram", "1" };
 static vrect_t *pconupdate;
 qboolean scr_skipupdate;
 
@@ -132,23 +131,6 @@ static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 
 
 //=============================================================================
-
-/*
-==============
-SCR_DrawRam
-==============
-*/
-static void SCR_DrawRam(void)
-{
-   if (!scr_showram.value)
-      return;
-
-   if (!r_cache_thrash)
-      return;
-
-   Draw_Pic(scr_vrect.x + 32, scr_vrect.y, scr_ram);
-}
-
 
 /*
 ==============
@@ -728,7 +710,6 @@ SCR_UpdateScreen(void)
       SCR_DrawCenterString();
 #endif
    } else {
-      SCR_DrawRam();
       SCR_DrawNet();
       SCR_DrawCenterString();
       Sbar_Draw();
@@ -782,7 +763,6 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_fov);
     Cvar_RegisterVariable(&scr_viewsize);
     Cvar_RegisterVariable(&scr_conspeed);
-    Cvar_RegisterVariable(&scr_showram);
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
 
