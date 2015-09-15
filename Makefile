@@ -1,6 +1,7 @@
 DEBUG=0
 FRONTEND_SUPPORTS_RGB565=1
 TARGET_NAME=tyrquake
+HAVE_FIXED_POINT=0
 
 ifeq ($(platform),)
 platform = unix
@@ -224,6 +225,10 @@ CFLAGS     += $(DEFINES) $(COMMON_DEFINES)
 
 ifeq ($(FRONTEND_SUPPORTS_RGB565), 1)
 CFLAGS += -DFRONTEND_SUPPORTS_RGB565
+endif
+
+ifeq ($(HAVE_FIXED_POINT), 1)
+CFLAGS += -DHAVE_FIXED_POINT
 endif
 
 ifeq ($(platform), theos_ios)

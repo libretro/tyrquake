@@ -709,6 +709,10 @@ R_CullSubmodelSurfaces(const model_t *submodel, const vec3_t vieworg,
     }
 }
 
+#ifdef HAVE_FIXED_POINT
+#define mul64(a, b) (a * b)
+#endif
+
 /*
 =============
 R_DrawEntitiesOnList
@@ -722,6 +726,9 @@ R_DrawEntitiesOnList(void)
     int lnum;
     alight_t lighting;
 
+#ifdef HAVE_FIXED_POINT
+    int64_t len, len2;
+#endif
 // FIXME: remove and do real lighting
     float lightvec[3] = { -1, 0, 0 };
     vec3_t dist;
@@ -775,14 +782,30 @@ R_DrawEntitiesOnList(void)
 		lighting.plightvec = lightvec;
 
 		for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
-		    if (cl_dlights[lnum].die >= cl.time) {
-			VectorSubtract(e->origin, cl_dlights[lnum].origin,
-				       dist);
-			add = cl_dlights[lnum].radius - Length(dist);
+		    if (cl_dlights[lnum].die >= cl.time)
+          {
+#ifdef HAVE_FIXED_POINT
+             dist[0] = (int)p[0] - cl_dlights[lnum].iorigin[0];
+             dist[1] = (int)p[1] - cl_dlights[lnum].iorigin[1];
+             dist[2] = (int)p[2] - cl_dlights[lnum].iorigin[2];
 
-			if (add > 0)
-			    lighting.ambientlight += add;
-		    }
+             len  = mul64(dist[0],dist[0]) + mul64(dist[1],dist[1]) + mul64(dist[2],dist[2]);
+             len2 = mul64(cl_dlights[lnum].iradius,cl_dlights[lnum].iradius);
+
+             if(len > len2)
+                continue;
+
+             len = sqrt (len);
+             add = cl_dlights[lnum].iradius - len;
+#else
+             VectorSubtract(e->origin, cl_dlights[lnum].origin,
+                   dist);
+             add = cl_dlights[lnum].radius - Length(dist);
+#endif
+
+             if (add > 0)
+                lighting.ambientlight += add;
+          }
 		}
 
 		// clamp lighting so it doesn't overbright as much

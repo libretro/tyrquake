@@ -397,12 +397,24 @@ CL_DecayLights(void)
    dl = cl_dlights;
    for (i = 0; i < MAX_DLIGHTS; i++, dl++)
    {
-      if (dl->die < cl.time || !dl->radius)
+      if (dl->die < cl.time)
+         continue;
+#ifdef HAVE_FIXED_POINT
+      if (!dl->iradius)
+         continue;
+
+      dl->iradius -= time * dl->decay;
+      if (dl->iradius < 0)
+         dl->iradius = 0;
+#else
+      if (!dl->radius)
          continue;
 
       dl->radius -= time * dl->decay;
       if (dl->radius < 0)
          dl->radius = 0;
+#endif
+
    }
 }
 
@@ -568,14 +580,30 @@ void CL_RelinkEntities(void)
       if (ent->effects & EF_MUZZLEFLASH)
       {
          vec3_t fv, rv, uv;
+#ifdef HAVE_FIXED_POINT
+         vec3_t org;
+#endif
 
          dl = CL_AllocDlight(i);
+#ifdef HAVE_FIXED_POINT
+         VectorCopy(ent->origin, org);
+         org[2] += 16;
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->origin[2] += 16;
+#endif
          AngleVectors(ent->angles, fv, rv, uv);
 
+#ifdef HAVE_FIXED_POINT
+         VectorMA(org, 18, fv, org);
+         dl->iorigin[0] = org[0];
+         dl->iorigin[1] = org[1];
+         dl->iorigin[2] = org[2];
+         dl->iradius = 200 + (rand() & 31);
+#else
          VectorMA(dl->origin, 18, fv, dl->origin);
          dl->radius = 200 + (rand() & 31);
+#endif
          dl->minlight = 32;
          dl->die = cl.time + 0.1;
          dl->color = dl_colors[DLIGHT_FLASH];
@@ -584,9 +612,17 @@ void CL_RelinkEntities(void)
       if (ent->effects & EF_BRIGHTLIGHT)
       {
          dl = CL_AllocDlight(i);
+
+#ifdef HAVE_FIXED_POINT
+         dl->iorigin[0] = ent->origin[0];
+         dl->iorigin[1] = ent->origin[1];
+         dl->iorigin[2] = ent->origin[2];
+         dl->iradius = 400 + (rand() & 31);
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->origin[2] += 16;
          dl->radius = 400 + (rand() & 31);
+#endif
          dl->die = cl.time + 0.001;
          dl->color = dl_colors[DLIGHT_FLASH];
       }
@@ -594,8 +630,15 @@ void CL_RelinkEntities(void)
       if (ent->effects & EF_DIMLIGHT)
       {
          dl = CL_AllocDlight(i);
+#ifdef HAVE_FIXED_POINT
+         dl->iorigin[0] = ent->origin[0];
+         dl->iorigin[1] = ent->origin[1];
+         dl->iorigin[2] = ent->origin[2];
+         dl->iradius = 200 + (rand() & 31);
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
+#endif
          dl->die = cl.time + 0.001;
          dl->color = dl_colors[DLIGHT_FLASH];
       }
@@ -603,20 +646,45 @@ void CL_RelinkEntities(void)
       if ((ent->effects & (EF_RED | EF_BLUE)) == (EF_RED | EF_BLUE))
       {
          dl = CL_AllocDlight(i);
+#ifdef HAVE_FIXED_POINT
+         dl->iorigin[0] = ent->origin[0];
+         dl->iorigin[1] = ent->origin[1];
+         dl->iorigin[2] = ent->origin[2];
+         dl->iradius = 200 + (rand() & 31);
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
+#endif
          dl->die = cl.time + 0.001;
          dl->color = dl_colors[DLIGHT_PURPLE];
-      } else if (ent->effects & EF_BLUE) {
+      }
+      else if (ent->effects & EF_BLUE)
+      {
          dl = CL_AllocDlight(i);
+#ifdef HAVE_FIXED_POINT
+         dl->iorigin[0] = ent->origin[0];
+         dl->iorigin[1] = ent->origin[1];
+         dl->iorigin[2] = ent->origin[2];
+         dl->iradius = 200 + (rand() & 31);
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
+#endif
          dl->die = cl.time + 0.001;
          dl->color = dl_colors[DLIGHT_BLUE];
-      } else if (ent->effects & EF_RED) {
+      }
+      else if (ent->effects & EF_RED)
+      {
          dl = CL_AllocDlight(i);
+#ifdef HAVE_FIXED_POINT
+         dl->iorigin[0] = ent->origin[0];
+         dl->iorigin[1] = ent->origin[1];
+         dl->iorigin[2] = ent->origin[2];
+         dl->iradius = 200 + (rand() & 31);
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
+#endif
          dl->die = cl.time + 0.001;
          dl->color = dl_colors[DLIGHT_RED];
       }
@@ -629,13 +697,22 @@ void CL_RelinkEntities(void)
          R_RocketTrail(oldorg, ent->origin, 3);
       else if (ent->model->flags & EF_TRACER2)
          R_RocketTrail(oldorg, ent->origin, 5);
-      else if (ent->model->flags & EF_ROCKET) {
+      else if (ent->model->flags & EF_ROCKET)
+      {
          R_RocketTrail(oldorg, ent->origin, 0);
          dl = CL_AllocDlight(i);
+#ifdef HAVE_FIXED_POINT
+         dl->iorigin[0] = ent->origin[0];
+         dl->iorigin[1] = ent->origin[1];
+         dl->iorigin[2] = ent->origin[2];
+         dl->iradius = 200;
+#else
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200;
+#endif
          dl->die = cl.time + 0.01;
-      } else if (ent->model->flags & EF_GRENADE)
+      }
+      else if (ent->model->flags & EF_GRENADE)
          R_RocketTrail(oldorg, ent->origin, 1);
       else if (ent->model->flags & EF_TRACER3)
          R_RocketTrail(oldorg, ent->origin, 6);
