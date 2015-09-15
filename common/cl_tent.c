@@ -208,16 +208,8 @@ CL_ParseTEnt(void)
          pos[2] = MSG_ReadCoord();
          R_ParticleExplosion(pos);
          dl = CL_AllocDlight(0);
-
-#ifdef HAVE_FIXED_POINT
-         dl->iorigin[0] = pos[0];
-         dl->iorigin[1] = pos[1];
-         dl->iorigin[2] = pos[2];
-         dl->iradius = 350;
-#else
          VectorCopy(pos, dl->origin);
          dl->radius = 350;
-#endif
          dl->die = cl.time + 0.5;
          dl->decay = 300;
          S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
@@ -272,15 +264,8 @@ CL_ParseTEnt(void)
          colorLength = MSG_ReadByte();
          R_ParticleExplosion2(pos, colorStart, colorLength);
          dl = CL_AllocDlight(0);
-#ifdef HAVE_FIXED_POINT
-         dl->iorigin[0] = pos[0];
-         dl->iorigin[1] = pos[1];
-         dl->iorigin[2] = pos[2];
-         dl->iradius = 350;
-#else
          VectorCopy(pos, dl->origin);
          dl->radius = 350;
-#endif
          dl->die = cl.time + 0.5;
          dl->decay = 300;
          S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);

@@ -64,11 +64,7 @@ static void R_AddDynamicLights(void)
    msurface_t *surf;
    int lnum;
    int sd, td;
-#ifdef HAVE_FIXED_POINT
-   int rad, dist, minlight;
-#else
    float dist, rad, minlight;
-#endif
    vec3_t impact, local;
    int s, t;
    int i;
@@ -80,34 +76,21 @@ static void R_AddDynamicLights(void)
    tmax = (surf->extents[1] >> 4) + 1;
    tex = surf->texinfo;
 
-   for (lnum = 0; lnum < MAX_DLIGHTS; lnum++)
-   {
+   for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
       if (!(surf->dlightbits[lnum >> 5] & (1 << (lnum & 31)))) continue;  //qbism from MH
 
-#ifdef HAVE_FIXED_POINT
-      rad = cl_dlights[lnum].iradius;
-      dist = (DotProduct(cl_dlights[lnum].iorigin, surf->plane->inormal) -
-         surf->plane->idist) >> 16;
-      rad -= abs(dist);
-#else
       rad = cl_dlights[lnum].radius;
       dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -
          surf->plane->dist;
       rad -= fabs(dist);
-#endif
       minlight = cl_dlights[lnum].minlight;
       if (rad < minlight)
          continue;
       minlight = rad - minlight;
 
       for (i = 0; i < 3; i++) {
-#ifdef HAVE_FIXED_POINT
-         impact[i] = (cl_dlights[lnum].iorigin[i] -
-            ((surf->plane->inormal[i] * dist) >> 16)) * (1 << 2);
-#else
          impact[i] = cl_dlights[lnum].origin[i] -
             surf->plane->normal[i] * dist;
-#endif
       }
 
       local[0] = DotProduct(impact, tex->vecs[0]) + tex->vecs[0][3];

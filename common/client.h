@@ -43,13 +43,8 @@ typedef struct {
 #define	MAX_DLIGHTS	32
 typedef struct {
     int key;			// so entities can reuse same entry
-#ifdef HAVE_FIXED_POINT
-    int16_t iorigin[3];
-    int16_t iradius;
-#else
     vec3_t origin;
     float radius;
-#endif
     float die;			// stop lighting after this time
     float decay;		// drop this each second
     float minlight;		// don't add when contributing less
