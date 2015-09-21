@@ -19,7 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "libretro.h"
-#include "thread.h"
+#include <retro_miscellaneous.h>
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
