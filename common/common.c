@@ -113,37 +113,33 @@ over areas they shouldn't.
 
 
 // ClearLink is used for new headnodes
-void
-ClearLink(link_t *l)
+void ClearLink(link_t *l)
 {
-    l->prev = l->next = l;
+   l->prev = l->next = l;
 }
 
-void
-RemoveLink(link_t *l)
+void RemoveLink(link_t *l)
 {
-    l->next->prev = l->prev;
-    l->prev->next = l->next;
+   l->next->prev = l->prev;
+   l->prev->next = l->next;
 }
 
-void
-InsertLinkBefore(link_t *l, link_t *before)
+void InsertLinkBefore(link_t *l, link_t *before)
 {
-    l->next = before;
-    l->prev = before->prev;
-    l->prev->next = l;
-    l->next->prev = l;
+   l->next = before;
+   l->prev = before->prev;
+   l->prev->next = l;
+   l->next->prev = l;
 }
 
 /* Unused */
 #if 0
-void
-InsertLinkAfter(link_t *l, link_t *after)
+void InsertLinkAfter(link_t *l, link_t *after)
 {
-    l->next = after->next;
-    l->prev = after;
-    l->prev->next = l;
-    l->next->prev = l;
+   l->next = after->next;
+   l->prev = after;
+   l->prev->next = l;
+   l->next->prev = l;
 }
 #endif
 
@@ -161,132 +157,129 @@ InsertLinkAfter(link_t *l, link_t *after)
  * Try to avoid fixed-size intermediate buffers like this if possible
  */
 #define COM_STRBUF_LEN 2048
-static char *
-COM_GetStrBuf(void)
+static char *COM_GetStrBuf(void)
 {
-    static char buffers[4][COM_STRBUF_LEN];
-    static int index;
-    return buffers[3 & ++index];
+   static char buffers[4][COM_STRBUF_LEN];
+   static int index;
+   return buffers[3 & ++index];
+}
+
+int Q_atoi(const char *str)
+{
+   int val;
+   int sign;
+   int c;
+
+   if (*str == '-')
+   {
+      sign = -1;
+      str++;
+   } else
+      sign = 1;
+
+   val = 0;
+
+   // check for hex
+   if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+   {
+      str += 2;
+      while (1)
+      {
+         c = *str++;
+         if (c >= '0' && c <= '9')
+            val = (val << 4) + c - '0';
+         else if (c >= 'a' && c <= 'f')
+            val = (val << 4) + c - 'a' + 10;
+         else if (c >= 'A' && c <= 'F')
+            val = (val << 4) + c - 'A' + 10;
+         else
+            return val * sign;
+      }
+   }
+
+   // check for character
+   if (str[0] == '\'')
+      return sign * str[1];
+
+   // assume decimal
+   while (1)
+   {
+      c = *str++;
+      if (c < '0' || c > '9')
+         return val * sign;
+      val = val * 10 + c - '0';
+   }
+
+   return 0;
 }
 
 
-
-int
-Q_atoi(const char *str)
+float Q_atof(const char *str)
 {
-    int val;
-    int sign;
-    int c;
+   double val;
+   int sign;
+   int c;
+   int decimal, total;
 
-    if (*str == '-') {
-	sign = -1;
-	str++;
-    } else
-	sign = 1;
+   if (*str == '-')
+   {
+      sign = -1;
+      str++;
+   }
+   else
+      sign = 1;
 
-    val = 0;
+   val = 0;
 
-//
-// check for hex
-//
-    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
-	str += 2;
-	while (1) {
-	    c = *str++;
-	    if (c >= '0' && c <= '9')
-		val = (val << 4) + c - '0';
-	    else if (c >= 'a' && c <= 'f')
-		val = (val << 4) + c - 'a' + 10;
-	    else if (c >= 'A' && c <= 'F')
-		val = (val << 4) + c - 'A' + 10;
-	    else
-		return val * sign;
-	}
-    }
-//
-// check for character
-//
-    if (str[0] == '\'') {
-	return sign * str[1];
-    }
-//
-// assume decimal
-//
-    while (1) {
-	c = *str++;
-	if (c < '0' || c > '9')
-	    return val * sign;
-	val = val * 10 + c - '0';
-    }
+   // check for hex
+   if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+   {
+      str += 2;
+      while (1)
+      {
+         c = *str++;
+         if (c >= '0' && c <= '9')
+            val = (val * 16) + c - '0';
+         else if (c >= 'a' && c <= 'f')
+            val = (val * 16) + c - 'a' + 10;
+         else if (c >= 'A' && c <= 'F')
+            val = (val * 16) + c - 'A' + 10;
+         else
+            return val * sign;
+      }
+   }
 
-    return 0;
-}
+   // check for character
+   if (str[0] == '\'')
+      return sign * str[1];
 
+   // assume decimal
+   decimal = -1;
+   total = 0;
+   while (1)
+   {
+      c = *str++;
+      if (c == '.')
+      {
+         decimal = total;
+         continue;
+      }
+      if (c < '0' || c > '9')
+         break;
+      val = val * 10 + c - '0';
+      total++;
+   }
 
-float
-Q_atof(const char *str)
-{
-    double val;
-    int sign;
-    int c;
-    int decimal, total;
+   if (decimal == -1)
+      return val * sign;
 
-    if (*str == '-') {
-	sign = -1;
-	str++;
-    } else
-	sign = 1;
+   while (total > decimal)
+   {
+      val /= 10;
+      total--;
+   }
 
-    val = 0;
-
-//
-// check for hex
-//
-    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
-	str += 2;
-	while (1) {
-	    c = *str++;
-	    if (c >= '0' && c <= '9')
-		val = (val * 16) + c - '0';
-	    else if (c >= 'a' && c <= 'f')
-		val = (val * 16) + c - 'a' + 10;
-	    else if (c >= 'A' && c <= 'F')
-		val = (val * 16) + c - 'A' + 10;
-	    else
-		return val * sign;
-	}
-    }
-//
-// check for character
-//
-    if (str[0] == '\'') {
-	return sign * str[1];
-    }
-//
-// assume decimal
-//
-    decimal = -1;
-    total = 0;
-    while (1) {
-	c = *str++;
-	if (c == '.') {
-	    decimal = total;
-	    continue;
-	}
-	if (c < '0' || c > '9')
-	    break;
-	val = val * 10 + c - '0';
-	total++;
-    }
-
-    if (decimal == -1)
-	return val * sign;
-    while (total > decimal) {
-	val /= 10;
-	total--;
-    }
-
-    return val * sign;
+   return val * sign;
 }
 
 /*
@@ -306,34 +299,27 @@ int (*LittleLong) (int l);
 float (*BigFloat) (float l);
 float (*LittleFloat) (float l);
 
-short
-ShortSwap(short l)
+short ShortSwap(short l)
 {
-    byte b1, b2;
+   byte b1 = l & 255;
+   byte b2 = (l >> 8) & 255;
 
-    b1 = l & 255;
-    b2 = (l >> 8) & 255;
-
-    return (b1 << 8) + b2;
+   return (b1 << 8) + b2;
 }
 
-short
-ShortNoSwap(short l)
+short ShortNoSwap(short l)
 {
-    return l;
+   return l;
 }
 
-int
-LongSwap(int l)
+int LongSwap(int l)
 {
-    byte b1, b2, b3, b4;
+   byte b1 = l & 255;
+   byte b2 = (l >> 8) & 255;
+   byte b3 = (l >> 16) & 255;
+   byte b4 = (l >> 24) & 255;
 
-    b1 = l & 255;
-    b2 = (l >> 8) & 255;
-    b3 = (l >> 16) & 255;
-    b4 = (l >> 24) & 255;
-
-    return ((int)b1 << 24) + ((int)b2 << 16) + ((int)b3 << 8) + b4;
+   return ((int)b1 << 24) + ((int)b2 << 16) + ((int)b3 << 8) + b4;
 }
 
 int
@@ -342,26 +328,24 @@ LongNoSwap(int l)
     return l;
 }
 
-float
-FloatSwap(float f)
+float FloatSwap(float f)
 {
-    union {
-	float f;
-	byte b[4];
-    } dat1, dat2;
+   union {
+      float f;
+      byte b[4];
+   } dat1, dat2;
 
-    dat1.f = f;
-    dat2.b[0] = dat1.b[3];
-    dat2.b[1] = dat1.b[2];
-    dat2.b[2] = dat1.b[1];
-    dat2.b[3] = dat1.b[0];
-    return dat2.f;
+   dat1.f = f;
+   dat2.b[0] = dat1.b[3];
+   dat2.b[1] = dat1.b[2];
+   dat2.b[2] = dat1.b[1];
+   dat2.b[3] = dat1.b[0];
+   return dat2.f;
 }
 
-float
-FloatNoSwap(float f)
+float FloatNoSwap(float f)
 {
-    return f;
+   return f;
 }
 
 /*
@@ -377,67 +361,37 @@ Handles byte ordering and avoids alignment errors
 usercmd_t nullcmd;		// guarenteed to be zero
 #endif
 
-//
 // writing functions
-//
 
-void
-MSG_WriteChar(sizebuf_t *sb, int c)
+void MSG_WriteChar(sizebuf_t *sb, int c)
 {
-    byte *buf;
-
-#ifdef PARANOID
-    if (c < -128 || c > 127)
-	Sys_Error("%s: range error", __func__);
-#endif
-
-    buf = (byte*)SZ_GetSpace(sb, 1);
-    buf[0] = c;
+   byte *buf = (byte*)SZ_GetSpace(sb, 1);
+   buf[0] = c;
 }
 
-void
-MSG_WriteByte(sizebuf_t *sb, int c)
+void MSG_WriteByte(sizebuf_t *sb, int c)
 {
-    byte *buf;
-
-#ifdef PARANOID
-    if (c < 0 || c > 255)
-	Sys_Error("%s: range error", __func__);
-#endif
-
-    buf = (byte*)SZ_GetSpace(sb, 1);
-    buf[0] = c;
+   byte *buf = (byte*)SZ_GetSpace(sb, 1);
+   buf[0] = c;
 }
 
-void
-MSG_WriteShort(sizebuf_t *sb, int c)
+void MSG_WriteShort(sizebuf_t *sb, int c)
 {
-    byte *buf;
-
-#ifdef PARANOID
-    if (c < ((short)0x8000) || c > (short)0x7fff)
-	Sys_Error("%s: range error", __func__);
-#endif
-
-    buf = (byte*)SZ_GetSpace(sb, 2);
-    buf[0] = c & 0xff;
-    buf[1] = c >> 8;
+   byte *buf = (byte*)SZ_GetSpace(sb, 2);
+   buf[0] = c & 0xff;
+   buf[1] = c >> 8;
 }
 
-void
-MSG_WriteLong(sizebuf_t *sb, int c)
+void MSG_WriteLong(sizebuf_t *sb, int c)
 {
-    byte *buf;
-
-    buf = (byte*)SZ_GetSpace(sb, 4);
-    buf[0] = c & 0xff;
-    buf[1] = (c >> 8) & 0xff;
-    buf[2] = (c >> 16) & 0xff;
-    buf[3] = c >> 24;
+   byte *buf = (byte*)SZ_GetSpace(sb, 4);
+   buf[0] = c & 0xff;
+   buf[1] = (c >> 8) & 0xff;
+   buf[2] = (c >> 16) & 0xff;
+   buf[3] = c >> 24;
 }
 
-void
-MSG_WriteFloat(sizebuf_t *sb, float f)
+void MSG_WriteFloat(sizebuf_t *sb, float f)
 {
 #ifdef MSB_FIRST
    union {
@@ -454,113 +408,100 @@ MSG_WriteFloat(sizebuf_t *sb, float f)
 #endif
 }
 
-void
-MSG_WriteString(sizebuf_t *sb, const char *s)
+void MSG_WriteString(sizebuf_t *sb, const char *s)
 {
-    if (!s)
-	SZ_Write(sb, "", 1);
-    else
-	SZ_Write(sb, s, strlen(s) + 1);
+   if (!s)
+      SZ_Write(sb, "", 1);
+   else
+      SZ_Write(sb, s, strlen(s) + 1);
 }
 
-void
-MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
+void MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
 {
-    int maxlen, len;
+   /*
+    * FIXME - Kind of ugly to check space first then do getspace
+    * afterwards, but we don't know how much we'll need before
+    * hand. Update the SZ interface?
+    */
+   int maxlen = sb->maxsize - sb->cursize;
+   int    len = vsnprintf((char *)sb->data + sb->cursize, maxlen, fmt, ap);
 
-    /*
-     * FIXME - Kind of ugly to check space first then do getspace
-     * afterwards, but we don't know how much we'll need before
-     * hand. Update the SZ interface?
-     */
-    maxlen = sb->maxsize - sb->cursize;
-    len = vsnprintf((char *)sb->data + sb->cursize, maxlen, fmt, ap);
-
-    /* Use SZ_GetSpace to check for overflow */
-    SZ_GetSpace(sb, len + 1);
+   /* Use SZ_GetSpace to check for overflow */
+   SZ_GetSpace(sb, len + 1);
 }
 
-void
-MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...)
+void MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...)
 {
-    va_list ap;
+   va_list ap;
 
-    va_start(ap, fmt);
-    MSG_WriteStringvf(sb, fmt, ap);
-    va_end(ap);
+   va_start(ap, fmt);
+   MSG_WriteStringvf(sb, fmt, ap);
+   va_end(ap);
 }
 
-void
-MSG_WriteCoord(sizebuf_t *sb, float f)
+void MSG_WriteCoord(sizebuf_t *sb, float f)
 {
-    /*
-     * Co-ords are send as shorts, with the low 3 bits being the fractional
-     * component
-     */
-    MSG_WriteShort(sb, (int)(f * (1 << 3)));
+   /*
+    * Co-ords are send as shorts, with the low 3 bits being the fractional
+    * component
+    */
+   MSG_WriteShort(sb, (int)(f * (1 << 3)));
 }
 
-void
-MSG_WriteAngle(sizebuf_t *sb, float f)
+void MSG_WriteAngle(sizebuf_t *sb, float f)
 {
-    MSG_WriteByte(sb, (int)floorf((f * 256 / 360) + 0.5f) & 255);
+   MSG_WriteByte(sb, (int)floorf((f * 256 / 360) + 0.5f) & 255);
 }
 
-void
-MSG_WriteAngle16(sizebuf_t *sb, float f)
+void MSG_WriteAngle16(sizebuf_t *sb, float f)
 {
-    MSG_WriteShort(sb, (int)floorf((f * 65536 / 360) + 0.5f) & 65535);
+   MSG_WriteShort(sb, (int)floorf((f * 65536 / 360) + 0.5f) & 65535);
 }
 
 #ifdef QW_HACK
-void
-MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
-		      const usercmd_t *cmd)
+void MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
+      const usercmd_t *cmd)
 {
-    int bits;
+   // send the movement message
+   int bits = 0;
+   if (cmd->angles[0] != from->angles[0])
+      bits |= CM_ANGLE1;
+   if (cmd->angles[1] != from->angles[1])
+      bits |= CM_ANGLE2;
+   if (cmd->angles[2] != from->angles[2])
+      bits |= CM_ANGLE3;
+   if (cmd->forwardmove != from->forwardmove)
+      bits |= CM_FORWARD;
+   if (cmd->sidemove != from->sidemove)
+      bits |= CM_SIDE;
+   if (cmd->upmove != from->upmove)
+      bits |= CM_UP;
+   if (cmd->buttons != from->buttons)
+      bits |= CM_BUTTONS;
+   if (cmd->impulse != from->impulse)
+      bits |= CM_IMPULSE;
 
-//
-// send the movement message
-//
-    bits = 0;
-    if (cmd->angles[0] != from->angles[0])
-	bits |= CM_ANGLE1;
-    if (cmd->angles[1] != from->angles[1])
-	bits |= CM_ANGLE2;
-    if (cmd->angles[2] != from->angles[2])
-	bits |= CM_ANGLE3;
-    if (cmd->forwardmove != from->forwardmove)
-	bits |= CM_FORWARD;
-    if (cmd->sidemove != from->sidemove)
-	bits |= CM_SIDE;
-    if (cmd->upmove != from->upmove)
-	bits |= CM_UP;
-    if (cmd->buttons != from->buttons)
-	bits |= CM_BUTTONS;
-    if (cmd->impulse != from->impulse)
-	bits |= CM_IMPULSE;
+   MSG_WriteByte(buf, bits);
 
-    MSG_WriteByte(buf, bits);
+   if (bits & CM_ANGLE1)
+      MSG_WriteAngle16(buf, cmd->angles[0]);
+   if (bits & CM_ANGLE2)
+      MSG_WriteAngle16(buf, cmd->angles[1]);
+   if (bits & CM_ANGLE3)
+      MSG_WriteAngle16(buf, cmd->angles[2]);
 
-    if (bits & CM_ANGLE1)
-	MSG_WriteAngle16(buf, cmd->angles[0]);
-    if (bits & CM_ANGLE2)
-	MSG_WriteAngle16(buf, cmd->angles[1]);
-    if (bits & CM_ANGLE3)
-	MSG_WriteAngle16(buf, cmd->angles[2]);
+   if (bits & CM_FORWARD)
+      MSG_WriteShort(buf, cmd->forwardmove);
+   if (bits & CM_SIDE)
+      MSG_WriteShort(buf, cmd->sidemove);
+   if (bits & CM_UP)
+      MSG_WriteShort(buf, cmd->upmove);
 
-    if (bits & CM_FORWARD)
-	MSG_WriteShort(buf, cmd->forwardmove);
-    if (bits & CM_SIDE)
-	MSG_WriteShort(buf, cmd->sidemove);
-    if (bits & CM_UP)
-	MSG_WriteShort(buf, cmd->upmove);
-
-    if (bits & CM_BUTTONS)
-	MSG_WriteByte(buf, cmd->buttons);
-    if (bits & CM_IMPULSE)
-	MSG_WriteByte(buf, cmd->impulse);
-    MSG_WriteByte(buf, cmd->msec);
+   if (bits & CM_BUTTONS)
+      MSG_WriteByte(buf, cmd->buttons);
+   if (bits & CM_IMPULSE)
+      MSG_WriteByte(buf, cmd->impulse);
+   MSG_WriteByte(buf, cmd->msec);
 }
 #endif /* QW_HACK */
 
@@ -569,112 +510,106 @@ MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
  * Write the current message length to the start of the buffer (in big
  * endian format) with the control flag set.
  */
-void
-MSG_WriteControlHeader(sizebuf_t *sb)
+void MSG_WriteControlHeader(sizebuf_t *sb)
 {
-    int c = NETFLAG_CTL | (sb->cursize & NETFLAG_LENGTH_MASK);
+   int c = NETFLAG_CTL | (sb->cursize & NETFLAG_LENGTH_MASK);
 
-    sb->data[0] = c >> 24;
-    sb->data[1] = (c >> 16) & 0xff;
-    sb->data[2] = (c >> 8) & 0xff;
-    sb->data[3] = c & 0xff;
+   sb->data[0] = c >> 24;
+   sb->data[1] = (c >> 16) & 0xff;
+   sb->data[2] = (c >> 8) & 0xff;
+   sb->data[3] = c & 0xff;
 }
 #endif
 
-//
 // reading functions
-//
 int msg_readcount;
 qboolean msg_badread;
 
-void
-MSG_BeginReading(void)
+void MSG_BeginReading(void)
 {
-    msg_readcount = 0;
-    msg_badread = false;
+   msg_readcount = 0;
+   msg_badread = false;
 }
 
 #ifdef QW_HACK
-int
-MSG_GetReadCount(void)
+int MSG_GetReadCount(void)
 {
-    return msg_readcount;
+   return msg_readcount;
 }
 #endif
 
 // returns -1 and sets msg_badread if no more characters are available
-int
-MSG_ReadChar(void)
+int MSG_ReadChar(void)
 {
-    int c;
+   int c;
 
-    if (msg_readcount + 1 > net_message.cursize) {
-	msg_badread = true;
-	return -1;
-    }
+   if (msg_readcount + 1 > net_message.cursize)
+   {
+      msg_badread = true;
+      return -1;
+   }
 
-    c = (signed char)net_message.data[msg_readcount];
-    msg_readcount++;
+   c = (signed char)net_message.data[msg_readcount];
+   msg_readcount++;
 
-    return c;
+   return c;
 }
 
-int
-MSG_ReadByte(void)
+int MSG_ReadByte(void)
 {
-    int c;
+   int c;
 
-    if (msg_readcount + 1 > net_message.cursize) {
-	msg_badread = true;
-	return -1;
-    }
+   if (msg_readcount + 1 > net_message.cursize)
+   {
+      msg_badread = true;
+      return -1;
+   }
 
-    c = (unsigned char)net_message.data[msg_readcount];
-    msg_readcount++;
+   c = (unsigned char)net_message.data[msg_readcount];
+   msg_readcount++;
 
-    return c;
+   return c;
 }
 
-int
-MSG_ReadShort(void)
+int MSG_ReadShort(void)
 {
-    int c;
+   int c;
 
-    if (msg_readcount + 2 > net_message.cursize) {
-	msg_badread = true;
-	return -1;
-    }
+   if (msg_readcount + 2 > net_message.cursize)
+   {
+      msg_badread = true;
+      return -1;
+   }
 
-    c = (short)(net_message.data[msg_readcount]
-		+ (net_message.data[msg_readcount + 1] << 8));
+   c = (short)(net_message.data[msg_readcount]
+         + (net_message.data[msg_readcount + 1] << 8));
 
-    msg_readcount += 2;
+   msg_readcount += 2;
 
-    return c;
+   return c;
 }
 
-int
-MSG_ReadLong(void)
+int MSG_ReadLong(void)
 {
-    int c;
+   int c;
 
-    if (msg_readcount + 4 > net_message.cursize) {
-	msg_badread = true;
-	return -1;
-    }
+   if (msg_readcount + 4 > net_message.cursize)
+   {
+      msg_badread = true;
+      return -1;
+   }
 
-    c = net_message.data[msg_readcount]
-	+ (net_message.data[msg_readcount + 1] << 8)
-	+ (net_message.data[msg_readcount + 2] << 16)
-	+ (net_message.data[msg_readcount + 3] << 24);
+   c = net_message.data[msg_readcount]
+   + (net_message.data[msg_readcount + 1] << 8)
+   + (net_message.data[msg_readcount + 2] << 16)
+   + (net_message.data[msg_readcount + 3] << 24);
 
-    msg_readcount += 4;
+   msg_readcount += 4;
 
-    return c;
+   return c;
 }
 
-float
-MSG_ReadFloat(void)
+float MSG_ReadFloat(void)
 {
    union {
       byte b[4];
@@ -697,105 +632,100 @@ MSG_ReadFloat(void)
    return dat.f;
 }
 
-char *
-MSG_ReadString(void)
+char *MSG_ReadString(void)
 {
-    char *buf;
-    int len, c;
+   int c;
 
-    buf = COM_GetStrBuf();
-    len = 0;
-    do {
-	c = MSG_ReadChar();
-	if (c == -1 || c == 0)
-	    break;
-	buf[len++] = c;
-    } while (len < COM_STRBUF_LEN - 1);
+   char *buf = COM_GetStrBuf();
+   int len   = 0;
 
-    buf[len] = 0;
+   do
+   {
+      c = MSG_ReadChar();
+      if (c == -1 || c == 0)
+         break;
+      buf[len++] = c;
+   } while (len < COM_STRBUF_LEN - 1);
 
-    return buf;
+   buf[len] = 0;
+
+   return buf;
 }
 
 #ifdef QW_HACK
-char *
-MSG_ReadStringLine(void)
+char *MSG_ReadStringLine(void)
 {
-    char *buf;
-    int len, c;
+   int c;
 
-    buf = COM_GetStrBuf();
-    len = 0;
-    do {
-	c = MSG_ReadChar();
-	if (c == -1 || c == 0 || c == '\n')
-	    break;
-	buf[len++] = c;
-    } while (len < COM_STRBUF_LEN - 1);
+   char *buf = COM_GetStrBuf();
+   int len = 0;
 
-    buf[len] = 0;
+   do {
+      c = MSG_ReadChar();
+      if (c == -1 || c == 0 || c == '\n')
+         break;
+      buf[len++] = c;
+   } while (len < COM_STRBUF_LEN - 1);
 
-    return buf;
+   buf[len] = 0;
+
+   return buf;
 }
 #endif
 
-float
-MSG_ReadCoord(void)
+float MSG_ReadCoord(void)
 {
-    /*
-     * Co-ords are send as shorts, with the low 3 bits being the fractional
-     * component
-     */
-    return MSG_ReadShort() * (1.0 / (1 << 3));
+   /*
+    * Co-ords are send as shorts, with the low 3 bits being the fractional
+    * component
+    */
+   return MSG_ReadShort() * (1.0 / (1 << 3));
 }
 
-float
-MSG_ReadAngle(void)
+float MSG_ReadAngle(void)
 {
-    return MSG_ReadChar() * (360.0 / 256);
+   return MSG_ReadChar() * (360.0 / 256);
 }
 
-float
-MSG_ReadAngle16(void)
+float MSG_ReadAngle16(void)
 {
-    return MSG_ReadShort() * (360.0 / 65536);
+   return MSG_ReadShort() * (360.0 / 65536);
 }
 
 #ifdef QW_HACK
-void
-MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
+void MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
 {
-    int bits;
+   int bits;
 
-    memcpy(move, from, sizeof(*move));
+   memcpy(move, from, sizeof(*move));
 
-    bits = MSG_ReadByte();
+   bits = MSG_ReadByte();
 
-// read current angles
-    if (bits & CM_ANGLE1)
-	move->angles[0] = MSG_ReadAngle16();
-    if (bits & CM_ANGLE2)
-	move->angles[1] = MSG_ReadAngle16();
-    if (bits & CM_ANGLE3)
-	move->angles[2] = MSG_ReadAngle16();
+   // read current angles
+   if (bits & CM_ANGLE1)
+      move->angles[0] = MSG_ReadAngle16();
+   if (bits & CM_ANGLE2)
+      move->angles[1] = MSG_ReadAngle16();
+   if (bits & CM_ANGLE3)
+      move->angles[2] = MSG_ReadAngle16();
 
-// read movement
-    if (bits & CM_FORWARD)
-	move->forwardmove = MSG_ReadShort();
-    if (bits & CM_SIDE)
-	move->sidemove = MSG_ReadShort();
-    if (bits & CM_UP)
-	move->upmove = MSG_ReadShort();
+   // read movement
+   if (bits & CM_FORWARD)
+      move->forwardmove = MSG_ReadShort();
+   if (bits & CM_SIDE)
+      move->sidemove = MSG_ReadShort();
+   if (bits & CM_UP)
+      move->upmove = MSG_ReadShort();
 
-// read buttons
-    if (bits & CM_BUTTONS)
-	move->buttons = MSG_ReadByte();
+   // read buttons
+   if (bits & CM_BUTTONS)
+      move->buttons = MSG_ReadByte();
 
-    if (bits & CM_IMPULSE)
-	move->impulse = MSG_ReadByte();
+   if (bits & CM_IMPULSE)
+      move->impulse = MSG_ReadByte();
 
-// read time to run command
-    move->msec = MSG_ReadByte();
+   // read time to run command
+   move->msec = MSG_ReadByte();
 }
 #endif /* QW_HACK */
 
@@ -804,96 +734,91 @@ MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
  * Read back the message control header
  * Essentially this is MSG_ReadLong, but big-endian byte order.
  */
-int
-MSG_ReadControlHeader(void)
+int MSG_ReadControlHeader(void)
 {
-    int c;
+   int c;
 
-    if (msg_readcount + 4 > net_message.cursize) {
-	msg_badread = true;
-	return -1;
-    }
+   if (msg_readcount + 4 > net_message.cursize)
+   {
+      msg_badread = true;
+      return -1;
+   }
 
-    c = (net_message.data[msg_readcount] << 24)
-	+ (net_message.data[msg_readcount + 1] << 16)
-	+ (net_message.data[msg_readcount + 2] << 8)
-	+ net_message.data[msg_readcount + 3];
+   c = (net_message.data[msg_readcount] << 24)
+      + (net_message.data[msg_readcount + 1] << 16)
+      + (net_message.data[msg_readcount + 2] << 8)
+      + net_message.data[msg_readcount + 3];
 
-    msg_readcount += 4;
+   msg_readcount += 4;
 
-    return c;
+   return c;
 }
 #endif
 
 //===========================================================================
 
 #ifdef NQ_HACK
-void
-SZ_Alloc(sizebuf_t *buf, int startsize)
+void SZ_Alloc(sizebuf_t *buf, int startsize)
 {
-    if (startsize < 256)
-	startsize = 256;
-    buf->data = (byte*)Hunk_AllocName(startsize, "sizebuf");
-    buf->maxsize = startsize;
-    buf->cursize = 0;
+   if (startsize < 256)
+      startsize = 256;
+   buf->data = (byte*)Hunk_AllocName(startsize, "sizebuf");
+   buf->maxsize = startsize;
+   buf->cursize = 0;
 }
 
-void
-SZ_Free(sizebuf_t *buf)
+void SZ_Free(sizebuf_t *buf)
 {
-//      Z_Free (buf->data);
-//      buf->data = NULL;
-//      buf->maxsize = 0;
-    buf->cursize = 0;
+   //      Z_Free (buf->data);
+   //      buf->data = NULL;
+   //      buf->maxsize = 0;
+   buf->cursize = 0;
 }
 #endif
 
-void
-SZ_Clear(sizebuf_t *buf)
+void SZ_Clear(sizebuf_t *buf)
 {
-    buf->cursize = 0;
-    buf->overflowed = false;
+   buf->cursize = 0;
+   buf->overflowed = false;
 }
 
-static void *
-SZ_GetSpace(sizebuf_t *buf, int length)
+static void *SZ_GetSpace(sizebuf_t *buf, int length)
 {
-    void *data;
+   void *data;
 
-    if (buf->cursize + length > buf->maxsize) {
-	if (!buf->allowoverflow)
-	    Sys_Error("%s: overflow without allowoverflow set (%d > %d)",
-		      __func__, buf->cursize + length, buf->maxsize);
-	if (length > buf->maxsize)
-	    Sys_Error("%s: %d is > full buffer size", __func__, length);
-	if (developer.value)
-	    /* Con_Printf may be redirected */
-	    Sys_Printf("%s: overflow\n", __func__);
-	SZ_Clear(buf);
-	buf->overflowed = true;
-    }
-    data = buf->data + buf->cursize;
-    buf->cursize += length;
+   if (buf->cursize + length > buf->maxsize)
+   {
+      if (!buf->allowoverflow)
+         Sys_Error("%s: overflow without allowoverflow set (%d > %d)",
+               __func__, buf->cursize + length, buf->maxsize);
+      if (length > buf->maxsize)
+         Sys_Error("%s: %d is > full buffer size", __func__, length);
+      if (developer.value)
+         /* Con_Printf may be redirected */
+         Sys_Printf("%s: overflow\n", __func__);
+      SZ_Clear(buf);
+      buf->overflowed = true;
+   }
+   data = buf->data + buf->cursize;
+   buf->cursize += length;
 
-    return data;
+   return data;
 }
 
-void
-SZ_Write(sizebuf_t *buf, const void *data, int length)
+void SZ_Write(sizebuf_t *buf, const void *data, int length)
 {
-    memcpy(SZ_GetSpace(buf, length), data, length);
+   memcpy(SZ_GetSpace(buf, length), data, length);
 }
 
-void
-SZ_Print(sizebuf_t *buf, const char *data)
+void SZ_Print(sizebuf_t *buf, const char *data)
 {
-    size_t len = strlen(data);
+   size_t len = strlen(data);
 
-    /* If buf->data has a trailing zero, overwrite it */
-    if (!buf->cursize || buf->data[buf->cursize - 1])
-	memcpy(SZ_GetSpace(buf, len + 1), data, len + 1);
-    else
-	memcpy((byte*)SZ_GetSpace(buf, len) - 1, data, len + 1);
+   /* If buf->data has a trailing zero, overwrite it */
+   if (!buf->cursize || buf->data[buf->cursize - 1])
+      memcpy(SZ_GetSpace(buf, len + 1), data, len + 1);
+   else
+      memcpy((byte*)SZ_GetSpace(buf, len) - 1, data, len + 1);
 }
 
 
@@ -905,18 +830,16 @@ SZ_Print(sizebuf_t *buf, const char *data)
 COM_SkipPath
 ============
 */
-const char *
-COM_SkipPath(const char *pathname)
+const char *COM_SkipPath(const char *pathname)
 {
-    const char *last;
-
-    last = pathname;
-    while (*pathname) {
-	if (*pathname == '/')
-	    last = pathname + 1;
-	pathname++;
-    }
-    return last;
+   const char *last = pathname;
+   while (*pathname)
+   {
+      if (*pathname == '/')
+         last = pathname + 1;
+      pathname++;
+   }
+   return last;
 }
 
 /*
@@ -924,15 +847,12 @@ COM_SkipPath(const char *pathname)
 COM_StripExtension
 ============
 */
-void
-COM_StripExtension(char *filename)
+void COM_StripExtension(char *filename)
 {
-    const char *start;
-
-    start = COM_SkipPath(filename);
-    char *pos = (char*)strrchr(start, '.');
-    if (pos && *pos)
-	*pos = 0;
+   const char *start = COM_SkipPath(filename);
+   char *pos = (char*)strrchr(start, '.');
+   if (pos && *pos)
+      *pos = 0;
 }
 
 /*
@@ -941,24 +861,23 @@ COM_FileExtension
 ============
 */
 #ifdef NQ_HACK
-static const char *
-COM_FileExtension(const char *in)
+static const char *COM_FileExtension(const char *in)
 {
-    static char exten[8];
-    const char *dot;
-    int i;
+   static char exten[8];
+   const char *dot;
+   int i;
 
-    in = COM_SkipPath(in);
-    dot = strrchr(in, '.');
-    if (!dot)
-	return "";
+   in = COM_SkipPath(in);
+   dot = strrchr(in, '.');
+   if (!dot)
+      return "";
 
-    dot++;
-    for (i = 0; i < sizeof(exten) - 1 && *dot; i++, dot++)
-	exten[i] = *dot;
-    exten[i] = 0;
+   dot++;
+   for (i = 0; i < sizeof(exten) - 1 && *dot; i++, dot++)
+      exten[i] = *dot;
+   exten[i] = 0;
 
-    return exten;
+   return exten;
 }
 #endif
 
@@ -967,21 +886,20 @@ COM_FileExtension(const char *in)
 COM_FileBase
 ============
 */
-void
-COM_FileBase(const char *in, char *out, size_t buflen)
+void COM_FileBase(const char *in, char *out, size_t buflen)
 {
-    const char *dot;
-    int copylen;
+   const char *dot;
+   int copylen;
 
-    in = COM_SkipPath(in);
-    dot = strrchr(in, '.');
-    copylen = dot ? dot - in : strlen(in);
+   in = COM_SkipPath(in);
+   dot = strrchr(in, '.');
+   copylen = dot ? dot - in : strlen(in);
 
-    if (copylen < 2) {
-	in = "?model?";
-	copylen = strlen(in);
-    }
-    snprintf(out, buflen, "%.*s", copylen, in);
+   if (copylen < 2) {
+      in = "?model?";
+      copylen = strlen(in);
+   }
+   snprintf(out, buflen, "%.*s", copylen, in);
 }
 
 
@@ -990,38 +908,33 @@ COM_FileBase(const char *in, char *out, size_t buflen)
 COM_DefaultExtension
 ==================
 */
-void
-COM_DefaultExtension(char *path, const char *extension)
+void COM_DefaultExtension(char *path, const char *extension)
 {
-    const char *src;
-
-//
-// if path doesn't have a .EXT, append extension
-// (extension should include the .)
-//
-    src = path + strlen(path) - 1;
-    while (*src != '/' && src != path) {
-	if (*src == '.')
-	    return;		// it has an extension
-	src--;
-    }
-    strcat(path, extension);
+   // if path doesn't have a .EXT, append extension
+   // (extension should include the .)
+   const char *src = path + strlen(path) - 1;
+   while (*src != '/' && src != path)
+   {
+      if (*src == '.')
+         return;		// it has an extension
+      src--;
+   }
+   strcat(path, extension);
 }
 
-int
-COM_CheckExtension(const char *path, const char *extn)
+int COM_CheckExtension(const char *path, const char *extn)
 {
-    char *pos;
-    int ret = 0;
+   int ret   = 0;
+   char *pos = (char*)strrchr(path, '.');
 
-    pos = (char*)strrchr(path, '.');
-    if (pos) {
-	if (extn[0] != '.')
-	    pos++;
-	ret = pos && !strcasecmp(pos, extn);
-    }
+   if (pos)
+   {
+      if (extn[0] != '.')
+         pos++;
+      ret = pos && !strcasecmp(pos, extn);
+   }
 
-    return ret;
+   return ret;
 }
 
 //============================================================================
@@ -1039,64 +952,62 @@ Parse a token out of a string
 */
 static const char single_chars[] = "{})(':";
 
-static const char *
-COM_Parse_(const char *data, qboolean split_single_chars)
+static const char *COM_Parse_(const char *data, qboolean split_single_chars)
 {
-    int c;
-    int len;
+   int c;
+   int len = 0;
 
-    len = 0;
-    com_token[0] = 0;
+   com_token[0] = 0;
 
-    if (!data)
-	return NULL;
+   if (!data)
+      return NULL;
 
-// skip whitespace
-  skipwhite:
-    while ((c = *data) <= ' ') {
-	if (c == 0)
-	    return NULL;	// end of file;
-	data++;
-    }
+   // skip whitespace
+skipwhite:
+   while ((c = *data) <= ' ') {
+      if (c == 0)
+         return NULL;	// end of file;
+      data++;
+   }
 
-// skip // comments
-    if (c == '/' && data[1] == '/') {
-	while (*data && *data != '\n')
-	    data++;
-	goto skipwhite;
-    }
-// handle quoted strings specially
-    if (c == '\"') {
-	data++;
-	while (1) {
-	    c = *data++;
-	    if (c == '\"' || !c) {
-		com_token[len] = 0;
-		return data;
-	    }
-	    com_token[len] = c;
-	    len++;
-	}
-    }
-// parse single characters
-    if (split_single_chars && strchr(single_chars, c)) {
-	com_token[len] = c;
-	len++;
-	com_token[len] = 0;
-	return data + 1;
-    }
-// parse a regular word
-    do {
-	com_token[len] = c;
-	data++;
-	len++;
-	c = *data;
-	if (split_single_chars && strchr(single_chars, c))
-	    break;
-    } while (c > 32);
+   // skip // comments
+   if (c == '/' && data[1] == '/') {
+      while (*data && *data != '\n')
+         data++;
+      goto skipwhite;
+   }
+   // handle quoted strings specially
+   if (c == '\"') {
+      data++;
+      while (1) {
+         c = *data++;
+         if (c == '\"' || !c) {
+            com_token[len] = 0;
+            return data;
+         }
+         com_token[len] = c;
+         len++;
+      }
+   }
+   // parse single characters
+   if (split_single_chars && strchr(single_chars, c)) {
+      com_token[len] = c;
+      len++;
+      com_token[len] = 0;
+      return data + 1;
+   }
+   // parse a regular word
+   do {
+      com_token[len] = c;
+      data++;
+      len++;
+      c = *data;
+      if (split_single_chars && strchr(single_chars, c))
+         break;
+   } while (c > 32);
 
-    com_token[len] = 0;
-    return data;
+   com_token[len] = 0;
+   return data;
 }
 
 const char *
@@ -1118,19 +1029,18 @@ Returns the position (1 to argc-1) in the program's argument list
 where the given parameter apears, or 0 if not present
 ================
 */
-unsigned
-COM_CheckParm(const char *parm)
+unsigned COM_CheckParm(const char *parm)
 {
-    unsigned i;
+   unsigned i;
 
-    for (i = 1; i < com_argc; i++) {
-	if (!com_argv[i])
-	    continue;		// NEXTSTEP sometimes clears appkit vars.
-	if (!strcmp(parm, com_argv[i]))
-	    return i;
-    }
+   for (i = 1; i < com_argc; i++) {
+      if (!com_argv[i])
+         continue;		// NEXTSTEP sometimes clears appkit vars.
+      if (!strcmp(parm, com_argv[i]))
+         return i;
+   }
 
-    return 0;
+   return 0;
 }
 
 /*
@@ -1143,8 +1053,7 @@ Immediately exits out if an alternate game was attempted to be started without
 being registered.
 ================
 */
-void
-COM_CheckRegistered(void)
+void COM_CheckRegistered(void)
 {
    FILE *f;
 
@@ -1169,61 +1078,60 @@ COM_CheckRegistered(void)
 COM_InitArgv
 ================
 */
-void
-COM_InitArgv(int argc, const char **argv)
+void COM_InitArgv(int argc, const char **argv)
 {
-    qboolean safe;
-    int i;
+   qboolean safe;
+   int i;
 #ifdef NQ_HACK
-    int j, n;
+   int j, n;
 
-// reconstitute the command line for the cmdline externally visible cvar
-    n = 0;
-    for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++) {
-	i = 0;
-	while ((n < (CMDLINE_LENGTH - 1)) && argv[j][i]) {
-	    com_cmdline[n++] = argv[j][i++];
-	}
+   // reconstitute the command line for the cmdline externally visible cvar
+   n = 0;
+   for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++) {
+      i = 0;
+      while ((n < (CMDLINE_LENGTH - 1)) && argv[j][i]) {
+         com_cmdline[n++] = argv[j][i++];
+      }
 
-	if (n < (CMDLINE_LENGTH - 1))
-	    com_cmdline[n++] = ' ';
-	else
-	    break;
-    }
-    com_cmdline[n] = 0;
+      if (n < (CMDLINE_LENGTH - 1))
+         com_cmdline[n++] = ' ';
+      else
+         break;
+   }
+   com_cmdline[n] = 0;
 #endif
 
-    safe = false;
+   safe = false;
 
-    for (com_argc = 0; (com_argc < MAX_NUM_ARGVS) && (com_argc < argc);
-	 com_argc++) {
-	largv[com_argc] = argv[com_argc];
-	if (!strcmp("-safe", argv[com_argc]))
-	    safe = true;
-    }
+   for (com_argc = 0; (com_argc < MAX_NUM_ARGVS) && (com_argc < argc);
+         com_argc++) {
+      largv[com_argc] = argv[com_argc];
+      if (!strcmp("-safe", argv[com_argc]))
+         safe = true;
+   }
 
-    if (safe) {
-	// force all the safe-mode switches. Note that we reserved extra space in
-	// case we need to add these, so we don't need an overflow check
-	for (i = 0; i < NUM_SAFE_ARGVS; i++) {
-	    largv[com_argc] = safeargvs[i];
-	    com_argc++;
-	}
-    }
+   if (safe) {
+      // force all the safe-mode switches. Note that we reserved extra space in
+      // case we need to add these, so we don't need an overflow check
+      for (i = 0; i < NUM_SAFE_ARGVS; i++) {
+         largv[com_argc] = safeargvs[i];
+         com_argc++;
+      }
+   }
 
-    largv[com_argc] = argvdummy;
-    com_argv = largv;
+   largv[com_argc] = argvdummy;
+   com_argv = largv;
 
 #ifdef NQ_HACK
-    if (COM_CheckParm("-rogue")) {
-	rogue = true;
-	standard_quake = false;
-    }
+   if (COM_CheckParm("-rogue")) {
+      rogue = true;
+      standard_quake = false;
+   }
 
-    if (COM_CheckParm("-hipnotic") || COM_CheckParm("-quoth")) {
-	hipnotic = true;
-	standard_quake = false;
-    }
+   if (COM_CheckParm("-hipnotic") || COM_CheckParm("-quoth")) {
+      hipnotic = true;
+      standard_quake = false;
+   }
 #endif
 }
 
@@ -1235,10 +1143,9 @@ Adds the given string at the end of the current argument list
 ================
 */
 #ifdef QW_HACK
-void
-COM_AddParm(const char *parm)
+void COM_AddParm(const char *parm)
 {
-    largv[com_argc++] = parm;
+   largv[com_argc++] = parm;
 }
 #endif
 
@@ -1248,44 +1155,43 @@ COM_Init
 ================
 */
 
-    union swaptest {
-	byte b[2];
-	short s;
-    } swaptest;
+   union swaptest {
+      byte b[2];
+      short s;
+   } swaptest;
 
-void
-COM_Init(void)
+void COM_Init(void)
 {
    swaptest.b[0] = 1;
    swaptest.b[1] = 0;
 
-// set the byte swapping variables in a portable manner
-    if (swaptest.s == 1) {
-	bigendien = false;
-	BigShort = ShortSwap;
-	LittleShort = ShortNoSwap;
-	BigLong = LongSwap;
-	LittleLong = LongNoSwap;
-	BigFloat = FloatSwap;
-	LittleFloat = FloatNoSwap;
-    } else {
-	bigendien = true;
-	BigShort = ShortNoSwap;
-	LittleShort = ShortSwap;
-	BigLong = LongNoSwap;
-	LittleLong = LongSwap;
-	BigFloat = FloatNoSwap;
-	LittleFloat = FloatSwap;
-    }
+   // set the byte swapping variables in a portable manner
+   if (swaptest.s == 1) {
+      bigendien = false;
+      BigShort = ShortSwap;
+      LittleShort = ShortNoSwap;
+      BigLong = LongSwap;
+      LittleLong = LongNoSwap;
+      BigFloat = FloatSwap;
+      LittleFloat = FloatNoSwap;
+   } else {
+      bigendien = true;
+      BigShort = ShortNoSwap;
+      LittleShort = ShortSwap;
+      BigLong = LongNoSwap;
+      LittleLong = LongSwap;
+      BigFloat = FloatNoSwap;
+      LittleFloat = FloatSwap;
+   }
 
-    Cvar_RegisterVariable(&registered);
+   Cvar_RegisterVariable(&registered);
 #ifdef NQ_HACK
-    Cvar_RegisterVariable(&cmdline);
+   Cvar_RegisterVariable(&cmdline);
 #endif
-    Cmd_AddCommand("path", COM_Path_f);
+   Cmd_AddCommand("path", COM_Path_f);
 
-    COM_InitFilesystem();
-    COM_CheckRegistered();
+   COM_InitFilesystem();
+   COM_CheckRegistered();
 }
 
 
@@ -1299,19 +1205,19 @@ varargs versions of all text functions.
 */
 char *va(const char *format, ...)
 {
-    va_list argptr;
-    char *buf;
-    int len;
+   va_list argptr;
+   char *buf;
+   int len;
 
-    buf = COM_GetStrBuf();
-    va_start(argptr, format);
-    len = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
-    va_end(argptr);
+   buf = COM_GetStrBuf();
+   va_start(argptr, format);
+   len = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
+   va_end(argptr);
 
-    if (len > COM_STRBUF_LEN - 1)
-	Con_DPrintf("%s: overflow (string truncated)\n", __func__);
+   if (len > COM_STRBUF_LEN - 1)
+      Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 
-    return buf;
+   return buf;
 }
 
 
@@ -1325,32 +1231,30 @@ QUAKE FILESYSTEM
 
 int com_filesize;
 
-
-//
 // in memory
-//
 
 typedef struct {
     char name[MAX_QPATH];
     int filepos, filelen;
 } packfile_t;
 
-typedef struct pack_s {
+typedef struct pack_s
+{
     char filename[MAX_OSPATH];
     int numfiles;
     packfile_t *files;
 } pack_t;
 
-//
 // on disk
-//
 #define MAX_PACKPATH 56
-typedef struct {
+typedef struct
+{
     char name[MAX_PACKPATH];
     int filepos, filelen;
 } dpackfile_t;
 
-typedef struct {
+typedef struct
+{
     char id[4];
     int dirofs;
     int dirlen;
@@ -1377,33 +1281,30 @@ static searchpath_t *com_base_searchpaths;	// without gamedirs
 COM_filelength
 ================
 */
-static int
-COM_filelength(FILE *f)
+static int COM_filelength(FILE *f)
 {
-    int pos;
-    int end;
+   int end;
+   int pos = ftell(f);
 
-    pos = ftell(f);
-    fseek(f, 0, SEEK_END);
-    end = ftell(f);
-    fseek(f, pos, SEEK_SET);
+   fseek(f, 0, SEEK_END);
+   end = ftell(f);
+   fseek(f, pos, SEEK_SET);
 
-    return end;
+   return end;
 }
 
-static int
-COM_FileOpenRead(const char *path, FILE **hndl)
+static int COM_FileOpenRead(const char *path, FILE **hndl)
 {
-    FILE *f;
+   FILE *f = fopen(path, "rb");
 
-    f = fopen(path, "rb");
-    if (!f) {
-	*hndl = NULL;
-	return -1;
-    }
-    *hndl = f;
+   if (!f)
+   {
+      *hndl = NULL;
+      return -1;
+   }
+   *hndl = f;
 
-    return COM_filelength(f);
+   return COM_filelength(f);
 }
 
 /*
@@ -1412,23 +1313,23 @@ COM_Path_f
 
 ============
 */
-static void
-COM_Path_f(void)
+static void COM_Path_f(void)
 {
-    searchpath_t *s;
+   searchpath_t *s;
 
-    Con_Printf("Current search path:\n");
-    for (s = com_searchpaths; s; s = s->next) {
+   Con_Printf("Current search path:\n");
+   for (s = com_searchpaths; s; s = s->next)
+   {
 #ifdef QW_HACK
-	if (s == com_base_searchpaths)
-	    Con_Printf("----------\n");
+      if (s == com_base_searchpaths)
+         Con_Printf("----------\n");
 #endif
-	if (s->pack)
-	    Con_Printf("%s (%i files)\n", s->pack->filename,
-		       s->pack->numfiles);
-	else
-	    Con_Printf("%s\n", s->filename);
-    }
+      if (s->pack)
+         Con_Printf("%s (%i files)\n", s->pack->filename,
+               s->pack->numfiles);
+      else
+         Con_Printf("%s\n", s->filename);
+   }
 }
 
 /*
@@ -1438,23 +1339,23 @@ COM_WriteFile
 The filename will be prefixed by the current game directory
 ============
 */
-void
-COM_WriteFile(const char *filename, const void *data, int len)
+void COM_WriteFile(const char *filename, const void *data, int len)
 {
-    FILE *f;
-    char name[MAX_OSPATH];
+   FILE *f;
+   char name[MAX_OSPATH];
 
-    snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
+   snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
 
-    f = fopen(name, "wb");
-    if (!f) {
-	Sys_mkdir(com_gamedir);
-	f = fopen(name, "wb");
-	if (!f)
-	    Sys_Error("Error opening %s", filename);
-    }
-    fwrite(data, 1, len, f);
-    fclose(f);
+   f = fopen(name, "wb");
+   if (!f)
+   {
+      Sys_mkdir(com_gamedir);
+      f = fopen(name, "wb");
+      if (!f)
+         Sys_Error("Error opening %s", filename);
+   }
+   fwrite(data, 1, len, f);
+   fclose(f);
 }
 
 
@@ -1463,25 +1364,26 @@ COM_WriteFile(const char *filename, const void *data, int len)
 COM_CreatePath
 ============
 */
-void
-COM_CreatePath(const char *path)
+void COM_CreatePath(const char *path)
 {
-    char part[MAX_OSPATH];
-    char *ofs;
+   char part[MAX_OSPATH];
+   char *ofs;
 
-    if (!path || !path[0])
-	return;
+   if (!path || !path[0])
+      return;
 
-    strncpy(part, path, sizeof(part));
-    part[MAX_OSPATH - 1] = 0;
+   strncpy(part, path, sizeof(part));
+   part[MAX_OSPATH - 1] = 0;
 
-    for (ofs = part + 1; *ofs; ofs++) {
-	if (*ofs == '/') {	// create the directory
-	    *ofs = 0;
-	    Sys_mkdir(part);
-	    *ofs = '/';
-	}
-    }
+   for (ofs = part + 1; *ofs; ofs++)
+   {
+      if (*ofs == '/')
+      {	// create the directory
+         *ofs = 0;
+         Sys_mkdir(part);
+         *ofs = '/';
+      }
+   }
 }
 
 /*
@@ -1496,132 +1398,135 @@ into the file.
 */
 int file_from_pak;	// global indicating file came from pack file
 
-int
-COM_FOpenFile(const char *filename, FILE **file)
+int COM_FOpenFile(const char *filename, FILE **file)
 {
-    searchpath_t *search;
-    char path[MAX_OSPATH];
-    pack_t *pak;
-    int i;
-    int findtime;
+   searchpath_t *search;
+   char path[MAX_OSPATH];
+   pack_t *pak;
+   int i;
+   int findtime;
 
-    file_from_pak = 0;
+   file_from_pak = 0;
 
-//
-// search through the path, one element at a time
-//
-    for (search = com_searchpaths; search; search = search->next) {
-	// is the element a pak file?
-	if (search->pack) {
-	    // look through all the pak file elements
-	    pak = search->pack;
-	    for (i = 0; i < pak->numfiles; i++)
-		if (!strcmp(pak->files[i].name, filename)) {	// found it!
-		    // open a new file on the pakfile
-		    *file = fopen(pak->filename, "rb");
-		    if (!*file)
-			Sys_Error("Couldn't reopen %s", pak->filename);
-		    fseek(*file, pak->files[i].filepos, SEEK_SET);
-		    com_filesize = pak->files[i].filelen;
-		    file_from_pak = 1;
-		    return com_filesize;
-		}
-	} else {
-	    // check a file in the directory tree
-	    if (!static_registered) {
-		// if not a registered version, don't ever go beyond base
-		if (strchr(filename, '/') || strchr(filename, '\\'))
-		    continue;
-	    }
-	    snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-	    findtime = Sys_FileTime(path);
-	    if (findtime == -1)
-		continue;
+   // search through the path, one element at a time
+   for (search = com_searchpaths; search; search = search->next)
+   {
+      // is the element a pak file?
+      if (search->pack)
+      {
+         // look through all the pak file elements
+         pak = search->pack;
+         for (i = 0; i < pak->numfiles; i++)
+            if (!strcmp(pak->files[i].name, filename))
+            {	// found it!
+               // open a new file on the pakfile
+               *file = fopen(pak->filename, "rb");
+               if (!*file)
+                  Sys_Error("Couldn't reopen %s", pak->filename);
+               fseek(*file, pak->files[i].filepos, SEEK_SET);
+               com_filesize = pak->files[i].filelen;
+               file_from_pak = 1;
+               return com_filesize;
+            }
+      } else {
+         // check a file in the directory tree
+         if (!static_registered)
+         {
+            // if not a registered version, don't ever go beyond base
+            if (strchr(filename, '/') || strchr(filename, '\\'))
+               continue;
+         }
+         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
+         findtime = Sys_FileTime(path);
+         if (findtime == -1)
+            continue;
 
-	    *file = fopen(path, "rb");
-	    com_filesize = COM_filelength(*file);
-	    return com_filesize;
-	}
-    }
+         *file = fopen(path, "rb");
+         com_filesize = COM_filelength(*file);
+         return com_filesize;
+      }
+   }
 
-    Sys_Printf("FindFile: can't find %s\n", filename);
-    *file = NULL;
-    com_filesize = -1;
+   Sys_Printf("FindFile: can't find %s\n", filename);
+   *file = NULL;
+   com_filesize = -1;
 
-    return -1;
+   return -1;
 }
 
 static void COM_ScanDirDir(struct stree_root *root, struct RDIR *dir, const char *pfx,
-	       const char *ext, qboolean stripext)
+      const char *ext, qboolean stripext)
 {
-    char *fname;
-    int pfx_len = pfx ? strlen(pfx) : 0;
-    int ext_len = ext ? strlen(ext) : 0;
+   char *fname;
+   int pfx_len = pfx ? strlen(pfx) : 0;
+   int ext_len = ext ? strlen(ext) : 0;
 
-    while (retro_readdir(dir))
-    {
-       if ((!pfx || !strncasecmp(retro_dirent_get_name(dir), pfx, pfx_len)) &&
-             (!ext || COM_CheckExtension(retro_dirent_get_name(dir), ext)))
-       {
-          int len = strlen(retro_dirent_get_name(dir));
-          if (ext && stripext)
-             len -= ext_len;
-          fname = (char*)Z_Malloc(len + 1);
-          if (fname)
-          {
-             strncpy(fname, retro_dirent_get_name(dir), len);
-             fname[len] = '\0';
-             STree_InsertAlloc(root, fname, true);
-             Z_Free(fname);
-          }
-       }
-    }
+   while (retro_readdir(dir))
+   {
+      if ((!pfx || !strncasecmp(retro_dirent_get_name(dir), pfx, pfx_len)) &&
+            (!ext || COM_CheckExtension(retro_dirent_get_name(dir), ext)))
+      {
+         int len = strlen(retro_dirent_get_name(dir));
+         if (ext && stripext)
+            len -= ext_len;
+         fname = (char*)Z_Malloc(len + 1);
+         if (fname)
+         {
+            strncpy(fname, retro_dirent_get_name(dir), len);
+            fname[len] = '\0';
+            STree_InsertAlloc(root, fname, true);
+            Z_Free(fname);
+         }
+      }
+   }
 }
 
-static void
-COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
-	       const char *pfx, const char *ext, qboolean stripext)
+static void COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
+      const char *pfx, const char *ext, qboolean stripext)
 {
-    int i, path_len, pfx_len, ext_len, len;
-    char *pak_f, *fname;
+   int i, path_len, pfx_len, ext_len, len;
+   char *pak_f, *fname;
 
-    path_len = path ? strlen(path) : 0;
-    pfx_len = pfx ? strlen(pfx) : 0;
-    ext_len = ext ? strlen(ext) : 0;
+   path_len = path ? strlen(path) : 0;
+   pfx_len = pfx ? strlen(pfx) : 0;
+   ext_len = ext ? strlen(ext) : 0;
 
-    for (i = 0; i < pak->numfiles; i++) {
-	/* Check the path prefix */
-	pak_f = pak->files[i].name;
-	if (path && path_len) {
-	    if (strncasecmp(pak_f, path, path_len))
-		continue;
-	    if (pak_f[path_len] != '/')
-		continue;
-	    pak_f += path_len + 1;
-	}
+   for (i = 0; i < pak->numfiles; i++)
+   {
+      /* Check the path prefix */
+      pak_f = pak->files[i].name;
+      if (path && path_len)
+      {
+         if (strncasecmp(pak_f, path, path_len))
+            continue;
+         if (pak_f[path_len] != '/')
+            continue;
+         pak_f += path_len + 1;
+      }
 
-	/* Don't match sub-directories */
-	if (strchr(pak_f, '/'))
-	    continue;
+      /* Don't match sub-directories */
+      if (strchr(pak_f, '/'))
+         continue;
 
-	/* Check the prefix and extension, if set */
-	if (pfx && pfx_len && strncasecmp(pak_f, pfx, pfx_len))
-	    continue;
-	if (ext && ext_len && !COM_CheckExtension(pak_f, ext))
-	    continue;
+      /* Check the prefix and extension, if set */
+      if (pfx && pfx_len && strncasecmp(pak_f, pfx, pfx_len))
+         continue;
+      if (ext && ext_len && !COM_CheckExtension(pak_f, ext))
+         continue;
 
-	/* Ok, we have a match. Add it */
-	len = strlen(pak_f);
-	if (ext && stripext)
-	    len -= ext_len;
-	fname = (char*)Z_Malloc(len + 1);
-	if (fname) {
-	    strncpy(fname, pak_f, len);
-	    fname[len] = '\0';
-	    STree_InsertAlloc(root, fname, true);
-	    Z_Free(fname);
-	}
-    }
+      /* Ok, we have a match. Add it */
+      len = strlen(pak_f);
+      if (ext && stripext)
+         len -= ext_len;
+      fname = (char*)Z_Malloc(len + 1);
+      if (fname)
+      {
+         strncpy(fname, pak_f, len);
+         fname[len] = '\0';
+         STree_InsertAlloc(root, fname, true);
+         Z_Free(fname);
+      }
+   }
 }
 
 /*
@@ -1633,9 +1538,8 @@ both the given prefix and extension are added to the string tree.
 Caller MUST have already called STree_AllocInit()
 ============
 */
-void
-COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
-	    const char *ext, qboolean stripext)
+void COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
+      const char *ext, qboolean stripext)
 {
    searchpath_t *search;
    char fullpath[MAX_OSPATH];
@@ -1673,93 +1577,93 @@ static cache_user_t *loadcache;
 static byte *loadbuf;
 static int loadsize;
 
-static void *
-COM_LoadFile(const char *path, int usehunk, unsigned long *length)
+static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
-    FILE *f;
-    byte *buf;
-    char base[32];
-    int len;
+   FILE *f;
+   char base[32];
+   int len;
+   byte *buf = NULL;			// quiet compiler warning
 
-    buf = NULL;			// quiet compiler warning
+   // look for it in the filesystem or pack files
+   len = com_filesize = COM_FOpenFile(path, &f);
+   if (!f)
+      return NULL;
 
-// look for it in the filesystem or pack files
-    len = com_filesize = COM_FOpenFile(path, &f);
-    if (!f)
-	return NULL;
+   if (length)
+      *length = len;
 
-    if (length)
-	*length = len;
+   // extract the filename base name for hunk tag
+   COM_FileBase(path, base, sizeof(base));
 
-// extract the filename base name for hunk tag
-    COM_FileBase(path, base, sizeof(base));
+   if (usehunk == 1)
+      buf = (byte*)Hunk_AllocName(len + 1, base);
+   else if (usehunk == 2)
+      buf = (byte*)Hunk_TempAlloc(len + 1);
+   else if (usehunk == 0)
+      buf = (byte*)Z_Malloc(len + 1);
+   else if (usehunk == 3)
+      buf = (byte*)Cache_Alloc(loadcache, len + 1, base);
+   else if (usehunk == 4)
+   {
+      if (len + 1 > loadsize)
+         buf = (byte*)Hunk_TempAlloc(len + 1);
+      else
+         buf = loadbuf;
+   } else
+      Sys_Error("%s: bad usehunk", __func__);
 
-    if (usehunk == 1)
-	buf = (byte*)Hunk_AllocName(len + 1, base);
-    else if (usehunk == 2)
-	buf = (byte*)Hunk_TempAlloc(len + 1);
-    else if (usehunk == 0)
-	buf = (byte*)Z_Malloc(len + 1);
-    else if (usehunk == 3)
-	buf = (byte*)Cache_Alloc(loadcache, len + 1, base);
-    else if (usehunk == 4) {
-	if (len + 1 > loadsize)
-	    buf = (byte*)Hunk_TempAlloc(len + 1);
-	else
-	    buf = loadbuf;
-    } else
-	Sys_Error("%s: bad usehunk", __func__);
+   if (!buf)
+      Sys_Error("%s: not enough space for %s", __func__, path);
 
-    if (!buf)
-	Sys_Error("%s: not enough space for %s", __func__, path);
-
-    buf[len] = 0;
+   buf[len] = 0;
 
 #ifndef SERVERONLY
-    Draw_BeginDisc();
+   Draw_BeginDisc();
 #endif
-    fread(buf, 1, len, f);
-    fclose(f);
+   fread(buf, 1, len, f);
+   fclose(f);
 #ifndef SERVERONLY
-    Draw_EndDisc();
+   Draw_EndDisc();
 #endif
 
-    return buf;
+   return buf;
 }
 
-void *
-COM_LoadHunkFile(const char *path)
+void *COM_LoadHunkFile(const char *path)
 {
-    return COM_LoadFile(path, 1, NULL);
+   return COM_LoadFile(path, 1, NULL);
 }
 
-void *
-COM_LoadTempFile(const char *path)
+void *COM_LoadTempFile(const char *path)
 {
-    return COM_LoadFile(path, 2, NULL);
+   return COM_LoadFile(path, 2, NULL);
 }
 
-void
-COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
+void COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
 {
-    loadcache = cu;
-    COM_LoadFile(path, 3, NULL);
+   loadcache = cu;
+   COM_LoadFile(path, 3, NULL);
 }
 
 // uses temp hunk if larger than bufsize
 // length is size of loaded file in bytes
-void *
-COM_LoadStackFile(const char *path, void *buffer, int bufsize,
-		  unsigned long *length)
+void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
+      unsigned long *length)
 {
-    byte *buf;
+   byte *buf;
 
-    loadbuf = (byte *)buffer;
-    loadsize = bufsize;
-    buf = (byte*)COM_LoadFile(path, 4, length);
+   loadbuf = (byte *)buffer;
+   loadsize = bufsize;
+   buf = (byte*)COM_LoadFile(path, 4, length);
 
-    return buf;
+   return buf;
 }
+
+#ifdef _XBOX1
+#define STATIC_PKG static
+#else
+#define STATIC_PKG
+#endif
 
 /*
 =================
@@ -1771,14 +1675,8 @@ Loads the header and directory, adding the files at the beginning
 of the list so they override previous pack files.
 =================
 */
-static pack_t *
-COM_LoadPackFile(const char *packfile)
+static pack_t *COM_LoadPackFile(const char *packfile)
 {
-#ifdef _XBOX1
-#define STATIC_PKG static
-#else
-#define STATIC_PKG
-#endif
    STATIC_PKG dpackheader_t header;
    STATIC_PKG int i;
    STATIC_PKG packfile_t *newfiles;
@@ -1830,8 +1728,9 @@ COM_LoadPackFile(const char *packfile)
       com_modified = true;
 #endif
 
-   // parse the directory
-   for (i = 0; i < numpackfiles; i++) {
+   /* parse the directory */
+   for (i = 0; i < numpackfiles; i++)
+   {
       strcpy(newfiles[i].name, info[i].name);
 #ifdef MSB_FIRST
       newfiles[i].filepos = LittleLong(info[i].filepos);
@@ -1866,65 +1765,61 @@ Sets com_gamedir, adds the directory to the head of the path,
 then loads and adds pak1.pak pak2.pak ...
 ================
 */
-static void
-COM_AddGameDirectory(const char *base, const char *dir)
+static void COM_AddGameDirectory(const char *base, const char *dir)
 {
-    int i;
-    searchpath_t *search;
-    pack_t *pak;
-    char pakfile[MAX_OSPATH];
+   int i;
+   searchpath_t *search;
+   pack_t *pak;
+   char pakfile[MAX_OSPATH];
 #ifdef _WIN32
-    const char slash = '\\';
+   const char slash = '\\';
 #else
-    const char slash = '/';
+   const char slash = '/';
 #endif
 
-    if (!base)
-	return;
+   if (!base)
+      return;
 
 #ifdef _XBOX360
-    if (dir == "")
-		strcpy(com_gamedir, base);
-	else
+   if (dir == "")
+      strcpy(com_gamedir, base);
+   else
 #endif
-    strcpy(com_gamedir, va("%s%c%s", base, slash, dir));
+      strcpy(com_gamedir, va("%s%c%s", base, slash, dir));
 
 #ifdef QW_HACK
-    {
-	char *p;
-	p = strrchr(com_gamedir, slash);
-	strcpy(gamedirfile, ++p);
-    }
+   {
+      char *p;
+      p = strrchr(com_gamedir, slash);
+      strcpy(gamedirfile, ++p);
+   }
 #endif
 
-//
-// add the directory to the search path
-//
-    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
-    strcpy(search->filename, com_gamedir);
-    search->next = com_searchpaths;
-    com_searchpaths = search;
+   // add the directory to the search path
+   search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
+   strcpy(search->filename, com_gamedir);
+   search->next = com_searchpaths;
+   com_searchpaths = search;
 
-//
-// add any pak files in the format pak0.pak pak1.pak, ...
-//
-    for (i = 0;; i++) {
-	snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
-	pak = COM_LoadPackFile(pakfile);
-	if (!pak)
+   // add any pak files in the format pak0.pak pak1.pak, ...
+   for (i = 0;; i++)
    {
-      //try uppercase
-      snprintf(pakfile, sizeof(pakfile), "%s%cPAK%i.PAK", com_gamedir, slash, i);
+      snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
       pak = COM_LoadPackFile(pakfile);
+      if (!pak)
+      {
+         //try uppercase
+         snprintf(pakfile, sizeof(pakfile), "%s%cPAK%i.PAK", com_gamedir, slash, i);
+         pak = COM_LoadPackFile(pakfile);
 
-      if (!pak) // that doesn't work either? then break
-         break;
+         if (!pak) // that doesn't work either? then break
+            break;
+      }
+      search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
+      search->pack = pak;
+      search->next = com_searchpaths;
+      com_searchpaths = search;
    }
-	search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
-	search->pack = pak;
-	search->next = com_searchpaths;
-	com_searchpaths = search;
-    }
 }
 
 /*
@@ -1937,73 +1832,75 @@ FIXME - if home dir is available, should we create ~/.tyrquake/gamedir ??
 ================
 */
 #ifdef QW_HACK
-void
-COM_Gamedir(const char *dir)
+void COM_Gamedir(const char *dir)
 {
-    searchpath_t *search, *next;
-    int i;
-    pack_t *pak;
-    char pakfile[MAX_OSPATH];
+   searchpath_t *search, *next;
+   int i;
+   pack_t *pak;
+   char pakfile[MAX_OSPATH];
 #ifdef _WIN32
-    const char slash = '\\';
+   const char slash = '\\';
 #else
-    const char slash = '/';
+   const char slash = '/';
 #endif
 
-    if (strstr(dir, "..") || strstr(dir, "/")
-	|| strstr(dir, "\\") || strstr(dir, ":")) {
-	Con_Printf("Gamedir should be a single filename, not a path\n");
-	return;
-    }
+   if (strstr(dir, "..") || strstr(dir, "/")
+         || strstr(dir, "\\") || strstr(dir, ":"))
+   {
+      Con_Printf("Gamedir should be a single filename, not a path\n");
+      return;
+   }
 
-    if (!strcmp(gamedirfile, dir))
-	return;			// still the same
-    strcpy(gamedirfile, dir);
+   if (!strcmp(gamedirfile, dir))
+      return;			// still the same
+   strcpy(gamedirfile, dir);
 
-    //
-    // free up any current game dir info
-    //
-    while (com_searchpaths != com_base_searchpaths) {
-	if (com_searchpaths->pack) {
-	    Z_Free(com_searchpaths->pack->files);
-	    Z_Free(com_searchpaths->pack);
-	}
-	next = com_searchpaths->next;
-	Z_Free(com_searchpaths);
-	com_searchpaths = next;
-    }
+   //
+   // free up any current game dir info
+   //
+   while (com_searchpaths != com_base_searchpaths)
+   {
+      if (com_searchpaths->pack)
+      {
+         Z_Free(com_searchpaths->pack->files);
+         Z_Free(com_searchpaths->pack);
+      }
+      next = com_searchpaths->next;
+      Z_Free(com_searchpaths);
+      com_searchpaths = next;
+   }
 
-    //
-    // flush all data, so it will be forced to reload
-    //
-    Cache_Flush();
+   //
+   // flush all data, so it will be forced to reload
+   //
+   Cache_Flush();
 
-    if (!strcmp(dir, "id1") || !strcmp(dir, "qw"))
-	return;
+   if (!strcmp(dir, "id1") || !strcmp(dir, "qw"))
+      return;
 
-    snprintf(com_gamedir, sizeof(com_gamedir), "%s%c%s", com_basedir, slash, dir);
+   snprintf(com_gamedir, sizeof(com_gamedir), "%s%c%s", com_basedir, slash, dir);
 
-    //
-    // add the directory to the search path
-    //
-    search = Z_Malloc(sizeof(searchpath_t));
-    strcpy(search->filename, com_gamedir);
-    search->next = com_searchpaths;
-    com_searchpaths = search;
+   //
+   // add the directory to the search path
+   //
+   search = Z_Malloc(sizeof(searchpath_t));
+   strcpy(search->filename, com_gamedir);
+   search->next = com_searchpaths;
+   com_searchpaths = search;
 
-    //
-    // add any pak files in the format pak0.pak pak1.pak, ...
-    //
-    for (i = 0;; i++) {
-	snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
-	pak = COM_LoadPackFile(pakfile);
-	if (!pak)
-	    break;
-	search = Z_Malloc(sizeof(searchpath_t));
-	search->pack = pak;
-	search->next = com_searchpaths;
-	com_searchpaths = search;
-    }
+   //
+   // add any pak files in the format pak0.pak pak1.pak, ...
+   //
+   for (i = 0;; i++) {
+      snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
+      pak = COM_LoadPackFile(pakfile);
+      if (!pak)
+         break;
+      search = Z_Malloc(sizeof(searchpath_t));
+      search->pack = pak;
+      search->next = com_searchpaths;
+      com_searchpaths = search;
+   }
 }
 #endif
 
@@ -2013,88 +1910,87 @@ COM_InitFilesystem
 ================
 */
 
-static void
-COM_InitFilesystem(void)
+static void COM_InitFilesystem(void)
 {
-    int i;
-    char *home;
+   int i;
+   char *home;
 #ifdef NQ_HACK
-    searchpath_t *search;
+   searchpath_t *search;
 #endif
 
-// -basedir <path>
-// Overrides the system supplied base directory (under id1)
-    i = COM_CheckParm("-basedir");
-    strcpy(com_basedir, host_parms.basedir);
+   // -basedir <path>
+   // Overrides the system supplied base directory (under id1)
+   i = COM_CheckParm("-basedir");
+   strcpy(com_basedir, host_parms.basedir);
 
-// start up with id1 by default
-    COM_AddGameDirectory(com_basedir, "");
-    COM_AddGameDirectory(home, ".tyrquake/id1");
+   // start up with id1 by default
+   COM_AddGameDirectory(com_basedir, "");
+   COM_AddGameDirectory(home, ".tyrquake/id1");
 
 #ifdef NQ_HACK
-    if (COM_CheckParm("-rogue")) {
-       COM_AddGameDirectory(com_basedir, "rogue");
-       COM_AddGameDirectory(home, ".tyrquake/rogue");
-    }
-    if (COM_CheckParm("-hipnotic")) {
-	COM_AddGameDirectory(com_basedir, "hipnotic");
-	COM_AddGameDirectory(home, ".tyrquake/hipnotic");
-    }
-    if (COM_CheckParm("-quoth")) {
-	COM_AddGameDirectory(com_basedir, "quoth");
-	COM_AddGameDirectory(home, ".tyrquake/quoth");
-    }
+   if (COM_CheckParm("-rogue")) {
+      COM_AddGameDirectory(com_basedir, "rogue");
+      COM_AddGameDirectory(home, ".tyrquake/rogue");
+   }
+   if (COM_CheckParm("-hipnotic")) {
+      COM_AddGameDirectory(com_basedir, "hipnotic");
+      COM_AddGameDirectory(home, ".tyrquake/hipnotic");
+   }
+   if (COM_CheckParm("-quoth")) {
+      COM_AddGameDirectory(com_basedir, "quoth");
+      COM_AddGameDirectory(home, ".tyrquake/quoth");
+   }
 
-//
-// -game <gamedir>
-// Adds basedir/gamedir as an override game
-//
-    i = COM_CheckParm("-game");
-    if (i && i < com_argc - 1) {
-	com_modified = true;
-	COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
-	COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
-    }
+   //
+   // -game <gamedir>
+   // Adds basedir/gamedir as an override game
+   //
+   i = COM_CheckParm("-game");
+   if (i && i < com_argc - 1) {
+      com_modified = true;
+      COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
+      COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
+   }
 #endif
 #ifdef QW_HACK
-    COM_AddGameDirectory(com_basedir, "qw");
-    COM_AddGameDirectory(home, "qw");
+   COM_AddGameDirectory(com_basedir, "qw");
+   COM_AddGameDirectory(home, "qw");
 #endif
-    /* If home is available, create the game directory */
-    if (home) {
-    COM_CreatePath(com_gamedir);
-    Sys_mkdir(com_gamedir);
-    }
+   /* If home is available, create the game directory */
+   if (home) {
+      COM_CreatePath(com_gamedir);
+      Sys_mkdir(com_gamedir);
+   }
 
-//
-// -path <dir or packfile> [<dir or packfile>] ...
-// Fully specifies the exact search path, overriding the generated one
-//
+   //
+   // -path <dir or packfile> [<dir or packfile>] ...
+   // Fully specifies the exact search path, overriding the generated one
+   //
 #ifdef NQ_HACK
-    i = COM_CheckParm("-path");
-    if (i) {
-	com_modified = true;
-	com_searchpaths = NULL;
-	while (++i < com_argc) {
-	    if (!com_argv[i] || com_argv[i][0] == '+'
-		|| com_argv[i][0] == '-')
-		break;
+   i = COM_CheckParm("-path");
+   if (i) {
+      com_modified = true;
+      com_searchpaths = NULL;
+      while (++i < com_argc) {
+         if (!com_argv[i] || com_argv[i][0] == '+'
+               || com_argv[i][0] == '-')
+            break;
 
-	    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
-	    if (!strcmp(COM_FileExtension(com_argv[i]), "pak")) {
-		search->pack = COM_LoadPackFile(com_argv[i]);
-		if (!search->pack)
-		    Sys_Error("Couldn't load packfile: %s", com_argv[i]);
-	    } else
-		strcpy(search->filename, com_argv[i]);
-	    search->next = com_searchpaths;
-	    com_searchpaths = search;
-	}
-    }
+         search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
+         if (!strcmp(COM_FileExtension(com_argv[i]), "pak")) {
+            search->pack = COM_LoadPackFile(com_argv[i]);
+            if (!search->pack)
+               Sys_Error("Couldn't load packfile: %s", com_argv[i]);
+         } else
+            strcpy(search->filename, com_argv[i]);
+         search->next = com_searchpaths;
+         com_searchpaths = search;
+      }
+   }
 #endif
 #ifdef QW_HACK
-    // any set gamedirs will be freed up to here
-    com_base_searchpaths = com_searchpaths;
+   // any set gamedirs will be freed up to here
+   com_base_searchpaths = com_searchpaths;
 #endif
 }
 
@@ -2118,49 +2014,47 @@ COM_InitFilesystem(void)
  *
  * Key/Value checks are consolidated into Info_ReadKey and Info_ReadValue
  */
-static const char *
-Info_ReadString(const char *infostring, char *buffer, int buflen)
+static const char * Info_ReadString(const char *infostring, char *buffer, int buflen)
 {
-    char *out = buffer;
+   char *out = buffer;
 
-    while (out - buffer < buflen - 1) {
-	if (!*infostring || *infostring == '\\')
-	    break;
-	*out++ = *infostring++;
-    }
-    *out = 0;
+   while (out - buffer < buflen - 1)
+   {
+      if (!*infostring || *infostring == '\\')
+         break;
+      *out++ = *infostring++;
+   }
+   *out = 0;
 
-    return infostring;
+   return infostring;
 }
 
-static const char *
-Info_ReadKey(const char *infostring, char *buffer, int buflen)
+static const char *Info_ReadKey(const char *infostring, char *buffer, int buflen)
 {
-    const char *pkey;
+   const char *pkey;
 
-    if (*infostring == '\\')
-	infostring++;
+   if (*infostring == '\\')
+      infostring++;
 
-    pkey = infostring;
-    infostring = Info_ReadString(infostring, buffer, buflen);
+   pkey = infostring;
+   infostring = Info_ReadString(infostring, buffer, buflen);
 
-    /* If we aren't at a separator, then the key was too long */
-    if (*buffer && *infostring != '\\')
-	Con_DPrintf("WARNING: No separator after info key (%s)\n", pkey);
+   /* If we aren't at a separator, then the key was too long */
+   if (*buffer && *infostring != '\\')
+      Con_DPrintf("WARNING: No separator after info key (%s)\n", pkey);
 
-    return infostring;
+   return infostring;
 }
 
-static const char *
-Info_ReadValue(const char *infostring, char *buffer, int buflen)
+static const char *Info_ReadValue(const char *infostring, char *buffer, int buflen)
 {
-    infostring = Info_ReadString(infostring, buffer, buflen);
+   infostring = Info_ReadString(infostring, buffer, buflen);
 
-    /* If we aren't at a separator, then the value was too long */
-    if (*infostring && *infostring != '\\')
-	Con_DPrintf("WARNING: info value too long? (%s)\n", buffer);
+   /* If we aren't at a separator, then the value was too long */
+   if (*infostring && *infostring != '\\')
+      Con_DPrintf("WARNING: info value too long? (%s)\n", buffer);
 
-    return infostring;
+   return infostring;
 }
 
 /*
@@ -2171,200 +2065,212 @@ Searches the string for the given
 key and returns the associated value, or an empty string.
 ===============
 */
-char *
-Info_ValueForKey(const char *infostring, const char *key)
+char *Info_ValueForKey(const char *infostring, const char *key)
 {
-    /* use multiple buffers so compares work without stomping on each other */
-    static char buffers[4][MAX_INFO_STRING];
-    static int buffer_index;
+   /* use multiple buffers so compares work without stomping on each other */
+   static char buffers[4][MAX_INFO_STRING];
+   static int buffer_index;
 
-    char pkey[MAX_INFO_STRING];
-    char *buf;
+   char pkey[MAX_INFO_STRING];
+   char *buf;
 
-    buffer_index = (buffer_index + 1) & 3;
-    buf = buffers[buffer_index];
+   buffer_index = (buffer_index + 1) & 3;
+   buf = buffers[buffer_index];
 
-    while (1) {
-	/* Retrieve the key */
-	infostring = Info_ReadKey(infostring, pkey, sizeof(pkey));
-	if (*infostring != '\\') {
-	    *buf = 0;
-	    return buf;
-	}
-	infostring++;
+   while (1)
+   {
+      /* Retrieve the key */
+      infostring = Info_ReadKey(infostring, pkey, sizeof(pkey));
+      if (*infostring != '\\')
+      {
+         *buf = 0;
+         return buf;
+      }
+      infostring++;
 
-	/* Retrieve the value */
-	infostring = Info_ReadString(infostring, buf, sizeof(buffers[0]));
-	if (*infostring && *infostring != '\\') {
-	    *buf = 0;
-	    return buf;
-	}
+      /* Retrieve the value */
+      infostring = Info_ReadString(infostring, buf, sizeof(buffers[0]));
+      if (*infostring && *infostring != '\\')
+      {
+         *buf = 0;
+         return buf;
+      }
 
-	/* If the keys match, return the value in the buffer */
-	if (!strcmp(key, pkey))
-	    return buf;
+      /* If the keys match, return the value in the buffer */
+      if (!strcmp(key, pkey))
+         return buf;
 
-	/* Return if we've reached the end of the infostring */
-	if (!*infostring) {
-	    *buf = 0;
-	    return buf;
-	}
-	infostring++;
-    }
+      /* Return if we've reached the end of the infostring */
+      if (!*infostring)
+      {
+         *buf = 0;
+         return buf;
+      }
+      infostring++;
+   }
 }
 
-void
-Info_RemoveKey(char *infostring, const char *key)
+void Info_RemoveKey(char *infostring, const char *key)
 {
-    char *start;
-    char pkey[MAX_INFO_STRING];
-    char value[MAX_INFO_STRING];
+   char *start;
+   char pkey[MAX_INFO_STRING];
+   char value[MAX_INFO_STRING];
 
-    if (strstr(key, "\\")) {
-	Con_Printf("Can't use a key with a \\\n");
-	return;
-    }
+   if (strstr(key, "\\"))
+   {
+      Con_Printf("Can't use a key with a \\\n");
+      return;
+   }
 
-    while (1) {
-	start = infostring;
+   while (1)
+   {
+      start = infostring;
 
-	infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
-	if (*infostring)
-	    infostring++;
-	infostring = (char *)Info_ReadValue(infostring, value, sizeof(value));
-	if (*infostring)
-	    infostring++;
+      infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
+      if (*infostring)
+         infostring++;
+      infostring = (char *)Info_ReadValue(infostring, value, sizeof(value));
+      if (*infostring)
+         infostring++;
 
-	/* If the keys match, remove this part of the string */
-	if (!strcmp(key, pkey)) {
-	    memmove(start, infostring, strlen(infostring) + 1);
-	    return;
-	}
-	if (!*infostring)
-	    return;
-    }
+      /* If the keys match, remove this part of the string */
+      if (!strcmp(key, pkey))
+      {
+         memmove(start, infostring, strlen(infostring) + 1);
+         return;
+      }
+      if (!*infostring)
+         return;
+   }
 }
 
-void
-Info_RemovePrefixedKeys(char *infostring, char prefix)
+void Info_RemovePrefixedKeys(char *infostring, char prefix)
 {
-    char *start;
-    char pkey[MAX_INFO_STRING];
-    char value[MAX_INFO_STRING];
+   char *start;
+   char pkey[MAX_INFO_STRING];
+   char value[MAX_INFO_STRING];
 
-    start = infostring;
-    while (1) {
-	infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
-	if (*infostring)
-	    infostring++;
-	infostring = (char *)Info_ReadValue(infostring, value, sizeof(value));
-	if (*infostring)
-	    infostring++;
+   start = infostring;
+   while (1)
+   {
+      infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
+      if (*infostring)
+         infostring++;
+      infostring = (char *)Info_ReadValue(infostring, value, sizeof(value));
+      if (*infostring)
+         infostring++;
 
-	/* If the prefix matches, remove the key */
-	if (pkey[0] == prefix) {
-	    Info_RemoveKey(start, pkey);
-	    infostring = start;
-	}
-	if (!*infostring)
-	    return;
-    }
+      /* If the prefix matches, remove the key */
+      if (pkey[0] == prefix)
+      {
+         Info_RemoveKey(start, pkey);
+         infostring = start;
+      }
+      if (!*infostring)
+         return;
+   }
 }
 
-void
-Info_SetValueForStarKey(char *infostring, const char *key, const char *value,
+void Info_SetValueForStarKey(char *infostring, const char *key, const char *value,
 			int maxsize)
 {
-    char buffer[MAX_INFO_STRING * 2];
-    char *oldvalue, *info;
-    int c, len;
+   char buffer[MAX_INFO_STRING * 2];
+   char *oldvalue, *info;
+   int c, len;
 
-    if (strstr(key, "\\") || strstr(value, "\\")) {
-	Con_Printf("Can't use keys or values with a \\\n");
-	return;
-    }
-    if (strstr(key, "\"") || strstr(value, "\"")) {
-	Con_Printf("Can't use keys or values with a \"\n");
-	return;
-    }
-    if (strlen(key) > 63 || strlen(value) > 63) {
-	Con_Printf("Keys and values must be < 64 characters.\n");
-	return;
-    }
+   if (strstr(key, "\\") || strstr(value, "\\"))
+   {
+      Con_Printf("Can't use keys or values with a \\\n");
+      return;
+   }
+   if (strstr(key, "\"") || strstr(value, "\""))
+   {
+      Con_Printf("Can't use keys or values with a \"\n");
+      return;
+   }
+   if (strlen(key) > 63 || strlen(value) > 63)
+   {
+      Con_Printf("Keys and values must be < 64 characters.\n");
+      return;
+   }
 
-    oldvalue = Info_ValueForKey(infostring, key);
-    if (*oldvalue) {
-	/*
-	 * Key exists. Make sure we have enough room for new value.
-	 * If we don't, don't change it!
-	 */
-	len = strlen(infostring) - strlen(oldvalue) + strlen(value);
-	if (len > maxsize - 1)
-	    goto ErrTooLong;
-    }
+   oldvalue = Info_ValueForKey(infostring, key);
+   if (*oldvalue)
+   {
+      /*
+       * Key exists. Make sure we have enough room for new value.
+       * If we don't, don't change it!
+       */
+      len = strlen(infostring) - strlen(oldvalue) + strlen(value);
+      if (len > maxsize - 1)
+         goto ErrTooLong;
+   }
 
-    Info_RemoveKey(infostring, key);
-    if (!value || !strlen(value))
-	return;
+   Info_RemoveKey(infostring, key);
+   if (!value || !strlen(value))
+      return;
 
-    len = snprintf(buffer, sizeof(buffer), "\\%s\\%s", key, value);
-    if (len > sizeof(buffer) - 1)
-	goto ErrTooLong;
+   len = snprintf(buffer, sizeof(buffer), "\\%s\\%s", key, value);
+   if (len > sizeof(buffer) - 1)
+      goto ErrTooLong;
 
-    len += strlen(infostring);
-    if (len > maxsize - 1)
-	goto ErrTooLong;
+   len += strlen(infostring);
+   if (len > maxsize - 1)
+      goto ErrTooLong;
 
-    /* Append the new key/value pair to the info string */
-    infostring += strlen(infostring);
-    info = buffer;
-    while (*info) {
-	c = (unsigned char)*info++;
+   /* Append the new key/value pair to the info string */
+   infostring += strlen(infostring);
+   info = buffer;
+   while (*info)
+   {
+      c = (unsigned char)*info++;
 #ifndef SERVERONLY
-	/* client only allows highbits on name */
-	if (strcasecmp(key, "name")) {
-	    c &= 127;
-	    if (c < 32 || c > 127)
-		continue;
-	    /* auto lowercase team */
-	    if (!strcasecmp(key, "team"))
-		c = tolower(c);
-	}
+      /* client only allows highbits on name */
+      if (strcasecmp(key, "name"))
+      {
+         c &= 127;
+         if (c < 32 || c > 127)
+            continue;
+         /* auto lowercase team */
+         if (!strcasecmp(key, "team"))
+            c = tolower(c);
+      }
 #else
-	if (!sv_highchars.value) {
-	    c &= 127;
-	    if (c < 32 || c > 127)
-		continue;
-	}
+      if (!sv_highchars.value)
+      {
+         c &= 127;
+         if (c < 32 || c > 127)
+            continue;
+      }
 #endif
-	if (c > 13)
-	    *infostring++ = c;
-    }
-    *infostring = 0;
-    return;
+      if (c > 13)
+         *infostring++ = c;
+   }
+   *infostring = 0;
+   return;
 
- ErrTooLong:
-	Con_Printf("Info string length exceeded\n");
+ErrTooLong:
+   Con_Printf("Info string length exceeded\n");
 }
 
-void
-Info_SetValueForKey(char *infostring, const char *key, const char *value,
+void Info_SetValueForKey(char *infostring, const char *key, const char *value,
 		    int maxsize)
 {
-    if (key[0] == '*') {
-	Con_Printf("Can't set * keys\n");
-	return;
-    }
-    Info_SetValueForStarKey(infostring, key, value, maxsize);
+   if (key[0] == '*')
+   {
+      Con_Printf("Can't set * keys\n");
+      return;
+   }
+   Info_SetValueForStarKey(infostring, key, value, maxsize);
 }
 
-void
-Info_Print(const char *infostring)
+void Info_Print(const char *infostring)
 {
     char key[MAX_INFO_STRING];
     char value[MAX_INFO_STRING];
 
-    while (*infostring) {
+    while (*infostring)
+    {
 	infostring = Info_ReadKey(infostring, key, sizeof(key));
 	if (*infostring)
 	    infostring++;
@@ -2427,41 +2333,42 @@ byte
 COM_BlockSequenceCheckByte(const byte *base, int length, int sequence,
 			   unsigned mapchecksum)
 {
-    static unsigned last_mapchecksum;
-    unsigned char chkbuf[16 + 60 + 4];
-    int checksum;
-    byte *p;
+   static unsigned last_mapchecksum;
+   unsigned char chkbuf[16 + 60 + 4];
+   int checksum;
+   byte *p;
 
-    if (last_mapchecksum != mapchecksum) {
-	last_mapchecksum = mapchecksum;
-	chktbl[1024] = (mapchecksum & 0xff000000) >> 24;
-	chktbl[1025] = (mapchecksum & 0x00ff0000) >> 16;
-	chktbl[1026] = (mapchecksum & 0x0000ff00) >> 8;
-	chktbl[1027] = (mapchecksum & 0x000000ff);
+   if (last_mapchecksum != mapchecksum)
+   {
+      last_mapchecksum = mapchecksum;
+      chktbl[1024] = (mapchecksum & 0xff000000) >> 24;
+      chktbl[1025] = (mapchecksum & 0x00ff0000) >> 16;
+      chktbl[1026] = (mapchecksum & 0x0000ff00) >> 8;
+      chktbl[1027] = (mapchecksum & 0x000000ff);
 
-	Com_BlockFullChecksum(chktbl, sizeof(chktbl), chkbuf);
-    }
+      Com_BlockFullChecksum(chktbl, sizeof(chktbl), chkbuf);
+   }
 
-    p = chktbl + (sequence % (sizeof(chktbl) - 8));
+   p = chktbl + (sequence % (sizeof(chktbl) - 8));
 
-    if (length > 60)
-	length = 60;
-    memcpy(chkbuf + 16, base, length);
+   if (length > 60)
+      length = 60;
+   memcpy(chkbuf + 16, base, length);
 
-    length += 16;
+   length += 16;
 
-    chkbuf[length] = (sequence & 0xff) ^ p[0];
-    chkbuf[length + 1] = p[1];
-    chkbuf[length + 2] = ((sequence >> 8) & 0xff) ^ p[2];
-    chkbuf[length + 3] = p[3];
+   chkbuf[length] = (sequence & 0xff) ^ p[0];
+   chkbuf[length + 1] = p[1];
+   chkbuf[length + 2] = ((sequence >> 8) & 0xff) ^ p[2];
+   chkbuf[length + 3] = p[3];
 
-    length += 4;
+   length += 4;
 
-    checksum = LittleLong(Com_BlockChecksum(chkbuf, length));
+   checksum = LittleLong(Com_BlockChecksum(chkbuf, length));
 
-    checksum &= 0xff;
+   checksum &= 0xff;
 
-    return checksum;
+   return checksum;
 }
 #endif
 
@@ -2508,35 +2415,34 @@ static const char *mon[12] =
 static char mond[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
 // returns days since Oct 24 1996
-int
-build_number(void)
+int build_number(void)
 {
-    int m = 0;
-    int d = 0;
-    int y = 0;
-    static int b = 0;
+   int m = 0;
+   int d = 0;
+   int y = 0;
+   static int b = 0;
 
-    if (b != 0)
-	return b;
+   if (b != 0)
+      return b;
 
-    for (m = 0; m < 11; m++) {
-	if (strncasecmp(&date[0], mon[m], 3) == 0)
-	    break;
-	d += mond[m];
-    }
+   for (m = 0; m < 11; m++)
+   {
+      if (strncasecmp(&date[0], mon[m], 3) == 0)
+         break;
+      d += mond[m];
+   }
 
-    d += atoi(&date[4]) - 1;
+   d += atoi(&date[4]) - 1;
 
-    y = atoi(&date[7]) - 1900;
+   y = atoi(&date[7]) - 1900;
 
-    b = d + (int)((y - 1) * 365.25);
+   b = d + (int)((y - 1) * 365.25);
 
-    if (((y % 4) == 0) && m > 1) {
-	b += 1;
-    }
+   if (((y % 4) == 0) && m > 1)
+      b += 1;
 
-    b -= 35778;			// Dec 16 1998
+   b -= 35778;			// Dec 16 1998
 
-    return b;
+   return b;
 }
 #endif /* QW_HACK */
