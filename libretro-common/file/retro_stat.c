@@ -72,6 +72,58 @@
 #include <retro_miscellaneous.h>
 #include <boolean.h>
 
+enum stat_mode
+{
+   IS_DIRECTORY = 0,
+   IS_CHARACTER_SPECIAL,
+   IS_VALID
+};
+
+static bool path_stat(const char *path, enum stat_mode mode)
+{
+#if defined(VITA) || defined(PSP)
+   SceIoStat buf;
+   if (sceIoGetstat(path, &buf) < 0)
+      return false;
+#elif defined(__CELLOS_LV2__)
+    CellFsStat buf;
+    if (cellFsStat(path, &buf) < 0)
+       return false;
+#elif defined(_WIN32)
+   DWORD ret = GetFileAttributes(path);
+   if (ret == INVALID_FILE_ATTRIBUTES)
+      return false;
+#else
+   struct stat buf;
+   if (stat(path, &buf) < 0)
+      return false;
+#endif
+
+   switch (mode)
+   {
+      case IS_DIRECTORY:
+#if defined(VITA) || defined(PSP)
+         return FIO_SO_ISDIR(buf.st_mode);
+#elif defined(__CELLOS_LV2__)
+         return ((buf.st_mode & S_IFMT) == S_IFDIR);
+#elif defined(_WIN32)
+         return (ret & FILE_ATTRIBUTE_DIRECTORY);
+#else
+         return S_ISDIR(buf.st_mode);
+#endif
+      case IS_CHARACTER_SPECIAL:
+#if defined(VITA) || defined(PSP) || defined(__CELLOS_LV2__) || defined(_WIN32)
+         return false;
+#else
+         return S_ISCHR(buf.st_mode);
+#endif
+      case IS_VALID:
+         return true;
+   }
+
+   return false;
+}
+
 /**
  * path_is_directory:
  * @path               : path
@@ -82,26 +134,17 @@
  */
 bool path_is_directory(const char *path)
 {
-#if defined(VITA) || defined(PSP)
-   SceIoStat buf;
-   if (sceIoGetstat(path, &buf) < 0)
-      return false;
-   return FIO_SO_ISDIR(buf.st_mode);
-#elif defined(__CELLOS_LV2__)
-    CellFsStat buf;
-    if (cellFsStat(path, &buf) < 0)
-       return false;
-    return ((buf.st_mode & S_IFMT) == S_IFDIR);
-#elif defined(_WIN32)
-   DWORD ret = GetFileAttributes(path);
-   return (ret & FILE_ATTRIBUTE_DIRECTORY) && (ret != INVALID_FILE_ATTRIBUTES);
-#else
-   struct stat buf;
-   if (stat(path, &buf) < 0)
-      return false;
+   return path_stat(path, IS_DIRECTORY);
+}
 
-   return S_ISDIR(buf.st_mode);
-#endif
+bool path_is_character_special(const char *path)
+{
+   return path_stat(path, IS_CHARACTER_SPECIAL);
+}
+
+bool stat_is_valid(const char *path)
+{
+   return path_stat(path, IS_VALID);
 }
 
 /**
@@ -135,27 +178,4 @@ bool mkdir_norecurse(const char *dir)
    if (ret < 0)
       printf("mkdir(%s) error: %s.\n", dir, strerror(errno));
    return ret == 0;
-}
-
-bool stat_is_valid(const char *path)
-{
-#if defined(VITA) || defined(PSP)
-   SceIoStat buf;
-   if (sceIoGetstat(path, &buf) < 0)
-      return false;
-   return true;
-#elif defined(__CELLOS_LV2__)
-    CellFsStat buf;
-    if (cellFsStat(path, &buf) < 0)
-       return false;
-    return true;
-#elif defined(_WIN32)
-   DWORD ret = GetFileAttributes(path);
-   return (ret != INVALID_FILE_ATTRIBUTES);
-#else
-   struct stat buf;
-   if (stat(path, &buf) < 0)
-      return false;
-   return true;
-#endif
 }
