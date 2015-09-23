@@ -1206,10 +1206,9 @@ varargs versions of all text functions.
 char *va(const char *format, ...)
 {
    va_list argptr;
-   char *buf;
    int len;
+   char *buf = COM_GetStrBuf();
 
-   buf = COM_GetStrBuf();
    va_start(argptr, format);
    len = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
    va_end(argptr);
@@ -1298,13 +1297,14 @@ static int COM_FileOpenRead(const char *path, FILE **hndl)
    FILE *f = fopen(path, "rb");
 
    if (!f)
-   {
-      *hndl = NULL;
-      return -1;
-   }
+      goto error;
    *hndl = f;
 
    return COM_filelength(f);
+
+error:
+   *hndl = NULL;
+   return -1;
 }
 
 /*
@@ -1484,17 +1484,17 @@ static void COM_ScanDirDir(struct stree_root *root, struct RDIR *dir, const char
 static void COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *path,
       const char *pfx, const char *ext, qboolean stripext)
 {
-   int i, path_len, pfx_len, ext_len, len;
-   char *pak_f, *fname;
-
-   path_len = path ? strlen(path) : 0;
-   pfx_len = pfx ? strlen(pfx) : 0;
-   ext_len = ext ? strlen(ext) : 0;
+   int i, len;
+   char *fname;
+   int path_len = path ? strlen(path) : 0;
+   int pfx_len  = pfx  ? strlen(pfx) : 0;
+   int ext_len  = ext  ? strlen(ext) : 0;
 
    for (i = 0; i < pak->numfiles; i++)
    {
       /* Check the path prefix */
-      pak_f = pak->files[i].name;
+      char *pak_f = pak->files[i].name;
+
       if (path && path_len)
       {
          if (strncasecmp(pak_f, path, path_len))
@@ -1519,6 +1519,7 @@ static void COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *pat
       if (ext && stripext)
          len -= ext_len;
       fname = (char*)Z_Malloc(len + 1);
+
       if (fname)
       {
          strncpy(fname, pak_f, len);
@@ -1581,11 +1582,8 @@ static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
    FILE *f;
    char base[32];
-   int len;
    byte *buf = NULL;			// quiet compiler warning
-
-   // look for it in the filesystem or pack files
-   len = com_filesize = COM_FOpenFile(path, &f);
+   int len = com_filesize = COM_FOpenFile(path, &f);  // look for it in the filesystem or pack files
    if (!f)
       return NULL;
 
@@ -1855,9 +1853,7 @@ void COM_Gamedir(const char *dir)
       return;			// still the same
    strcpy(gamedirfile, dir);
 
-   //
    // free up any current game dir info
-   //
    while (com_searchpaths != com_base_searchpaths)
    {
       if (com_searchpaths->pack)
@@ -1870,9 +1866,7 @@ void COM_Gamedir(const char *dir)
       com_searchpaths = next;
    }
 
-   //
    // flush all data, so it will be forced to reload
-   //
    Cache_Flush();
 
    if (!strcmp(dir, "id1") || !strcmp(dir, "qw"))
@@ -1880,18 +1874,15 @@ void COM_Gamedir(const char *dir)
 
    snprintf(com_gamedir, sizeof(com_gamedir), "%s%c%s", com_basedir, slash, dir);
 
-   //
    // add the directory to the search path
-   //
    search = Z_Malloc(sizeof(searchpath_t));
    strcpy(search->filename, com_gamedir);
    search->next = com_searchpaths;
    com_searchpaths = search;
 
-   //
    // add any pak files in the format pak0.pak pak1.pak, ...
-   //
-   for (i = 0;; i++) {
+   for (i = 0;; i++)
+   {
       snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
       pak = COM_LoadPackFile(pakfile);
       if (!pak)
@@ -1913,7 +1904,6 @@ COM_InitFilesystem
 static void COM_InitFilesystem(void)
 {
    int i;
-   char *home;
 #ifdef NQ_HACK
    searchpath_t *search;
 #endif
@@ -1925,43 +1915,27 @@ static void COM_InitFilesystem(void)
 
    // start up with id1 by default
    COM_AddGameDirectory(com_basedir, "");
-   COM_AddGameDirectory(home, ".tyrquake/id1");
 
 #ifdef NQ_HACK
-   if (COM_CheckParm("-rogue")) {
+   if (COM_CheckParm("-rogue"))
       COM_AddGameDirectory(com_basedir, "rogue");
-      COM_AddGameDirectory(home, ".tyrquake/rogue");
-   }
-   if (COM_CheckParm("-hipnotic")) {
+   if (COM_CheckParm("-hipnotic"))
       COM_AddGameDirectory(com_basedir, "hipnotic");
-      COM_AddGameDirectory(home, ".tyrquake/hipnotic");
-   }
-   if (COM_CheckParm("-quoth")) {
+   if (COM_CheckParm("-quoth"))
       COM_AddGameDirectory(com_basedir, "quoth");
-      COM_AddGameDirectory(home, ".tyrquake/quoth");
-   }
 
-   //
    // -game <gamedir>
    // Adds basedir/gamedir as an override game
-   //
    i = COM_CheckParm("-game");
-   if (i && i < com_argc - 1) {
+   if (i && i < com_argc - 1)
+   {
       com_modified = true;
       COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
-      COM_AddGameDirectory(home, va(".tyrquake/%s", com_argv[i + 1]));
    }
 #endif
 #ifdef QW_HACK
    COM_AddGameDirectory(com_basedir, "qw");
-   COM_AddGameDirectory(home, "qw");
 #endif
-   /* If home is available, create the game directory */
-   if (home) {
-      COM_CreatePath(com_gamedir);
-      Sys_mkdir(com_gamedir);
-   }
-
    //
    // -path <dir or packfile> [<dir or packfile>] ...
    // Fully specifies the exact search path, overriding the generated one
@@ -2082,19 +2056,13 @@ char *Info_ValueForKey(const char *infostring, const char *key)
       /* Retrieve the key */
       infostring = Info_ReadKey(infostring, pkey, sizeof(pkey));
       if (*infostring != '\\')
-      {
-         *buf = 0;
-         return buf;
-      }
+         break;
       infostring++;
 
       /* Retrieve the value */
       infostring = Info_ReadString(infostring, buf, sizeof(buffers[0]));
       if (*infostring && *infostring != '\\')
-      {
-         *buf = 0;
-         return buf;
-      }
+         break;
 
       /* If the keys match, return the value in the buffer */
       if (!strcmp(key, pkey))
@@ -2102,17 +2070,16 @@ char *Info_ValueForKey(const char *infostring, const char *key)
 
       /* Return if we've reached the end of the infostring */
       if (!*infostring)
-      {
-         *buf = 0;
-         return buf;
-      }
+         break;
       infostring++;
    }
+
+   *buf = 0;
+   return buf;
 }
 
 void Info_RemoveKey(char *infostring, const char *key)
 {
-   char *start;
    char pkey[MAX_INFO_STRING];
    char value[MAX_INFO_STRING];
 
@@ -2124,7 +2091,7 @@ void Info_RemoveKey(char *infostring, const char *key)
 
    while (1)
    {
-      start = infostring;
+      char *start = infostring;
 
       infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
       if (*infostring)
@@ -2146,11 +2113,10 @@ void Info_RemoveKey(char *infostring, const char *key)
 
 void Info_RemovePrefixedKeys(char *infostring, char prefix)
 {
-   char *start;
    char pkey[MAX_INFO_STRING];
    char value[MAX_INFO_STRING];
+   char *start = infostring;
 
-   start = infostring;
    while (1)
    {
       infostring = (char *)Info_ReadKey(infostring, pkey, sizeof(pkey));
@@ -2266,20 +2232,20 @@ void Info_SetValueForKey(char *infostring, const char *key, const char *value,
 
 void Info_Print(const char *infostring)
 {
-    char key[MAX_INFO_STRING];
-    char value[MAX_INFO_STRING];
+   char key[MAX_INFO_STRING];
+   char value[MAX_INFO_STRING];
 
-    while (*infostring)
-    {
-	infostring = Info_ReadKey(infostring, key, sizeof(key));
-	if (*infostring)
-	    infostring++;
-	infostring = Info_ReadValue(infostring, value, sizeof(value));
-	if (*infostring)
-	    infostring++;
+   while (*infostring)
+   {
+      infostring = Info_ReadKey(infostring, key, sizeof(key));
+      if (*infostring)
+         infostring++;
+      infostring = Info_ReadValue(infostring, value, sizeof(value));
+      if (*infostring)
+         infostring++;
 
-	Con_Printf("%-20.20s %s\n", key, *value ? value : "MISSING VALUE");
-    }
+      Con_Printf("%-20.20s %s\n", key, *value ? value : "MISSING VALUE");
+   }
 }
 
 static byte chktbl[1024 + 4] = {
@@ -2379,31 +2345,28 @@ COM_BlockSequenceCRCByte
 For proxy protecting
 ====================
 */
-byte
-COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
+byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
 {
-    unsigned short crc;
-    const byte *p;
-    byte chkb[60 + 4];
+   unsigned short crc;
+   byte chkb[60 + 4];
+   const byte *p = chktbl + (sequence % (sizeof(chktbl) - 8));
 
-    p = chktbl + (sequence % (sizeof(chktbl) - 8));
+   if (length > 60)
+      length = 60;
+   memcpy(chkb, base, length);
 
-    if (length > 60)
-	length = 60;
-    memcpy(chkb, base, length);
+   chkb[length] = (sequence & 0xff) ^ p[0];
+   chkb[length + 1] = p[1];
+   chkb[length + 2] = ((sequence >> 8) & 0xff) ^ p[2];
+   chkb[length + 3] = p[3];
 
-    chkb[length] = (sequence & 0xff) ^ p[0];
-    chkb[length + 1] = p[1];
-    chkb[length + 2] = ((sequence >> 8) & 0xff) ^ p[2];
-    chkb[length + 3] = p[3];
+   length += 4;
 
-    length += 4;
+   crc = CRC_Block(chkb, length);
 
-    crc = CRC_Block(chkb, length);
+   crc &= 0xff;
 
-    crc &= 0xff;
-
-    return crc;
+   return crc;
 }
 
 // char *date = "Oct 24 1996";
