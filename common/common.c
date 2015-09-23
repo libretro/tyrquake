@@ -544,15 +544,16 @@ int MSG_ReadChar(void)
    int c;
 
    if (msg_readcount + 1 > net_message.cursize)
-   {
-      msg_badread = true;
-      return -1;
-   }
+      goto error;
 
    c = (signed char)net_message.data[msg_readcount];
    msg_readcount++;
 
    return c;
+
+error:
+   msg_badread = true;
+   return -1;
 }
 
 int MSG_ReadByte(void)
@@ -560,15 +561,16 @@ int MSG_ReadByte(void)
    int c;
 
    if (msg_readcount + 1 > net_message.cursize)
-   {
-      msg_badread = true;
-      return -1;
-   }
+      goto error;
 
    c = (unsigned char)net_message.data[msg_readcount];
    msg_readcount++;
 
    return c;
+
+error:
+   msg_badread = true;
+   return -1;
 }
 
 int MSG_ReadShort(void)
@@ -576,10 +578,7 @@ int MSG_ReadShort(void)
    int c;
 
    if (msg_readcount + 2 > net_message.cursize)
-   {
-      msg_badread = true;
-      return -1;
-   }
+      goto error;
 
    c = (short)(net_message.data[msg_readcount]
          + (net_message.data[msg_readcount + 1] << 8));
@@ -587,6 +586,10 @@ int MSG_ReadShort(void)
    msg_readcount += 2;
 
    return c;
+
+error:
+   msg_badread = true;
+   return -1;
 }
 
 int MSG_ReadLong(void)
@@ -594,10 +597,7 @@ int MSG_ReadLong(void)
    int c;
 
    if (msg_readcount + 4 > net_message.cursize)
-   {
-      msg_badread = true;
-      return -1;
-   }
+      goto error;
 
    c = net_message.data[msg_readcount]
    + (net_message.data[msg_readcount + 1] << 8)
@@ -607,6 +607,10 @@ int MSG_ReadLong(void)
    msg_readcount += 4;
 
    return c;
+
+error:
+   msg_badread = true;
+   return -1;
 }
 
 float MSG_ReadFloat(void)
