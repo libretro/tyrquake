@@ -162,18 +162,18 @@ R_AliasClip(finalvert_t *in, finalvert_t *out, int flag, int count,
 			  finalvert_t *out))
 {
    int i;
-   int flags, oldflags;
-
    int j = count - 1;
    int k = 0;
 
-   for (i = 0; i < count; j = i, i++) {
-      oldflags = in[j].flags & flag;
-      flags = in[i].flags & flag;
+   for (i = 0; i < count; j = i, i++)
+   {
+      int oldflags = in[j].flags & flag;
+      int flags = in[i].flags & flag;
 
       if (flags && oldflags)
          continue;
-      if (oldflags ^ flags) {
+      if (oldflags ^ flags)
+      {
          clip(&in[j], &in[i], &out[k]);
          out[k].flags = 0;
          if (out[k].v[0] < r_refdef.aliasvrect.x)
@@ -186,7 +186,8 @@ R_AliasClip(finalvert_t *in, finalvert_t *out, int flag, int count,
             out[k].flags |= ALIAS_BOTTOM_CLIP;
          k++;
       }
-      if (!flags) {
+      if (!flags)
+      {
          out[k] = in[i];
          k++;
       }

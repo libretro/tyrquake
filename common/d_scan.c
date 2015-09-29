@@ -46,7 +46,6 @@ D_WarpScreen(void)
    int u, v;
    byte *dest;
    int *turb;
-   int *col;
    byte **row;
    int *column;
 
@@ -80,7 +79,7 @@ D_WarpScreen(void)
 
    for (v = 0; v < scr_vrect.height; v++, dest += vid.rowbytes)
    {
-      col = &column[turb[v & (TURB_CYCLE - 1)]];
+      int *col = &column[turb[v & (TURB_CYCLE - 1)]];
       row = &rowptr[v];
       for (u = 0; u < scr_vrect.width; u += 4)
       {
@@ -103,11 +102,10 @@ D_DrawTurbulent8Span
 void
 D_DrawTurbulent8Span(void)
 {
-   int sturb, tturb;
-
    do
    {
-      sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
+      int tturb;
+      int sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
       sturb = (sturb >> 16) & (TURB_TEX_SIZE - 1);
       tturb = r_turb_t + r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)];
       tturb = (tturb >> 16) & (TURB_TEX_SIZE - 1);
@@ -125,9 +123,7 @@ Turbulent8
 void
 Turbulent8(espan_t *pspan)
 {
-   int count;
    fixed16_t snext, tnext;
-   float sdivz, tdivz, zi, z, du, dv, spancountminus1;
    float sdivz16stepu, tdivz16stepu, zi16stepu;
 
    r_turb_turb = sintable + ((int)(cl.time * TURB_SPEED) & (TURB_CYCLE - 1));
@@ -141,22 +137,21 @@ Turbulent8(espan_t *pspan)
    tdivz16stepu = d_tdivzstepu * 16;
    zi16stepu = d_zistepu * 16;
 
-   do {
+   do
+   {
+      // calculate the initial s/z, t/z, 1/z, s, and t and clamp
+      int count = pspan->count;
+      float  du = (float)pspan->u;
+      float  dv = (float)pspan->v;
+      float sdivz = d_sdivzorigin + dv * d_sdivzstepv + du * d_sdivzstepu;
+      float tdivz = d_tdivzorigin + dv * d_tdivzstepv + du * d_tdivzstepu;
+      float zi    = d_ziorigin + dv * d_zistepv + du * d_zistepu;
+      float z     = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+
       r_turb_pdest = (unsigned char *)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
+      r_turb_s     = (int)(sdivz * z) + sadjust;
 
-      count = pspan->count;
-
-      // calculate the initial s/z, t/z, 1/z, s, and t and clamp
-      du = (float)pspan->u;
-      dv = (float)pspan->v;
-
-      sdivz = d_sdivzorigin + dv * d_sdivzstepv + du * d_sdivzstepu;
-      tdivz = d_tdivzorigin + dv * d_tdivzstepv + du * d_tdivzstepu;
-      zi = d_ziorigin + dv * d_zistepv + du * d_zistepu;
-      z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
-
-      r_turb_s = (int)(sdivz * z) + sadjust;
       if (r_turb_s > bbextents)
          r_turb_s = bbextents;
       else if (r_turb_s < 0)
@@ -168,7 +163,8 @@ Turbulent8(espan_t *pspan)
       else if (r_turb_t < 0)
          r_turb_t = 0;
 
-      do {
+      do
+      {
          // calculate s and t at the far end of the span
          if (count >= 16)
             r_turb_spancount = 16;
@@ -177,7 +173,8 @@ Turbulent8(espan_t *pspan)
 
          count -= r_turb_spancount;
 
-         if (count) {
+         if (count)
+         {
             // calculate s/z, t/z, zi->fixed s and t at far end of span,
             // calculate s and t steps across span by shifting
             sdivz += sdivz16stepu;
@@ -201,12 +198,14 @@ Turbulent8(espan_t *pspan)
 
             r_turb_sstep = (snext - r_turb_s) >> 4;
             r_turb_tstep = (tnext - r_turb_t) >> 4;
-         } else {
+         }
+         else
+         {
             // calculate s/z, t/z, zi->fixed s and t at last pixel in span (so
             // can't step off polygon), clamp, calculate s and t steps across
             // span by division, biasing steps low so we don't run off the
             // texture
-            spancountminus1 = (float)(r_turb_spancount - 1);
+            float spancountminus1 = (float)(r_turb_spancount - 1);
             sdivz += d_sdivzstepu * spancountminus1;
             tdivz += d_tdivzstepu * spancountminus1;
             zi += d_zistepu * spancountminus1;
@@ -435,10 +434,9 @@ void D_DrawSpans16Qb(espan_t *pspan) //qb: up it from 8 to 16.  This + unroll = 
 
 void D_DrawSpans16QbDither (espan_t *pspan) //qbism up it from 8 to 16. This + unroll = big speed gain!
 {
-   int count, spancount;
-   unsigned char *pbase, *pdest;
-   fixed16_t s, t, snext, tnext, sstep, tstep;
-   float sdivz, tdivz, zi, z, du, dv, spancountminus1;
+   int spancount;
+   uint8_t *pbase;
+   fixed16_t snext, tnext, sstep, tstep;
    float sdivzstepu, tdivzstepu, zistepu;
 
    // mipmaps shouldn't be dithered
@@ -451,29 +449,29 @@ void D_DrawSpans16QbDither (espan_t *pspan) //qbism up it from 8 to 16. This + u
    sstep = 0; // keep compiler happy
    tstep = 0; // ditto
 
-   pbase = (unsigned char *)cacheblock;
-
+   pbase      = (uint8_t*)cacheblock;
    sdivzstepu = d_sdivzstepu * 16;
    tdivzstepu = d_tdivzstepu * 16;
-   zistepu = d_zistepu * 16;
+   zistepu    = d_zistepu * 16;
 
    do
    {
-      pdest = (unsigned char *)((byte *)d_viewbuffer +
+      fixed16_t t;
+      int count = pspan->count;
+      // calculate the initial s/z, t/z, 1/z, s, and t and clamp
+      float du = (float)pspan->u;
+      float dv = (float)pspan->v;
+
+      float sdivz = d_sdivzorigin + dv*d_sdivzstepv + du*d_sdivzstepu;
+      float tdivz = d_tdivzorigin + dv*d_tdivzstepv + du*d_tdivzstepu;
+      float zi = d_ziorigin + dv*d_zistepv + du*d_zistepu;
+      float z = (float)0x10000 / zi; // prescale to 16.16 fixed-point
+
+      fixed16_t s = (int)(sdivz * z) + sadjust;
+
+      uint8_t *pdest = (uint8_t*)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
 
-      count = pspan->count;
-
-      // calculate the initial s/z, t/z, 1/z, s, and t and clamp
-      du = (float)pspan->u;
-      dv = (float)pspan->v;
-
-      sdivz = d_sdivzorigin + dv*d_sdivzstepv + du*d_sdivzstepu;
-      tdivz = d_tdivzorigin + dv*d_tdivzstepv + du*d_tdivzstepu;
-      zi = d_ziorigin + dv*d_zistepv + du*d_zistepu;
-      z = (float)0x10000 / zi; // prescale to 16.16 fixed-point
-
-      s = (int)(sdivz * z) + sadjust;
       if (s > bbextents)
          s = bbextents;
       else if (s < 0)
@@ -527,7 +525,7 @@ void D_DrawSpans16QbDither (espan_t *pspan) //qbism up it from 8 to 16. This + u
             // can't step off polygon), clamp, calculate s and t steps across
             // span by division, biasing steps low so we don't run off the
             // texture
-            spancountminus1 = (float)(spancount - 1);
+            float spancountminus1 = (float)(spancount - 1);
             sdivz += d_sdivzstepu * spancountminus1;
             tdivz += d_tdivzstepu * spancountminus1;
             zi += d_zistepu * spancountminus1;
@@ -620,37 +618,32 @@ D_DrawSpans8
 void
 D_DrawSpans8(espan_t *pspan)
 {
-   int count, spancount;
-   unsigned char *pdest;
-   fixed16_t s, t, snext, tnext;
-   float sdivz, tdivz, zi, z, du, dv, spancountminus1;
-
    fixed16_t sstep = 0;			// keep compiler happy
    fixed16_t tstep = 0;			// ditto
 
    unsigned char *pbase = (unsigned char *)cacheblock;
-
-   float sdivz8stepu = d_sdivzstepu * 8;
-   float tdivz8stepu = d_tdivzstepu * 8;
-   float zi8stepu = d_zistepu * 8;
+   float sdivz8stepu    = d_sdivzstepu * 8;
+   float tdivz8stepu    = d_tdivzstepu * 8;
+   float zi8stepu       = d_zistepu * 8;
 
    do
    {
-      pdest = (unsigned char *)((byte *)d_viewbuffer +
+      fixed16_t t;
+      uint8_t *pdest = (uint8_t*)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
 
-      count = pspan->count;
+      int count = pspan->count;
 
       // calculate the initial s/z, t/z, 1/z, s, and t and clamp
-      du = (float)pspan->u;
-      dv = (float)pspan->v;
+      float du = (float)pspan->u;
+      float dv = (float)pspan->v;
 
-      sdivz = d_sdivzorigin + dv * d_sdivzstepv + du * d_sdivzstepu;
-      tdivz = d_tdivzorigin + dv * d_tdivzstepv + du * d_tdivzstepu;
-      zi = d_ziorigin + dv * d_zistepv + du * d_zistepu;
-      z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
+      float sdivz = d_sdivzorigin + dv * d_sdivzstepv + du * d_sdivzstepu;
+      float tdivz = d_tdivzorigin + dv * d_tdivzstepv + du * d_tdivzstepu;
+      float zi = d_ziorigin + dv * d_zistepv + du * d_zistepu;
+      float z = (float)0x10000 / zi;	// prescale to 16.16 fixed-point
 
-      s = (int)(sdivz * z) + sadjust;
+      fixed16_t s = (int)(sdivz * z) + sadjust;
       if (s > bbextents)
          s = bbextents;
       else if (s < 0)
@@ -662,16 +655,18 @@ D_DrawSpans8(espan_t *pspan)
       else if (t < 0)
          t = 0;
 
-      do {
-         // calculate s and t at the far end of the span
+      do
+      {
+         fixed16_t snext, tnext;
+         int spancount = count;
+         /* calculate s and t at the far end of the span */
          if (count >= 8)
             spancount = 8;
-         else
-            spancount = count;
 
          count -= spancount;
 
-         if (count) {
+         if (count)
+         {
             // calculate s/z, t/z, zi->fixed s and t at far end of span,
             // calculate s and t steps across span by shifting
             sdivz += sdivz8stepu;
@@ -695,12 +690,14 @@ D_DrawSpans8(espan_t *pspan)
 
             sstep = (snext - s) >> 3;
             tstep = (tnext - t) >> 3;
-         } else {
+         }
+         else
+         {
             // calculate s/z, t/z, zi->fixed s and t at last pixel in span (so
             // can't step off polygon), clamp, calculate s and t steps across
             // span by division, biasing steps low so we don't run off the
             // texture
-            spancountminus1 = (float)(spancount - 1);
+            float spancountminus1 = (float)(spancount - 1);
             sdivz += d_sdivzstepu * spancountminus1;
             tdivz += d_tdivzstepu * spancountminus1;
             zi += d_zistepu * spancountminus1;
@@ -725,16 +722,15 @@ D_DrawSpans8(espan_t *pspan)
             }
          }
 
+         do
          {
-            do {
-               *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
-               s += sstep;
-               t += tstep;
-            } while (--spancount > 0);
+            *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
+            s += sstep;
+            t += tstep;
+         } while (--spancount > 0);
 
-            s = snext;
-            t = tnext;
-         }
+         s = snext;
+         t = tnext;
 
       } while (count);
 
@@ -749,37 +745,33 @@ D_DrawSpans
 
 void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll = big speed gain!
 {
-   int            count, spancount;
-   unsigned char   *pdest;
-   fixed16_t      s, t, snext, tnext;
-   float         sdivz, tdivz, zi, z, du, dv, spancountminus1;
-
    fixed16_t sstep = 0;   // keep compiler happy
    fixed16_t tstep = 0;   // ditto
 
-   unsigned char *pbase = (unsigned char *)cacheblock;
+   uint8_t *pbase = (uint8_t*)cacheblock;
 
    float sdivzstepu = d_sdivzstepu * 16;
    float tdivzstepu = d_tdivzstepu * 16;
-   float zistepu = d_zistepu * 16;
+   float zistepu    = d_zistepu * 16;
 
    do
    {
-      pdest = (unsigned char *)((byte *)d_viewbuffer +
+      fixed16_t t;
+      uint8_t *pdest = (uint8_t*)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
 
-      count = pspan->count;
+      int count = pspan->count;
 
       // calculate the initial s/z, t/z, 1/z, s, and t and clamp
-      du = (float)pspan->u;
-      dv = (float)pspan->v;
+      float du = (float)pspan->u;
+      float dv = (float)pspan->v;
 
-      sdivz = d_sdivzorigin + dv*d_sdivzstepv + du*d_sdivzstepu;
-      tdivz = d_tdivzorigin + dv*d_tdivzstepv + du*d_tdivzstepu;
-      zi = d_ziorigin + dv*d_zistepv + du*d_zistepu;
-      z = (float)0x10000 / zi;   // prescale to 16.16 fixed-point
+      float sdivz = d_sdivzorigin + dv*d_sdivzstepv + du*d_sdivzstepu;
+      float tdivz = d_tdivzorigin + dv*d_tdivzstepv + du*d_tdivzstepu;
+      float zi = d_ziorigin + dv*d_zistepv + du*d_zistepu;
+      float z = (float)0x10000 / zi;   // prescale to 16.16 fixed-point
+      fixed16_t s = (int)(sdivz * z) + sadjust;
 
-      s = (int)(sdivz * z) + sadjust;
       if (s > bbextents)
          s = bbextents;
       else if (s < 0)
@@ -793,11 +785,12 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
 
       do
       {
+         fixed16_t snext, tnext;
+         int spancount = count;
+
          // calculate s and t at the far end of the span
          if (count >= 16)
             spancount = 16;
-         else
-            spancount = count;
 
          count -= spancount;
 
@@ -833,7 +826,7 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
             // can't step off polygon), clamp, calculate s and t steps across
             // span by division, biasing steps low so we don't run off the
             // texture
-            spancountminus1 = (float)(spancount - 1);
+            float spancountminus1 = (float)(spancount - 1);
             sdivz += d_sdivzstepu * spancountminus1;
             tdivz += d_tdivzstepu * spancountminus1;
             zi += d_zistepu * spancountminus1;
@@ -859,13 +852,11 @@ void D_DrawSpans16 (espan_t *pspan) //qbism up it from 8 to 16.  This + unroll =
             }
          }
 
-         {
-            do {
-               *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
-               s += sstep;
-               t += tstep;
-            } while (--spancount > 0);
-         }
+         do {
+            *pdest++ = *(pbase + (s >> 16) + (t >> 16) * cachewidth);
+            s += sstep;
+            t += tstep;
+         } while (--spancount > 0);
 
          s = snext;
          t = tnext;
@@ -883,40 +874,37 @@ D_DrawZSpans
 void
 D_DrawZSpans(espan_t *pspan)
 {
-   int count, doublecount;
-   int izi;
-   short *pdest;
-   unsigned ltemp;
-   double zi;
-   float du, dv;
-
    // FIXME: check for clamping/range problems
    // we count on FP exceptions being turned off to avoid range problems
    int izistep = (int)(d_zistepu * 0x8000 * 0x10000);
 
    do
    {
-      pdest = d_pzbuffer + (d_zwidth * pspan->v) + pspan->u;
+      int doublecount;
+      int16_t *pdest = d_pzbuffer + (d_zwidth * pspan->v) + pspan->u;
 
-      count = pspan->count;
+      int count = pspan->count;
 
       // calculate the initial 1/z
-      du = (float)pspan->u;
-      dv = (float)pspan->v;
+      float du = (float)pspan->u;
+      float dv = (float)pspan->v;
 
-      zi = d_ziorigin + dv * d_zistepv + du * d_zistepu;
+      double zi = d_ziorigin + dv * d_zistepv + du * d_zistepu;
       // we count on FP exceptions being turned off to avoid range problems
-      izi = (int)(zi * 0x8000 * 0x10000);
+      int   izi = (int)(zi * 0x8000 * 0x10000);
 
-      if ((long)pdest & 0x02) {
+      if ((long)pdest & 0x02)
+      {
          *pdest++ = (short)(izi >> 16);
          izi += izistep;
          count--;
       }
 
-      if ((doublecount = count >> 1) > 0) {
-         do {
-            ltemp = izi >> 16;
+      if ((doublecount = count >> 1) > 0)
+      {
+         do
+         {
+            unsigned ltemp = izi >> 16;
             izi += izistep;
             ltemp |= izi & 0xFFFF0000;
             izi += izistep;
@@ -928,5 +916,5 @@ D_DrawZSpans(espan_t *pspan)
       if (count & 1)
          *pdest = (short)(izi >> 16);
 
-   } while ((pspan = pspan->pnext) != NULL);
+   } while ((pspan = pspan->pnext));
 }

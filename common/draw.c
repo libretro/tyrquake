@@ -271,19 +271,16 @@ Draw_Alt_String(int x, int y, char *str)
 static void
 Draw_Pixel(int x, int y, byte color)
 {
-   byte *dest;
-   unsigned short *pusdest;
-
    if (r_pixbytes == 1)
    {
-      dest = vid.conbuffer + y * vid.conrowbytes + x;
+      uint8_t *dest = vid.conbuffer + y * vid.conrowbytes + x;
       *dest = color;
    }
    else
    {
       // FIXME: pre-expand to native format?
-      pusdest = (unsigned short *)
-         ((byte *)vid.conbuffer + y * vid.conrowbytes + (x << 1));
+      uint16_t *pusdest = (uint16_t*)
+         ((uint8_t*)vid.conbuffer + y * vid.conrowbytes + (x << 1));
       *pusdest = d_8to16table[color];
    }
 }
@@ -291,25 +288,27 @@ Draw_Pixel(int x, int y, byte color)
 void
 Draw_Crosshair(void)
 {
-    int x, y;
-    byte c = (byte)crosshaircolor.value;
+   int x, y;
+   byte c = (byte)crosshaircolor.value;
 
-    if (crosshair.value == 2) {
-	x = scr_vrect.x + scr_vrect.width / 2 + cl_crossx.value;
-	y = scr_vrect.y + scr_vrect.height / 2 + cl_crossy.value;
-	Draw_Pixel(x - 1, y, c);
-	Draw_Pixel(x - 3, y, c);
-	Draw_Pixel(x + 1, y, c);
-	Draw_Pixel(x + 3, y, c);
-	Draw_Pixel(x, y - 1, c);
-	Draw_Pixel(x, y - 3, c);
-	Draw_Pixel(x, y + 1, c);
-	Draw_Pixel(x, y + 3, c);
-    } else if (crosshair.value)
-	Draw_Character(scr_vrect.x + scr_vrect.width / 2 - 4 +
-		       cl_crossx.value,
-		       scr_vrect.y + scr_vrect.height / 2 - 4 +
-		       cl_crossy.value, '+');
+   if (crosshair.value == 2)
+   {
+      x = scr_vrect.x + scr_vrect.width / 2 + cl_crossx.value;
+      y = scr_vrect.y + scr_vrect.height / 2 + cl_crossy.value;
+      Draw_Pixel(x - 1, y, c);
+      Draw_Pixel(x - 3, y, c);
+      Draw_Pixel(x + 1, y, c);
+      Draw_Pixel(x + 3, y, c);
+      Draw_Pixel(x, y - 1, c);
+      Draw_Pixel(x, y - 3, c);
+      Draw_Pixel(x, y + 1, c);
+      Draw_Pixel(x, y + 3, c);
+   }
+   else if (crosshair.value)
+      Draw_Character(scr_vrect.x + scr_vrect.width / 2 - 4 +
+            cl_crossx.value,
+            scr_vrect.y + scr_vrect.height / 2 - 4 +
+            cl_crossy.value, '+');
 }
 
 
@@ -318,42 +317,42 @@ Draw_Crosshair(void)
 Draw_Pic
 =============
 */
-void
-Draw_Pic(int x, int y, const qpic_t *pic)
+void Draw_Pic(int x, int y, const qpic_t *pic)
 {
-    byte *dest;
-    const byte *source;
-    unsigned short *pusdest;
-    int v, u;
+   const byte *source;
+   int v, u;
 
-    if (x < 0 || x + pic->width > vid.width ||
-	y < 0 || y + pic->height > vid.height) {
-	Sys_Error("%s: bad coordinates", __func__);
-    }
+   if (x < 0 || x + pic->width > vid.width ||
+         y < 0 || y + pic->height > vid.height)
+      Sys_Error("%s: bad coordinates", __func__);
 
-    source = pic->data;
+   source = pic->data;
 
-    if (r_pixbytes == 1) {
-	dest = vid.buffer + y * vid.rowbytes + x;
+   if (r_pixbytes == 1)
+   {
+      uint8_t *dest = vid.buffer + y * vid.rowbytes + x;
 
-	for (v = 0; v < pic->height; v++) {
-	    memcpy(dest, source, pic->width);
-	    dest += vid.rowbytes;
-	    source += pic->width;
-	}
-    } else {
-	// FIXME: pretranslate at load time?
-	pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
+      for (v = 0; v < pic->height; v++)
+      {
+         memcpy(dest, source, pic->width);
+         dest += vid.rowbytes;
+         source += pic->width;
+      }
+   }
+   else
+   {
+      // FIXME: pretranslate at load time?
+      uint16_t *pusdest = (uint16_t*)vid.buffer + y * (vid.rowbytes / 2) + x;
 
-	for (v = 0; v < pic->height; v++) {
-	    for (u = 0; u < pic->width; u++) {
-		pusdest[u] = d_8to16table[source[u]];
-	    }
+      for (v = 0; v < pic->height; v++)
+      {
+         for (u = 0; u < pic->width; u++)
+            pusdest[u] = d_8to16table[source[u]];
 
-	    pusdest += vid.rowbytes / 2;
-	    source += pic->width;
-	}
-    }
+         pusdest += vid.rowbytes / 2;
+         source += pic->width;
+      }
+   }
 }
 
 
@@ -362,43 +361,43 @@ Draw_Pic(int x, int y, const qpic_t *pic)
 Draw_SubPic
 =============
 */
-void
-Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
+void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 	    int height)
 {
-    const byte *source;
-    byte *dest;
-    unsigned short *pusdest;
-    int v, u;
+   const byte *source;
+   int v, u;
 
-    if (x < 0 || x + width > vid.width ||
-	y < 0 || y + height > vid.height) {
-	Sys_Error("%s: bad coordinates", __func__);
-    }
+   if (x < 0 || x + width > vid.width ||
+         y < 0 || y + height > vid.height)
+      Sys_Error("%s: bad coordinates", __func__);
 
-    source = pic->data + srcy * pic->width + srcx;
+   source = pic->data + srcy * pic->width + srcx;
 
-    if (r_pixbytes == 1) {
-	dest = vid.buffer + y * vid.rowbytes + x;
+   if (r_pixbytes == 1)
+   {
+      uint8_t *dest = vid.buffer + y * vid.rowbytes + x;
 
-	for (v = 0; v < height; v++) {
-	    memcpy(dest, source, width);
-	    dest += vid.rowbytes;
-	    source += pic->width;
-	}
-    } else {
-	// FIXME: pretranslate at load time?
-	pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
+      for (v = 0; v < height; v++)
+      {
+         memcpy(dest, source, width);
+         dest += vid.rowbytes;
+         source += pic->width;
+      }
+   }
+   else
+   {
+      // FIXME: pretranslate at load time?
+      uint16_t *pusdest = (uint16_t*)vid.buffer + y * (vid.rowbytes / 2) + x;
 
-	for (v = 0; v < height; v++) {
-	    for (u = srcx; u < (srcx + width); u++) {
-		pusdest[u] = d_8to16table[source[u]];
-	    }
+      for (v = 0; v < height; v++)
+      {
+         for (u = srcx; u < (srcx + width); u++)
+            pusdest[u] = d_8to16table[source[u]];
 
-	    pusdest += vid.rowbytes / 2;
-	    source += pic->width;
-	}
-    }
+         pusdest += vid.rowbytes / 2;
+         source += pic->width;
+      }
+   }
 }
 
 
@@ -407,74 +406,73 @@ Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 Draw_TransPic
 =============
 */
-void
-Draw_TransPic(int x, int y, const qpic_t *pic)
+void Draw_TransPic(int x, int y, const qpic_t *pic)
 {
-    byte *dest, tbyte;
-    const byte *source;
-    unsigned short *pusdest;
-    int v, u;
+   byte *dest, tbyte;
+   const byte *source;
+   unsigned short *pusdest;
+   int v, u;
 
-    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
-	y < 0 || (unsigned)(y + pic->height) > vid.height) {
-	Sys_Error("%s: bad coordinates", __func__);
-    }
+   if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
+         y < 0 || (unsigned)(y + pic->height) > vid.height) {
+      Sys_Error("%s: bad coordinates", __func__);
+   }
 
-    source = pic->data;
+   source = pic->data;
 
-    if (r_pixbytes == 1) {
-	dest = vid.buffer + y * vid.rowbytes + x;
+   if (r_pixbytes == 1) {
+      dest = vid.buffer + y * vid.rowbytes + x;
 
-	if (pic->width & 7) {	// general
-	    for (v = 0; v < pic->height; v++) {
-		for (u = 0; u < pic->width; u++)
-		    if ((tbyte = source[u]) != TRANSPARENT_COLOR)
-			dest[u] = tbyte;
+      if (pic->width & 7) {	// general
+         for (v = 0; v < pic->height; v++) {
+            for (u = 0; u < pic->width; u++)
+               if ((tbyte = source[u]) != TRANSPARENT_COLOR)
+                  dest[u] = tbyte;
 
-		dest += vid.rowbytes;
-		source += pic->width;
-	    }
-	} else {		// unwound
-	    for (v = 0; v < pic->height; v++) {
-		for (u = 0; u < pic->width; u += 8) {
-		    if ((tbyte = source[u]) != TRANSPARENT_COLOR)
-			dest[u] = tbyte;
-		    if ((tbyte = source[u + 1]) != TRANSPARENT_COLOR)
-			dest[u + 1] = tbyte;
-		    if ((tbyte = source[u + 2]) != TRANSPARENT_COLOR)
-			dest[u + 2] = tbyte;
-		    if ((tbyte = source[u + 3]) != TRANSPARENT_COLOR)
-			dest[u + 3] = tbyte;
-		    if ((tbyte = source[u + 4]) != TRANSPARENT_COLOR)
-			dest[u + 4] = tbyte;
-		    if ((tbyte = source[u + 5]) != TRANSPARENT_COLOR)
-			dest[u + 5] = tbyte;
-		    if ((tbyte = source[u + 6]) != TRANSPARENT_COLOR)
-			dest[u + 6] = tbyte;
-		    if ((tbyte = source[u + 7]) != TRANSPARENT_COLOR)
-			dest[u + 7] = tbyte;
-		}
-		dest += vid.rowbytes;
-		source += pic->width;
-	    }
-	}
-    } else {
-	// FIXME: pretranslate at load time?
-	pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
+            dest += vid.rowbytes;
+            source += pic->width;
+         }
+      } else {		// unwound
+         for (v = 0; v < pic->height; v++) {
+            for (u = 0; u < pic->width; u += 8) {
+               if ((tbyte = source[u]) != TRANSPARENT_COLOR)
+                  dest[u] = tbyte;
+               if ((tbyte = source[u + 1]) != TRANSPARENT_COLOR)
+                  dest[u + 1] = tbyte;
+               if ((tbyte = source[u + 2]) != TRANSPARENT_COLOR)
+                  dest[u + 2] = tbyte;
+               if ((tbyte = source[u + 3]) != TRANSPARENT_COLOR)
+                  dest[u + 3] = tbyte;
+               if ((tbyte = source[u + 4]) != TRANSPARENT_COLOR)
+                  dest[u + 4] = tbyte;
+               if ((tbyte = source[u + 5]) != TRANSPARENT_COLOR)
+                  dest[u + 5] = tbyte;
+               if ((tbyte = source[u + 6]) != TRANSPARENT_COLOR)
+                  dest[u + 6] = tbyte;
+               if ((tbyte = source[u + 7]) != TRANSPARENT_COLOR)
+                  dest[u + 7] = tbyte;
+            }
+            dest += vid.rowbytes;
+            source += pic->width;
+         }
+      }
+   } else {
+      // FIXME: pretranslate at load time?
+      pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
 
-	for (v = 0; v < pic->height; v++) {
-	    for (u = 0; u < pic->width; u++) {
-		tbyte = source[u];
+      for (v = 0; v < pic->height; v++) {
+         for (u = 0; u < pic->width; u++) {
+            tbyte = source[u];
 
-		if (tbyte != TRANSPARENT_COLOR) {
-		    pusdest[u] = d_8to16table[tbyte];
-		}
-	    }
+            if (tbyte != TRANSPARENT_COLOR) {
+               pusdest[u] = d_8to16table[tbyte];
+            }
+         }
 
-	    pusdest += vid.rowbytes / 2;
-	    source += pic->width;
-	}
-    }
+         pusdest += vid.rowbytes / 2;
+         source += pic->width;
+      }
+   }
 }
 
 
@@ -483,74 +481,73 @@ Draw_TransPic(int x, int y, const qpic_t *pic)
 Draw_TransPicTranslate
 =============
 */
-void
-Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
+void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 {
-    byte *dest, tbyte;
-    const byte *source;
-    unsigned short *pusdest;
-    int v, u;
+   byte *dest, tbyte;
+   const byte *source;
+   unsigned short *pusdest;
+   int v, u;
 
-    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
-	y < 0 || (unsigned)(y + pic->height) > vid.height) {
-	Sys_Error("%s: bad coordinates", __func__);
-    }
+   if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
+         y < 0 || (unsigned)(y + pic->height) > vid.height) {
+      Sys_Error("%s: bad coordinates", __func__);
+   }
 
-    source = pic->data;
+   source = pic->data;
 
-    if (r_pixbytes == 1) {
-	dest = vid.buffer + y * vid.rowbytes + x;
+   if (r_pixbytes == 1) {
+      dest = vid.buffer + y * vid.rowbytes + x;
 
-	if (pic->width & 7) {	// general
-	    for (v = 0; v < pic->height; v++) {
-		for (u = 0; u < pic->width; u++)
-		    if ((tbyte = source[u]) != TRANSPARENT_COLOR)
-			dest[u] = translation[tbyte];
+      if (pic->width & 7) {	// general
+         for (v = 0; v < pic->height; v++) {
+            for (u = 0; u < pic->width; u++)
+               if ((tbyte = source[u]) != TRANSPARENT_COLOR)
+                  dest[u] = translation[tbyte];
 
-		dest += vid.rowbytes;
-		source += pic->width;
-	    }
-	} else {		// unwound
-	    for (v = 0; v < pic->height; v++) {
-		for (u = 0; u < pic->width; u += 8) {
-		    if ((tbyte = source[u]) != TRANSPARENT_COLOR)
-			dest[u] = translation[tbyte];
-		    if ((tbyte = source[u + 1]) != TRANSPARENT_COLOR)
-			dest[u + 1] = translation[tbyte];
-		    if ((tbyte = source[u + 2]) != TRANSPARENT_COLOR)
-			dest[u + 2] = translation[tbyte];
-		    if ((tbyte = source[u + 3]) != TRANSPARENT_COLOR)
-			dest[u + 3] = translation[tbyte];
-		    if ((tbyte = source[u + 4]) != TRANSPARENT_COLOR)
-			dest[u + 4] = translation[tbyte];
-		    if ((tbyte = source[u + 5]) != TRANSPARENT_COLOR)
-			dest[u + 5] = translation[tbyte];
-		    if ((tbyte = source[u + 6]) != TRANSPARENT_COLOR)
-			dest[u + 6] = translation[tbyte];
-		    if ((tbyte = source[u + 7]) != TRANSPARENT_COLOR)
-			dest[u + 7] = translation[tbyte];
-		}
-		dest += vid.rowbytes;
-		source += pic->width;
-	    }
-	}
-    } else {
-	// FIXME: pretranslate at load time?
-	pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
+            dest += vid.rowbytes;
+            source += pic->width;
+         }
+      } else {		// unwound
+         for (v = 0; v < pic->height; v++) {
+            for (u = 0; u < pic->width; u += 8) {
+               if ((tbyte = source[u]) != TRANSPARENT_COLOR)
+                  dest[u] = translation[tbyte];
+               if ((tbyte = source[u + 1]) != TRANSPARENT_COLOR)
+                  dest[u + 1] = translation[tbyte];
+               if ((tbyte = source[u + 2]) != TRANSPARENT_COLOR)
+                  dest[u + 2] = translation[tbyte];
+               if ((tbyte = source[u + 3]) != TRANSPARENT_COLOR)
+                  dest[u + 3] = translation[tbyte];
+               if ((tbyte = source[u + 4]) != TRANSPARENT_COLOR)
+                  dest[u + 4] = translation[tbyte];
+               if ((tbyte = source[u + 5]) != TRANSPARENT_COLOR)
+                  dest[u + 5] = translation[tbyte];
+               if ((tbyte = source[u + 6]) != TRANSPARENT_COLOR)
+                  dest[u + 6] = translation[tbyte];
+               if ((tbyte = source[u + 7]) != TRANSPARENT_COLOR)
+                  dest[u + 7] = translation[tbyte];
+            }
+            dest += vid.rowbytes;
+            source += pic->width;
+         }
+      }
+   } else {
+      // FIXME: pretranslate at load time?
+      pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
 
-	for (v = 0; v < pic->height; v++) {
-	    for (u = 0; u < pic->width; u++) {
-		tbyte = source[u];
+      for (v = 0; v < pic->height; v++) {
+         for (u = 0; u < pic->width; u++) {
+            tbyte = source[u];
 
-		if (tbyte != TRANSPARENT_COLOR) {
-		    pusdest[u] = d_8to16table[tbyte];
-		}
-	    }
+            if (tbyte != TRANSPARENT_COLOR) {
+               pusdest[u] = d_8to16table[tbyte];
+            }
+         }
 
-	    pusdest += vid.rowbytes / 2;
-	    source += pic->width;
-	}
-    }
+         pusdest += vid.rowbytes / 2;
+         source += pic->width;
+      }
+   }
 }
 
 

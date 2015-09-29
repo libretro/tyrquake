@@ -227,22 +227,22 @@ R_ClipEdge
 */
 void R_ClipEdge(mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
 {
-   float d0, d1, f;
+   float f;
    mvertex_t clipvert;
-   mplane_t *plane;
 
-   if (clip) {
-      do {
-         plane = &clip->plane;
-         d0 = DotProduct(pv0->position, plane->normal) - plane->dist;
-         d1 = DotProduct(pv1->position, plane->normal) - plane->dist;
+   if (clip)
+   {
+      do
+      {
+         mplane_t *plane = &clip->plane;
+         float d0 = DotProduct(pv0->position, plane->normal) - plane->dist;
+         float d1 = DotProduct(pv1->position, plane->normal) - plane->dist;
 
-         if (d0 >= 0) {
+         if (d0 >= 0)
+         {
             // point 0 is unclipped
-            if (d1 >= 0) {
-               // both points are unclipped
+            if (d1 >= 0)   // both points are unclipped
                continue;
-            }
             // only point 1 is clipped
 
             // we don't cache clipped edges
@@ -256,19 +256,25 @@ void R_ClipEdge(mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
             clipvert.position[2] = pv0->position[2] +
                f * (pv1->position[2] - pv0->position[2]);
 
-            if (clip->leftedge) {
+            if (clip->leftedge)
+            {
                r_leftclipped = true;
                r_leftexit = clipvert;
-            } else if (clip->rightedge) {
+            }
+            else if (clip->rightedge)
+            {
                r_rightclipped = true;
                r_rightexit = clipvert;
             }
 
             R_ClipEdge(pv0, &clipvert, clip->next);
             return;
-         } else {
+         }
+         else
+         {
             // point 0 is clipped
-            if (d1 < 0) {
+            if (d1 < 0)
+            {
                // both points are clipped
                // we do cache fully clipped edges
                if (!r_leftclipped)
@@ -290,10 +296,13 @@ void R_ClipEdge(mvertex_t *pv0, mvertex_t *pv1, clipplane_t *clip)
             clipvert.position[2] = pv0->position[2] +
                f * (pv1->position[2] - pv0->position[2]);
 
-            if (clip->leftedge) {
+            if (clip->leftedge)
+            {
                r_leftclipped = true;
                r_leftenter = clipvert;
-            } else if (clip->rightedge) {
+            }
+            else if (clip->rightedge)
+            {
                r_rightclipped = true;
                r_rightenter = clipvert;
             }

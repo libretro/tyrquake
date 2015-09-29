@@ -638,18 +638,16 @@ float MSG_ReadFloat(void)
 
 char *MSG_ReadString(void)
 {
-   int c;
-
    char *buf = COM_GetStrBuf();
    int len   = 0;
 
    do
    {
-      c = MSG_ReadChar();
+      int c = MSG_ReadChar();
       if (c == -1 || c == 0)
          break;
       buf[len++] = c;
-   } while (len < COM_STRBUF_LEN - 1);
+   }while (len < COM_STRBUF_LEN - 1);
 
    buf[len] = 0;
 
@@ -659,13 +657,11 @@ char *MSG_ReadString(void)
 #ifdef QW_HACK
 char *MSG_ReadStringLine(void)
 {
-   int c;
-
    char *buf = COM_GetStrBuf();
    int len = 0;
 
    do {
-      c = MSG_ReadChar();
+      int c = MSG_ReadChar();
       if (c == -1 || c == 0 || c == '\n')
          break;
       buf[len++] = c;
@@ -1087,15 +1083,12 @@ void COM_InitArgv(int argc, const char **argv)
    qboolean safe;
    int i;
 #ifdef NQ_HACK
-   int j, n;
-
+   int j, n = 0;
    // reconstitute the command line for the cmdline externally visible cvar
-   n = 0;
-   for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++) {
-      i = 0;
-      while ((n < (CMDLINE_LENGTH - 1)) && argv[j][i]) {
+   for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++)
+   {
+      while ((n < (CMDLINE_LENGTH - 1)) && argv[j][i])
          com_cmdline[n++] = argv[j][i++];
-      }
 
       if (n < (CMDLINE_LENGTH - 1))
          com_cmdline[n++] = ' ';
@@ -1719,6 +1712,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    fseek(packhandle, header.dirofs, SEEK_SET);
    fread(&info, 1, header.dirlen, packhandle);
 
+#if defined(NQ_HACK) || defined(QW_HACK)
    // crc the directory to check for modifications
    crc = CRC_Block((byte *)info, header.dirlen);
 #ifdef NQ_HACK
@@ -1728,6 +1722,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 #ifdef QW_HACK
    if (crc != QW_PAK0_CRC)
       com_modified = true;
+#endif
 #endif
 
    /* parse the directory */
@@ -1749,9 +1744,13 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 #ifdef QW_HACK
    pack = Z_Malloc(sizeof(pack_t));
 #endif
+
+   if (!pack)
+      return NULL;
+
    strcpy(pack->filename, packfile);
    pack->numfiles = numpackfiles;
-   pack->files = newfiles;
+   pack->files    = newfiles;
 
    Con_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
    Sys_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);

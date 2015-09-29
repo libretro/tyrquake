@@ -617,6 +617,7 @@ void Host_Loadgame_f(void)
 
    if (!sv.active) {
       Con_Printf("Couldn't load map\n");
+      fclose(f);
       return;
    }
    sv.paused = true;		// pause until all clients connect

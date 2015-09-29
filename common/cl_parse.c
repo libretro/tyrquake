@@ -921,272 +921,272 @@ CL_ParseServerMessage
 void
 CL_ParseServerMessage(void)
 {
-    int cmd;
-    char *s;
-    int i;
-    unsigned int bits;
-    byte colors;
+   char *s;
+   int i;
+   unsigned int bits;
+   byte colors;
 
-//
-// if recording demos, copy the message out
-//
-    if (cl_shownet.value == 1)
-	Con_Printf("%i ", net_message.cursize);
-    else if (cl_shownet.value == 2)
-	Con_Printf("------------------\n");
+   //
+   // if recording demos, copy the message out
+   //
+   if (cl_shownet.value == 1)
+      Con_Printf("%i ", net_message.cursize);
+   else if (cl_shownet.value == 2)
+      Con_Printf("------------------\n");
 
-    cl.onground = false;	// unless the server says otherwise
-//
-// parse the message
-//
-    MSG_BeginReading();
+   cl.onground = false;	// unless the server says otherwise
+   // parse the message
+   MSG_BeginReading();
 
-    while (1) {
-	if (msg_badread)
-	    Host_Error("%s: Bad server message", __func__);
+   while (1)
+   {
+      int cmd;
 
-	cmd = MSG_ReadByte();
+      if (msg_badread)
+         Host_Error("%s: Bad server message", __func__);
 
-	if (cmd == -1) {
-	    SHOWNET("END OF MESSAGE");
-	    return;		// end of message
-	}
-	// if the high bit of the command byte is set, it is a fast update
-	if (cmd & 128) {
-	    SHOWNET("fast update");
-	    CL_ParseUpdate(cmd & 127);
-	    continue;
-	}
+      cmd = MSG_ReadByte();
 
-	SHOWNET(svc_strings[cmd]);
+      if (cmd == -1) {
+         SHOWNET("END OF MESSAGE");
+         return;		// end of message
+      }
+      // if the high bit of the command byte is set, it is a fast update
+      if (cmd & 128) {
+         SHOWNET("fast update");
+         CL_ParseUpdate(cmd & 127);
+         continue;
+      }
 
-	// other commands
-	switch (cmd) {
-	case svc_nop:
-	    break;
+      SHOWNET(svc_strings[cmd]);
 
-	case svc_time:
-	    cl.mtime[1] = cl.mtime[0];
-	    cl.mtime[0] = MSG_ReadFloat();
-	    break;
+      // other commands
+      switch (cmd) {
+         case svc_nop:
+            break;
 
-	case svc_clientdata:
-	    CL_ParseClientdata();
-	    break;
+         case svc_time:
+            cl.mtime[1] = cl.mtime[0];
+            cl.mtime[0] = MSG_ReadFloat();
+            break;
 
-	case svc_version:
-	    i = MSG_ReadLong();
-	    if (!Protocol_Known(i))
-		Host_Error("%s: Server returned unknown protocol version %i",
-			   __func__, i);
-	    cl.protocol = i;
-	    break;
+         case svc_clientdata:
+            CL_ParseClientdata();
+            break;
 
-	case svc_disconnect:
-	    Host_EndGame("Server disconnected\n");
+         case svc_version:
+            i = MSG_ReadLong();
+            if (!Protocol_Known(i))
+               Host_Error("%s: Server returned unknown protocol version %i",
+                     __func__, i);
+            cl.protocol = i;
+            break;
 
-	case svc_print:
-	    Con_Printf("%s", MSG_ReadString());
-	    break;
+         case svc_disconnect:
+            Host_EndGame("Server disconnected\n");
 
-	case svc_centerprint:
-	    SCR_CenterPrint(MSG_ReadString());
-	    break;
+         case svc_print:
+            Con_Printf("%s", MSG_ReadString());
+            break;
 
-	case svc_stufftext:
-	    Cbuf_AddText("%s", MSG_ReadString());
-	    break;
+         case svc_centerprint:
+            SCR_CenterPrint(MSG_ReadString());
+            break;
 
-	case svc_damage:
-	    V_ParseDamage();
-	    break;
+         case svc_stufftext:
+            Cbuf_AddText("%s", MSG_ReadString());
+            break;
 
-	case svc_serverinfo:
-	    CL_ParseServerInfo();
-	    vid.recalc_refdef = true;	// leave intermission full screen
-	    break;
+         case svc_damage:
+            V_ParseDamage();
+            break;
 
-	case svc_setangle:
-	    for (i = 0; i < 3; i++)
-		cl.viewangles[i] = MSG_ReadAngle();
-	    break;
+         case svc_serverinfo:
+            CL_ParseServerInfo();
+            vid.recalc_refdef = true;	// leave intermission full screen
+            break;
 
-	case svc_setview:
-	    cl.viewentity = MSG_ReadShort();
-	    break;
+         case svc_setangle:
+            for (i = 0; i < 3; i++)
+               cl.viewangles[i] = MSG_ReadAngle();
+            break;
 
-	case svc_lightstyle:
-	    i = MSG_ReadByte();
-	    if (i >= MAX_LIGHTSTYLES)
-		Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
-	    s = MSG_ReadString();
-	    snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
-	    cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
-	    break;
+         case svc_setview:
+            cl.viewentity = MSG_ReadShort();
+            break;
 
-	case svc_sound:
-	    CL_ParseStartSoundPacket();
-	    break;
+         case svc_lightstyle:
+            i = MSG_ReadByte();
+            if (i >= MAX_LIGHTSTYLES)
+               Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
+            s = MSG_ReadString();
+            snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
+            cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
+            break;
 
-	case svc_stopsound:
-	    i = MSG_ReadShort();
-	    S_StopSound(i >> 3, i & 7);
-	    break;
+         case svc_sound:
+            CL_ParseStartSoundPacket();
+            break;
 
-	case svc_updatename:
-	    Sbar_Changed();
-	    i = MSG_ReadByte();
-	    if (i >= cl.maxclients)
-		Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
-	    s = MSG_ReadString();
-	    snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
-	    break;
+         case svc_stopsound:
+            i = MSG_ReadShort();
+            S_StopSound(i >> 3, i & 7);
+            break;
 
-	case svc_updatefrags:
-	    Sbar_Changed();
-	    i = MSG_ReadByte();
-	    if (i >= cl.maxclients)
-		Host_Error("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
-	    cl.players[i].frags = MSG_ReadShort();
-	    break;
+         case svc_updatename:
+            Sbar_Changed();
+            i = MSG_ReadByte();
+            if (i >= cl.maxclients)
+               Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
+            s = MSG_ReadString();
+            snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
+            break;
 
-	case svc_updatecolors:
-	    Sbar_Changed();
-	    i = MSG_ReadByte();
-	    if (i >= cl.maxclients)
-		Host_Error("%s: svc_updatecolors > MAX_SCOREBOARD", __func__);
-	    colors = MSG_ReadByte();
-	    cl.players[i].topcolor = (colors & 0xf0) >> 4;
-	    cl.players[i].bottomcolor = colors & 0x0f;
-	    CL_NewTranslation(i);
-	    break;
+         case svc_updatefrags:
+            Sbar_Changed();
+            i = MSG_ReadByte();
+            if (i >= cl.maxclients)
+               Host_Error("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
+            cl.players[i].frags = MSG_ReadShort();
+            break;
 
-	case svc_particle:
-	    R_ParseParticleEffect();
-	    break;
+         case svc_updatecolors:
+            Sbar_Changed();
+            i = MSG_ReadByte();
+            if (i >= cl.maxclients)
+               Host_Error("%s: svc_updatecolors > MAX_SCOREBOARD", __func__);
+            colors = MSG_ReadByte();
+            cl.players[i].topcolor = (colors & 0xf0) >> 4;
+            cl.players[i].bottomcolor = colors & 0x0f;
+            CL_NewTranslation(i);
+            break;
 
-	case svc_spawnbaseline:
-	    i = MSG_ReadShort();
-	    // must use CL_EntityNum() to force cl.num_entities up
-	    CL_ParseBaseline(CL_EntityNum(i), 0);
-	    break;
+         case svc_particle:
+            R_ParseParticleEffect();
+            break;
 
-	case svc_fitz_spawnbaseline2:
-	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
-	    i = MSG_ReadShort();
-	    bits = MSG_ReadByte();
-	    // must use CL_EntityNum() to force cl.num_entities up
-	    CL_ParseBaseline(CL_EntityNum(i), bits);
-	    break;
+         case svc_spawnbaseline:
+            i = MSG_ReadShort();
+            // must use CL_EntityNum() to force cl.num_entities up
+            CL_ParseBaseline(CL_EntityNum(i), 0);
+            break;
 
-	case svc_spawnstatic:
-	    CL_ParseStatic(0);
-	    break;
+         case svc_fitz_spawnbaseline2:
+            /* FIXME - check here that protocol is FITZ? => Host_Error() */
+            i = MSG_ReadShort();
+            bits = MSG_ReadByte();
+            // must use CL_EntityNum() to force cl.num_entities up
+            CL_ParseBaseline(CL_EntityNum(i), bits);
+            break;
 
-	case svc_fitz_spawnstatic2:
-	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
-	    bits = MSG_ReadByte();
-	    CL_ParseStatic(bits);
-	    break;
+         case svc_spawnstatic:
+            CL_ParseStatic(0);
+            break;
 
-	case svc_temp_entity:
-	    CL_ParseTEnt();
-	    break;
+         case svc_fitz_spawnstatic2:
+            /* FIXME - check here that protocol is FITZ? => Host_Error() */
+            bits = MSG_ReadByte();
+            CL_ParseStatic(bits);
+            break;
 
-	case svc_setpause:
-	    cl.paused = MSG_ReadByte();
-	    if (cl.paused)
-		CDAudio_Pause();
-	    else
-		CDAudio_Resume();
-	    break;
+         case svc_temp_entity:
+            CL_ParseTEnt();
+            break;
 
-	case svc_signonnum:
-	    i = MSG_ReadByte();
-	    if (i <= cls.signon)
-		Host_Error("Received signon %i when at %i", i, cls.signon);
-	    cls.signon = i;
-	    CL_SignonReply();
-	    break;
+         case svc_setpause:
+            cl.paused = MSG_ReadByte();
+            if (cl.paused)
+               CDAudio_Pause();
+            else
+               CDAudio_Resume();
+            break;
 
-	case svc_killedmonster:
-	    cl.stats[STAT_MONSTERS]++;
-	    break;
+         case svc_signonnum:
+            i = MSG_ReadByte();
+            if (i <= cls.signon)
+               Host_Error("Received signon %i when at %i", i, cls.signon);
+            cls.signon = i;
+            CL_SignonReply();
+            break;
 
-	case svc_foundsecret:
-	    cl.stats[STAT_SECRETS]++;
-	    break;
+         case svc_killedmonster:
+            cl.stats[STAT_MONSTERS]++;
+            break;
 
-	case svc_updatestat:
-	    i = MSG_ReadByte();
-	    if (i < 0 || i >= MAX_CL_STATS)
-		Sys_Error("svc_updatestat: %i is invalid", i);
-	    cl.stats[i] = MSG_ReadLong();
-	    break;
+         case svc_foundsecret:
+            cl.stats[STAT_SECRETS]++;
+            break;
 
-	case svc_spawnstaticsound:
-	    CL_ParseStaticSound();
-	    break;
+         case svc_updatestat:
+            i = MSG_ReadByte();
+            if (i < 0 || i >= MAX_CL_STATS)
+               Sys_Error("svc_updatestat: %i is invalid", i);
+            cl.stats[i] = MSG_ReadLong();
+            break;
 
-	case svc_fitz_spawnstaticsound2:
-	    /* FIXME - check here that protocol is FITZ? => Host_Error() */
-	    CL_ParseFitzStaticSound2();
-	    break;
+         case svc_spawnstaticsound:
+            CL_ParseStaticSound();
+            break;
 
-	case svc_cdtrack:
-	    cl.cdtrack = MSG_ReadByte();
-	    cl.looptrack = MSG_ReadByte();
-	    if ((cls.demoplayback || cls.demorecording)
-		&& (cls.forcetrack != -1))
-		CDAudio_Play((byte)cls.forcetrack, true);
-	    else
-		CDAudio_Play((byte)cl.cdtrack, true);
-	    break;
+         case svc_fitz_spawnstaticsound2:
+            /* FIXME - check here that protocol is FITZ? => Host_Error() */
+            CL_ParseFitzStaticSound2();
+            break;
 
-	case svc_intermission:
-	    cl.intermission = 1;
-	    cl.completed_time = cl.time;
-	    vid.recalc_refdef = true;	// go to full screen
-	    break;
+         case svc_cdtrack:
+            cl.cdtrack = MSG_ReadByte();
+            cl.looptrack = MSG_ReadByte();
+            if ((cls.demoplayback || cls.demorecording)
+                  && (cls.forcetrack != -1))
+               CDAudio_Play((byte)cls.forcetrack, true);
+            else
+               CDAudio_Play((byte)cl.cdtrack, true);
+            break;
 
-	case svc_finale:
-	    cl.intermission = 2;
-	    cl.completed_time = cl.time;
-	    vid.recalc_refdef = true;	// go to full screen
-	    SCR_CenterPrint(MSG_ReadString());
-	    break;
+         case svc_intermission:
+            cl.intermission = 1;
+            cl.completed_time = cl.time;
+            vid.recalc_refdef = true;	// go to full screen
+            break;
 
-	case svc_cutscene:
-	    cl.intermission = 3;
-	    cl.completed_time = cl.time;
-	    vid.recalc_refdef = true;	// go to full screen
-	    SCR_CenterPrint(MSG_ReadString());
-	    break;
+         case svc_finale:
+            cl.intermission = 2;
+            cl.completed_time = cl.time;
+            vid.recalc_refdef = true;	// go to full screen
+            SCR_CenterPrint(MSG_ReadString());
+            break;
 
-	case svc_sellscreen:
-	    Cmd_ExecuteString("help", src_command);
-	    break;
+         case svc_cutscene:
+            cl.intermission = 3;
+            cl.completed_time = cl.time;
+            vid.recalc_refdef = true;	// go to full screen
+            SCR_CenterPrint(MSG_ReadString());
+            break;
 
-	/* Various FITZ protocol messages - FIXME - !protocol => Host_Error */
-	case svc_fitz_skybox:
-	    MSG_ReadString(); // FIXME - TODO
-	    break;
+         case svc_sellscreen:
+            Cmd_ExecuteString("help", src_command);
+            break;
 
-	case svc_fitz_bf:
-	    Cmd_ExecuteString("bf", src_command);
-	    break;
+            /* Various FITZ protocol messages - FIXME - !protocol => Host_Error */
+         case svc_fitz_skybox:
+            MSG_ReadString(); // FIXME - TODO
+            break;
 
-	case svc_fitz_fog:
-	    /* FIXME - TODO */
-	    MSG_ReadByte(); // density
-	    MSG_ReadByte(); // red
-	    MSG_ReadByte(); // green
-	    MSG_ReadByte(); // blue
-	    MSG_ReadShort(); // time
-	    break;
+         case svc_fitz_bf:
+            Cmd_ExecuteString("bf", src_command);
+            break;
 
-	default:
-	    Host_Error("%s: Illegible server message", __func__);
-	}
-    }
+         case svc_fitz_fog:
+            /* FIXME - TODO */
+            MSG_ReadByte(); // density
+            MSG_ReadByte(); // red
+            MSG_ReadByte(); // green
+            MSG_ReadByte(); // blue
+            MSG_ReadShort(); // time
+            break;
+
+         default:
+            Host_Error("%s: Illegible server message", __func__);
+      }
+   }
 }

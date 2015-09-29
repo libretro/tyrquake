@@ -403,14 +403,12 @@ vec_t Length(vec3_t v)
 
 float VectorNormalize(vec3_t v)
 {
-   float length, ilength;
-
-   length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+   float length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
    length = sqrt(length);	// FIXME
 
    if (length)
    {
-      ilength = 1 / length;
+      float ilength = 1 / length;
       v[0] *= ilength;
       v[1] *= ilength;
       v[2] *= ilength;
@@ -419,16 +417,14 @@ float VectorNormalize(vec3_t v)
    return length;
 }
 
-void
-VectorInverse(vec3_t v)
+void VectorInverse(vec3_t v)
 {
     v[0] = -v[0];
     v[1] = -v[1];
     v[2] = -v[2];
 }
 
-void
-VectorScale(const vec3_t in, const vec_t scale, vec3_t out)
+void VectorScale(const vec3_t in, const vec_t scale, vec3_t out)
 {
     out[0] = in[0] * scale;
     out[1] = in[1] * scale;
@@ -436,14 +432,13 @@ VectorScale(const vec3_t in, const vec_t scale, vec3_t out)
 }
 
 
-int
-Q_log2(int val)
+int Q_log2(int val)
 {
-    int answer = 0;
+   int answer = 0;
 
-    while ((val >>= 1) != 0)
-	answer++;
-    return answer;
+   while ((val >>= 1) != 0)
+      answer++;
+   return answer;
 }
 
 
@@ -452,27 +447,26 @@ Q_log2(int val)
 R_ConcatRotations
 ================
 */
-void
-R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3])
+void R_ConcatRotations(float in1[3][3], float in2[3][3], float out[3][3])
 {
-    out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] +
-	in1[0][2] * in2[2][0];
-    out[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] +
-	in1[0][2] * in2[2][1];
-    out[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] +
-	in1[0][2] * in2[2][2];
-    out[1][0] = in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] +
-	in1[1][2] * in2[2][0];
-    out[1][1] = in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] +
-	in1[1][2] * in2[2][1];
-    out[1][2] = in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] +
-	in1[1][2] * in2[2][2];
-    out[2][0] = in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] +
-	in1[2][2] * in2[2][0];
-    out[2][1] = in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] +
-	in1[2][2] * in2[2][1];
-    out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] +
-	in1[2][2] * in2[2][2];
+   out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] +
+      in1[0][2] * in2[2][0];
+   out[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] +
+      in1[0][2] * in2[2][1];
+   out[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] +
+      in1[0][2] * in2[2][2];
+   out[1][0] = in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] +
+      in1[1][2] * in2[2][0];
+   out[1][1] = in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] +
+      in1[1][2] * in2[2][1];
+   out[1][2] = in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] +
+      in1[1][2] * in2[2][2];
+   out[2][0] = in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] +
+      in1[2][2] * in2[2][0];
+   out[2][1] = in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] +
+      in1[2][2] * in2[2][1];
+   out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] +
+      in1[2][2] * in2[2][2];
 }
 
 

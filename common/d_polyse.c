@@ -372,12 +372,11 @@ D_PolysetUpdateTables
 */
 void D_PolysetUpdateTables(void)
 {
-   int i;
-   byte *s;
-
    if (r_affinetridesc.skinwidth != skinwidth ||
          r_affinetridesc.pskin != skinstart)
    {
+      byte *s;
+      int i;
       skinwidth = r_affinetridesc.skinwidth;
       skinstart = (byte*)r_affinetridesc.pskin;
       s = skinstart;
@@ -454,28 +453,22 @@ D_PolysetSetUpForLineScan
 static void D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
 			  fixed8_t endvertu, fixed8_t endvertv)
 {
-   double dm, dn;
-   int tm, tn;
-   adivtab_t *ptemp;
-
-   // TODO: implement x86 version
+   int tm = endvertu - startvertu;
+   int tn = endvertv - startvertv;
 
    errorterm = -1;
 
-   tm = endvertu - startvertu;
-   tn = endvertv - startvertv;
-
    if (((tm <= 16) && (tm >= -15)) && ((tn <= 16) && (tn >= -15)))
    {
-      ptemp = &adivtab[((tm + 15) << 5) + (tn + 15)];
+      adivtab_t *ptemp = &adivtab[((tm + 15) << 5) + (tn + 15)];
       ubasestep = ptemp->quotient;
       erroradjustup = ptemp->remainder;
       erroradjustdown = tn;
    }
    else
    {
-      dm = (double)tm;
-      dn = (double)tn;
+      double dm = (double)tm;
+      double dn = (double)tn;
 
       FloorDivMod(dm, dn, &ubasestep, &erroradjustup);
 

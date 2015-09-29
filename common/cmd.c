@@ -164,65 +164,65 @@ Cbuf_InsertText(const char *text)
 Cbuf_Execute
 ============
 */
-void
-Cbuf_Execute(void)
+void Cbuf_Execute(void)
 {
-    int len, maxlen;
-    char *text;
-    char line[1024];
-    int quotes;
+   int len;
+   char line[1024];
 
-    while (cmd_text.cursize) {
-	/* find a \n or ; line break */
-	text = (char *)cmd_text.data;
+   while (cmd_text.cursize)
+   {
+      /* find a \n or ; line break */
+      char *text = (char *)cmd_text.data;
+      int quotes = 0;
+      int maxlen = qmin(cmd_text.cursize, (int)sizeof(line));
 
-	quotes = 0;
-	maxlen = qmin(cmd_text.cursize, (int)sizeof(line));
-	for (len = 0; len < maxlen; len++) {
-	    if (text[len] == '"')
-		quotes++;
-	    if (!(quotes & 1) && text[len] == ';')
-		break;		/* don't break if inside a quoted string */
-	    if (text[len] == '\n')
-		break;
-	}
-	if (len == sizeof(line)) {
-	    Con_Printf("%s: command truncated\n", __func__);
-	    len--;
-	}
-	memcpy(line, text, len);
-	line[len] = 0;
+      for (len = 0; len < maxlen; len++)
+      {
+         if (text[len] == '"')
+            quotes++;
+         if (!(quotes & 1) && text[len] == ';')
+            break;		/* don't break if inside a quoted string */
+         if (text[len] == '\n')
+            break;
+      }
+      if (len == sizeof(line)) {
+         Con_Printf("%s: command truncated\n", __func__);
+         len--;
+      }
+      memcpy(line, text, len);
+      line[len] = 0;
 
-	/*
-	 * delete the text from the command buffer and move remaining commands
-	 * down this is necessary because commands (exec, alias) can insert
-	 * data at the beginning of the text buffer
-	 */
-	if (len == cmd_text.cursize)
-	    cmd_text.cursize = 0;
-	else {
-	    len++; /* skip the terminating character */
-	    cmd_text.cursize -= len;
-	    memmove(text, text + len, cmd_text.cursize);
-	}
+      /*
+       * delete the text from the command buffer and move remaining commands
+       * down this is necessary because commands (exec, alias) can insert
+       * data at the beginning of the text buffer
+       */
+      if (len == cmd_text.cursize)
+         cmd_text.cursize = 0;
+      else {
+         len++; /* skip the terminating character */
+         cmd_text.cursize -= len;
+         memmove(text, text + len, cmd_text.cursize);
+      }
 
-	/* execute the command line */
+      /* execute the command line */
 #ifdef NQ_HACK
-	Cmd_ExecuteString(line, src_command);
+      Cmd_ExecuteString(line, src_command);
 #endif
 #ifdef QW_HACK
-	Cmd_ExecuteString(line);
+      Cmd_ExecuteString(line);
 #endif
 
-	if (cmd_wait) {
-	    /*
-	     * skip out while text still remains in buffer, leaving it for
-	     * next frame
-	     */
-	    cmd_wait = false;
-	    break;
-	}
-    }
+      if (cmd_wait)
+      {
+         /*
+          * skip out while text still remains in buffer, leaving it for
+          * next frame
+          */
+         cmd_wait = false;
+         break;
+      }
+   }
 }
 
 /*

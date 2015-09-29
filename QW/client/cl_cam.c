@@ -57,32 +57,34 @@ static double cam_lastviewtime;
 int spec_track = 0;		// player# of who we are tracking
 int autocam = CAM_NONE;
 
-static void
-vectoangles(vec3_t vec, vec3_t ang)
+static void vectoangles(vec3_t vec, vec3_t ang)
 {
-    float forward;
-    float yaw, pitch;
+   float yaw, pitch;
 
-    if (vec[1] == 0 && vec[0] == 0) {
-	yaw = 0;
-	if (vec[2] > 0)
-	    pitch = 90;
-	else
-	    pitch = 270;
-    } else {
-	yaw = (int)(atan2(vec[1], vec[0]) * 180 / M_PI);
-	if (yaw < 0)
-	    yaw += 360;
+   if (vec[1] == 0 && vec[0] == 0)
+   {
+      yaw = 0;
+      if (vec[2] > 0)
+         pitch = 90;
+      else
+         pitch = 270;
+   }
+   else
+   {
+      float forward;
+      yaw = (int)(atan2(vec[1], vec[0]) * 180 / M_PI);
+      if (yaw < 0)
+         yaw += 360;
 
-	forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
-	pitch = (int)(atan2(vec[2], forward) * 180 / M_PI);
-	if (pitch < 0)
-	    pitch += 360;
-    }
+      forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
+      pitch = (int)(atan2(vec[2], forward) * 180 / M_PI);
+      if (pitch < 0)
+         pitch += 360;
+   }
 
-    ang[0] = pitch;
-    ang[1] = yaw;
-    ang[2] = 0;
+   ang[0] = pitch;
+   ang[1] = yaw;
+   ang[2] = 0;
 }
 
 static float
@@ -152,38 +154,38 @@ Cam_DoTrace(vec3_t vec1, vec3_t vec2)
 }
 
 // Returns distance or 9999 if invalid for some reason
-static float
-Cam_TryFlyby(player_state_t * self, player_state_t * player, vec3_t vec,
-	     qboolean checkvis)
+static float Cam_TryFlyby(player_state_t * self,
+      player_state_t * player, vec3_t vec,
+      qboolean checkvis)
 {
-    vec3_t v;
-    pmtrace_t trace;
-    float len;
+   vec3_t v;
+   pmtrace_t trace;
+   float len;
 
-    vectoangles(vec, v);
-//      v[0] = -v[0];
-    VectorCopy(v, pmove.angles);
-    VectorNormalize(vec);
-    VectorMA(player->origin, 800, vec, v);
-    // v is endpos
-    // fake a player move
-    trace = Cam_DoTrace(player->origin, v);
-    if ( /*trace.inopen || */ trace.inwater)
-	return 9999;
-    VectorCopy(trace.endpos, vec);
-    VectorSubtract(trace.endpos, player->origin, v);
-    len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-    if (len < 32 || len > 800)
-	return 9999;
-    if (checkvis) {
-	VectorSubtract(trace.endpos, self->origin, v);
-	len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+   vectoangles(vec, v);
+   VectorCopy(v, pmove.angles);
+   VectorNormalize(vec);
+   VectorMA(player->origin, 800, vec, v);
+   // v is endpos
+   // fake a player move
+   trace = Cam_DoTrace(player->origin, v);
+   if ( /*trace.inopen || */ trace.inwater)
+      return 9999;
+   VectorCopy(trace.endpos, vec);
+   VectorSubtract(trace.endpos, player->origin, v);
+   len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+   if (len < 32 || len > 800)
+      return 9999;
+   if (checkvis)
+   {
+      VectorSubtract(trace.endpos, self->origin, v);
+      len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 
-	trace = Cam_DoTrace(self->origin, vec);
-	if (trace.fraction != 1 || trace.inwater)
-	    return 9999;
-    }
-    return len;
+      trace = Cam_DoTrace(self->origin, vec);
+      if (trace.fraction != 1 || trace.inwater)
+         return 9999;
+   }
+   return len;
 }
 
 // Is player visible?
@@ -323,83 +325,87 @@ Cam_CheckHighTarget(void)
 void
 Cam_Track(usercmd_t *cmd)
 {
-    player_state_t *player, *self;
-    frame_t *frame;
-    vec3_t vec;
-    float len;
+   player_state_t *player, *self;
+   frame_t *frame;
+   vec3_t vec;
 
-    if (!cl.spectator)
-	return;
+   if (!cl.spectator)
+      return;
 
-    if (cl_hightrack.value && !locked)
-	Cam_CheckHighTarget();
+   if (cl_hightrack.value && !locked)
+      Cam_CheckHighTarget();
 
-    if (!autocam || cls.state != ca_active)
-	return;
+   if (!autocam || cls.state != ca_active)
+      return;
 
-    if (locked && (!cl.players[spec_track].name[0]
-		   || cl.players[spec_track].spectator)) {
-	locked = false;
-	if (cl_hightrack.value)
-	    Cam_CheckHighTarget();
-	else
-	    Cam_Unlock();
-	return;
-    }
+   if (locked && (!cl.players[spec_track].name[0]
+            || cl.players[spec_track].spectator))
+   {
+      locked = false;
+      if (cl_hightrack.value)
+         Cam_CheckHighTarget();
+      else
+         Cam_Unlock();
+      return;
+   }
 
-    frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
-    player = frame->playerstate + spec_track;
-    self = frame->playerstate + cl.playernum;
+   frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+   player = frame->playerstate + spec_track;
+   self = frame->playerstate + cl.playernum;
 
-    if (!locked || !Cam_IsVisible(player, desired_position)) {
-	if (!locked || realtime - cam_lastviewtime > 0.1) {
-	    if (!InitFlyby(self, player, true))
-		InitFlyby(self, player, false);
-	    cam_lastviewtime = realtime;
-	}
-    } else
-	cam_lastviewtime = realtime;
+   if (!locked || !Cam_IsVisible(player, desired_position)) {
+      if (!locked || realtime - cam_lastviewtime > 0.1) {
+         if (!InitFlyby(self, player, true))
+            InitFlyby(self, player, false);
+         cam_lastviewtime = realtime;
+      }
+   } else
+      cam_lastviewtime = realtime;
 
-    // couldn't track for some reason
-    if (!locked || !autocam)
-	return;
+   // couldn't track for some reason
+   if (!locked || !autocam)
+      return;
 
-    if (cl_chasecam.value) {
-	cmd->forwardmove = cmd->sidemove = cmd->upmove = 0;
+   if (cl_chasecam.value)
+   {
+      cmd->forwardmove = cmd->sidemove = cmd->upmove = 0;
 
-	VectorCopy(player->viewangles, cl.viewangles);
-	VectorCopy(player->origin, desired_position);
-	if (memcmp
-	    (&desired_position, &self->origin,
-	     sizeof(desired_position)) != 0) {
-	    MSG_WriteByte(&cls.netchan.message, clc_tmove);
-	    MSG_WriteCoord(&cls.netchan.message, desired_position[0]);
-	    MSG_WriteCoord(&cls.netchan.message, desired_position[1]);
-	    MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
-	    // move there locally immediately
-	    VectorCopy(desired_position, self->origin);
-	}
-	self->weaponframe = player->weaponframe;
+      VectorCopy(player->viewangles, cl.viewangles);
+      VectorCopy(player->origin, desired_position);
+      if (memcmp
+            (&desired_position, &self->origin,
+             sizeof(desired_position)) != 0) {
+         MSG_WriteByte(&cls.netchan.message, clc_tmove);
+         MSG_WriteCoord(&cls.netchan.message, desired_position[0]);
+         MSG_WriteCoord(&cls.netchan.message, desired_position[1]);
+         MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
+         // move there locally immediately
+         VectorCopy(desired_position, self->origin);
+      }
+      self->weaponframe = player->weaponframe;
 
-    } else {
-	// Ok, move to our desired position and set our angles to view
-	// the player
-	VectorSubtract(desired_position, self->origin, vec);
-	len = vlen(vec);
-	cmd->forwardmove = cmd->sidemove = cmd->upmove = 0;
-	if (len > 16) {		// close enough?
-	    MSG_WriteByte(&cls.netchan.message, clc_tmove);
-	    MSG_WriteCoord(&cls.netchan.message, desired_position[0]);
-	    MSG_WriteCoord(&cls.netchan.message, desired_position[1]);
-	    MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
-	}
-	// move there locally immediately
-	VectorCopy(desired_position, self->origin);
+   }
+   else
+   {
+      float len;
+      // Ok, move to our desired position and set our angles to view
+      // the player
+      VectorSubtract(desired_position, self->origin, vec);
+      len = vlen(vec);
+      cmd->forwardmove = cmd->sidemove = cmd->upmove = 0;
+      if (len > 16) {		// close enough?
+         MSG_WriteByte(&cls.netchan.message, clc_tmove);
+         MSG_WriteCoord(&cls.netchan.message, desired_position[0]);
+         MSG_WriteCoord(&cls.netchan.message, desired_position[1]);
+         MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
+      }
+      // move there locally immediately
+      VectorCopy(desired_position, self->origin);
 
-	VectorSubtract(player->origin, desired_position, vec);
-	vectoangles(vec, cl.viewangles);
-	cl.viewangles[0] = -cl.viewangles[0];
-    }
+      VectorSubtract(player->origin, desired_position, vec);
+      vectoangles(vec, cl.viewangles);
+      cl.viewangles[0] = -cl.viewangles[0];
+   }
 }
 
 #if 0

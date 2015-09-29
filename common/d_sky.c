@@ -70,34 +70,35 @@ D_DrawSkyScans8
 */
 void D_DrawSkyScans8 (espan_t *pspan)
 {
-   int            count, spancount, u, v;
-   unsigned char   *pdest;
+   int            spancount;
    fixed16_t      s, t, snext, tnext;
    int            spancountminus1;
 
-   fixed16_t      s2, t2, sstep, tstep, snext2, tnext2;
    int sstep2 = 0;
    int tstep2 = 0;
    timespeed1=skytime*skyspeed;
    timespeed2=timespeed1*2.0;
 
-   sstep = 0;   // keep compiler happy
-   tstep = 0;   // ditto
+   fixed16_t sstep = 0;   // keep compiler happy
+   fixed16_t tstep = 0;   // ditto
 
    do
    {
-      pdest = (unsigned char *)((byte *)d_viewbuffer +
+      fixed16_t      s2, t2;
+      uint8_t *pdest = (uint8_t*)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
-
-      count = pspan->count;
+      int count      = pspan->count;
 
       // calculate the initial s & t
-      u = pspan->u;
-      v = pspan->v;
+      int u = pspan->u;
+      int v = pspan->v;
+
       D_Sky_uv_To_st (u, v, &s, &t, &s2, &t2); // Manoel Kasimier - smooth sky - edited
 
       do
       {
+         fixed16_t snext2, tnext2;
+
          if (count >= SKY_SPAN_MAX)
             spancount = SKY_SPAN_MAX;
          else
@@ -156,6 +157,5 @@ void D_DrawSkyScans8 (espan_t *pspan)
          t2 = tnext2; // Manoel Kasimier - smooth sky
 
       } while (count > 0);
-
    } while ((pspan = pspan->pnext) != NULL);
 }

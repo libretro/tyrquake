@@ -105,16 +105,21 @@ Handles recording and playback of demos, on top of NET_ code
 int
 CL_GetMessage(void)
 {
-   int r, i;
+   int r;
 #ifdef MSB_FIRST
    float f;
 #endif
 
-   if (cls.demoplayback) {
+   if (cls.demoplayback)
+   {
+      int i;
+
       // decide if it is time to grab the next message
       // allways grab until fully connected
-      if (cls.state == ca_active) {
-         if (cls.timedemo) {
+      if (cls.state == ca_active)
+      {
+         if (cls.timedemo)
+         {
             if (host_framecount == cls.td_lastframe)
                return 0;	// allready read this frame's message
 
@@ -124,7 +129,9 @@ CL_GetMessage(void)
             // so the bogus time on the first frame doesn't count
             if (host_framecount == cls.td_startframe + 1)
                cls.td_starttime = realtime;
-         } else if (cl.time <= cl.mtime[0]) {
+         }
+         else if (cl.time <= cl.mtime[0])
+         {
             // don't need another message yet
             return 0;
          }
@@ -132,6 +139,7 @@ CL_GetMessage(void)
       // get the next message
       fread(&net_message.cursize, 4, 1, cls.demofile);
       VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
+
       for (i = 0; i < 3; i++)
 #ifdef MSB_FIRST
       {
@@ -155,7 +163,8 @@ CL_GetMessage(void)
       return 1;
    }
 
-   while (1) {
+   while (1)
+   {
       r = NET_GetMessage(cls.netcon);
 
       if (r != 1 && r != 2)

@@ -122,13 +122,14 @@ static void S_SoundInfo_f(void)
 void
 S_Startup(void)
 {
-   int rc;
-
    if (!snd_initialized)
       return;
-   if (!fakedma) {
-      rc = SNDDMA_Init();
-      if (!rc) {
+
+   if (!fakedma)
+   {
+      int rc = SNDDMA_Init();
+      if (!rc)
+      {
          Con_Printf("%s: SNDDMA_Init failed.\n", __func__);
          sound_started = 0;
          return;
@@ -558,9 +559,7 @@ static void
 S_UpdateAmbientSounds(void)
 {
    mleaf_t *leaf;
-   float vol;
    int ambient_channel;
-   channel_t *chan;
 
    if (!snd_ambient)
       return;
@@ -570,7 +569,9 @@ S_UpdateAmbientSounds(void)
       return;
 
    leaf = Mod_PointInLeaf(cl.worldmodel, listener_origin);
-   if (!leaf || !ambient_level.value) {
+
+   if (!leaf || !ambient_level.value)
+   {
       for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS;
             ambient_channel++)
          channels[ambient_channel].sfx = NULL;
@@ -578,8 +579,10 @@ S_UpdateAmbientSounds(void)
    }
 
    for (ambient_channel = 0; ambient_channel < NUM_AMBIENTS;
-         ambient_channel++) {
-      chan = &channels[ambient_channel];
+         ambient_channel++)
+   {
+      float vol;
+      channel_t *chan = &channels[ambient_channel];
       chan->sfx = ambient_sfx[ambient_channel];
 
       vol = ambient_level.value * leaf->ambient_sound_level[ambient_channel];
@@ -603,25 +606,24 @@ S_UpdateAmbientSounds(void)
 
 static void GetSoundtime(void)
 {
-   int samplepos;
    static int buffers;
    static int oldsamplepos;
-   int fullsamples;
-
-   fullsamples = shm->samples / CHANNELS;
+   int fullsamples = shm->samples / CHANNELS;
 
    /*
     * it is possible to miscount buffers if it has wrapped twice between
     * calls to S_Update.  Oh well.
     */
-   samplepos = SNDDMA_GetDMAPos();
+   int samplepos = SNDDMA_GetDMAPos();
 
    /* Check for buffer wrap */
-   if (samplepos < oldsamplepos) {
+   if (samplepos < oldsamplepos)
+   {
       buffers++;
 
       /* time to chop things off to avoid 32 bit limits */
-      if (paintedtime > 0x40000000) {
+      if (paintedtime > 0x40000000)
+      {
          buffers = 0;
          paintedtime = fullsamples;
          S_StopAllSounds(true);

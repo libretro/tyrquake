@@ -30,7 +30,6 @@ D_FillRect
 void D_FillRect(vrect_t *rect, int color)
 {
    unsigned char *dest;
-   unsigned *ldest;
 
    int rx      = rect->x;
    int ry      = rect->y;
@@ -60,7 +59,7 @@ void D_FillRect(vrect_t *rect, int color)
    if (((rwidth & 0x03) == 0) && (((long)dest & 0x03) == 0))
    {
       // faster aligned dword clear
-      ldest = (unsigned *)dest;
+      unsigned *ldest = (unsigned *)dest;
       color += color << 16;
 
       rwidth >>= 2;

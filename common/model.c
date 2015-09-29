@@ -75,29 +75,30 @@ Mod_Init(const model_loader_t *loader)
 Mod_PointInLeaf
 ===============
 */
-mleaf_t *
-Mod_PointInLeaf(const model_t *model, const vec3_t point)
+mleaf_t * Mod_PointInLeaf(const model_t *model, const vec3_t point)
 {
-    mplane_t *plane;
-    mnode_t *node;
-    float dist;
+   mnode_t *node;
 
-    if (!model || !model->nodes)
-	SV_Error("%s: bad model", __func__);
+   if (!model || !model->nodes)
+      SV_Error("%s: bad model", __func__);
 
-    node = model->nodes;
-    while (1) {
-	if (node->contents < 0)
-	    return (mleaf_t *)node;
-	plane = node->plane;
-	dist = DotProduct(point, plane->normal) - plane->dist;
-	if (dist > 0)
-	    node = node->children[0];
-	else
-	    node = node->children[1];
-    }
+   node = model->nodes;
 
-    return NULL;		// never reached
+   while (1)
+   {
+      float dist;
+      mplane_t *plane;
+      if (node->contents < 0)
+         return (mleaf_t *)node;
+      plane = node->plane;
+      dist = DotProduct(point, plane->normal) - plane->dist;
+      if (dist > 0)
+         node = node->children[0];
+      else
+         node = node->children[1];
+   }
+
+   return NULL;		// never reached
 }
 
 void
@@ -1067,17 +1068,16 @@ Mod_LoadFaces_BSP29(lump_t *l)
    }
 }
 
-static void
-Mod_LoadFaces_BSP2(lump_t *l)
+static void Mod_LoadFaces_BSP2(lump_t *l)
 {
-   bsp2_dface_t *in;
    msurface_t *out;
    int i, count, surfnum;
    int planenum, side;
+   bsp2_dface_t *in = (bsp2_dface_t *)(mod_base + l->fileofs);
 
-   in = (bsp2_dface_t *)(mod_base + l->fileofs);
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
+
    count = l->filelen / sizeof(*in);
    out = (msurface_t*)Hunk_AllocName(count * sizeof(*out), loadname);
 
@@ -1130,11 +1130,13 @@ Mod_LoadFaces_BSP2(lump_t *l)
          out->samples = loadmodel->lightdata + i;
 
       /* set the surface drawing flags */
-      if (!strncmp(out->texinfo->texture->name, "sky", 3)) {
+      if (!strncmp(out->texinfo->texture->name, "sky", 3))
          out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
-      } else if (!strncmp(out->texinfo->texture->name, "*", 1)) {
+      else if (!strncmp(out->texinfo->texture->name, "*", 1))
+      {
          out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
-         for (i = 0; i < 2; i++) {
+         for (i = 0; i < 2; i++)
+         {
             out->extents[i] = 16384;
             out->texturemins[i] = -8192;
          }
@@ -1222,24 +1224,25 @@ Mod_LoadNodes_BSP29(lump_t *l)
    Mod_SetParent(loadmodel->nodes, NULL);	// sets nodes and leafs
 }
 
-static void
-Mod_LoadNodes_BSP2(lump_t *l)
+static void Mod_LoadNodes_BSP2(lump_t *l)
 {
-   int i, j, count, p;
-   bsp2_dnode_t *in;
+   int i, count;
    mnode_t *out;
+   bsp2_dnode_t *in = (bsp2_dnode_t *)(mod_base + l->fileofs);
 
-   in = (bsp2_dnode_t *)(mod_base + l->fileofs);
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
-   count = l->filelen / sizeof(*in);
-   out = (mnode_t*)Hunk_AllocName(count * sizeof(*out), loadname);
 
-   loadmodel->nodes = out;
+   count = l->filelen / sizeof(*in);
+   out   = (mnode_t*)Hunk_AllocName(count * sizeof(*out), loadname);
+
+   loadmodel->nodes    = out;
    loadmodel->numnodes = count;
 
    for (i = 0; i < count; i++, in++, out++)
    {
+      int j, p;
+
       for (j = 0; j < 3; j++)
       {
 #ifdef MSB_FIRST
@@ -1266,7 +1269,8 @@ Mod_LoadNodes_BSP2(lump_t *l)
       out->numsurfaces = (uint32_t)(in->numfaces);
 #endif
 
-      for (j = 0; j < 2; j++) {
+      for (j = 0; j < 2; j++)
+      {
 #ifdef MSB_FIRST
          p = LittleLong(in->children[j]);
 #else
