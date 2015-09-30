@@ -460,12 +460,9 @@ static char m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
 static int loadable[MAX_SAVEGAMES];
 static int load_cursor;		// 0 < load_cursor < MAX_SAVEGAMES
 
-static void
-M_ScanSaves(void)
+static void M_ScanSaves(void)
 {
-   int i, j, unused, version;
-   char name[MAX_OSPATH];
-   FILE *f;
+   int i;
 #ifdef _WIN32
    char slash = '\\';
 #else
@@ -474,17 +471,21 @@ M_ScanSaves(void)
 
    for (i = 0; i < MAX_SAVEGAMES; i++)
    {
+      int j, version;
+      char name[MAX_OSPATH];
+      FILE *f;
+
       strcpy(m_filenames[i], "--- UNUSED SLOT ---");
       loadable[i] = false;
       sprintf(name, "%s%cs%i.sav", com_gamedir, slash, i);
       f = fopen(name, "r");
       if (!f)
          continue;
-      unused = fscanf(f, "%i\n", &version);
-      unused = fscanf(f, "%79s\n", name);
+      fscanf(f, "%i\n", &version);
+      fscanf(f, "%79s\n", name);
       strncpy(m_filenames[i], name, sizeof(m_filenames[i]) - 1);
 
-      // change _ back to space
+      /* change _ back to space */
       for (j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
          if (m_filenames[i][j] == '_')
             m_filenames[i][j] = ' ';
@@ -493,8 +494,7 @@ M_ScanSaves(void)
    }
 }
 
-static void
-M_Menu_Load_f(void)
+static void M_Menu_Load_f(void)
 {
     m_entersound = true;
     m_state = m_load;
@@ -503,128 +503,122 @@ M_Menu_Load_f(void)
 }
 
 
-static void
-M_Menu_Save_f(void)
+static void M_Menu_Save_f(void)
 {
-    if (!sv.active)
-	return;
-    if (cl.intermission)
-	return;
-    if (svs.maxclients != 1)
-	return;
-    m_entersound = true;
-    m_state = m_save;
-    key_dest = key_menu;
-    M_ScanSaves();
+   if (!sv.active)
+      return;
+   if (cl.intermission)
+      return;
+   if (svs.maxclients != 1)
+      return;
+   m_entersound = true;
+   m_state = m_save;
+   key_dest = key_menu;
+   M_ScanSaves();
 }
 
 
-static void
-M_Load_Draw(void)
+static void M_Load_Draw(void)
 {
-    int i;
-    const qpic_t *p;
+   int i;
+   const qpic_t *p = Draw_CachePic("gfx/p_load.lmp");
 
-    p = Draw_CachePic("gfx/p_load.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
+   M_DrawPic((320 - p->width) / 2, 4, p);
 
-    for (i = 0; i < MAX_SAVEGAMES; i++)
-	M_Print(16, 32 + 8 * i, m_filenames[i]);
+   for (i = 0; i < MAX_SAVEGAMES; i++)
+      M_Print(16, 32 + 8 * i, m_filenames[i]);
 
-// line cursor
-    M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+   /* line cursor */
+   M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 
-static void
-M_Save_Draw(void)
+static void M_Save_Draw(void)
 {
-    int i;
-    const qpic_t *p;
+   int i;
+   const qpic_t *p = Draw_CachePic("gfx/p_save.lmp");
 
-    p = Draw_CachePic("gfx/p_save.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
+   M_DrawPic((320 - p->width) / 2, 4, p);
 
-    for (i = 0; i < MAX_SAVEGAMES; i++)
-	M_Print(16, 32 + 8 * i, m_filenames[i]);
+   for (i = 0; i < MAX_SAVEGAMES; i++)
+      M_Print(16, 32 + 8 * i, m_filenames[i]);
 
-// line cursor
-    M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+   /* line cursor */
+   M_DrawCharacter(8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 
-static void
-M_Load_Key(int k)
+static void M_Load_Key(int k)
 {
-    switch (k) {
-    case K_ESCAPE:
-	M_Menu_SinglePlayer_f();
-	break;
+   switch (k)
+   {
+      case K_ESCAPE:
+         M_Menu_SinglePlayer_f();
+         break;
 
-    case K_ENTER:
-	S_LocalSound("misc/menu2.wav");
-	if (!loadable[load_cursor])
-	    return;
-	m_state = m_none;
-	key_dest = key_game;
+      case K_ENTER:
+         S_LocalSound("misc/menu2.wav");
+         if (!loadable[load_cursor])
+            return;
+         m_state = m_none;
+         key_dest = key_game;
 
-	// Host_Loadgame_f can't bring up the loading plaque because too much
-	// stack space has been used, so do it now
-	SCR_BeginLoadingPlaque();
+         // Host_Loadgame_f can't bring up the loading plaque because too much
+         // stack space has been used, so do it now
+         SCR_BeginLoadingPlaque();
 
-	// issue the load command
-	Cbuf_AddText("load s%i\n", load_cursor);
-	return;
+         // issue the load command
+         Cbuf_AddText("load s%i\n", load_cursor);
+         return;
 
-    case K_UPARROW:
-    case K_LEFTARROW:
-	S_LocalSound("misc/menu1.wav");
-	load_cursor--;
-	if (load_cursor < 0)
-	    load_cursor = MAX_SAVEGAMES - 1;
-	break;
+      case K_UPARROW:
+      case K_LEFTARROW:
+         S_LocalSound("misc/menu1.wav");
+         load_cursor--;
+         if (load_cursor < 0)
+            load_cursor = MAX_SAVEGAMES - 1;
+         break;
 
-    case K_DOWNARROW:
-    case K_RIGHTARROW:
-	S_LocalSound("misc/menu1.wav");
-	load_cursor++;
-	if (load_cursor >= MAX_SAVEGAMES)
-	    load_cursor = 0;
-	break;
-    }
+      case K_DOWNARROW:
+      case K_RIGHTARROW:
+         S_LocalSound("misc/menu1.wav");
+         load_cursor++;
+         if (load_cursor >= MAX_SAVEGAMES)
+            load_cursor = 0;
+         break;
+   }
 }
 
 
-static void
-M_Save_Key(int k)
+static void M_Save_Key(int k)
 {
-    switch (k) {
-    case K_ESCAPE:
-	M_Menu_SinglePlayer_f();
-	break;
+   switch (k) {
+      case K_ESCAPE:
+         M_Menu_SinglePlayer_f();
+         break;
 
-    case K_ENTER:
-	m_state = m_none;
-	key_dest = key_game;
-	Cbuf_AddText("save s%i\n", load_cursor);
-	return;
+      case K_ENTER:
+         m_state = m_none;
+         key_dest = key_game;
+         Cbuf_AddText("save s%i\n", load_cursor);
+         return;
 
-    case K_UPARROW:
-    case K_LEFTARROW:
-	S_LocalSound("misc/menu1.wav");
-	load_cursor--;
-	if (load_cursor < 0)
-	    load_cursor = MAX_SAVEGAMES - 1;
-	break;
+      case K_UPARROW:
+      case K_LEFTARROW:
+         S_LocalSound("misc/menu1.wav");
+         load_cursor--;
+         if (load_cursor < 0)
+            load_cursor = MAX_SAVEGAMES - 1;
+         break;
 
-    case K_DOWNARROW:
-    case K_RIGHTARROW:
-	S_LocalSound("misc/menu1.wav");
-	load_cursor++;
-	if (load_cursor >= MAX_SAVEGAMES)
-	    load_cursor = 0;
-	break;
-    }
+      case K_DOWNARROW:
+      case K_RIGHTARROW:
+         S_LocalSound("misc/menu1.wav");
+         load_cursor++;
+         if (load_cursor >= MAX_SAVEGAMES)
+            load_cursor = 0;
+         break;
+   }
 }
 
 //=============================================================================
@@ -634,76 +628,73 @@ M_Save_Key(int k)
 
 static int m_multiplayer_cursor;
 
-static void
-M_Menu_MultiPlayer_f(void)
+static void M_Menu_MultiPlayer_f(void)
 {
-    key_dest = key_menu;
-    m_state = m_multiplayer;
-    m_entersound = true;
+   key_dest = key_menu;
+   m_state = m_multiplayer;
+   m_entersound = true;
 }
 
 
-static void
-M_MultiPlayer_Draw(void)
+static void M_MultiPlayer_Draw(void)
 {
-    int f;
-    const qpic_t *p;
+   int f;
+   const qpic_t *p;
 
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-    p = Draw_CachePic("gfx/p_multi.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
-    M_DrawTransPic(72, 32, Draw_CachePic("gfx/mp_menu.lmp"));
+   M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+   p = Draw_CachePic("gfx/p_multi.lmp");
+   M_DrawPic((320 - p->width) / 2, 4, p);
+   M_DrawTransPic(72, 32, Draw_CachePic("gfx/mp_menu.lmp"));
 
-    f = (int)(host_time * 10) % 6;
+   f = (int)(host_time * 10) % 6;
 
-    M_DrawTransPic(54, 32 + m_multiplayer_cursor * 20,
-		   Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
+   M_DrawTransPic(54, 32 + m_multiplayer_cursor * 20,
+         Draw_CachePic(va("gfx/menudot%i.lmp", f + 1)));
 
-    if (tcpipAvailable)
-	return;
-    M_PrintWhite((320 / 2) - ((27 * 8) / 2), 148,
-		 "No Communications Available");
+   if (tcpipAvailable)
+      return;
+   M_PrintWhite((320 / 2) - ((27 * 8) / 2), 148,
+         "No Communications Available");
 }
 
 
-static void
-M_MultiPlayer_Key(int key)
+static void M_MultiPlayer_Key(int key)
 {
-    switch (key) {
-    case K_ESCAPE:
-	M_Menu_Main_f();
-	break;
+   switch (key) {
+      case K_ESCAPE:
+         M_Menu_Main_f();
+         break;
 
-    case K_DOWNARROW:
-	S_LocalSound("misc/menu1.wav");
-	if (++m_multiplayer_cursor >= MULTIPLAYER_ITEMS)
-	    m_multiplayer_cursor = 0;
-	break;
+      case K_DOWNARROW:
+         S_LocalSound("misc/menu1.wav");
+         if (++m_multiplayer_cursor >= MULTIPLAYER_ITEMS)
+            m_multiplayer_cursor = 0;
+         break;
 
-    case K_UPARROW:
-	S_LocalSound("misc/menu1.wav");
-	if (--m_multiplayer_cursor < 0)
-	    m_multiplayer_cursor = MULTIPLAYER_ITEMS - 1;
-	break;
+      case K_UPARROW:
+         S_LocalSound("misc/menu1.wav");
+         if (--m_multiplayer_cursor < 0)
+            m_multiplayer_cursor = MULTIPLAYER_ITEMS - 1;
+         break;
 
-    case K_ENTER:
-	m_entersound = true;
-	switch (m_multiplayer_cursor) {
-	case 0:
-	    if (tcpipAvailable)
-		M_Menu_LanConfig_f();
-	    break;
+      case K_ENTER:
+         m_entersound = true;
+         switch (m_multiplayer_cursor) {
+            case 0:
+               if (tcpipAvailable)
+                  M_Menu_LanConfig_f();
+               break;
 
-	case 1:
-	    if (tcpipAvailable)
-		M_Menu_LanConfig_f();
-	    break;
+            case 1:
+               if (tcpipAvailable)
+                  M_Menu_LanConfig_f();
+               break;
 
-	case 2:
-	    M_Menu_Setup_f();
-	    break;
-	}
-    }
+            case 2:
+               M_Menu_Setup_f();
+               break;
+         }
+   }
 }
 
 //=============================================================================
@@ -721,60 +712,58 @@ static int setup_bottom;
 
 #define	NUM_SETUP_CMDS	5
 
-static void
-M_Menu_Setup_f(void)
+static void M_Menu_Setup_f(void)
 {
-    key_dest = key_menu;
-    m_state = m_setup;
-    m_entersound = true;
-    strcpy(setup_myname, cl_name.string);
-    strcpy(setup_hostname, hostname.string);
-    setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
-    setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
+   key_dest = key_menu;
+   m_state = m_setup;
+   m_entersound = true;
+   strcpy(setup_myname, cl_name.string);
+   strcpy(setup_hostname, hostname.string);
+   setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
+   setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
 }
 
 
-static void
-M_Setup_Draw(void)
+static void M_Setup_Draw(void)
 {
-    const qpic_t *p;
+   const qpic_t *p;
 
-    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
-    p = Draw_CachePic("gfx/p_multi.lmp");
-    M_DrawPic((320 - p->width) / 2, 4, p);
+   M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+   p = Draw_CachePic("gfx/p_multi.lmp");
+   M_DrawPic((320 - p->width) / 2, 4, p);
 
-    M_Print(64, 40, "Hostname");
-    M_DrawTextBox(160, 32, 16, 1);
-    M_Print(168, 40, setup_hostname);
+   M_Print(64, 40, "Hostname");
+   M_DrawTextBox(160, 32, 16, 1);
+   M_Print(168, 40, setup_hostname);
 
-    M_Print(64, 56, "Your name");
-    M_DrawTextBox(160, 48, 16, 1);
-    M_Print(168, 56, setup_myname);
+   M_Print(64, 56, "Your name");
+   M_DrawTextBox(160, 48, 16, 1);
+   M_Print(168, 56, setup_myname);
 
-    M_Print(64, 80, "Shirt color");
-    M_Print(64, 104, "Pants color");
+   M_Print(64, 80, "Shirt color");
+   M_Print(64, 104, "Pants color");
 
-    M_DrawTextBox(64, 140 - 8, 14, 1);
-    M_Print(72, 140, "Accept Changes");
+   M_DrawTextBox(64, 140 - 8, 14, 1);
+   M_Print(72, 140, "Accept Changes");
 
-    p = Draw_CachePic("gfx/bigbox.lmp");
-    M_DrawTransPic(160, 64, p);
-    p = Draw_CachePic("gfx/menuplyr.lmp");
-    M_BuildTranslationTable(setup_top * 16, setup_bottom * 16);
-    M_DrawTransPicTranslate(172, 72, p);
+   p = Draw_CachePic("gfx/bigbox.lmp");
+   M_DrawTransPic(160, 64, p);
+   p = Draw_CachePic("gfx/menuplyr.lmp");
+   M_BuildTranslationTable(setup_top * 16, setup_bottom * 16);
+   M_DrawTransPicTranslate(172, 72, p);
 
-    M_DrawCharacter(56, setup_cursor_table[setup_cursor],
-		    12 + ((int)(realtime * 4) & 1));
+   M_DrawCharacter(56, setup_cursor_table[setup_cursor],
+         12 + ((int)(realtime * 4) & 1));
 
-    if (setup_cursor == 0)
-	M_DrawCharacter(168 + 8 * strlen(setup_hostname),
-			setup_cursor_table[setup_cursor],
-			10 + ((int)(realtime * 4) & 1));
+   if (setup_cursor == 0)
+      M_DrawCharacter(168 + 8 * strlen(setup_hostname),
+            setup_cursor_table[setup_cursor],
+            10 + ((int)(realtime * 4) & 1));
 
-    if (setup_cursor == 1)
-	M_DrawCharacter(168 + 8 * strlen(setup_myname),
-			setup_cursor_table[setup_cursor],
-			10 + ((int)(realtime * 4) & 1));
+   if (setup_cursor == 1)
+      M_DrawCharacter(168 + 8 * strlen(setup_myname),
+            setup_cursor_table[setup_cursor],
+            10 + ((int)(realtime * 4) & 1));
 }
 
 

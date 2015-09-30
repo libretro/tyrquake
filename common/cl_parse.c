@@ -138,6 +138,8 @@ static int CL_ReadSoundNum(int field_mask)
          Host_Error("%s: Unknown protocol version (%d)\n", __func__,
                cl.protocol);
    }
+
+   return 0;
 }
 
 /*
@@ -148,44 +150,45 @@ CL_ParseStartSoundPacket
 void
 CL_ParseStartSoundPacket(void)
 {
-    vec3_t pos;
-    int channel, ent;
-    int sound_num;
-    int volume;
-    int field_mask;
-    float attenuation;
-    int i;
+   vec3_t pos;
+   int channel, ent;
+   int sound_num;
+   int volume;
+   float attenuation;
+   int i;
+   int field_mask = MSG_ReadByte();
 
-    field_mask = MSG_ReadByte();
+   if (field_mask & SND_VOLUME)
+      volume = MSG_ReadByte();
+   else
+      volume = DEFAULT_SOUND_PACKET_VOLUME;
 
-    if (field_mask & SND_VOLUME)
-	volume = MSG_ReadByte();
-    else
-	volume = DEFAULT_SOUND_PACKET_VOLUME;
+   if (field_mask & SND_ATTENUATION)
+      attenuation = MSG_ReadByte() / 64.0;
+   else
+      attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
-    if (field_mask & SND_ATTENUATION)
-	attenuation = MSG_ReadByte() / 64.0;
-    else
-	attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+   if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_FITZ_LARGEENTITY))
+   {
+      ent = (unsigned short)MSG_ReadShort();
+      channel = MSG_ReadByte();
+   }
+   else
+   {
+      channel = MSG_ReadShort();
+      ent = channel >> 3;
+      channel &= 7;
+   }
+   sound_num = CL_ReadSoundNum(field_mask);
 
-    if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_FITZ_LARGEENTITY)) {
-	ent = (unsigned short)MSG_ReadShort();
-	channel = MSG_ReadByte();
-    } else {
-	channel = MSG_ReadShort();
-	ent = channel >> 3;
-	channel &= 7;
-    }
-    sound_num = CL_ReadSoundNum(field_mask);
+   if (ent > MAX_EDICTS)
+      Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
 
-    if (ent > MAX_EDICTS)
-	Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
+   for (i = 0; i < 3; i++)
+      pos[i] = MSG_ReadCoord();
 
-    for (i = 0; i < 3; i++)
-	pos[i] = MSG_ReadCoord();
-
-    S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
-		 volume / 255.0, attenuation);
+   S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
+         volume / 255.0, attenuation);
 }
 
 /*
@@ -377,8 +380,7 @@ CL_ParseServerInfo(void)
 }
 
 
-static int
-CL_ReadModelIndex(unsigned int bits)
+static int CL_ReadModelIndex(unsigned int bits)
 {
    switch (cl.protocol)
    {
@@ -393,13 +395,15 @@ CL_ReadModelIndex(unsigned int bits)
             return MSG_ReadShort();
          return MSG_ReadByte();
       default:
-         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-               cl.protocol);
+         break;
    }
+
+   Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+         cl.protocol);
+   return 0; /* should never happen */
 }
 
-static int
-CL_ReadModelFrame(unsigned int bits)
+static int CL_ReadModelFrame(unsigned int bits)
 {
    switch (cl.protocol)
    {
@@ -413,9 +417,12 @@ CL_ReadModelFrame(unsigned int bits)
             return MSG_ReadShort();
          return MSG_ReadByte();
       default:
-         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-               cl.protocol);
+         break;
    }
+
+   Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+         cl.protocol);
+   return 0; /* should never happen */
 }
 
 /*
@@ -619,20 +626,20 @@ CL_ParseBaseline
 static void
 CL_ParseBaseline(entity_t *ent, unsigned int bits)
 {
-    int i;
+   int i;
 
-    ent->baseline.modelindex = CL_ReadModelIndex(bits);
-    ent->baseline.frame = CL_ReadModelFrame(bits);
-    ent->baseline.colormap = MSG_ReadByte();
-    ent->baseline.skinnum = MSG_ReadByte();
-    for (i = 0; i < 3; i++) {
-	ent->baseline.origin[i] = MSG_ReadCoord();
-	ent->baseline.angles[i] = MSG_ReadAngle();
-    }
+   ent->baseline.modelindex = CL_ReadModelIndex(bits);
+   ent->baseline.frame      = CL_ReadModelFrame(bits);
+   ent->baseline.colormap   = MSG_ReadByte();
+   ent->baseline.skinnum    = MSG_ReadByte();
+   for (i = 0; i < 3; i++)
+   {
+      ent->baseline.origin[i] = MSG_ReadCoord();
+      ent->baseline.angles[i] = MSG_ReadAngle();
+   }
 
-    if (cl.protocol == PROTOCOL_VERSION_FITZ && (bits & B_FITZ_ALPHA)) {
-	MSG_ReadByte(); // FIXME - TODO
-    }
+   if (cl.protocol == PROTOCOL_VERSION_FITZ && (bits & B_FITZ_ALPHA))
+      MSG_ReadByte(); // FIXME - TODO
 }
 
 
@@ -861,9 +868,12 @@ static int CL_ReadSoundNum_Static(void)
       case PROTOCOL_VERSION_BJP2:
          return MSG_ReadShort();
       default:
-         Host_Error("%s: Unknown protocol version (%d)\n", __func__,
-               cl.protocol);
+         break;
    }
+
+   Host_Error("%s: Unknown protocol version (%d)\n", __func__,
+         cl.protocol);
+   return 0; /* should never happen */
 }
 
 /*
