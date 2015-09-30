@@ -364,16 +364,15 @@ SV_UnlinkEdict(edict_t *ent)
 SV_TouchLinks
 ====================
 */
-static void
-SV_TouchLinks(edict_t *ent, areanode_t *node)
+static void SV_TouchLinks(edict_t *ent, areanode_t *node)
 {
    link_t *l, *next;
-   edict_t *touch;
    int old_self, old_other;
 
    /* touch linked edicts */
    for (l = node->trigger_edicts.next; l != &node->trigger_edicts; l = next)
    {
+      edict_t *touch;
       /*
        * FIXME - Just paranoia? Check if this can really happen...
        *         (I think it was related to the E2M2 drawbridge bug)
@@ -443,14 +442,15 @@ SV_FindTouchedLeafs(edict_t *ent, mnode_t *node)
    mplane_t *splitplane;
    mleaf_t *leaf;
    int sides;
-   int leafnum;
 
    if (node->contents == CONTENTS_SOLID)
       return;
 
    // add an efrag if the node is a leaf
 
-   if (node->contents < 0) {
+   if (node->contents < 0)
+   {
+      int leafnum;
       if (ent->num_leafs == MAX_ENT_LEAFS)
          return;
 
@@ -571,10 +571,11 @@ int
 SV_HullPointContents(hull_t *hull, int num, vec3_t p)
 {
    float d;
-   mclipnode_t *node;
-   mplane_t *plane;
 
-   while (num >= 0) {
+   while (num >= 0)
+   {
+      mclipnode_t *node;
+      mplane_t *plane;
       if (num < hull->firstclipnode || num > hull->lastclipnode)
          SV_Error("%s: bad node number (%i)", __func__, num);
 
@@ -922,10 +923,13 @@ static void SV_MoveBounds(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 
    for (i = 0; i < 3; i++)
    {
-      if (end[i] > start[i]) {
+      if (end[i] > start[i])
+      {
          boxmins[i] = start[i] + mins[i] - 1;
          boxmaxs[i] = end[i] + maxs[i] + 1;
-      } else {
+      }
+      else
+      {
          boxmins[i] = end[i] + mins[i] - 1;
          boxmaxs[i] = start[i] + maxs[i] + 1;
       }
@@ -941,7 +945,6 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
 	edict_t *passedict)
 {
    moveclip_t clip;
-   int i;
 
    memset(&clip, 0, sizeof(moveclip_t));
 
@@ -955,21 +958,26 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
    clip.type = type;
    clip.passedict = passedict;
 
-   if (type == MOVE_MISSILE) {
-      for (i = 0; i < 3; i++) {
+   if (type == MOVE_MISSILE)
+   {
+      int i;
+      for (i = 0; i < 3; i++)
+      {
          clip.mins2[i] = -15;
          clip.maxs2[i] = 15;
       }
-   } else {
+   }
+   else
+   {
       VectorCopy(mins, clip.mins2);
       VectorCopy(maxs, clip.maxs2);
    }
 
-   // create the bounding box of the entire move
+   /* create the bounding box of the entire move */
    SV_MoveBounds(start, clip.mins2, clip.maxs2, end, clip.boxmins,
          clip.boxmaxs);
 
-   // clip to entities
+   /* clip to entities */
    SV_ClipToLinks(sv_areanodes, &clip);
 
    return clip.trace;

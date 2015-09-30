@@ -253,11 +253,9 @@ FindChunk(const char *name, const char *filename)
 GetWavinfo
 ============
 */
-static wavinfo_t *
-GetWavinfo(const char *name, const byte *wav, int wavlength)
+static wavinfo_t *GetWavinfo(const char *name, const byte *wav, int wavlength)
 {
    static wavinfo_t info;
-   int i;
    int format;
    int samples;
 
@@ -267,11 +265,12 @@ GetWavinfo(const char *name, const byte *wav, int wavlength)
       return &info;
 
    iff_data = wav;
-   iff_end = wav + wavlength;
+   iff_end  = wav + wavlength;
 
-   // find "RIFF" chunk
+   /* find "RIFF" chunk */
    FindChunk("RIFF", name);
-   if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4))) {
+   if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4)))
+   {
       Con_Printf("Missing RIFF/WAVE chunks\n");
       return &info;
    }
@@ -298,15 +297,19 @@ GetWavinfo(const char *name, const byte *wav, int wavlength)
 
    // get cue chunk
    FindChunk("cue ", name);
-   if (data_p) {
+   if (data_p)
+   {
       data_p += 32;
       info.loopstart = GetLittleLong();
 
       // if the next chunk is a LIST chunk, look for a cue length marker
       FindNextChunk("LIST", name);
-      if (data_p) {
+      if (data_p)
+      {
          /* this is not a proper parse, but it works with cooledit... */
-         if (!strncmp((char *)data_p + 28, "mark", 4)) {
+         if (!strncmp((char *)data_p + 28, "mark", 4))
+         {
+            int i;
             data_p += 24;
             i = GetLittleLong();	// samples in loop
             info.samples = info.loopstart + i;
@@ -317,7 +320,8 @@ GetWavinfo(const char *name, const byte *wav, int wavlength)
 
    // find data chunk
    FindChunk("data", name);
-   if (!data_p) {
+   if (!data_p)
+   {
       Con_Printf("Missing data chunk\n");
       return &info;
    }
@@ -325,10 +329,12 @@ GetWavinfo(const char *name, const byte *wav, int wavlength)
    data_p += 4;
    samples = GetLittleLong() / info.width;
 
-   if (info.samples) {
+   if (info.samples)
+   {
       if (samples < info.samples)
          Sys_Error("Sound %s has a bad loop length", name);
-   } else
+   }
+   else
       info.samples = samples;
 
    info.dataofs = data_p - wav;

@@ -141,81 +141,80 @@ Z_Free(const void *ptr)
  * Z_CheckHeap
  * ========================
  */
-static void
-Z_CheckHeap(void)
+static void Z_CheckHeap(void)
 {
-    memblock_t *block;
+   memblock_t *block;
 
-    for (block = mainzone->blocklist.next;; block = block->next) {
-	if (block->next == &mainzone->blocklist)
-	    break;	/* all blocks have been hit */
-	if ((byte *)block + block->size != (byte *)block->next)
-	    Sys_Error("%s: block size does not touch the next block",
-		      __func__);
-	if (block->next->prev != block)
-	    Sys_Error("%s: next block doesn't have proper back link",
-		      __func__);
-	if (!block->tag && !block->next->tag)
-	    Sys_Error("%s: two consecutive free blocks", __func__);
-    }
+   for (block = mainzone->blocklist.next;; block = block->next)
+   {
+      if (block->next == &mainzone->blocklist)
+         break;	/* all blocks have been hit */
+      if ((byte *)block + block->size != (byte *)block->next)
+         Sys_Error("%s: block size does not touch the next block",
+               __func__);
+      if (block->next->prev != block)
+         Sys_Error("%s: next block doesn't have proper back link",
+               __func__);
+      if (!block->tag && !block->next->tag)
+         Sys_Error("%s: two consecutive free blocks", __func__);
+   }
 }
 
 
-static void *
-Z_TagMalloc(int size, int tag)
+static void *Z_TagMalloc(int size, int tag)
 {
-    int extra;
-    memblock_t *start, *rover, *newobj, *base;
+   int extra;
+   memblock_t *start, *rover, *newobj, *base;
 
-    if (!tag)
-	Sys_Error("%s: tried to use a 0 tag", __func__);
+   if (!tag)
+      Sys_Error("%s: tried to use a 0 tag", __func__);
 
-    /*
-     * Scan through the block list looking for the first free block of
-     * sufficient size
-     */
-    size += sizeof(memblock_t);	/* account for size of block header */
-    size += 4;			/* space for memory trash tester */
-    size = (size + 7) & ~7;	/* align to 8-byte boundary */
+   /*
+    * Scan through the block list looking for the first free block of
+    * sufficient size
+    */
+   size += sizeof(memblock_t);	/* account for size of block header */
+   size += 4;			/* space for memory trash tester */
+   size = (size + 7) & ~7;	/* align to 8-byte boundary */
 
-    base = rover = mainzone->rover;
-    start = base->prev;
+   base = rover = mainzone->rover;
+   start = base->prev;
 
-    do {
-	if (rover == start)	/* scaned all the way around the list */
-	    return NULL;
-	if (rover->tag)
-	    base = rover = rover->next;
-	else
-	    rover = rover->next;
-    } while (base->tag || base->size < size);
+   do {
+      if (rover == start)	/* scaned all the way around the list */
+         return NULL;
+      if (rover->tag)
+         base = rover = rover->next;
+      else
+         rover = rover->next;
+   } while (base->tag || base->size < size);
 
-    /*
-     * found a block big enough
-     */
-    extra = base->size - size;
-    if (extra > MINFRAGMENT) {
-	/* there will be a free fragment after the allocated block */
-	newobj = (memblock_t *)((byte *)base + size);
-	newobj->size = extra;
-	newobj->tag = 0;		/* free block */
-	newobj->prev = base;
-	newobj->id = ZONEID;
-	newobj->next = base->next;
-	newobj->next->prev = newobj;
-	base->next = newobj;
-	base->size = size;
-    }
+   /*
+    * found a block big enough
+    */
+   extra = base->size - size;
+   if (extra > MINFRAGMENT) {
+      /* there will be a free fragment after the allocated block */
+      newobj = (memblock_t *)((byte *)base + size);
+      newobj->size = extra;
+      newobj->tag = 0;		/* free block */
+      newobj->prev = base;
+      newobj->id = ZONEID;
+      newobj->next = base->next;
+      newobj->next->prev = newobj;
+      base->next = newobj;
+      base->size = size;
+   }
 
-    base->tag = tag;		   /* no longer a free block */
-    mainzone->rover = base->next;  /* next allocation starts looking here */
+   base->tag = tag;		   /* no longer a free block */
+   mainzone->rover = base->next;  /* next allocation starts looking here */
 
-    base->id = ZONEID;
+   base->id = ZONEID;
 
-    /* marker for memory trash testing */
-    *(int *)((byte *)base + base->size - 4) = ZONEID;
+   /* marker for memory trash testing */
+   *(int *)((byte *)base + base->size - 4) = ZONEID;
 
-    return (void *)((byte *)base + sizeof(memblock_t));
+   return (void *)((byte *)base + sizeof(memblock_t));
 }
 
 
@@ -224,18 +223,17 @@ Z_TagMalloc(int size, int tag)
  * Z_Malloc
  * ========================
  */
-void *
-Z_Malloc(int size)
+void * Z_Malloc(int size)
 {
-    void *buf;
+   void *buf;
 
-    Z_CheckHeap();		/* DEBUG */
-    buf = Z_TagMalloc(size, 1);
-    if (!buf)
-	Sys_Error("%s: failed on allocation of %i bytes", __func__, size);
-    memset(buf, 0, size);
+   Z_CheckHeap();		/* DEBUG */
+   buf = Z_TagMalloc(size, 1);
+   if (!buf)
+      Sys_Error("%s: failed on allocation of %i bytes", __func__, size);
+   memset(buf, 0, size);
 
-    return buf;
+   return buf;
 }
 
 /*
@@ -277,10 +275,11 @@ void *Z_Realloc(const void *ptr, int size)
 #define	HUNK_SENTINAL	0x1df001ed
 #define HUNK_NAMELEN	8
 
-typedef struct {
-    int sentinal;
-    int size;		/* including sizeof(hunk_t), -1 = not allocated */
-    char name[HUNK_NAMELEN]; /* not necessarily zero terminated */
+typedef struct
+{
+   int sentinal;
+   int size;		/* including sizeof(hunk_t), -1 = not allocated */
+   char name[HUNK_NAMELEN]; /* not necessarily zero terminated */
 } hunk_t;
 
 static byte *hunk_base;
@@ -485,7 +484,8 @@ void Hunk_FreeToLowMark(int mark)
 
 int Hunk_HighMark(void)
 {
-   if (hunk_tempactive) {
+   if (hunk_tempactive)
+   {
       hunk_tempactive = false;
       Hunk_FreeToHighMark(hunk_tempmark);
    }
@@ -623,27 +623,26 @@ void *Hunk_TempAllocExtend(int size)
 
 #define CACHE_NAMELEN 32
 
-typedef struct cache_system_s {
-    int size;			/* including this header */
-    cache_user_t *user;
-    char name[CACHE_NAMELEN];
-    struct cache_system_s *prev, *next;
-    struct cache_system_s *lru_prev, *lru_next;	/* for LRU flushing */
+typedef struct cache_system_s
+{
+   int size;			/* including this header */
+   cache_user_t *user;
+   char name[CACHE_NAMELEN];
+   struct cache_system_s *prev, *next;
+   struct cache_system_s *lru_prev, *lru_next;	/* for LRU flushing */
 } cache_system_t;
 
 static cache_system_t cache_head;
 static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom);
 
-static INLINE cache_system_t *
-Cache_System(const cache_user_t *c)
+static INLINE cache_system_t *Cache_System(const cache_user_t *c)
 {
-    return (cache_system_t *)((byte *)c->data - c->pad) - 1;
+   return (cache_system_t *)((byte *)c->data - c->pad) - 1;
 }
 
-static INLINE void *
-Cache_Data(const cache_system_t *c)
+static INLINE void *Cache_Data(const cache_system_t *c)
 {
-    return (byte *)(c + 1) + c->user->pad;
+   return (byte *)(c + 1) + c->user->pad;
 }
 
 /*
@@ -653,12 +652,12 @@ Cache_Data(const cache_system_t *c)
  */
 static void Cache_Move(cache_system_t *c)
 {
-   int pad;
-
    /* we are clearing up space at the bottom, so only allocate it late */
    cache_system_t *newobj = Cache_TryAlloc(c->size, true);
 
-   if (newobj) {
+   if (newobj)
+   {
+      int pad;
       memcpy(newobj + 1, c + 1, c->size - sizeof(cache_system_t));
       newobj->user = c->user;
       memcpy(newobj->name, c->name, sizeof(newobj->name));
@@ -666,7 +665,9 @@ static void Cache_Move(cache_system_t *c)
       Cache_Free(c->user);
       newobj->user->pad = pad;
       newobj->user->data = Cache_Data(newobj);
-   } else {
+   }
+   else
+   {
       /* tough luck... */
       Cache_Free(c->user);
    }
@@ -945,8 +946,6 @@ void *Cache_Alloc(cache_user_t *c, int size, const char *name)
  */
 void *Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name)
 {
-   cache_system_t *cs;
-
    if (c->data)
       Sys_Error("%s: allready allocated", __func__);
 
@@ -956,9 +955,12 @@ void *Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name)
    size = (size + pad + sizeof(cache_system_t) + 15) & ~15;
 
    /* find memory for it */
-   while (1) {
-      cs = Cache_TryAlloc(size, false);
-      if (cs) {
+   while (1)
+   {
+      cache_system_t *cs = Cache_TryAlloc(size, false);
+
+      if (cs)
+      {
          strncpy(cs->name, name, sizeof(cs->name) - 1);
          cs->user = c;
          c->pad = pad;
@@ -977,12 +979,15 @@ void *Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name)
 
 static void Cache_f(void)
 {
-   if (Cmd_Argc() == 2) {
-      if (!strcmp(Cmd_Argv(1), "print")) {
+   if (Cmd_Argc() == 2)
+   {
+      if (!strcmp(Cmd_Argv(1), "print"))
+      {
          Cache_Print();
          return;
       }
-      if (!strcmp(Cmd_Argv(1), "flush")) {
+      if (!strcmp(Cmd_Argv(1), "flush"))
+      {
          Cache_Flush();
          return;
       }

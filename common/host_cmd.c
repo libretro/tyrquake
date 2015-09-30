@@ -249,72 +249,73 @@ map <servername>
 command from the console.  Active clients are kicked off.
 ======================
 */
-void
-Host_Map_f(void)
+void Host_Map_f(void)
 {
-    int i;
-    char name[MAX_QPATH];
+   int i;
+   char name[MAX_QPATH];
 
-    if (cmd_source != src_command)
-	return;
+   if (cmd_source != src_command)
+      return;
 
-    if (Cmd_Argc() < 2) {	// no map name given
-	Con_Printf ("map <levelname>: start a new server\n");
-	if (cls.state == ca_dedicated) {
-	    if (sv.active)
-		Con_Printf ("Currently on: %s\n", sv.name);
-	    else
-		Con_Printf ("Server not active\n");
-	} else if (cls.state >= ca_connected) {
-	    Con_Printf ("Currently on: %s ( %s )\n", cl.levelname, cl.mapname);
-	}
-	return;
-    }
+   if (Cmd_Argc() < 2)
+   {
+      /* no map name given */
+      Con_Printf ("map <levelname>: start a new server\n");
+      if (cls.state == ca_dedicated)
+      {
+         if (sv.active)
+            Con_Printf ("Currently on: %s\n", sv.name);
+         else
+            Con_Printf ("Server not active\n");
+      }
+      else if (cls.state >= ca_connected)
+         Con_Printf ("Currently on: %s ( %s )\n", cl.levelname, cl.mapname);
+      return;
+   }
 
-    cls.demonum = -1;		// stop demo loop in case this fails
+   cls.demonum = -1;		// stop demo loop in case this fails
 
-    CL_Disconnect();
-    Host_ShutdownServer(false);
+   CL_Disconnect();
+   Host_ShutdownServer(false);
 
-    key_dest = key_game;	// remove console or menu
-    SCR_BeginLoadingPlaque();
+   key_dest = key_game;	// remove console or menu
+   SCR_BeginLoadingPlaque();
 
-    svs.serverflags = 0;	// haven't completed an episode yet
-    strcpy(name, Cmd_Argv(1));
+   svs.serverflags = 0;	// haven't completed an episode yet
+   strcpy(name, Cmd_Argv(1));
 
-    SV_SpawnServer(name);
+   SV_SpawnServer(name);
 
-    if (!sv.active)
-	return;
+   if (!sv.active)
+      return;
 
-    if (cls.state != ca_dedicated) {
-	strcpy(cls.spawnparms, "");
+   if (cls.state != ca_dedicated) {
+      strcpy(cls.spawnparms, "");
 
-	for (i = 2; i < Cmd_Argc(); i++) {
-	    strcat(cls.spawnparms, Cmd_Argv(i));
-	    strcat(cls.spawnparms, " ");
-	}
-	Cmd_ExecuteString("connect local", src_command);
-    }
+      for (i = 2; i < Cmd_Argc(); i++) {
+         strcat(cls.spawnparms, Cmd_Argv(i));
+         strcat(cls.spawnparms, " ");
+      }
+      Cmd_ExecuteString("connect local", src_command);
+   }
 }
 
-static struct stree_root *
-Host_Map_Arg_f(const char *arg)
+static struct stree_root * Host_Map_Arg_f(const char *arg)
 {
-    struct stree_root *root;
+   struct stree_root *root = (struct stree_root*)
+      Z_Malloc(sizeof(struct stree_root));
 
-    root = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
-    if (root) {
-    root->entries = 0;
-    root->maxlen = 0;
-    root->minlen = -1;
-    //root->root = NULL;
-    root->stack = NULL;
+   if (root)
+   {
+      root->entries = 0;
+      root->maxlen  = 0;
+      root->minlen  = -1;
+      root->stack   = NULL;
 
-	STree_AllocInit();
-	COM_ScanDir(root, "maps", arg, ".bsp", true);
-    }
-    return root;
+      STree_AllocInit();
+      COM_ScanDir(root, "maps", arg, ".bsp", true);
+   }
+   return root;
 }
 
 /*
@@ -326,20 +327,23 @@ Goes to a new map, taking all clients along
 */
 void Host_Changelevel_f(void)
 {
-    char level[MAX_QPATH];
+   char level[MAX_QPATH];
 
-    if (Cmd_Argc() != 2) {
-	Con_Printf
-	    ("changelevel <levelname> : continue game on a new level\n");
-	return;
-    }
-    if (!sv.active || cls.demoplayback) {
-	Con_Printf("Only the server may changelevel\n");
-	return;
-    }
-    SV_SaveSpawnparms();
-    strcpy(level, Cmd_Argv(1));
-    SV_SpawnServer(level);
+   if (Cmd_Argc() != 2)
+   {
+      Con_Printf
+         ("changelevel <levelname> : continue game on a new level\n");
+      return;
+   }
+
+   if (!sv.active || cls.demoplayback)
+   {
+      Con_Printf("Only the server may changelevel\n");
+      return;
+   }
+   SV_SaveSpawnparms();
+   strcpy(level, Cmd_Argv(1));
+   SV_SpawnServer(level);
 }
 
 /*
@@ -349,19 +353,18 @@ Host_Restart_f
 Restarts the current server for a dead player
 ==================
 */
-void
-Host_Restart_f(void)
+void Host_Restart_f(void)
 {
-    char mapname[MAX_QPATH];
+   char mapname[MAX_QPATH];
 
-    if (cls.demoplayback || !sv.active)
-	return;
+   if (cls.demoplayback || !sv.active)
+      return;
 
-    if (cmd_source != src_command)
-	return;
-    strcpy(mapname, sv.name);	// must copy out, because it gets cleared
-    // in sv_spawnserver
-    SV_SpawnServer(mapname);
+   if (cmd_source != src_command)
+      return;
+   strcpy(mapname, sv.name);	// must copy out, because it gets cleared
+   // in sv_spawnserver
+   SV_SpawnServer(mapname);
 }
 
 /*
@@ -372,17 +375,16 @@ This command causes the client to wait for the signon messages again.
 This is sent just before a server changes levels
 ==================
 */
-void
-Host_Reconnect_f(void)
+void Host_Reconnect_f(void)
 {
-    SCR_BeginLoadingPlaque();
-    cls.signon = 0;		// need new connection messages
+   SCR_BeginLoadingPlaque();
+   cls.signon = 0;		// need new connection messages
 
-    // FIXME - this check is just paranoia until I understand it better
-    if (cls.state < ca_connected)
-	Host_Error("Host_Reconnect_f: cls.state < ca_connected");
+   // FIXME - this check is just paranoia until I understand it better
+   if (cls.state < ca_connected)
+      Host_Error("Host_Reconnect_f: cls.state < ca_connected");
 
-    cls.state = ca_connected;
+   cls.state = ca_connected;
 }
 
 /*
@@ -392,19 +394,19 @@ Host_Connect_f
 User command to connect to server
 =====================
 */
-void
-Host_Connect_f(void)
+void Host_Connect_f(void)
 {
-    char name[MAX_QPATH];
+   char name[MAX_QPATH];
 
-    cls.demonum = -1;		// stop demo loop in case this fails
-    if (cls.demoplayback) {
-	CL_StopPlayback();
-	CL_Disconnect();
-    }
-    strcpy(name, Cmd_Argv(1));
-    CL_EstablishConnection(name);
-    Host_Reconnect_f();
+   cls.demonum = -1;		// stop demo loop in case this fails
+   if (cls.demoplayback)
+   {
+      CL_StopPlayback();
+      CL_Disconnect();
+   }
+   strcpy(name, Cmd_Argv(1));
+   CL_EstablishConnection(name);
+   Host_Reconnect_f();
 }
 
 
@@ -425,23 +427,22 @@ Host_SavegameComment
 Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 ===============
 */
-void
-Host_SavegameComment(char *text)
+void Host_SavegameComment(char *text)
 {
-    int i;
-    char kills[20];
+   int i;
+   char kills[20];
 
-    for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
-	text[i] = ' ';
-    memcpy(text, cl.levelname, strlen(cl.levelname));
-    sprintf(kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS],
-	    cl.stats[STAT_TOTALMONSTERS]);
-    memcpy(text + 22, kills, strlen(kills));
-// convert space to _ to make stdio happy
-    for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
-	if (text[i] == ' ')
-	    text[i] = '_';
-    text[SAVEGAME_COMMENT_LENGTH] = '\0';
+   for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
+      text[i] = ' ';
+   memcpy(text, cl.levelname, strlen(cl.levelname));
+   sprintf(kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS],
+         cl.stats[STAT_TOTALMONSTERS]);
+   memcpy(text + 22, kills, strlen(kills));
+   // convert space to _ to make stdio happy
+   for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
+      if (text[i] == ' ')
+         text[i] = '_';
+   text[SAVEGAME_COMMENT_LENGTH] = '\0';
 }
 
 
@@ -450,90 +451,89 @@ Host_SavegameComment(char *text)
 Host_Savegame_f
 ===============
 */
-void
-Host_Savegame_f(void)
+void Host_Savegame_f(void)
 {
-    char name[256];
-    FILE *f;
-    int i;
-    char comment[SAVEGAME_COMMENT_LENGTH + 1];
+   char name[256];
+   FILE *f;
+   int i;
+   char comment[SAVEGAME_COMMENT_LENGTH + 1];
 
-    if (cmd_source != src_command)
-	return;
+   if (cmd_source != src_command)
+      return;
 
-    if (!sv.active) {
-	Con_Printf("Not playing a local game.\n");
-	return;
-    }
+   if (!sv.active) {
+      Con_Printf("Not playing a local game.\n");
+      return;
+   }
 
-    if (cl.intermission) {
-	Con_Printf("Can't save in intermission.\n");
-	return;
-    }
+   if (cl.intermission) {
+      Con_Printf("Can't save in intermission.\n");
+      return;
+   }
 
-    if (svs.maxclients != 1) {
-	Con_Printf("Can't save multiplayer games.\n");
-	return;
-    }
+   if (svs.maxclients != 1) {
+      Con_Printf("Can't save multiplayer games.\n");
+      return;
+   }
 
-    if (Cmd_Argc() != 2) {
-	Con_Printf("save <savename> : save a game\n");
-	return;
-    }
+   if (Cmd_Argc() != 2) {
+      Con_Printf("save <savename> : save a game\n");
+      return;
+   }
 
-    if (strstr(Cmd_Argv(1), "..")) {
-	Con_Printf("Relative pathnames are not allowed.\n");
-	return;
-    }
+   if (strstr(Cmd_Argv(1), "..")) {
+      Con_Printf("Relative pathnames are not allowed.\n");
+      return;
+   }
 
-    for (i = 0; i < svs.maxclients; i++) {
-	if (svs.clients[i].active && (svs.clients[i].edict->v.health <= 0)) {
-	    Con_Printf("Can't savegame with a dead player\n");
-	    return;
-	}
-    }
+   for (i = 0; i < svs.maxclients; i++) {
+      if (svs.clients[i].active && (svs.clients[i].edict->v.health <= 0)) {
+         Con_Printf("Can't savegame with a dead player\n");
+         return;
+      }
+   }
 
 #ifdef _WIN32
-    char slash = '\\';
+   char slash = '\\';
 #else
-    char slash = '/';
+   char slash = '/';
 #endif
-    sprintf(name, "%s%c%s", com_gamedir, slash, Cmd_Argv(1));
-    COM_DefaultExtension(name, ".sav");
+   sprintf(name, "%s%c%s", com_gamedir, slash, Cmd_Argv(1));
+   COM_DefaultExtension(name, ".sav");
 
-    Con_Printf("Saving game to %s...\n", name);
-    f = fopen(name, "w");
-    if (!f) {
-	Con_Printf("ERROR: couldn't open.\n");
-	return;
-    }
+   Con_Printf("Saving game to %s...\n", name);
+   f = fopen(name, "w");
+   if (!f) {
+      Con_Printf("ERROR: couldn't open.\n");
+      return;
+   }
 
-    fprintf(f, "%i\n", SAVEGAME_VERSION);
-    Host_SavegameComment(comment);
-    fprintf(f, "%s\n", comment);
-    for (i = 0; i < NUM_SPAWN_PARMS; i++)
-	fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
-    fprintf(f, "%d\n", current_skill);
-    fprintf(f, "%s\n", sv.name);
-    fprintf(f, "%f\n", sv.time);
+   fprintf(f, "%i\n", SAVEGAME_VERSION);
+   Host_SavegameComment(comment);
+   fprintf(f, "%s\n", comment);
+   for (i = 0; i < NUM_SPAWN_PARMS; i++)
+      fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
+   fprintf(f, "%d\n", current_skill);
+   fprintf(f, "%s\n", sv.name);
+   fprintf(f, "%f\n", sv.time);
 
-// write the light styles
+   // write the light styles
 
-    for (i = 0; i < MAX_LIGHTSTYLES; i++) {
-	if (sv.lightstyles[i])
-	    fprintf(f, "%s\n", sv.lightstyles[i]);
-	else
-	    fprintf(f, "m\n");
-    }
+   for (i = 0; i < MAX_LIGHTSTYLES; i++) {
+      if (sv.lightstyles[i])
+         fprintf(f, "%s\n", sv.lightstyles[i]);
+      else
+         fprintf(f, "m\n");
+   }
 
 
-    ED_WriteGlobals(f);
-    for (i = 0; i < sv.num_edicts; i++) {
-	ED_Write(f, EDICT_NUM(i));
-	fflush(f);
-    }
-    fclose(f);
-    Con_Printf("done.\n");
+   ED_WriteGlobals(f);
+   for (i = 0; i < sv.num_edicts; i++) {
+      ED_Write(f, EDICT_NUM(i));
+      fflush(f);
+   }
+   fclose(f);
+   Con_Printf("done.\n");
 }
 
 
@@ -544,7 +544,6 @@ Host_Loadgame_f
 */
 void Host_Loadgame_f(void)
 {
-   int unused;
    char name[MAX_OSPATH];
    FILE *f;
    char mapname[MAX_QPATH];
@@ -588,7 +587,7 @@ void Host_Loadgame_f(void)
       return;
    }
 
-   unused = fscanf(f, "%i\n", &version);
+   fscanf(f, "%i\n", &version);
    if (version != SAVEGAME_VERSION)
    {
       fclose(f);
@@ -596,20 +595,20 @@ void Host_Loadgame_f(void)
             SAVEGAME_VERSION);
       return;
    }
-   unused = fscanf(f, "%s\n", str);
+   fscanf(f, "%s\n", str);
    for (i = 0; i < NUM_SPAWN_PARMS; i++)
-      unused = fscanf(f, "%f\n", &spawn_parms[i]);
+      fscanf(f, "%f\n", &spawn_parms[i]);
 
    /*
     * This silliness is so we can load 1.06 save files, which have float
     * skill values
     */
-   unused = fscanf(f, "%f\n", &tfloat);
+   fscanf(f, "%f\n", &tfloat);
    current_skill = (int)(tfloat + 0.1);
    Cvar_SetValue("skill", (float)current_skill);
 
-   unused = fscanf(f, "%s\n", mapname);
-   unused = fscanf(f, "%f\n", &time);
+   fscanf(f, "%s\n", mapname);
+   fscanf(f, "%f\n", &time);
 
    CL_Disconnect_f();
 
@@ -627,7 +626,7 @@ void Host_Loadgame_f(void)
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++)
    {
-      unused = fscanf(f, "%s\n", str);
+      fscanf(f, "%s\n", str);
       lightstyle = (char*)Hunk_Alloc(strlen(str) + 1);
       strcpy(lightstyle, str);
       sv.lightstyles[i] = lightstyle;
@@ -693,41 +692,40 @@ void Host_Loadgame_f(void)
 Host_Name_f
 ======================
 */
-void
-Host_Name_f(void)
+void Host_Name_f(void)
 {
-    char new_name[16];
+   char new_name[16];
 
-    if (Cmd_Argc() == 1) {
-	Con_Printf("\"name\" is \"%s\"\n", cl_name.string);
-	return;
-    }
-    if (Cmd_Argc() == 2)
-	strncpy(new_name, Cmd_Argv(1), sizeof(new_name));
-    else
-	strncpy(new_name, Cmd_Args(), sizeof(new_name));
-    new_name[sizeof(new_name) - 1] = 0;
+   if (Cmd_Argc() == 1) {
+      Con_Printf("\"name\" is \"%s\"\n", cl_name.string);
+      return;
+   }
+   if (Cmd_Argc() == 2)
+      strncpy(new_name, Cmd_Argv(1), sizeof(new_name));
+   else
+      strncpy(new_name, Cmd_Args(), sizeof(new_name));
+   new_name[sizeof(new_name) - 1] = 0;
 
-    if (cmd_source == src_command) {
-	if (strcmp(cl_name.string, new_name) == 0)
-	    return;
-	Cvar_Set("_cl_name", new_name);
-	if (cls.state >= ca_connected)
-	    Cmd_ForwardToServer();
-	return;
-    }
+   if (cmd_source == src_command) {
+      if (strcmp(cl_name.string, new_name) == 0)
+         return;
+      Cvar_Set("_cl_name", new_name);
+      if (cls.state >= ca_connected)
+         Cmd_ForwardToServer();
+      return;
+   }
 
-    if (host_client->name[0] && strcmp(host_client->name, "unconnected"))
-	if (strcmp(host_client->name, new_name) != 0)
-	    Con_Printf("%s renamed to %s\n", host_client->name, new_name);
-    strcpy(host_client->name, new_name);
-    host_client->edict->v.netname = PR_SetString(host_client->name);
+   if (host_client->name[0] && strcmp(host_client->name, "unconnected"))
+      if (strcmp(host_client->name, new_name) != 0)
+         Con_Printf("%s renamed to %s\n", host_client->name, new_name);
+   strcpy(host_client->name, new_name);
+   host_client->edict->v.netname = PR_SetString(host_client->name);
 
-// send notification to all clients
+   // send notification to all clients
 
-    MSG_WriteByte(&sv.reliable_datagram, svc_updatename);
-    MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
-    MSG_WriteString(&sv.reliable_datagram, host_client->name);
+   MSG_WriteByte(&sv.reliable_datagram, svc_updatename);
+   MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
+   MSG_WriteString(&sv.reliable_datagram, host_client->name);
 }
 
 
@@ -813,50 +811,49 @@ Host_Say_Team_f(void)
 }
 
 
-void
-Host_Tell_f(void)
+void Host_Tell_f(void)
 {
-    client_t *client;
-    client_t *save;
-    int i, len, space;
-    const char *p;
-    char text[64];
+   client_t *client;
+   client_t *save;
+   int i, len, space;
+   const char *p;
+   char text[64];
 
-    if (cmd_source == src_command) {
-	Cmd_ForwardToServer();
-	return;
-    }
+   if (cmd_source == src_command) {
+      Cmd_ForwardToServer();
+      return;
+   }
 
-    if (Cmd_Argc() < 3)
-	return;
+   if (Cmd_Argc() < 3)
+      return;
 
-    strcpy(text, host_client->name);
-    strcat(text, ": ");
+   strcpy(text, host_client->name);
+   strcat(text, ": ");
 
-    len = strlen(text);
-    space = sizeof(text) - len - 2; // -2 for \n and null terminator
-    p = Cmd_Args();
-    if (*p == '"') {
-	/* remove quotes */
-	strncat(text, p + 1, qmin((int)strlen(p) - 2, space));
-	text[len + qmin((int)strlen(p) - 2, space)] = 0;
-    } else {
-	strncat(text, p, space);
-	text[len + qmin((int)strlen(p), space)] = 0;
-    }
-    strcat(text, "\n");
+   len = strlen(text);
+   space = sizeof(text) - len - 2; // -2 for \n and null terminator
+   p = Cmd_Args();
+   if (*p == '"') {
+      /* remove quotes */
+      strncat(text, p + 1, qmin((int)strlen(p) - 2, space));
+      text[len + qmin((int)strlen(p) - 2, space)] = 0;
+   } else {
+      strncat(text, p, space);
+      text[len + qmin((int)strlen(p), space)] = 0;
+   }
+   strcat(text, "\n");
 
-    save = host_client;
-    for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++) {
-	if (!client->active || !client->spawned)
-	    continue;
-	if (strcasecmp(client->name, Cmd_Argv(1)))
-	    continue;
-	host_client = client;
-	SV_ClientPrintf("%s", text);
-	break;
-    }
-    host_client = save;
+   save = host_client;
+   for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++) {
+      if (!client->active || !client->spawned)
+         continue;
+      if (strcasecmp(client->name, Cmd_Argv(1)))
+         continue;
+      host_client = client;
+      SV_ClientPrintf("%s", text);
+      break;
+   }
+   host_client = save;
 }
 
 

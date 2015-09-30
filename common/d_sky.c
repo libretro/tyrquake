@@ -70,12 +70,8 @@ D_DrawSkyScans8
 */
 void D_DrawSkyScans8 (espan_t *pspan)
 {
-   int            spancount;
-   fixed16_t      s, t, snext, tnext;
-   int            spancountminus1;
+   fixed16_t      s, t;
 
-   int sstep2 = 0;
-   int tstep2 = 0;
    timespeed1=skytime*skyspeed;
    timespeed2=timespeed1*2.0;
 
@@ -84,7 +80,7 @@ void D_DrawSkyScans8 (espan_t *pspan)
 
    do
    {
-      fixed16_t      s2, t2;
+      fixed16_t      snext, tnext, s2, t2;
       uint8_t *pdest = (uint8_t*)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
       int count      = pspan->count;
@@ -97,12 +93,14 @@ void D_DrawSkyScans8 (espan_t *pspan)
 
       do
       {
-         fixed16_t snext2, tnext2;
+         int sstep2 = 0;
+         int tstep2 = 0;
+         fixed16_t snext2 = 0;
+         fixed16_t tnext2 = 0;
+         int spancount    = count;
 
          if (count >= SKY_SPAN_MAX)
             spancount = SKY_SPAN_MAX;
-         else
-            spancount = count;
 
          count -= spancount;
 
@@ -125,7 +123,7 @@ void D_DrawSkyScans8 (espan_t *pspan)
          {
             // calculate s and t at last pixel in span,
             // calculate s and t steps across span by division
-            spancountminus1 = (float)(spancount - 1);
+            int spancountminus1 = (float)(spancount - 1);
 
             if (spancountminus1 > 0)
             {

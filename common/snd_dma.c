@@ -745,16 +745,19 @@ console functions
 static void S_Play(void)
 {
    static int hash = 345;
-   int i;
    char name[256];
-   sfx_t *sfx;
+   int i = 1;
 
-   i = 1;
-   while (i < Cmd_Argc()) {
-      if (!strrchr(Cmd_Argv(i), '.')) {
+   while (i < Cmd_Argc())
+   {
+      sfx_t *sfx;
+
+      if (!strrchr(Cmd_Argv(i), '.'))
+      {
          strcpy(name, Cmd_Argv(i));
          strcat(name, ".wav");
-      } else
+      }
+      else
          strcpy(name, Cmd_Argv(i));
       sfx = S_PrecacheSound(name);
       S_StartSound(hash++, 0, sfx, listener_origin, 1.0, 1.0);
@@ -765,17 +768,20 @@ static void S_Play(void)
 static void S_PlayVol(void)
 {
    static int hash = 543;
-   int i;
-   float vol;
    char name[256];
-   sfx_t *sfx;
+   int i = 1;
 
-   i = 1;
-   while (i < Cmd_Argc()) {
-      if (!strrchr(Cmd_Argv(i), '.')) {
+   while (i < Cmd_Argc())
+   {
+      float vol;
+      sfx_t *sfx;
+
+      if (!strrchr(Cmd_Argv(i), '.'))
+      {
          strcpy(name, Cmd_Argv(i));
          strcat(name, ".wav");
-      } else
+      }
+      else
          strcpy(name, Cmd_Argv(i));
       sfx = S_PrecacheSound(name);
       vol = Q_atof(Cmd_Argv(i + 1));
@@ -786,14 +792,13 @@ static void S_PlayVol(void)
 
 static void S_SoundList(void)
 {
-   int i;
    sfx_t *sfx;
-   sfxcache_t *sc;
-   int size, total;
+   int i, size;
+   int total = 0;
 
-   total = 0;
-   for (sfx = known_sfx, i = 0; i < num_sfx; i++, sfx++) {
-      sc = (sfxcache_t*)Cache_Check(&sfx->cache);
+   for (sfx = known_sfx, i = 0; i < num_sfx; i++, sfx++)
+   {
+      sfxcache_t *sc = (sfxcache_t*)Cache_Check(&sfx->cache);
       if (!sc)
          continue;
       size = sc->length * sc->width * (sc->stereo + 1);

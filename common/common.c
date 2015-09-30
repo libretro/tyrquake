@@ -1770,8 +1770,8 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
 {
    int i;
    searchpath_t *search;
-   pack_t *pak;
    char pakfile[MAX_OSPATH];
+   pack_t *pak = NULL;
 #ifdef _WIN32
    const char slash = '\\';
 #else
@@ -1782,7 +1782,7 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
       return;
 
 #ifdef _XBOX360
-   if (dir == "")
+   if (!strcmp(dir, ""))
       strcpy(com_gamedir, base);
    else
 #endif
@@ -1790,8 +1790,7 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
 
 #ifdef QW_HACK
    {
-      char *p;
-      p = strrchr(com_gamedir, slash);
+      char *p = strrchr(com_gamedir, slash);
       strcpy(gamedirfile, ++p);
    }
 #endif

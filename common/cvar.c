@@ -279,42 +279,42 @@ Cvar_RegisterVariable
 Adds a freestanding variable to the variable list.
 ============
 */
-void
-Cvar_RegisterVariable(cvar_t *variable)
+void Cvar_RegisterVariable(cvar_t *variable)
 {
-    char value[512];		// FIXME - magic numbers...
-    float old_developer;
+   char value[512];		// FIXME - magic numbers...
+   float old_developer;
 
-    /* first check to see if it has allready been defined */
-    if (Cvar_FindVar(variable->name)) {
-	Con_Printf("Can't register variable %s, allready defined\n",
-		   variable->name);
-	return;
-    }
-    /* check for overlap with a command */
-    if (Cmd_Exists(variable->name)) {
-	Con_Printf("Cvar_RegisterVariable: %s is a command\n",
-		   variable->name);
-	return;
-    }
+   /* first check to see if it has allready been defined */
+   if (Cvar_FindVar(variable->name))
+   {
+      Con_Printf("Can't register variable %s, allready defined\n",
+            variable->name);
+      return;
+   }
+   /* check for overlap with a command */
+   if (Cmd_Exists(variable->name)) {
+      Con_Printf("Cvar_RegisterVariable: %s is a command\n",
+            variable->name);
+      return;
+   }
 
-    variable->stree.string = variable->name;
-    STree_Insert(&cvar_tree, &variable->stree);
+   variable->stree.string = variable->name;
+   STree_Insert(&cvar_tree, &variable->stree);
 
-// copy the value off, because future sets will Z_Free it
-    strncpy(value, variable->string, 511);
-    value[511] = '\0';
-    variable->string = (const char*)Z_Malloc(1);
+   // copy the value off, because future sets will Z_Free it
+   strncpy(value, variable->string, 511);
+   value[511] = '\0';
+   variable->string = (const char*)Z_Malloc(1);
 
-    /*
-     * FIXME (BARF) - readonly cvars need to be initialised
-     *                developer 1 allows set
-     */
-    /* set it through the function to be consistant */
-    old_developer = developer.value;
-    developer.value = 1;
-    Cvar_Set(variable->name, value);
-    developer.value = old_developer;
+   /*
+    * FIXME (BARF) - readonly cvars need to be initialised
+    *                developer 1 allows set
+    */
+   /* set it through the function to be consistant */
+   old_developer = developer.value;
+   developer.value = 1;
+   Cvar_Set(variable->name, value);
+   developer.value = old_developer;
 }
 
 /*
@@ -324,27 +324,25 @@ Cvar_Command
 Handles variable inspection and changing from the console
 ============
 */
-qboolean
-Cvar_Command(void)
+qboolean Cvar_Command(void)
 {
-    cvar_t *v;
+   /* check variables */
+   cvar_t *v = Cvar_FindVar(Cmd_Argv(0));
+   if (!v)
+      return false;
 
-// check variables
-    v = Cvar_FindVar(Cmd_Argv(0));
-    if (!v)
-	return false;
+   /* perform a variable print or set */
+   if (Cmd_Argc() == 1)
+   {
+      if (v->flags & CVAR_OBSOLETE)
+         Con_Printf("%s is obsolete.\n", v->name);
+      else
+         Con_Printf("\"%s\" is \"%s\"\n", v->name, v->string);
+      return true;
+   }
 
-// perform a variable print or set
-    if (Cmd_Argc() == 1) {
-	if (v->flags & CVAR_OBSOLETE)
-	    Con_Printf("%s is obsolete.\n", v->name);
-	else
-	    Con_Printf("\"%s\" is \"%s\"\n", v->name, v->string);
-	return true;
-    }
-
-    Cvar_Set(v->name, Cmd_Argv(1));
-    return true;
+   Cvar_Set(v->name, Cmd_Argv(1));
+   return true;
 }
 
 
@@ -356,15 +354,14 @@ Writes lines containing "set variable value" for all variables
 with the archive flag set to true.
 ============
 */
-void
-Cvar_WriteVariables(FILE *f)
+void Cvar_WriteVariables(FILE *f)
 {
-    cvar_t *var;
-    struct stree_node *n;
+   struct stree_node *n;
 
-    STree_ForEach_After_NullStr(&cvar_tree, n) {
-	var = cvar_entry(n);
-	if (var->archive)
-	    fprintf(f, "%s \"%s\"\n", var->name, var->string);
-    }
+   STree_ForEach_After_NullStr(&cvar_tree, n)
+   {
+      cvar_t *var = cvar_entry(n);
+      if (var->archive)
+         fprintf(f, "%s \"%s\"\n", var->name, var->string);
+   }
 }

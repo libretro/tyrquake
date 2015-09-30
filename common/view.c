@@ -88,28 +88,27 @@ void V_NewMap (void)
    v_steptime = 0;
 }
 
-float
-V_CalcRoll(vec3_t angles, vec3_t velocity)
+float V_CalcRoll(vec3_t angles, vec3_t velocity)
 {
-    float sign;
-    float side;
-    float value;
+   float sign;
+   float side;
+   float value;
 
-    AngleVectors(angles, forward, right, up);
-    side = DotProduct(velocity, right);
-    sign = side < 0 ? -1 : 1;
-    side = fabs(side);
+   AngleVectors(angles, forward, right, up);
+   side = DotProduct(velocity, right);
+   sign = side < 0 ? -1 : 1;
+   side = fabs(side);
 
-    value = cl_rollangle.value;
-//      if (cl.inwater)
-//              value *= 6;
+   value = cl_rollangle.value;
+   //      if (cl.inwater)
+   //              value *= 6;
 
-    if (side < cl_rollspeed.value)
-	side = side * value / cl_rollspeed.value;
-    else
-	side = value;
+   if (side < cl_rollspeed.value)
+      side = side * value / cl_rollspeed.value;
+   else
+      side = value;
 
-    return side * sign;
+   return side * sign;
 
 }
 
@@ -120,38 +119,37 @@ V_CalcBob
 
 ===============
 */
-float
-V_CalcBob(void)
+float V_CalcBob(void)
 {
-    float bob;
-    float cycle;
+   float bob;
+   float cycle;
 
-    /* Avoid divide-by-zero, don't bob */
-    if (!cl_bobcycle.value)
-	return 0.0f;
+   /* Avoid divide-by-zero, don't bob */
+   if (!cl_bobcycle.value)
+      return 0.0f;
 
-    cycle = cl.time - (int)(cl.time / cl_bobcycle.value) * cl_bobcycle.value;
-    cycle /= cl_bobcycle.value;
-    if (cycle < cl_bobup.value)
-	cycle = M_PI * cycle / cl_bobup.value;
-    else
-	cycle =
-	    M_PI + M_PI * (cycle - cl_bobup.value) / (1.0 - cl_bobup.value);
+   cycle = cl.time - (int)(cl.time / cl_bobcycle.value) * cl_bobcycle.value;
+   cycle /= cl_bobcycle.value;
+   if (cycle < cl_bobup.value)
+      cycle = M_PI * cycle / cl_bobup.value;
+   else
+      cycle =
+         M_PI + M_PI * (cycle - cl_bobup.value) / (1.0 - cl_bobup.value);
 
-// bob is proportional to velocity in the xy plane
-// (don't count Z, or jumping messes it up)
+   // bob is proportional to velocity in the xy plane
+   // (don't count Z, or jumping messes it up)
 
-    bob =
-	sqrt(cl.velocity[0] * cl.velocity[0] +
-	     cl.velocity[1] * cl.velocity[1]) * cl_bob.value;
-//Con_Printf ("speed: %5.1f\n", Length(cl.velocity));
-    bob = bob * 0.3 + bob * 0.7 * sin(cycle);
-    if (bob > 4)
-	bob = 4;
-    else if (bob < -7)
-	bob = -7;
+   bob =
+      sqrt(cl.velocity[0] * cl.velocity[0] +
+            cl.velocity[1] * cl.velocity[1]) * cl_bob.value;
+   //Con_Printf ("speed: %5.1f\n", Length(cl.velocity));
+   bob = bob * 0.3 + bob * 0.7 * sin(cycle);
+   if (bob > 4)
+      bob = 4;
+   else if (bob < -7)
+      bob = -7;
 
-    return bob;
+   return bob;
 }
 
 
@@ -162,27 +160,25 @@ cvar_t v_centermove = { "v_centermove", "0.15", false };
 cvar_t v_centerspeed = { "v_centerspeed", "500" };
 
 
-void
-V_StartPitchDrift(void)
+void V_StartPitchDrift(void)
 {
 #if 1
-    if (cl.laststop == cl.time) {
-	return;			// something else is keeping it from drifting
-    }
+   if (cl.laststop == cl.time)
+      return;			// something else is keeping it from drifting
 #endif
-    if (cl.nodrift || !cl.pitchvel) {
-	cl.pitchvel = v_centerspeed.value;
-	cl.nodrift = false;
-	cl.driftmove = 0;
-    }
+   if (cl.nodrift || !cl.pitchvel)
+   {
+      cl.pitchvel = v_centerspeed.value;
+      cl.nodrift = false;
+      cl.driftmove = 0;
+   }
 }
 
-void
-V_StopPitchDrift(void)
+void V_StopPitchDrift(void)
 {
-    cl.laststop = cl.time;
-    cl.nodrift = true;
-    cl.pitchvel = 0;
+   cl.laststop = cl.time;
+   cl.nodrift = true;
+   cl.pitchvel = 0;
 }
 
 /*
@@ -198,52 +194,51 @@ Drifting is enabled when the center view key is hit, mlook is released and
 lookspring is non 0, or when
 ===============
 */
-void
-V_DriftPitch(void)
+void V_DriftPitch(void)
 {
-    float delta, move;
+   float delta, move;
 
-    if (noclip_anglehack || !cl.onground || cls.demoplayback) {
-	cl.driftmove = 0;
-	cl.pitchvel = 0;
-	return;
-    }
-// don't count small mouse motion
-    if (cl.nodrift) {
-	if (fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
-	    cl.driftmove = 0;
-	else
-	    cl.driftmove += host_frametime;
+   if (noclip_anglehack || !cl.onground || cls.demoplayback) {
+      cl.driftmove = 0;
+      cl.pitchvel = 0;
+      return;
+   }
+   // don't count small mouse motion
+   if (cl.nodrift) {
+      if (fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
+         cl.driftmove = 0;
+      else
+         cl.driftmove += host_frametime;
 
-	if (cl.driftmove > v_centermove.value) {
-	    V_StartPitchDrift();
-	}
-	return;
-    }
+      if (cl.driftmove > v_centermove.value) {
+         V_StartPitchDrift();
+      }
+      return;
+   }
 
-    delta = cl.idealpitch - cl.viewangles[PITCH];
+   delta = cl.idealpitch - cl.viewangles[PITCH];
 
-    if (!delta) {
-	cl.pitchvel = 0;
-	return;
-    }
+   if (!delta) {
+      cl.pitchvel = 0;
+      return;
+   }
 
-    move = host_frametime * cl.pitchvel;
-    cl.pitchvel += host_frametime * v_centerspeed.value;
+   move = host_frametime * cl.pitchvel;
+   cl.pitchvel += host_frametime * v_centerspeed.value;
 
-    if (delta > 0) {
-	if (move > delta) {
-	    cl.pitchvel = 0;
-	    move = delta;
-	}
-	cl.viewangles[PITCH] += move;
-    } else if (delta < 0) {
-	if (move > -delta) {
-	    cl.pitchvel = 0;
-	    move = -delta;
-	}
-	cl.viewangles[PITCH] -= move;
-    }
+   if (delta > 0) {
+      if (move > delta) {
+         cl.pitchvel = 0;
+         move = delta;
+      }
+      cl.viewangles[PITCH] += move;
+   } else if (delta < 0) {
+      if (move > -delta) {
+         cl.pitchvel = 0;
+         move = -delta;
+      }
+      cl.viewangles[PITCH] -= move;
+   }
 }
 
 
@@ -268,25 +263,26 @@ cvar_t v_gamma = { "gamma", "1", true };
 
 byte gammatable[256];		// palette is sent through this
 
-void
-BuildGammaTable(float g)
+void BuildGammaTable(float g)
 {
-    int i, inf;
+   int i;
 
-    if (g == 1.0) {
-	for (i = 0; i < 256; i++)
-	    gammatable[i] = i;
-	return;
-    }
+   if (g == 1.0)
+   {
+      for (i = 0; i < 256; i++)
+         gammatable[i] = i;
+      return;
+   }
 
-    for (i = 0; i < 256; i++) {
-	inf = 255 * powf((i + 0.5) / 255.5, g) + 0.5;
-	if (inf < 0)
-	    inf = 0;
-	if (inf > 255)
-	    inf = 255;
-	gammatable[i] = inf;
-    }
+   for (i = 0; i < 256; i++)
+   {
+      int inf = 255 * powf((i + 0.5) / 255.5, g) + 0.5;
+      if (inf < 0)
+         inf = 0;
+      if (inf > 255)
+         inf = 255;
+      gammatable[i] = inf;
+   }
 }
 
 /*
@@ -294,19 +290,18 @@ BuildGammaTable(float g)
 V_CheckGamma
 =================
 */
-qboolean
-V_CheckGamma(void)
+qboolean V_CheckGamma(void)
 {
-    static float oldgammavalue;
+   static float oldgammavalue;
 
-    if (v_gamma.value == oldgammavalue)
-	return false;
-    oldgammavalue = v_gamma.value;
+   if (v_gamma.value == oldgammavalue)
+      return false;
+   oldgammavalue = v_gamma.value;
 
-    BuildGammaTable(v_gamma.value);
-    vid.recalc_refdef = 1;	// force a surface cache flush
+   BuildGammaTable(v_gamma.value);
+   vid.recalc_refdef = 1;	// force a surface cache flush
 
-    return true;
+   return true;
 }
 
 
@@ -316,70 +311,66 @@ V_CheckGamma(void)
 V_ParseDamage
 ===============
 */
-void
-V_ParseDamage(void)
+void V_ParseDamage(void)
 {
-    int armor, blood;
-    vec3_t from;
-    int i;
-    vec3_t forward, right, up;
-    const entity_t *ent;
-    float side;
-    float count;
+   vec3_t from;
+   int i;
+   vec3_t forward, right, up;
+   const entity_t *ent;
+   float side;
+   float count;
+   int armor = MSG_ReadByte();
+   int blood = MSG_ReadByte();
 
-    armor = MSG_ReadByte();
-    blood = MSG_ReadByte();
-    for (i = 0; i < 3; i++)
-	from[i] = MSG_ReadCoord();
+   for (i = 0; i < 3; i++)
+      from[i] = MSG_ReadCoord();
 
-    count = blood * 0.5 + armor * 0.5;
-    if (count < 10)
-	count = 10;
+   count = blood * 0.5 + armor * 0.5;
+   if (count < 10)
+      count = 10;
 
-    cl.faceanimtime = cl.time + 0.2;	// but sbar face into pain frame
+   cl.faceanimtime = cl.time + 0.2;	// but sbar face into pain frame
 
-    cl.cshifts[CSHIFT_DAMAGE].percent += 3 * count;
-    if (cl.cshifts[CSHIFT_DAMAGE].percent < 0)
-	cl.cshifts[CSHIFT_DAMAGE].percent = 0;
-    if (cl.cshifts[CSHIFT_DAMAGE].percent > 150)
-	cl.cshifts[CSHIFT_DAMAGE].percent = 150;
+   cl.cshifts[CSHIFT_DAMAGE].percent += 3 * count;
+   if (cl.cshifts[CSHIFT_DAMAGE].percent < 0)
+      cl.cshifts[CSHIFT_DAMAGE].percent = 0;
+   if (cl.cshifts[CSHIFT_DAMAGE].percent > 150)
+      cl.cshifts[CSHIFT_DAMAGE].percent = 150;
 
-    if (armor > blood) {
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 200;
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 100;
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 100;
-    } else if (armor) {
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 220;
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 50;
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 50;
-    } else {
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 255;
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 0;
-	cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 0;
-    }
+   if (armor > blood) {
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 200;
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 100;
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 100;
+   } else if (armor) {
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 220;
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 50;
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 50;
+   } else {
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[0] = 255;
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[1] = 0;
+      cl.cshifts[CSHIFT_DAMAGE].destcolor[2] = 0;
+   }
 
-//
-// calculate view angle kicks
-//
-    ent = &cl_entities[cl.viewentity];
+   /* calculate view angle kicks */
+   ent = &cl_entities[cl.viewentity];
 
-    VectorSubtract(from, ent->origin, from);
-    VectorNormalize(from);
+   VectorSubtract(from, ent->origin, from);
+   VectorNormalize(from);
 
-    AngleVectors(ent->angles, forward, right, up);
+   AngleVectors(ent->angles, forward, right, up);
 
-    side = DotProduct(from, right);
-    v_dmg_roll = count * side * v_kickroll.value;
+   side = DotProduct(from, right);
+   v_dmg_roll = count * side * v_kickroll.value;
 
-    side = DotProduct(from, forward);
-    v_dmg_pitch = count * side * v_kickpitch.value;
+   side = DotProduct(from, forward);
+   v_dmg_pitch = count * side * v_kickpitch.value;
 
-    v_dmg_time = v_kicktime.value;
+   v_dmg_time = v_kicktime.value;
 
-    /* BOF - Frame-rate independent damage and bonus shifts */
-    cl.cshifts[CSHIFT_DAMAGE].initialpct = cl.cshifts[CSHIFT_DAMAGE].percent;
-    cl.cshifts[CSHIFT_DAMAGE].time = cl.time;
-    /* EOF - Frame-rate independent damage and bonus shifts */
+   /* BOF - Frame-rate independent damage and bonus shifts */
+   cl.cshifts[CSHIFT_DAMAGE].initialpct = cl.cshifts[CSHIFT_DAMAGE].percent;
+   cl.cshifts[CSHIFT_DAMAGE].time = cl.time;
+   /* EOF - Frame-rate independent damage and bonus shifts */
 }
 
 
@@ -388,8 +379,7 @@ V_ParseDamage(void)
 V_cshift_f
 ==================
 */
-void
-V_cshift_f(void)
+void V_cshift_f(void)
 {
     cshift_empty.destcolor[0] = atoi(Cmd_Argv(1));
     cshift_empty.destcolor[1] = atoi(Cmd_Argv(2));
@@ -405,8 +395,7 @@ V_BonusFlash_f
 When you run over an item, the server sends this command
 ==================
 */
-void
-V_BonusFlash_f(void)
+void V_BonusFlash_f(void)
 {
     cl.cshifts[CSHIFT_BONUS].destcolor[0] = 215;
     cl.cshifts[CSHIFT_BONUS].destcolor[1] = 186;
@@ -426,23 +415,23 @@ V_SetContentsColor
 Underwater, lava, etc each has a color shift
 =============
 */
-void
-V_SetContentsColor(int contents)
+void V_SetContentsColor(int contents)
 {
-    switch (contents) {
-    case CONTENTS_EMPTY:
-    case CONTENTS_SOLID:
-	cl.cshifts[CSHIFT_CONTENTS] = cshift_empty;
-	break;
-    case CONTENTS_LAVA:
-	cl.cshifts[CSHIFT_CONTENTS] = cshift_lava;
-	break;
-    case CONTENTS_SLIME:
-	cl.cshifts[CSHIFT_CONTENTS] = cshift_slime;
-	break;
-    default:
-	cl.cshifts[CSHIFT_CONTENTS] = cshift_water;
-    }
+   switch (contents)
+   {
+      case CONTENTS_EMPTY:
+      case CONTENTS_SOLID:
+         cl.cshifts[CSHIFT_CONTENTS] = cshift_empty;
+         break;
+      case CONTENTS_LAVA:
+         cl.cshifts[CSHIFT_CONTENTS] = cshift_lava;
+         break;
+      case CONTENTS_SLIME:
+         cl.cshifts[CSHIFT_CONTENTS] = cshift_slime;
+         break;
+      default:
+         cl.cshifts[CSHIFT_CONTENTS] = cshift_water;
+   }
 }
 
 /*
@@ -450,31 +439,30 @@ V_SetContentsColor(int contents)
 V_CalcPowerupCshift
 =============
 */
-void
-V_CalcPowerupCshift(void)
+void V_CalcPowerupCshift(void)
 {
-    if (cl.stats[STAT_ITEMS] & IT_QUAD) {
-	cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 0;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 0;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 255;
-	cl.cshifts[CSHIFT_POWERUP].percent = 30;
-    } else if (cl.stats[STAT_ITEMS] & IT_SUIT) {
-	cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 0;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 255;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 0;
-	cl.cshifts[CSHIFT_POWERUP].percent = 20;
-    } else if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY) {
-	cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 100;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 100;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 100;
-	cl.cshifts[CSHIFT_POWERUP].percent = 100;
-    } else if (cl.stats[STAT_ITEMS] & IT_INVULNERABILITY) {
-	cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 255;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 255;
-	cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 0;
-	cl.cshifts[CSHIFT_POWERUP].percent = 30;
-    } else
-	cl.cshifts[CSHIFT_POWERUP].percent = 0;
+   if (cl.stats[STAT_ITEMS] & IT_QUAD) {
+      cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 0;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 0;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 255;
+      cl.cshifts[CSHIFT_POWERUP].percent = 30;
+   } else if (cl.stats[STAT_ITEMS] & IT_SUIT) {
+      cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 0;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 255;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 0;
+      cl.cshifts[CSHIFT_POWERUP].percent = 20;
+   } else if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY) {
+      cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 100;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 100;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 100;
+      cl.cshifts[CSHIFT_POWERUP].percent = 100;
+   } else if (cl.stats[STAT_ITEMS] & IT_INVULNERABILITY) {
+      cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 255;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 255;
+      cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 0;
+      cl.cshifts[CSHIFT_POWERUP].percent = 30;
+   } else
+      cl.cshifts[CSHIFT_POWERUP].percent = 0;
 }
 
 void V_DropCShift (cshift_t *cs, float droprate)
@@ -493,14 +481,12 @@ void V_DropCShift (cshift_t *cs, float droprate)
 V_UpdatePalette
 =============
 */
-void
-V_UpdatePalette(void)
+void V_UpdatePalette(void)
 {
    int i, j;
    qboolean newobj;
    byte *basepal, *newpal;
    byte pal[768];
-   int r, g, b;
    qboolean force;
 
    V_CalcPowerupCshift();
@@ -531,16 +517,17 @@ V_UpdatePalette(void)
       return;
 
    basepal = host_basepal;
-   newpal = pal;
+   newpal  = pal;
 
    for (i = 0; i < 256; i++)
    {
-      r = basepal[0];
-      g = basepal[1];
-      b = basepal[2];
+      int r = basepal[0];
+      int g = basepal[1];
+      int b = basepal[2];
       basepal += 3;
 
-      for (j = 0; j < NUM_CSHIFTS; j++) {
+      for (j = 0; j < NUM_CSHIFTS; j++)
+      {
          r += (cl.cshifts[j].percent *
                (cl.cshifts[j].destcolor[0] - r)) >> 8;
          g += (cl.cshifts[j].percent *
@@ -566,13 +553,12 @@ V_UpdatePalette(void)
 ==============================================================================
 */
 
-float
-angledelta(float a)
+float angledelta(float a)
 {
-    a = anglemod(a);
-    if (a > 180)
-	a -= 360;
-    return a;
+   a = anglemod(a);
+   if (a > 180)
+      a -= 360;
+   return a;
 }
 
 /*
@@ -580,58 +566,60 @@ angledelta(float a)
 CalcGunAngle
 ==================
 */
-void
-CalcGunAngle(void)
+void CalcGunAngle(void)
 {
-    float yaw, pitch, move;
-    static float oldyaw = 0;
-    static float oldpitch = 0;
+   float move;
+   static float oldyaw = 0;
+   static float oldpitch = 0;
+   float yaw   = r_refdef.viewangles[YAW];
+   float pitch = -r_refdef.viewangles[PITCH];
 
-    yaw = r_refdef.viewangles[YAW];
-    pitch = -r_refdef.viewangles[PITCH];
+   yaw = angledelta(yaw - r_refdef.viewangles[YAW]) * 0.4;
 
-    yaw = angledelta(yaw - r_refdef.viewangles[YAW]) * 0.4;
-    if (yaw > 10)
-	yaw = 10;
-    if (yaw < -10)
-	yaw = -10;
-    pitch = angledelta(-pitch - r_refdef.viewangles[PITCH]) * 0.4;
-    if (pitch > 10)
-	pitch = 10;
-    if (pitch < -10)
-	pitch = -10;
-    move = host_frametime * 20;
-    if (yaw > oldyaw) {
-	if (oldyaw + move < yaw)
-	    yaw = oldyaw + move;
-    } else {
-	if (oldyaw - move > yaw)
-	    yaw = oldyaw - move;
-    }
+   if (yaw > 10)
+      yaw = 10;
+   if (yaw < -10)
+      yaw = -10;
+   pitch = angledelta(-pitch - r_refdef.viewangles[PITCH]) * 0.4;
+   if (pitch > 10)
+      pitch = 10;
+   if (pitch < -10)
+      pitch = -10;
+   move = host_frametime * 20;
+   if (yaw > oldyaw)
+   {
+      if (oldyaw + move < yaw)
+         yaw = oldyaw + move;
+   }
+   else
+   {
+      if (oldyaw - move > yaw)
+         yaw = oldyaw - move;
+   }
 
-    if (pitch > oldpitch) {
-	if (oldpitch + move < pitch)
-	    pitch = oldpitch + move;
-    } else {
-	if (oldpitch - move > pitch)
-	    pitch = oldpitch - move;
-    }
+   if (pitch > oldpitch) {
+      if (oldpitch + move < pitch)
+         pitch = oldpitch + move;
+   } else {
+      if (oldpitch - move > pitch)
+         pitch = oldpitch - move;
+   }
 
-    oldyaw = yaw;
-    oldpitch = pitch;
+   oldyaw = yaw;
+   oldpitch = pitch;
 
-    cl.viewent.angles[YAW] = r_refdef.viewangles[YAW] + yaw;
-    cl.viewent.angles[PITCH] = -(r_refdef.viewangles[PITCH] + pitch);
+   cl.viewent.angles[YAW] = r_refdef.viewangles[YAW] + yaw;
+   cl.viewent.angles[PITCH] = -(r_refdef.viewangles[PITCH] + pitch);
 
-    cl.viewent.angles[ROLL] -=
-	v_idlescale.value * sin(cl.time * v_iroll_cycle.value) *
-	v_iroll_level.value;
-    cl.viewent.angles[PITCH] -=
-	v_idlescale.value * sin(cl.time * v_ipitch_cycle.value) *
-	v_ipitch_level.value;
-    cl.viewent.angles[YAW] -=
-	v_idlescale.value * sin(cl.time * v_iyaw_cycle.value) *
-	v_iyaw_level.value;
+   cl.viewent.angles[ROLL] -=
+      v_idlescale.value * sin(cl.time * v_iroll_cycle.value) *
+      v_iroll_level.value;
+   cl.viewent.angles[PITCH] -=
+      v_idlescale.value * sin(cl.time * v_ipitch_cycle.value) *
+      v_ipitch_level.value;
+   cl.viewent.angles[YAW] -=
+      v_idlescale.value * sin(cl.time * v_iyaw_cycle.value) *
+      v_iyaw_level.value;
 }
 
 /*
@@ -639,28 +627,25 @@ CalcGunAngle(void)
 V_BoundOffsets
 ==============
 */
-void
-V_BoundOffsets(void)
+void V_BoundOffsets(void)
 {
-    const entity_t *ent;
+   const entity_t *ent = &cl_entities[cl.viewentity];
 
-    ent = &cl_entities[cl.viewentity];
+   // absolutely bound refresh reletive to entity clipping hull
+   // so the view can never be inside a solid wall
 
-// absolutely bound refresh reletive to entity clipping hull
-// so the view can never be inside a solid wall
-
-    if (r_refdef.vieworg[0] < ent->origin[0] - 14)
-	r_refdef.vieworg[0] = ent->origin[0] - 14;
-    else if (r_refdef.vieworg[0] > ent->origin[0] + 14)
-	r_refdef.vieworg[0] = ent->origin[0] + 14;
-    if (r_refdef.vieworg[1] < ent->origin[1] - 14)
-	r_refdef.vieworg[1] = ent->origin[1] - 14;
-    else if (r_refdef.vieworg[1] > ent->origin[1] + 14)
-	r_refdef.vieworg[1] = ent->origin[1] + 14;
-    if (r_refdef.vieworg[2] < ent->origin[2] - 22)
-	r_refdef.vieworg[2] = ent->origin[2] - 22;
-    else if (r_refdef.vieworg[2] > ent->origin[2] + 30)
-	r_refdef.vieworg[2] = ent->origin[2] + 30;
+   if (r_refdef.vieworg[0] < ent->origin[0] - 14)
+      r_refdef.vieworg[0] = ent->origin[0] - 14;
+   else if (r_refdef.vieworg[0] > ent->origin[0] + 14)
+      r_refdef.vieworg[0] = ent->origin[0] + 14;
+   if (r_refdef.vieworg[1] < ent->origin[1] - 14)
+      r_refdef.vieworg[1] = ent->origin[1] - 14;
+   else if (r_refdef.vieworg[1] > ent->origin[1] + 14)
+      r_refdef.vieworg[1] = ent->origin[1] + 14;
+   if (r_refdef.vieworg[2] < ent->origin[2] - 22)
+      r_refdef.vieworg[2] = ent->origin[2] - 22;
+   else if (r_refdef.vieworg[2] > ent->origin[2] + 30)
+      r_refdef.vieworg[2] = ent->origin[2] + 30;
 }
 
 /*
@@ -670,18 +655,17 @@ V_AddIdle
 Idle swaying
 ==============
 */
-void
-V_AddIdle(void)
+void V_AddIdle(void)
 {
-    r_refdef.viewangles[ROLL] +=
-	v_idlescale.value * sin(cl.time * v_iroll_cycle.value) *
-	v_iroll_level.value;
-    r_refdef.viewangles[PITCH] +=
-	v_idlescale.value * sin(cl.time * v_ipitch_cycle.value) *
-	v_ipitch_level.value;
-    r_refdef.viewangles[YAW] +=
-	v_idlescale.value * sin(cl.time * v_iyaw_cycle.value) *
-	v_iyaw_level.value;
+   r_refdef.viewangles[ROLL] +=
+      v_idlescale.value * sin(cl.time * v_iroll_cycle.value) *
+      v_iroll_level.value;
+   r_refdef.viewangles[PITCH] +=
+      v_idlescale.value * sin(cl.time * v_ipitch_cycle.value) *
+      v_ipitch_level.value;
+   r_refdef.viewangles[YAW] +=
+      v_idlescale.value * sin(cl.time * v_iyaw_cycle.value) *
+      v_iyaw_level.value;
 }
 
 
@@ -692,26 +676,24 @@ V_CalcViewRoll
 Roll is induced by movement and damage
 ==============
 */
-void
-V_CalcViewRoll(void)
+void V_CalcViewRoll(void)
 {
-    float side;
+   float side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
 
-    side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
-    r_refdef.viewangles[ROLL] += side;
+   r_refdef.viewangles[ROLL] += side;
 
-    if (v_dmg_time > 0) {
-	r_refdef.viewangles[ROLL] +=
-	    v_dmg_time / v_kicktime.value * v_dmg_roll;
-	r_refdef.viewangles[PITCH] +=
-	    v_dmg_time / v_kicktime.value * v_dmg_pitch;
-	v_dmg_time -= host_frametime;
-    }
+   if (v_dmg_time > 0) {
+      r_refdef.viewangles[ROLL] +=
+         v_dmg_time / v_kicktime.value * v_dmg_roll;
+      r_refdef.viewangles[PITCH] +=
+         v_dmg_time / v_kicktime.value * v_dmg_pitch;
+      v_dmg_time -= host_frametime;
+   }
 
-    if (cl.stats[STAT_HEALTH] <= 0) {
-	r_refdef.viewangles[ROLL] = 80;	// dead view angle
-	return;
-    }
+   if (cl.stats[STAT_HEALTH] <= 0) {
+      r_refdef.viewangles[ROLL] = 80;	// dead view angle
+      return;
+   }
 
 }
 
@@ -722,26 +704,24 @@ V_CalcIntermissionRefdef
 
 ==================
 */
-void
-V_CalcIntermissionRefdef(void)
+void V_CalcIntermissionRefdef(void)
 {
-    entity_t *ent, *view;
-    float old;
+   float old;
 
-// ent is the player model (visible when out of body)
-    ent = &cl_entities[cl.viewentity];
-// view is the weapon model (only visible from inside body)
-    view = &cl.viewent;
+   /* ent is the player model (visible when out of body) */
+   entity_t *ent = &cl_entities[cl.viewentity];
+   // view is the weapon model (only visible from inside body)
+   entity_t *view = &cl.viewent;
 
-    VectorCopy(ent->origin, r_refdef.vieworg);
-    VectorCopy(ent->angles, r_refdef.viewangles);
-    view->model = NULL;
+   VectorCopy(ent->origin, r_refdef.vieworg);
+   VectorCopy(ent->angles, r_refdef.viewangles);
+   view->model = NULL;
 
-// allways idle in intermission
-    old = v_idlescale.value;
-    v_idlescale.value = 1;
-    V_AddIdle();
-    v_idlescale.value = old;
+   // allways idle in intermission
+   old = v_idlescale.value;
+   v_idlescale.value = 1;
+   V_AddIdle();
+   v_idlescale.value = old;
 }
 
 /*
@@ -750,8 +730,7 @@ V_CalcRefdef
 
 ==================
 */
-void
-V_CalcRefdef(void)
+void V_CalcRefdef(void)
 {
    entity_t *ent, *view;
    int i;
@@ -876,22 +855,23 @@ The player's clipping box goes from (-16 -16 -24) to (16 16 32) from
 the entity origin, so any view position inside that will be valid
 ==================
 */
-void
-V_RenderView(void)
+void V_RenderView(void)
 {
    if (con_forcedup)
       return;
 
    // don't allow cheats in multiplayer
-   if (cl.maxclients > 1) {
+   if (cl.maxclients > 1)
+   {
       Cvar_Set("scr_ofsx", "0");
       Cvar_Set("scr_ofsy", "0");
       Cvar_Set("scr_ofsz", "0");
    }
 
-   if (cl.intermission) {	// intermission / finale rendering
+   if (cl.intermission) // intermission / finale rendering
       V_CalcIntermissionRefdef();
-   } else {
+   else
+   {
       if (!cl.paused /* && (sv.maxclients > 1 || key_dest == key_game) */ )
          V_CalcRefdef();
    }
@@ -909,42 +889,41 @@ V_RenderView(void)
 V_Init
 =============
 */
-void
-V_Init(void)
+void V_Init(void)
 {
-    Cmd_AddCommand("v_cshift", V_cshift_f);
-    Cmd_AddCommand("bf", V_BonusFlash_f);
-    Cmd_AddCommand("centerview", V_StartPitchDrift);
+   Cmd_AddCommand("v_cshift", V_cshift_f);
+   Cmd_AddCommand("bf", V_BonusFlash_f);
+   Cmd_AddCommand("centerview", V_StartPitchDrift);
 
-    Cvar_RegisterVariable(&v_centermove);
-    Cvar_RegisterVariable(&v_centerspeed);
+   Cvar_RegisterVariable(&v_centermove);
+   Cvar_RegisterVariable(&v_centerspeed);
 
-    Cvar_RegisterVariable(&v_iyaw_cycle);
-    Cvar_RegisterVariable(&v_iroll_cycle);
-    Cvar_RegisterVariable(&v_ipitch_cycle);
-    Cvar_RegisterVariable(&v_iyaw_level);
-    Cvar_RegisterVariable(&v_iroll_level);
-    Cvar_RegisterVariable(&v_ipitch_level);
+   Cvar_RegisterVariable(&v_iyaw_cycle);
+   Cvar_RegisterVariable(&v_iroll_cycle);
+   Cvar_RegisterVariable(&v_ipitch_cycle);
+   Cvar_RegisterVariable(&v_iyaw_level);
+   Cvar_RegisterVariable(&v_iroll_level);
+   Cvar_RegisterVariable(&v_ipitch_level);
 
-    Cvar_RegisterVariable(&v_idlescale);
-    Cvar_RegisterVariable(&crosshair);
-    Cvar_RegisterVariable(&crosshaircolor);
-    Cvar_RegisterVariable(&cl_crossx);
-    Cvar_RegisterVariable(&cl_crossy);
+   Cvar_RegisterVariable(&v_idlescale);
+   Cvar_RegisterVariable(&crosshair);
+   Cvar_RegisterVariable(&crosshaircolor);
+   Cvar_RegisterVariable(&cl_crossx);
+   Cvar_RegisterVariable(&cl_crossy);
 
-    Cvar_RegisterVariable(&scr_ofsx);
-    Cvar_RegisterVariable(&scr_ofsy);
-    Cvar_RegisterVariable(&scr_ofsz);
-    Cvar_RegisterVariable(&cl_rollspeed);
-    Cvar_RegisterVariable(&cl_rollangle);
-    Cvar_RegisterVariable(&cl_bob);
-    Cvar_RegisterVariable(&cl_bobcycle);
-    Cvar_RegisterVariable(&cl_bobup);
+   Cvar_RegisterVariable(&scr_ofsx);
+   Cvar_RegisterVariable(&scr_ofsy);
+   Cvar_RegisterVariable(&scr_ofsz);
+   Cvar_RegisterVariable(&cl_rollspeed);
+   Cvar_RegisterVariable(&cl_rollangle);
+   Cvar_RegisterVariable(&cl_bob);
+   Cvar_RegisterVariable(&cl_bobcycle);
+   Cvar_RegisterVariable(&cl_bobup);
 
-    Cvar_RegisterVariable(&v_kicktime);
-    Cvar_RegisterVariable(&v_kickroll);
-    Cvar_RegisterVariable(&v_kickpitch);
+   Cvar_RegisterVariable(&v_kicktime);
+   Cvar_RegisterVariable(&v_kickroll);
+   Cvar_RegisterVariable(&v_kickpitch);
 
-    BuildGammaTable(1.0);	// no gamma yet
-    Cvar_RegisterVariable(&v_gamma);
+   BuildGammaTable(1.0);	// no gamma yet
+   Cvar_RegisterVariable(&v_gamma);
 }

@@ -177,160 +177,159 @@ R_ModelLoader(void)
 R_AliasCheckBBox
 ================
 */
-qboolean
-R_AliasCheckBBox(entity_t *e)
+qboolean R_AliasCheckBBox(entity_t *e)
 {
-    int i, flags, frame, numv;
-    aliashdr_t *pahdr;
-    float zi, basepts[8][3], v0, v1;
-    finalvert_t viewpts[16];
-    auxvert_t *pa0, *pa1, viewaux[16];
-    maliasframedesc_t *pframedesc;
-    qboolean zclipped, zfullyclipped;
-    unsigned anyclip, allclip;
-    int minz;
+   int i, flags, frame, numv;
+   aliashdr_t *pahdr;
+   float zi, basepts[8][3], v0, v1;
+   finalvert_t viewpts[16];
+   auxvert_t viewaux[16];
+   maliasframedesc_t *pframedesc;
+   qboolean zclipped, zfullyclipped;
+   unsigned anyclip, allclip;
+   int minz;
 
-// expand, rotate, and translate points into worldspace
+   // expand, rotate, and translate points into worldspace
 
-    e->trivial_accept = 0;
-    pmodel = e->model;
-    pahdr = (aliashdr_t*)Mod_Extradata(pmodel);
+   e->trivial_accept = 0;
+   pmodel = e->model;
+   pahdr = (aliashdr_t*)Mod_Extradata(pmodel);
 
-    R_AliasSetUpTransform(e, pahdr, 0);
+   R_AliasSetUpTransform(e, pahdr, 0);
 
-// construct the base bounding box for this frame
-    frame = e->frame;
-// TODO: don't repeat this check when drawing?
-    if ((frame >= pahdr->numframes) || (frame < 0)) {
-	Con_DPrintf("No such frame %d %s\n", frame, pmodel->name);
-	frame = 0;
-    }
+   // construct the base bounding box for this frame
+   frame = e->frame;
+   // TODO: don't repeat this check when drawing?
+   if ((frame >= pahdr->numframes) || (frame < 0)) {
+      Con_DPrintf("No such frame %d %s\n", frame, pmodel->name);
+      frame = 0;
+   }
 
-    pframedesc = &pahdr->frames[frame];
+   pframedesc = &pahdr->frames[frame];
 
-// x worldspace coordinates
-    basepts[0][0] = basepts[1][0] = basepts[2][0] = basepts[3][0] =
-	(float)pframedesc->bboxmin.v[0];
-    basepts[4][0] = basepts[5][0] = basepts[6][0] = basepts[7][0] =
-	(float)pframedesc->bboxmax.v[0];
+   // x worldspace coordinates
+   basepts[0][0] = basepts[1][0] = basepts[2][0] = basepts[3][0] =
+      (float)pframedesc->bboxmin.v[0];
+   basepts[4][0] = basepts[5][0] = basepts[6][0] = basepts[7][0] =
+      (float)pframedesc->bboxmax.v[0];
 
-// y worldspace coordinates
-    basepts[0][1] = basepts[3][1] = basepts[5][1] = basepts[6][1] =
-	(float)pframedesc->bboxmin.v[1];
-    basepts[1][1] = basepts[2][1] = basepts[4][1] = basepts[7][1] =
-	(float)pframedesc->bboxmax.v[1];
+   // y worldspace coordinates
+   basepts[0][1] = basepts[3][1] = basepts[5][1] = basepts[6][1] =
+      (float)pframedesc->bboxmin.v[1];
+   basepts[1][1] = basepts[2][1] = basepts[4][1] = basepts[7][1] =
+      (float)pframedesc->bboxmax.v[1];
 
-// z worldspace coordinates
-    basepts[0][2] = basepts[1][2] = basepts[4][2] = basepts[5][2] =
-	(float)pframedesc->bboxmin.v[2];
-    basepts[2][2] = basepts[3][2] = basepts[6][2] = basepts[7][2] =
-	(float)pframedesc->bboxmax.v[2];
+   // z worldspace coordinates
+   basepts[0][2] = basepts[1][2] = basepts[4][2] = basepts[5][2] =
+      (float)pframedesc->bboxmin.v[2];
+   basepts[2][2] = basepts[3][2] = basepts[6][2] = basepts[7][2] =
+      (float)pframedesc->bboxmax.v[2];
 
-    zclipped = false;
-    zfullyclipped = true;
+   zclipped = false;
+   zfullyclipped = true;
 
-    minz = 9999;
-    for (i = 0; i < 8; i++)
-    {
-       R_AliasTransformVector(&basepts[i][0], &viewaux[i].fv[0]);
+   minz = 9999;
+   for (i = 0; i < 8; i++)
+   {
+      R_AliasTransformVector(&basepts[i][0], &viewaux[i].fv[0]);
 
-       if (viewaux[i].fv[2] < ALIAS_Z_CLIP_PLANE)
-       {
-          // we must clip points that are closer than the near clip plane
-          viewpts[i].flags = ALIAS_Z_CLIP;
-          zclipped = true;
-       } else {
-          if (viewaux[i].fv[2] < minz)
-             minz = viewaux[i].fv[2];
-          viewpts[i].flags = 0;
-          zfullyclipped = false;
-       }
-    }
+      if (viewaux[i].fv[2] < ALIAS_Z_CLIP_PLANE)
+      {
+         // we must clip points that are closer than the near clip plane
+         viewpts[i].flags = ALIAS_Z_CLIP;
+         zclipped = true;
+      } else {
+         if (viewaux[i].fv[2] < minz)
+            minz = viewaux[i].fv[2];
+         viewpts[i].flags = 0;
+         zfullyclipped = false;
+      }
+   }
 
 
-    if (zfullyclipped)
-       return false;		// everything was near-z-clipped
+   if (zfullyclipped)
+      return false;		// everything was near-z-clipped
 
-    numv = 8;
+   numv = 8;
 
-    if (zclipped)
-    {
-       // organize points by edges, use edges to get new points (possible trivial
-       // reject)
-       for (i = 0; i < 12; i++)
-       {
-          // edge endpoints
-          finalvert_t *pv0 = &viewpts[aedges[i].index0];
-          finalvert_t *pv1 = &viewpts[aedges[i].index1];
-          pa0 = &viewaux[aedges[i].index0];
-          pa1 = &viewaux[aedges[i].index1];
+   if (zclipped)
+   {
+      // organize points by edges, use edges to get new points (possible trivial
+      // reject)
+      for (i = 0; i < 12; i++)
+      {
+         // edge endpoints
+         finalvert_t *pv0 = &viewpts[aedges[i].index0];
+         finalvert_t *pv1 = &viewpts[aedges[i].index1];
+         auxvert_t *pa0 = &viewaux[aedges[i].index0];
+         auxvert_t *pa1 = &viewaux[aedges[i].index1];
 
-          // if one end is clipped and the other isn't, make a new point
-          if (pv0->flags ^ pv1->flags)
-          {
-             float frac = (ALIAS_Z_CLIP_PLANE - pa0->fv[2]) /
-                (pa1->fv[2] - pa0->fv[2]);
-             viewaux[numv].fv[0] = pa0->fv[0] +
-                (pa1->fv[0] - pa0->fv[0]) * frac;
-             viewaux[numv].fv[1] = pa0->fv[1] +
-                (pa1->fv[1] - pa0->fv[1]) * frac;
-             viewaux[numv].fv[2] = ALIAS_Z_CLIP_PLANE;
-             viewpts[numv].flags = 0;
-             numv++;
-          }
-       }
-    }
-// project the vertices that remain after clipping
-    anyclip = 0;
-    allclip = ALIAS_XY_CLIP_MASK;
+         // if one end is clipped and the other isn't, make a new point
+         if (pv0->flags ^ pv1->flags)
+         {
+            float frac = (ALIAS_Z_CLIP_PLANE - pa0->fv[2]) /
+               (pa1->fv[2] - pa0->fv[2]);
+            viewaux[numv].fv[0] = pa0->fv[0] +
+               (pa1->fv[0] - pa0->fv[0]) * frac;
+            viewaux[numv].fv[1] = pa0->fv[1] +
+               (pa1->fv[1] - pa0->fv[1]) * frac;
+            viewaux[numv].fv[2] = ALIAS_Z_CLIP_PLANE;
+            viewpts[numv].flags = 0;
+            numv++;
+         }
+      }
+   }
+   // project the vertices that remain after clipping
+   anyclip = 0;
+   allclip = ALIAS_XY_CLIP_MASK;
 
-// TODO: probably should do this loop in ASM, especially if we use floats
-    for (i = 0; i < numv; i++) {
-	// we don't need to bother with vertices that were z-clipped
-	if (viewpts[i].flags & ALIAS_Z_CLIP)
-	    continue;
+   // TODO: probably should do this loop in ASM, especially if we use floats
+   for (i = 0; i < numv; i++) {
+      // we don't need to bother with vertices that were z-clipped
+      if (viewpts[i].flags & ALIAS_Z_CLIP)
+         continue;
 
-	zi = 1.0 / viewaux[i].fv[2];
+      zi = 1.0 / viewaux[i].fv[2];
 
-	// FIXME: do with chop mode in ASM, or convert to float
-	v0 = (viewaux[i].fv[0] * xscale * zi) + xcenter;
-	v1 = (viewaux[i].fv[1] * yscale * zi) + ycenter;
+      // FIXME: do with chop mode in ASM, or convert to float
+      v0 = (viewaux[i].fv[0] * xscale * zi) + xcenter;
+      v1 = (viewaux[i].fv[1] * yscale * zi) + ycenter;
 
-	flags = 0;
+      flags = 0;
 
-	if (v0 < r_refdef.fvrectx)
-	    flags |= ALIAS_LEFT_CLIP;
-	if (v1 < r_refdef.fvrecty)
-	    flags |= ALIAS_TOP_CLIP;
-	if (v0 > r_refdef.fvrectright)
-	    flags |= ALIAS_RIGHT_CLIP;
-	if (v1 > r_refdef.fvrectbottom)
-	    flags |= ALIAS_BOTTOM_CLIP;
+      if (v0 < r_refdef.fvrectx)
+         flags |= ALIAS_LEFT_CLIP;
+      if (v1 < r_refdef.fvrecty)
+         flags |= ALIAS_TOP_CLIP;
+      if (v0 > r_refdef.fvrectright)
+         flags |= ALIAS_RIGHT_CLIP;
+      if (v1 > r_refdef.fvrectbottom)
+         flags |= ALIAS_BOTTOM_CLIP;
 
-	anyclip |= flags;
-	allclip &= flags;
-    }
+      anyclip |= flags;
+      allclip &= flags;
+   }
 
-    if (allclip)
-	return false;		// trivial reject off one side
+   if (allclip)
+      return false;		// trivial reject off one side
 
 #ifdef NQ_HACK
-    /*
-     * FIXME - Trivial accept not safe while lerping unless we check
-     *         the bbox of both src and dst frames
-     */
-    if (r_lerpmodels.value)
-	return true;
+   /*
+    * FIXME - Trivial accept not safe while lerping unless we check
+    *         the bbox of both src and dst frames
+    */
+   if (r_lerpmodels.value)
+      return true;
 #endif
 
-    e->trivial_accept = !anyclip & !zclipped;
-    if (e->trivial_accept) {
-	if (minz > (r_aliastransition + (pahdr->size * r_resfudge))) {
-	    e->trivial_accept |= 2;
-	}
-    }
+   e->trivial_accept = !anyclip & !zclipped;
+   if (e->trivial_accept) {
+      if (minz > (r_aliastransition + (pahdr->size * r_resfudge))) {
+         e->trivial_accept |= 2;
+      }
+   }
 
-    return true;
+   return true;
 }
 
 
@@ -658,55 +657,55 @@ R_AliasPrepareUnclippedPoints(aliashdr_t *pahdr, finalvert_t *pfinalverts)
 R_AliasSetupSkin
 ===============
 */
-static void
-R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
+static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 {
-    int skinnum;
-    int frame, numframes, skinbytes;
-    maliasskindesc_t *pskindesc;
-    float *intervals;
-    byte *pdata;
+   int frame, numframes, skinbytes;
+   maliasskindesc_t *pskindesc;
+   byte *pdata;
+   int skinnum = e->skinnum;
 
-    skinnum = e->skinnum;
-    if ((skinnum >= pahdr->numskins) || (skinnum < 0)) {
-	Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
-	skinnum = 0;
-    }
+   if ((skinnum >= pahdr->numskins) || (skinnum < 0))
+   {
+      Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
+      skinnum = 0;
+   }
 
-    pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
-    pskindesc += skinnum;
-    a_skinwidth = pahdr->skinwidth;
+   pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
+   pskindesc += skinnum;
+   a_skinwidth = pahdr->skinwidth;
 
-    frame = pskindesc->firstframe;
-    numframes = pskindesc->numframes;
+   frame = pskindesc->firstframe;
+   numframes = pskindesc->numframes;
 
-    if (numframes > 1) {
-	intervals = (float *)((byte *)pahdr + pahdr->skinintervals) + frame;
-	frame += Mod_FindInterval(intervals, numframes, cl.time + e->syncbase);
-    }
+   if (numframes > 1)
+   {
+      float *intervals = (float *)((byte *)pahdr + pahdr->skinintervals) + frame;
+      frame += Mod_FindInterval(intervals, numframes, cl.time + e->syncbase);
+   }
 
-    skinbytes = pahdr->skinwidth * pahdr->skinheight * r_pixbytes;
-    pdata = (byte *)pahdr + pahdr->skindata;
-    pdata += frame * skinbytes;
+   skinbytes = pahdr->skinwidth * pahdr->skinheight * r_pixbytes;
+   pdata = (byte *)pahdr + pahdr->skindata;
+   pdata += frame * skinbytes;
 
-    r_affinetridesc.pskin = pdata;
-    r_affinetridesc.skinwidth = a_skinwidth;
-    r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
-    r_affinetridesc.skinheight = pahdr->skinheight;
+   r_affinetridesc.pskin = pdata;
+   r_affinetridesc.skinwidth = a_skinwidth;
+   r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
+   r_affinetridesc.skinheight = pahdr->skinheight;
 
 #ifdef QW_HACK
-    if (e->scoreboard) {
-	byte *base;
+   if (e->scoreboard)
+   {
+      byte *base;
 
-	if (!e->scoreboard->skin)
-	    Skin_Find(e->scoreboard);
-	base = Skin_Cache(e->scoreboard->skin);
-	if (base) {
-	    r_affinetridesc.pskin = base;
-	    r_affinetridesc.skinwidth = 320;
-	    r_affinetridesc.skinheight = 200;
-	}
-    }
+      if (!e->scoreboard->skin)
+         Skin_Find(e->scoreboard);
+      base = Skin_Cache(e->scoreboard->skin);
+      if (base) {
+         r_affinetridesc.pskin = base;
+         r_affinetridesc.skinwidth = 320;
+         r_affinetridesc.skinheight = 200;
+      }
+   }
 #endif
 }
 

@@ -522,137 +522,146 @@ free_hull_polys(void)
 static void
 hull_windings_r(hull_t *hull, mclipnode_t *node, struct list_node *polys);
 
-static void
-do_hull_recursion(hull_t *hull, mclipnode_t *node, int side,
-		  struct list_node *polys)
+static void do_hull_recursion(hull_t *hull, mclipnode_t *node, int side,
+      struct list_node *polys)
 {
-    mclipnode_t *child;
-    winding_t *w, *next;
+   winding_t *w, *next;
 
-    if (node->children[side] >= 0) {
-	child = hull->clipnodes + node->children[side];
-	push_node(node, side);
-	hull_windings_r(hull, child, polys);
-	pop_node();
-    } else {
-	switch (node->children[side]) {
-	case CONTENTS_EMPTY:
-	case CONTENTS_WATER:
-	case CONTENTS_SLIME:
-	case CONTENTS_LAVA:
-	    list_for_each_entry_safe(w, next, polys, chain) {
-		list_del(&w->chain);
-		list_add(&w->chain, &hull_polys);
-	    }
-	    break;
-	case CONTENTS_SOLID:
-	case CONTENTS_SKY:
-	    /* Throw away polys... */
-	    list_for_each_entry_safe(w, next, polys, chain) {
-		if (w->pair)
-		    w->pair->pair = NULL;
-		list_del(&w->chain);
-		free(w);
-		num_hull_polys--;
-	    }
-	    break;
-	default:
-	    Sys_Error("%s: bad contents: %i\n", __func__,
-		      node->children[side]);
-	    break;
-	}
-    }
+   if (node->children[side] >= 0)
+   {
+      mclipnode_t *child = hull->clipnodes + node->children[side];
+      push_node(node, side);
+      hull_windings_r(hull, child, polys);
+      pop_node();
+   }
+   else
+   {
+      switch (node->children[side])
+      {
+         case CONTENTS_EMPTY:
+         case CONTENTS_WATER:
+         case CONTENTS_SLIME:
+         case CONTENTS_LAVA:
+            list_for_each_entry_safe(w, next, polys, chain)
+            {
+               list_del(&w->chain);
+               list_add(&w->chain, &hull_polys);
+            }
+            break;
+         case CONTENTS_SOLID:
+         case CONTENTS_SKY:
+            /* Throw away polys... */
+            list_for_each_entry_safe(w, next, polys, chain)
+            {
+               if (w->pair)
+                  w->pair->pair = NULL;
+               list_del(&w->chain);
+               free(w);
+               num_hull_polys--;
+            }
+            break;
+         default:
+            Sys_Error("%s: bad contents: %i\n", __func__,
+                  node->children[side]);
+            break;
+      }
+   }
 }
 
-static void
-hull_windings_r(hull_t *hull, mclipnode_t *node, struct list_node *polys)
+static void hull_windings_r(hull_t *hull, mclipnode_t *node, struct list_node *polys)
 {
-    mplane_t *plane = hull->planes + node->planenum;
-    winding_t *w, *next, *front, *back;
-    int i;
-    struct list_node frontlist = LIST_HEAD_INIT(frontlist);
-    struct list_node backlist = LIST_HEAD_INIT(backlist);
+   mplane_t *plane = hull->planes + node->planenum;
+   winding_t *w, *next, *front, *back;
+   int i;
+   struct list_node frontlist = LIST_HEAD_INIT(frontlist);
+   struct list_node backlist = LIST_HEAD_INIT(backlist);
 
-    list_for_each_entry_safe(w, next, polys, chain) {
+   list_for_each_entry_safe(w, next, polys, chain)
+   {
+      /* PARANIOA - PAIR CHECK */
+      assert(!w->pair || w->pair->pair == w);
 
-	/* PARANIOA - PAIR CHECK */
-	assert(!w->pair || w->pair->pair == w);
+      list_del(&w->chain);
+      winding_split(w, plane, &front, &back);
+      if (front)
+         list_add(&front->chain, &frontlist);
+      if (back)
+         list_add(&back->chain, &backlist);
 
-	list_del(&w->chain);
-	winding_split(w, plane, &front, &back);
-	if (front)
-	    list_add(&front->chain, &frontlist);
-	if (back)
-	    list_add(&back->chain, &backlist);
+      if (front && back)
+      {
+         if (w->pair)
+         {
+            /* Split the paired poly, preserve pairing */
+            winding_t *front2, *back2;
+            winding_split(w->pair, plane, &front2, &back2);
 
-	if (front && back) {
-	    if (w->pair) {
-		/* Split the paired poly, preserve pairing */
-		winding_t *front2, *back2;
-		winding_split(w->pair, plane, &front2, &back2);
+            front2->pair = front;
+            front->pair = front2;
+            back2->pair = back;
+            back->pair = back2;
 
-		front2->pair = front;
-		front->pair = front2;
-		back2->pair = back;
-		back->pair = back2;
+            list_add(&front2->chain, &w->pair->chain);
+            list_add(&back2->chain, &w->pair->chain);
+            list_del(&w->pair->chain);
+            free(w->pair);
+            num_hull_polys++;
+         }
+         else
+         {
+            front->pair = NULL;
+            back->pair = NULL;
+         }
+         free(w);
+         num_hull_polys++;
+      }
+   }
 
-		list_add(&front2->chain, &w->pair->chain);
-		list_add(&back2->chain, &w->pair->chain);
-		list_del(&w->pair->chain);
-		free(w->pair);
-		num_hull_polys++;
-	    } else {
-		front->pair = NULL;
-		back->pair = NULL;
-	    }
-	    free(w);
-	    num_hull_polys++;
-	}
-    }
+   w = winding_for_plane(plane);
+   if (!w)
+      Sys_Error("%s: No winding for plane!\n", __func__);
 
-    w = winding_for_plane(plane);
-    if (!w)
-	Sys_Error("%s: No winding for plane!\n", __func__);
+   for (i = 0; w && i < node_stack_depth; i++) {
+      mplane_t *p = hull->planes + node_stack[i]->planenum;
+      w = winding_clip(w, p, true, side_stack[i], 0.0001 /* ON_EPSILON */);
+   }
+   if (w) {
+      winding_t *tmp = winding_copy(w);
+      winding_reverse(tmp);
 
-    for (i = 0; w && i < node_stack_depth; i++) {
-	mplane_t *p = hull->planes + node_stack[i]->planenum;
-	w = winding_clip(w, p, true, side_stack[i], 0.0001 /* ON_EPSILON */);
-    }
-    if (w) {
-	winding_t *tmp = winding_copy(w);
-	winding_reverse(tmp);
+      w->pair = tmp;
+      tmp->pair = w;
 
-	w->pair = tmp;
-	tmp->pair = w;
+      list_add(&w->chain, &frontlist);
+      list_add(&tmp->chain, &backlist);
 
-	list_add(&w->chain, &frontlist);
-	list_add(&tmp->chain, &backlist);
+      /* PARANIOA - PAIR CHECK */
+      assert(!w->pair || w->pair->pair == w);
 
-	/* PARANIOA - PAIR CHECK */
-	assert(!w->pair || w->pair->pair == w);
+      num_hull_polys += 2;
+   } else {
+      /* FIXME: fail more gracefully */
+      Sys_Error("%s: winding unexpectedly clipped away!\n", __func__);
+   }
 
-	num_hull_polys += 2;
-    } else {
-	/* FIXME: fail more gracefully */
-	Sys_Error("%s: winding unexpectedly clipped away!\n", __func__);
-    }
-
-    do_hull_recursion(hull, node, 0, &frontlist);
-    do_hull_recursion(hull, node, 1, &backlist);
+   do_hull_recursion(hull, node, 0, &frontlist);
+   do_hull_recursion(hull, node, 1, &backlist);
 }
 
 static void
 remove_paired_polys(void)
 {
-    winding_t *w, *next;
+   winding_t *w, *next;
 
-    list_for_each_entry_safe(w, next, &hull_polys, chain) {
-	if (w->pair) {
-	    list_del(&w->chain);
-	    free(w);
-	    num_hull_polys--;
-	}
-    }
+   list_for_each_entry_safe(w, next, &hull_polys, chain)
+   {
+      if (w->pair)
+      {
+         list_del(&w->chain);
+         free(w);
+         num_hull_polys--;
+      }
+   }
 }
 
 static void make_hull_windings(hull_t *hull)
@@ -672,26 +681,26 @@ static void make_hull_windings(hull_t *hull)
    remove_paired_polys();
 }
 
-static void
-_gl_drawhull_callback(cvar_t *var)
+static void _gl_drawhull_callback(cvar_t *var)
 {
-    unsigned val = var->value;
+   unsigned val = var->value;
 
-    switch (val) {
-    case 0:
-	free_hull_polys();
-	break;
-    case 1:
-    case 2:
-	//dump_nodes_stderr(&cl.worldmodel->hulls[val]);
-	Con_Printf("Generating polygons for hull %u...\n", val);
-	free_hull_polys();
-	make_hull_windings(&cl.worldmodel->hulls[val]);
-	break;
-    default:
-	Con_Printf("Only values 0, 1, 2 are valid.\n");
-	break;
-    }
+   switch (val)
+   {
+      case 0:
+         free_hull_polys();
+         break;
+      case 1:
+      case 2:
+         //dump_nodes_stderr(&cl.worldmodel->hulls[val]);
+         Con_Printf("Generating polygons for hull %u...\n", val);
+         free_hull_polys();
+         make_hull_windings(&cl.worldmodel->hulls[val]);
+         break;
+      default:
+         Con_Printf("Only values 0, 1, 2 are valid.\n");
+         break;
+   }
 }
 
 
@@ -703,19 +712,19 @@ cvar_t _gl_drawhull = {
 };
 
 
-void
-R_DrawWorldHull(void)
+void R_DrawWorldHull(void)
 {
-    winding_t *poly;
-    int i;
+   winding_t *poly;
+   int i;
 
-    list_for_each_entry(poly, &hull_polys, chain) {
-	srand((unsigned long)poly);
-	glColor3f(rand() % 256 / 255.0, rand() % 256 / 255.0,
-		  rand() % 256 / 255.0);
-	glBegin(GL_POLYGON);
-	for (i = 0; i < poly->numpoints; i++)
-	    glVertex3fv(poly->points[i]);
-	glEnd();
-    }
+   list_for_each_entry(poly, &hull_polys, chain)
+   {
+      srand((unsigned long)poly);
+      glColor3f(rand() % 256 / 255.0, rand() % 256 / 255.0,
+            rand() % 256 / 255.0);
+      glBegin(GL_POLYGON);
+      for (i = 0; i < poly->numpoints; i++)
+         glVertex3fv(poly->points[i]);
+      glEnd();
+   }
 }

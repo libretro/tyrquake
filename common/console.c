@@ -144,53 +144,58 @@ Con_Resize
 
 ================
 */
-static void
-Con_Resize(console_t * c)
+static void Con_Resize(console_t * c)
 {
-    int i, j, width, oldwidth, oldtotallines, numlines, numchars;
-    char tbuf[CON_TEXTSIZE];
+   int width;
+   char tbuf[CON_TEXTSIZE];
 
-    width = (vid.width >> 3) - 2;
+   width = (vid.width >> 3) - 2;
 
-    if (width == con_linewidth)
-	return;
+   if (width == con_linewidth)
+      return;
 
-    if (width < 1)		// video hasn't been initialized yet
-    {
-	width = 38;
-	con_linewidth = width;
-	con_totallines = CON_TEXTSIZE / con_linewidth;
-	memset(c->text, ' ', CON_TEXTSIZE);
-    } else {
-	oldwidth = con_linewidth;
-	con_linewidth = width;
-	oldtotallines = con_totallines;
-	con_totallines = CON_TEXTSIZE / con_linewidth;
-	numlines = oldtotallines;
+   if (width < 1)		// video hasn't been initialized yet
+   {
+      width = 38;
+      con_linewidth = width;
+      con_totallines = CON_TEXTSIZE / con_linewidth;
+      memset(c->text, ' ', CON_TEXTSIZE);
+   }
+   else
+   {
+      int i, j, numlines, numchars;
+      int oldwidth = con_linewidth;
+      int oldtotallines = con_totallines;
 
-	if (con_totallines < numlines)
-	    numlines = con_totallines;
+      con_linewidth  = width;
+      con_totallines = CON_TEXTSIZE / con_linewidth;
+      numlines = oldtotallines;
 
-	numchars = oldwidth;
+      if (con_totallines < numlines)
+         numlines = con_totallines;
 
-	if (con_linewidth < numchars)
-	    numchars = con_linewidth;
+      numchars = oldwidth;
 
-	memcpy(tbuf, c->text, CON_TEXTSIZE);
-	memset(c->text, ' ', CON_TEXTSIZE);
+      if (con_linewidth < numchars)
+         numchars = con_linewidth;
 
-	for (i = 0; i < numlines; i++) {
-	    for (j = 0; j < numchars; j++) {
-		c->text[(con_totallines - 1 - i) * con_linewidth + j] =
-		    tbuf[((c->current - i + oldtotallines) %
-			  oldtotallines) * oldwidth + j];
-	    }
-	}
-	Con_ClearNotify();
-    }
+      memcpy(tbuf, c->text, CON_TEXTSIZE);
+      memset(c->text, ' ', CON_TEXTSIZE);
 
-    c->current = con_totallines - 1;
-    c->display = c->current;
+      for (i = 0; i < numlines; i++)
+      {
+         for (j = 0; j < numchars; j++)
+         {
+            c->text[(con_totallines - 1 - i) * con_linewidth + j] =
+               tbuf[((c->current - i + oldtotallines) %
+                     oldtotallines) * oldwidth + j];
+         }
+      }
+      Con_ClearNotify();
+   }
+
+   c->current = con_totallines - 1;
+   c->display = c->current;
 }
 
 /*
@@ -303,57 +308,58 @@ Con_Printf
 Handles cursor positioning, line wrapping, etc
 ================
 */
-void
-Con_Printf(const char *fmt, ...)
+void Con_Printf(const char *fmt, ...)
 {
-    va_list argptr;
-    char msg[MAX_PRINTMSG];
-    static qboolean inupdate;
+   va_list argptr;
+   char msg[MAX_PRINTMSG];
 
-    va_start(argptr, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, argptr);
-    va_end(argptr);
+   va_start(argptr, fmt);
+   vsnprintf(msg, sizeof(msg), fmt, argptr);
+   va_end(argptr);
 
-// also echo to debugging console
-    Sys_Printf("%s", msg);	// also echo to debugging console
+   /* also echo to debugging console */
+   Sys_Printf("%s", msg);	// also echo to debugging console
 
-// log all messages to file
-    if (debuglog)
-	Sys_DebugLog(va("%s/qconsole.log", com_gamedir), "%s", msg);
+   /* log all messages to file */
+   if (debuglog)
+      Sys_DebugLog(va("%s/qconsole.log", com_gamedir), "%s", msg);
 
-    if (!con_initialized)
-	return;
+   if (!con_initialized)
+      return;
 
 #ifdef NQ_HACK
-    if (cls.state == ca_dedicated)
-	return;			// no graphics mode
+   if (cls.state == ca_dedicated)
+      return;			// no graphics mode
 #endif
 
-// write it to the scrollable buffer
-    Con_Print(msg);
+   /* write it to the scrollable buffer */
+   Con_Print(msg);
 
-    /*
-     * FIXME - not sure if this is ok, need to rework the screen update
-     * criteria so it gets done once per frame unless explicitly flushed. For
-     * now, don't update until we see a newline char.
-     */
-    if (!strchr(msg, '\n'))
-	return;
+   /*
+    * FIXME - not sure if this is ok, need to rework the screen update
+    * criteria so it gets done once per frame unless explicitly flushed. For
+    * now, don't update until we see a newline char.
+    */
+   if (!strchr(msg, '\n'))
+      return;
 
-// update the screen immediately if the console is displayed
+   // update the screen immediately if the console is displayed
 #ifdef NQ_HACK
-    if (cls.state != ca_active && !scr_disabled_for_loading) {
+   if (cls.state != ca_active && !scr_disabled_for_loading)
 #else
-    if (con_forcedup) {
+      if (con_forcedup)
 #endif
-	// protect against infinite loop if something in SCR_UpdateScreen calls
-	// Con_Printd
-	if (!inupdate) {
-	    inupdate = true;
-	    SCR_UpdateScreen();
-	    inupdate = false;
-	}
-    }
+      {
+         static qboolean inupdate;
+         // protect against infinite loop if something in SCR_UpdateScreen calls
+         // Con_Printd
+         if (!inupdate)
+         {
+            inupdate = true;
+            SCR_UpdateScreen();
+            inupdate = false;
+         }
+      }
 }
 
 /*
@@ -444,67 +450,72 @@ Con_DrawNotify
 Draws the last few lines of output transparently over the game top
 ================
 */
-void
-Con_DrawNotify(void)
+void Con_DrawNotify(void)
 {
-    int x, v;
-    char *text;
-    int i;
-    float time;
-    char *s;
-    int skip;
+   int i, x;
+   char *text;
+   float time;
+   char *s;
+   int v = 0;
 
-    v = 0;
-    for (i = con->current - NUM_CON_TIMES + 1; i <= con->current; i++) {
-	if (i < 0)
-	    continue;
-	time = con_times[i % NUM_CON_TIMES];
-	if (time == 0)
-	    continue;
-	time = realtime - time;
-	if (time > con_notifytime.value)
-	    continue;
-	text = con->text + (i % con_totallines) * con_linewidth;
+   for (i = con->current - NUM_CON_TIMES + 1; i <= con->current; i++)
+   {
+      if (i < 0)
+         continue;
+      time = con_times[i % NUM_CON_TIMES];
+      if (time == 0)
+         continue;
+      time = realtime - time;
+      if (time > con_notifytime.value)
+         continue;
+      text = con->text + (i % con_totallines) * con_linewidth;
 
-	clearnotify = 0;
-	scr_copytop = 1;
+      clearnotify = 0;
+      scr_copytop = 1;
 
-	for (x = 0; x < con_linewidth; x++)
-	    Draw_Character((x + 1) << 3, v, text[x]);
+      for (x = 0; x < con_linewidth; x++)
+         Draw_Character((x + 1) << 3, v, text[x]);
 
-	v += 8;
-    }
+      v += 8;
+   }
 
 
-    if (key_dest == key_message) {
-	clearnotify = 0;
-	scr_copytop = 1;
+   if (key_dest == key_message)
+   {
+      int skip;
 
-	if (chat_team) {
-	    Draw_String(8, v, "say_team:");
-	    skip = 11;
-	} else {
-	    Draw_String(8, v, "say:");
-	    skip = 6;
-	}
+      clearnotify = 0;
+      scr_copytop = 1;
 
-	s = chat_buffer;
-	// FIXME = Truncating? should be while, not if?
-	if (chat_bufferlen > (vid.width >> 3) - (skip + 1))
-	    s += chat_bufferlen - ((vid.width >> 3) - (skip + 1));
+      if (chat_team)
+      {
+         Draw_String(8, v, "say_team:");
+         skip = 11;
+      }
+      else
+      {
+         Draw_String(8, v, "say:");
+         skip = 6;
+      }
 
-	x = 0;
-	while (s[x]) {
-	    Draw_Character((x + skip) << 3, v, s[x]);
-	    x++;
-	}
-	Draw_Character((x + skip) << 3, v,
-		       10 + ((int)(realtime * con_cursorspeed) & 1));
-	v += 8;
-    }
+      s = chat_buffer;
+      // FIXME = Truncating? should be while, not if?
+      if (chat_bufferlen > (vid.width >> 3) - (skip + 1))
+         s += chat_bufferlen - ((vid.width >> 3) - (skip + 1));
 
-    if (v > con_notifylines)
-	con_notifylines = v;
+      x = 0;
+      while (s[x])
+      {
+         Draw_Character((x + skip) << 3, v, s[x]);
+         x++;
+      }
+      Draw_Character((x + skip) << 3, v,
+            10 + ((int)(realtime * con_cursorspeed) & 1));
+      v += 8;
+   }
+
+   if (v > con_notifylines)
+      con_notifylines = v;
 }
 
 static void
@@ -571,51 +582,50 @@ Draws the console with the solid background
 FIXME - The input line at the bottom should only be drawn if typing is allowed
 ================
 */
-void
-Con_DrawConsole(int lines)
+void Con_DrawConsole(int lines)
 {
-    int i, x, y;
-    int rows;
-    char *text;
-    int row;
+   int i, x, y;
+   int rows;
+   char *text;
+   int row;
 
-    if (lines <= 0)
-	return;
+   if (lines <= 0)
+      return;
 
-// draw the background
-    Draw_ConsoleBackground(lines);
+   // draw the background
+   Draw_ConsoleBackground(lines);
 
-// draw the text
-    con_vislines = lines;
-    rows = (lines - 22) >> 3;	// rows of text to draw
-    y = lines - 30;
+   // draw the text
+   con_vislines = lines;
+   rows = (lines - 22) >> 3;	// rows of text to draw
+   y = lines - 30;
 
-// draw from the bottom up
-    if (con->display != con->current) {
-	// draw arrows to show the buffer is backscrolled
-	for (x = 0; x < con_linewidth; x += 4)
-	    Draw_Character((x + 1) << 3, y, '^');
-	y -= 8;
-	rows--;
-    }
+   // draw from the bottom up
+   if (con->display != con->current) {
+      // draw arrows to show the buffer is backscrolled
+      for (x = 0; x < con_linewidth; x += 4)
+         Draw_Character((x + 1) << 3, y, '^');
+      y -= 8;
+      rows--;
+   }
 
-    row = con->display;
-    for (i = 0; i < rows; i++, y -= 8, row--) {
-	if (row < 0)
-	    break;
-	if (con->current - row >= con_totallines)
-	    break;		// past scrollback wrap point
+   row = con->display;
+   for (i = 0; i < rows; i++, y -= 8, row--) {
+      if (row < 0)
+         break;
+      if (con->current - row >= con_totallines)
+         break;		// past scrollback wrap point
 
-	text = con->text + (row % con_totallines) * con_linewidth;
-	for (x = 0; x < con_linewidth; x++)
-	    Draw_Character((x + 1) << 3, y, text[x]);
-    }
+      text = con->text + (row % con_totallines) * con_linewidth;
+      for (x = 0; x < con_linewidth; x++)
+         Draw_Character((x + 1) << 3, y, text[x]);
+   }
 
-    // draw the download bar, if needed
-    Con_DrawDLBar();
+   // draw the download bar, if needed
+   Con_DrawDLBar();
 
-    // draw the input prompt, user text, and cursor if desired
-    Con_DrawInput();
+   // draw the input prompt, user text, and cursor if desired
+   Con_DrawInput();
 }
 
 

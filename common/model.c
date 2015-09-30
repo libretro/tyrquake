@@ -270,34 +270,37 @@ PVSCache_f(void)
     Con_Printf("PVSCache: %7d hits %7d misses\n", c_cachehit, c_cachemiss);
 }
 
-static void
-Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
+static void Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnode_t *node)
 {
-    const leafbits_t *pvs;
-    mplane_t *plane;
-    float d;
+   while (1)
+   {
+      float d;
+      mplane_t *plane;
 
-    while (1) {
-	// if this is a leaf, accumulate the pvs bits
-	if (node->contents < 0) {
-	    if (node->contents != CONTENTS_SOLID) {
-		pvs = Mod_LeafPVS(model, (const mleaf_t *)node);
-		Mod_AddLeafBits(fatpvs, pvs);
-	    }
-	    return;
-	}
+      /* if this is a leaf, accumulate the pvs bits */
+      if (node->contents < 0)
+      {
+         if (node->contents != CONTENTS_SOLID)
+         {
+            const leafbits_t *pvs = Mod_LeafPVS(model, (const mleaf_t *)node);
+            Mod_AddLeafBits(fatpvs, pvs);
+         }
+         return;
+      }
 
-	plane = node->plane;
-	d = DotProduct(point, plane->normal) - plane->dist;
-	if (d > 8)
-	    node = node->children[0];
-	else if (d < -8)
-	    node = node->children[1];
-	else {			// go down both
-	    Mod_AddToFatPVS(model, point, node->children[0]);
-	    node = node->children[1];
-	}
-    }
+      plane = node->plane;
+      d = DotProduct(point, plane->normal) - plane->dist;
+
+      if (d > 8)
+         node = node->children[0];
+      else if (d < -8)
+         node = node->children[1];
+      else
+      {			// go down both
+         Mod_AddToFatPVS(model, point, node->children[0]);
+         node = node->children[1];
+      }
+   }
 }
 
 /*
@@ -830,8 +833,7 @@ Mod_LoadEdges_BSP2(lump_t *l)
 Mod_LoadTexinfo
 =================
 */
-static void
-Mod_LoadTexinfo(lump_t *l)
+static void Mod_LoadTexinfo(lump_t *l)
 {
    texinfo_t *in;
    mtexinfo_t *out;
@@ -1670,27 +1672,27 @@ Mod_LoadSurfedges(lump_t *l)
 Mod_LoadPlanes
 =================
 */
-static void
-Mod_LoadPlanes(lump_t *l)
+static void Mod_LoadPlanes(lump_t *l)
 {
-   int i, j;
+   int i, j, count;
    mplane_t *out;
-   dplane_t *in;
-   int count;
-   int bits;
+   dplane_t *in = (dplane_t*)(void *)(mod_base + l->fileofs);
 
-   in = (dplane_t*)(void *)(mod_base + l->fileofs);
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
-   count = l->filelen / sizeof(*in);
-   out = (mplane_t*)Hunk_AllocName(count * 2 * sizeof(*out), loadname);
 
-   loadmodel->planes = out;
+   count = l->filelen / sizeof(*in);
+   out   = (mplane_t*)
+      Hunk_AllocName(count * 2 * sizeof(*out), loadname);
+
+   loadmodel->planes    = out;
    loadmodel->numplanes = count;
 
-   for (i = 0; i < count; i++, in++, out++) {
-      bits = 0;
-      for (j = 0; j < 3; j++) {
+   for (i = 0; i < count; i++, in++, out++)
+   {
+      int bits = 0;
+      for (j = 0; j < 3; j++)
+      {
 #ifdef MSB_FIRST
          out->normal[j] = LittleFloat(in->normal[j]);
 #else
@@ -1716,16 +1718,15 @@ Mod_LoadPlanes(lump_t *l)
 RadiusFromBounds
 =================
 */
-static float
-RadiusFromBounds(vec3_t mins, vec3_t maxs)
+static float RadiusFromBounds(vec3_t mins, vec3_t maxs)
 {
-    int i;
-    vec3_t corner;
+   int i;
+   vec3_t corner;
 
-    for (i = 0; i < 3; i++)
-	corner[i] = qmax(fabs(mins[i]), fabs(maxs[i]));
+   for (i = 0; i < 3; i++)
+      corner[i] = qmax(fabs(mins[i]), fabs(maxs[i]));
 
-    return Length(corner);
+   return Length(corner);
 }
 
 /*
@@ -1733,8 +1734,7 @@ RadiusFromBounds(vec3_t mins, vec3_t maxs)
 Mod_LoadBrushModel
 =================
 */
-static void
-Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
+static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 {
    int i, j;
    dheader_t *header;
@@ -1762,7 +1762,8 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
     * Check the lump extents
     * FIXME - do this more generally... cleanly...?
     */
-   for (i = 0; i < HEADER_LUMPS; ++i) {
+   for (i = 0; i < HEADER_LUMPS; ++i)
+   {
       int b1 = header->lumps[i].fileofs;
       int e1 = b1 + header->lumps[i].filelen;
 
@@ -1777,7 +1778,8 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
                loadmodel->name);
 
       /* Now, check that it doesn't overlap any other lumps */
-      for (j = 0; j < HEADER_LUMPS; ++j) {
+      for (j = 0; j < HEADER_LUMPS; ++j)
+      {
          int b2 = header->lumps[j].fileofs;
          int e2 = b2 + header->lumps[j].filelen;
 
@@ -1851,45 +1853,45 @@ Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
     * - We assume the main map is the first BSP file loaded (should be)
     * - If any other model has more leafs, then we may be in trouble...
     */
-      if (mod->numleafs > pvscache_numleafs) {
-         if (pvscache[0].leafbits)
-            SV_Error("%s: %d allocated for visdata, but model %s has %d leafs",
-                  __func__, pvscache_numleafs, loadmodel->name, mod->numleafs);
-         Mod_InitPVSCache(mod->numleafs);
-      }
-
-      //
-      // set up the submodels (FIXME: this is confusing)
-      //
-      for (i = 0; i < mod->numsubmodels; i++) {
-         bm = &mod->submodels[i];
-
-         mod->hulls[0].firstclipnode = bm->headnode[0];
-         for (j = 1; j < MAX_MAP_HULLS; j++) {
-            mod->hulls[j].firstclipnode = bm->headnode[j];
-            mod->hulls[j].lastclipnode = mod->numclipnodes - 1;
+         if (mod->numleafs > pvscache_numleafs) {
+            if (pvscache[0].leafbits)
+               SV_Error("%s: %d allocated for visdata, but model %s has %d leafs",
+                     __func__, pvscache_numleafs, loadmodel->name, mod->numleafs);
+            Mod_InitPVSCache(mod->numleafs);
          }
 
-         mod->firstmodelsurface = bm->firstface;
-         mod->nummodelsurfaces = bm->numfaces;
+         //
+         // set up the submodels (FIXME: this is confusing)
+         //
+         for (i = 0; i < mod->numsubmodels; i++) {
+            bm = &mod->submodels[i];
 
-         VectorCopy(bm->maxs, mod->maxs);
-         VectorCopy(bm->mins, mod->mins);
+            mod->hulls[0].firstclipnode = bm->headnode[0];
+            for (j = 1; j < MAX_MAP_HULLS; j++) {
+               mod->hulls[j].firstclipnode = bm->headnode[j];
+               mod->hulls[j].lastclipnode = mod->numclipnodes - 1;
+            }
 
-         mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
-         mod->numleafs = bm->visleafs;
+            mod->firstmodelsurface = bm->firstface;
+            mod->nummodelsurfaces = bm->numfaces;
 
-         /* duplicate the basic information */
-         if (i < mod->numsubmodels - 1) {
-            char name[10];
+            VectorCopy(bm->maxs, mod->maxs);
+            VectorCopy(bm->mins, mod->mins);
 
-            snprintf(name, sizeof(name), "*%i", i + 1);
-            loadmodel = Mod_FindName(name);
-            *loadmodel = *mod;
-            strcpy(loadmodel->name, name);
-            mod = loadmodel;
+            mod->radius = RadiusFromBounds(mod->mins, mod->maxs);
+            mod->numleafs = bm->visleafs;
+
+            /* duplicate the basic information */
+            if (i < mod->numsubmodels - 1) {
+               char name[10];
+
+               snprintf(name, sizeof(name), "*%i", i + 1);
+               loadmodel = Mod_FindName(name);
+               *loadmodel = *mod;
+               strcpy(loadmodel->name, name);
+               mod = loadmodel;
+            }
          }
-      }
 }
 
 /*
@@ -1906,20 +1908,17 @@ Mod_Extradata
 Caches the data if needed
 ===============
 */
-void *
-Mod_Extradata(model_t *mod)
+void *Mod_Extradata(model_t *mod)
 {
-    void *r;
+   void *r = Cache_Check(&mod->cache);
+   if (r)
+      return r;
 
-    r = Cache_Check(&mod->cache);
-    if (r)
-	return r;
+   Mod_LoadModel(mod, true);
 
-    Mod_LoadModel(mod, true);
-
-    if (!mod->cache.data)
-	Sys_Error("%s: caching failed", __func__);
-    return mod->cache.data;
+   if (!mod->cache.data)
+      Sys_Error("%s: caching failed", __func__);
+   return mod->cache.data;
 }
 
 /*
@@ -1927,16 +1926,15 @@ Mod_Extradata(model_t *mod)
 Mod_Print
 ================
 */
-void
-Mod_Print(void)
+void Mod_Print(void)
 {
-    int i;
-    model_t *mod;
+   int i;
+   model_t *mod;
 
-    Con_Printf("Cached models:\n");
-    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
-	Con_Printf("%*p : %s\n", (int)sizeof(void *) * 2 + 2,
-		   mod->cache.data, mod->name);
+   Con_Printf("Cached models:\n");
+   for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+      Con_Printf("%*p : %s\n", (int)sizeof(void *) * 2 + 2,
+            mod->cache.data, mod->name);
 }
 
 /*
@@ -1945,17 +1943,15 @@ Mod_TouchModel
 
 ==================
 */
-void
-Mod_TouchModel(char *name)
+void Mod_TouchModel(char *name)
 {
-    model_t *mod;
+   model_t *mod = Mod_FindName(name);
 
-    mod = Mod_FindName(name);
-
-    if (!mod->needload) {
-	if (mod->type == mod_alias)
-	    Cache_Check(&mod->cache);
-    }
+   if (!mod->needload)
+   {
+      if (mod->type == mod_alias)
+         Cache_Check(&mod->cache);
+   }
 }
 
 #endif /* !SERVERONLY */
