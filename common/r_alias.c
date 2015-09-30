@@ -182,8 +182,8 @@ R_AliasCheckBBox(entity_t *e)
 {
     int i, flags, frame, numv;
     aliashdr_t *pahdr;
-    float zi, basepts[8][3], v0, v1, frac;
-    finalvert_t *pv0, *pv1, viewpts[16];
+    float zi, basepts[8][3], v0, v1;
+    finalvert_t viewpts[16];
     auxvert_t *pa0, *pa1, viewaux[16];
     maliasframedesc_t *pframedesc;
     qboolean zclipped, zfullyclipped;
@@ -230,51 +230,55 @@ R_AliasCheckBBox(entity_t *e)
     zfullyclipped = true;
 
     minz = 9999;
-    for (i = 0; i < 8; i++) {
-	R_AliasTransformVector(&basepts[i][0], &viewaux[i].fv[0]);
+    for (i = 0; i < 8; i++)
+    {
+       R_AliasTransformVector(&basepts[i][0], &viewaux[i].fv[0]);
 
-	if (viewaux[i].fv[2] < ALIAS_Z_CLIP_PLANE) {
-	    // we must clip points that are closer than the near clip plane
-	    viewpts[i].flags = ALIAS_Z_CLIP;
-	    zclipped = true;
-	} else {
-	    if (viewaux[i].fv[2] < minz)
-		minz = viewaux[i].fv[2];
-	    viewpts[i].flags = 0;
-	    zfullyclipped = false;
-	}
+       if (viewaux[i].fv[2] < ALIAS_Z_CLIP_PLANE)
+       {
+          // we must clip points that are closer than the near clip plane
+          viewpts[i].flags = ALIAS_Z_CLIP;
+          zclipped = true;
+       } else {
+          if (viewaux[i].fv[2] < minz)
+             minz = viewaux[i].fv[2];
+          viewpts[i].flags = 0;
+          zfullyclipped = false;
+       }
     }
 
 
-    if (zfullyclipped) {
-	return false;		// everything was near-z-clipped
-    }
+    if (zfullyclipped)
+       return false;		// everything was near-z-clipped
 
     numv = 8;
 
-    if (zclipped) {
-	// organize points by edges, use edges to get new points (possible trivial
-	// reject)
-	for (i = 0; i < 12; i++) {
-	    // edge endpoints
-	    pv0 = &viewpts[aedges[i].index0];
-	    pv1 = &viewpts[aedges[i].index1];
-	    pa0 = &viewaux[aedges[i].index0];
-	    pa1 = &viewaux[aedges[i].index1];
+    if (zclipped)
+    {
+       // organize points by edges, use edges to get new points (possible trivial
+       // reject)
+       for (i = 0; i < 12; i++)
+       {
+          // edge endpoints
+          finalvert_t *pv0 = &viewpts[aedges[i].index0];
+          finalvert_t *pv1 = &viewpts[aedges[i].index1];
+          pa0 = &viewaux[aedges[i].index0];
+          pa1 = &viewaux[aedges[i].index1];
 
-	    // if one end is clipped and the other isn't, make a new point
-	    if (pv0->flags ^ pv1->flags) {
-		frac = (ALIAS_Z_CLIP_PLANE - pa0->fv[2]) /
-		    (pa1->fv[2] - pa0->fv[2]);
-		viewaux[numv].fv[0] = pa0->fv[0] +
-		    (pa1->fv[0] - pa0->fv[0]) * frac;
-		viewaux[numv].fv[1] = pa0->fv[1] +
-		    (pa1->fv[1] - pa0->fv[1]) * frac;
-		viewaux[numv].fv[2] = ALIAS_Z_CLIP_PLANE;
-		viewpts[numv].flags = 0;
-		numv++;
-	    }
-	}
+          // if one end is clipped and the other isn't, make a new point
+          if (pv0->flags ^ pv1->flags)
+          {
+             float frac = (ALIAS_Z_CLIP_PLANE - pa0->fv[2]) /
+                (pa1->fv[2] - pa0->fv[2]);
+             viewaux[numv].fv[0] = pa0->fv[0] +
+                (pa1->fv[0] - pa0->fv[0]) * frac;
+             viewaux[numv].fv[1] = pa0->fv[1] +
+                (pa1->fv[1] - pa0->fv[1]) * frac;
+             viewaux[numv].fv[2] = ALIAS_Z_CLIP_PLANE;
+             viewpts[numv].flags = 0;
+             numv++;
+          }
+       }
     }
 // project the vertices that remain after clipping
     anyclip = 0;
@@ -559,47 +563,48 @@ R_AliasTransformAndProjectFinalVerts
 void
 R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts)
 {
-    int i, temp;
-    float lightcos, *plightnormal, zi;
-    trivertx_t *pverts;
+   int i;
+   trivertx_t *pverts = r_apverts;
 
-    pverts = r_apverts;
+   for (i = 0; i < r_anumverts; i++, fv++, pverts++, pstverts++)
+   {
+      int temp;
+      float lightcos, *plightnormal;
+      // transform and project
+      float zi = 1.0 / (DotProduct(pverts->v, aliastransform[2]) +
+            aliastransform[2][3]);
 
-    for (i = 0; i < r_anumverts; i++, fv++, pverts++, pstverts++) {
-	// transform and project
-	zi = 1.0 / (DotProduct(pverts->v, aliastransform[2]) +
-		    aliastransform[2][3]);
+      // x, y, and z are scaled down by 1/2**31 in the transform, so 1/z is
+      // scaled up by 1/2**31, and the scaling cancels out for x and y in the
+      // projection
+      fv->v[5] = zi;
 
-	// x, y, and z are scaled down by 1/2**31 in the transform, so 1/z is
-	// scaled up by 1/2**31, and the scaling cancels out for x and y in the
-	// projection
-	fv->v[5] = zi;
+      fv->v[0] = ((DotProduct(pverts->v, aliastransform[0]) +
+               aliastransform[0][3]) * zi) + aliasxcenter;
+      fv->v[1] = ((DotProduct(pverts->v, aliastransform[1]) +
+               aliastransform[1][3]) * zi) + aliasycenter;
 
-	fv->v[0] = ((DotProduct(pverts->v, aliastransform[0]) +
-		     aliastransform[0][3]) * zi) + aliasxcenter;
-	fv->v[1] = ((DotProduct(pverts->v, aliastransform[1]) +
-		     aliastransform[1][3]) * zi) + aliasycenter;
+      fv->v[2] = pstverts->s;
+      fv->v[3] = pstverts->t;
+      fv->flags = pstverts->onseam;
 
-	fv->v[2] = pstverts->s;
-	fv->v[3] = pstverts->t;
-	fv->flags = pstverts->onseam;
+      // lighting
+      plightnormal = r_avertexnormals[pverts->lightnormalindex];
+      lightcos = DotProduct(plightnormal, r_plightvec);
+      temp = r_ambientlight;
 
-	// lighting
-	plightnormal = r_avertexnormals[pverts->lightnormalindex];
-	lightcos = DotProduct(plightnormal, r_plightvec);
-	temp = r_ambientlight;
+      if (lightcos < 0)
+      {
+         temp += (int)(r_shadelight * lightcos);
 
-	if (lightcos < 0) {
-	    temp += (int)(r_shadelight * lightcos);
+         // clamp; because we limited the minimum ambient and shading light, we
+         // don't have to clamp low light, just bright
+         if (temp < 0)
+            temp = 0;
+      }
 
-	    // clamp; because we limited the minimum ambient and shading light, we
-	    // don't have to clamp low light, just bright
-	    if (temp < 0)
-		temp = 0;
-	}
-
-	fv->v[4] = temp;
-    }
+      fv->v[4] = temp;
+   }
 }
 
 /*

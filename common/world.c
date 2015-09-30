@@ -85,14 +85,16 @@ can just be stored out and get a proper hull_t structure.
 static void SV_InitBoxHull(void)
 {
    int i;
-   int side;
 
    box_hull.clipnodes = box_clipnodes;
    box_hull.planes = box_planes;
    box_hull.firstclipnode = 0;
    box_hull.lastclipnode = 5;
 
-   for (i = 0; i < 6; i++) {
+   for (i = 0; i < 6; i++)
+   {
+      int side;
+
       box_clipnodes[i].planenum = i;
 
       side = i & 1;
@@ -141,13 +143,15 @@ testing object's origin to get a point to use with the returned hull.
 */
 static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t offset)
 {
-   model_t *model;
-   vec3_t size;
-   vec3_t hullmins, hullmaxs;
    hull_t *hull;
 
-   // decide which clipping hull to use, based on the size
-   if (ent->v.solid == SOLID_BSP) {	// explicit hulls in the BSP model
+   /* decide which clipping hull to use, based on the size */
+   if (ent->v.solid == SOLID_BSP)
+   {
+      vec3_t size;
+      model_t *model;
+
+      /* explicit hulls in the BSP model */
       if (ent->v.movetype != MOVETYPE_PUSH)
          SV_Error("SOLID_BSP without MOVETYPE_PUSH");
 
@@ -167,7 +171,11 @@ static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t o
       // calculate an offset value to center the origin
       VectorSubtract(hull->clip_mins, mins, offset);
       VectorAdd(offset, ent->v.origin, offset);
-   } else {
+   }
+   else
+   {
+      vec3_t hullmins, hullmaxs;
+
       /* create a temp hull from bounding box sizes */
       VectorSubtract(ent->v.mins, maxs, hullmins);
       VectorSubtract(ent->v.maxs, mins, hullmaxs);
@@ -364,7 +372,8 @@ SV_TouchLinks(edict_t *ent, areanode_t *node)
    int old_self, old_other;
 
    /* touch linked edicts */
-   for (l = node->trigger_edicts.next; l != &node->trigger_edicts; l = next) {
+   for (l = node->trigger_edicts.next; l != &node->trigger_edicts; l = next)
+   {
       /*
        * FIXME - Just paranoia? Check if this can really happen...
        *         (I think it was related to the E2M2 drawbridge bug)

@@ -127,27 +127,23 @@ Combine and scale multiple lightmaps into the 8.8 format in blocklights
 */
 static void R_BuildLightMap(void)
 {
-   int smax, tmax;
-   int t;
-   int i, size;
-   byte *lightmap;
+   int i;
    unsigned scale;
    int maps;
-   msurface_t *surf;
+   msurface_t *surf = r_drawsurf.surf;
+   int smax = (surf->extents[0] >> 4) + 1;
+   int tmax = (surf->extents[1] >> 4) + 1;
+   int size = smax * tmax;
+   byte *lightmap = surf->samples;
 
-   surf = r_drawsurf.surf;
-
-   smax = (surf->extents[0] >> 4) + 1;
-   tmax = (surf->extents[1] >> 4) + 1;
-   size = smax * tmax;
-   lightmap = surf->samples;
-
-   if (r_fullbright.value || !cl.worldmodel->lightdata) {
+   if (r_fullbright.value || !cl.worldmodel->lightdata)
+   {
       for (i = 0; i < size; i++)
          blocklights[i] = 0;
       return;
    }
-   // clear to ambient
+
+   /* clear to ambient */
    for (i = 0; i < size; i++)
       blocklights[i] = r_refdef.ambientlight << 8;
 
@@ -155,7 +151,8 @@ static void R_BuildLightMap(void)
    // add all the lightmaps
    if (lightmap)
       for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255;
-            maps++) {
+            maps++)
+      {
          scale = r_drawsurf.lightadj[maps];	// 8.8 fraction
          for (i = 0; i < size; i++)
             blocklights[i] += lightmap[i] * scale;
@@ -166,8 +163,9 @@ static void R_BuildLightMap(void)
       R_AddDynamicLights();
 
    // bound, invert, and shift
-   for (i = 0; i < size; i++) {
-      t = (255 * 256 - (int)blocklights[i]) >> (8 - VID_CBITS);
+   for (i = 0; i < size; i++)
+   {
+      int t = (255 * 256 - (int)blocklights[i]) >> (8 - VID_CBITS);
 
       if (t < (1 << 6))
          t = (1 << 6);
@@ -175,7 +173,6 @@ static void R_BuildLightMap(void)
       blocklights[i] = t;
    }
 }
-
 
 /*
 ===============
