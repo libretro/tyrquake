@@ -1654,12 +1654,6 @@ void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
    return buf;
 }
 
-#ifdef _XBOX1
-#define STATIC_PKG static
-#else
-#define STATIC_PKG
-#endif
-
 /*
 =================
 COM_LoadPackFile
