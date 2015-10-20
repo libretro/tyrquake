@@ -1672,17 +1672,19 @@ of the list so they override previous pack files.
 */
 static pack_t *COM_LoadPackFile(const char *packfile)
 {
-   STATIC_PKG dpackheader_t header;
-   STATIC_PKG int i;
-   STATIC_PKG packfile_t *newfiles;
-   STATIC_PKG int numpackfiles;
-   STATIC_PKG pack_t *pack;
-   STATIC_PKG FILE *packhandle;
-   STATIC_PKG dpackfile_t info[MAX_FILES_IN_PACK];
-   STATIC_PKG unsigned short crc;
+   dpackheader_t header;
+   int i;
+   packfile_t *newfiles;
+   int numpackfiles;
+   pack_t *pack;
+   FILE *packhandle;
+   unsigned short crc;
+   dpackfile_t *info = malloc(MAX_FILES_IN_PACK * sizeof(dpackfile_t));
 
+   if (!info)
+      goto error;
    if (COM_FileOpenRead(packfile, &packhandle) == -1)
-      return NULL;
+      goto error;
 
    fread(&header, 1, sizeof(header), packhandle);
    if (header.id[0] != 'P' || header.id[1] != 'A'
@@ -1710,11 +1712,11 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 #endif
 
    fseek(packhandle, header.dirofs, SEEK_SET);
-   fread(&info, 1, header.dirlen, packhandle);
+   fread((void*)info, 1, header.dirlen, packhandle);
 
 #if defined(NQ_HACK) || defined(QW_HACK)
    // crc the directory to check for modifications
-   crc = CRC_Block((byte *)info, header.dirlen);
+   crc = CRC_Block(((byte *)info), header.dirlen);
 #ifdef NQ_HACK
    if (crc != NQ_PAK0_CRC)
       com_modified = true;
@@ -1746,15 +1748,22 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 #endif
 
    if (!pack)
-      return NULL;
+      goto error;
 
    strcpy(pack->filename, packfile);
    pack->numfiles = numpackfiles;
    pack->files    = newfiles;
 
+   free(info);
+
    Con_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
    Sys_Printf("Added packfile %s (%i files)\n", packfile, numpackfiles);
    return pack;
+
+error:
+   if (info)
+      free(info);
+   return NULL;
 }
 
 
