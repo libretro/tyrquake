@@ -262,121 +262,133 @@ CL_ParseServerInfo(void)
     const char *mapname;
     int i, maxlen;
     int nummodels, numsounds;
-    char model_precache[MAX_MODELS][MAX_QPATH];
-    char sound_precache[MAX_SOUNDS][MAX_QPATH];
+    char **model_precache = malloc(sizeof(char*) * MAX_MODELS);
+    char **sound_precache = malloc(sizeof(char*) * MAX_SOUNDS);
+    for (i = 0; i < MAX_MODELS; i++)
+       model_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
+    for (i = 0; i < MAX_SOUNDS; i++)
+       sound_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
 
     Con_DPrintf("Serverinfo packet received.\n");
-//
-// wipe the client_state_t struct
-//
+
+    /* wipe the client_state_t struct */
     CL_ClearState();
 
-// parse protocol version number
+    /* parse protocol version number */
     i = MSG_ReadLong();
-    if (!Protocol_Known(i)) {
-	Con_Printf("Server returned unknown protocol version %i\n", i);
-	return;
+    if (!Protocol_Known(i))
+    {
+       Con_Printf("Server returned unknown protocol version %i\n", i);
+       return;
     }
     cl.protocol = i;
 
-// parse maxclients
+    /* parse maxclients */
     cl.maxclients = MSG_ReadByte();
-    if (cl.maxclients < 1 || cl.maxclients > MAX_SCOREBOARD) {
-	Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
-	return;
+    if (cl.maxclients < 1 || cl.maxclients > MAX_SCOREBOARD)
+    {
+       Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
+       return;
     }
     cl.players = (player_info_t*)Hunk_AllocName(cl.maxclients * sizeof(*cl.players), "players");
 
-// parse gametype
+    /* parse gametype */
     cl.gametype = MSG_ReadByte();
 
-// parse signon message
+    /* parse signon message */
     level = cl.levelname;
     maxlen = sizeof(cl.levelname);
     snprintf(level, maxlen, "%s", MSG_ReadString());
 
-// seperate the printfs so the server message can have a color
+    /* seperate the printfs so the server message can have a color */
     Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
 	       "\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n\n");
     Con_Printf("%c%s\n", 2, level);
     Con_Printf("Using protocol %i\n", cl.protocol);
 
-//
-// first we go through and touch all of the precache data that still
-// happens to be in the cache, so precaching something else doesn't
-// needlessly purge it
-//
+    // first we go through and touch all of the precache data that still
+    // happens to be in the cache, so precaching something else doesn't
+    // needlessly purge it
 
-// precache models
+    /* precache models */
     memset(cl.model_precache, 0, sizeof(cl.model_precache));
-    for (nummodels = 1;; nummodels++) {
-	char *in, *model;
-	in = MSG_ReadString();
-	if (!in[0])
-	    break;
-	if (nummodels == max_models(cl.protocol)) {
-	    Host_Error("Server sent too many model precaches (max = %d)",
-		       max_models(cl.protocol));
-	    return;
-	}
-	model = model_precache[nummodels];
-	maxlen = sizeof(model_precache[0]);
-	snprintf(model, maxlen, "%s", in);
-	Mod_TouchModel(model);
+    for (nummodels = 1;; nummodels++)
+    {
+       char *in = MSG_ReadString();
+       if (!in[0])
+          break;
+       if (nummodels == max_models(cl.protocol))
+       {
+          Host_Error("Server sent too many model precaches (max = %d)",
+                max_models(cl.protocol));
+          return;
+       }
+       strcpy(model_precache[nummodels], in);
+       Mod_TouchModel(in);
     }
 
-// precache sounds
+    /* precache sounds */
     memset(cl.sound_precache, 0, sizeof(cl.sound_precache));
-    for (numsounds = 1;; numsounds++) {
-	char *in, *sound;
-	in = MSG_ReadString();
-	if (!in[0])
-	    break;
-	if (numsounds == max_sounds(cl.protocol)) {
-	    Host_Error("Server sent too many sound precaches (max = %d)",
-		       max_sounds(cl.protocol));
-	    return;
-	}
-	sound = sound_precache[numsounds];
-	maxlen = sizeof(sound_precache[0]);
-	snprintf(sound, maxlen, "%s", in);
-	S_TouchSound(sound);
+    for (numsounds = 1;; numsounds++)
+    {
+       char *in = MSG_ReadString();
+       if (!in[0])
+          break;
+       if (numsounds == max_sounds(cl.protocol))
+       {
+          Host_Error("Server sent too many sound precaches (max = %d)",
+                max_sounds(cl.protocol));
+          return;
+       }
+
+       strcpy(sound_precache[numsounds], in);
+       S_TouchSound(in);
     }
 
-// copy the naked name of the map file to the cl structure
+    /* copy the naked name of the map file to the cl structure */
     mapname = COM_SkipPath(model_precache[1]);
     snprintf(cl.mapname, sizeof(cl.mapname), "%s", mapname);
     COM_StripExtension(cl.mapname);
 
-//
-// now we try to load everything else until a cache allocation fails
-//
+    /* now we try to load everything else until a cache allocation fails */
 
-    for (i = 1; i < nummodels; i++) {
-	cl.model_precache[i] = Mod_ForName(model_precache[i], false);
-	if (cl.model_precache[i] == NULL) {
-	    Con_Printf("Model %s not found\n", model_precache[i]);
-	    return;
-	}
-	CL_KeepaliveMessage();
+    for (i = 1; i < nummodels; i++)
+    {
+       cl.model_precache[i] = Mod_ForName(model_precache[i], false);
+       if (cl.model_precache[i] == NULL)
+       {
+          Con_Printf("Model %s not found\n", model_precache[i]);
+          return;
+       }
+       CL_KeepaliveMessage();
     }
 
     S_BeginPrecaching();
-    for (i = 1; i < numsounds; i++) {
-	cl.sound_precache[i] = S_PrecacheSound(sound_precache[i]);
-	CL_KeepaliveMessage();
+    for (i = 1; i < numsounds; i++)
+    {
+       cl.sound_precache[i] = S_PrecacheSound(sound_precache[i]);
+       CL_KeepaliveMessage();
     }
     S_EndPrecaching();
 
 
-// local state
+    /* local state */
     cl_entities[0].model = cl.worldmodel = cl.model_precache[1];
 
     R_NewMap();
 
-    Hunk_Check();		// make sure nothing is hurt
+    /* make sure nothing is hurt */
+    Hunk_Check();		
 
-    noclip_anglehack = false;	// noclip is turned off at start
+    /* noclip is turned off at start */
+    noclip_anglehack = false;
+
+    for (i = 0; i < MAX_MODELS; i++)
+       free(model_precache[i]);
+    free(model_precache);
+    for (i = 0; i < MAX_SOUNDS; i++)
+       free(sound_precache[i]);
+    free(sound_precache);
 }
 
 

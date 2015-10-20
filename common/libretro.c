@@ -946,7 +946,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define AUDIO_BUFFER_SAMPLES (8 * 1024)
+#define AUDIO_BUFFER_SAMPLES (8192)
 
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
