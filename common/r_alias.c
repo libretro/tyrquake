@@ -859,46 +859,47 @@ nolerp:
 R_AliasDrawModel
 ================
 */
-void
-R_AliasDrawModel(entity_t *e, alight_t *plighting)
+void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
-    aliashdr_t *pahdr;
-    finalvert_t *pfinalverts;
-    finalvert_t finalverts[CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t)];
-    auxvert_t *pauxverts;
-    auxvert_t auxverts[MAXALIASVERTS];
+   aliashdr_t *pahdr;
+   finalvert_t *pfinalverts;
+   finalvert_t finalverts[CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t)];
+   auxvert_t *pauxverts;
+   auxvert_t *auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
 
-    r_amodels_drawn++;
+   r_amodels_drawn++;
 
-// cache align
-    pfinalverts = CACHE_ALIGN_PTR(finalverts);
-    pauxverts = &auxverts[0];
+   // cache align
+   pfinalverts = CACHE_ALIGN_PTR(finalverts);
+   pauxverts = &auxverts[0];
 
-    pahdr = (aliashdr_t*)Mod_Extradata(e->model);
+   pahdr = (aliashdr_t*)Mod_Extradata(e->model);
 
-    R_AliasSetupSkin(e, pahdr);
-    R_AliasSetUpTransform(e, pahdr, e->trivial_accept);
-    R_AliasSetupLighting(plighting);
-    R_AliasSetupFrame(e, pahdr);
+   R_AliasSetupSkin(e, pahdr);
+   R_AliasSetUpTransform(e, pahdr, e->trivial_accept);
+   R_AliasSetupLighting(plighting);
+   R_AliasSetupFrame(e, pahdr);
 
-    if (!e->colormap)
-	Sys_Error("%s: !e->colormap", __func__);
+   if (!e->colormap)
+      Sys_Error("%s: !e->colormap", __func__);
 
-    r_affinetridesc.drawtype = (e->trivial_accept == 3) &&
-	r_recursiveaffinetriangles;
+   r_affinetridesc.drawtype = (e->trivial_accept == 3) &&
+      r_recursiveaffinetriangles;
 
-    if (r_affinetridesc.drawtype)
-       D_PolysetUpdateTables();	// FIXME: precalc...
+   if (r_affinetridesc.drawtype)
+      D_PolysetUpdateTables();	// FIXME: precalc...
 
-    acolormap = e->colormap;
+   acolormap = e->colormap;
 
-    if (e != &cl.viewent)
-	ziscale = ((float)0x8000) * ((float)0x10000);
-    else
-	ziscale = ((float)0x8000) * ((float)0x10000) * 3.0;
+   if (e != &cl.viewent)
+      ziscale = ((float)0x8000) * ((float)0x10000);
+   else
+      ziscale = ((float)0x8000) * ((float)0x10000) * 3.0;
 
-    if (e->trivial_accept)
-	R_AliasPrepareUnclippedPoints(pahdr, pfinalverts);
-    else
-	R_AliasPreparePoints(pahdr, pfinalverts, pauxverts);
+   if (e->trivial_accept)
+      R_AliasPrepareUnclippedPoints(pahdr, pfinalverts);
+   else
+      R_AliasPreparePoints(pahdr, pfinalverts, pauxverts);
+
+   free(auxverts);
 }
