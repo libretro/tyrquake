@@ -1087,6 +1087,7 @@ void COM_InitArgv(int argc, const char **argv)
    // reconstitute the command line for the cmdline externally visible cvar
    for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++)
    {
+      i = 0;
       while ((n < (CMDLINE_LENGTH - 1)) && argv[j][i])
          com_cmdline[n++] = argv[j][i++];
 
