@@ -36,6 +36,14 @@ endif
 
 LIBM := -lm
 
+ifeq ($(ARCHFLAGS),)
+ifeq ($(archs),ppc)
+   ARCHFLAGS = -arch ppc -arch ppc64
+else
+   ARCHFLAGS = -arch i386 -arch x86_64
+endif
+endif
+
 ifeq ($(platform), unix)
    TARGET := $(TARGET_NAME)_libretro.so
    fpic := -fPIC
@@ -227,6 +235,13 @@ CFLAGS     += $(DEFINES) $(COMMON_DEFINES)
 
 ifeq ($(FRONTEND_SUPPORTS_RGB565), 1)
 CFLAGS += -DFRONTEND_SUPPORTS_RGB565
+endif
+
+ifeq ($(platform), osx)
+ifndef ($(NOUNIVERSAL))
+   CFLAGS += $(ARCHFLAGS)
+   LFLAGS += $(ARCHFLAGS)
+endif
 endif
 
 ifeq ($(platform), theos_ios)
