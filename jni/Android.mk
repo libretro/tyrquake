@@ -2,8 +2,6 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-APP_DIR := ../../src
-
 LOCAL_MODULE    := retro
 
 ifeq ($(TARGET_ARCH),arm)
@@ -22,7 +20,7 @@ ifeq ($(TARGET_ARCH),mips)
 LOCAL_CFLAGS += -DANDROID_MIPS -D__mips__ -D__MIPSEL__
 endif
 
-CORE_DIR := ../..
+CORE_DIR := ..
 
 include $(CORE_DIR)/Makefile.common
 
