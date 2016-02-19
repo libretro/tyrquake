@@ -908,16 +908,33 @@ void VID_Shutdown(void)
 
 void VID_Update(vrect_t *rects)
 {
-   unsigned char *ilineptr = (unsigned char*)vid.buffer;
-   unsigned short *olineptr = (unsigned short*)finalimage;
-   unsigned short *pal = (unsigned short*)&d_8to16table;
    unsigned y;
+   struct retro_framebuffer fb = {0};
+   unsigned pitch              = width << 1;
+   uint8_t *ilineptr           = (uint8_t*)vid.buffer;
+   uint16_t *olineptr          = (uint16_t*)finalimage;
+   uint16_t *pal               = (uint16_t*)&d_8to16table;
+   uint16_t *ptr               = (uint16_t*)finalimage;
+
+   fb.width                    = width;
+   fb.height                   = height;
+   fb.access_flags             = RETRO_MEMORY_ACCESS_WRITE;
+
+   if (!video_cb)
+      return;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb) 
+         && fb.format == RETRO_PIXEL_FORMAT_RGB565)
+   {
+      ptr      = (uint16_t*)fb.data;
+      olineptr = (uint16_t*)fb.data;
+      pitch    = fb.pitch << 1;
+   }
 
    for (y = 0; y < rects->width * rects->height; ++y)
       *olineptr++ = pal[*ilineptr++];
 
-   if (video_cb)
-      video_cb(finalimage, width, height, width << 1);
+   video_cb(ptr, width, height, pitch);
    did_flip = true;
 }
 
