@@ -996,7 +996,8 @@ static void audio_callback(void)
 
    audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
    audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
+   if ((read_second >> 1))
+      audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
 }
 
 qboolean SNDDMA_Init(void)
