@@ -58,6 +58,12 @@ static int mod_numknown;
 static const model_loader_t *mod_loader;
 
 static void PVSCache_f(void);
+
+// leilei HACK
+
+int coloredlights = 1; // to debug the colored lights as we have no menu option yet. 
+
+
 /*
 ===============
 Mod_Init
@@ -631,15 +637,72 @@ Mod_LoadTextures(lump_t *l)
 Mod_LoadLighting
 =================
 */
+
+
 static void
 Mod_LoadLighting(lump_t *l)
 {
-    if (!l->filelen) {
-	loadmodel->lightdata = NULL;
-	return;
-    }
-    loadmodel->lightdata = (byte*)Hunk_AllocName(l->filelen, loadname);
-    memcpy(loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+	int		i;
+	byte	*in, *out, *data;
+	byte	d;
+	char	litname[1024];
+	byte 	*lightmapfile;
+
+	if (!l->filelen) {
+		loadmodel->lightdata = NULL;
+		return;
+	}
+
+	if (coloredlights)	// if colored lights are enabled, look for a lit file to load
+	{
+		strcpy(litname, loadmodel->name);
+		COM_StripExtension(litname);
+		COM_DefaultExtension(litname, ".lit");
+		lightmapfile = COM_LoadHunkFile(litname);
+		if (lightmapfile)
+		{
+			data = lightmapfile;	
+			if (data[0] == 'Q' && data[1] == 'L' && data[2] == 'I' && data[3] == 'T')
+			{
+				i = LittleLong(((int *)data)[1]);
+				if (i == 1)
+				{
+					loadmodel->lightdata = data + 8;	
+					return;
+				}
+				else
+					Con_Printf("Unknown .LIT file version (%d)\n", i);
+			}
+			else
+				Con_Printf("Corrupt .LIT file (old version?), ignoring\n");
+
+		}
+		else
+		{
+		//expand the mono lighting to 24 bit
+			int i;
+			byte *dest, *src = mod_base + l->fileofs;
+			loadmodel->lightdata = Hunk_AllocName ( l->filelen*3, loadname);
+			dest = loadmodel->lightdata;
+			for (i = 0; i<l->filelen; i++)
+			{
+				dest[0] = *src;
+				dest[1] = *src;
+				dest[2] = *src;
+
+				src++;
+				dest+=3;
+		
+			}
+				
+	
+		}
+	}
+	else		// mono lights
+	{
+	    loadmodel->lightdata = (byte*)Hunk_AllocName(l->filelen, loadname);
+	    memcpy(loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
+	}
 }
 
 
@@ -1054,8 +1117,12 @@ Mod_LoadFaces_BSP29(lump_t *l)
 #endif
       if (i == -1)
          out->samples = NULL;
-      else
-         out->samples = loadmodel->lightdata + i;
+	//	else if (coloredlights)
+		{
+			out->samples = loadmodel->lightdata + i * 3;
+		}
+//      else
+   //      out->samples = loadmodel->lightdata + i;
 
       /* set the surface drawing flags */
       if (!strncmp(out->texinfo->texture->name, "sky", 3)) {

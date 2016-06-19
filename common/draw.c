@@ -51,7 +51,7 @@ static rectdesc_t r_rectdesc;
 
 byte *draw_chars;		// 8*8 graphic characters
 const qpic_t *draw_disc;
-
+extern byte *host_basepal;
 static const qpic_t *draw_backtile;
 
 //=============================================================================
@@ -122,6 +122,11 @@ Draw_CachePic(const char *path)
 Draw_Init
 ===============
 */
+
+void Draw_Generate18BPPTable (void);
+
+extern void	VID_SetPalette2 (unsigned char *palette);
+
 void
 Draw_Init(void)
 {
@@ -133,6 +138,9 @@ Draw_Init(void)
     r_rectdesc.height = draw_backtile->height;
     r_rectdesc.ptexbytes = draw_backtile->data;
     r_rectdesc.rowbytes = draw_backtile->width;
+
+    VID_SetPalette2 (host_basepal);
+    Draw_Generate18BPPTable();
 }
 
 
@@ -935,3 +943,87 @@ Draw_EndDisc(void)
 {
     D_EndDirectRect(vid.width - 24, 0, 24, 24);
 }
+
+
+
+// Colored Lighting lookup tables
+
+byte	palmap2[64][64][64];	
+
+
+
+
+/*
+===============
+BestColor
+===============
+*/
+byte BestColor (int r, int g, int b, int start, int stop)
+{
+	int	i;
+	int	dr, dg, db;
+	int	bestdistortion, distortion;
+	int	berstcolor;
+	byte	*pal;
+
+//
+// let any color go to 0 as a last resort
+//
+	bestdistortion = 256*256*4;
+	berstcolor = 0;
+
+	pal = host_basepal + start*3;
+	for (i=start ; i<= stop ; i++)
+	{
+		dr = r - (int)pal[0];
+		dg = g - (int)pal[1];
+		db = b - (int)pal[2];
+		pal += 3;
+		distortion = dr*dr + dg*dg + db*db;
+		if (distortion < bestdistortion)
+		{
+			if (!distortion)
+				return i;		// perfect match
+
+			bestdistortion = distortion;
+			berstcolor = i;
+		}
+	}
+
+	return berstcolor;
+}
+
+	
+
+void Draw_Generate18BPPTable (void)
+{
+
+	int		i, j, l, c;
+	float  red, green, blue;
+	int		r, g, b;
+	int		beastcolor;
+	int	ugly;
+	
+	unsigned char*	thepaltouse;
+
+	ugly = 0;
+
+	// Make the 18-bit lookup table here
+
+	printf ("\nGenerating 18-bit lookup table - ");
+	for (r=0 ; r<256 ; r+=4)
+	{
+		for (g=0 ; g<256 ; g+=4)
+		{
+			for (b=0 ; b<256 ; b+=4)
+			{
+				beastcolor = BestColor (r, g, b, 0, 254);
+				palmap2[r>>2][g>>2][b>>2] = beastcolor;
+			}
+		}
+	}
+	printf ("\nGenerated 18-bit lookup table - ");
+
+
+}
+
