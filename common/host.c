@@ -749,6 +749,8 @@ Host_Frame(float time)
 Host_Init
 ====================
 */
+
+extern int host_fullbrights;
 void
 Host_Init(quakeparms_t *parms)
 {
@@ -797,6 +799,9 @@ Host_Init(quakeparms_t *parms)
 	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
 	    Sys_Error("Couldn't load gfx/colormap.lmp");
+
+
+	host_fullbrights = 256-host_colormap[16384]; // leilei - variable our fullbright counts if available
 
 	VID_Init(host_basepal);
 

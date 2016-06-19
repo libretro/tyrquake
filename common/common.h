@@ -238,4 +238,9 @@ int build_number(void);
 extern char gamedirfile[];
 #endif
 
+
+// Leilei Colored lighting
+
+extern byte	palmap2[64][64][64];	// 18-bit lookup table 
+
 #endif /* COMMON_H */

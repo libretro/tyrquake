@@ -538,6 +538,8 @@ void D_PolysetCalcGradients(int skinwidth)
 D_PolysetDrawSpans8
 ================
 */
+void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage);
+
 void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 {
    byte *lpdest;
@@ -574,6 +576,124 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
          {
             if ((lzi >> 16) >= *lpz) {
                *lpdest = ((byte *)acolormap)[*lptex + (llight & 0xFF00)];
+               *lpz = lzi >> 16;
+            }
+            lpdest++;
+            lzi += r_zistepx;
+            lpz++;
+            llight += r_lstepx;
+            lptex += a_ststepxwhole;
+            lsfrac += a_sstepxfrac;
+            lptex += lsfrac >> 16;
+            lsfrac &= 0xFFFF;
+            ltfrac += a_tstepxfrac;
+            if (ltfrac & 0x10000) {
+               lptex += r_affinetridesc.skinwidth;
+               ltfrac &= 0xFFFF;
+            }
+         } while (--lcount);
+      }
+
+      pspanpackage++;
+   } while (pspanpackage->count != -999999);
+}
+
+// leilei - quickly hacked colored lighting on models
+extern vec3_t lightcolor; // for colored lighting
+extern	int			host_fullbrights;   // for preserving fullbrights in color operations
+
+void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
+{
+   byte *lpdest;
+   byte *lptex;
+   byte ah;
+   vec3_t lc;
+   float nrm;
+   unsigned trans[3];
+   unsigned char *pix24;	// leilei - colored lighting
+   int lsfrac, ltfrac;
+   int llight;
+   int lzi;
+   short *lpz;
+
+	// normalize
+	//VectorNormalize(lightcolor);
+
+   do
+   {
+      int lcount = d_aspancount - pspanpackage->count;
+
+      errorterm += erroradjustup;
+      if (errorterm >= 0)
+      {
+         d_aspancount += d_countextrastep;
+         errorterm -= erroradjustdown;
+      }
+      else
+         d_aspancount += ubasestep;
+
+      if (lcount)
+      {
+         lpdest = (byte*)pspanpackage->pdest;
+         lptex = pspanpackage->ptex;
+         lpz = pspanpackage->pz;
+         lsfrac = pspanpackage->sfrac;
+         ltfrac = pspanpackage->tfrac;
+         llight = pspanpackage->light;
+         lzi = pspanpackage->zi;
+
+         do
+         {
+            if ((lzi >> 16) >= *lpz) {
+				// leilei - gross simple hack. it goes like this
+				// lpdest = the skin......
+				//	TIMES
+				// Colored lighting color
+				//      AND THEN
+				// colormap is blended on it
+		if (*lptex < host_fullbrights)
+		{
+			int seven;
+			ah = ((byte *)acolormap)[*lptex + (0 & 0xFF00)];
+			pix24 = (unsigned char *)&d_8to24table[ah];
+
+			//lc[0] *= 1; 
+			//lc[1] *= 1;
+			//lc[2] -= (llight & 0x0000);
+			for (seven=0;seven<3;seven++)
+			//lc[seven] =  (llight  & 0xFF00) / 255;
+
+			lc[seven] =  (lightcolor[seven] / 1024);
+
+			//	lc[seven] = (16384 - (llight & 0xFF00)) * (lightcolor[seven]);
+
+			//lc[seven] = (16384 - llight & 0xFF00) * lightcolor[seven];
+
+	//		trans[0] = (pix24[0] * (lc[0]<<6 )) >> 15;
+	//		trans[1] = (pix24[1] * (lc[1]<<6 )) >> 15;
+	//		trans[2] = (pix24[2] * (lc[2]<<6 )) >> 15;
+
+
+			trans[0] = (pix24[0] * lc[0]);
+			trans[1] = (pix24[1] * lc[1]);
+			trans[2] = (pix24[2] * lc[2]);
+			
+
+			//if (trans[0] & ~63) trans[0] = 63; if (trans[1] & ~63) trans[1] = 63; if (trans[2] & ~63) trans[2] = 63;
+
+			//ah = palmap2 [(int)trans[0]] [(int)trans[1]] [(int)trans[2]];
+	        //        *lpdest = ((byte *)acolormap)[ah + (llight & 0xFF00)];
+		         //*lpdest = ((byte *)acolormap)[ah];
+		
+			*lpdest = palmap2 [trans[0]] [trans[1]] [trans[2]];
+
+		        // *lpdest = palmap2 [trans[0] >> 17] [trans[1] >> 17] [trans[2] >> 17];
+
+		}
+		else
+		{
+		*lpdest = *lptex; // go directly to the color
+		}
                *lpz = lzi >> 16;
             }
             lpdest++;
@@ -745,7 +865,9 @@ void D_RasterizeAliasPolySmooth(void)
    d_countextrastep = ubasestep + 1;
    originalcount = a_spans[initialrightheight].count;
    a_spans[initialrightheight].count = -999999;	// mark end of the spanpackages
-   D_PolysetDrawSpans8(a_spans);
+   //D_PolysetDrawSpans8(a_spans);
+	D_PolysetDrawSpansRGB(a_spans);
+
 
    // scan out the bottom part of the right edge, if it exists
    if (pedgetable->numrightedges == 2) {
@@ -768,7 +890,8 @@ void D_RasterizeAliasPolySmooth(void)
       d_countextrastep = ubasestep + 1;
       a_spans[initialrightheight + height].count = -999999;
       // mark end of the spanpackages
-      D_PolysetDrawSpans8(pstart);
+      //D_PolysetDrawSpans8(pstart);
+      D_PolysetDrawSpansRGB(pstart);
    }
 }
 

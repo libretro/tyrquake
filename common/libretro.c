@@ -856,6 +856,7 @@ unsigned short d_8to16table[256];
 
 #define MAKECOLOR(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
 
+
 void VID_SetPalette(unsigned char *palette)
 {
    unsigned i, j;
@@ -863,6 +864,40 @@ void VID_SetPalette(unsigned char *palette)
 
    for(i = 0, j = 0; i < 256; i++, j += 3)
       *pal++ = MAKECOLOR(palette[j], palette[j+1], palette[j+2]);
+
+}
+
+unsigned 	d_8to24table[256];
+
+
+void	VID_SetPalette2 (unsigned char *palette)
+{
+	byte	*pal;
+	unsigned r,g,b;
+	unsigned v;
+	unsigned short i;
+	unsigned	*table;
+
+	pal = palette;
+	table = d_8to24table;
+	for (i=0 ; i<256 ; i++)
+	{
+		r = pal[0];
+		g = pal[1];
+		b = pal[2];
+		if (r>255) r = 255;
+		if (g>255) g = 255;
+		if (b>255) b = 255;
+		pal += 3;
+		v = (255<<24) + (r<<0) + (g<<8) + (b<<16);
+		*table++ = v;
+		
+	}
+
+	
+	d_8to24table[255] &= 0xffffff;	// 255 is transparent
+	d_8to24table[0] &= 0x000000;	// black is black
+
 }
 
 void VID_ShiftPalette(unsigned char *palette)
