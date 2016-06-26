@@ -679,7 +679,10 @@ static void extract_directory(char *buf, const char *path, size_t size)
    if (base)
       *base = '\0';
    else
-      buf[0] = '\0';
+    {
+       buf[0] = '.';
+       buf[1] = '\0';
+    }
 }
 
 const char *argv[MAX_NUM_ARGVS];
