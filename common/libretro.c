@@ -416,6 +416,14 @@ void Sys_SendKeyEvents(void)
                   Key_Event(K_PERIOD, 1);
                else
                   Key_Event(K_PERIOD, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
+                  Key_Event(K_PGDN, 1);
+               else
+                  Key_Event(K_PGDN, 0);
+               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
+                  Key_Event(K_DEL, 1);
+               else
+                  Key_Event(K_DEL, 0);
                if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
                   Key_Event(K_ENTER, 1);
                else
@@ -465,6 +473,12 @@ void Sys_SendKeyEvents(void)
                if (lsx < -ANALOG_THRESHOLD)
                   Key_Event(K_COMMA, 1);
 
+               if (rsy > ANALOG_THRESHOLD)
+                  Key_Event(K_DEL, 1);
+
+               if (rsy < -ANALOG_THRESHOLD)
+                  Key_Event(K_PGDN, 1);
+
                if (lsy > ANALOG_THRESHOLD)
                   Key_Event(K_DOWNARROW, 1);
 
@@ -476,9 +490,6 @@ void Sys_SendKeyEvents(void)
 
                if (rsx < -ANALOG_THRESHOLD)
                   Key_Event(K_LEFTARROW, 1);
-
-               Key_Event(K_DEL, rsy > ANALOG_THRESHOLD);
-               Key_Event(K_PGDN, rsy < -ANALOG_THRESHOLD);
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
@@ -505,6 +516,16 @@ void Sys_SendKeyEvents(void)
                Key_Event(K_PERIOD, 1);
             else
                Key_Event(K_PERIOD, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_e))
+               Key_Event(K_PGDN, 1);
+            else
+               Key_Event(K_PGDN, 0);
+
+            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_f))
+               Key_Event(K_DEL, 1);
+            else
+               Key_Event(K_DEL, 0);
 
             if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) ||
                   input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN) ||
@@ -704,6 +725,8 @@ bool retro_load_game(const struct retro_game_info *info)
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Fire" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Strafe Left" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Strafe Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Look Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Look Down" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Toggle Run Mode" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Settings" },
 
