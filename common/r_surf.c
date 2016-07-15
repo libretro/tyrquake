@@ -419,6 +419,9 @@ texture_t *R_TextureAnimation(const entity_t *e, texture_t *base)
 R_DrawSurface
 ===============
 */
+
+extern int coloredlights;
+
 void R_DrawSurface(void)
 {
    unsigned char *basetptr;
@@ -431,9 +434,11 @@ void R_DrawSurface(void)
    texture_t *mt;
 
    // calculate the lightings
-//
-  // R_BuildLightMap();
-   R_BuildLightMapRGB();
+   
+   if (coloredlights)
+      R_BuildLightMapRGB();
+   else
+      R_BuildLightMap();
 
 
    surfrowbytes = r_drawsurf.rowbytes;
@@ -459,8 +464,11 @@ void R_DrawSurface(void)
    //==============================
 
    if (r_pixbytes == 1) {
-     // pblockdrawer = surfmiptable[r_drawsurf.surfmip];
-	pblockdrawer = surfmiptableRGB[r_drawsurf.surfmip]; // 18-bit lookups
+      if (coloredlights)
+         pblockdrawer = surfmiptableRGB[r_drawsurf.surfmip]; // 18-bit lookups
+      else
+         pblockdrawer = surfmiptable[r_drawsurf.surfmip];
+
       // TODO: only needs to be set when there is a display settings change
       horzblockstep = blocksize;
    } else {
@@ -489,8 +497,10 @@ void R_DrawSurface(void)
 	//horzblockstep *= 2;	// CAUSES CRASH
 
    for (u = 0; u < r_numhblocks; u++) {
-	r_lightptr = blocklights + u * 3;
-      //r_lightptr = blocklights + u;
+      if (coloredlights)
+         r_lightptr = blocklights + u * 3;
+      else
+         r_lightptr = blocklights + u;
 
       prowdestbase = pcolumndest;
 

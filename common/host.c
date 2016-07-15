@@ -750,6 +750,7 @@ Host_Init
 ====================
 */
 
+extern int coloredlights;
 extern int host_fullbrights;
 void
 Host_Init(quakeparms_t *parms)
@@ -801,7 +802,8 @@ Host_Init(quakeparms_t *parms)
 	    Sys_Error("Couldn't load gfx/colormap.lmp");
 
 
-	host_fullbrights = 256-host_colormap[16384]; // leilei - variable our fullbright counts if available
+   if (coloredlights)
+      host_fullbrights = 256-host_colormap[16384]; // leilei - variable our fullbright counts if available
 
 	VID_Init(host_basepal);
 

@@ -54,6 +54,8 @@ const qpic_t *draw_disc;
 extern byte *host_basepal;
 static const qpic_t *draw_backtile;
 
+extern int coloredlights;
+
 //=============================================================================
 /* Support Routines */
 
@@ -139,8 +141,11 @@ Draw_Init(void)
     r_rectdesc.ptexbytes = draw_backtile->data;
     r_rectdesc.rowbytes = draw_backtile->width;
 
-    VID_SetPalette2 (host_basepal);
-    Draw_Generate18BPPTable();
+    if (coloredlights)
+    {
+       VID_SetPalette2 (host_basepal);
+       Draw_Generate18BPPTable();
+    }
 }
 
 

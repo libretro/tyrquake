@@ -61,7 +61,7 @@ static void PVSCache_f(void);
 
 // leilei HACK
 
-int coloredlights = 1; // to debug the colored lights as we have no menu option yet. 
+int coloredlights = 0; // to debug the colored lights as we have no menu option yet. 
 
 
 /*
@@ -1115,14 +1115,19 @@ Mod_LoadFaces_BSP29(lump_t *l)
 #else
       i = (in->lightofs);
 #endif
-      if (i == -1)
-         out->samples = NULL;
-	//	else if (coloredlights)
-		{
-			out->samples = loadmodel->lightdata + i * 3;
-		}
-//      else
-   //      out->samples = loadmodel->lightdata + i;
+      if (coloredlights)
+      {
+         if (i == -1)
+            out->samples = NULL;
+         out->samples = loadmodel->lightdata + i * 3;
+      }
+      else
+      {
+         if (i == -1)
+            out->samples = NULL;
+         else
+            out->samples = loadmodel->lightdata + i;
+      }
 
       /* set the surface drawing flags */
       if (!strncmp(out->texinfo->texture->name, "sky", 3)) {

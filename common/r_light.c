@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "r_local.h"
 
+extern int coloredlights;
+
 /*
 ==================
 R_AnimateLight
@@ -223,8 +225,10 @@ int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
                maps++) {
             scale = d_lightstylevalue[surf->styles[maps]];
             r += *lightmap * scale;
-            //lightmap += ((surf->extents[0] >> 4) + 1) * ((surf->extents[1] >> 4) + 1);	// colored lighting change
-		lightmap += ((surf->extents[0] >> 4) + 1) * ((surf->extents[1] >> 4) + 1) * 3;
+            if (coloredlights)
+               lightmap += ((surf->extents[0] >> 4) + 1) * ((surf->extents[1] >> 4) + 1) * 3;
+            else
+               lightmap += ((surf->extents[0] >> 4) + 1) * ((surf->extents[1] >> 4) + 1);	/* colored lighting change */
 
          }
          r >>= 8;
@@ -347,6 +351,7 @@ loc0:
  */
 
 vec3_t lightcolor; // for colored lighting
+extern int coloredlights;
 
 int R_LightPoint(vec3_t p)
 {
@@ -361,36 +366,31 @@ int R_LightPoint(vec3_t p)
 
 
 
-//	if (coloredlights)
-	{
-	   end[0] = p[0];
-	   end[1] = p[1];
-	   end[2] = p[2] - (8192 + 2); 
-	  lightcolor[0] = lightcolor[1] = lightcolor[2] = 0;
-   	  r = RecursiveLightPointRGB(lightcolor, cl.worldmodel->nodes, p, end);
-	  return ((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.0f / 3.0f));
-
-
-	}
-
-/*
+	if (coloredlights)
+   {
+      end[0] = p[0];
+      end[1] = p[1];
+      end[2] = p[2] - (8192 + 2); 
+      lightcolor[0] = lightcolor[1] = lightcolor[2] = 0;
+      r = RecursiveLightPointRGB(lightcolor, cl.worldmodel->nodes, p, end);
+      return ((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.0f / 3.0f));
+   }
 	else
-	{
-	   end[0] = p[0];
-	   end[1] = p[1];
-	   end[2] = p[2] - (8192 + 2); 
+   {
+      end[0] = p[0];
+      end[1] = p[1];
+      end[2] = p[2] - (8192 + 2); 
 
 
- 	r = RecursiveLightPoint(cl.worldmodel->nodes, p, end);
+      r = RecursiveLightPoint(cl.worldmodel->nodes, p, end);
 
-	   if (r == -1)
-	      r = 0;
-	
-	   if (r < r_refdef.ambientlight)
-	      r = r_refdef.ambientlight;
+      if (r == -1)
+         r = 0;
 
-   	     return r;
-	}
-*/
+      if (r < r_refdef.ambientlight)
+         r = r_refdef.ambientlight;
+
+      return r;
+   }
 
 }

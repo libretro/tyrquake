@@ -322,6 +322,7 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb = cb;
 
    struct retro_variable variables[] = {
+      { "tyrquake_colored_lighting", "Colored lighting (restart); disabled|enabled" },
       { "tyrquake_resolution",
          "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
       { NULL, NULL },
@@ -615,9 +616,24 @@ void Sys_Sleep(void)
    retro_sleep(1);
 }
 
-static void update_variables(void)
+extern int coloredlights;
+
+static void update_variables(bool startup)
 {
    struct retro_variable var;
+
+   var.key = "tyrquake_colored_lighting";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && startup)
+   {
+      if (!strcmp(var.value, "enabled"))
+         coloredlights = 1;
+      else
+         coloredlights = 0;
+   }
+   else
+      coloredlights = 0;
    
    var.key = "tyrquake_resolution";
    var.value = NULL;
@@ -673,7 +689,7 @@ void retro_run(void)
    did_flip = false;
    bool updated = false;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-      update_variables();
+      update_variables(false);
    if (!has_set_username)
    {
       update_env_variables();
@@ -735,7 +751,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
-   update_variables();
+   update_variables(true);
 
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 

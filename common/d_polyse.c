@@ -721,6 +721,9 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 D_RasterizeAliasPolySmooth
 ================
 */
+
+extern int coloredlights;
+
 void D_RasterizeAliasPolySmooth(void)
 {
    int working_lstepx, originalcount;
@@ -865,8 +868,11 @@ void D_RasterizeAliasPolySmooth(void)
    d_countextrastep = ubasestep + 1;
    originalcount = a_spans[initialrightheight].count;
    a_spans[initialrightheight].count = -999999;	// mark end of the spanpackages
-   //D_PolysetDrawSpans8(a_spans);
-	D_PolysetDrawSpansRGB(a_spans);
+
+   if (coloredlights)
+      D_PolysetDrawSpansRGB(a_spans);
+   else
+      D_PolysetDrawSpans8(a_spans);
 
 
    // scan out the bottom part of the right edge, if it exists
@@ -890,8 +896,11 @@ void D_RasterizeAliasPolySmooth(void)
       d_countextrastep = ubasestep + 1;
       a_spans[initialrightheight + height].count = -999999;
       // mark end of the spanpackages
-      //D_PolysetDrawSpans8(pstart);
-      D_PolysetDrawSpansRGB(pstart);
+
+      if (coloredlights)
+         D_PolysetDrawSpansRGB(pstart);
+      else
+         D_PolysetDrawSpans8(pstart);
    }
 }
 
