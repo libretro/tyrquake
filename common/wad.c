@@ -68,7 +68,7 @@ void W_CleanupName(const char *in, char *out)
 W_LoadWadFile
 ====================
 */
-void W_LoadWadFile(const char *filename)
+bool W_LoadWadFile(const char *filename)
 {
    lumpinfo_t *lump_p;
    wadinfo_t *header;
@@ -77,7 +77,7 @@ void W_LoadWadFile(const char *filename)
 
    wad_base = (byte*)COM_LoadHunkFile(filename);
    if (!wad_base)
-      Sys_Error("%s: couldn't load %s", __func__, filename);
+      return Sys_Error("%s: couldn't load %s", __func__, filename);
 
    header = (wadinfo_t *)wad_base;
 
@@ -85,7 +85,7 @@ void W_LoadWadFile(const char *filename)
          || header->identification[1] != 'A'
          || header->identification[2] != 'D'
          || header->identification[3] != '2')
-      Sys_Error("Wad file %s doesn't have WAD2 id", filename);
+      return Sys_Error("Wad file %s doesn't have WAD2 id", filename);
 
 #ifdef MSB_FIRST
    wad_numlumps = LittleLong(header->numlumps);
@@ -108,6 +108,8 @@ void W_LoadWadFile(const char *filename)
          SwapPic((qpic_t *)(wad_base + lump_p->filepos));
 #endif
    }
+
+   return true;
 }
 
 

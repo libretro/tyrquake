@@ -21,6 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SYS_H
 #define SYS_H
 
+#include <boolean.h>
+#include "qtypes.h"
+
 // FIXME - QW/server doesn't want this much stuff...
 
 // sys.h -- non-portable functions
@@ -28,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - don't want win only stuff in header
 //         minimized could be useful on other systems anyway...
 #ifdef _WIN32
-#include "qtypes.h"
 //extern qboolean Minimized;
 extern qboolean window_visible(void);
 #endif
@@ -52,7 +54,7 @@ void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
 
 void Sys_Printf(const char *fmt, ...);
 void Sys_DebugLog(const char *file, const char *fmt, ...);
-void Sys_Error(const char *error, ...);
+bool Sys_Error(const char *error, ...);
 
 // send text to the console
 // an error will cause the entire program to exit

@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef WAD_H
 #define WAD_H
 
+#include <boolean.h>
 #include "qtypes.h"
 
 //===============
@@ -65,7 +66,7 @@ extern int wad_numlumps;
 extern lumpinfo_t *wad_lumps;
 extern byte *wad_base;
 
-void W_LoadWadFile(const char *filename);
+bool W_LoadWadFile(const char *filename);
 void W_CleanupName(const char *in, char *out);
 lumpinfo_t *W_GetLumpinfo(const char *name);
 void *W_GetLumpName(const char *name);

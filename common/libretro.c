@@ -132,7 +132,7 @@ void Sys_Init(void)
    }
 }
 
-void Sys_Error(const char *error, ...)
+bool Sys_Error(const char *error, ...)
 {
    char buffer[256];
    va_list ap;
@@ -142,8 +142,7 @@ void Sys_Error(const char *error, ...)
       log_cb(RETRO_LOG_ERROR, "%s\n", buffer);
    va_end(ap);
 
-   Host_Shutdown();
-   exit(1);
+   return false;
 }
 
 /*
@@ -818,7 +817,12 @@ bool retro_load_game(const struct retro_game_info *info)
 #endif
 
    Sys_Init();
-   Host_Init(&parms);
+
+   if (!Host_Init(&parms))
+   {
+      Host_Shutdown();
+      return false;
+   }
 
    Cvar_Set("cl_bob", "0.02");
    Cvar_Set("crosshair", "0");

@@ -752,7 +752,8 @@ Host_Init
 
 extern int coloredlights;
 extern int host_fullbrights;
-void
+
+bool
 Host_Init(quakeparms_t *parms)
 {
     if (standard_quake)
@@ -766,8 +767,8 @@ Host_Init(quakeparms_t *parms)
     host_parms = *parms;
 
     if (parms->memsize < minimum_memory)
-	Sys_Error("Only %4.1f megs of memory reported, can't execute game",
-		  parms->memsize / (float)0x100000);
+       return Sys_Error("Only %4.1f megs of memory reported, can't execute game",
+             parms->memsize / (float)0x100000);
 
     com_argc = parms->argc;
     com_argv = parms->argv;
@@ -779,7 +780,9 @@ Host_Init(quakeparms_t *parms)
     Chase_Init();
     COM_Init();
     Host_InitLocal();
-    W_LoadWadFile("gfx.wad");
+    if (!W_LoadWadFile("gfx.wad"))
+       return false;
+
     Key_Init();
     Con_Init();
     M_Init();
@@ -796,10 +799,10 @@ Host_Init(quakeparms_t *parms)
     if (cls.state != ca_dedicated) {
 	host_basepal = (byte*)COM_LoadHunkFile("gfx/palette.lmp");
 	if (!host_basepal)
-	    Sys_Error("Couldn't load gfx/palette.lmp");
+	    return Sys_Error("Couldn't load gfx/palette.lmp");
 	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
-	    Sys_Error("Couldn't load gfx/colormap.lmp");
+	    return Sys_Error("Couldn't load gfx/colormap.lmp");
 
 
    if (coloredlights)
@@ -831,6 +834,8 @@ Host_Init(quakeparms_t *parms)
 	Cbuf_InsertText("exec quake.rc\n");
 	Cbuf_Execute();
     }
+
+    return true;
 }
 
 
