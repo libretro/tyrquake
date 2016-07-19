@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef HOST_H
 #define HOST_H
 
+#include <boolean.h>
 #include "qtypes.h"		/* qboolean     */
 #include "quakedef.h"		/* quakeparms_t */
 
