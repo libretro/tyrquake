@@ -42,6 +42,48 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+
+#ifdef MSB_FIRST
+
+#ifndef htons
+#define htons(A) (A)
+#endif
+
+#ifndef htonl
+#define htonl(A) (A)
+#endif
+
+#ifndef ntohs
+#define ntohs(A) (A)
+#endif
+
+#ifndef ntohl
+#define ntohl(A) (A)
+#endif
+
+#else
+
+#ifndef htons
+#define htons(A) ((((uint16_t)(A) & 0xff00) >> 8) | \
+(((uint16_t)(A) & 0x00ff) << 8))
+#endif
+
+#ifndef htonl
+#define htonl(A) ((((uint32_t)(A) & 0xff000000) >> 24) | \
+(((uint32_t)(A) & 0x00ff0000) >> 8) | \
+(((uint32_t)(A) & 0x0000ff00) << 8) | \
+(((uint32_t)(A) & 0x000000ff) << 24))
+#endif
+
+#ifndef ntohs
+#define ntohs htons
+#endif
+
+#ifndef ntohl
+#define ntohl htohl
+#endif
+#endif
+
 qsocket_t *net_activeSockets = NULL;
 qsocket_t *net_freeSockets = NULL;
 static int net_numsockets = 0;
