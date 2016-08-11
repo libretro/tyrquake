@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2015 The RetroArch team
+/* Copyright  (C) 2010-2016 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (retro_stat.h).
@@ -26,7 +26,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include <retro_common_api.h>
+
 #include <boolean.h>
+
+RETRO_BEGIN_DECLS
 
 /**
  * path_is_directory:
@@ -38,7 +42,11 @@
  */
 bool path_is_directory(const char *path);
 
+bool path_is_character_special(const char *path);
+
 bool path_is_valid(const char *path);
+
+int32_t path_get_size(const char *path);
 
 /**
  * path_mkdir_norecurse:
@@ -49,5 +57,7 @@ bool path_is_valid(const char *path);
  * Returns: true (1) if directory could be created, otherwise false (0).
  **/
 bool mkdir_norecurse(const char *dir);
+
+RETRO_END_DECLS
 
 #endif
