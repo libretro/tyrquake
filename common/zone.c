@@ -26,11 +26,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+#ifdef HEXEN2
+#define	DYNAMIC_SIZE	0xc000
+#else
 #define	DYNAMIC_SIZE	0x40000		/* 256k */
+#endif
 #define	ZONEID		0x1d4a11
 #define MINFRAGMENT	64
 
-typedef struct memblock_s {
+typedef struct memblock_s
+{
     int size;		/* including the header and possibly tiny fragments */
     int tag;		/* a tag of 0 is a free block */
     int id;		/* should be ZONEID */
@@ -38,7 +43,8 @@ typedef struct memblock_s {
     int pad;		/* pad to 64 bit boundary */
 } memblock_t;
 
-typedef struct {
+typedef struct
+{
     int size;			/* total bytes malloced, including header */
     memblock_t blocklist;	/* start/end cap for linked list */
     memblock_t *rover;
@@ -82,15 +88,15 @@ Z_ClearZone(memzone_t *zone, int size)
      */
     zone->blocklist.next = zone->blocklist.prev = block =
 	(memblock_t *)((byte *)zone + sizeof(memzone_t));
-    zone->blocklist.tag = 1;	/* in use block */
-    zone->blocklist.id = 0;
+    zone->blocklist.tag  = 1;	/* in use block */
+    zone->blocklist.id   = 0;
     zone->blocklist.size = 0;
-    zone->rover = block;
+    zone->rover          = block;
 
-    block->prev = block->next = &zone->blocklist;
-    block->tag = 0;		/* free block */
-    block->id = ZONEID;
-    block->size = size - sizeof(memzone_t);
+    block->prev          = block->next = &zone->blocklist;
+    block->tag           = 0;		/* free block */
+    block->id            = ZONEID;
+    block->size          = size - sizeof(memzone_t);
 }
 
 
@@ -102,37 +108,41 @@ Z_ClearZone(memzone_t *zone, int size)
 void
 Z_Free(const void *ptr)
 {
-    memblock_t *block, *other;
+   memblock_t *block, *other;
 
-    if (!ptr)
-	Sys_Error("%s: NULL pointer", __func__);
+   if (!ptr)
+      Sys_Error("%s: NULL pointer", __func__);
 
-    block = (memblock_t *)((const byte *)ptr - sizeof(memblock_t));
-    if (block->id != ZONEID)
-	Sys_Error("%s: freed a pointer without ZONEID", __func__);
-    if (block->tag == 0)
-	Sys_Error("%s: freed a freed pointer", __func__);
+   block = (memblock_t *)((const byte *)ptr - sizeof(memblock_t));
+   if (block->id != ZONEID)
+      Sys_Error("%s: freed a pointer without ZONEID", __func__);
+   if (block->tag == 0)
+      Sys_Error("%s: freed a freed pointer", __func__);
 
-    block->tag = 0;		/* mark as free */
+   block->tag = 0;		/* mark as free */
 
-    other = block->prev;
-    if (!other->tag) {		/* merge with previous free block */
-	other->size += block->size;
-	other->next = block->next;
-	other->next->prev = other;
-	if (block == mainzone->rover)
-	    mainzone->rover = other;
-	block = other;
-    }
+   other = block->prev;
+   if (!other->tag)
+   {
+      /* merge with previous free block */
+      other->size += block->size;
+      other->next = block->next;
+      other->next->prev = other;
+      if (block == mainzone->rover)
+         mainzone->rover = other;
+      block = other;
+   }
 
-    other = block->next;
-    if (!other->tag) {		/* merge the next free block onto the end */
-	block->size += other->size;
-	block->next = other->next;
-	block->next->prev = block;
-	if (other == mainzone->rover)
-	    mainzone->rover = block;
-    }
+   other = block->next;
+   if (!other->tag)
+   {
+      /* merge the next free block onto the end */
+      block->size += other->size;
+      block->next = other->next;
+      block->next->prev = block;
+      if (other == mainzone->rover)
+         mainzone->rover = block;
+   }
 }
 
 
@@ -189,11 +199,10 @@ static void *Z_TagMalloc(int size, int tag)
          rover = rover->next;
    } while (base->tag || base->size < size);
 
-   /*
-    * found a block big enough
-    */
+   /* found a block big enough */
    extra = base->size - size;
-   if (extra > MINFRAGMENT) {
+   if (extra > MINFRAGMENT)
+   {
       /* there will be a free fragment after the allocated block */
       newobj = (memblock_t *)((byte *)base + size);
       newobj->size = extra;
@@ -273,7 +282,7 @@ void *Z_Realloc(const void *ptr, int size)
 /* ======================================================================= */
 
 #define	HUNK_SENTINAL	0x1df001ed
-#define HUNK_NAMELEN	8
+#define HUNK_NAMELEN	20
 
 typedef struct
 {
@@ -302,7 +311,8 @@ void Hunk_Check(void)
 {
    hunk_t *h;
 
-   for (h = (hunk_t *)hunk_base; (byte *)h != hunk_base + hunk_low_used;) {
+   for (h = (hunk_t *)hunk_base; (byte *)h != hunk_base + hunk_low_used;)
+   {
       if (h->sentinal != HUNK_SENTINAL)
          Sys_Error("%s: trashed sentinal", __func__);
       if (h->size < sizeof(hunk_t) ||
@@ -346,25 +356,21 @@ static void Hunk_Print(qboolean all)
    Con_Printf("-------------------------\n");
 
    while (1) {
-      /*
-       * skip to the high hunk if done with low hunk
-       */
-      if (h == endlow) {
+      /* skip to the high hunk if done with low hunk */
+      if (h == endlow)
+      {
          Con_Printf("-------------------------\n");
          Con_Printf("%*s :%10i REMAINING\n", pwidth, "",
                hunk_size - hunk_low_used - hunk_high_used);
          Con_Printf("-------------------------\n");
          h = starthigh;
       }
-      /*
-       * if totally done, break
-       */
+
+      /* if totally done, break */
       if (h == endhigh)
          break;
 
-      /*
-       * run consistancy checks
-       */
+      /* run consistancy checks */
       if (h->sentinal != HUNK_SENTINAL)
          Sys_Error("%s: trashed sentinal", __func__);
       if (h->size < 16 || h->size + (byte *)h - hunk_base > hunk_size)
@@ -375,19 +381,16 @@ static void Hunk_Print(qboolean all)
       totalblocks++;
       sum += h->size;
 
-      /*
-       * print the single block
-       */
+      /* print the single block */
       memcpy(safename, h->name, HUNK_NAMELEN);
       if (all)
          Con_Printf("%*p :%10i %-*s\n", pwidth, h, h->size,
                HUNK_NAMELEN, safename);
 
-      /*
-       * print the total
-       */
+      /* print the total */
       if (next == endlow || next == endhigh ||
-            strncmp(h->name, next->name, HUNK_NAMELEN)) {
+            strncmp(h->name, next->name, HUNK_NAMELEN))
+      {
          if (!all)
             Con_Printf("%*s :%10i %-*s (TOTAL)\n", pwidth, "", sum,
                   HUNK_NAMELEN, safename);
@@ -433,15 +436,9 @@ void * Hunk_AllocName(int size, const char *name)
 
    size = sizeof(hunk_t) + ((size + 15) & ~15);
 
-   if (hunk_size - hunk_low_used - hunk_high_used < size) {
-      /* Sys_Error ("%s: failed on %i bytes", __func__, size); */
-#ifdef _WIN32
-      Sys_Error("Not enough RAM allocated.  Try starting using "
-            "\"-heapsize 16000\" on the command line.");
-#else
-      Sys_Error("Not enough RAM allocated.  Try starting using "
-            "\"-mem 16\" on the command line.");
-#endif
+   if (hunk_size - hunk_low_used - hunk_high_used < size)
+   {
+      Sys_Error ("%s: failed on %i bytes", __func__, size);
    }
 
    h = (hunk_t *)(hunk_base + hunk_low_used);
@@ -495,7 +492,8 @@ int Hunk_HighMark(void)
 
 void Hunk_FreeToHighMark(int mark)
 {
-   if (hunk_tempactive) {
+   if (hunk_tempactive)
+   {
       hunk_tempactive = false;
       Hunk_FreeToHighMark(hunk_tempmark);
    }
@@ -518,17 +516,20 @@ void *Hunk_HighAllocName(int size, const char *name)
    if (size < 0)
       Sys_Error("%s: bad size: %i", __func__, size);
 
-   if (hunk_tempactive) {
+   if (hunk_tempactive)
+   {
       Hunk_FreeToHighMark(hunk_tempmark);
       hunk_tempactive = false;
    }
+
 #ifdef PARANOID
    Hunk_Check();
 #endif
 
    size = sizeof(hunk_t) + ((size + 15) & ~15);
 
-   if (hunk_size - hunk_low_used - hunk_high_used < size) {
+   if (hunk_size - hunk_low_used - hunk_high_used < size)
+   {
       Con_Printf("Hunk_HighAlloc: failed on %i bytes\n", size);
       return NULL;
    }
@@ -561,7 +562,8 @@ void *Hunk_TempAlloc(int size)
 
    size = (size + 15) & ~15;
 
-   if (hunk_tempactive) {
+   if (hunk_tempactive)
+   {
       Hunk_FreeToHighMark(hunk_tempmark);
       hunk_tempactive = false;
    }
@@ -716,7 +718,8 @@ static void Cache_FreeHigh(int new_high_hunk)
          return;		/* there is space to grow the hunk */
       if (c == prev)
          Cache_Free(c->user);	/* didn't move out of the way */
-      else {
+      else
+      {
          Cache_Move(c);	/* try to move it */
          prev = c;
       }
@@ -758,7 +761,8 @@ static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom)
    cache_system_t *cs, *newobj;
 
    /* is the cache completely empty? */
-   if (!nobottom && cache_head.prev == &cache_head) {
+   if (!nobottom && cache_head.prev == &cache_head)
+   {
       if (hunk_size - hunk_high_used - hunk_low_used < size)
          Sys_Error("%s: %i is greater than free hunk", __func__, size);
 
@@ -777,9 +781,12 @@ static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom)
    newobj = (cache_system_t *)(hunk_base + hunk_low_used);
    cs = cache_head.next;
 
-   do {
-      if (!nobottom || cs != cache_head.next) {
-         if ((byte *)cs - (byte *)newobj >= size) {	/* found space */
+   do
+   {
+      if (!nobottom || cs != cache_head.next)
+      {
+         if ((byte *)cs - (byte *)newobj >= size)
+         {	/* found space */
             memset(newobj, 0, sizeof(*newobj));
             newobj->size = size;
 
@@ -880,6 +887,8 @@ static void Cache_Init(void)
 {
    cache_head.next = cache_head.prev = &cache_head;
    cache_head.lru_next = cache_head.lru_prev = &cache_head;
+
+   Cmd_AddCommand ("flush", Cache_Flush);
 }
 
 /*
