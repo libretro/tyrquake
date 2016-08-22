@@ -44,6 +44,9 @@ typedef struct {
 #define	MOVE_NORMAL	0
 #define	MOVE_NOMONSTERS	1
 #define	MOVE_MISSILE	2
+/* for Hexen II */
+#define	MOVE_WATER		3
+#define	MOVE_PHASE		4
 
 
 void SV_ClearWorld(void);

@@ -78,6 +78,9 @@ typedef struct {
     vec3_t mins;
     vec3_t maxs;
     vec3_t size;
+#ifdef HEXEN2
+    float	hull;
+#endif
     func_t touch;
     func_t use;
     func_t think;
