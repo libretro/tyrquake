@@ -72,6 +72,7 @@ static edgetable edgetables[12] = {
     {0, 1, r_p0, r_p2, NULL, 1, r_p0, r_p1, NULL},
 };
 
+/* FIXME: some of these can become statics */
 int a_sstepxfrac, a_tstepxfrac, r_lstepx, a_ststepxwhole;
 int r_sstepx, r_tstepx, r_lstepy, r_sstepy, r_tstepy;
 int r_zistepx, r_zistepy;
@@ -132,22 +133,78 @@ D_PolysetDraw(void)
       D_DrawNonSubdiv();
 }
 
+#ifdef HEXEN2
+void D_PolysetDrawT3 (void)
+{
+   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
+   /* one extra because of cache line pretouching */
+
+   a_spans = CACHE_ALIGN_PTR(spans);
+
+	if (r_affinetridesc.drawtype)
+		D_DrawSubdivT3 ();
+	else
+		D_DrawNonSubdiv ();
+}
+
+void D_PolysetDrawT (void)
+{
+   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
+   /* one extra because of cache line pretouching */
+
+   a_spans = CACHE_ALIGN_PTR(spans);
+
+	if (r_affinetridesc.drawtype)
+		D_DrawSubdivT ();
+	else
+		D_DrawNonSubdiv ();
+}
+
+void D_PolysetDrawT2 (void)
+{
+   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
+   /* one extra because of cache line pretouching */
+
+   a_spans = CACHE_ALIGN_PTR(spans);
+
+	if (r_affinetridesc.drawtype)
+		D_DrawSubdivT2 ();
+	else
+		D_DrawNonSubdiv ();
+}
+
+void D_PolysetDrawT5 (void)
+{
+   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
+   /* one extra because of cache line pretouching */
+
+   a_spans = CACHE_ALIGN_PTR(spans);
+
+	if (r_affinetridesc.drawtype)
+		D_DrawSubdivT5 ();
+	else
+		D_DrawNonSubdiv ();
+}
+#endif
+
 
 /*
 ================
 D_PolysetDrawFinalVerts
+
+TODO/FIXME - Needs updates/specialization for Hexen 2
 ================
 */
 void
 D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
 {
    int i, z;
-   short *zbuf;
+   int16_t *zbuf;
 
    for (i = 0; i < numverts; i++, fv++)
    {
-      // valid triangle coordinates for filling can include the bottom and
-      // right clip edges, due to the fill rule; these shouldn't be drawn
+      /* valid triangle coordinates for filling can include the bottom and
+       * right clip edges, due to the fill rule; these shouldn't be drawn */
       if ((fv->v[0] < r_refdef.vrectright) &&
             (fv->v[1] < r_refdef.vrectbottom))
       {
@@ -175,6 +232,8 @@ D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
 /*
 ================
 D_DrawSubdiv
+
+TODO/FIXME - Needs updates/specialization for Hexen 2
 ================
 */
 static void D_DrawSubdiv(void)
@@ -226,6 +285,8 @@ static void D_DrawSubdiv(void)
 /*
 ================
 D_DrawNonSubdiv
+
+TODO/FIXME - Needs updates/specialization for Hexen 2
 ================
 */
 static void D_DrawNonSubdiv(void)
@@ -289,6 +350,8 @@ static void D_DrawNonSubdiv(void)
 /*
 ================
 D_PolysetRecursiveTriangle
+
+TODO/FIXME - Needs updates/specialization for Hexen 2
 ================
 */
 static void D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
@@ -296,7 +359,7 @@ static void D_PolysetRecursiveTriangle(int *lp1, int *lp2, int *lp3)
    int *temp;
    int newobj[6];
    int z;
-   short *zbuf;
+   int16_t *zbuf;
 
    int d = lp2[0] - lp1[0];
    if (d < -1 || d > 1)
@@ -372,14 +435,15 @@ D_PolysetUpdateTables
 */
 void D_PolysetUpdateTables(void)
 {
-   if (r_affinetridesc.skinwidth != skinwidth ||
-         r_affinetridesc.pskin != skinstart)
+   if (  r_affinetridesc.skinwidth != skinwidth ||
+         r_affinetridesc.pskin     != skinstart)
    {
       byte *s;
       int i;
       skinwidth = r_affinetridesc.skinwidth;
       skinstart = (byte*)r_affinetridesc.pskin;
       s = skinstart;
+
       for (i = 0; i < MAX_LBM_HEIGHT; i++, s += skinwidth)
          skintable[i] = s;
    }
@@ -395,16 +459,16 @@ void D_PolysetScanLeftEdge(int height)
    do
    {
       d_pedgespanpackage->pdest = d_pdest;
-      d_pedgespanpackage->pz = d_pz;
+      d_pedgespanpackage->pz    = d_pz;
       d_pedgespanpackage->count = d_aspancount;
-      d_pedgespanpackage->ptex = d_ptex;
+      d_pedgespanpackage->ptex  = d_ptex;
 
       d_pedgespanpackage->sfrac = d_sfrac;
       d_pedgespanpackage->tfrac = d_tfrac;
 
-      // FIXME: need to clamp l, s, t, at both ends?
+      /* FIXME: need to clamp l, s, t, at both ends? */
       d_pedgespanpackage->light = d_light;
-      d_pedgespanpackage->zi = d_zi;
+      d_pedgespanpackage->zi    = d_zi;
 
       d_pedgespanpackage++;
 
@@ -547,7 +611,7 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
    int lsfrac, ltfrac;
    int llight;
    int lzi;
-   short *lpz;
+   int16_t *lpz;
 
    do
    {
@@ -740,8 +804,18 @@ void D_RasterizeAliasPolySmooth(void)
    //
    // set the s, t, and light gradients, which are consistent across the triangle
    // because being a triangle, things are affine
-   //
-   D_PolysetCalcGradients(r_affinetridesc.skinwidth);
+#ifdef HEXEN2
+   if ((currententity->model->flags & EF_SPECIAL_TRANS))
+      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
+   else if (currententity->drawflags & DRF_TRANSLUCENT)
+      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
+   else if ((currententity->model->flags & EF_TRANSPARENT))
+      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
+   else if ((currententity->model->flags & EF_HOLEY))
+      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
+   else
+#endif
+      D_PolysetCalcGradients(r_affinetridesc.skinwidth);
 
    //
    // rasterize the polygon

@@ -95,37 +95,37 @@ D_SetupFrame
 void
 D_SetupFrame(void)
 {
-    int i;
+   int i;
    cvar_t *cvar = Cvar_FindVar("dither_filter");
 
-    if (r_dowarp)
-	d_viewbuffer = r_warpbuffer;
-    else
-	d_viewbuffer = (pixel_t*)(void *)(byte *)vid.buffer;
+   if (r_dowarp)
+      d_viewbuffer = r_warpbuffer;
+   else
+      d_viewbuffer = (pixel_t*)(void *)(byte *)vid.buffer;
 
-    if (r_dowarp)
-	screenwidth = WARP_WIDTH;
-    else
-	screenwidth = vid.rowbytes;
+   if (r_dowarp)
+      screenwidth = WARP_WIDTH;
+   else
+      screenwidth = vid.rowbytes;
 
-    d_roverwrapped = false;
-    d_initial_rover = sc_rover;
+   d_roverwrapped = false;
+   d_initial_rover = sc_rover;
 
-    d_minmip = d_mipcap.value;
-    if (d_minmip > 3)
-	d_minmip = 3;
-    else if (d_minmip < 0)
-	d_minmip = 0;
+   d_minmip = d_mipcap.value;
+   if (d_minmip > 3)
+      d_minmip = 3;
+   else if (d_minmip < 0)
+      d_minmip = 0;
 
-    for (i = 0; i < (NUM_MIPS - 1); i++)
-	d_scalemip[i] = basemip[i] * d_mipscale.value;
+   for (i = 0; i < (NUM_MIPS - 1); i++)
+      d_scalemip[i] = basemip[i] * d_mipscale.value;
 
-    D_DrawSpans = D_DrawSpans8;
+   D_DrawSpans = D_DrawSpans8;
 
    if (cvar && cvar->value == 1.0f)
       D_DrawSpans = D_DrawSpans16QbDither;
    else
-    D_DrawSpans = D_DrawSpans16Qb;
+      D_DrawSpans = D_DrawSpans16Qb;
 }
 
 
