@@ -37,8 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 server_t sv;
 server_static_t svs;
 
-#define MODSTRLEN (sizeof("*" stringify(MAX_MODELS)) / sizeof(char))
-char localmodels[MAX_MODELS][MODSTRLEN]; // inline model names for precache
+char localmodels[MAX_MODELS][5]; // inline model names for precache
 
 //============================================================================
 
