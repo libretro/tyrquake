@@ -282,7 +282,12 @@ void *Z_Realloc(const void *ptr, int size)
 /* ======================================================================= */
 
 #define	HUNK_SENTINAL	0x1df001ed
+
+#ifdef HEXEN2
 #define HUNK_NAMELEN	20
+#else
+#define HUNK_NAMELEN	8
+#endif
 
 typedef struct
 {
