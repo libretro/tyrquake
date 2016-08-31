@@ -728,6 +728,23 @@ static void extract_directory(char *buf, const char *path, size_t size)
 const char *argv[MAX_NUM_ARGVS];
 static const char *empty_string = "";
 
+void retro_set_rumble_strong(void)
+{
+   if (!rumble.set_rumble_state)
+      return;
+
+   uint16_t strength_strong = 0xffff;
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
+}
+
+void retro_unset_rumble_strong(void)
+{
+   if (!rumble.set_rumble_state)
+      return;
+
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
+}
+
 bool retro_load_game(const struct retro_game_info *info)
 {
    char g_rom_dir[256], g_pak_path[256];

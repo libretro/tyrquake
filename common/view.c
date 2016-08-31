@@ -676,6 +676,10 @@ V_CalcViewRoll
 Roll is induced by movement and damage
 ==============
 */
+static int old_health = 100;
+void retro_set_rumble_strong(void);
+void retro_unset_rumble_strong(void);
+
 void V_CalcViewRoll(void)
 {
    float side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
@@ -688,7 +692,14 @@ void V_CalcViewRoll(void)
       r_refdef.viewangles[PITCH] +=
          v_dmg_time / v_kicktime.value * v_dmg_pitch;
       v_dmg_time -= host_frametime;
+
+      if (old_health > cl.stats[STAT_HEALTH])
+         retro_set_rumble_strong();
+      old_health = cl.stats[STAT_HEALTH];
    }
+   else
+      retro_unset_rumble_strong();
+
 
    if (cl.stats[STAT_HEALTH] <= 0) {
       r_refdef.viewangles[ROLL] = 80;	// dead view angle
