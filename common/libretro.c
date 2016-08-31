@@ -71,6 +71,8 @@ unsigned device_type = 0;
 
 unsigned MEMSIZE_MB;
 
+static struct retro_rumble_interface rumble;
+
 #if defined(HW_DOL)
 #define DEFAULT_MEMSIZE_MB 8
 #elif defined(HW_RVL) || defined(_XBOX1)
@@ -757,6 +759,11 @@ bool retro_load_game(const struct retro_game_info *info)
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 
    snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
+      log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
+   else
+      log_cb(RETRO_LOG_INFO, "Rumble environment not supported.\n");
 
    MEMSIZE_MB = DEFAULT_MEMSIZE_MB;
 
