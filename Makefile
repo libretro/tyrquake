@@ -228,8 +228,8 @@ endif
 
 # Emscripten
 else ifeq ($(platform), emscripten)
-	EXT    ?= bc
-	TARGET := $(TARGET_NAME)_libretro_emscripten.$(EXT)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).bc
+	STATIC_LINKING = 1
 
 # Windows
 else
