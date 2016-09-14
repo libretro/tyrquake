@@ -561,11 +561,12 @@ Each surface has a linked list of its visible spans
 */
 void R_ScanEdges(void)
 {
-   int iv, bottom;
-   espan_t basespans[CACHE_PAD_ARRAY(MAXSPANS, espan_t)];
+   int iv, bottom; 
+   espan_t *basespans;
    espan_t *basespan_p;
    surf_t *s;
-
+   
+   basespans = malloc(sizeof(espan_t)*CACHE_PAD_ARRAY(MAXSPANS, espan_t));
    basespan_p = CACHE_ALIGN_PTR(basespans);
    max_span_p = &basespan_p[MAXSPANS - r_refdef.vrect.width];
 
@@ -653,4 +654,8 @@ void R_ScanEdges(void)
 
    // draw whatever's left in the span list
    D_DrawSurfaces();
+   
+   if(basespans)
+      free(basespans);
+
 }
