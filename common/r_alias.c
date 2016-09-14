@@ -863,10 +863,12 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
    aliashdr_t *pahdr;
    finalvert_t *pfinalverts;
-   finalvert_t finalverts[CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t)];
+   finalvert_t *finalverts;
    auxvert_t *pauxverts;
    auxvert_t *auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
 
+   finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
+   
    r_amodels_drawn++;
 
    // cache align
@@ -902,4 +904,5 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
       R_AliasPreparePoints(pahdr, pfinalverts, pauxverts);
 
    free(auxverts);
+   free(finalverts);
 }
