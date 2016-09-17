@@ -79,10 +79,8 @@ static struct retro_rumble_interface rumble;
 
 #if defined(HW_DOL)
 #define DEFAULT_MEMSIZE_MB 8
-#elif defined(HW_RVL) || defined(_XBOX1) || defined(VITA)
+#elif defined(HW_RVL) || defined(_XBOX1) 
 #define DEFAULT_MEMSIZE_MB 24
-#elif defined(VITA)
-#define DEFAULT_MEMSIZE_MB 20
 #else
 #define DEFAULT_MEMSIZE_MB 32
 #endif
