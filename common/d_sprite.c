@@ -384,7 +384,7 @@ D_DrawSprite(void)
    int i, nump;
    float ymin, ymax;
    emitpoint_t *pverts;
-   sspan_t spans[MAXHEIGHT + 1];
+   sspan_t		*spans = malloc(sizeof(sspan_t)*MAXHEIGHT+1);
 
    sprite_spans = spans;
 
@@ -428,4 +428,5 @@ D_DrawSprite(void)
    D_SpriteScanLeftEdge();
    D_SpriteScanRightEdge();
    D_SpriteDrawSpans(sprite_spans);
+   free(spans);
 }
