@@ -163,7 +163,9 @@ else ifeq ($(platform), vita)
 	TARGET := $(TARGET_NAME)_libretro_vita.$(EXT)
 	CC = arm-vita-eabi-gcc$(EXE_EXT)
 	AR = arm-vita-eabi-ar$(EXE_EXT)
-	CFLAGS += -DVITA
+	CFLAGS += -DVITA -fno-short-enums -fno-exceptions \
+					-fno-unwind-tables -fno-asynchronous-unwind-tables -ftree-vectorize \
+					-mfloat-abi=hard -ffast-math -fsingle-precision-constant -funroll-loops
 	STATIC_LINKING = 1
 
 # CTR (3DS)

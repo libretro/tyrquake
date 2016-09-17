@@ -1006,8 +1006,8 @@ R_EdgeDrawing
 */
 static void R_EdgeDrawing(void)
 {
-   edge_t ledges[CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t)];
-   surf_t lsurfs[CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t)];
+   edge_t * ledges = malloc(sizeof(edge_t)*CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t));
+   surf_t * lsurfs = malloc(sizeof(surf_t)*CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t));
 
    if (auxedges) {
       r_edges = auxedges;
@@ -1034,6 +1034,10 @@ static void R_EdgeDrawing(void)
    R_DrawBEntitiesOnList();
 
    R_ScanEdges();
+
+   free(lsurfs);
+   free(ledges);
+
 }
 
 

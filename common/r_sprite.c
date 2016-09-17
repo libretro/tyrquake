@@ -165,7 +165,8 @@ static void R_SetupAndDrawSprite(void)
    float scale, *pv;
    vec5_t *pverts;
    vec3_t left, up, right, down, transformed, local;
-   emitpoint_t outverts[MAXWORKINGVERTS + 1], *pout;
+   emitpoint_t	*outverts = malloc(sizeof(emitpoint_t)*MAXWORKINGVERTS+1);
+   emitpoint_t *pout;
    float dot = DotProduct(r_spritedesc.vpn, modelorg);
 
    // backface cull
@@ -248,6 +249,7 @@ static void R_SetupAndDrawSprite(void)
    r_spritedesc.nump = nump;
    r_spritedesc.pverts = outverts;
    D_DrawSprite();
+   free(outverts);
 }
 
 /*

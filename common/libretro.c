@@ -63,6 +63,10 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
+#ifdef VITA
+#define SURFCACHE_SIZE 10485760
+#endif
+
 extern void CDAudio_Update(void);
 
 unsigned width;
@@ -75,8 +79,10 @@ static struct retro_rumble_interface rumble;
 
 #if defined(HW_DOL)
 #define DEFAULT_MEMSIZE_MB 8
-#elif defined(HW_RVL) || defined(_XBOX1)
+#elif defined(HW_RVL) || defined(_XBOX1) || defined(VITA)
 #define DEFAULT_MEMSIZE_MB 24
+#elif defined(VITA)
+#define DEFAULT_MEMSIZE_MB 20
 #else
 #define DEFAULT_MEMSIZE_MB 32
 #endif
@@ -679,7 +685,11 @@ static void update_env_variables(void)
 byte *vid_buffer;
 short *zbuffer;
 short *finalimage;
+#if defined(VITA)
+byte* surfcache;
+#else
 byte surfcache[256 * 1024];
+#endif
 
 static void audio_process(void);
 static void audio_callback(void);
@@ -1009,7 +1019,12 @@ void VID_Init(unsigned char *palette)
     vid.aspect = ((float)vid.height / (float)vid.width) * (320.0 / 240.0);
 
     d_pzbuffer = zbuffer;
+#if defined(VITA)
+    surfcache = malloc(SURFCACHE_SIZE);
+    D_InitCaches(surfcache, SURFCACHE_SIZE);
+#else  
     D_InitCaches(surfcache, sizeof(surfcache));
+#endif
 }
 
 void VID_Shutdown(void)
@@ -1020,6 +1035,10 @@ void VID_Shutdown(void)
       free(zbuffer);
    if (finalimage)
       free(finalimage);
+#if defined(VITA)
+   if (surfcache)
+      free(surfcache);
+#endif
 }
 
 void VID_Update(vrect_t *rects)
@@ -1238,4 +1257,3 @@ void
 IN_ModeChanged(void)
 {
 }
-
