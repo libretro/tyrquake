@@ -77,6 +77,8 @@ static struct retro_rumble_interface rumble;
 
 #if defined(HW_DOL)
 #define DEFAULT_MEMSIZE_MB 8
+#elif defined(WIIU)
+#define DEFAULT_MEMSIZE_MB 32
 #elif defined(HW_RVL) || defined(_XBOX1) 
 #define DEFAULT_MEMSIZE_MB 24
 #else
@@ -795,7 +797,7 @@ bool retro_load_game(const struct retro_game_info *info)
          strstr(info->path, "QUOTH")
          )
    {
-#if defined(HW_RVL) || defined(_XBOX1)
+#if (defined(HW_RVL) && !defined(WIIU)) || defined(_XBOX1)
       MEMSIZE_MB = 16;
 #endif
       extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
