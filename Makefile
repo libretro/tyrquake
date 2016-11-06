@@ -142,7 +142,7 @@ else ifeq ($(platform), sncps3)
 	STATIC_LINKING = 1
 else ifeq ($(platform), psl1ght)
 	EXT=a
-   TARGET := $(TARGET_NAME)_libretro_psl1ght.$(EXT)
+   TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
    CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
    AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
    CFLAGS += -D__ppc__ -DMSB_FIRST
@@ -151,7 +151,7 @@ else ifeq ($(platform), psl1ght)
 # PSP1
 else ifeq ($(platform), psp1)
 	EXT=a
-	TARGET := $(TARGET_NAME)_libretro_psp1.$(EXT)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
 	CC = psp-gcc$(EXE_EXT)
 	AR = psp-ar$(EXE_EXT)
 	CFLAGS += -DPSP -G0 -I$(shell psp-config --pspsdk-path)/include
@@ -160,7 +160,7 @@ else ifeq ($(platform), psp1)
 # Vita
 else ifeq ($(platform), vita)
 	EXT=a
-	TARGET := $(TARGET_NAME)_libretro_vita.$(EXT)
+	TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
 	CC = arm-vita-eabi-gcc$(EXE_EXT)
 	AR = arm-vita-eabi-ar$(EXE_EXT)
 	CFLAGS += -DVITA -fno-short-enums -fno-exceptions \
@@ -192,7 +192,7 @@ else ifeq ($(platform), xenon)
 # Nintendo Game Cube
 else ifeq ($(platform), ngc)
 	EXT=a
-   TARGET := $(TARGET_NAME)_libretro_ngc.$(EXT)
+   TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
    CFLAGS += -DGEKKO -DHW_DOL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST -I$(DEVKITPRO)/libogc/include
@@ -200,14 +200,14 @@ else ifeq ($(platform), ngc)
 
 # Nintendo Wii
 else ifeq ($(platform), wii)
-   TARGET := $(TARGET_NAME)_libretro_wii.a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
    CFLAGS += -DGEKKO -DHW_RVL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST -I$(DEVKITPRO)/libogc/include
 	STATIC_LINKING = 1
 
 else ifeq ($(platform), wiiu)
-   TARGET := $(TARGET_NAME)_libretro_wiiu.a
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
    CC = $(DEVKITPPC)/bin/powerpc-eabi-gcc$(EXE_EXT)
    AR = $(DEVKITPPC)/bin/powerpc-eabi-ar$(EXE_EXT)
    CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST -I$(DEVKITPRO)/libogc/include
