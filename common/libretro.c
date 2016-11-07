@@ -188,7 +188,10 @@ double Sys_DoubleTime(void)
    static int first = true;
    static double oldtime = 0.0, curtime = 0.0;
    double newtime;
-#if defined(GEKKO)
+#if defined(WIIU)
+   uint64_t OSGetSystemTime();
+   newtime = (OSGetSystemTime() / 62.15625f);
+#elif defined(GEKKO)
    newtime = ticks_to_microsecs(gettime()) / 1000000.0;
 #elif defined(__CELLOS_LV2__)
    newtime = sys_time_get_system_time() / 1000000.0;
