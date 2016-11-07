@@ -190,7 +190,7 @@ double Sys_DoubleTime(void)
    double newtime;
 #if defined(WIIU)
    uint64_t OSGetSystemTime();
-   newtime = (OSGetSystemTime() / 62.15625f);
+   newtime = (OSGetSystemTime() / 62156250.f);
 #elif defined(GEKKO)
    newtime = ticks_to_microsecs(gettime()) / 1000000.0;
 #elif defined(__CELLOS_LV2__)
