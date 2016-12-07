@@ -1094,7 +1094,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define AUDIO_BUFFER_SAMPLES (8192)
+#define AUDIO_BUFFER_SAMPLES (4096)
 
 static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
 static unsigned audio_buffer_ptr;
@@ -1115,8 +1115,6 @@ static void audio_process(void)
 
 static void audio_callback(void)
 {
-   //audio_process();
-  
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
    if (read_end > AUDIO_BUFFER_SAMPLES)
@@ -1125,10 +1123,12 @@ static void audio_callback(void)
    unsigned read_first  = read_end - audio_buffer_ptr;
    unsigned read_second = samples_per_frame - read_first;
 
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first >> 1);
-   audio_buffer_ptr = (audio_buffer_ptr + read_first) & (AUDIO_BUFFER_SAMPLES - 1);
-   if ((read_second >> 1))
-      audio_batch_cb(audio_buffer + audio_buffer_ptr, read_second >> 1);
+   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first / (shm->samplebits / 8));
+   audio_buffer_ptr += read_first;
+   if (read_second >= 1) {
+      audio_batch_cb(audio_buffer, read_second / (shm->samplebits / 8));
+      audio_buffer_ptr = read_second;
+   }
 }
 
 qboolean SNDDMA_Init(void)
