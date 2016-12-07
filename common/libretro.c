@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifdef _WIN32
@@ -755,7 +756,12 @@ void retro_unset_rumble_strong(void)
 bool retro_load_game(const struct retro_game_info *info)
 {
    char g_rom_dir[256], g_pak_path[256];
+   char *path_lower;
    quakeparms_t parms;
+
+   path_lower = strdup(info->path);
+   for (int i=0; path_lower[i]; ++i)
+       path_lower[i] = tolower(path_lower[i]);
 
    struct retro_input_descriptor desc[] = {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
@@ -791,14 +797,10 @@ bool retro_load_game(const struct retro_game_info *info)
 
    MEMSIZE_MB = DEFAULT_MEMSIZE_MB;
 
-   if (
-         strstr(info->path, "quoth") ||
-         strstr(info->path, "hipnotic") ||
-         strstr(info->path, "rogue") ||
-         strstr(info->path, "HIPNOTIC") ||
-         strstr(info->path, "ROGUE") ||
-         strstr(info->path, "QUOTH")
-         )
+   if ( strstr(path_lower, "id1") ||
+        strstr(path_lower, "quoth") ||
+        strstr(path_lower, "hipnotic") ||
+        strstr(path_lower, "rogue") )
    {
 #if (defined(HW_RVL) && !defined(WIIU)) || defined(_XBOX1)
       MEMSIZE_MB = 16;
@@ -827,6 +829,14 @@ bool retro_load_game(const struct retro_game_info *info)
    {
       parms.argc++;
       argv[1] = "-quoth";
+   }
+   else if (!strstr(g_pak_path, "id1/"))
+   {
+      parms.argc++;
+      argv[1] = "-game";
+      parms.argc++;
+      argv[2] = basename(g_rom_dir);
+      extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
    }
 
    parms.argv = argv;
