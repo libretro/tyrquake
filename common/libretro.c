@@ -870,7 +870,8 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_Set("crosshair", "0");
    Cvar_Set("viewsize", "100");
    Cvar_Set("showram", "0");
-   Cvar_Set("dither_filter", "1");
+   Cvar_Set("dither_filter", "0");
+   Cvar_Set("r_lerpmove", "1");
    Cvar_RegisterVariable(&framerate);
    Cvar_Set("framerate", "60");
    Cvar_Set("sys_ticrate", "0.016667");
