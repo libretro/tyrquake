@@ -137,8 +137,10 @@ typedef enum {
     /* Arrows + Home/End pad */
     K_UPARROW = 273,
     K_DOWNARROW = 274,
-    K_LEFTARROW = 275,
-    K_RIGHTARROW = 276,
+    /* both these keys were inverted in-game, maybe it only affects a few
+     * input drivers? */
+    K_RIGHTARROW = 275,
+    K_LEFTARROW = 276,
     K_INS = 277,
     K_HOME = 278,
     K_END = 279,

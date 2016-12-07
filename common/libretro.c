@@ -505,121 +505,53 @@ void Sys_SendKeyEvents(void)
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_w))
-               Key_Event(K_UPARROW, 1);
-            else if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
-               Key_Event(K_UPARROW, 1);
-            else
-               Key_Event(K_UPARROW, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_s))
-               Key_Event(K_DOWNARROW, 1);
-            else if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
-               Key_Event(K_DOWNARROW, 1);
-            else
-               Key_Event(K_DOWNARROW, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_a))
-               Key_Event(K_COMMA, 1);
-            else
-               Key_Event(K_COMMA, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_d))
-               Key_Event(K_PERIOD, 1);
-            else
-               Key_Event(K_PERIOD, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_e))
-               Key_Event(K_PGDN, 1);
-            else
-               Key_Event(K_PGDN, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_f))
-               Key_Event(K_DEL, 1);
-            else
-               Key_Event(K_DEL, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_SPACE) ||
-                  input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RETURN) ||
-                  input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT)
-               )
-               Key_Event(K_ENTER, 1);
-            else
-               Key_Event(K_ENTER, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_1))
-               Key_Event(K_1, 1);
-            else
-               Key_Event(K_1, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_2))
-               Key_Event(K_2, 1);
-            else
-               Key_Event(K_2, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_3))
-               Key_Event(K_3, 1);
-            else
-               Key_Event(K_3, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_4))
-               Key_Event(K_4, 1);
-            else
-               Key_Event(K_4, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_5))
-               Key_Event(K_5, 1);
-            else
-               Key_Event(K_5, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_6))
-               Key_Event(K_6, 1);
-            else
-               Key_Event(K_6, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_7))
-               Key_Event(K_7, 1);
-            else
-               Key_Event(K_7, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_8))
-               Key_Event(K_8, 1);
-            else
-               Key_Event(K_8, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_TAB))
-               Key_Event(K_TAB, 1);
-            else
-               Key_Event(K_TAB, 0);
-
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_c))
-               Key_Event(K_SLASH, 1);
-            else
-               Key_Event(K_SLASH, 0);
-
-            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT) ||
-                  (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LCTRL)))
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT))
                Key_Event(K_MOUSE1, 1);
             else
                Key_Event(K_MOUSE1, 0);
 
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
-               Key_Event(K_LEFTARROW, 1);
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_RIGHT))
+               Key_Event(K_MOUSE2, 1);
             else
-               Key_Event(K_LEFTARROW, 0);
+               Key_Event(K_MOUSE2, 0);
 
-            if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
-               Key_Event(K_RIGHTARROW, 1);
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_MIDDLE))
+               Key_Event(K_MOUSE3, 1);
             else
-               Key_Event(K_RIGHTARROW, 0);
+               Key_Event(K_MOUSE3, 0);
 
             if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELUP))
-               Key_Event(K_SLASH, 1);
+               Key_Event(K_MOUSE4, 1);
             else
-               Key_Event(K_SLASH, 0);
+               Key_Event(K_MOUSE4, 0);
+
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_WHEELDOWN))
+               Key_Event(K_MOUSE5, 1);
+            else
+               Key_Event(K_MOUSE5, 0);
+
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_HORIZ_WHEELUP))
+               Key_Event(K_MOUSE6, 1);
+            else
+               Key_Event(K_MOUSE6, 0);
+
+            if (input_cb(port, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_HORIZ_WHEELDOWN))
+               Key_Event(K_MOUSE7, 1);
+            else
+               Key_Event(K_MOUSE7, 0);
+
             break;
       }
    }
+}
+
+static void keyboard_cb(bool down, unsigned keycode,
+      uint32_t character, uint16_t mod)
+{
+	if (down)
+		Key_Event((knum_t) keycode, 1);
+	else
+		Key_Event((knum_t) keycode, 0);
 }
 
 void Sys_Sleep(void)
@@ -783,6 +715,9 @@ bool retro_load_game(const struct retro_game_info *info)
    };
 
    environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
+
+   struct retro_keyboard_callback cb = { keyboard_cb };
+   environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
 
    update_variables(true);
 
