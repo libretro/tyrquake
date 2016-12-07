@@ -88,6 +88,11 @@ static struct retro_rumble_interface rumble;
 
 #define SAMPLERATE 44100
 #define ANALOG_THRESHOLD 4096 * 4
+//is there a deadzone setting in retroarch?
+#define ANALOG_DEADZONE 2700
+//is the range delcared somewhere in retroarch?
+#define ANALOG_RANGE 32768
+
 
 
 cvar_t framerate = { "framerate", "60" };
@@ -424,6 +429,8 @@ void Sys_SendKeyEvents(void)
                rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                      RETRO_DEVICE_ID_ANALOG_Y);
 
+/* Disabled, need a way to switch between analog and digital
+ *  movement for the sticks.
                if (lsx > ANALOG_THRESHOLD)
                   Key_Event(K_AUX1, 1);
                else
@@ -457,7 +464,7 @@ void Sys_SendKeyEvents(void)
                   Key_Event(K_AUX8, 1);
                else
                   Key_Event(K_AUX8, 0);
-
+*/
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
@@ -1174,32 +1181,82 @@ IN_Move(usercmd_t *cmd)
 {
    static int cur_mx;
    static int cur_my;
-   int mx, my;
+   int mx, my, lsx, lsy, rsx, rsy;
 
-   if (quake_devices[0] != RETRO_DEVICE_KEYBOARD)
-      return;
+   if (quake_devices[0] == RETRO_DEVICE_KEYBOARD) {
+      mx = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
+      my = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
 
-   mx = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
-   my = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
+      if (mx != cur_mx || my != cur_my)
+      {
 
-   if (mx != cur_mx || my != cur_my)
-   {
+         mx *= sensitivity.value;
+         my *= sensitivity.value;
 
-      mx *= sensitivity.value;
-      my *= sensitivity.value;
+         cl.viewangles[YAW] -= m_yaw.value * mx;
 
-      cl.viewangles[YAW] -= m_yaw.value * mx;
+         V_StopPitchDrift();
+
+         cl.viewangles[PITCH] += m_pitch.value * my;
+
+         if (cl.viewangles[PITCH] > 80)
+            cl.viewangles[PITCH] = 80;
+         if (cl.viewangles[PITCH] < -70)
+            cl.viewangles[PITCH] = -70;
+         cur_mx = mx;
+         cur_my = my;
+      }
+   } else if (quake_devices[0] == RETRO_DEVICE_JOYPAD) {
+      // Left stick move
+      lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+               RETRO_DEVICE_ID_ANALOG_X);
+      lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
+               RETRO_DEVICE_ID_ANALOG_Y);
+
+      if (lsx > ANALOG_DEADZONE | lsx < -ANALOG_DEADZONE) {
+         if (lsx > ANALOG_DEADZONE)
+            lsx = lsx - ANALOG_DEADZONE;
+         if (lsx < -ANALOG_DEADZONE)
+            lsx = lsx + ANALOG_DEADZONE;
+         cmd->sidemove += cl_sidespeed.value * lsx / ANALOG_RANGE;
+      }
+
+      if (lsy > ANALOG_DEADZONE | lsy < -ANALOG_DEADZONE) {
+         if (lsy > ANALOG_DEADZONE)
+            lsy = lsy - ANALOG_DEADZONE;
+         if (lsy < -ANALOG_DEADZONE)
+            lsy = lsy + ANALOG_DEADZONE;
+         cmd->forwardmove -= cl_forwardspeed.value * lsy / ANALOG_RANGE;
+      }
+
+      // Right stick Look
+      rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+               RETRO_DEVICE_ID_ANALOG_X);
+      rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+               RETRO_DEVICE_ID_ANALOG_Y);
+
+      if (rsx > ANALOG_DEADZONE | rsx < -ANALOG_DEADZONE) {
+         if (rsx > ANALOG_DEADZONE)
+            rsx = rsx - ANALOG_DEADZONE;
+         if (rsx < -ANALOG_DEADZONE)
+            rsx = rsx + ANALOG_DEADZONE;
+         // For now we are sharing the sensitivity with the mouse setting
+         cl.viewangles[YAW] -= rsx * sensitivity.value / ANALOG_RANGE;
+      }
 
       V_StopPitchDrift();
-
-      cl.viewangles[PITCH] += m_pitch.value * my;
+      if (rsy > ANALOG_DEADZONE | rsy < -ANALOG_DEADZONE) {
+         if (rsy > ANALOG_DEADZONE)
+            rsy = rsy - ANALOG_DEADZONE;
+         if (rsy < -ANALOG_DEADZONE)
+            rsy = rsy + ANALOG_DEADZONE;
+         cl.viewangles[PITCH] -= rsy * sensitivity.value / ANALOG_RANGE;
+      }
 
       if (cl.viewangles[PITCH] > 80)
          cl.viewangles[PITCH] = 80;
       if (cl.viewangles[PITCH] < -70)
          cl.viewangles[PITCH] = -70;
-      cur_mx = mx;
-      cur_my = my;
    }
 }
 
