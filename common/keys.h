@@ -137,8 +137,10 @@ typedef enum {
     /* Arrows + Home/End pad */
     K_UPARROW = 273,
     K_DOWNARROW = 274,
-    K_LEFTARROW = 275,
-    K_RIGHTARROW = 276,
+    /* both these keys were inverted in-game, maybe it only affects a few
+     * input drivers? */
+    K_RIGHTARROW = 275,
+    K_LEFTARROW = 276,
     K_INS = 277,
     K_HOME = 278,
     K_END = 279,
@@ -217,6 +219,22 @@ typedef enum {
     K_JOY2,
     K_JOY3,
     K_JOY4,
+    K_JOY_B,
+    K_JOY_Y,
+    K_JOY_SELECT,
+    K_JOY_START,
+    K_JOY_UP,
+    K_JOY_DOWN,
+    K_JOY_LEFT,
+    K_JOY_RIGHT,
+    K_JOY_A,
+    K_JOY_X,
+    K_JOY_L,
+    K_JOY_R,
+    K_JOY_L2,
+    K_JOY_R2,
+    K_JOY_L3,
+    K_JOY_R3,
 
     /*
      * aux keys are for multi-buttoned joysticks to generate so they can use

@@ -211,7 +211,8 @@ void V_DriftPitch(void)
          cl.driftmove += host_frametime;
 
       if (cl.driftmove > v_centermove.value) {
-         V_StartPitchDrift();
+         if (lookspring.value)
+            V_StartPitchDrift();
       }
       return;
    }
@@ -259,7 +260,7 @@ cshift_t cshift_water = { {130, 80, 50}, 128 };
 cshift_t cshift_slime = { {0, 25, 5}, 150 };
 cshift_t cshift_lava = { {255, 80, 0}, 150 };
 
-cvar_t v_gamma = { "gamma", "1", true };
+cvar_t v_gamma = { "gamma", "0.95", true };
 
 byte gammatable[256];		// palette is sent through this
 

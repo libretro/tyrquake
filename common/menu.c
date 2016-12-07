@@ -318,6 +318,8 @@ static void
 M_Main_Key(int key)
 {
     switch (key) {
+    case K_JOY_START:
+    case K_JOY_B:
     case K_ESCAPE:
 	key_dest = key_game;
 	m_state = m_none;
@@ -327,18 +329,21 @@ M_Main_Key(int key)
 	    CL_NextDemo();
 	break;
 
+    case K_JOY_DOWN:
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	if (++m_main_cursor >= MAIN_ITEMS)
 	    m_main_cursor = 0;
 	break;
 
+    case K_JOY_UP:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
 	if (--m_main_cursor < 0)
 	    m_main_cursor = MAIN_ITEMS - 1;
 	break;
 
+    case K_JOY_A:
     case K_ENTER:
 	m_entersound = true;
 
@@ -405,22 +410,27 @@ static void
 M_SinglePlayer_Key(int key)
 {
     switch (key) {
+
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_Main_f();
 	break;
 
+    case K_JOY_DOWN:
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	if (++m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
 	    m_singleplayer_cursor = 0;
 	break;
 
+    case K_JOY_UP:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
 	if (--m_singleplayer_cursor < 0)
 	    m_singleplayer_cursor = SINGLEPLAYER_ITEMS - 1;
 	break;
 
+    case K_JOY_A:
     case K_ENTER:
 	m_entersound = true;
 
@@ -552,10 +562,13 @@ static void M_Load_Key(int k)
 {
    switch (k)
    {
+ 
+      case K_JOY_B:
       case K_ESCAPE:
          M_Menu_SinglePlayer_f();
          break;
-
+ 
+      case K_JOY_A:
       case K_ENTER:
          S_LocalSound("misc/menu2.wav");
          if (!loadable[load_cursor])
@@ -571,6 +584,8 @@ static void M_Load_Key(int k)
          Cbuf_AddText("load s%i\n", load_cursor);
          return;
 
+      case K_JOY_UP:
+      case K_JOY_LEFT:
       case K_UPARROW:
       case K_LEFTARROW:
          S_LocalSound("misc/menu1.wav");
@@ -579,6 +594,8 @@ static void M_Load_Key(int k)
             load_cursor = MAX_SAVEGAMES - 1;
          break;
 
+      case K_JOY_DOWN:
+      case K_JOY_RIGHT:
       case K_DOWNARROW:
       case K_RIGHTARROW:
          S_LocalSound("misc/menu1.wav");
@@ -593,16 +610,21 @@ static void M_Load_Key(int k)
 static void M_Save_Key(int k)
 {
    switch (k) {
+
+      case K_JOY_B:
       case K_ESCAPE:
          M_Menu_SinglePlayer_f();
          break;
 
+      case K_JOY_A:
       case K_ENTER:
          m_state = m_none;
          key_dest = key_game;
          Cbuf_AddText("save s%i\n", load_cursor);
          return;
 
+      case K_JOY_UP:
+      case K_JOY_LEFT:
       case K_UPARROW:
       case K_LEFTARROW:
          S_LocalSound("misc/menu1.wav");
@@ -611,6 +633,8 @@ static void M_Save_Key(int k)
             load_cursor = MAX_SAVEGAMES - 1;
          break;
 
+      case K_JOY_DOWN:
+      case K_JOY_RIGHT:
       case K_DOWNARROW:
       case K_RIGHTARROW:
          S_LocalSound("misc/menu1.wav");
@@ -661,22 +685,26 @@ static void M_MultiPlayer_Draw(void)
 static void M_MultiPlayer_Key(int key)
 {
    switch (key) {
+      case K_JOY_B:
       case K_ESCAPE:
          M_Menu_Main_f();
          break;
 
+      case K_JOY_DOWN:
       case K_DOWNARROW:
          S_LocalSound("misc/menu1.wav");
          if (++m_multiplayer_cursor >= MULTIPLAYER_ITEMS)
             m_multiplayer_cursor = 0;
          break;
 
+      case K_JOY_UP:
       case K_UPARROW:
          S_LocalSound("misc/menu1.wav");
          if (--m_multiplayer_cursor < 0)
             m_multiplayer_cursor = MULTIPLAYER_ITEMS - 1;
          break;
 
+      case K_JOY_A:
       case K_ENTER:
          m_entersound = true;
          switch (m_multiplayer_cursor) {
@@ -773,10 +801,13 @@ M_Setup_Key(int k)
     int l;
 
     switch (k) {
+
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_MultiPlayer_f();
 	break;
 
+    case K_JOY_UP:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
 	setup_cursor--;
@@ -784,6 +815,7 @@ M_Setup_Key(int k)
 	    setup_cursor = NUM_SETUP_CMDS - 1;
 	break;
 
+    case K_JOY_DOWN:
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	setup_cursor++;
@@ -791,6 +823,7 @@ M_Setup_Key(int k)
 	    setup_cursor = 0;
 	break;
 
+    case K_JOY_LEFT:
     case K_LEFTARROW:
 	if (setup_cursor < 2)
 	    return;
@@ -800,6 +833,7 @@ M_Setup_Key(int k)
 	if (setup_cursor == 3)
 	    setup_bottom = setup_bottom - 1;
 	break;
+    case K_JOY_RIGHT:
     case K_RIGHTARROW:
 	if (setup_cursor < 2)
 	    return;
@@ -811,6 +845,7 @@ M_Setup_Key(int k)
 	    setup_bottom = setup_bottom + 1;
 	break;
 
+    case K_JOY_A:
     case K_ENTER:
 	if (setup_cursor == 0 || setup_cursor == 1)
 	    return;
@@ -829,6 +864,8 @@ M_Setup_Key(int k)
 	M_Menu_MultiPlayer_f();
 	break;
 
+    case K_JOY_X:
+    case K_JOY_Y:
     case K_BACKSPACE:
 	if (setup_cursor == 0) {
 	    if (strlen(setup_hostname))
@@ -1127,10 +1164,12 @@ M_Options_Key(int k)
 {
 
     switch (k) {
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_Main_f();
 	break;
 
+    case K_JOY_A:
     case K_ENTER:
 	m_entersound = true;
 	switch (options_cursor) {
@@ -1153,6 +1192,7 @@ M_Options_Key(int k)
 	}
 	return;
 
+    case K_JOY_UP:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
 	options_cursor--;
@@ -1160,6 +1200,7 @@ M_Options_Key(int k)
 	    options_cursor = OPTIONS_ITEMS - 1;
 	break;
 
+    case K_JOY_DOWN:
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	options_cursor++;
@@ -1167,10 +1208,12 @@ M_Options_Key(int k)
 	    options_cursor = 0;
 	break;
 
+    case K_JOY_LEFT:
     case K_LEFTARROW:
 	M_AdjustSliders(-1);
 	break;
 
+    case K_JOY_RIGHT:
     case K_RIGHTARROW:
 	M_AdjustSliders(1);
 	break;
@@ -1342,10 +1385,14 @@ M_Keys_Key(int k)
     }
 
     switch (k) {
+
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_Options_f();
 	break;
 
+    case K_JOY_LEFT:
+    case K_JOY_UP:
     case K_LEFTARROW:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
@@ -1354,6 +1401,8 @@ M_Keys_Key(int k)
 	    keys_cursor = NUMCOMMANDS - 1;
 	break;
 
+    case K_JOY_DOWN:
+    case K_JOY_RIGHT:
     case K_DOWNARROW:
     case K_RIGHTARROW:
 	S_LocalSound("misc/menu1.wav");
@@ -1362,6 +1411,7 @@ M_Keys_Key(int k)
 	    keys_cursor = 0;
 	break;
 
+    case K_JOY_A:
     case K_ENTER:		// go into bind mode
 	M_FindKeysForCommand(bindnames[keys_cursor][0], keys);
 	S_LocalSound("misc/menu2.wav");
@@ -1370,6 +1420,8 @@ M_Keys_Key(int k)
 	bind_grab = true;
 	break;
 
+    case K_JOY_X:
+    case K_JOY_Y:
     case K_BACKSPACE:		// delete bindings
     case K_DEL:			// delete bindings
 	S_LocalSound("misc/menu2.wav");
@@ -1431,10 +1483,13 @@ static void
 M_Help_Key(int key)
 {
     switch (key) {
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_Main_f();
 	break;
 
+    case K_JOY_UP:
+    case K_JOY_RIGHT:
     case K_UPARROW:
     case K_RIGHTARROW:
 	m_entersound = true;
@@ -1442,6 +1497,8 @@ M_Help_Key(int key)
 	    help_page = 0;
 	break;
 
+    case K_JOY_DOWN:
+    case K_JOY_LEFT:
     case K_DOWNARROW:
     case K_LEFTARROW:
 	m_entersound = true;
@@ -1664,10 +1721,12 @@ M_LanConfig_Key(int key)
     int l;
 
     switch (key) {
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_MultiPlayer_f();
 	break;
 
+    case K_JOY_UP:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
 	lanConfig_cursor--;
@@ -1675,6 +1734,7 @@ M_LanConfig_Key(int key)
 	    lanConfig_cursor = NUM_LANCONFIG_CMDS - 1;
 	break;
 
+    case K_JOY_DOWN:
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	lanConfig_cursor++;
@@ -1682,6 +1742,7 @@ M_LanConfig_Key(int key)
 	    lanConfig_cursor = 0;
 	break;
 
+    case K_JOY_A:
     case K_ENTER:
 	if (lanConfig_cursor == 0)
 	    break;
@@ -1710,6 +1771,8 @@ M_LanConfig_Key(int key)
 
 	break;
 
+    case K_JOY_X:
+    case K_JOY_Y:
     case K_BACKSPACE:
 	if (lanConfig_cursor == 0) {
 	    if (strlen(lanConfig_portname))
@@ -2195,10 +2258,13 @@ static void
 M_GameOptions_Key(int key)
 {
     switch (key) {
+
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_MultiPlayer_f();
 	break;
 
+    case K_JOY_UP:
     case K_UPARROW:
 	S_LocalSound("misc/menu1.wav");
 	gameoptions_cursor--;
@@ -2206,6 +2272,7 @@ M_GameOptions_Key(int key)
 	    gameoptions_cursor = NUM_GAMEOPTIONS - 1;
 	break;
 
+    case K_JOY_DOWN:
     case K_DOWNARROW:
 	S_LocalSound("misc/menu1.wav");
 	gameoptions_cursor++;
@@ -2213,6 +2280,7 @@ M_GameOptions_Key(int key)
 	    gameoptions_cursor = 0;
 	break;
 
+    case K_JOY_LEFT:
     case K_LEFTARROW:
 	if (gameoptions_cursor == 0)
 	    break;
@@ -2220,6 +2288,7 @@ M_GameOptions_Key(int key)
 	M_NetStart_Change(-1);
 	break;
 
+    case K_JOY_RIGHT:
     case K_RIGHTARROW:
 	if (gameoptions_cursor == 0)
 	    break;
@@ -2227,6 +2296,7 @@ M_GameOptions_Key(int key)
 	M_NetStart_Change(1);
 	break;
 
+    case K_JOY_A:
     case K_ENTER:
 	S_LocalSound("misc/menu2.wav");
 	if (gameoptions_cursor == 0) {
@@ -2364,14 +2434,20 @@ static void
 M_ServerList_Key(int k)
 {
     switch (k) {
+
+    case K_JOY_B:
     case K_ESCAPE:
 	M_Menu_LanConfig_f();
 	break;
 
+    case K_JOY_X:
+    case K_JOY_Y:
     case K_SPACE:
 	M_Menu_Search_f();
 	break;
 
+    case K_JOY_UP:
+    case K_JOY_LEFT:
     case K_UPARROW:
     case K_LEFTARROW:
 	S_LocalSound("misc/menu1.wav");
@@ -2380,6 +2456,8 @@ M_ServerList_Key(int k)
 	    slist_cursor = hostCacheCount - 1;
 	break;
 
+    case K_JOY_DOWN:
+    case K_JOY_RIGHT:
     case K_DOWNARROW:
     case K_RIGHTARROW:
 	S_LocalSound("misc/menu1.wav");
@@ -2388,6 +2466,7 @@ M_ServerList_Key(int k)
 	    slist_cursor = 0;
 	break;
 
+    case K_JOY_START:
     case K_ENTER:
 	S_LocalSound("misc/menu2.wav");
 	m_return_state = m_state;
