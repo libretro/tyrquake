@@ -87,7 +87,7 @@ static struct retro_rumble_interface rumble;
 #endif
 
 #define SAMPLERATE 44100
-#define ANALOG_THRESHOLD 4096
+#define ANALOG_THRESHOLD 4096 * 4
 
 
 cvar_t framerate = { "framerate", "60" };
@@ -406,70 +406,15 @@ void Sys_SendKeyEvents(void)
       {
          case RETRO_DEVICE_JOYPAD:
             {
-               int lsx, lsy, rsx, rsy;
-               lsx = 0;
-               lsy = 0;
-               rsx = 0;
-               rsy = 0;
+               int lsx=0, lsy=0, rsx=0, rsy=0;
 
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP))
-                  Key_Event(K_UPARROW, 1);
-               else
-                  Key_Event(K_UPARROW, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN))
-                  Key_Event(K_DOWNARROW, 1);
-               else
-                  Key_Event(K_DOWNARROW, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L))
-                  Key_Event(K_COMMA, 1);
-               else
-                  Key_Event(K_COMMA, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R))
-                  Key_Event(K_PERIOD, 1);
-               else
-                  Key_Event(K_PERIOD, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2))
-                  Key_Event(K_PGDN, 1);
-               else
-                  Key_Event(K_PGDN, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
-                  Key_Event(K_DEL, 1);
-               else
-                  Key_Event(K_DEL, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B))
-                  Key_Event(K_ENTER, 1);
-               else
-                  Key_Event(K_ENTER, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A))
-                  Key_Event(K_SLASH, 1);
-               else
-                  Key_Event(K_SLASH, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y))
-                  Key_Event(K_MOUSE1, 1);
-               else
-                  Key_Event(K_MOUSE1, 0);
-               Key_Event(K_ESCAPE, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START));
-               Key_Event(K_INS, input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X));
-               if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT))
-                  Key_Event(K_LEFTARROW, 1);
-               else
-                  Key_Event(K_LEFTARROW, 0);
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT))
-                  Key_Event(K_RIGHTARROW, 1);
-               else
-                  Key_Event(K_RIGHTARROW, 0);
+               for (int i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i) {
+                   if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
+                      Key_Event(K_JOY_B + i, 1);
+                   else
+                      Key_Event(K_JOY_B + i, 0);
+               }
 
-               Key_Event(K_END, input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3));
-               if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT))
-               {
-                  Cvar_SetValue("cl_forwardspeed", 200);
-                  Cvar_SetValue("cl_backspeed", 200);
-               }
-               else
-               {
-                  Cvar_SetValue("cl_forwardspeed", 400);
-                  Cvar_SetValue("cl_backspeed", 400);
-               }
                lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                      RETRO_DEVICE_ID_ANALOG_X);
                lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
@@ -480,28 +425,39 @@ void Sys_SendKeyEvents(void)
                      RETRO_DEVICE_ID_ANALOG_Y);
 
                if (lsx > ANALOG_THRESHOLD)
-                  Key_Event(K_PERIOD, 1);
-
+                  Key_Event(K_AUX1, 1);
+               else
+                  Key_Event(K_AUX1, 0);
                if (lsx < -ANALOG_THRESHOLD)
-                  Key_Event(K_COMMA, 1);
-
-               if (rsy > ANALOG_THRESHOLD)
-                  Key_Event(K_DEL, 1);
-
-               if (rsy < -ANALOG_THRESHOLD)
-                  Key_Event(K_PGDN, 1);
-
+                  Key_Event(K_AUX2, 1);
+               else
+                  Key_Event(K_AUX2, 0);
                if (lsy > ANALOG_THRESHOLD)
-                  Key_Event(K_DOWNARROW, 1);
-
+                  Key_Event(K_AUX3, 1);
+               else
+                  Key_Event(K_AUX3, 0);
                if (lsy < -ANALOG_THRESHOLD)
-                  Key_Event(K_UPARROW, 1);
+                  Key_Event(K_AUX4, 1);
+               else
+                  Key_Event(K_AUX4, 0);
 
                if (rsx > ANALOG_THRESHOLD)
-                  Key_Event(K_RIGHTARROW, 1);
-
+                  Key_Event(K_AUX5, 1);
+               else
+                  Key_Event(K_AUX5, 0);
                if (rsx < -ANALOG_THRESHOLD)
-                  Key_Event(K_LEFTARROW, 1);
+                  Key_Event(K_AUX6, 1);
+               else
+                  Key_Event(K_AUX6, 0);
+               if (rsy > ANALOG_THRESHOLD)
+                  Key_Event(K_AUX7, 1);
+               else
+                  Key_Event(K_AUX7, 0);
+               if (rsy < -ANALOG_THRESHOLD)
+                  Key_Event(K_AUX8, 1);
+               else
+                  Key_Event(K_AUX8, 0);
+
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
@@ -697,20 +653,23 @@ bool retro_load_game(const struct retro_game_info *info)
        path_lower[i] = tolower(path_lower[i]);
 
    struct retro_input_descriptor desc[] = {
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Jump" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Cycle Weapon" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Freelook" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Fire" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Strafe Left" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Strafe Right" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Look Up" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Look Down" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,   "Toggle Run Mode" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START,    "Settings" },
+       /* missing swim down/move down*/
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Strafe left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Move forward" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Move backward" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Strafe right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Look right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Look down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Look left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Look up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Toggle run mode" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
 
       { 0 },
    };
@@ -844,6 +803,36 @@ bool retro_load_game(const struct retro_game_info *info)
        Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
    }
    free(cfg_file);
+
+   Cmd_ExecuteString("bind JOY_LEFT \"+moveleft\"", src_command);
+   Cmd_ExecuteString("bind JOY_RIGHT \"+moveright\"", src_command);
+   Cmd_ExecuteString("bind JOY_UP \"+forward\"", src_command);
+   Cmd_ExecuteString("bind JOY_DOWN \"+back\"", src_command);
+
+   Cmd_ExecuteString("bind JOY_B \"+right\"", src_command);
+   Cmd_ExecuteString("bind JOY_A \"+lookdown\"", src_command);
+   Cmd_ExecuteString("bind JOY_X \"+left\"", src_command);
+   Cmd_ExecuteString("bind JOY_Y \"+lookup\"", src_command);
+
+   Cmd_ExecuteString("bind JOY_L \"impulse 12\"", src_command);
+   Cmd_ExecuteString("bind JOY_R \"impulse 10\"", src_command);
+
+   Cmd_ExecuteString("bind JOY_L2 \"+jump\"", src_command);
+   Cmd_ExecuteString("bind JOY_R2 \"+attack\"", src_command);
+   Cmd_ExecuteString("bind JOY_L3 \"+togglewalk\"", src_command);
+   Cmd_ExecuteString("bind JOY_R3 \"+moveup\"", src_command);
+
+   Cmd_ExecuteString("bind JOY_SELECT \"\"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind JOY_START \"togglemenu\"", src_command);
+
+   Cmd_ExecuteString("bind AUX1 \"+moveright\"", src_command);
+   Cmd_ExecuteString("bind AUX2 \"+moveleft\"", src_command);
+   Cmd_ExecuteString("bind AUX3 \"+back\"", src_command);
+   Cmd_ExecuteString("bind AUX4 \"+forward\"", src_command);
+   Cmd_ExecuteString("bind AUX5 \"+right\"", src_command);
+   Cmd_ExecuteString("bind AUX6 \"+left\"", src_command);
+   Cmd_ExecuteString("bind AUX7 \"+lookup\"", src_command);
+   Cmd_ExecuteString("bind AUX8 \"+lookdown\"", src_command);
 
    return true;
 }

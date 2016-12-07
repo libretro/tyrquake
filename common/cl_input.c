@@ -56,11 +56,11 @@ static kbutton_t in_klook;
 kbutton_t in_mlook;
 kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack;
+kbutton_t in_strafe, in_speed, in_togglewalk, in_use, in_jump, in_attack;
 kbutton_t in_up, in_down;
 
 int in_impulse;
-
+int walkstate=1;
 
 void
 KeyDown(kbutton_t *b)
@@ -280,6 +280,24 @@ IN_SpeedUp(void)
 }
 
 void
+IN_TogglewalkDown(void)
+{
+    KeyDown(&in_togglewalk);
+    if (walkstate == 1)
+        walkstate = 2;
+    else
+        walkstate = 1;
+}
+
+void
+IN_TogglewalkUp(void)
+{
+    KeyUp(&in_togglewalk);
+}
+
+
+
+void
 IN_StrafeDown(void)
 {
     KeyDown(&in_strafe);
@@ -485,9 +503,17 @@ CL_BaseMove(usercmd_t *cmd)
     cmd->upmove += cl_upspeed.value * CL_KeyState(&in_up);
     cmd->upmove -= cl_upspeed.value * CL_KeyState(&in_down);
 
+
     if (!(in_klook.state & 1)) {
-	cmd->forwardmove += cl_forwardspeed.value * CL_KeyState(&in_forward);
-	cmd->forwardmove -= cl_backspeed.value * CL_KeyState(&in_back);
+        /* Should I also add walkstate to strafe? strafe being faster when walking is standard
+         * behaviour in quake anyway. */
+        if (cl_forwardspeed.value > 200) {
+        cmd->forwardmove += cl_forwardspeed.value * CL_KeyState(&in_forward) / walkstate;
+	    cmd->forwardmove -= cl_backspeed.value * CL_KeyState(&in_back) / walkstate;
+        } else {
+        cmd->forwardmove += cl_forwardspeed.value * CL_KeyState(&in_forward) * walkstate;
+	    cmd->forwardmove -= cl_backspeed.value * CL_KeyState(&in_back) * walkstate;
+        }
     }
 //
 // adjust for speed key
@@ -605,6 +631,8 @@ CL_InitInput(void)
     Cmd_AddCommand("-moveright", IN_MoverightUp);
     Cmd_AddCommand("+speed", IN_SpeedDown);
     Cmd_AddCommand("-speed", IN_SpeedUp);
+    Cmd_AddCommand("+togglewalk", IN_TogglewalkDown);
+    Cmd_AddCommand("-togglewalk", IN_TogglewalkUp);
     Cmd_AddCommand("+attack", IN_AttackDown);
     Cmd_AddCommand("-attack", IN_AttackUp);
     Cmd_AddCommand("+use", IN_UseDown);
