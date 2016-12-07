@@ -787,6 +787,7 @@ bool retro_load_game(const struct retro_game_info *info)
    asprintf(&cfg_file,"%s/config.cfg", dirname(strdup(g_pak_path)));
    if (access(cfg_file, F_OK) != 0)
    {
+       Cvar_Set("gamma", "0.95");
        Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
        Cmd_ExecuteString("bind ~ \"toggleconsole\"", src_command);
        Cmd_ExecuteString("bind ` \"toggleconsole\"", src_command);
