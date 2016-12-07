@@ -211,7 +211,8 @@ void V_DriftPitch(void)
          cl.driftmove += host_frametime;
 
       if (cl.driftmove > v_centermove.value) {
-         V_StartPitchDrift();
+         if (lookspring.value)
+            V_StartPitchDrift();
       }
       return;
    }
