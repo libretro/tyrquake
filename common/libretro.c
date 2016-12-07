@@ -771,7 +771,7 @@ bool retro_load_game(const struct retro_game_info *info)
       parms.argc++;
       argv[1] = "-game";
       parms.argc++;
-      argv[2] = basename(g_rom_dir);
+      argv[2] = basename(strdup(g_rom_dir));
       extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
    }
 
