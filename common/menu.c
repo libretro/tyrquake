@@ -1353,10 +1353,6 @@ M_Keys_Draw(void)
 		M_Print(140 + x + 8, y, "or");
 		M_Print(140 + x + 32, y, Key_KeynumToString(keys[1]));
 	    }
-	    if (keys[2] != -1) {
-		M_Print(140 + x + 8, y, "or");
-		M_Print(140 + x + 32, y, Key_KeynumToString(keys[2]));
-	    }
 	}
     }
 
