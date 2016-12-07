@@ -688,6 +688,7 @@ void retro_unset_rumble_strong(void)
 bool retro_load_game(const struct retro_game_info *info)
 {
    char g_rom_dir[256], g_pak_path[256];
+   char *cfg_file;
    char *path_lower;
    quakeparms_t parms;
 
@@ -820,6 +821,29 @@ bool retro_load_game(const struct retro_game_info *info)
    Cvar_RegisterVariable(&framerate);
    Cvar_Set("framerate", "60");
    Cvar_Set("sys_ticrate", "0.016667");
+
+
+   /* Override some default binds with more modern ones if we are booting the 
+    * game for the first time. */
+   asprintf(&cfg_file,"%s/config.cfg", dirname(strdup(g_pak_path)));
+   if (access(cfg_file, F_OK) != 0)
+   {
+       Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
+       Cmd_ExecuteString("bind ~ \"toggleconsole\"", src_command);
+       Cmd_ExecuteString("bind ` \"toggleconsole\"", src_command);
+
+       Cmd_ExecuteString("bind f \"+moveup\"", src_command);
+       Cmd_ExecuteString("bind c \"+movedown\"", src_command);
+
+       Cmd_ExecuteString("bind a \"+moveleft\"", src_command);
+       Cmd_ExecuteString("bind d \"+moveright\"", src_command);
+       Cmd_ExecuteString("bind w \"+forward\"", src_command);
+       Cmd_ExecuteString("bind s \"+back\"", src_command);
+
+       Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
+       Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
+   }
+   free(cfg_file);
 
    return true;
 }
