@@ -790,73 +790,75 @@ void V_CalcRefdef(void)
    AngleVectors(angles, forward, right, up);
 
    for (i = 0; i < 3; i++)
+   {
       r_refdef.vieworg[i] += scr_ofsx.value * forward[i]
       + scr_ofsy.value * right[i]
       + scr_ofsz.value * up[i];
+   }
 
-      V_BoundOffsets();
+   V_BoundOffsets();
 
-      // set up gun position
-      VectorCopy(cl.viewangles, view->angles);
+   // set up gun position
+   VectorCopy(cl.viewangles, view->angles);
 
-      CalcGunAngle();
+   CalcGunAngle();
 
-      VectorCopy(ent->origin, view->origin);
-      view->origin[2] += cl.viewheight;
+   VectorCopy(ent->origin, view->origin);
+   view->origin[2] += cl.viewheight;
 
-      for (i = 0; i < 3; i++) {
-         view->origin[i] += forward[i] * bob * 0.4;
-         //              view->origin[i] += right[i]*bob*0.4;
-         //              view->origin[i] += up[i]*bob*0.8;
-      }
-      view->origin[2] += bob;
+   for (i = 0; i < 3; i++) {
+      view->origin[i] += forward[i] * bob * 0.4;
+      //              view->origin[i] += right[i]*bob*0.4;
+      //              view->origin[i] += up[i]*bob*0.8;
+   }
+   view->origin[2] += bob;
 
-      // fudge position around to keep amount of weapon visible
-      // roughly equal with different FOV
-      if (scr_viewsize.value == 110)
-         view->origin[2] += 1;
-      else if (scr_viewsize.value == 100)
-         view->origin[2] += 2;
-      else if (scr_viewsize.value == 90)
-         view->origin[2] += 1;
-      else if (scr_viewsize.value == 80)
-         view->origin[2] += 0.5;
+   // fudge position around to keep amount of weapon visible
+   // roughly equal with different FOV
+   if (scr_viewsize.value == 110)
+      view->origin[2] += 1;
+   else if (scr_viewsize.value == 100)
+      view->origin[2] += 2;
+   else if (scr_viewsize.value == 90)
+      view->origin[2] += 1;
+   else if (scr_viewsize.value == 80)
+      view->origin[2] += 0.5;
 
-      view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
-      view->frame = cl.stats[STAT_WEAPONFRAME];
-      view->colormap = vid.colormap;
+   view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
+   view->frame = cl.stats[STAT_WEAPONFRAME];
+   view->colormap = vid.colormap;
 
-      // set up the refresh position
-      VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
+   // set up the refresh position
+   VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
 
-      // smooth out stair step ups
-      if (cl.onground && ent->origin[2] - v_stepz > 0)
+   // smooth out stair step ups
+   if (cl.onground && ent->origin[2] - v_stepz > 0)
+   {
+      v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
+
+      if (v_stepz > ent->origin[2])
       {
-         v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
-
-         if (v_stepz > ent->origin[2])
-         {
-            v_steptime = cl.time;
-            v_stepz = v_oldz = ent->origin[2];
-         }
-
-         if (ent->origin[2] - v_stepz > 12)
-         {
-            v_steptime = cl.time;
-            v_stepz = v_oldz = ent->origin[2] - 12;
-         }
-
-         r_refdef.vieworg[2] += v_stepz - ent->origin[2];
-         view->origin[2] += v_stepz - ent->origin[2];
-      }
-      else
-      {
-         v_oldz = v_stepz = ent->origin[2];
          v_steptime = cl.time;
+         v_stepz = v_oldz = ent->origin[2];
       }
 
-      if (chase_active.value)
-         Chase_Update();
+      if (ent->origin[2] - v_stepz > 12)
+      {
+         v_steptime = cl.time;
+         v_stepz = v_oldz = ent->origin[2] - 12;
+      }
+
+      r_refdef.vieworg[2] += v_stepz - ent->origin[2];
+      view->origin[2] += v_stepz - ent->origin[2];
+   }
+   else
+   {
+      v_oldz = v_stepz = ent->origin[2];
+      v_steptime = cl.time;
+   }
+
+   if (chase_active.value)
+      Chase_Update();
 }
 
 /*
