@@ -421,9 +421,12 @@ void gp_layout_set_desc(gp_layout_t gp_layout) {
    environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, gp_layout.desc);
 }
 
-void gp_layout_set_bind(gp_layout_t gp_layout) {
+void gp_layout_set_bind(gp_layout_t gp_layout)
+{
    char buf[100];
-   for (int i=0; gp_layout.bind[i].key; ++i) {
+   unsigned i;
+   for (i=0; gp_layout.bind[i].key; ++i)
+   {
       snprintf(buf, sizeof(buf), "bind %s \"%s\"", gp_layout.bind[i].key,
                                                    gp_layout.bind[i].com);
       Cmd_ExecuteString(buf, src_command);
@@ -509,7 +512,9 @@ void Sys_SendKeyEvents(void)
       {
          case RETRO_DEVICE_JOYPAD:
             {
-               for (int i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i) {
+               unsigned i;
+               for (i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
+               {
                    if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
                       Key_Event(K_JOY_B + i, 1);
                    else
@@ -666,11 +671,15 @@ static void update_variables(bool startup)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
    {
-      for (int i=0; gp_layouts[i].name; ++i)
-         if (strcmp(var.value, gp_layouts[i].name) == 0) {
+      unsigned i;
+      for (i=0; gp_layouts[i].name; ++i)
+      {
+         if (strcmp(var.value, gp_layouts[i].name) == 0)
+         {
             gp_layoutp = gp_layouts + i;
             gp_layout_set_desc(*gp_layoutp);
-         };
+         }
+      }
    }
 }
 
@@ -765,13 +774,15 @@ void retro_unset_rumble_strong(void)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+   unsigned i;
    char g_rom_dir[1024], g_pak_path[1024];
    char cfg_file[1024];
    char *path_lower;
    quakeparms_t parms;
 
    path_lower = strdup(info->path);
-   for (int i=0; path_lower[i]; ++i)
+
+   for (i=0; path_lower[i]; ++i)
        path_lower[i] = tolower(path_lower[i]);
 
    struct retro_keyboard_callback cb = { keyboard_cb };
