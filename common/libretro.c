@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <xtl.h>
 #endif
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <libgen.h>
 #include <sys/stat.h>
@@ -508,8 +509,6 @@ void Sys_SendKeyEvents(void)
       {
          case RETRO_DEVICE_JOYPAD:
             {
-               int lsx=0, lsy=0, rsx=0, rsy=0;
-
                for (int i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i) {
                    if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
                       Key_Event(K_JOY_B + i, 1);
@@ -517,6 +516,9 @@ void Sys_SendKeyEvents(void)
                       Key_Event(K_JOY_B + i, 0);
                }
 
+               /* Disabled, need a way to switch between analog and digital
+                *  movement for the sticks.
+               int lsx=0, lsy=0, rsx=0, rsy=0;
                lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                      RETRO_DEVICE_ID_ANALOG_X);
                lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
@@ -526,8 +528,7 @@ void Sys_SendKeyEvents(void)
                rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                      RETRO_DEVICE_ID_ANALOG_Y);
 
-/* Disabled, need a way to switch between analog and digital
- *  movement for the sticks.
+
                if (lsx > ANALOG_THRESHOLD)
                   Key_Event(K_AUX1, 1);
                else
@@ -561,7 +562,7 @@ void Sys_SendKeyEvents(void)
                   Key_Event(K_AUX8, 1);
                else
                   Key_Event(K_AUX8, 0);
-*/
+               */
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
@@ -764,8 +765,8 @@ void retro_unset_rumble_strong(void)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-   char g_rom_dir[256], g_pak_path[256];
-   char *cfg_file;
+   char g_rom_dir[1024], g_pak_path[1024];
+   char cfg_file[1024];
    char *path_lower;
    quakeparms_t parms;
 
@@ -881,7 +882,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */
-   asprintf(&cfg_file,"%s/config.cfg", dirname(strdup(g_pak_path)));
+   snprintf(cfg_file, sizeof(cfg_file), "%s/config.cfg", dirname(strdup(g_pak_path)));
    if (access(cfg_file, F_OK) != 0)
    {
        Cvar_Set("gamma", "0.95");
@@ -900,7 +901,6 @@ bool retro_load_game(const struct retro_game_info *info)
        Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
        Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
    }
-   free(cfg_file);
 
    Cmd_ExecuteString("bind AUX1 \"+moveright\"", src_command);
    Cmd_ExecuteString("bind AUX2 \"+moveleft\"", src_command);
@@ -1284,7 +1284,7 @@ IN_Move(usercmd_t *cmd)
       lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (lsx > ANALOG_DEADZONE | lsx < -ANALOG_DEADZONE) {
+      if (lsx > ANALOG_DEADZONE || lsx < -ANALOG_DEADZONE) {
          if (lsx > ANALOG_DEADZONE)
             lsx = lsx - ANALOG_DEADZONE;
          if (lsx < -ANALOG_DEADZONE)
@@ -1292,7 +1292,7 @@ IN_Move(usercmd_t *cmd)
          cmd->sidemove += cl_sidespeed.value * lsx / ANALOG_RANGE;
       }
 
-      if (lsy > ANALOG_DEADZONE | lsy < -ANALOG_DEADZONE) {
+      if (lsy > ANALOG_DEADZONE || lsy < -ANALOG_DEADZONE) {
          if (lsy > ANALOG_DEADZONE)
             lsy = lsy - ANALOG_DEADZONE;
          if (lsy < -ANALOG_DEADZONE)
@@ -1306,7 +1306,7 @@ IN_Move(usercmd_t *cmd)
       rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (rsx > ANALOG_DEADZONE | rsx < -ANALOG_DEADZONE) {
+      if (rsx > ANALOG_DEADZONE || rsx < -ANALOG_DEADZONE) {
          if (rsx > ANALOG_DEADZONE)
             rsx = rsx - ANALOG_DEADZONE;
          if (rsx < -ANALOG_DEADZONE)
@@ -1316,7 +1316,7 @@ IN_Move(usercmd_t *cmd)
       }
 
       V_StopPitchDrift();
-      if (rsy > ANALOG_DEADZONE | rsy < -ANALOG_DEADZONE) {
+      if (rsy > ANALOG_DEADZONE || rsy < -ANALOG_DEADZONE) {
          if (rsy > ANALOG_DEADZONE)
             rsy = rsy - ANALOG_DEADZONE;
          if (rsy < -ANALOG_DEADZONE)
