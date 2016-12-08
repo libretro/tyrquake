@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <xtl.h>
 #endif
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <libgen.h>
 #include <sys/stat.h>
@@ -332,6 +333,102 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
+#define GP_MAXBINDS 32
+
+typedef struct {
+   char *name;
+   struct retro_input_descriptor desc[GP_MAXBINDS];
+   struct {
+      char *key;
+      char *com;
+   } bind[GP_MAXBINDS];
+} gp_layout_t;
+
+const char *layouts = "Change retropad layout; 1: New layout|2: Old layout";
+
+gp_layout_t gp_layouts[] = {
+   {
+      .name = "1: New layout",
+      .desc = {
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Look right" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Look down" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Look left" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Look up" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Toggle run mode" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
+         { 0 },
+      },
+      .bind = {
+         {"JOY_LEFT",  "+moveleft"},     {"JOY_RIGHT", "+moveright"},
+         {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
+         {"JOY_B",     "+right"},        {"JOY_A",     "+lookdown"},
+         {"JOY_X",     "+left"},         {"JOY_Y",     "+lookup"},
+         {"JOY_L",     "impulse 12"},    {"JOY_R",     "impulse 10"},
+         {"JOY_L2",    "+jump"},         {"JOY_R2",    "+attack"},
+         {"JOY_L3",    "+togglewalk"},   {"JOY_R3",    "+moveup"},
+         {"JOY_SELECT","toggleconsole"}, {"JOY_START", "togglemenu"},
+         { 0 },
+      },
+   }, {
+      .name = "2: Old layout",
+      .desc = {
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Jump" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Cycle Weapon" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Freelook" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Fire" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Strafe Left" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Strafe Right" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Look Up" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Look Down" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Swim down" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle Run Mode" },
+         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
+         { 0 },
+      },
+      .bind = {
+         {"JOY_LEFT",  "+left"},         {"JOY_RIGHT", "+right"},
+         {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
+         {"JOY_B",     "+jump"} ,        {"JOY_A",     "impulse 10"},
+         {"JOY_X",     "+klook"},        {"JOY_Y",     "+attack"},
+         {"JOY_L",     "+moveleft"},     {"JOY_R",     "+moveright"},
+         {"JOY_L2",    "+lookup"},       {"JOY_R2",    "+lookdown"},
+         {"JOY_L3",    "+movedown"},     {"JOY_R3",    "+moveup"},
+         {"JOY_SELECT","+togglewalk"},   {"JOY_START", "togglemenu"},
+         { 0 },
+      },
+   },
+   { 0,},
+};
+
+gp_layout_t *gp_layoutp = NULL;
+
+void gp_layout_set_desc(gp_layout_t gp_layout) {
+   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, gp_layout.desc);
+}
+
+void gp_layout_set_bind(gp_layout_t gp_layout) {
+   char buf[100];
+   for (int i=0; gp_layout.bind[i].key; ++i) {
+      snprintf(buf, sizeof(buf), "bind %s \"%s\"", gp_layout.bind[i].key,
+                                                   gp_layout.bind[i].com);
+      Cmd_ExecuteString(buf, src_command);
+   }
+}
 
 void retro_set_environment(retro_environment_t cb)
 {
@@ -341,6 +438,7 @@ void retro_set_environment(retro_environment_t cb)
       { "tyrquake_colored_lighting", "Colored lighting (restart); disabled|enabled" },
       { "tyrquake_resolution",
          "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
+      { "tyrquake_retropad_layout", layouts },
       { NULL, NULL },
    };
 
@@ -411,8 +509,6 @@ void Sys_SendKeyEvents(void)
       {
          case RETRO_DEVICE_JOYPAD:
             {
-               int lsx=0, lsy=0, rsx=0, rsy=0;
-
                for (int i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i) {
                    if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
                       Key_Event(K_JOY_B + i, 1);
@@ -420,6 +516,9 @@ void Sys_SendKeyEvents(void)
                       Key_Event(K_JOY_B + i, 0);
                }
 
+               /* Disabled, need a way to switch between analog and digital
+                *  movement for the sticks.
+               int lsx=0, lsy=0, rsx=0, rsy=0;
                lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                      RETRO_DEVICE_ID_ANALOG_X);
                lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
@@ -429,8 +528,7 @@ void Sys_SendKeyEvents(void)
                rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                      RETRO_DEVICE_ID_ANALOG_Y);
 
-/* Disabled, need a way to switch between analog and digital
- *  movement for the sticks.
+
                if (lsx > ANALOG_THRESHOLD)
                   Key_Event(K_AUX1, 1);
                else
@@ -464,7 +562,7 @@ void Sys_SendKeyEvents(void)
                   Key_Event(K_AUX8, 1);
                else
                   Key_Event(K_AUX8, 0);
-*/
+               */
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
@@ -562,6 +660,18 @@ static void update_variables(bool startup)
 
       initial_resolution_set = true;
    }
+
+   var.key = "tyrquake_retropad_layout";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+   {
+      for (int i=0; gp_layouts[i].name; ++i)
+         if (strcmp(var.value, gp_layouts[i].name) == 0) {
+            gp_layoutp = gp_layouts + i;
+            gp_layout_set_desc(*gp_layoutp);
+         };
+   }
 }
 
 static void update_env_variables(void)
@@ -600,6 +710,11 @@ void retro_run(void)
    {
       update_env_variables();
       has_set_username = true;
+   }
+
+   if (gp_layoutp != NULL) {
+      gp_layout_set_bind(*gp_layoutp);
+      gp_layoutp = NULL;
    }
 
    Host_Frame(0.016667);
@@ -650,38 +765,14 @@ void retro_unset_rumble_strong(void)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-   char g_rom_dir[256], g_pak_path[256];
-   char *cfg_file;
+   char g_rom_dir[1024], g_pak_path[1024];
+   char cfg_file[1024];
    char *path_lower;
    quakeparms_t parms;
 
    path_lower = strdup(info->path);
    for (int i=0; path_lower[i]; ++i)
        path_lower[i] = tolower(path_lower[i]);
-
-   struct retro_input_descriptor desc[] = {
-       /* missing swim down/move down*/
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Strafe left" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Move forward" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Move backward" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Strafe right" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Look right" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Look down" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Look left" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Look up" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Toggle run mode" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
-
-      { 0 },
-   };
-
-   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
    struct retro_keyboard_callback cb = { keyboard_cb };
    environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
@@ -791,7 +882,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */
-   asprintf(&cfg_file,"%s/config.cfg", dirname(strdup(g_pak_path)));
+   snprintf(cfg_file, sizeof(cfg_file), "%s/config.cfg", dirname(strdup(g_pak_path)));
    if (access(cfg_file, F_OK) != 0)
    {
        Cvar_Set("gamma", "0.95");
@@ -810,28 +901,6 @@ bool retro_load_game(const struct retro_game_info *info)
        Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
        Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
    }
-   free(cfg_file);
-
-   Cmd_ExecuteString("bind JOY_LEFT \"+moveleft\"", src_command);
-   Cmd_ExecuteString("bind JOY_RIGHT \"+moveright\"", src_command);
-   Cmd_ExecuteString("bind JOY_UP \"+forward\"", src_command);
-   Cmd_ExecuteString("bind JOY_DOWN \"+back\"", src_command);
-
-   Cmd_ExecuteString("bind JOY_B \"+right\"", src_command);
-   Cmd_ExecuteString("bind JOY_A \"+lookdown\"", src_command);
-   Cmd_ExecuteString("bind JOY_X \"+left\"", src_command);
-   Cmd_ExecuteString("bind JOY_Y \"+lookup\"", src_command);
-
-   Cmd_ExecuteString("bind JOY_L \"impulse 12\"", src_command);
-   Cmd_ExecuteString("bind JOY_R \"impulse 10\"", src_command);
-
-   Cmd_ExecuteString("bind JOY_L2 \"+jump\"", src_command);
-   Cmd_ExecuteString("bind JOY_R2 \"+attack\"", src_command);
-   Cmd_ExecuteString("bind JOY_L3 \"+togglewalk\"", src_command);
-   Cmd_ExecuteString("bind JOY_R3 \"+moveup\"", src_command);
-
-   Cmd_ExecuteString("bind JOY_SELECT \"\"toggleconsole\"", src_command);
-   Cmd_ExecuteString("bind JOY_START \"togglemenu\"", src_command);
 
    Cmd_ExecuteString("bind AUX1 \"+moveright\"", src_command);
    Cmd_ExecuteString("bind AUX2 \"+moveleft\"", src_command);
@@ -844,6 +913,8 @@ bool retro_load_game(const struct retro_game_info *info)
 
    return true;
 }
+
+
 
 void retro_unload_game(void)
 {
@@ -1213,7 +1284,7 @@ IN_Move(usercmd_t *cmd)
       lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (lsx > ANALOG_DEADZONE | lsx < -ANALOG_DEADZONE) {
+      if (lsx > ANALOG_DEADZONE || lsx < -ANALOG_DEADZONE) {
          if (lsx > ANALOG_DEADZONE)
             lsx = lsx - ANALOG_DEADZONE;
          if (lsx < -ANALOG_DEADZONE)
@@ -1221,7 +1292,7 @@ IN_Move(usercmd_t *cmd)
          cmd->sidemove += cl_sidespeed.value * lsx / ANALOG_RANGE;
       }
 
-      if (lsy > ANALOG_DEADZONE | lsy < -ANALOG_DEADZONE) {
+      if (lsy > ANALOG_DEADZONE || lsy < -ANALOG_DEADZONE) {
          if (lsy > ANALOG_DEADZONE)
             lsy = lsy - ANALOG_DEADZONE;
          if (lsy < -ANALOG_DEADZONE)
@@ -1235,7 +1306,7 @@ IN_Move(usercmd_t *cmd)
       rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (rsx > ANALOG_DEADZONE | rsx < -ANALOG_DEADZONE) {
+      if (rsx > ANALOG_DEADZONE || rsx < -ANALOG_DEADZONE) {
          if (rsx > ANALOG_DEADZONE)
             rsx = rsx - ANALOG_DEADZONE;
          if (rsx < -ANALOG_DEADZONE)
@@ -1245,7 +1316,7 @@ IN_Move(usercmd_t *cmd)
       }
 
       V_StopPitchDrift();
-      if (rsy > ANALOG_DEADZONE | rsy < -ANALOG_DEADZONE) {
+      if (rsy > ANALOG_DEADZONE || rsy < -ANALOG_DEADZONE) {
          if (rsy > ANALOG_DEADZONE)
             rsy = rsy - ANALOG_DEADZONE;
          if (rsy < -ANALOG_DEADZONE)
