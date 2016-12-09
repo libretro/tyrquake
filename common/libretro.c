@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "libretro.h"
 #include <retro_miscellaneous.h>
+#include <retro_stat.h>
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
@@ -29,7 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <libgen.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifdef _WIN32
@@ -106,6 +106,25 @@ unsigned char *heap;
 
 #define MAX_PADS 1
 static unsigned quake_devices[1];
+
+static void extract_basename(char *buf, const char *path, size_t size)
+{
+   const char *base = strrchr(path, '/');
+   if (!base)
+      base = strrchr(path, '\\');
+   if (!base)
+      base = path;
+
+   if (*base == '\\' || *base == '/')
+      base++;
+
+   strncpy(buf, base, size - 1);
+   buf[size - 1] = '\0';
+
+   char *ext = strrchr(buf, '.');
+   if (ext)
+      *ext = '\0';
+}
 
 // =======================================================================
 // General routines
@@ -838,10 +857,12 @@ bool retro_load_game(const struct retro_game_info *info)
    }
    else if (!strstr(g_pak_path, "id1/"))
    {
+      char basename[1024];
       parms.argc++;
       argv[1] = "-game";
       parms.argc++;
-      argv[2] = basename(strdup(g_rom_dir));
+      extract_basename(basename, g_rom_dir, sizeof(basename));
+      argv[2] = basename;
       extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
    }
 
@@ -895,8 +916,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */
-   snprintf(cfg_file, sizeof(cfg_file), "%s/config.cfg", dirname(strdup(g_pak_path)));
-   if (access(cfg_file, F_OK) != 0)
+   snprintf(cfg_file, sizeof(cfg_file), "%s/config.cfg", g_rom_dir);
+
+   if (path_is_valid(cfg_file))
    {
        Cvar_Set("gamma", "0.95");
        Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
