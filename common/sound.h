@@ -68,6 +68,7 @@ typedef struct {
     int submission_chunk;	// don't mix less than this #
     int samplepos;		// in mono samples
     int samplebits;
+	int	signed8;		/* device opened for S8 format? (e.g. Amiga AHI) */
     int speed;
     unsigned char *buffer;
 } dma_t;
@@ -86,6 +87,18 @@ typedef struct {
     vec_t dist_mult;		// distance multiplier (attenuation/clipK)
     int master_vol;		// 0-255 master volume
 } channel_t;
+
+#define WAV_FORMAT_PCM	1
+
+typedef struct
+{
+	int	rate;
+	int	width;
+	int	channels;
+	int	loopstart;
+	int	samples;
+	int	dataofs;		/* chunk starts this many bytes from file start	*/
+} wavinfo_t;
 
 void S_Init(void);
 void S_Startup(void);
@@ -106,8 +119,12 @@ void S_EndPrecaching(void);
 void S_PaintChannels(int endtime);
 void S_InitPaintChannels(void);
 
+/* music stream support */
+void S_RawSamples(int samples, int rate, int width, int channels, byte * data, float volume);
+				/* Expects data in signed 16 bit, or unsigned 8 bit format. */
+
 // initializes cycling through a DMA buffer and returns information on it
-qboolean SNDDMA_Init(void);
+qboolean SNDDMA_Init(dma_t *dma);
 
 // gets the current DMA position
 int SNDDMA_GetDMAPos(void);
@@ -136,19 +153,23 @@ extern int total_channels;
 
 extern int paintedtime;
 extern volatile dma_t *shm;
-extern volatile dma_t sn;
+extern int s_rawend;
 
 extern cvar_t loadas8bit;
 extern cvar_t bgmvolume;
-extern cvar_t volume;
+extern cvar_t sfxvolume;
 
 extern int snd_blocked;
+
+#define	MAX_RAW_SAMPLES	8192
+extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
 void S_LocalSound(const char *s);
 sfxcache_t *S_LoadSound(sfx_t *s);
 
 void SND_InitScaletable(void);
 void SNDDMA_Submit(void);
+wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength);
 
 void S_AmbientOff(void);
 void S_AmbientOn(void);

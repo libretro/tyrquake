@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.h"
 #include "server.h"
 #include "sound.h"
+#include "bgmusic.h"
 #include "sys.h"
 
 static const char *svc_strings[] = {
@@ -1118,9 +1119,15 @@ CL_ParseServerMessage(void)
          case svc_setpause:
             cl.paused = MSG_ReadByte();
             if (cl.paused)
+            {
                CDAudio_Pause();
+               BGM_Pause();
+            }
             else
+            {
                CDAudio_Resume();
+               BGM_Resume();
+            }
             break;
 
          case svc_signonnum:
@@ -1160,9 +1167,9 @@ CL_ParseServerMessage(void)
             cl.looptrack = MSG_ReadByte();
             if ((cls.demoplayback || cls.demorecording)
                   && (cls.forcetrack != -1))
-               CDAudio_Play((byte)cls.forcetrack, true);
-            else
-               CDAudio_Play((byte)cl.cdtrack, true);
+               BGM_PlayCDtrack ((byte)cls.forcetrack, true);
+			else
+               BGM_PlayCDtrack ((byte)cl.cdtrack, true);
             break;
 
          case svc_intermission:

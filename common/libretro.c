@@ -45,7 +45,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_local.h"
 #include "sys.h"
 
+#include "qtypes.h"
 #include "sound.h"
+#include "bgmusic.h"
 #include "keys.h"
 #include "cdaudio_driver.h"
 
@@ -1149,6 +1151,8 @@ static unsigned audio_buffer_ptr;
 
 static void audio_process(void)
 {
+   /* adds music raw samples and/or advances midi driver */
+   BGM_Update(); 
    /* update audio */
    if (cls.state == ca_active)
    {
@@ -1179,13 +1183,14 @@ static void audio_callback(void)
    }
 }
 
-qboolean SNDDMA_Init(void)
+qboolean SNDDMA_Init(dma_t *dma)
 {
-   shm = &sn;
+   shm = dma;
    shm->speed = SAMPLERATE;
    shm->channels = 2;
    shm->samplepos = 0;
    shm->samplebits = 16;
+   shm->signed8 = 0;
    shm->samples = AUDIO_BUFFER_SAMPLES;
    shm->buffer = (unsigned char *volatile)audio_buffer;
 

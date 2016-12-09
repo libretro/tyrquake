@@ -3,6 +3,21 @@ FRONTEND_SUPPORTS_RGB565=1
 TARGET_NAME=tyrquake
 STATIC_LINKING=0
 
+USE_CODEC_WAVE=1
+USE_CODEC_FLAC=1
+USE_CODEC_MP3=0
+USE_CODEC_VORBIS=1
+USE_CODEC_OPUS=0
+# either mikmod (preferred) or modplug, not both
+USE_CODEC_MIKMOD=0
+USE_CODEC_MODPLUG=0
+USE_CODEC_UMX=0
+
+# which library to use for mp3 decoding: mad or mpg123
+MP3LIB=mad
+# which library to use for ogg decoding: vorbis or tremor
+VORBISLIB=vorbis
+
 ifeq ($(platform),)
 platform = unix
 ifeq ($(shell uname -a),)
@@ -265,8 +280,75 @@ else
 CFLAGS += -O3 -DNDEBUG
 endif
 
-LDFLAGS += $(LIBM)
 CORE_DIR := .
+
+
+ifneq ($(VORBISLIB),vorbis)
+ifneq ($(VORBISLIB),tremor)
+$(error Invalid VORBISLIB setting)
+endif
+endif
+ifneq ($(MP3LIB),mpg123)
+ifneq ($(MP3LIB),mad)
+$(error Invalid MP3LIB setting)
+endif
+endif
+ifeq ($(MP3LIB),mad)
+mp3_obj=snd_mp3.o
+lib_mp3dec=-lmad
+endif
+ifeq ($(MP3LIB),mpg123)
+mp3_obj=snd_mpg123.o
+lib_mp3dec=-lmpg123
+endif
+ifeq ($(VORBISLIB),vorbis)
+cpp_vorbisdec=
+lib_vorbisdec=-lvorbisfile -lvorbis -logg
+endif
+ifeq ($(VORBISLIB),tremor)
+cpp_vorbisdec=-DVORBIS_USE_TREMOR
+lib_vorbisdec=-lvorbisidec -logg
+endif
+
+CODECLIBS  :=
+ifeq ($(USE_CODEC_WAVE),1)
+CFLAGS+= -DUSE_CODEC_WAVE
+endif
+ifeq ($(USE_CODEC_FLAC),1)
+CFLAGS+= -DUSE_CODEC_FLAC
+CODECLIBS+= -lFLAC
+endif
+ifeq ($(USE_CODEC_OPUS),1)
+# opus and opusfile put their *.h under <includedir>/opus,
+# but they include the headers without the opus directory
+# prefix and rely on pkg-config. ewww...
+CFLAGS+= -DUSE_CODEC_OPUS
+CFLAGS+= $(shell pkg-config --cflags opusfile)
+CODECLIBS+= $(shell pkg-config --libs   opusfile)
+endif
+ifeq ($(USE_CODEC_VORBIS),1)
+CFLAGS+= -DUSE_CODEC_VORBIS $(cpp_vorbisdec)
+CODECLIBS+= $(lib_vorbisdec)
+endif
+ifeq ($(USE_CODEC_MP3),1)
+CFLAGS+= -DUSE_CODEC_MP3
+CODECLIBS+= $(lib_mp3dec)
+endif
+ifeq ($(USE_CODEC_MIKMOD),1)
+CFLAGS+= -DUSE_CODEC_MIKMOD
+CODECLIBS+= -lmikmod
+endif
+ifeq ($(USE_CODEC_MODPLUG),1)
+CFLAGS+= -DUSE_CODEC_MODPLUG
+CODECLIBS+= -lmodplug
+endif
+ifeq ($(USE_CODEC_UMX),1)
+CFLAGS+= -DUSE_CODEC_UMX
+endif
+
+LDFLAGS += $(CODECLIBS) 
+
+
 
 include Makefile.common
 
