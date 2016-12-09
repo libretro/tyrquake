@@ -88,6 +88,18 @@ typedef struct {
     int master_vol;		// 0-255 master volume
 } channel_t;
 
+#define WAV_FORMAT_PCM	1
+
+typedef struct
+{
+	int	rate;
+	int	width;
+	int	channels;
+	int	loopstart;
+	int	samples;
+	int	dataofs;		/* chunk starts this many bytes from file start	*/
+} wavinfo_t;
+
 void S_Init(void);
 void S_Startup(void);
 void S_Shutdown(void);
@@ -137,7 +149,7 @@ extern int total_channels;
 
 extern int paintedtime;
 extern volatile dma_t *shm;
-extern volatile dma_t sn;
+extern int s_rawend;
 
 extern cvar_t loadas8bit;
 extern cvar_t bgmvolume;
@@ -145,11 +157,15 @@ extern cvar_t sfxvolume;
 
 extern int snd_blocked;
 
+#define	MAX_RAW_SAMPLES	8192
+extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
+
 void S_LocalSound(const char *s);
 sfxcache_t *S_LoadSound(sfx_t *s);
 
 void SND_InitScaletable(void);
 void SNDDMA_Submit(void);
+wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength);
 
 void S_AmbientOff(void);
 void S_AmbientOn(void);

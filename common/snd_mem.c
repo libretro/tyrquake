@@ -25,17 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 
-typedef struct {
-    int rate;
-    int width;
-    int channels;
-    int loopstart;
-    int samples;
-    int dataofs;		// chunk starts this many bytes from file start
-} wavinfo_t;
-
-static wavinfo_t *GetWavinfo(const char *name, const byte *wav, int wavlength);
-
 /*
 ================
 ResampleSfx
@@ -253,7 +242,8 @@ FindChunk(const char *name, const char *filename)
 GetWavinfo
 ============
 */
-static wavinfo_t *GetWavinfo(const char *name, const byte *wav, int wavlength)
+
+wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
 {
    static wavinfo_t info;
    int format;

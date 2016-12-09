@@ -62,6 +62,16 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
 	$(CORE_DIR)/common/bgmusic.c \
+    $(CORE_DIR)/common/snd_codec.c \
+    $(CORE_DIR)/common/snd_flac.c \
+    $(CORE_DIR)/common/snd_mikmod.c \
+    $(CORE_DIR)/common/snd_modplug.c \
+    $(CORE_DIR)/common/snd_mp3.c \
+    $(CORE_DIR)/common/snd_mpg123.c \
+    $(CORE_DIR)/common/snd_opus.c \
+    $(CORE_DIR)/common/snd_umx.c \
+    $(CORE_DIR)/common/snd_vorbis.c \
+    $(CORE_DIR)/common/snd_wave.c \
 	$(CORE_DIR)/common/snd_dma.c \
 	$(CORE_DIR)/common/snd_mem.c \
 	$(CORE_DIR)/common/snd_mix.c \

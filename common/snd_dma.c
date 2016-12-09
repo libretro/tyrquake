@@ -58,7 +58,7 @@ static qboolean snd_initialized = false;
 
 /* pointer should go away (JC?) */
 volatile dma_t *shm = 0;
-volatile dma_t sn;
+static dma_t sn;
 
 static vec3_t listener_origin;
 static vec3_t listener_forward;
@@ -72,6 +72,9 @@ int paintedtime;		/* sample PAIRS */
 #define	MAX_SFX 512
 static sfx_t *known_sfx;	/* hunk allocated [MAX_SFX] */
 static int num_sfx;
+
+int s_rawend;
+portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
 static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
