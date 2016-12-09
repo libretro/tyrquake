@@ -23,7 +23,6 @@
  *
  */
 
-#include <bsd/string.h>
 #include "quakedef.h"
 #include "sound.h"
 #include "common.h"
