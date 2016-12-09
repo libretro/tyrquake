@@ -35,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "screen.h"
 #include "server.h"
 #include "sound.h"
+#include "bgmusic.h"
 #include "sys.h"
 #include "view.h"
 #include "wad.h"
@@ -816,6 +817,7 @@ Host_Init(quakeparms_t *parms)
 
 	S_Init();
 	CDAudio_Init();
+    BGM_Init();
 
 	Sbar_Init();
 	CL_Init();
@@ -865,6 +867,7 @@ Host_Shutdown(void)
 
     CDAudio_Shutdown();
     NET_Shutdown();
+    BGM_Shutdown();
     S_Shutdown();
     IN_Shutdown();
 

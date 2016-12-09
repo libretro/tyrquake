@@ -103,12 +103,15 @@ typedef struct cvar_s {
 
 #define CVAR_DEVELOPER (1U << 0) /* can't set during normal play */
 #define CVAR_OBSOLETE  (1U << 1) /* cvar has no effect; basically removed */
+#define CVAR_CALLBACK  (1U << 2)
 
 /*
  * register a cvar that already has the name, string, and optionally the
  * archive elements set.
  */
 void Cvar_RegisterVariable(cvar_t *variable);
+
+void Cvar_SetCallback(cvar_t *var, cvar_callback func);
 
 /* equivelant to "<name> <variable>" typed at the console */
 void Cvar_Set(const char *var_name, const char *value);

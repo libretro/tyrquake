@@ -47,22 +47,6 @@ static float cdvolume;
 
 static void CDAudio_SetVolume_f(struct cvar_s *var);
 
-cvar_t bgmvolume = {
-    "bgmvolume",
-    "1",
-    true,
-#ifdef NQ_HACK
-0,
-#endif
-#ifdef QW_HACK
-0,
-#endif
-0,
-    CDAudio_SetVolume_f,
-NULL,
-NULL
-};
-
 static void
 CDAudio_Eject(void)
 {
@@ -164,31 +148,31 @@ CDAudio_Resume(void)
 }
 
 
-void
+int
 CDAudio_Play(byte track, qboolean looping)
 {
     int err;
 
     if (!enabled)
-	return;
+	return -1;
 
     if (!cdValid) {
 	CDAudio_GetAudioDiskInfo();
 	if (!cdValid)
-	    return;
+	    return -1;
     }
     track = remap[track];
     if (track < 1 || track > maxTrack) {
 	Con_DPrintf("CDAudio: Bad track number %u.\n", track);
-	return;
+	return -1;
     }
     if (!CDDrv_IsAudioTrack(track)) {
 	Con_Printf("CDAudio: track %i is not audio\n", track);
-	return;
+	return -1;
     }
     if (playing) {
 	if (playTrack == track)
-	    return;
+	    return -1;
 	CDAudio_Stop();
     }
     err = CDDrv_PlayTrack(track);
@@ -199,6 +183,7 @@ CDAudio_Play(byte track, qboolean looping)
     }
     if (cdvolume == 0.0)
 	CDAudio_Pause();
+    return 0;
 }
 
 void
@@ -348,7 +333,6 @@ CDAudio_Init(void)
 	Con_Printf("CDAudio_Init: No CD in player.\n");
 	cdValid = false;
     }
-    Cvar_RegisterVariable(&bgmvolume);
 
     return 0;
 }

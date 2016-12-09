@@ -61,6 +61,7 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/sbar.c \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
+	$(CORE_DIR)/common/bgmusic.c \
 	$(CORE_DIR)/common/snd_dma.c \
 	$(CORE_DIR)/common/snd_mem.c \
 	$(CORE_DIR)/common/snd_mix.c \

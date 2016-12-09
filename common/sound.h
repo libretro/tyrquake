@@ -68,6 +68,7 @@ typedef struct {
     int submission_chunk;	// don't mix less than this #
     int samplepos;		// in mono samples
     int samplebits;
+	int	signed8;		/* device opened for S8 format? (e.g. Amiga AHI) */
     int speed;
     unsigned char *buffer;
 } dma_t;
@@ -107,7 +108,7 @@ void S_PaintChannels(int endtime);
 void S_InitPaintChannels(void);
 
 // initializes cycling through a DMA buffer and returns information on it
-qboolean SNDDMA_Init(void);
+qboolean SNDDMA_Init(dma_t *dma);
 
 // gets the current DMA position
 int SNDDMA_GetDMAPos(void);
@@ -140,7 +141,7 @@ extern volatile dma_t sn;
 
 extern cvar_t loadas8bit;
 extern cvar_t bgmvolume;
-extern cvar_t volume;
+extern cvar_t sfxvolume;
 
 extern int snd_blocked;
 

@@ -36,7 +36,7 @@ short *snd_out;
 void S_TransferPaintBuffer(int endtime)
 {
    int i;
-   int snd_vol = volume.value * 256;
+   int snd_vol = sfxvolume.value * 256;
    int *snd_p = (int *)paintbuffer;
    int lpaintedtime = paintedtime;
 

@@ -77,7 +77,8 @@ static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
 static int sound_started = 0;
 
-cvar_t volume = { "volume", "0.7", true };
+cvar_t bgmvolume = { "bgmvolume", "1", true };
+cvar_t sfxvolume = { "volume", "0.7", true };
 
 static cvar_t nosound = { "nosound", "0" };
 static cvar_t precache = { "precache", "1" };
@@ -127,7 +128,7 @@ S_Startup(void)
 
    if (!fakedma)
    {
-      int rc = SNDDMA_Init();
+      int rc = SNDDMA_Init(&sn);
       if (!rc)
       {
          Con_Printf("%s: SNDDMA_Init failed.\n", __func__);
@@ -161,7 +162,7 @@ S_Init(void)
     Cmd_AddCommand("soundinfo", S_SoundInfo_f);
 
     Cvar_RegisterVariable(&nosound);
-    Cvar_RegisterVariable(&volume);
+    Cvar_RegisterVariable(&sfxvolume);
     Cvar_RegisterVariable(&precache);
     Cvar_RegisterVariable(&bgmbuffer);
     Cvar_RegisterVariable(&ambient_level);
