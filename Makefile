@@ -280,8 +280,8 @@ else
 CFLAGS += -O3 -DNDEBUG
 endif
 
+LDFLAGS += $(LIBM)
 CORE_DIR := .
-
 
 ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)
