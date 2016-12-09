@@ -195,6 +195,33 @@ else ifeq ($(platform), ctr)
 	CFLAGS += -fomit-frame-pointer -ffast-math
 	STATIC_LINKING = 1
 
+# Raspberry Pi 1
+else ifeq ($(platform), rpi1)
+        TARGET := $(TARGET_NAME)_libretro.so
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DARM11
+        CFLAGS += -marm -march=armv6j -mfloat-abi=hard -mfpu=vfp
+        CFLAGS += -fomit-frame-pointer -ffast-math
+
+# Raspberry Pi 2
+else ifeq ($(platform), rpi2)
+        TARGET := $(TARGET_NAME)_libretro.so
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DARM
+        CFLAGS += -marm -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
+        CFLAGS += -fomit-frame-pointer -ffast-math
+            
+# Raspberry Pi 3
+else ifeq ($(platform), rpi3)
+        TARGET := $(TARGET_NAME)_libretro.so
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DARM
+        CFLAGS += -marm -mcpu=cortex-a53 -mfpu=neon-fp-armv8 -mfloat-abi=hard
+        CFLAGS += -fomit-frame-pointer -ffast-math
+
 # Libxenon
 else ifeq ($(platform), xenon)
 	EXT=a
