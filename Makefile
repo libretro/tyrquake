@@ -2,6 +2,10 @@ DEBUG=0
 FRONTEND_SUPPORTS_RGB565=1
 TARGET_NAME=tyrquake
 STATIC_LINKING=0
+GIT_VERSION := " $(shell git rev-parse --short HEAD || echo unknown)"
+ifneq ($(GIT_VERSION)," unknown")
+	CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
+endif
 
 ifeq ($(platform),)
 platform = unix
