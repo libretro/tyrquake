@@ -314,10 +314,9 @@ CODECLIBS  :=
 ifeq ($(USE_CODEC_WAVE),1)
 CFLAGS+= -DUSE_CODEC_WAVE
 endif
-ifeq ($(USE_CODEC_FLAC),1)
+
 CFLAGS+= -DUSE_CODEC_FLAC
-CODECLIBS+= -lFLAC
-endif
+
 ifeq ($(USE_CODEC_OPUS),1)
 # opus and opusfile put their *.h under <includedir>/opus,
 # but they include the headers without the opus directory

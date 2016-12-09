@@ -1,8 +1,10 @@
+LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
+
 INCFLAGS   := \
 	-I$(CORE_DIR) \
 	-I$(CORE_DIR)/libretro-common/include \
-	-I$(CORE_DIR)/include
-
+	-I$(CORE_DIR)/include \
+	-I$(LIBFLAC_DIR)/include
 
 SOURCES_C :=  \
 	$(CORE_DIR)/common/cl_input.c \
@@ -93,3 +95,24 @@ ifneq ($(STATIC_LINKING),1)
 endif
 
 SOURCES_C += $(CORE_DIR)/common/net_none.c
+
+SOURCES_C += $(LIBFLAC_DIR)/bitmath.c \
+				 $(LIBFLAC_DIR)/bitreader.c \
+				 $(LIBFLAC_DIR)/cpu.c \
+				 $(LIBFLAC_DIR)/crc.c \
+				 $(LIBFLAC_DIR)/fixed.c \
+				 $(LIBFLAC_DIR)/float.c \
+				 $(LIBFLAC_DIR)/format.c \
+				 $(LIBFLAC_DIR)/lpc.c \
+				 $(LIBFLAC_DIR)/md5.c \
+				 $(LIBFLAC_DIR)/memory.c \
+				 $(LIBFLAC_DIR)/metadata_iterators.c \
+				 $(LIBFLAC_DIR)/metadata_object.c \
+				 $(LIBFLAC_DIR)/ogg_decoder_aspect.c \
+				 $(LIBFLAC_DIR)/ogg_encoder_aspect.c \
+				 $(LIBFLAC_DIR)/ogg_helper.c \
+				 $(LIBFLAC_DIR)/ogg_mapping.c \
+				 $(LIBFLAC_DIR)/stream_decoder.c \
+				 $(LIBFLAC_DIR)/stream_encoder.c \
+				 $(LIBFLAC_DIR)/stream_encoder_framing.c \
+				 $(LIBFLAC_DIR)/window.c
