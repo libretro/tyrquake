@@ -85,7 +85,6 @@ cvar_t sfxvolume = { "volume", "0.7", true };
 
 static cvar_t nosound = { "nosound", "0" };
 static cvar_t precache = { "precache", "1" };
-static cvar_t bgmbuffer = { "bgmbuffer", "4096" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
 static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
@@ -115,6 +114,11 @@ static void S_SoundInfo_f(void)
    Con_Printf("%5d speed\n", shm->speed);
    Con_Printf("%p dma buffer\n", shm->buffer);
    Con_Printf("%5d total_channels\n", total_channels);
+}
+
+static void SND_Callback_sfxvolume (cvar_t *var)
+{
+	SND_InitScaletable ();
 }
 
 /*
@@ -167,7 +171,7 @@ S_Init(void)
     Cvar_RegisterVariable(&nosound);
     Cvar_RegisterVariable(&sfxvolume);
     Cvar_RegisterVariable(&precache);
-    Cvar_RegisterVariable(&bgmbuffer);
+    Cvar_RegisterVariable(&bgmvolume);
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
     Cvar_RegisterVariable(&snd_noextraupdate);
@@ -176,6 +180,8 @@ S_Init(void)
     snd_initialized = true;
 
     S_Startup();
+
+	Cvar_SetCallback(&sfxvolume, SND_Callback_sfxvolume);
 
     SND_InitScaletable();
 
