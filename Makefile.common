@@ -1,10 +1,10 @@
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
+LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
 
 INCFLAGS   := \
 	-I$(CORE_DIR) \
 	-I$(CORE_DIR)/libretro-common/include \
 	-I$(CORE_DIR)/include \
-	-I$(LIBFLAC_DIR)/include
 
 SOURCES_C :=  \
 	$(CORE_DIR)/common/cl_input.c \
@@ -97,6 +97,7 @@ endif
 SOURCES_C += $(CORE_DIR)/common/net_none.c
 
 ifeq ($(USE_CODEC_FLAC),1)
+INCFLAGS  += -I$(LIBFLAC_DIR)/include
 SOURCES_C += $(LIBFLAC_DIR)/bitmath.c \
 				 $(LIBFLAC_DIR)/bitreader.c \
 				 $(LIBFLAC_DIR)/cpu.c \
@@ -117,4 +118,29 @@ SOURCES_C += $(LIBFLAC_DIR)/bitmath.c \
 				 $(LIBFLAC_DIR)/stream_encoder.c \
 				 $(LIBFLAC_DIR)/stream_encoder_framing.c \
 				 $(LIBFLAC_DIR)/window.c
+endif
+
+ifeq ($(USE_CODEC_VORBIS),1)
+INCFLAGS  += -I$(LIBVORBIS_DIR)/include \
+				 -I$(LIBVORBIS_DIR)/lib
+SOURCES_C += $(LIBVORBIS_DIR)/lib/analysis.c \
+				 $(LIBVORBIS_DIR)/lib/bitrate.c \
+				 $(LIBVORBIS_DIR)/lib/block.c \
+				 $(LIBVORBIS_DIR)/lib/codebook.c \
+				 $(LIBVORBIS_DIR)/lib/envelope.c \
+				 $(LIBVORBIS_DIR)/lib/floor0.c \
+				 $(LIBVORBIS_DIR)/lib/floor1.c \
+				 $(LIBVORBIS_DIR)/lib/info.c \
+				 $(LIBVORBIS_DIR)/lib/lookup.c \
+				 $(LIBVORBIS_DIR)/lib/lpc.c \
+				 $(LIBVORBIS_DIR)/lib/mapping0.c \
+				 $(LIBVORBIS_DIR)/lib/mdct.c \
+				 $(LIBVORBIS_DIR)/lib/psy.c \
+				 $(LIBVORBIS_DIR)/lib/registry.c \
+				 $(LIBVORBIS_DIR)/lib/res0.c \
+				 $(LIBVORBIS_DIR)/lib/smallft.c \
+				 $(LIBVORBIS_DIR)/lib/synthesis.c \
+				 $(LIBVORBIS_DIR)/lib/vorbisenc.c \
+				 $(LIBVORBIS_DIR)/lib/vorbisfile.c \
+				 $(LIBVORBIS_DIR)/lib/window.c
 endif

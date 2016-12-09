@@ -303,7 +303,7 @@ lib_mp3dec=-lmpg123
 endif
 ifeq ($(VORBISLIB),vorbis)
 cpp_vorbisdec=
-lib_vorbisdec=-lvorbisfile -lvorbis -logg
+lib_vorbisdec=
 endif
 ifeq ($(VORBISLIB),tremor)
 cpp_vorbisdec=-DVORBIS_USE_TREMOR
