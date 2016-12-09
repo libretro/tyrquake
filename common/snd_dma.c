@@ -31,6 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #include "quakedef.h"
 #include "sound.h"
+#include "snd_codec.h"
+#include "bgmusic.h"
 #include "sys.h"
 
 #ifdef NQ_HACK
@@ -211,6 +213,8 @@ S_Init(void)
 
     ambient_sfx[AMBIENT_WATER] = S_PrecacheSound("ambience/water1.wav");
     ambient_sfx[AMBIENT_SKY] = S_PrecacheSound("ambience/wind2.wav");
+
+    S_CodecInit();
 
     S_StopAllSounds(true);
 }
@@ -517,6 +521,91 @@ void S_ClearBuffer(void)
       return;
 
    memset(shm->buffer, 0, shm->samples * shm->samplebits / 8);
+}
+
+/*
+===================
+S_RawSamples		(from QuakeII)
+
+Streaming music support. Byte swapping
+of data must be handled by the codec.
+Expects data in signed 16 bit, or unsigned
+8 bit format.
+===================
+*/
+void S_RawSamples (int samples, int rate, int width, int channels, byte *data, float volume)
+{
+	int i;
+	int src, dst;
+	float scale;
+	int intVolume;
+
+	if (s_rawend < paintedtime)
+		s_rawend = paintedtime;
+
+	scale = (float) rate / shm->speed;
+	intVolume = (int) (256 * volume);
+
+	if (channels == 2 && width == 2)
+	{
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples)
+				break;
+			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
+			s_rawend++;
+			s_rawsamples [dst].left = ((short *) data)[src * 2] * intVolume;
+			s_rawsamples [dst].right = ((short *) data)[src * 2 + 1] * intVolume;
+		}
+	}
+	else if (channels == 1 && width == 2)
+	{
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples)
+				break;
+			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
+			s_rawend++;
+			s_rawsamples [dst].left = ((short *) data)[src] * intVolume;
+			s_rawsamples [dst].right = ((short *) data)[src] * intVolume;
+		}
+	}
+	else if (channels == 2 && width == 1)
+	{
+		intVolume *= 256;
+
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples)
+				break;
+			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
+			s_rawend++;
+		//	s_rawsamples [dst].left = ((signed char *) data)[src * 2] * intVolume;
+		//	s_rawsamples [dst].right = ((signed char *) data)[src * 2 + 1] * intVolume;
+			s_rawsamples [dst].left = (((byte *) data)[src * 2] - 128) * intVolume;
+			s_rawsamples [dst].right = (((byte *) data)[src * 2 + 1] - 128) * intVolume;
+		}
+	}
+	else if (channels == 1 && width == 1)
+	{
+		intVolume *= 256;
+
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples)
+				break;
+			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
+			s_rawend++;
+		//	s_rawsamples [dst].left = ((signed char *) data)[src] * intVolume;
+		//	s_rawsamples [dst].right = ((signed char *) data)[src] * intVolume;
+			s_rawsamples [dst].left = (((byte *) data)[src] - 128) * intVolume;
+			s_rawsamples [dst].right = (((byte *) data)[src] - 128) * intVolume;
+		}
+	}
 }
 
 
