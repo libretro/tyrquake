@@ -1,5 +1,6 @@
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
 LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
+LIBOGG_DIR     = $(CORE_DIR)/deps/libogg
 
 INCFLAGS   := \
 	-I$(CORE_DIR) \
@@ -64,16 +65,16 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
 	$(CORE_DIR)/common/bgmusic.c \
-    $(CORE_DIR)/common/snd_codec.c \
-    $(CORE_DIR)/common/snd_flac.c \
-    $(CORE_DIR)/common/snd_mikmod.c \
-    $(CORE_DIR)/common/snd_modplug.c \
-    $(CORE_DIR)/common/snd_mp3.c \
-    $(CORE_DIR)/common/snd_mpg123.c \
-    $(CORE_DIR)/common/snd_opus.c \
-    $(CORE_DIR)/common/snd_umx.c \
-    $(CORE_DIR)/common/snd_vorbis.c \
-    $(CORE_DIR)/common/snd_wave.c \
+	$(CORE_DIR)/common/snd_codec.c \
+	$(CORE_DIR)/common/snd_flac.c \
+	$(CORE_DIR)/common/snd_mikmod.c \
+	$(CORE_DIR)/common/snd_modplug.c \
+	$(CORE_DIR)/common/snd_mp3.c \
+	$(CORE_DIR)/common/snd_mpg123.c \
+	$(CORE_DIR)/common/snd_opus.c \
+	$(CORE_DIR)/common/snd_umx.c \
+	$(CORE_DIR)/common/snd_vorbis.c \
+	$(CORE_DIR)/common/snd_wave.c \
 	$(CORE_DIR)/common/snd_dma.c \
 	$(CORE_DIR)/common/snd_mem.c \
 	$(CORE_DIR)/common/snd_mix.c \
@@ -122,7 +123,9 @@ endif
 
 ifeq ($(USE_CODEC_VORBIS),1)
 INCFLAGS  += -I$(LIBVORBIS_DIR)/include \
-				 -I$(LIBVORBIS_DIR)/lib
+				 -I$(LIBVORBIS_DIR)/lib \
+				 -I$(LIBOGG_DIR)/include
+
 SOURCES_C += $(LIBVORBIS_DIR)/lib/analysis.c \
 				 $(LIBVORBIS_DIR)/lib/bitrate.c \
 				 $(LIBVORBIS_DIR)/lib/block.c \
@@ -143,4 +146,7 @@ SOURCES_C += $(LIBVORBIS_DIR)/lib/analysis.c \
 				 $(LIBVORBIS_DIR)/lib/vorbisenc.c \
 				 $(LIBVORBIS_DIR)/lib/vorbisfile.c \
 				 $(LIBVORBIS_DIR)/lib/window.c
+
+SOURCES_C += $(LIBOGG_DIR)/src/bitwise.c \
+				 $(LIBOGG_DIR)/src/framing.c
 endif
