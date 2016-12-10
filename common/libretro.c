@@ -98,7 +98,7 @@ static struct retro_rumble_interface rumble;
 
 
 
-cvar_t framerate = { "framerate", "60" };
+cvar_t framerate = { "framerate", "60", true };
 static bool initial_resolution_set = false;
 
 

@@ -64,8 +64,8 @@ typedef struct {
  * incomplete model interpolation support
  * -> default to off and don't save to config for now
  */
-cvar_t r_lerpmodels = { "r_lerpmodels", "0", false };
-cvar_t r_lerpmove = { "r_lerpmove", "0", false };
+cvar_t r_lerpmodels = { "r_lerpmodels", "0", true };
+cvar_t r_lerpmove = { "r_lerpmove", "0", true };
 #endif
 
 static aedge_t aedges[12] = {
