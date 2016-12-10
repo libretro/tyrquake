@@ -39,6 +39,10 @@ void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
 void M_Menu_Options_f(void);
+void M_Menu_OptionsInput_f(void);
+void M_Menu_OptionsVideo_f(void);
+void M_Menu_OptionsAudio_f(void);
+void M_Menu_OptionsGame_f(void);
 void M_Menu_Quit_f(void);
 
 static void M_Menu_Main_f(void);
@@ -62,6 +66,10 @@ static void M_Save_Draw(void);
 static void M_MultiPlayer_Draw(void);
 static void M_Setup_Draw(void);
 static void M_Options_Draw(void);
+static void M_OptionsInput_Draw(void);
+static void M_OptionsVideo_Draw(void);
+static void M_OptionsAudio_Draw(void);
+static void M_OptionsGame_Draw(void);
 static void M_Keys_Draw(void);
 static void M_Video_Draw(void);
 static void M_Help_Draw(void);
@@ -78,6 +86,10 @@ static void M_Save_Key(int key);
 static void M_MultiPlayer_Key(int key);
 static void M_Setup_Key(int key);
 static void M_Options_Key(int key);
+static void M_OptionsInput_Key(int key);
+static void M_OptionsVideo_Key(int key);
+static void M_OptionsAudio_Key(int key);
+static void M_OptionsGame_Key(int key);
 static void M_Keys_Key(int key);
 static void M_Video_Key(int key);
 static void M_Help_Key(int key);
@@ -97,7 +109,8 @@ int m_return_state;
 
 enum m_state_enum {
     m_none, m_main, m_singleplayer, m_load, m_save, m_multiplayer, m_setup,
-    m_options, m_video, m_keys, m_help, m_quit, m_lanconfig, m_gameoptions,
+    m_options, m_optionsinput, m_optionsvideo, m_optionsaudio, m_optionsgame,
+    m_video, m_keys, m_help, m_quit, m_lanconfig, m_gameoptions,
     m_search, m_slist
 };
 
@@ -908,132 +921,9 @@ M_Setup_Key(int k)
 }
 
 //=============================================================================
-/* OPTIONS MENU */
+/* OPTIONS SLIDER */
 
-#define	OPTIONS_ITEMS	21
 #define	SLIDER_RANGE	10
-
-static int options_cursor;
-
-void
-M_Menu_Options_f(void)
-{
-    key_dest = key_menu;
-    m_state = m_options;
-    m_entersound = true;
-}
-
-extern void D_SetupFrame();
-
-static void
-M_AdjustSliders(int dir)
-{
-    cvar_t *cvar = NULL;
-    S_LocalSound("misc/menu3.wav");
-
-    switch (options_cursor) {
-    case 3:			// screen size
-	scr_viewsize.value += dir * 10;
-	if (scr_viewsize.value < 30)
-	    scr_viewsize.value = 30;
-	if (scr_viewsize.value > 120)
-	    scr_viewsize.value = 120;
-	Cvar_SetValue("viewsize", scr_viewsize.value);
-	break;
-    case 4:			// gamma
-	v_gamma.value -= dir * 0.05;
-	if (v_gamma.value < 0.5)
-	    v_gamma.value = 0.5;
-	if (v_gamma.value > 1)
-	    v_gamma.value = 1;
-	Cvar_SetValue("gamma", v_gamma.value);
-	break;
-    case 5:			// mouse speed
-	sensitivity.value += dir * 0.5;
-	if (sensitivity.value < 1)
-	    sensitivity.value = 1;
-	if (sensitivity.value > 11)
-	    sensitivity.value = 11;
-	Cvar_SetValue("sensitivity", sensitivity.value);
-	break;
-    case 6:			// music volume
-#ifdef _WIN32
-	bgmvolume.value += dir * 1.0;
-#else
-	bgmvolume.value += dir * 0.1;
-#endif
-	if (bgmvolume.value < 0)
-	    bgmvolume.value = 0;
-	if (bgmvolume.value > 1)
-	    bgmvolume.value = 1;
-	Cvar_SetValue("bgmvolume", bgmvolume.value);
-	break;
-    case 7:			// sfx volume
-	sfxvolume.value += dir * 0.1;
-	if (sfxvolume.value < 0)
-	    sfxvolume.value = 0;
-	if (sfxvolume.value > 1)
-	    sfxvolume.value = 1;
-	Cvar_SetValue("volume", sfxvolume.value);
-	break;
-
-    case 8:			// allways run
-	if (cl_forwardspeed.value > 200) {
-	    Cvar_SetValue("cl_forwardspeed", 200);
-	    Cvar_SetValue("cl_backspeed", 200);
-	} else {
-	    Cvar_SetValue("cl_forwardspeed", 400);
-	    Cvar_SetValue("cl_backspeed", 400);
-	}
-	break;
-
-    case 9:			// invert mouse
-	Cvar_SetValue("m_pitch", -m_pitch.value);
-	break;
-
-    case 10:			// lookspring
-	Cvar_SetValue("lookspring", !lookspring.value);
-	break;
-
-    case 11:			// lookstrafe
-	Cvar_SetValue("lookstrafe", !lookstrafe.value);
-	break;
-
-    case 13:			// _windowed_mouse
-   Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
-   break;
-   case 14:
-       cvar = Cvar_FindVar("dither_filter");
-       Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
-       D_SetupFrame();
-       break;
-   case 15:
-       cvar = Cvar_FindVar("d_mipscale");
-       Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
-       break;
-   case 16:
-       cvar = Cvar_FindVar("r_lerpmodels");
-       Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
-       break;
-   case 17:
-       cvar = Cvar_FindVar("crosshair");
-       Cvar_SetValue("crosshair", cvar->value ? 0.0f : 1.0f);
-       break;
-   case 18:
-       cvar = Cvar_FindVar("framerate");
-       Cvar_SetValue("framerate", (cvar->value == 60) ? 50.0f : 60.0f);
-       break;
-   case 19:
-       cvar = Cvar_FindVar("chase_type");
-       Cvar_SetValue("chase_type", (cvar->value) ? 0 : 1);
-       break;
-   case 20:
-       cvar = Cvar_FindVar("chase_active");
-       Cvar_SetValue("chase_active", (cvar->value) ? 0 : 1);
-       break;
-    }
-}
-
 
 static void
 M_DrawSlider(int x, int y, float range)
@@ -1060,12 +950,47 @@ M_DrawCheckbox(int x, int y, int on)
 	M_Print(x, y, "off");
 }
 
+
+//=============================================================================
+/* INPUT OPTIONS MENU */
+
+#define	OPTIONSINPUT_ITEMS 5
+
+static int optionsinput_cursor;
+
+void
+M_Menu_OptionsInput_f(void)
+{
+    key_dest = key_menu;
+    m_state = m_optionsinput;
+    m_entersound = true;
+}
+
 static void
-M_Options_Draw(void)
+M_OptionsInput_AdjustSliders(int dir)
+{
+    S_LocalSound("misc/menu3.wav");
+
+    switch (optionsinput_cursor) {
+    case 3:			// mouse speed
+	sensitivity.value += dir * 0.5;
+	if (sensitivity.value < 1)
+	    sensitivity.value = 1;
+	if (sensitivity.value > 11)
+	    sensitivity.value = 11;
+	Cvar_SetValue("sensitivity", sensitivity.value);
+	break;
+    case 4:			// invert mouse
+	Cvar_SetValue("m_pitch", -m_pitch.value);
+	break;
+    }
+}
+
+static void
+M_OptionsInput_Draw(void)
 {
     float r;
     const qpic_t *p;
-    cvar_t *cvar = NULL;
 
     M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
     p = Draw_CachePic("gfx/p_option.lmp");
@@ -1075,83 +1000,553 @@ M_Options_Draw(void)
     M_Print(16, 40, "         Go to console");
     M_Print(16, 48, "     Reset to defaults");
 
-    M_Print(16, 56, "           Screen size");
-    r = (scr_viewsize.value - 30) / (120 - 30);
-    M_DrawSlider(220, 56, r);
-
-    M_Print(16, 64, "            Brightness");
-    r = (1.0 - v_gamma.value) / 0.5;
-    M_DrawSlider(220, 64, r);
-
-    M_Print(16, 72, "           Mouse Speed");
+    M_Print(16, 56, "           Mouse Speed");
     r = (sensitivity.value - 1) / 10;
-    M_DrawSlider(220, 72, r);
+    M_DrawSlider(220, 56, r);
+    M_Print(16, 64, "          Invert Mouse");
+    M_DrawCheckbox(220, 64, m_pitch.value < 0);
 
-    M_Print(16, 80, "       CD Music Volume");
-    r = bgmvolume.value;
-    M_DrawSlider(220, 80, r);
+// cursor
+    M_DrawCharacter(200, 32 + optionsinput_cursor * 8,
+		    12 + ((int)(realtime * 4) & 1));
+}
 
-    M_Print(16, 88, "          Sound Volume");
-    r = sfxvolume.value;
-    M_DrawSlider(220, 88, r);
 
-    M_Print(16, 96, "            Always Run");
-    M_DrawCheckbox(220, 96, cl_forwardspeed.value > 200);
+static void
+M_OptionsInput_Key(int k)
+{
 
-    M_Print(16, 104, "          Invert Mouse");
-    M_DrawCheckbox(220, 104, m_pitch.value < 0);
+    switch (k) {
+    case K_JOY_B:
+    case K_ESCAPE:
+	M_Menu_Options_f();
+	break;
 
-    M_Print(16, 112, "            Lookspring");
-    M_DrawCheckbox(220, 112, lookspring.value);
+    case K_JOY_A:
+    case K_ENTER:
+	m_entersound = true;
+	switch (optionsinput_cursor) {
+	case 0:
+	    M_Menu_Keys_f();
+	    break;
+	case 1:
+	    m_state = m_none;
+	    Con_ToggleConsole_f();
+	    break;
+	case 2:
+	    Cbuf_AddText("exec default.cfg\n");
+	    break;
+	default:
+	    M_OptionsInput_AdjustSliders(1);
+	    break;
+	}
+	return;
 
-    M_Print(16, 120, "            Lookstrafe");
-    M_DrawCheckbox(220, 120, lookstrafe.value);
+    case K_JOY_UP:
+    case K_UPARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsinput_cursor--;
+	if (optionsinput_cursor < 0)
+	    optionsinput_cursor = OPTIONSINPUT_ITEMS - 1;
+	break;
+
+    case K_JOY_DOWN:
+    case K_DOWNARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsinput_cursor++;
+	if (optionsinput_cursor >= OPTIONSINPUT_ITEMS)
+	    optionsinput_cursor = 0;
+	break;
+
+    case K_JOY_LEFT:
+    case K_LEFTARROW:
+	M_OptionsInput_AdjustSliders(-1);
+	break;
+
+    case K_JOY_RIGHT:
+    case K_RIGHTARROW:
+	M_OptionsInput_AdjustSliders(1);
+	break;
+    }
+}
+
+//=============================================================================
+/* VIDEO OPTIONS MENU */
+
+#define	OPTIONSVIDEO_ITEMS 8
+
+static int optionsvideo_cursor;
+
+void
+M_Menu_OptionsVideo_f(void)
+{
+    key_dest = key_menu;
+    m_state = m_optionsvideo;
+    m_entersound = true;
+}
+
+extern void D_SetupFrame();
+
+static void
+M_OptionsVideo_AdjustSliders(int dir)
+{
+    cvar_t *cvar = NULL;
+    S_LocalSound("misc/menu3.wav");
+
+    switch (optionsvideo_cursor) {
+    case 0:			// screen size
+	scr_viewsize.value += dir * 10;
+	if (scr_viewsize.value < 30)
+	    scr_viewsize.value = 30;
+	if (scr_viewsize.value > 120)
+	    scr_viewsize.value = 120;
+	Cvar_SetValue("viewsize", scr_viewsize.value);
+	break;
+    case 1:			// gamma
+	v_gamma.value -= dir * 0.05;
+	if (v_gamma.value < 0.5)
+	    v_gamma.value = 0.5;
+	if (v_gamma.value > 1)
+	    v_gamma.value = 1;
+	Cvar_SetValue("gamma", v_gamma.value);
+	break;
+
+    case 3:			// _windowed_mouse
+   Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
+   break;
+   case 4:
+       cvar = Cvar_FindVar("dither_filter");
+       Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
+       D_SetupFrame();
+       break;
+   case 5:
+       cvar = Cvar_FindVar("d_mipscale");
+       Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
+       break;
+   case 6:
+       cvar = Cvar_FindVar("r_lerpmodels");
+       Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
+       break;
+   case 7:
+       cvar = Cvar_FindVar("framerate");
+       Cvar_SetValue("framerate", (cvar->value == 60) ? 50.0f : 60.0f);
+       break;
+    }
+}
+
+
+static void
+M_OptionsVideo_Draw(void)
+{
+    float r;
+    const qpic_t *p;
+    cvar_t *cvar = NULL;
+
+    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+    p = Draw_CachePic("gfx/p_option.lmp");
+    M_DrawPic((320 - p->width) / 2, 4, p);
+
+    M_Print(16, 32, "           Screen size");
+    r = (scr_viewsize.value - 30) / (120 - 30);
+    M_DrawSlider(220, 32, r);
+
+    M_Print(16, 40, "            Gamma");
+    r = (1.0 - v_gamma.value) / 0.5;
+    M_DrawSlider(220, 40, r);
 
     if (vid_menudrawfn)
-	M_Print(16, 128, "         Video Options");
+	M_Print(16, 48, "         Video Options");
 
     if (!VID_IsFullScreen()) {
-       M_Print(16, 136, "             Use Mouse");
-       M_DrawCheckbox(220, 136, _windowed_mouse.value);
+       M_Print(16, 56, "             Use Mouse");
+       M_DrawCheckbox(220, 56, _windowed_mouse.value);
     }
 
     cvar = Cvar_FindVar("dither_filter");
+    M_Print(16, 64, "      Dither Filtering");
+	M_DrawCheckbox(220, 64, cvar->value);
 
-    M_Print(16, 144, "      Dither Filtering");
-	M_DrawCheckbox(220, 144, cvar->value);
+    cvar = Cvar_FindVar("d_mipscale");
+    M_Print(16, 72, "      Level of Detail");
+    M_DrawCheckbox(220, 72, cvar->value);
 
-   cvar = Cvar_FindVar("d_mipscale");
-   M_Print(16, 152, "      Level of Detail");
-   M_DrawCheckbox(220, 152, cvar->value);
+    cvar = Cvar_FindVar("r_lerpmodels");
+    M_Print(16, 80, "      Smooth Animation");
+    M_DrawCheckbox(220, 80, cvar->value);
 
-   cvar = Cvar_FindVar("r_lerpmodels");
-   M_Print(16, 160, "      Smooth Animation");
-   M_DrawCheckbox(220, 160, cvar->value);
+    cvar = Cvar_FindVar("framerate");
+    M_Print(16,88, "      Framerate");
+    if (cvar->value == 60)
+       M_Print(220,88, "60fps");
+    else
+       M_Print(220,88,"50fps");
 
-   cvar = Cvar_FindVar("crosshair");
-   M_Print(16, 168, "      Crosshair");
-   M_DrawCheckbox(220, 168, cvar->value);
-
-   cvar = Cvar_FindVar("framerate");
-   M_Print(16,176, "      Framerate");
-   if (cvar->value == 60)
-      M_Print(220,176, "60fps");
-   else
-      M_Print(220,176,"50fps");
+// cursor
+    M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,
+		    12 + ((int)(realtime * 4) & 1));
+}
 
 
-   cvar = Cvar_FindVar("chase_type");
-   M_Print(16, 182, "      Camera Type");
+static void
+M_OptionsVideo_Key(int k)
+{
 
-   if (cvar->value == 1)
-      M_Print(220,182, "Clamped");
-   else
-      M_Print(220,182,"Clipped");
+    switch (k) {
+    case K_JOY_B:
+    case K_ESCAPE:
+	M_Menu_Options_f();
+	break;
 
-   cvar = Cvar_FindVar("chase_active");
-   M_Print(16, 188, "      First Person");
-   M_DrawCheckbox(220, 188, cvar->value ? 0 : 1);
+    case K_JOY_A:
+    case K_ENTER:
+	m_entersound = true;
+	switch (optionsvideo_cursor) {
+	case 2:
+	    M_Menu_Video_f();
+	    break;
+	default:
+	    M_OptionsVideo_AdjustSliders(1);
+	    break;
+	}
+	return;
 
+    case K_JOY_UP:
+    case K_UPARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsvideo_cursor--;
+	if (optionsvideo_cursor < 0)
+	    optionsvideo_cursor = OPTIONSVIDEO_ITEMS - 1;
+	break;
+
+    case K_JOY_DOWN:
+    case K_DOWNARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsvideo_cursor++;
+	if (optionsvideo_cursor >= OPTIONSVIDEO_ITEMS)
+	    optionsvideo_cursor = 0;
+	break;
+
+    case K_JOY_LEFT:
+    case K_LEFTARROW:
+	M_OptionsVideo_AdjustSliders(-1);
+	break;
+
+    case K_JOY_RIGHT:
+    case K_RIGHTARROW:
+	M_OptionsVideo_AdjustSliders(1);
+	break;
+    }
+
+    if (optionsvideo_cursor == 2 && !vid_menudrawfn) {
+	if (k == K_UPARROW)
+	    optionsvideo_cursor = 1;
+	else
+	    optionsvideo_cursor = 3;
+    }
+    if ((optionsvideo_cursor == 3) && VID_IsFullScreen()) {
+	if (k == K_UPARROW) {
+	    if (!vid_menudrawfn)
+		optionsvideo_cursor = 1;
+	    else
+		optionsvideo_cursor = 2;
+	} else
+      optionsvideo_cursor = 4;
+    }
+}
+
+//=============================================================================
+/* AUDIO OPTIONS MENU */
+
+#define	OPTIONSAUDIO_ITEMS	2
+
+static int optionsaudio_cursor;
+
+void
+M_Menu_OptionsAudio_f(void)
+{
+    key_dest = key_menu;
+    m_state = m_optionsaudio;
+    m_entersound = true;
+}
+
+extern void D_SetupFrame();
+
+static void
+M_OptionsAudio_AdjustSliders(int dir)
+{
+    S_LocalSound("misc/menu3.wav");
+
+    switch (optionsaudio_cursor) {
+    case 0:			// music volume
+#ifdef _WIN32
+	bgmvolume.value += dir * 1.0;
+#else
+	bgmvolume.value += dir * 0.1;
+#endif
+	if (bgmvolume.value < 0)
+	    bgmvolume.value = 0;
+	if (bgmvolume.value > 1)
+	    bgmvolume.value = 1;
+	Cvar_SetValue("bgmvolume", bgmvolume.value);
+	break;
+    case 1:			// sfx volume
+	sfxvolume.value += dir * 0.1;
+	if (sfxvolume.value < 0)
+	    sfxvolume.value = 0;
+	if (sfxvolume.value > 1)
+	    sfxvolume.value = 1;
+	Cvar_SetValue("volume", sfxvolume.value);
+	break;
+    }
+}
+
+
+static void
+M_OptionsAudio_Draw(void)
+{
+    float r;
+    const qpic_t *p;
+
+    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+    p = Draw_CachePic("gfx/p_option.lmp");
+    M_DrawPic((320 - p->width) / 2, 4, p);
+
+    M_Print(16, 32, "          Music Volume");
+    r = bgmvolume.value;
+    M_DrawSlider(220, 32, r);
+
+    M_Print(16, 40, "          Sound Volume");
+    r = sfxvolume.value;
+    M_DrawSlider(220, 40, r);
+
+// cursor
+    M_DrawCharacter(200, 32 + optionsaudio_cursor * 8,
+		    12 + ((int)(realtime * 4) & 1));
+}
+
+
+static void
+M_OptionsAudio_Key(int k)
+{
+
+    switch (k) {
+    case K_JOY_B:
+    case K_ESCAPE:
+	M_Menu_Options_f();
+	break;
+
+    case K_JOY_A:
+    case K_ENTER:
+	m_entersound = true;
+	switch (optionsaudio_cursor) {
+	default:
+	    M_OptionsAudio_AdjustSliders(1);
+	    break;
+	}
+	return;
+
+    case K_JOY_UP:
+    case K_UPARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsaudio_cursor--;
+	if (optionsaudio_cursor < 0)
+	    optionsaudio_cursor = OPTIONSAUDIO_ITEMS - 1;
+	break;
+
+    case K_JOY_DOWN:
+    case K_DOWNARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsaudio_cursor++;
+	if (optionsaudio_cursor >= OPTIONSAUDIO_ITEMS)
+	    optionsaudio_cursor = 0;
+	break;
+
+    case K_JOY_LEFT:
+    case K_LEFTARROW:
+	M_OptionsAudio_AdjustSliders(-1);
+	break;
+
+    case K_JOY_RIGHT:
+    case K_RIGHTARROW:
+	M_OptionsAudio_AdjustSliders(1);
+	break;
+    }
+}
+
+//=============================================================================
+/* GAME OPTIONS MENU */
+
+#define	OPTIONSGAME_ITEMS	6
+
+static int optionsgame_cursor;
+
+void
+M_Menu_OptionsGame_f(void)
+{
+    key_dest = key_menu;
+    m_state = m_optionsgame;
+    m_entersound = true;
+}
+
+static void
+M_OptionsGame_AdjustSliders(int dir)
+{
+    cvar_t *cvar = NULL;
+    S_LocalSound("misc/menu3.wav");
+
+    switch (optionsgame_cursor) {
+    case 0:			// allways run
+	if (cl_forwardspeed.value > 200) {
+	    Cvar_SetValue("cl_forwardspeed", 200);
+	    Cvar_SetValue("cl_backspeed", 200);
+	} else {
+	    Cvar_SetValue("cl_forwardspeed", 400);
+	    Cvar_SetValue("cl_backspeed", 400);
+	}
+	break;
+    case 1:			// lookspring
+	Cvar_SetValue("lookspring", !lookspring.value);
+	break;
+
+    case 2:			// lookstrafe
+	Cvar_SetValue("lookstrafe", !lookstrafe.value);
+	break;
+   case 3:
+       cvar = Cvar_FindVar("crosshair");
+       Cvar_SetValue("crosshair", cvar->value ? 0.0f : 1.0f);
+       break;
+   case 4:
+       cvar = Cvar_FindVar("chase_type");
+       Cvar_SetValue("chase_type", (cvar->value) ? 0 : 1);
+       break;
+   case 5:
+       cvar = Cvar_FindVar("chase_active");
+       Cvar_SetValue("chase_active", (cvar->value) ? 0 : 1);
+       break;
+    }
+}
+
+
+static void
+M_OptionsGame_Draw(void)
+{
+    const qpic_t *p;
+    cvar_t *cvar = NULL;
+
+    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+    p = Draw_CachePic("gfx/p_option.lmp");
+    M_DrawPic((320 - p->width) / 2, 4, p);
+
+    M_Print(16, 32, "            Always Run");
+    M_DrawCheckbox(220, 32, cl_forwardspeed.value > 200);
+
+    M_Print(16, 40, "            Lookspring");
+    M_DrawCheckbox(220, 40, lookspring.value);
+
+    M_Print(16, 48, "            Lookstrafe");
+    M_DrawCheckbox(220, 48, lookstrafe.value);
+
+    cvar = Cvar_FindVar("crosshair");
+    M_Print(16, 56, "             Crosshair");
+    M_DrawCheckbox(220, 56, cvar->value);
+
+    cvar = Cvar_FindVar("chase_type");
+    M_Print(16, 64, "           Camera Type");
+
+    if (cvar->value == 1)
+       M_Print(220,64, "Clamped");
+    else
+       M_Print(220,64,"Clipped");
+
+    cvar = Cvar_FindVar("chase_active");
+    M_Print(16, 72, "          First Person");
+    M_DrawCheckbox(220, 72, cvar->value ? 0 : 1);
+
+
+// cursor
+    M_DrawCharacter(200, 32 + optionsgame_cursor * 8,
+		    12 + ((int)(realtime * 4) & 1));
+}
+
+
+static void
+M_OptionsGame_Key(int k)
+{
+
+    switch (k) {
+    case K_JOY_B:
+    case K_ESCAPE:
+	M_Menu_Options_f();
+	break;
+
+    case K_JOY_A:
+    case K_ENTER:
+	m_entersound = true;
+	switch (optionsgame_cursor) {
+	default:
+	    M_OptionsGame_AdjustSliders(1);
+	    break;
+	}
+	return;
+
+    case K_JOY_UP:
+    case K_UPARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsgame_cursor--;
+	if (optionsgame_cursor < 0)
+	    optionsgame_cursor = OPTIONSGAME_ITEMS - 1;
+	break;
+
+    case K_JOY_DOWN:
+    case K_DOWNARROW:
+	S_LocalSound("misc/menu1.wav");
+	optionsgame_cursor++;
+	if (optionsgame_cursor >= OPTIONSGAME_ITEMS)
+	    optionsgame_cursor = 0;
+	break;
+
+    case K_JOY_LEFT:
+    case K_LEFTARROW:
+	M_OptionsGame_AdjustSliders(-1);
+	break;
+
+    case K_JOY_RIGHT:
+    case K_RIGHTARROW:
+	M_OptionsGame_AdjustSliders(1);
+	break;
+    }
+}
+
+
+//=============================================================================
+/* OPTIONS MENU */
+
+#define	OPTIONS_ITEMS	4
+
+static int options_cursor;
+
+void
+M_Menu_Options_f(void)
+{
+    key_dest = key_menu;
+    m_state = m_options;
+    m_entersound = true;
+}
+
+
+static void
+M_Options_Draw(void)
+{
+    const qpic_t *p;
+
+    M_DrawTransPic(16, 4, Draw_CachePic("gfx/qplaque.lmp"));
+    p = Draw_CachePic("gfx/p_option.lmp");
+    M_DrawPic((320 - p->width) / 2, 4, p);
+
+    M_Print(16, 32, "                 Input");
+    M_Print(16, 40, "                 Video");
+    M_Print(16, 48, "                 Audio");
+    M_Print(16, 56, "                  Game");
 
 // cursor
     M_DrawCharacter(200, 32 + options_cursor * 8,
@@ -1162,7 +1557,6 @@ M_Options_Draw(void)
 static void
 M_Options_Key(int k)
 {
-
     switch (k) {
     case K_JOY_B:
     case K_ESCAPE:
@@ -1174,20 +1568,16 @@ M_Options_Key(int k)
 	m_entersound = true;
 	switch (options_cursor) {
 	case 0:
-	    M_Menu_Keys_f();
+	    M_Menu_OptionsInput_f();
 	    break;
 	case 1:
-	    m_state = m_none;
-	    Con_ToggleConsole_f();
+	    M_Menu_OptionsVideo_f();
 	    break;
 	case 2:
-	    Cbuf_AddText("exec default.cfg\n");
+	    M_Menu_OptionsAudio_f();
 	    break;
-	case 12:
-	    M_Menu_Video_f();
-	    break;
-	default:
-	    M_AdjustSliders(1);
+	case 3:
+	    M_Menu_OptionsGame_f();
 	    break;
 	}
 	return;
@@ -1207,34 +1597,9 @@ M_Options_Key(int k)
 	if (options_cursor >= OPTIONS_ITEMS)
 	    options_cursor = 0;
 	break;
-
-    case K_JOY_LEFT:
-    case K_LEFTARROW:
-	M_AdjustSliders(-1);
-	break;
-
-    case K_JOY_RIGHT:
-    case K_RIGHTARROW:
-	M_AdjustSliders(1);
-	break;
-    }
-
-    if (options_cursor == 12 && !vid_menudrawfn) {
-	if (k == K_UPARROW)
-	    options_cursor = 11;
-	else
-	    options_cursor = 13;
-    }
-    if ((options_cursor == 13) && VID_IsFullScreen()) {
-	if (k == K_UPARROW) {
-	    if (!vid_menudrawfn)
-		options_cursor = 11;
-	    else
-		options_cursor = 12;
-	} else
-      options_cursor = 14;
     }
 }
+
 
 //=============================================================================
 /* KEYS MENU */
@@ -1388,7 +1753,7 @@ M_Keys_Key(int k)
 
     case K_JOY_B:
     case K_ESCAPE:
-	M_Menu_Options_f();
+	M_Menu_OptionsInput_f();
 	break;
 
     case K_JOY_LEFT:
@@ -2557,6 +2922,22 @@ M_Draw(void)
          M_Options_Draw();
          break;
 
+      case m_optionsinput:
+         M_OptionsInput_Draw();
+         break;
+
+      case m_optionsvideo:
+         M_OptionsVideo_Draw();
+         break;
+
+      case m_optionsaudio:
+         M_OptionsAudio_Draw();
+         break;
+
+      case m_optionsgame:
+         M_OptionsGame_Draw();
+         break;
+
       case m_keys:
          M_Keys_Draw();
          break;
@@ -2630,6 +3011,22 @@ M_Keydown(int key)
 
     case m_options:
 	M_Options_Key(key);
+	return;
+
+    case m_optionsinput:
+	M_OptionsInput_Key(key);
+	return;
+
+    case m_optionsvideo:
+	M_OptionsVideo_Key(key);
+	return;
+
+    case m_optionsaudio:
+	M_OptionsAudio_Key(key);
+	return;
+
+    case m_optionsgame:
+	M_OptionsGame_Key(key);
 	return;
 
     case m_keys:
