@@ -1,3 +1,10 @@
+Main features of the libretro port:
+- Stable 60 fps because the runloop was refactored;
+- Software bilinear filtering;
+- Software Half-Life/Quake 2-style colored lighting RGBA;
+- Chasecam / thirdperson view mode;
+- Interpolated animation applied on the keyframe animation for smooth animation;
+
 -----------
  Tyr-Quake
 -----------
