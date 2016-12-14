@@ -31,5 +31,10 @@
 
 #ifndef FLAC__PRIVATE__MACROS_H
 #define FLAC__PRIVATE__MACROS_H
-
+#if defined(VITA)
+#define MIN(x,y) ((x)<(y)?(x):(y))
+#define MAX(x,y) ((x)>(y)?(x):(y))
+#define flac_min(x,y) ((x)<(y)?(x):(y))
+#define flac_max(x,y) ((x)>(y)?(x):(y))
+#endif
 #endif
