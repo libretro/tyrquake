@@ -136,11 +136,13 @@ SOURCES_C += $(LIBVORBIS_DIR)/lib/analysis.c \
 				 $(LIBVORBIS_DIR)/lib/info.c \
 				 $(LIBVORBIS_DIR)/lib/lookup.c \
 				 $(LIBVORBIS_DIR)/lib/lpc.c \
+                                 $(LIBVORBIS_DIR)/lib/lsp.c \
 				 $(LIBVORBIS_DIR)/lib/mapping0.c \
 				 $(LIBVORBIS_DIR)/lib/mdct.c \
 				 $(LIBVORBIS_DIR)/lib/psy.c \
 				 $(LIBVORBIS_DIR)/lib/registry.c \
 				 $(LIBVORBIS_DIR)/lib/res0.c \
+				 $(LIBVORBIS_DIR)/lib/sharedbook.c \
 				 $(LIBVORBIS_DIR)/lib/smallft.c \
 				 $(LIBVORBIS_DIR)/lib/synthesis.c \
 				 $(LIBVORBIS_DIR)/lib/vorbisenc.c \
