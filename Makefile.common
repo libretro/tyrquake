@@ -145,6 +145,7 @@ SOURCES_C += $(LIBVORBIS_DIR)/lib/analysis.c \
 				 $(LIBVORBIS_DIR)/lib/synthesis.c \
 				 $(LIBVORBIS_DIR)/lib/vorbisenc.c \
 				 $(LIBVORBIS_DIR)/lib/vorbisfile.c \
+				 $(LIBVORBIS_DIR)/lib/sharedbook.c \
 				 $(LIBVORBIS_DIR)/lib/window.c
 
 SOURCES_C += $(LIBOGG_DIR)/src/bitwise.c \
