@@ -191,8 +191,6 @@ static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t o
             hull = &model->hulls[0];
          else if ((size[0] <= 8)&&((int)(sv.edicts->v.spawnflags)&1))  /* Pentacles */
             hull = &model->hulls[4];
-         else if (size[0] <= 32 && size[2] <= 28)  /* Half Player */
-            hull = &model->hulls[3];
          else if (size[0] <= 32)
             hull = &model->hulls[1];
          else
