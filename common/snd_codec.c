@@ -23,6 +23,8 @@
  *
  */
 
+#include "compat/strl.h"
+
 #include "quakedef.h"
 #include "sound.h"
 #include "common.h"
