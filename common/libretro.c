@@ -804,6 +804,9 @@ bool retro_load_game(const struct retro_game_info *info)
    char *path_lower;
    quakeparms_t parms;
 
+   if (!info)
+      return false;
+
    path_lower = strdup(info->path);
 
    for (i=0; path_lower[i]; ++i)

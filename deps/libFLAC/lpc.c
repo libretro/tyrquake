@@ -60,28 +60,6 @@ void FLAC__lpc_window_data(const FLAC__int32 in[], const FLAC__real window[], FL
 
 void FLAC__lpc_compute_autocorrelation(const FLAC__real data[], unsigned data_len, unsigned lag, FLAC__real autoc[])
 {
-	/* a readable, but slower, version */
-#if 0
-	FLAC__real d;
-	unsigned i;
-
-	FLAC__ASSERT(lag > 0);
-	FLAC__ASSERT(lag <= data_len);
-
-	/*
-	 * Technically we should subtract the mean first like so:
-	 *   for(i = 0; i < data_len; i++)
-	 *     data[i] -= mean;
-	 * but it appears not to make enough of a difference to matter, and
-	 * most signals are already closely centered around zero
-	 */
-	while(lag--) {
-		for(i = lag, d = 0.0; i < data_len; i++)
-			d += data[i] * data[i - lag];
-		autoc[lag] = d;
-	}
-#endif
-
 	/*
 	 * this version tends to run faster because of better data locality
 	 * ('data_len' is usually much larger than 'lag')
