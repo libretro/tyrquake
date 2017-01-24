@@ -732,6 +732,8 @@ static void audio_callback(void);
 
 static bool did_flip;
 
+bool shutdown_core = false;
+
 void retro_run(void)
 {
    static bool has_set_username = false;
@@ -745,12 +747,16 @@ void retro_run(void)
       has_set_username = true;
    }
 
-   if (gp_layoutp != NULL) {
+   if (gp_layoutp != NULL)
+   {
       gp_layout_set_bind(*gp_layoutp);
       gp_layoutp = NULL;
    }
 
    Host_Frame(0.016667);
+
+   if (shutdown_core)
+      return;
 
    if (!did_flip)
       video_cb(NULL, width, height, width << 1); /* dupe */

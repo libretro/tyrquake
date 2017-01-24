@@ -1967,6 +1967,8 @@ M_Quit_Key(int key)
 #else
 	key_dest = key_console;
 	Host_Quit_f();
+   extern bool shutdown_core;
+   shutdown_core = true;
    environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
 #endif
 }
