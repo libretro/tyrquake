@@ -53,7 +53,7 @@
 #define fseeko _fseeki64
 #define ftello _ftelli64
 #else /* MinGW */
-#if !defined(HAVE_FSEEKO)
+#if !defined(HAVE_FSEEKO) && !defined(__MINGW32_)
 #define fseeko fseeko64
 #define ftello ftello64
 #endif
@@ -139,7 +139,7 @@
 #  endif
 #endif /* defined _MSC_VER */
 
-#ifdef _WIN32
+#if defined( _WIN32) && !defined(__MINGW32__)
 /* All char* strings are in UTF-8 format. Added to support Unicode files on Windows */
 #include "share/win_utf8_io.h"
 
