@@ -852,22 +852,22 @@ bool retro_load_game(const struct retro_game_info *info)
    parms.memsize = MEMSIZE_MB * 1024 * 1024;
    argv[0] = empty_string;
 
-   if (strstr(g_pak_path, "rogue/"))
+   if (strstr(g_pak_path, "rogue"))
    {
       parms.argc++;
       argv[1] = "-rogue";
    }
-   else if (strstr(g_pak_path, "hipnotic/"))
+   else if (strstr(g_pak_path, "hipnotic"))
    {
       parms.argc++;
       argv[1] = "-hipnotic";
    }
-   else if (strstr(g_pak_path, "quoth/"))
+   else if (strstr(g_pak_path, "quoth"))
    {
       parms.argc++;
       argv[1] = "-quoth";
    }
-   else if (!strstr(g_pak_path, "id1/"))
+   else if (!strstr(g_pak_path, "id1"))
    {
       char basename[1024];
       parms.argc++;
