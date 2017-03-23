@@ -1146,10 +1146,14 @@ void VID_Update(vrect_t *rects)
       pitch    = fb.pitch << 1;
    }
 
+   if (!rects)
+      return;
+
    for (y = 0; y < rects->width * rects->height; ++y)
       *olineptr++ = pal[*ilineptr++];
 
-   video_cb(ptr, width, height, pitch);
+   if (video_cb)
+      video_cb(ptr, width, height, pitch);
    did_flip = true;
 }
 
