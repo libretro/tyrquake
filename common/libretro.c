@@ -841,9 +841,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    update_variables(true);
 
-   extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
+   extract_directory(g_rom_dir, path_lower, sizeof(g_rom_dir));
 
-   snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
+   snprintf(g_pak_path, sizeof(g_pak_path), "%s", path_lower);
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
       log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
