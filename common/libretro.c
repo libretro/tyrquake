@@ -465,7 +465,8 @@ void retro_set_environment(retro_environment_t cb)
       { "tyrquake_colored_lighting", "Colored lighting (restart); disabled|enabled" },
       { "tyrquake_resolution",
          "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
-      { "tyrquake_retropad_layout", layouts },
+	  { "tyrquake_rumble", "Rumble; disabled|enabled" },
+	  { "tyrquake_retropad_layout", layouts },
       { NULL, NULL },
    };
 
@@ -649,7 +650,29 @@ void Sys_Sleep(void)
    retro_sleep(1);
 }
 
+const char *argv[MAX_NUM_ARGVS];
+static const char *empty_string = "";
+
+void retro_set_rumble_strong(void)
+{
+   if (!rumble.set_rumble_state)
+      return;
+
+   uint16_t strength_strong = 0xffff;
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
+}
+
+void retro_unset_rumble_strong(void)
+{
+   if (!rumble.set_rumble_state)
+      return;
+
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
+}
+
 extern int coloredlights;
+
+bool state_rumble;
 
 static void update_variables(bool startup)
 {
@@ -705,6 +728,18 @@ static void update_variables(bool startup)
          }
       }
    }
+   
+   var.key = "tyrquake_rumble";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0)
+         state_rumble = false;
+      else
+         state_rumble = true;
+   }
+   
 }
 
 static void update_env_variables(void)
@@ -746,6 +781,9 @@ void retro_run(void)
       update_env_variables();
       has_set_username = true;
    }
+   
+   if(!state_rumble)
+	      retro_unset_rumble_strong();
 
    if (gp_layoutp != NULL)
    {
@@ -782,26 +820,6 @@ static void extract_directory(char *buf, const char *path, size_t size)
     }
 }
 
-const char *argv[MAX_NUM_ARGVS];
-static const char *empty_string = "";
-
-void retro_set_rumble_strong(void)
-{
-   if (!rumble.set_rumble_state)
-      return;
-
-   uint16_t strength_strong = 0xffff;
-   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
-}
-
-void retro_unset_rumble_strong(void)
-{
-   if (!rumble.set_rumble_state)
-      return;
-
-   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
-}
-
 bool retro_load_game(const struct retro_game_info *info)
 {
    unsigned i;
@@ -831,7 +849,7 @@ bool retro_load_game(const struct retro_game_info *info)
       log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
    else
       log_cb(RETRO_LOG_INFO, "Rumble environment not supported.\n");
-
+	  
    MEMSIZE_MB = DEFAULT_MEMSIZE_MB;
 
    if ( strstr(path_lower, "id1") ||
