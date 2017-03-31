@@ -465,8 +465,8 @@ void retro_set_environment(retro_environment_t cb)
       { "tyrquake_colored_lighting", "Colored lighting (restart); disabled|enabled" },
       { "tyrquake_resolution",
          "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
-	  { "tyrquake_rumble", "Rumble; disabled|enabled" },
-	  { "tyrquake_retropad_layout", layouts },
+      { "tyrquake_rumble", "Rumble; disabled|enabled" },
+      { "tyrquake_retropad_layout", layouts },
       { NULL, NULL },
    };
 
@@ -630,7 +630,26 @@ void Sys_SendKeyEvents(void)
                Key_Event(K_MOUSE7, 1);
             else
                Key_Event(K_MOUSE7, 0);
-
+		   
+		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
+               Key_Event(K_UPARROW, 1);
+            else
+               Key_Event(K_UPARROW, 0);
+		   
+		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
+               Key_Event(K_DOWNARROW, 1);
+            else
+               Key_Event(K_DOWNARROW, 0);		
+		   
+		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
+               Key_Event(K_LEFTARROW, 1);
+            else
+               Key_Event(K_LEFTARROW, 0);		
+		   
+		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
+               Key_Event(K_RIGHTARROW, 1);
+            else
+               Key_Event(K_RIGHTARROW, 0);
             break;
       }
    }
@@ -639,10 +658,10 @@ void Sys_SendKeyEvents(void)
 static void keyboard_cb(bool down, unsigned keycode,
       uint32_t character, uint16_t mod)
 {
-	if (down)
-		Key_Event((knum_t) keycode, 1);
-	else
-		Key_Event((knum_t) keycode, 0);
+   if (down)
+      Key_Event((knum_t) keycode, 1);
+   else
+      Key_Event((knum_t) keycode, 0);
 }
 
 void Sys_Sleep(void)
@@ -728,7 +747,7 @@ static void update_variables(bool startup)
          }
       }
    }
-   
+
    var.key = "tyrquake_rumble";
    var.value = NULL;
 
@@ -739,7 +758,7 @@ static void update_variables(bool startup)
       else
          state_rumble = true;
    }
-   
+
 }
 
 static void update_env_variables(void)
@@ -782,8 +801,8 @@ void retro_run(void)
       has_set_username = true;
    }
    
-   if(!state_rumble)
-	      retro_unset_rumble_strong();
+   if (!state_rumble)
+      retro_unset_rumble_strong();
 
    if (gp_layoutp != NULL)
    {
@@ -849,7 +868,7 @@ bool retro_load_game(const struct retro_game_info *info)
       log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
    else
       log_cb(RETRO_LOG_INFO, "Rumble environment not supported.\n");
-	  
+
    MEMSIZE_MB = DEFAULT_MEMSIZE_MB;
 
    if ( strstr(path_lower, "id1") ||
