@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2016 The RetroArch team
+/* Copyright  (C) 2010-2017 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (retro_dirent.c).
@@ -24,6 +24,9 @@
 #include <stdio.h>
 
 #include <retro_common.h>
+
+#include <boolean.h>
+#include <retro_dirent.h>
 
 #if defined(_WIN32)
 #  ifdef _MSC_VER
@@ -55,16 +58,13 @@
 #include <cell/cell_fs.h>
 #endif
 
-#include <boolean.h>
-#include <retro_stat.h>
-#include <retro_dirent.h>
-
 struct RDIR
 {
 #if defined(_WIN32)
    WIN32_FIND_DATA entry;
    HANDLE directory;
    bool next;
+   char path[PATH_MAX_LENGTH];
 #elif defined(VITA) || defined(PSP)
    SceUID directory;
    SceIoDirent entry;
@@ -89,10 +89,14 @@ struct RDIR *retro_opendir(const char *name)
       return NULL;
 
 #if defined(_WIN32)
+   path_buf[0] = '\0';
    snprintf(path_buf, sizeof(path_buf), "%s\\*", name);
    rdir->directory = FindFirstFile(path_buf, &rdir->entry);
 #elif defined(VITA) || defined(PSP)
    rdir->directory = sceIoDopen(name);
+#elif defined(_3DS)
+   rdir->directory = (name && *name)? opendir(name) : NULL;
+   rdir->entry     = NULL;
 #elif defined(__CELLOS_LV2__)
    rdir->error = cellFsOpendir(name, &rdir->directory);
 #else
@@ -121,10 +125,9 @@ int retro_readdir(struct RDIR *rdir)
 #if defined(_WIN32)
    if(rdir->next)
       return (FindNextFile(rdir->directory, &rdir->entry) != 0);
-   else {
-      rdir->next = true;
-      return (rdir->directory != INVALID_HANDLE_VALUE);
-   }
+
+   rdir->next = true;
+   return (rdir->directory != INVALID_HANDLE_VALUE);
 #elif defined(VITA) || defined(PSP)
    return (sceIoDread(rdir->directory, &rdir->entry) > 0);
 #elif defined(__CELLOS_LV2__)
