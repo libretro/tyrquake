@@ -32,6 +32,7 @@
 #  ifdef _MSC_VER
 #    define setmode _setmode
 #  endif
+#include <sys/stat.h>
 #  ifdef _XBOX
 #    include <xtl.h>
 #    define INVALID_FILE_ATTRIBUTES -1
@@ -44,6 +45,7 @@
 #elif defined(VITA)
 #  include <psp2/io/fcntl.h>
 #  include <psp2/io/dirent.h>
+#include <psp2/io/stat.h>
 #else
 #  if defined(PSP)
 #    include <pspiofilemgr.h>
@@ -56,6 +58,10 @@
 
 #ifdef __CELLOS_LV2__
 #include <cell/cell_fs.h>
+#endif
+
+#if (defined(__CELLOS_LV2__) && !defined(__PSL1GHT__)) || defined(__QNX__) || defined(PSP)
+#include <unistd.h> /* stat() is defined here */
 #endif
 
 struct RDIR
@@ -150,6 +156,45 @@ const char *retro_dirent_get_name(struct RDIR *rdir)
 #endif
 }
 
+static bool path_is_directory_internal(const char *path)
+{
+#if defined(VITA) || defined(PSP)
+   SceIoStat buf;
+   char *tmp  = strdup(path);
+   size_t len = strlen(tmp);
+   if (tmp[len-1] == '/')
+      tmp[len-1]='\0';
+
+   if (sceIoGetstat(tmp, &buf) < 0)
+   {
+      free(tmp);
+      return false;
+   }
+   free(tmp);
+
+   return FIO_S_ISDIR(buf.st_mode);
+#elif defined(__CELLOS_LV2__)
+   CellFsStat buf;
+   if (cellFsStat(path, &buf) < 0)
+      return false;
+   return ((buf.st_mode & S_IFMT) == S_IFDIR);
+#elif defined(_WIN32)
+   struct _stat buf;
+   DWORD file_info = GetFileAttributes(path);
+
+   _stat(path, &buf);
+
+   if (file_info == INVALID_FILE_ATTRIBUTES)
+      return false;
+   return (file_info & FILE_ATTRIBUTE_DIRECTORY);
+#else
+   struct stat buf;
+   if (stat(path, &buf) < 0)
+      return false;
+   return S_ISDIR(buf.st_mode);
+#endif
+}
+
 /**
  *
  * retro_dirent_is_dir:
@@ -182,11 +227,11 @@ bool retro_dirent_is_dir(struct RDIR *rdir, const char *path)
       return true;
    /* This can happen on certain file systems. */
    if (entry->d_type == DT_UNKNOWN || entry->d_type == DT_LNK)
-      return path_is_directory(path);
+      return path_is_directory_internal(path);
    return false;
 #else
    /* dirent struct doesn't have d_type, do it the slow way ... */
-   return path_is_directory(path);
+   return path_is_directory_internal(path);
 #endif
 }
 
