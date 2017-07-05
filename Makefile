@@ -435,7 +435,13 @@ include Makefile.common
 
 OBJECTS    = $(SOURCES_C:.c=.o)
 
-DEFINES    = -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -D__LIBRETRO__ -DINLINE=inline -DNQ_HACK -DQBASEDIR=$(CORE_DIR) -DTYR_VERSION=0.62
+DEFINES    = -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -D__LIBRETRO__ -DNQ_HACK -DQBASEDIR=$(CORE_DIR) -DTYR_VERSION=0.62
+
+ifneq (,$(findstring msvc,$(platform)))
+DEFINES += -DINLINE="_inline"
+else
+DEFINES += -DINLINE="inline"
+endif
 
 ifeq ($(platform), sncps3)
 WARNINGS_DEFINES =
