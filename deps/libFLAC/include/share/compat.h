@@ -64,7 +64,7 @@
 
 #if HAVE_INTTYPES_H
 #define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+#include <stdint.h>
 #endif
 
 #if defined(_MSC_VER)
