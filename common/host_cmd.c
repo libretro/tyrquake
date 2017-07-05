@@ -457,6 +457,11 @@ void Host_Savegame_f(void)
    FILE *f;
    int i;
    char comment[SAVEGAME_COMMENT_LENGTH + 1];
+#ifdef _WIN32
+   char slash = '\\';
+#else
+   char slash = '/';
+#endif
 
    if (cmd_source != src_command)
       return;
@@ -493,11 +498,6 @@ void Host_Savegame_f(void)
       }
    }
 
-#ifdef _WIN32
-   char slash = '\\';
-#else
-   char slash = '/';
-#endif
    sprintf(name, "%s%c%s", com_gamedir, slash, Cmd_Argv(1));
    COM_DefaultExtension(name, ".sav");
 
