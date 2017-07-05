@@ -358,10 +358,8 @@ endif
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g
-else ifeq ($(platform), emscripten)
-CFLAGS += -O2 -DNDEBUG
 else
-CFLAGS += -O3 -DNDEBUG
+CFLAGS += -O2 -DNDEBUG
 endif
 
 LDFLAGS += $(LIBS)
