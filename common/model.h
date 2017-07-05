@@ -58,7 +58,7 @@ static INLINE int ffsl (long bits)
 	return lookup[ind >> shift] + shift;
 }
 
-static inline int ffs (int x)
+static INLINE int ffs (int x)
 {
    return ffsl(x);
 }
@@ -465,7 +465,7 @@ const leafbits_t *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
 const leafbits_t *Mod_FatPVS(const model_t *model, const vec3_t point);
 
 #ifdef _WIN32
-static inline int __ERRORLONGSIZE(void)
+static INLINE int __ERRORLONGSIZE(void)
 {
    fprintf(stderr, "Error occurred.\n");
    return 0;
