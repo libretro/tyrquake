@@ -827,10 +827,12 @@ void retro_run(void)
 
 static void extract_directory(char *buf, const char *path, size_t size)
 {
+   char *base = NULL;
+
    strncpy(buf, path, size - 1);
    buf[size - 1] = '\0';
 
-   char *base = strrchr(buf, '/');
+   base = strrchr(buf, '/');
    if (!base)
       base = strrchr(buf, '\\');
 
