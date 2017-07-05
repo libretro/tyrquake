@@ -28,7 +28,7 @@ typedef unsigned char byte;
 #undef false
 
 #ifdef _MSC_VER
-#include "msvc_compat.h"
+#include <compat/msvc.h>
 typedef int qboolean;
 #else
 typedef enum{ false, true } qboolean;
