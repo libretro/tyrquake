@@ -109,6 +109,7 @@ static unsigned quake_devices[1];
 
 static void extract_basename(char *buf, const char *path, size_t size)
 {
+   char *ext        = NULL;
    const char *base = strrchr(path, '/');
    if (!base)
       base = strrchr(path, '\\');
@@ -121,7 +122,7 @@ static void extract_basename(char *buf, const char *path, size_t size)
    strncpy(buf, base, size - 1);
    buf[size - 1] = '\0';
 
-   char *ext = strrchr(buf, '.');
+   ext = strrchr(buf, '.');
    if (ext)
       *ext = '\0';
 }
@@ -170,6 +171,7 @@ bool Sys_Error(const char *error, ...)
 {
    char buffer[256];
    va_list ap;
+
    va_start(ap, error);
    vsprintf(buffer, error, ap);
    if (log_cb)
