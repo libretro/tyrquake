@@ -793,8 +793,10 @@ bool shutdown_core = false;
 void retro_run(void)
 {
    static bool has_set_username = false;
-   did_flip = false;
    bool updated = false;
+
+   did_flip = false;
+
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       update_variables(false);
    if (!has_set_username)
@@ -1078,14 +1080,12 @@ unsigned 	d_8to24table[256];
 
 void	VID_SetPalette2 (unsigned char *palette)
 {
-	byte	*pal;
 	unsigned r,g,b;
 	unsigned v;
 	unsigned short i;
-	unsigned	*table;
+	byte *pal       = palette;
+	unsigned *table = d_8to24table;
 
-	pal = palette;
-	table = d_8to24table;
 	for (i=0 ; i<256 ; i++)
 	{
 		r = pal[0];
@@ -1237,13 +1237,15 @@ static void audio_process(void)
 
 static void audio_callback(void)
 {
+   unsigned read_first, read_second;
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
+
    if (read_end > AUDIO_BUFFER_SAMPLES)
       read_end = AUDIO_BUFFER_SAMPLES;
 
-   unsigned read_first  = read_end - audio_buffer_ptr;
-   unsigned read_second = samples_per_frame - read_first;
+   read_first  = read_end - audio_buffer_ptr;
+   read_second = samples_per_frame - read_first;
 
    audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first / (shm->samplebits / 8));
    audio_buffer_ptr += read_first;
