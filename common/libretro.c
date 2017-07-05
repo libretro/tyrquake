@@ -676,10 +676,10 @@ static const char *empty_string = "";
 
 void retro_set_rumble_strong(void)
 {
+   uint16_t strength_strong = 0xffff;
    if (!rumble.set_rumble_state)
       return;
 
-   uint16_t strength_strong = 0xffff;
    rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
 }
 
