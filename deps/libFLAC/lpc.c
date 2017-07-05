@@ -46,7 +46,7 @@
 #include <stdio.h>
 #endif
 
-#ifdef _WIN32 && defined(_MSC_VER)
+#if defined(_WIN32) && !defined(__MINGW32__)
 static inline long int lround(double x)
 {
    return (long)(x + _copysign(0.5, x));

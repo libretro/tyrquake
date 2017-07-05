@@ -447,6 +447,9 @@ CODE_DEFINES =
 else ifeq ($(platform), ios)
 WARNINGS_DEFINES =
 CODE_DEFINES =
+else ifneq (,$(findstring msvc,$(platform)))
+WARNINGS_DEFINES =
+CODE_DEFINES =
 else ifeq ($(platform), emscripten)
 WARNINGS_DEFINES = -Wall
 CODE_DEFINES = -fomit-frame-pointer
