@@ -461,8 +461,6 @@ void gp_layout_set_bind(gp_layout_t gp_layout)
 
 void retro_set_environment(retro_environment_t cb)
 {
-   environ_cb = cb;
-
    struct retro_variable variables[] = {
       { "tyrquake_colored_lighting", "Colored lighting (restart); disabled|enabled" },
       { "tyrquake_resolution",
@@ -481,6 +479,8 @@ void retro_set_environment(retro_environment_t cb)
       { port_1, 2 },
       { 0 },
    };
+
+   environ_cb = cb;
 
    cb(RETRO_ENVIRONMENT_SET_VARIABLES, variables);
    cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
