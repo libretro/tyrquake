@@ -852,6 +852,7 @@ bool retro_load_game(const struct retro_game_info *info)
    char cfg_file[1024];
    char *path_lower;
    quakeparms_t parms;
+   struct retro_keyboard_callback cb = { keyboard_cb };
 
    if (!info)
       return false;
@@ -861,7 +862,6 @@ bool retro_load_game(const struct retro_game_info *info)
    for (i=0; path_lower[i]; ++i)
        path_lower[i] = tolower(path_lower[i]);
 
-   struct retro_keyboard_callback cb = { keyboard_cb };
    environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
 
    update_variables(true);
