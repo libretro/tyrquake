@@ -71,12 +71,11 @@ D_DrawSkyScans8
 void D_DrawSkyScans8 (espan_t *pspan)
 {
    fixed16_t      s, t;
+   fixed16_t sstep = 0;   // keep compiler happy
+   fixed16_t tstep = 0;   // ditto
 
    timespeed1=skytime*skyspeed;
    timespeed2=timespeed1*2.0;
-
-   fixed16_t sstep = 0;   // keep compiler happy
-   fixed16_t tstep = 0;   // ditto
 
    do
    {
