@@ -945,9 +945,10 @@ bool retro_load_game(const struct retro_game_info *info)
 
    if (!Host_Init(&parms))
    {
-      Host_Shutdown();
       struct retro_message msg;
       char msg_local[256];
+
+      Host_Shutdown();
 
       snprintf(msg_local, sizeof(msg_local),
             "PAK archive loading failed...");
