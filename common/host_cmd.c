@@ -556,6 +556,11 @@ void Host_Loadgame_f(void)
    int entnum;
    int version;
    float spawn_parms[NUM_SPAWN_PARMS];
+#ifdef _WIN32
+   char slash = '\\';
+#else
+   char slash = '/';
+#endif
 
    if (cmd_source != src_command)
       return;
@@ -566,12 +571,6 @@ void Host_Loadgame_f(void)
    }
 
    cls.demonum = -1;		// stop demo loop in case this fails
-
-#ifdef _WIN32
-   char slash = '\\';
-#else
-   char slash = '/';
-#endif
 
    sprintf(name, "%s%c%s", com_gamedir, slash, Cmd_Argv(1));
    COM_DefaultExtension(name, ".sav");
