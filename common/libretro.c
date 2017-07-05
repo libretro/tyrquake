@@ -372,10 +372,10 @@ typedef struct {
 
 const char *layouts = "Change retropad layout; 1: New layout|2: Old layout";
 
-gp_layout_t gp_layouts[] = {
+gp_layout_t gp_layouts[2] = {
    {
-      .name = "1: New layout",
-      .desc = {
+      "1: New layout",
+      {
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
@@ -394,7 +394,7 @@ gp_layout_t gp_layouts[] = {
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
          { 0 },
       },
-      .bind = {
+      {
          {"JOY_LEFT",  "+moveleft"},     {"JOY_RIGHT", "+moveright"},
          {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
          {"JOY_B",     "+right"},        {"JOY_A",     "+lookdown"},
@@ -404,10 +404,11 @@ gp_layout_t gp_layouts[] = {
          {"JOY_L3",    "+togglewalk"},   {"JOY_R3",    "+moveup"},
          {"JOY_SELECT","toggleconsole"}, {"JOY_START", "togglemenu"},
          { 0 },
-      },
-   }, {
-      .name = "2: Old layout",
-      .desc = {
+      }
+   },
+   {
+      "2: Old layout",
+      {
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
@@ -426,7 +427,7 @@ gp_layout_t gp_layouts[] = {
          { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
          { 0 },
       },
-      .bind = {
+      {
          {"JOY_LEFT",  "+left"},         {"JOY_RIGHT", "+right"},
          {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
          {"JOY_B",     "+jump"} ,        {"JOY_A",     "impulse 10"},
@@ -436,9 +437,8 @@ gp_layout_t gp_layouts[] = {
          {"JOY_L3",    "+movedown"},     {"JOY_R3",    "+moveup"},
          {"JOY_SELECT","+togglewalk"},   {"JOY_START", "togglemenu"},
          { 0 },
-      },
-   },
-   { 0,},
+      }
+   }
 };
 
 gp_layout_t *gp_layoutp = NULL;
