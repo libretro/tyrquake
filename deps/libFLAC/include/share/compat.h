@@ -139,7 +139,7 @@
 #  endif
 #endif /* defined _MSC_VER */
 
-#if defined( _WIN32) && !defined(__MINGW32__)
+#if defined(_WIN32) && !defined(__MINGW32__)
 /* All char* strings are in UTF-8 format. Added to support Unicode files on Windows */
 #include "share/win_utf8_io.h"
 
