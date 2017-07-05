@@ -39,6 +39,7 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include <stdint.h>
 #include <sys/stat.h>
 #include <stdarg.h>
 #include <windows.h>
