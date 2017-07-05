@@ -59,12 +59,7 @@
 #if defined(FLAC__NO_DLL)
 #define FLAC_API
 
-#elif defined(_MSC_VER)
-#ifdef FLAC_API_EXPORTS
-#define	FLAC_API	_declspec(dllexport)
-#else
-#define FLAC_API	_declspec(dllimport)
-#endif
+#define FLAC_API
 
 #elif defined(FLAC__USE_VISIBILITY_ATTR)
 #define FLAC_API __attribute__ ((visibility ("default")))
