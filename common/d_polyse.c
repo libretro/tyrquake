@@ -125,7 +125,8 @@ D_PolysetDraw(void)
    spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
    /* one extra because of cache line pretouching */
 
-   a_spans = CACHE_ALIGN_PTR(spans);
+   a_spans = (spanpackage_t *)
+      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
 
    if (r_affinetridesc.drawtype)
       D_DrawSubdiv();
@@ -139,7 +140,8 @@ void D_PolysetDrawT3 (void)
    spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
    /* one extra because of cache line pretouching */
 
-   a_spans = CACHE_ALIGN_PTR(spans);
+   a_spans = (spanpackage_t *)
+      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
 
 	if (r_affinetridesc.drawtype)
 		D_DrawSubdivT3 ();
@@ -152,7 +154,8 @@ void D_PolysetDrawT (void)
    spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
    /* one extra because of cache line pretouching */
 
-   a_spans = CACHE_ALIGN_PTR(spans);
+   a_spans = (spanpackage_t *)
+      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
 
 	if (r_affinetridesc.drawtype)
 		D_DrawSubdivT ();
@@ -165,7 +168,8 @@ void D_PolysetDrawT2 (void)
    spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
    /* one extra because of cache line pretouching */
 
-   a_spans = CACHE_ALIGN_PTR(spans);
+   a_spans = (spanpackage_t *)
+      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
 
 	if (r_affinetridesc.drawtype)
 		D_DrawSubdivT2 ();
@@ -178,7 +182,8 @@ void D_PolysetDrawT5 (void)
    spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
    /* one extra because of cache line pretouching */
 
-   a_spans = CACHE_ALIGN_PTR(spans);
+   a_spans = (spanpackage_t *)
+      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
 
 	if (r_affinetridesc.drawtype)
 		D_DrawSubdivT5 ();

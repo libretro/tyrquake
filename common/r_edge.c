@@ -567,7 +567,8 @@ void R_ScanEdges(void)
    surf_t *s;
    
    basespans = malloc(sizeof(espan_t)*CACHE_PAD_ARRAY(MAXSPANS, espan_t));
-   basespan_p = CACHE_ALIGN_PTR(basespans);
+   basespan_p = (espan_t *)
+			((long)(basespans + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
    max_span_p = &basespan_p[MAXSPANS - r_refdef.vrect.width];
 
    span_p = basespan_p;

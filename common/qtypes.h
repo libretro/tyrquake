@@ -50,12 +50,6 @@ typedef enum{ false, true } qboolean;
  * @member:     the name of the member within the struct.
  *
  */
-#ifdef _MSC_VER
 # define container_of(p, c, m) ((c *)((char *)(p) - offsetof(c,m)))
-#else
-#define container_of(ptr, type, member) ({                      \
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
-#endif
 
 #endif /* QTYPES_H */
