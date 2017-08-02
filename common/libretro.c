@@ -740,7 +740,7 @@ static void update_variables(bool startup)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
    {
       unsigned i;
-      for (i=0; gp_layouts[i].name; ++i)
+      for (i=0; i < sizeof(gp_layouts)/sizeof(gp_layout_t); ++i)
       {
          if (strcmp(var.value, gp_layouts[i].name) == 0)
          {
