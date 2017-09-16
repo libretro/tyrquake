@@ -408,9 +408,37 @@ fpic=
 endif
 
 ifeq ($(DEBUG), 1)
-CFLAGS += -O0 -g
+ifneq (,$(findstring msvc,$(platform)))
+	ifeq ($(STATIC_LINKING),1)
+	CFLAGS += -MTd
+	CXXFLAGS += -MTd
 else
+	CFLAGS += -MDd
+	CXXFLAGS += -MDd
+endif
+
+CFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+CXXFLAGS += -Od -Zi -DDEBUG -D_DEBUG
+	else
+	CFLAGS += -O0 -g -DDEBUG
+	CXXFLAGS += -O0 -g -DDEBUG
+endif
+else
+ifneq (,$(findstring msvc,$(platform)))
+ifeq ($(STATIC_LINKING),1)
+	CFLAGS += -MT
+	CXXFLAGS += -MT
+else
+	CFLAGS += -MD
+	CXXFLAGS += -MD
+endif
+
 CFLAGS += -O2 -DNDEBUG
+CXXFLAGS += -O2 -DNDEBUG
+else
+	CFLAGS += -O2 -DNDEBUG
+	CXXFLAGS += -O2 -DNDEBUG
+endif
 endif
 
 LDFLAGS += $(LIBS)
@@ -530,7 +558,12 @@ LINKOUT  = -o
 ifneq (,$(findstring msvc,$(platform)))
 	OBJOUT = -Fo
 	LINKOUT = -out:
+ifeq ($(STATIC_LINKING),1)
+	LD ?= lib.exe
+	STATIC_LINKING=0
+else
 	LD = link.exe
+endif
 else
 	LD = $(CC)
 endif
