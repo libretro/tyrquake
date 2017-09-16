@@ -7,7 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#ifndef _XBOX
 #include <windows.h> /* for WideCharToMultiByte and MultiByteToWideChar */
+#endif
 
 #include "share/win_utf8_io.h"
 
