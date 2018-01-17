@@ -579,7 +579,7 @@ ifndef ($(NOUNIVERSAL))
 endif
 endif
 
-OBJOUT   = -o
+OBJOUT   = -o 
 LINKOUT  = -o 
 
 ifneq (,$(findstring msvc,$(platform)))
@@ -604,7 +604,9 @@ else
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-ifeq ($(STATIC_LINKING), 1)
+ifeq ($(platform), emscripten)
+	$(CXX) $(CFLAGS) $(OBJOUT)$@ $^
+else ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
 	$(LD) $(fpic) $(SHARED) $(LINKOUT)$@ $(OBJECTS) $(LDFLAGS) $(WINSOCKS)
