@@ -69,6 +69,9 @@ qboolean isDedicated;
 
 #define SURFCACHE_SIZE 10485760
 
+#define RETRO_DEVICE_CLASSIC RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)
+#define RETRO_DEVICE_MODERN  RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 2)
+
 extern void CDAudio_Update(void);
 
 unsigned width;
@@ -96,11 +99,87 @@ static struct retro_rumble_interface rumble;
 //is the range delcared somewhere in retroarch?
 #define ANALOG_RANGE 32768
 
+#define GP_MAXBINDS 32
 
+typedef struct {
+   struct retro_input_descriptor desc[GP_MAXBINDS];
+   struct {
+      char *key;
+      char *com;
+   } bind[GP_MAXBINDS];
+} gp_layout_t;
+
+gp_layout_t modern = {
+   {
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Look right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Look down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Look left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Look up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Firse" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Toggle run mode" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
+      { 0 },
+   },
+   {
+      {"JOY_LEFT",  "+moveleft"},     {"JOY_RIGHT", "+moveright"},
+      {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
+      {"JOY_B",     "+right"},        {"JOY_A",     "+lookdown"},
+      {"JOY_X",     "+left"},         {"JOY_Y",     "+lookup"},
+      {"JOY_L",     "impulse 12"},    {"JOY_R",     "impulse 10"},
+      {"JOY_L2",    "+jump"},         {"JOY_R2",    "+attack"},
+      {"JOY_L3",    "+togglewalk"},   {"JOY_R3",    "+moveup"},
+      {"JOY_SELECT","toggleconsole"}, {"JOY_START", "togglemenu"},
+      { 0 },
+   },
+};
+gp_layout_t classic = {
+
+   {
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Jump" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Cycle Weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Freelook" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Firessss" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Strafe Left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Strafe Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Look Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Look Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Swim down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle Run Mode" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
+      { 0 },
+   },
+   {
+      {"JOY_LEFT",  "+left"},         {"JOY_RIGHT", "+right"},
+      {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
+      {"JOY_B",     "+jump"} ,        {"JOY_A",     "impulse 10"},
+      {"JOY_X",     "+klook"},        {"JOY_Y",     "+attack"},
+      {"JOY_L",     "+moveleft"},     {"JOY_R",     "+moveright"},
+      {"JOY_L2",    "+lookup"},       {"JOY_R2",    "+lookdown"},
+      {"JOY_L3",    "+movedown"},     {"JOY_R3",    "+moveup"},
+      {"JOY_SELECT","+togglewalk"},   {"JOY_START", "togglemenu"},
+      { 0 },
+   },
+};
+
+gp_layout_t *gp_layoutp = NULL;
 
 cvar_t framerate = { "framerate", "60", true };
 static bool initial_resolution_set = false;
-
+static int invert_y_axis = 1;
 
 unsigned char *heap;
 
@@ -319,19 +398,43 @@ unsigned retro_api_version(void)
    return RETRO_API_VERSION;
 }
 
+void gp_layout_set_bind(gp_layout_t gp_layout)
+{
+   char buf[100];
+   unsigned i;
+   for (i=0; gp_layout.bind[i].key; ++i)
+   {
+      snprintf(buf, sizeof(buf), "bind %s \"%s\"", gp_layout.bind[i].key,
+                                                   gp_layout.bind[i].com);
+      Cmd_ExecuteString(buf, src_command);
+   }
+}
+
+
 void retro_set_controller_port_device(unsigned port, unsigned device)
 {
-   switch (device)
+   if (port == 0)
    {
-      case RETRO_DEVICE_JOYPAD:
-         quake_devices[port] = RETRO_DEVICE_JOYPAD;
-         break;
-      case RETRO_DEVICE_KEYBOARD:
-         quake_devices[port] = RETRO_DEVICE_KEYBOARD;
-         break;
-      default:
-         if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "[libretro]: Invalid device.\n");
+      switch (device)
+      {
+         case RETRO_DEVICE_JOYPAD:
+         case RETRO_DEVICE_CLASSIC:
+            quake_devices[port] = RETRO_DEVICE_CLASSIC;
+            environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, classic.desc);
+            gp_layout_set_bind(classic);
+            break;
+         case RETRO_DEVICE_MODERN:
+            quake_devices[port] = RETRO_DEVICE_MODERN;
+            environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, modern.desc);
+            gp_layout_set_bind(modern);
+            break;
+         case RETRO_DEVICE_KEYBOARD:
+            quake_devices[port] = RETRO_DEVICE_KEYBOARD;
+            break;
+         default:
+            if (log_cb)
+               log_cb(RETRO_LOG_ERROR, "[libretro]: Invalid device.\n");
+      }
    }
 }
 
@@ -359,106 +462,6 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.aspect_ratio = 4.0 / 3.0;
 }
 
-#define GP_MAXBINDS 32
-
-typedef struct {
-   char *name;
-   struct retro_input_descriptor desc[GP_MAXBINDS];
-   struct {
-      char *key;
-      char *com;
-   } bind[GP_MAXBINDS];
-} gp_layout_t;
-
-const char *layouts = "Change retropad layout; 1: New layout|2: Old layout";
-
-gp_layout_t gp_layouts[2] = {
-   {
-      "1: New layout",
-      {
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Look right" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Look down" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Look left" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Look up" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Toggle run mode" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
-         { 0 },
-      },
-      {
-         {"JOY_LEFT",  "+moveleft"},     {"JOY_RIGHT", "+moveright"},
-         {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
-         {"JOY_B",     "+right"},        {"JOY_A",     "+lookdown"},
-         {"JOY_X",     "+left"},         {"JOY_Y",     "+lookup"},
-         {"JOY_L",     "impulse 12"},    {"JOY_R",     "impulse 10"},
-         {"JOY_L2",    "+jump"},         {"JOY_R2",    "+attack"},
-         {"JOY_L3",    "+togglewalk"},   {"JOY_R3",    "+moveup"},
-         {"JOY_SELECT","toggleconsole"}, {"JOY_START", "togglemenu"},
-         { 0 },
-      }
-   },
-   {
-      "2: Old layout",
-      {
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Jump" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Cycle Weapon" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Freelook" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Fire" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Strafe Left" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Strafe Right" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Look Up" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Look Down" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Swim down" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle Run Mode" },
-         { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
-         { 0 },
-      },
-      {
-         {"JOY_LEFT",  "+left"},         {"JOY_RIGHT", "+right"},
-         {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
-         {"JOY_B",     "+jump"} ,        {"JOY_A",     "impulse 10"},
-         {"JOY_X",     "+klook"},        {"JOY_Y",     "+attack"},
-         {"JOY_L",     "+moveleft"},     {"JOY_R",     "+moveright"},
-         {"JOY_L2",    "+lookup"},       {"JOY_R2",    "+lookdown"},
-         {"JOY_L3",    "+movedown"},     {"JOY_R3",    "+moveup"},
-         {"JOY_SELECT","+togglewalk"},   {"JOY_START", "togglemenu"},
-         { 0 },
-      }
-   }
-};
-
-gp_layout_t *gp_layoutp = NULL;
-
-void gp_layout_set_desc(gp_layout_t gp_layout) {
-   environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, gp_layout.desc);
-}
-
-void gp_layout_set_bind(gp_layout_t gp_layout)
-{
-   char buf[100];
-   unsigned i;
-   for (i=0; gp_layout.bind[i].key; ++i)
-   {
-      snprintf(buf, sizeof(buf), "bind %s \"%s\"", gp_layout.bind[i].key,
-                                                   gp_layout.bind[i].com);
-      Cmd_ExecuteString(buf, src_command);
-   }
-}
-
 void retro_set_environment(retro_environment_t cb)
 {
    struct retro_variable variables[] = {
@@ -466,17 +469,18 @@ void retro_set_environment(retro_environment_t cb)
       { "tyrquake_resolution",
          "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
       { "tyrquake_rumble", "Rumble; disabled|enabled" },
-      { "tyrquake_retropad_layout", layouts },
+      { "tyrquake_invert_y_axis", "Invert Y Axis; disabled|enabled" },
       { NULL, NULL },
    };
 
    static const struct retro_controller_description port_1[] = {
-      { "RetroPad", RETRO_DEVICE_JOYPAD },
+      { "RetroPad Classic Layout", RETRO_DEVICE_CLASSIC },
+      { "RetroPad Modern Layout", RETRO_DEVICE_MODERN },
       { "RetroKeyboard/Mouse", RETRO_DEVICE_KEYBOARD },
    };
 
    static const struct retro_controller_info ports[] = {
-      { port_1, 2 },
+      { port_1, 3 },
       { 0 },
    };
 
@@ -538,6 +542,8 @@ void Sys_SendKeyEvents(void)
       switch (quake_devices[port])
       {
          case RETRO_DEVICE_JOYPAD:
+         case RETRO_DEVICE_CLASSIC:
+         case RETRO_DEVICE_MODERN:
             {
                unsigned i;
                for (i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
@@ -547,54 +553,6 @@ void Sys_SendKeyEvents(void)
                    else
                       Key_Event(K_JOY_B + i, 0);
                }
-
-               /* Disabled, need a way to switch between analog and digital
-                *  movement for the sticks.
-               int lsx=0, lsy=0, rsx=0, rsy=0;
-               lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-                     RETRO_DEVICE_ID_ANALOG_X);
-               lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
-                     RETRO_DEVICE_ID_ANALOG_Y);
-               rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                     RETRO_DEVICE_ID_ANALOG_X);
-               rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
-                     RETRO_DEVICE_ID_ANALOG_Y);
-
-
-               if (lsx > ANALOG_THRESHOLD)
-                  Key_Event(K_AUX1, 1);
-               else
-                  Key_Event(K_AUX1, 0);
-               if (lsx < -ANALOG_THRESHOLD)
-                  Key_Event(K_AUX2, 1);
-               else
-                  Key_Event(K_AUX2, 0);
-               if (lsy > ANALOG_THRESHOLD)
-                  Key_Event(K_AUX3, 1);
-               else
-                  Key_Event(K_AUX3, 0);
-               if (lsy < -ANALOG_THRESHOLD)
-                  Key_Event(K_AUX4, 1);
-               else
-                  Key_Event(K_AUX4, 0);
-
-               if (rsx > ANALOG_THRESHOLD)
-                  Key_Event(K_AUX5, 1);
-               else
-                  Key_Event(K_AUX5, 0);
-               if (rsx < -ANALOG_THRESHOLD)
-                  Key_Event(K_AUX6, 1);
-               else
-                  Key_Event(K_AUX6, 0);
-               if (rsy > ANALOG_THRESHOLD)
-                  Key_Event(K_AUX7, 1);
-               else
-                  Key_Event(K_AUX7, 0);
-               if (rsy < -ANALOG_THRESHOLD)
-                  Key_Event(K_AUX8, 1);
-               else
-                  Key_Event(K_AUX8, 0);
-               */
             }
             break;
          case RETRO_DEVICE_KEYBOARD:
@@ -734,22 +692,6 @@ static void update_variables(bool startup)
       initial_resolution_set = true;
    }
 
-   var.key = "tyrquake_retropad_layout";
-   var.value = NULL;
-
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
-   {
-      unsigned i;
-      for (i=0; i < sizeof(gp_layouts)/sizeof(gp_layout_t); ++i)
-      {
-         if (strcmp(var.value, gp_layouts[i].name) == 0)
-         {
-            gp_layoutp = gp_layouts + i;
-            gp_layout_set_desc(*gp_layoutp);
-         }
-      }
-   }
-
    var.key = "tyrquake_rumble";
    var.value = NULL;
 
@@ -759,6 +701,17 @@ static void update_variables(bool startup)
          state_rumble = false;
       else
          state_rumble = true;
+   }
+
+   var.key = "tyrquake_invert_y_axis";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0)
+         invert_y_axis = 1;
+      else
+         invert_y_axis = -1;
    }
 
 }
@@ -807,12 +760,6 @@ void retro_run(void)
    
    if (!state_rumble)
       retro_unset_rumble_strong();
-
-   if (gp_layoutp != NULL)
-   {
-      gp_layout_set_bind(*gp_layoutp);
-      gp_layoutp = NULL;
-   }
 
    Host_Frame(0.016667);
 
@@ -1368,7 +1315,7 @@ IN_Move(usercmd_t *cmd)
          cur_mx = mx;
          cur_my = my;
       }
-   } else if (quake_devices[0] == RETRO_DEVICE_JOYPAD) {
+   } else {
       // Left stick move
       lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                RETRO_DEVICE_ID_ANALOG_X);
@@ -1394,7 +1341,7 @@ IN_Move(usercmd_t *cmd)
       // Right stick Look
       rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_X);
-      rsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
+      rsy = invert_y_axis * input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
       if (rsx > ANALOG_DEADZONE || rsx < -ANALOG_DEADZONE) {
