@@ -69,7 +69,6 @@ qboolean isDedicated;
 
 #define SURFCACHE_SIZE 10485760
 
-#define RETRO_DEVICE_CLASSIC RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)
 #define RETRO_DEVICE_MODERN  RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 2)
 
 extern void CDAudio_Update(void);
@@ -122,7 +121,7 @@ gp_layout_t modern = {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Firse" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Toggle run mode" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Swim up" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
@@ -151,7 +150,7 @@ gp_layout_t classic = {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Jump" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Cycle Weapon" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Freelook" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Firessss" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Fire" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Strafe Left" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Strafe Right" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Look Up" },
@@ -418,8 +417,7 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
       switch (device)
       {
          case RETRO_DEVICE_JOYPAD:
-         case RETRO_DEVICE_CLASSIC:
-            quake_devices[port] = RETRO_DEVICE_CLASSIC;
+            quake_devices[port] = RETRO_DEVICE_JOYPAD;
             environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, classic.desc);
             gp_layout_set_bind(classic);
             break;
@@ -431,7 +429,9 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
          case RETRO_DEVICE_KEYBOARD:
             quake_devices[port] = RETRO_DEVICE_KEYBOARD;
             break;
+         case RETRO_DEVICE_NONE:
          default:
+            quake_devices[port] = RETRO_DEVICE_NONE;
             if (log_cb)
                log_cb(RETRO_LOG_ERROR, "[libretro]: Invalid device.\n");
       }
@@ -474,7 +474,7 @@ void retro_set_environment(retro_environment_t cb)
    };
 
    static const struct retro_controller_description port_1[] = {
-      { "RetroPad Classic Layout", RETRO_DEVICE_CLASSIC },
+      { "RetroPad Classic Layout", RETRO_DEVICE_JOYPAD },
       { "RetroPad Modern Layout", RETRO_DEVICE_MODERN },
       { "RetroKeyboard/Mouse", RETRO_DEVICE_KEYBOARD },
    };
@@ -542,7 +542,6 @@ void Sys_SendKeyEvents(void)
       switch (quake_devices[port])
       {
          case RETRO_DEVICE_JOYPAD:
-         case RETRO_DEVICE_CLASSIC:
          case RETRO_DEVICE_MODERN:
             {
                unsigned i;
@@ -610,6 +609,8 @@ void Sys_SendKeyEvents(void)
                Key_Event(K_RIGHTARROW, 1);
             else
                Key_Event(K_RIGHTARROW, 0);
+            break;
+         case RETRO_DEVICE_NONE:
             break;
       }
    }
@@ -1315,7 +1316,7 @@ IN_Move(usercmd_t *cmd)
          cur_mx = mx;
          cur_my = my;
       }
-   } else {
+   } else if (quake_devices[0] != RETRO_DEVICE_NONE && quake_devices[0] != RETRO_DEVICE_KEYBOARD) {
       // Left stick move
       lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                RETRO_DEVICE_ID_ANALOG_X);
