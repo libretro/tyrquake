@@ -474,9 +474,9 @@ void retro_set_environment(retro_environment_t cb)
    };
 
    static const struct retro_controller_description port_1[] = {
-      { "RetroPad Classic Layout", RETRO_DEVICE_JOYPAD },
-      { "RetroPad Modern Layout", RETRO_DEVICE_MODERN },
-      { "RetroKeyboard/Mouse", RETRO_DEVICE_KEYBOARD },
+      { "Gamepad Classic", RETRO_DEVICE_JOYPAD },
+      { "Gamepad Modern", RETRO_DEVICE_MODERN },
+      { "Keyboard + Mouse", RETRO_DEVICE_KEYBOARD },
    };
 
    static const struct retro_controller_info ports[] = {
