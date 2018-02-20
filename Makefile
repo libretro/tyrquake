@@ -312,6 +312,8 @@ CFLAGS   += -D_XBOX -D_XBOX1
 CXXFLAGS += -D_XBOX -D_XBOX1
 STATIC_LINKING=1
 HAS_GCC := 0
+USE_CODEC_FLAC = 0
+
 # Windows MSVC 2010 Xbox 360
 else ifeq ($(platform), xbox360_msvc2010)
 TARGET := $(TARGET_NAME)_libretro_xdk360.lib
@@ -503,7 +505,9 @@ ifeq ($(USE_CODEC_WAVE),1)
 CFLAGS+= -DUSE_CODEC_WAVE
 endif
 
+ifeq ($(USE_CODEC_FLAC),1)
 CFLAGS+= -DUSE_CODEC_FLAC
+endif
 
 ifeq ($(USE_CODEC_OPUS),1)
 # opus and opusfile put their *.h under <includedir>/opus,
