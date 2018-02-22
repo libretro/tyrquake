@@ -1,7 +1,7 @@
 /* Copyright  (C) 2010-2017 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
- * The following license statement only applies to this file (retro_dirent.h).
+ * The following license statement only applies to this file (utf.h).
  * ---------------------------------------------------------------------------------------
  *
  * Permission is hereby granted, free of charge,
@@ -20,41 +20,47 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __RETRO_DIRENT_H
-#define __RETRO_DIRENT_H
+#ifndef _LIBRETRO_ENCODINGS_UTF_H
+#define _LIBRETRO_ENCODINGS_UTF_H
 
-#include <retro_common_api.h>
-#include <retro_miscellaneous.h>
+#include <stdint.h>
+#include <stddef.h>
 
 #include <boolean.h>
 
+#include <retro_common_api.h>
+
 RETRO_BEGIN_DECLS
 
-typedef struct RDIR RDIR;
+enum CodePage
+{
+   CODEPAGE_LOCAL = 0, /* CP_ACP */
+   CODEPAGE_UTF8 = 65001 /* CP_UTF8 */
+};
 
-struct RDIR *retro_opendir(const char *name);
+size_t utf8_conv_utf32(uint32_t *out, size_t out_chars,
+      const char *in, size_t in_size);
 
-int retro_readdir(struct RDIR *rdir);
+bool utf16_conv_utf8(uint8_t *out, size_t *out_chars,
+      const uint16_t *in, size_t in_size);
 
-bool retro_dirent_error(struct RDIR *rdir);
+size_t utf8len(const char *string);
 
-void retro_dirent_include_hidden(struct RDIR *rdir, bool include_hidden);
+size_t utf8cpy(char *d, size_t d_len, const char *s, size_t chars);
 
-const char *retro_dirent_get_name(struct RDIR *rdir);
+const char *utf8skip(const char *str, size_t chars);
 
-/**
- *
- * retro_dirent_is_dir:
- * @rdir         : pointer to the directory entry.
- *
- * Is the directory listing entry a directory?
- *
- * Returns: true if directory listing entry is
- * a directory, false if not.
- */
-bool retro_dirent_is_dir(struct RDIR *rdir, const char *path);
+uint32_t utf8_walk(const char **string);
 
-void retro_closedir(struct RDIR *rdir);
+bool utf16_to_char_string(const uint16_t *in, char *s, size_t len);
+
+char* utf8_to_local_string_alloc(const char *str);
+
+char* local_to_utf8_string_alloc(const char *str);
+
+wchar_t* utf8_to_utf16_string_alloc(const char *str);
+
+char* utf16_to_utf8_string_alloc(const wchar_t *str);
 
 RETRO_END_DECLS
 
