@@ -1,11 +1,16 @@
+LIBRETRO_COMM_DIR  = $(CORE_DIR)/libretro-common
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
 LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
 LIBOGG_DIR     = $(CORE_DIR)/deps/libogg
 
 INCFLAGS   := \
 	-I$(CORE_DIR) \
-	-I$(CORE_DIR)/libretro-common/include \
+	-I$(LIBRETRO_COMM_DIR)/include \
 	-I$(CORE_DIR)/include \
+
+ifneq (,$(findstring msvc2003,$(platform)))
+INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc
+endif
 
 SOURCES_C :=  \
 	$(CORE_DIR)/common/cl_input.c \
