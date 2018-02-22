@@ -325,7 +325,7 @@ CFLAGS   += -D_XBOX -D_XBOX1
 CXXFLAGS += -D_XBOX -D_XBOX1
 STATIC_LINKING=1
 HAS_GCC := 0
-USE_CODEC_FLAC = 0
+USE_CODEC_FLAC=0
 
 # Windows MSVC 2010 Xbox 360
 else ifeq ($(platform), xbox360_msvc2010)
