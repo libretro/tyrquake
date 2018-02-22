@@ -105,7 +105,7 @@ else ifeq ($(platform), osx)
 	EXT    ?= dylib
 	TARGET := $(TARGET_NAME)_libretro.$(EXT)
    fpic := -fPIC
-   SHARED := -dynamiclib
+   SHARED := -dynamiclib -framework CoreFoundation
 ifeq ($(arch),ppc)
    CFLAGS += -D__ppc__ -DMSB_FIRST
 endif
@@ -118,7 +118,7 @@ else ifneq (,$(findstring ios,$(platform)))
 	EXT    ?= dylib
 	TARGET := $(TARGET_NAME)_libretro_ios.$(EXT)
    fpic := -fPIC
-   SHARED := -dynamiclib
+   SHARED := -dynamiclib -framework CoreFoundation
 
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
