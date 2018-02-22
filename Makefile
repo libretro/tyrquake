@@ -54,7 +54,11 @@ else ifneq ($(findstring MINGW,$(shell uname -a)),)
    system_platform = win
 endif
 
+ifneq (,$(findstring msvc,$(platform)))
+LIBS :=
+else
 LIBS := -lm
+endif
 
 ifeq ($(ARCHFLAGS),)
 ifeq ($(archs),ppc)
