@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "libretro.h"
 #include <retro_miscellaneous.h>
-#include <retro_stat.h>
+#include <file/file_path.h>
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
@@ -275,7 +275,7 @@ int Sys_FileTime(const char *path)
 
 void Sys_mkdir(const char *path)
 {
-   mkdir_norecurse(path);
+   path_mkdir(path);
 }
 
 void Sys_DebugLog(const char *file, const char *fmt, ...)

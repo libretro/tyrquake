@@ -101,8 +101,9 @@ ifneq ($(STATIC_LINKING),1)
 					 $(CORE_DIR)/libretro-common/file/retro_dirent.c \
 					 $(CORE_DIR)/libretro-common/encodings/encoding_utf.c \
 					 $(CORE_DIR)/libretro-common/string/stdstring.c \
-					 $(CORE_DIR)/libretro-common/file/retro_stat.c \
+					 $(CORE_DIR)/libretro-common/file/file_path.c \
 					 $(CORE_DIR)/libretro-common/compat/compat_strl.c \
+					 $(CORE_DIR)/libretro-common/compat/compat_strcasestr.c \
 					 $(CORE_DIR)/libretro-common/compat/compat_snprintf.c
 endif
 
