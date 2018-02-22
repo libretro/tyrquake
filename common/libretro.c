@@ -275,13 +275,7 @@ int Sys_FileTime(const char *path)
 
 void Sys_mkdir(const char *path)
 {
-#if defined(PSP) || defined(VITA)
-   sceIoMkdir(path, 0777);
-#elif defined(_WIN32)
-   mkdir(path);
-#else
-   mkdir(path, 0777);
-#endif
+   mkdir_norecurse(path);
 }
 
 void Sys_DebugLog(const char *file, const char *fmt, ...)
