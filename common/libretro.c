@@ -682,6 +682,9 @@ static void update_variables(bool startup)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = true;
+   } else {
+      width = 640;
+      height = 400;
    }
 
    var.key = "tyrquake_rumble";
