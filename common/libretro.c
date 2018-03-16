@@ -683,8 +683,8 @@ static void update_variables(bool startup)
 
       initial_resolution_set = true;
    } else {
-      width = 640;
-      height = 400;
+      width = 320;
+      height = 200;
    }
 
    var.key = "tyrquake_rumble";
