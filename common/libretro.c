@@ -682,6 +682,9 @@ static void update_variables(bool startup)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = true;
+   } else {
+      width = 640;
+      height = 400;
    }
 
    var.key = "tyrquake_rumble";
@@ -1098,9 +1101,9 @@ void VID_Shutdown(void)
 
 void VID_Update(vrect_t *rects)
 {
-   unsigned y;
+   unsigned x, y;
    struct retro_framebuffer fb = {0};
-   unsigned pitch              = width << 1;
+   unsigned pitch              = width;
    uint8_t *ilineptr           = (uint8_t*)vid.buffer;
    uint16_t *olineptr          = (uint16_t*)finalimage;
    uint16_t *pal               = (uint16_t*)&d_8to16table;
@@ -1118,16 +1121,20 @@ void VID_Update(vrect_t *rects)
    {
       ptr      = (uint16_t*)fb.data;
       olineptr = (uint16_t*)fb.data;
-      pitch    = fb.pitch << 1;
+      pitch    = fb.pitch >> 1;
    }
 
    if (!rects)
       return;
 
-   for (y = 0; y < rects->width * rects->height; ++y)
-      *olineptr++ = pal[*ilineptr++];
+   for (y = 0; y < rects->height; ++y) {
+      for (x = 0; x < rects->width; ++x) {
+        *olineptr++ = pal[*ilineptr++];
+      }
+      olineptr += pitch - rects->width;
+   }
 
-   video_cb(ptr, width, height, pitch);
+   video_cb(ptr, width, height, pitch << 1);
    did_flip = true;
 }
 
