@@ -614,10 +614,13 @@ void Sys_SendKeyEvents(void)
 static void keyboard_cb(bool down, unsigned keycode,
       uint32_t character, uint16_t mod)
 {
-   if (down)
-      Key_Event((knum_t) keycode, 1);
-   else
-      Key_Event((knum_t) keycode, 0);
+  // character-only events are discarded
+  if (keycode != RETROK_UNKNOWN) {
+      if (down)
+         Key_Event((knum_t) keycode, 1);
+      else
+         Key_Event((knum_t) keycode, 0);
+   }
 }
 
 void Sys_Sleep(void)
