@@ -513,6 +513,8 @@ void retro_reset(void)
    M_Game_StartNewGame();
 }
 
+static bool keyboard_cb_set;
+
 void Sys_SendKeyEvents(void)
 {
    int port;
@@ -580,26 +582,28 @@ void Sys_SendKeyEvents(void)
                Key_Event(K_MOUSE7, 1);
             else
                Key_Event(K_MOUSE7, 0);
-		   
-		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
-               Key_Event(K_UPARROW, 1);
-            else
-               Key_Event(K_UPARROW, 0);
-		   
-		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
-               Key_Event(K_DOWNARROW, 1);
-            else
-               Key_Event(K_DOWNARROW, 0);		
-		   
-		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
-               Key_Event(K_LEFTARROW, 1);
-            else
-               Key_Event(K_LEFTARROW, 0);		
-		   
-		    if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
-               Key_Event(K_RIGHTARROW, 1);
-            else
-               Key_Event(K_RIGHTARROW, 0);
+
+            if (!keyboard_cb_set) {
+               if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
+                  Key_Event(K_UPARROW, 1);
+               else
+                  Key_Event(K_UPARROW, 0);
+
+               if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_DOWN))
+                  Key_Event(K_DOWNARROW, 1);
+               else
+                  Key_Event(K_DOWNARROW, 0);
+
+               if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_LEFT))
+                  Key_Event(K_LEFTARROW, 1);
+               else
+                  Key_Event(K_LEFTARROW, 0);
+
+               if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_RIGHT))
+                  Key_Event(K_RIGHTARROW, 1);
+               else
+                  Key_Event(K_RIGHTARROW, 0);
+               }
             break;
          case RETRO_DEVICE_NONE:
             break;
@@ -804,7 +808,7 @@ bool retro_load_game(const struct retro_game_info *info)
    for (i=0; path_lower[i]; ++i)
        path_lower[i] = tolower(path_lower[i]);
 
-   environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
+   keyboard_cb_set = environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
 
    update_variables(true);
 
