@@ -689,7 +689,9 @@ static void update_variables(bool startup)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = true;
-   } else {
+   }
+   else
+   {
       width = 320;
       height = 200;
    }
@@ -1005,7 +1007,8 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
    (void)index;
    (void)enabled;
 
-   Cmd_ExecuteString(code, src_command);
+   if (code)
+      Cmd_ExecuteString(code, src_command);
 }
 
 /*
@@ -1109,35 +1112,19 @@ void VID_Shutdown(void)
 void VID_Update(vrect_t *rects)
 {
    unsigned x, y;
-   struct retro_framebuffer fb = {0};
    unsigned pitch              = width;
    uint8_t *ilineptr           = (uint8_t*)vid.buffer;
    uint16_t *olineptr          = (uint16_t*)finalimage;
    uint16_t *pal               = (uint16_t*)&d_8to16table;
    uint16_t *ptr               = (uint16_t*)finalimage;
 
-   fb.width                    = width;
-   fb.height                   = height;
-   fb.access_flags             = RETRO_MEMORY_ACCESS_WRITE;
-
-   if (!video_cb)
+   if (!video_cb || !rects)
       return;
 
-   if (environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb) 
-         && fb.format == RETRO_PIXEL_FORMAT_RGB565)
+   for (y = 0; y < rects->height; ++y)
    {
-      ptr      = (uint16_t*)fb.data;
-      olineptr = (uint16_t*)fb.data;
-      pitch    = fb.pitch >> 1;
-   }
-
-   if (!rects)
-      return;
-
-   for (y = 0; y < rects->height; ++y) {
-      for (x = 0; x < rects->width; ++x) {
-        *olineptr++ = pal[*ilineptr++];
-      }
+      for (x = 0; x < rects->width; ++x)
+         *olineptr++ = pal[*ilineptr++];
       olineptr += pitch - rects->width;
    }
 
