@@ -73,8 +73,8 @@ qboolean isDedicated;
 
 extern void CDAudio_Update(void);
 
-unsigned width;
-unsigned height;
+unsigned width       = 320;
+unsigned height      = 200;
 unsigned device_type = 0;
 
 unsigned MEMSIZE_MB;
@@ -689,11 +689,6 @@ static void update_variables(bool startup)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
 
       initial_resolution_set = true;
-   }
-   else
-   {
-      width = 320;
-      height = 200;
    }
 
    var.key = "tyrquake_rumble";
