@@ -1073,7 +1073,7 @@ M_OptionsInput_Key(int k)
 //=============================================================================
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 8
+#define	OPTIONSVIDEO_ITEMS 9
 
 static int optionsvideo_cursor;
 
@@ -1128,6 +1128,10 @@ M_OptionsVideo_AdjustSliders(int dir)
        Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
        break;
    case 7:
+       cvar = Cvar_FindVar("r_lerpmove");
+       Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
+       break;
+   case 8:
        cvar = Cvar_FindVar("framerate");
        Cvar_SetValue("framerate", (cvar->value == 60) ? 50.0f : 60.0f);
        break;
@@ -1173,13 +1177,17 @@ M_OptionsVideo_Draw(void)
     cvar = Cvar_FindVar("r_lerpmodels");
     M_Print(16, 80, "      Smooth Animation");
     M_DrawCheckbox(220, 80, cvar->value);
+    
+    cvar = Cvar_FindVar("r_lerpmove");
+    M_Print(16, 88, "      Smooth Movement");
+    M_DrawCheckbox(220, 88, cvar->value);
 
     cvar = Cvar_FindVar("framerate");
-    M_Print(16,88, "      Framerate");
+    M_Print(16,96, "      Framerate");
     if (cvar->value == 60)
-       M_Print(220,88, "60fps");
+       M_Print(220,96, "60fps");
     else
-       M_Print(220,88,"50fps");
+       M_Print(220,96,"50fps");
 
 // cursor
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,
