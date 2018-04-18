@@ -92,11 +92,11 @@ static struct retro_rumble_interface rumble;
 #endif
 
 #define SAMPLERATE 44100
-#define ANALOG_THRESHOLD 4096 * 4
-//is there a deadzone setting in retroarch?
-#define ANALOG_DEADZONE 2700
-//is the range delcared somewhere in retroarch?
-#define ANALOG_RANGE 32768
+
+// System analog stick range is -0x8000 to 0x8000
+#define ANALOG_RANGE 0x8000
+// Default deadzone: 15%
+static int analog_deadzone = (int)(0.15f * ANALOG_RANGE);
 
 #define GP_MAXBINDS 32
 
@@ -461,6 +461,7 @@ void retro_set_environment(retro_environment_t cb)
          "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
       { "tyrquake_rumble", "Rumble; disabled|enabled" },
       { "tyrquake_invert_y_axis", "Invert Y Axis; disabled|enabled" },
+      { "tyrquake_analog_deadzone", "Analog Deadzone (percent); 15|20|25|30|0|5|10" },
       { NULL, NULL },
    };
 
@@ -711,6 +712,14 @@ static void update_variables(bool startup)
          invert_y_axis = 1;
       else
          invert_y_axis = -1;
+   }
+   
+   var.key = "tyrquake_analog_deadzone";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+		analog_deadzone = (int)(atoi(var.value) * 0.01f * ANALOG_RANGE);
    }
 
 }
@@ -1310,20 +1319,20 @@ IN_Move(usercmd_t *cmd)
       lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (lsx > ANALOG_DEADZONE || lsx < -ANALOG_DEADZONE) {
-         if (lsx > ANALOG_DEADZONE)
-            lsx = lsx - ANALOG_DEADZONE;
-         if (lsx < -ANALOG_DEADZONE)
-            lsx = lsx + ANALOG_DEADZONE;
-         cmd->sidemove += cl_sidespeed.value * lsx / ANALOG_RANGE;
+      if (lsx > analog_deadzone || lsx < -analog_deadzone) {
+         if (lsx > analog_deadzone)
+            lsx = lsx - analog_deadzone;
+         if (lsx < -analog_deadzone)
+            lsx = lsx + analog_deadzone;
+         cmd->sidemove += cl_sidespeed.value * lsx / (ANALOG_RANGE - analog_deadzone);
       }
 
-      if (lsy > ANALOG_DEADZONE || lsy < -ANALOG_DEADZONE) {
-         if (lsy > ANALOG_DEADZONE)
-            lsy = lsy - ANALOG_DEADZONE;
-         if (lsy < -ANALOG_DEADZONE)
-            lsy = lsy + ANALOG_DEADZONE;
-         cmd->forwardmove -= cl_forwardspeed.value * lsy / ANALOG_RANGE;
+      if (lsy > analog_deadzone || lsy < -analog_deadzone) {
+         if (lsy > analog_deadzone)
+            lsy = lsy - analog_deadzone;
+         if (lsy < -analog_deadzone)
+            lsy = lsy + analog_deadzone;
+         cmd->forwardmove -= cl_forwardspeed.value * lsy / (ANALOG_RANGE - analog_deadzone);
       }
 
       // Right stick Look
@@ -1332,22 +1341,22 @@ IN_Move(usercmd_t *cmd)
       rsy = invert_y_axis * input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (rsx > ANALOG_DEADZONE || rsx < -ANALOG_DEADZONE) {
-         if (rsx > ANALOG_DEADZONE)
-            rsx = rsx - ANALOG_DEADZONE;
-         if (rsx < -ANALOG_DEADZONE)
-            rsx = rsx + ANALOG_DEADZONE;
+      if (rsx > analog_deadzone || rsx < -analog_deadzone) {
+         if (rsx > analog_deadzone)
+            rsx = rsx - analog_deadzone;
+         if (rsx < -analog_deadzone)
+            rsx = rsx + analog_deadzone;
          // For now we are sharing the sensitivity with the mouse setting
-         cl.viewangles[YAW] -= rsx * sensitivity.value / ANALOG_RANGE;
+         cl.viewangles[YAW] -= sensitivity.value * rsx / (ANALOG_RANGE - analog_deadzone);
       }
 
       V_StopPitchDrift();
-      if (rsy > ANALOG_DEADZONE || rsy < -ANALOG_DEADZONE) {
-         if (rsy > ANALOG_DEADZONE)
-            rsy = rsy - ANALOG_DEADZONE;
-         if (rsy < -ANALOG_DEADZONE)
-            rsy = rsy + ANALOG_DEADZONE;
-         cl.viewangles[PITCH] -= rsy * sensitivity.value / ANALOG_RANGE;
+      if (rsy > analog_deadzone || rsy < -analog_deadzone) {
+         if (rsy > analog_deadzone)
+            rsy = rsy - analog_deadzone;
+         if (rsy < -analog_deadzone)
+            rsy = rsy + analog_deadzone;
+         cl.viewangles[PITCH] -= sensitivity.value * rsy / (ANALOG_RANGE - analog_deadzone);
       }
 
       if (cl.viewangles[PITCH] > 80)
