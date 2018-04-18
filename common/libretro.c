@@ -122,7 +122,7 @@ gp_layout_t modern = {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle console" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Show Scores" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
       { 0 },
    },
@@ -133,7 +133,7 @@ gp_layout_t modern = {
       {"JOY_X",     "+moveup"},       {"JOY_Y",     "+moveleft"},
       {"JOY_L",     "impulse 12"},    {"JOY_R",     "impulse 10"},
       {"JOY_L2",    "+jump"},         {"JOY_R2",    "+attack"},
-      {"JOY_SELECT","toggleconsole"}, {"JOY_START", "togglemenu"},
+      {"JOY_SELECT","+showscores"},   {"JOY_START", "togglemenu"},
       { 0 },
    },
 };
