@@ -204,6 +204,7 @@ typedef struct {
 
 typedef struct {
     const char *basedir;
+    const char *savedir;
     int argc;
     const char **argv;
     void *membase;

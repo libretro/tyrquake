@@ -273,11 +273,6 @@ int Sys_FileTime(const char *path)
    return buf.st_mtime;
 }
 
-void Sys_mkdir(const char *path)
-{
-   path_mkdir(path);
-}
-
 void Sys_DebugLog(const char *file, const char *fmt, ...)
 {
 }
@@ -802,8 +797,18 @@ static void extract_directory(char *buf, const char *path, size_t size)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+   
+   // Define slash character
+   // (Handle Windows nonsense...)
+   char slash;
+#if defined(_WIN32)
+   slash = '\\';
+#else
+   slash = '/';
+#endif
+   
    unsigned i;
-   char g_rom_dir[1024], g_pak_path[1024];
+   char g_rom_dir[1024], g_pak_path[1024], g_save_dir[1024];
    char cfg_file[1024];
    char *path_lower;
    quakeparms_t parms;
@@ -824,6 +829,36 @@ bool retro_load_game(const struct retro_game_info *info)
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 
    snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
+   
+   // Get save directory...
+   bool save_path_valid = false;
+   // > Get base path
+   const char *base_save_dir = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
+   {
+		if (strlen(base_save_dir) > 0)
+		{
+			// Get game 'name' (i.e. subdirectory)
+			char game_name[1024];
+			extract_basename(game_name, g_rom_dir, sizeof(game_name));
+			
+			// > Build final save path
+			snprintf(g_save_dir, sizeof(g_save_dir), "%s%c%s", base_save_dir, slash, game_name);
+			save_path_valid = true;
+			
+			// > Create save directory, if required
+			if (!path_is_directory(g_save_dir))
+			{
+				save_path_valid = path_mkdir(g_save_dir);
+			}
+		}
+   }
+   // > Error check
+   if (!save_path_valid)
+   {
+		// > Use ROM directory fallback...
+		snprintf(g_save_dir, sizeof(g_save_dir), "%s", g_rom_dir);
+	}
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
       log_cb(RETRO_LOG_INFO, "Rumble environment supported.\n");
@@ -847,6 +882,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    parms.argc = 1;
    parms.basedir = g_rom_dir;
+   parms.savedir = g_save_dir;
    parms.memsize = MEMSIZE_MB * 1024 * 1024;
    argv[0] = empty_string;
 
@@ -921,9 +957,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */
-   snprintf(cfg_file, sizeof(cfg_file), "%s/config.cfg", g_rom_dir);
+   snprintf(cfg_file, sizeof(cfg_file), "%s%cconfig.cfg", g_save_dir, slash);
 
-   if (path_is_valid(cfg_file))
+   if (!path_is_valid(cfg_file))
    {
        Cvar_Set("gamma", "0.95");
        Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
