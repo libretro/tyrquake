@@ -831,7 +831,7 @@ bool retro_load_game(const struct retro_game_info *info)
    snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
    
    // Get save directory...
-   bool save_path_valid = false;
+   bool use_external_savedir = false;
    // > Get base path
    const char *base_save_dir = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
@@ -844,20 +844,26 @@ bool retro_load_game(const struct retro_game_info *info)
 			
 			// > Build final save path
 			snprintf(g_save_dir, sizeof(g_save_dir), "%s%c%s", base_save_dir, slash, game_name);
-			save_path_valid = true;
+			use_external_savedir = true;
 			
 			// > Create save directory, if required
 			if (!path_is_directory(g_save_dir))
 			{
-				save_path_valid = path_mkdir(g_save_dir);
+				use_external_savedir = path_mkdir(g_save_dir);
 			}
 		}
    }
    // > Error check
-   if (!save_path_valid)
+   if (!use_external_savedir)
    {
 		// > Use ROM directory fallback...
 		snprintf(g_save_dir, sizeof(g_save_dir), "%s", g_rom_dir);
+	}
+	else
+	{
+		// > Final check: is the save directory the same as the 'rom' directory?
+		//   (i.e. ensure logical behaviour if user has set a bizarre save path...)
+		use_external_savedir = (strcmp(g_save_dir, g_rom_dir) != 0);
 	}
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE, &rumble))
@@ -883,6 +889,7 @@ bool retro_load_game(const struct retro_game_info *info)
    parms.argc = 1;
    parms.basedir = g_rom_dir;
    parms.savedir = g_save_dir;
+   parms.use_exernal_savedir = use_external_savedir ? 1 : 0;
    parms.memsize = MEMSIZE_MB * 1024 * 1024;
    argv[0] = empty_string;
 

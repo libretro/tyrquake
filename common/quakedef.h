@@ -205,6 +205,7 @@ typedef struct {
 typedef struct {
     const char *basedir;
     const char *savedir;
+    unsigned short use_exernal_savedir; // should be a bool, but don't want to mess with the headers...
     int argc;
     const char **argv;
     void *membase;
