@@ -271,7 +271,7 @@ Host_WriteConfiguration(void)
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars
     if (host_initialized & !isDedicated) {
-	f = fopen(va("%s/config.cfg", com_gamedir), "w");
+	f = fopen(va("%s/config.cfg", com_savedir), "w");
 	if (!f) {
 	    Con_Printf("Couldn't write config.cfg.\n");
 	    return;
