@@ -802,21 +802,18 @@ static void extract_directory(char *buf, const char *path, size_t size)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
-   
-   // Define slash character
-   // (Handle Windows nonsense...)
-   char slash;
-#if defined(_WIN32)
-   slash = '\\';
-#else
-   slash = '/';
-#endif
-   
    unsigned i;
    char g_rom_dir[1024], g_pak_path[1024], g_save_dir[1024];
    char cfg_file[1024];
    char *path_lower;
    quakeparms_t parms;
+#if defined(_WIN32)
+   char slash = '\\';
+#else
+   char slash = '/';
+#endif
+   bool use_external_savedir = false;
+   const char *base_save_dir = NULL;
    struct retro_keyboard_callback cb = { keyboard_cb };
 
    if (!info)
@@ -835,10 +832,6 @@ bool retro_load_game(const struct retro_game_info *info)
 
    snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
    
-   // Get save directory...
-   bool use_external_savedir = false;
-   // > Get base path
-   const char *base_save_dir = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
    {
 		if (strlen(base_save_dir) > 0)
