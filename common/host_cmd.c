@@ -498,7 +498,7 @@ void Host_Savegame_f(void)
       }
    }
 
-   sprintf(name, "%s%c%s", com_savedir, slash, Cmd_Argv(1));
+   sprintf(name, "%s%c%s", com_gamedir, slash, Cmd_Argv(1));
    COM_DefaultExtension(name, ".sav");
 
    Con_Printf("Saving game to %s...\n", name);
@@ -572,7 +572,7 @@ void Host_Loadgame_f(void)
 
    cls.demonum = -1;		// stop demo loop in case this fails
 
-   sprintf(name, "%s%c%s", com_savedir, slash, Cmd_Argv(1));
+   sprintf(name, "%s%c%s", com_gamedir, slash, Cmd_Argv(1));
    COM_DefaultExtension(name, ".sav");
 
    // we can't call SCR_BeginLoadingPlaque, because too much stack space has

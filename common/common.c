@@ -1264,7 +1264,6 @@ typedef struct
 
 char com_gamedir[MAX_OSPATH];
 char com_basedir[MAX_OSPATH];
-char com_savedir[MAX_OSPATH];
 
 typedef struct searchpath_s {
     char filename[MAX_OSPATH];
@@ -1975,9 +1974,6 @@ static void COM_InitFilesystem(void)
    searchpath_t *search;
 #endif
 
-   // Set save directory
-   strcpy(com_savedir, host_parms.savedir);
-   
    // -basedir <path>
    // Overrides the system supplied base directory (under id1)
    i = COM_CheckParm("-basedir");
@@ -2006,17 +2002,6 @@ static void COM_InitFilesystem(void)
 #ifdef QW_HACK
    COM_AddGameDirectory(com_basedir, "qw");
 #endif
-   
-   // Hack: Add save directory to search path, otherwise 'exec config.cfg' will fail
-   // (NB: 'host_parms.use_exernal_savedir' is a bit of a kludge, but since basedir
-   //  changes depending upon the game being loaded and various flags modify the
-   //  final 'rom' directory, it's the cleanest way to prevent the same directory
-   //  being added to the search list twice...)
-   if (host_parms.use_exernal_savedir != 0)
-   {
-		COM_AddGameDirectory(com_savedir, "");
-	}
-   
    //
    // -path <dir or packfile> [<dir or packfile>] ...
    // Fully specifies the exact search path, overriding the generated one

@@ -322,7 +322,7 @@ void Con_Printf(const char *fmt, ...)
 
    /* log all messages to file */
    if (debuglog)
-      Sys_DebugLog(va("%s/qconsole.log", com_savedir), "%s", msg);
+      Sys_DebugLog(va("%s/qconsole.log", com_gamedir), "%s", msg);
 
    if (!con_initialized)
       return;
@@ -381,7 +381,7 @@ Con_DPrintf(const char *fmt, ...)
 	    va_start(argptr, fmt);
 	    vsnprintf(msg + 7, sizeof(msg) - 7, fmt, argptr);
 	    va_end(argptr);
-	    Sys_DebugLog(va("%s/qconsole.log", com_savedir), "%s", msg);
+	    Sys_DebugLog(va("%s/qconsole.log", com_gamedir), "%s", msg);
 	}
 	return;
     }
