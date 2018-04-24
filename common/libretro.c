@@ -377,10 +377,13 @@ void retro_init(void)
       log_cb = log.log;
    else
       log_cb = NULL;
+
+   Sys_Init();
 }
 
 void retro_deinit(void)
 {
+   Sys_Quit();
 }
 
 unsigned retro_api_version(void)
@@ -937,8 +940,6 @@ bool retro_load_game(const struct retro_game_info *info)
       log_cb(RETRO_LOG_INFO, "QuakeWorld Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
 #endif
 
-   Sys_Init();
-
    if (!Host_Init(&parms))
    {
       struct retro_message msg;
@@ -999,7 +1000,6 @@ bool retro_load_game(const struct retro_game_info *info)
 
 void retro_unload_game(void)
 {
-   Sys_Quit();
    if (heap)
       free(heap);
 }
