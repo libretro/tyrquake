@@ -519,8 +519,6 @@ void retro_reset(void)
    M_Game_StartNewGame();
 }
 
-static bool keyboard_cb_set;
-
 void Sys_SendKeyEvents(void)
 {
    int port;
@@ -589,7 +587,7 @@ void Sys_SendKeyEvents(void)
             else
                Key_Event(K_MOUSE7, 0);
 
-            if (!keyboard_cb_set) {
+            if (quake_devices[0] == RETRO_DEVICE_KEYBOARD) {
                if (input_cb(port, RETRO_DEVICE_KEYBOARD, 0, RETROK_UP))
                   Key_Event(K_UPARROW, 1);
                else
@@ -829,7 +827,7 @@ bool retro_load_game(const struct retro_game_info *info)
    for (i=0; path_lower[i]; ++i)
        path_lower[i] = tolower(path_lower[i]);
 
-   keyboard_cb_set = environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
+   environ_cb(RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK, &cb);
 
    update_variables(true);
 
