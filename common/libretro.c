@@ -174,7 +174,7 @@ gp_layout_t classic = {
 
 gp_layout_t *gp_layoutp = NULL;
 
-cvar_t framerate = { "framerate", "120", true };
+cvar_t framerate = { "framerate", "60", true };
 static bool initial_resolution_set = false;
 static int invert_y_axis = 1;
 
@@ -449,8 +449,8 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-   info->timing.fps = 120;
-   info->timing.sample_rate = SAMPLERATE;
+   info->timing.fps            = framerate.value;
+   info->timing.sample_rate    = SAMPLERATE;
 
    info->geometry.base_width   = width;
    info->geometry.base_height  = height;
@@ -773,7 +773,7 @@ void retro_run(void)
    if (!state_rumble)
       retro_unset_rumble_strong();
 
-   Host_Frame(0.008334);
+   Host_Frame(0.016667);
 
    if (shutdown_core)
       return;
@@ -958,8 +958,8 @@ bool retro_load_game(const struct retro_game_info *info)
    }
 
    Cvar_RegisterVariable(&framerate);
-   Cvar_Set("framerate", "120");
-   Cvar_Set("sys_ticrate", "0.008334");
+   Cvar_Set("framerate", "60");
+   Cvar_Set("sys_ticrate", "0.016667");
 
 
    /* Override some default binds with more modern ones if we are booting the 
@@ -1225,7 +1225,7 @@ static void audio_process(void)
 static void audio_callback(void)
 {
    unsigned read_first, read_second;
-   float samples_per_frame = (2 * SAMPLERATE) / 120;
+   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
    if (read_end > AUDIO_BUFFER_SAMPLES)
