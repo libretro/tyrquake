@@ -1,4 +1,6 @@
+ifeq ($(LIBRETRO_COMM_DIR),)
 LIBRETRO_COMM_DIR  = $(CORE_DIR)/libretro-common
+endif
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
 LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
 LIBOGG_DIR     = $(CORE_DIR)/deps/libogg
