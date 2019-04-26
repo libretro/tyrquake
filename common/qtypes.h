@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef QTYPES_H
 #define QTYPES_H
 
+#include <stddef.h>
+
 typedef unsigned char byte;
 
 // KJB Undefine true and false defined in SciTech's DEBUG.H header
