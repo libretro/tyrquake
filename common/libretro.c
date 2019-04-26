@@ -119,8 +119,8 @@ gp_layout_t modern = {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Strafe Right" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Strafe Left" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Swim Up" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous weapon" },
-      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Previous Weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Next Weapon" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Jump" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Fire" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Show Scores" },
@@ -167,6 +167,39 @@ gp_layout_t classic = {
       {"JOY_L",     "+moveleft"},     {"JOY_R",     "+moveright"},
       {"JOY_L2",    "+lookup"},       {"JOY_R2",    "+lookdown"},
       {"JOY_L3",    "+movedown"},     {"JOY_R3",    "+moveup"},
+      {"JOY_SELECT","+togglewalk"},   {"JOY_START", "togglemenu"},
+      { 0 },
+   },
+};
+gp_layout_t classic_alt = {
+
+   {
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "D-Pad Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "D-Pad Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B,     "Look Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,     "Look Right" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,     "Look Up" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y,     "Look Left" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Jump" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R,     "Fire" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L2,    "Run" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2,    "Next Weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L3,    "Move Down" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R3,    "Previous Weapon" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_SELECT,"Toggle Run Mode" },
+      { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_START, "Menu" },
+      { 0 },
+   },
+   {
+      {"JOY_LEFT",  "+moveleft"},     {"JOY_RIGHT", "+moveright"},
+      {"JOY_DOWN",  "+back"},         {"JOY_UP",    "+forward"},
+      {"JOY_B",     "+lookdown"},     {"JOY_A",     "+right"},
+      {"JOY_X",     "+lookup"},       {"JOY_Y",     "+left"},
+      {"JOY_L",     "+jump"},         {"JOY_R",     "+attack"},
+      {"JOY_L2",    "+speed"},          {"JOY_R2",    "impulse 10"},
+      {"JOY_L3",    "+movedown"},     {"JOY_R3",    "impulse 12"},
       {"JOY_SELECT","+togglewalk"},   {"JOY_START", "togglemenu"},
       { 0 },
    },
@@ -418,6 +451,11 @@ void retro_set_controller_port_device(unsigned port, unsigned device)
             environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, classic.desc);
             gp_layout_set_bind(classic);
             break;
+         case RETRO_DEVICE_JOYPAD_ALT:
+            quake_devices[port] = RETRO_DEVICE_JOYPAD;
+            environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, classic_alt.desc);
+            gp_layout_set_bind(classic_alt);
+            break;
          case RETRO_DEVICE_MODERN:
             quake_devices[port] = RETRO_DEVICE_MODERN;
             environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, modern.desc);
@@ -473,6 +511,7 @@ void retro_set_environment(retro_environment_t cb)
 
    static const struct retro_controller_description port_1[] = {
       { "Gamepad Classic", RETRO_DEVICE_JOYPAD },
+      { "Gamepad Classic Alt", RETRO_DEVICE_JOYPAD_ALT },
       { "Gamepad Modern", RETRO_DEVICE_MODERN },
       { "Keyboard + Mouse", RETRO_DEVICE_KEYBOARD },
    };
@@ -540,6 +579,7 @@ void Sys_SendKeyEvents(void)
       switch (quake_devices[port])
       {
          case RETRO_DEVICE_JOYPAD:
+         case RETRO_DEVICE_JOYPAD_ALT:
          case RETRO_DEVICE_MODERN:
             {
                unsigned i;
