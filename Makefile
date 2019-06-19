@@ -613,7 +613,7 @@ USE_CODEC_FLAC=0
 else
 	EXT    ?= dll
 	TARGET := $(TARGET_NAME)_libretro.$(EXT)
-   CC = gcc
+   CC ?= gcc
    fpic :=
    LD_FLAGS :=
    SHARED := -shared -static-libgcc -static-libstdc++ -s
