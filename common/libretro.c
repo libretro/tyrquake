@@ -588,24 +588,24 @@ void Sys_SendKeyEvents(void)
          case RETRO_DEVICE_JOYPAD:
          case RETRO_DEVICE_JOYPAD_ALT:
          case RETRO_DEVICE_MODERN:
-            if (libretro_supports_bitmasks)
             {
                unsigned i;
-               int16_t ret = input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
-               for (i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
+               int16_t ret    = 0;
+               if (libretro_supports_bitmasks)
+                  ret = input_cb(port, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_MASK);
+               else
+               {
+                  for (i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
+                  {
+                     if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
+                        ret |= (1 << i);
+                  }
+               }
+
+               for (i=RETRO_DEVICE_ID_JOYPAD_B; 
+                     i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
                {
                   if (ret & (1 << i))
-                     Key_Event(K_JOY_B + i, 1);
-                  else
-                     Key_Event(K_JOY_B + i, 0);
-               }
-            }
-            else
-            {
-               unsigned i;
-               for (i=RETRO_DEVICE_ID_JOYPAD_B; i <= RETRO_DEVICE_ID_JOYPAD_R3; ++i)
-               {
-                  if (input_cb(port, RETRO_DEVICE_JOYPAD, 0, i))
                      Key_Event(K_JOY_B + i, 1);
                   else
                      Key_Event(K_JOY_B + i, 0);
