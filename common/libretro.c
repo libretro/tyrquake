@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "libretro.h"
+#include "libretro_core_options.h"
 #include <retro_miscellaneous.h>
 #include <retro_timers.h>
 #include <file/file_path.h>
@@ -506,16 +507,6 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 void retro_set_environment(retro_environment_t cb)
 {
-   struct retro_variable variables[] = {
-      { "tyrquake_colored_lighting", "Colored lighting (restart); disabled|enabled" },
-      { "tyrquake_resolution",
-         "Resolution (restart); 320x200|640x400|960x600|1280x800|1600x1000|1920x1200|320x240|320x480|360x200|360x240|360x400|360x480|400x224|480x272|512x224|512x240|512x384|512x512|640x224|640x240|640x448|640x480|720x576|800x480|800x600|960x720|1024x768|1280x720|1600x900|1920x1080" },
-      { "tyrquake_rumble", "Rumble; disabled|enabled" },
-      { "tyrquake_invert_y_axis", "Invert Y Axis; disabled|enabled" },
-      { "tyrquake_analog_deadzone", "Analog Deadzone (percent); 15|20|25|30|0|5|10" },
-      { NULL, NULL },
-   };
-
    static const struct retro_controller_description port_1[] = {
       { "Gamepad Classic", RETRO_DEVICE_JOYPAD },
       { "Gamepad Classic Alt", RETRO_DEVICE_JOYPAD_ALT },
@@ -530,7 +521,7 @@ void retro_set_environment(retro_environment_t cb)
 
    environ_cb = cb;
 
-   cb(RETRO_ENVIRONMENT_SET_VARIABLES, variables);
+   libretro_set_core_options(environ_cb);
    cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
 }
 
