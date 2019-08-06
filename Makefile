@@ -228,7 +228,7 @@ else ifeq ($(platform), rpi3_64)
         fpic := -fPIC
         SHARED := -shared -Wl,--version-script=common/libretro-link.T
         CFLAGS += -DARM
-        CFLAGS += -marm -march=armv8-a+crc -mtune=cortex-a53
+        CFLAGS += -march=armv8-a+crc -mtune=cortex-a53
         CFLAGS += -fomit-frame-pointer
 
 # Libxenon
