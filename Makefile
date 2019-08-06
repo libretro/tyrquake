@@ -202,7 +202,7 @@ else ifeq ($(platform), rpi1)
         SHARED := -shared -Wl,--version-script=common/libretro-link.T
         CFLAGS += -DARM11
         CFLAGS += -marm -march=armv6j -mfloat-abi=hard -mfpu=vfp
-        CFLAGS += -fomit-frame-pointer -ffast-math
+        CFLAGS += -fomit-frame-pointer
 
 # Raspberry Pi 2
 else ifeq ($(platform), rpi2)
@@ -211,7 +211,7 @@ else ifeq ($(platform), rpi2)
         SHARED := -shared -Wl,--version-script=common/libretro-link.T
         CFLAGS += -DARM
         CFLAGS += -marm -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
-        CFLAGS += -fomit-frame-pointer -ffast-math
+        CFLAGS += -fomit-frame-pointer
             
 # Raspberry Pi 3
 else ifeq ($(platform), rpi3)
@@ -220,7 +220,16 @@ else ifeq ($(platform), rpi3)
         SHARED := -shared -Wl,--version-script=common/libretro-link.T
         CFLAGS += -DARM
         CFLAGS += -marm -mcpu=cortex-a53 -mfpu=neon-fp-armv8 -mfloat-abi=hard
-        CFLAGS += -fomit-frame-pointer -ffast-math
+        CFLAGS += -fomit-frame-pointer
+
+# Raspberry Pi 3 with 64bit kernel
+else ifeq ($(platform), rpi3_64)
+        TARGET := $(TARGET_NAME)_libretro.so
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DARM
+        CFLAGS += -marm -march=armv8-a+crc -mtune=cortex-a53
+        CFLAGS += -fomit-frame-pointer
 
 # Libxenon
 else ifeq ($(platform), xenon)
