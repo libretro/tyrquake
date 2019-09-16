@@ -94,16 +94,11 @@ struct retro_core_option_definition option_defs_us[] = {
       "Invert Y Axis",
       "Invert the gamepad right analog stick's Y axis.",
       {
-         { "0", NULL },
-         { "5", NULL },
-         { "10", NULL },
-         { "15",  NULL },
-         { "20",  NULL },
-         { "25",  NULL },
-         { "30",  NULL },
+         { "disabled",  "Disabled" },
+         { "enabled",   "Enabled" },
          { NULL, NULL },
       },
-      "15"
+      "disabled"
    },
    {
       "tyrquake_analog_deadzone",
