@@ -95,7 +95,7 @@ static bool libretro_supports_bitmasks = false;
 #define DEFAULT_MEMSIZE_MB 32
 #endif
 
-#define SAMPLERATE 44100
+#define SAMPLERATE 48000
 
 // System analog stick range is -0x8000 to 0x8000
 #define ANALOG_RANGE 0x8000
@@ -1252,9 +1252,9 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define AUDIO_BUFFER_SAMPLES (4096)
+#define BUFFER_SIZE (4096)
 
-static int16_t audio_buffer[AUDIO_BUFFER_SAMPLES];
+static int16_t audio_buffer[BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
 
 static void audio_process(void)
@@ -1279,8 +1279,8 @@ static void audio_callback(void)
    float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
-   if (read_end > AUDIO_BUFFER_SAMPLES)
-      read_end = AUDIO_BUFFER_SAMPLES;
+   if (read_end > BUFFER_SIZE)
+      read_end = BUFFER_SIZE;
 
    read_first  = read_end - audio_buffer_ptr;
    read_second = samples_per_frame - read_first;
@@ -1301,7 +1301,7 @@ qboolean SNDDMA_Init(dma_t *dma)
    shm->samplepos = 0;
    shm->samplebits = 16;
    shm->signed8 = 0;
-   shm->samples = AUDIO_BUFFER_SAMPLES;
+   shm->samples = BUFFER_SIZE;
    shm->buffer = (unsigned char *volatile)audio_buffer;
 
    return true;
