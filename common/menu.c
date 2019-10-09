@@ -1094,47 +1094,43 @@ M_OptionsVideo_AdjustSliders(int dir)
     S_LocalSound("misc/menu3.wav");
 
     switch (optionsvideo_cursor) {
-    case 0:			// screen size
-	scr_viewsize.value += dir * 10;
-	if (scr_viewsize.value < 30)
-	    scr_viewsize.value = 30;
-	if (scr_viewsize.value > 120)
-	    scr_viewsize.value = 120;
-	Cvar_SetValue("viewsize", scr_viewsize.value);
-	break;
-    case 1:			// gamma
-	v_gamma.value -= dir * 0.05;
-	if (v_gamma.value < 0.5)
-	    v_gamma.value = 0.5;
-	if (v_gamma.value > 1)
-	    v_gamma.value = 1;
-	Cvar_SetValue("gamma", v_gamma.value);
-	break;
+       case 0:			// screen size
+          scr_viewsize.value += dir * 10;
+          if (scr_viewsize.value < 30)
+             scr_viewsize.value = 30;
+          if (scr_viewsize.value > 120)
+             scr_viewsize.value = 120;
+          Cvar_SetValue("viewsize", scr_viewsize.value);
+          break;
+       case 1:			// gamma
+          v_gamma.value -= dir * 0.05;
+          if (v_gamma.value < 0.5)
+             v_gamma.value = 0.5;
+          if (v_gamma.value > 1)
+             v_gamma.value = 1;
+          Cvar_SetValue("gamma", v_gamma.value);
+          break;
 
-    case 3:			// _windowed_mouse
-   Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
-   break;
-   case 4:
-       cvar = Cvar_FindVar("dither_filter");
-       Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
-       D_SetupFrame();
-       break;
-   case 5:
-       cvar = Cvar_FindVar("d_mipscale");
-       Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
-       break;
-   case 6:
-       cvar = Cvar_FindVar("r_lerpmodels");
-       Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
-       break;
-   case 7:
-       cvar = Cvar_FindVar("r_lerpmove");
-       Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
-       break;
-   case 8:
-       cvar = Cvar_FindVar("framerate");
-       Cvar_SetValue("framerate", (cvar->value == 60) ? 50.0f : 60.0f);
-       break;
+       case 3:			// _windowed_mouse
+          Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
+          break;
+       case 4:
+          cvar = Cvar_FindVar("dither_filter");
+          Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
+          D_SetupFrame();
+          break;
+       case 5:
+          cvar = Cvar_FindVar("d_mipscale");
+          Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
+          break;
+       case 6:
+          cvar = Cvar_FindVar("r_lerpmodels");
+          Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
+          break;
+       case 7:
+          cvar = Cvar_FindVar("r_lerpmove");
+          Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
+          break;
     }
 }
 
@@ -1181,13 +1177,6 @@ M_OptionsVideo_Draw(void)
     cvar = Cvar_FindVar("r_lerpmove");
     M_Print(16, 88, "      Smooth Movement");
     M_DrawCheckbox(220, 88, cvar->value);
-
-    cvar = Cvar_FindVar("framerate");
-    M_Print(16,96, "      Framerate");
-    if (cvar->value == 60)
-       M_Print(220,96, "60fps");
-    else
-       M_Print(220,96,"50fps");
 
 // cursor
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,

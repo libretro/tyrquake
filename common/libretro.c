@@ -210,7 +210,7 @@ gp_layout_t classic_alt = {
 
 gp_layout_t *gp_layoutp = NULL;
 
-cvar_t framerate = { "framerate", "60", true };
+unsigned framerate = 60;
 static bool initial_resolution_set = false;
 static int invert_y_axis = 1;
 
@@ -495,7 +495,7 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-   info->timing.fps            = framerate.value;
+   info->timing.fps            = framerate;
    info->timing.sample_rate    = SAMPLERATE;
 
    info->geometry.base_width   = width;
@@ -712,6 +712,14 @@ static void update_variables(bool startup)
 {
    struct retro_variable var;
 
+   var.key = "tyrquake_framerate";
+   var.value = NULL;
+
+   if (startup && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+      framerate = atoi(var.value);
+   else
+      framerate = 60;
+
    var.key = "tyrquake_colored_lighting";
    var.value = NULL;
 
@@ -824,7 +832,7 @@ void retro_run(void)
    if (!state_rumble)
       retro_unset_rumble_strong();
 
-   Host_Frame(0.016667);
+   Host_Frame(1.0 / framerate);
 
    if (shutdown_core)
       return;
@@ -1007,11 +1015,6 @@ bool retro_load_game(const struct retro_game_info *info)
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void*)&msg);
       return false;
    }
-
-   Cvar_RegisterVariable(&framerate);
-   Cvar_Set("framerate", "60");
-   Cvar_Set("sys_ticrate", "0.016667");
-
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */
@@ -1276,7 +1279,7 @@ static void audio_process(void)
 static void audio_callback(void)
 {
    unsigned read_first, read_second;
-   float samples_per_frame = (2 * SAMPLERATE) / framerate.value;
+   float samples_per_frame = (2 * SAMPLERATE) / framerate;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
    if (read_end > BUFFER_SIZE)
