@@ -72,6 +72,7 @@ struct retro_core_option_definition option_defs_us[] = {
       "Framerate (restart)",
       "Modify framerate. Requires a restart.",
       {
+         { "auto",            "Auto"},
          { "50",              "50fps"},
          { "60",              "60fps"},
          { "72",              "72fps"},
@@ -85,7 +86,7 @@ struct retro_core_option_definition option_defs_us[] = {
          { "244",              "244fps"},
          { NULL, NULL },
       },
-      "60"
+      "auto"
    },
    {
       "tyrquake_colored_lighting",

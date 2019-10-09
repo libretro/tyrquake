@@ -210,7 +210,7 @@ gp_layout_t classic_alt = {
 
 gp_layout_t *gp_layoutp = NULL;
 
-unsigned framerate = 60;
+float framerate = 60.0f;
 static bool initial_resolution_set = false;
 static int invert_y_axis = 1;
 
@@ -716,9 +716,20 @@ static void update_variables(bool startup)
    var.value = NULL;
 
    if (startup && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
-      framerate = atoi(var.value);
+   {
+      if (!strcmp(var.value, "auto"))
+      {
+         float target_framerate = 0.0f;
+         if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
+                  &target_framerate))
+            target_framerate = 60.0f;
+         framerate = target_framerate;
+      }
+      else
+         framerate = atof(var.value);
+   }
    else
-      framerate = 60;
+      framerate = 60.0f;
 
    var.key = "tyrquake_colored_lighting";
    var.value = NULL;
