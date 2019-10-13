@@ -90,8 +90,7 @@ static cvar_t precache = { "precache", "1" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
 static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
-
-#define SND_MIXAHEAD 0.08
+static cvar_t _snd_mixahead = { "_snd_mixahead", "0.1", true };
 
 /*
  * User-setable variables
@@ -178,6 +177,7 @@ S_Init(void)
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
     Cvar_RegisterVariable(&snd_noextraupdate);
+    Cvar_RegisterVariable(&_snd_mixahead);
 
     snd_initialized = true;
 
@@ -751,7 +751,7 @@ static void S_Update_(void)
       paintedtime = soundtime;
    }
    /* mix ahead of current position */
-   endtime = soundtime + SND_MIXAHEAD * shm->speed;
+   endtime = soundtime + _snd_mixahead.value * shm->speed;
    samps = shm->samples >> 1;
    if (endtime - soundtime > samps)
       endtime = soundtime + samps;
