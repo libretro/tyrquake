@@ -1446,22 +1446,24 @@ IN_Move(usercmd_t *cmd)
       rsy = invert_y_axis * input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_Y);
 
-      if (rsx > analog_deadzone || rsx < -analog_deadzone) {
+      if (rsx > analog_deadzone || rsx < -analog_deadzone)
+      {
          if (rsx > analog_deadzone)
             rsx = rsx - analog_deadzone;
          if (rsx < -analog_deadzone)
             rsx = rsx + analog_deadzone;
          // For now we are sharing the sensitivity with the mouse setting
-         cl.viewangles[YAW] -= sensitivity.value * rsx / (ANALOG_RANGE - analog_deadzone);
+         cl.viewangles[YAW] -= (float)(sensitivity.value * rsx / (ANALOG_RANGE - analog_deadzone)) / (framerate / 60.0f);
       }
 
       V_StopPitchDrift();
-      if (rsy > analog_deadzone || rsy < -analog_deadzone) {
+      if (rsy > analog_deadzone || rsy < -analog_deadzone)
+      {
          if (rsy > analog_deadzone)
             rsy = rsy - analog_deadzone;
          if (rsy < -analog_deadzone)
             rsy = rsy + analog_deadzone;
-         cl.viewangles[PITCH] -= sensitivity.value * rsy / (ANALOG_RANGE - analog_deadzone);
+         cl.viewangles[PITCH] -= (float)(sensitivity.value * rsy / (ANALOG_RANGE - analog_deadzone)) / (framerate / 60.0f);
       }
 
       if (cl.viewangles[PITCH] > 80)
