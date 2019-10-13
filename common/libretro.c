@@ -1266,7 +1266,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define BUFFER_SIZE (4096)
+#define BUFFER_SIZE (2048)
 
 static int16_t audio_buffer[BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
