@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+extern int m_state;
+
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <windows.h>
