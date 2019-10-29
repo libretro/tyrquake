@@ -19,15 +19,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <sys/param.h>
-#include <sys/ioctl.h>
-#include <errno.h>
 #include <unistd.h>
-#include <net/if.h>
+
+#include <net/net_compat.h>
+#include <net/net_socket.h>
 
 #include "common.h"
 #include "console.h"
@@ -55,10 +51,14 @@ static netadr_t broadcastaddr;
  *		 to only listen on a particular address. Set on the
  *		 command line using the "-ip" option.
  */
+#ifndef IF_NAMESIZE
+#define IF_NAMESIZE 16
+#define MAXHOSTNAMELEN 64
+#endif
 static netadr_t myAddr;
 static netadr_t localAddr;
 static netadr_t bindAddr;
-static char ifname[IFNAMSIZ];
+static char ifname[IF_NAMESIZE];
 
 
 static void
@@ -78,44 +78,6 @@ SockadrToNetadr(const struct sockaddr_in *s, netadr_t *a)
     a->port = s->sin_port;
 }
 
-static int
-udp_scan_iface(int sock)
-{
-    struct ifconf ifc;
-    struct ifreq *ifr;
-    char buf[8192];
-    int i, n;
-    struct sockaddr_in *iaddr;
-
-    if (COM_CheckParm("-noifscan"))
-	return -1;
-
-    ifc.ifc_len = sizeof(buf);
-    ifc.ifc_buf = buf;
-
-    if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) {
-	Con_Printf("%s: SIOCGIFCONF failed\n", __func__);
-	return -1;
-    }
-
-    ifr = ifc.ifc_req;
-    n = ifc.ifc_len / sizeof(struct ifreq);
-
-    for (i = 0; i < n; i++) {
-	if (ioctl(sock, SIOCGIFADDR, &ifr[i]) == -1)
-	    continue;
-	iaddr = (struct sockaddr_in *)&ifr[i].ifr_addr;
-	Con_DPrintf("%s: %s\n", ifr[i].ifr_name, inet_ntoa(iaddr->sin_addr));
-	if (iaddr->sin_addr.s_addr != htonl(INADDR_LOOPBACK)) {
-	    SockadrToNetadr(iaddr, &myAddr);
-	    strcpy (ifname, ifr[i].ifr_name);
-	    return 0;
-	}
-    }
-
-    return -1;
-}
-
 int
 UDP_Init(void)
 {
@@ -128,7 +90,9 @@ UDP_Init(void)
 
     if (COM_CheckParm("-noudp"))
 	return -1;
-
+	
+	network_init();
+	
     /* determine my name & address, default to loopback */
     myAddr.ip.l = htonl(INADDR_LOOPBACK);
     myAddr.port = htons(DEFAULTnet_hostport);
@@ -140,8 +104,7 @@ UDP_Init(void)
 	buff[MAXHOSTNAMELEN - 1] = 0;
 	local = gethostbyname(buff);
 	if (!local) {
-	    Con_Printf("%s: WARNING: gethostbyname failed (%s)\n", __func__,
-			hstrerror(h_errno));
+	    Con_Printf("%s: WARNING: gethostbyname failed\n", __func__);
 	} else if (local->h_addrtype != AF_INET) {
 	    Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
 	} else {
@@ -182,11 +145,6 @@ UDP_Init(void)
 
     /* myAddr may resolve to 127.0.0.1, see if we can do any better */
     memset (ifname, 0, sizeof(ifname));
-    if (myAddr.ip.l == htonl(INADDR_LOOPBACK)) {
-	if (udp_scan_iface(net_controlsocket) == 0)
-	    Con_Printf ("UDP, Local address: %s (%s)\n",
-			NET_AdrToString(&myAddr), ifname);
-    }
     if (ifname[0] == 0) {
 	Con_Printf ("UDP, Local address: %s\n", NET_AdrToString(&myAddr));
     }
@@ -243,8 +201,7 @@ UDP_OpenSocket(int port)
 
     if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
-    if (ioctl(newsocket, FIONBIO, &_true) == -1)
-	goto ErrorReturn;
+	socket_nonblock(newsocket);
 
     address.sin_family = AF_INET;
     if (bindAddr.ip.l != INADDR_NONE)
@@ -283,12 +240,9 @@ UDP_CheckNewConnections(void)
     if (net_acceptsocket == -1)
 	return -1;
 
-    if (ioctl(net_acceptsocket, FIONREAD, &available) == -1)
-	Sys_Error("%s: ioctlsocket (FIONREAD) failed", __func__);
-    if (available)
-	return net_acceptsocket;
     /* quietly absorb empty packets */
-    recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *)&from, &fromlen);
+    if (recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *)&from, &fromlen) >= 0)
+		return net_acceptsocket;
     return -1;
 }
 
@@ -302,7 +256,7 @@ UDP_Read(int socket, void *buf, int len, netadr_t *addr)
 
     ret = recvfrom(socket, buf, len, 0, (struct sockaddr *)&saddr, &addrlen);
     SockadrToNetadr(&saddr, addr);
-    if (ret == -1 && (errno == EWOULDBLOCK || errno == ECONNREFUSED))
+    if (isagain(ret))
 	return 0;
     return ret;
 }
@@ -349,7 +303,7 @@ UDP_Write(int socket, const void *buf, int len, const netadr_t *addr)
 
     NetadrToSockadr(addr, &saddr);
     ret = sendto(socket, buf, len, 0, (struct sockaddr *)&saddr, sizeof(saddr));
-    if (ret == -1 && errno == EWOULDBLOCK)
+    if (isagain(ret))
 	return 0;
     return ret;
 }

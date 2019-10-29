@@ -114,7 +114,7 @@ enum m_state_enum {
     m_search, m_slist
 };
 
-static int m_state;
+int m_state;
 
 #include "libretro.h"
 extern retro_environment_t environ_cb;
