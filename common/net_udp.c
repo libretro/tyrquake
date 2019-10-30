@@ -38,6 +38,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SO_BROADCAST SCE_NET_SO_BROADCAST
 #endif
 
+#ifndef INADDR_NONE
+#define INADDR_NONE    ((u32_t) 0xffffffff)  /* 255.255.255.255 */
+#endif
+
 #ifndef INADDR_LOOPBACK
 #define	INADDR_LOOPBACK		0x7f000001	
 #endif
