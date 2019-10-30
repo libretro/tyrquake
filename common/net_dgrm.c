@@ -25,9 +25,9 @@ extern int m_state;
 #include <windows.h>
 #else
 #include <sys/types.h>
+#endif
 #include <net/net_compat.h>
 #include <net/net_socket.h>
-#endif
 
 #include "cmd.h"
 #include "console.h"
@@ -69,55 +69,59 @@ StrAddr(netadr_t *addr)
 }
 #endif
 
-static netadr_t banAddr = { .ip.l = INADDR_ANY };
-static netadr_t banMask = { .ip.l = INADDR_NONE };
+static netadr_t banAddr = { INADDR_ANY, 0, 0 };
+static netadr_t banMask = { INADDR_NONE, 0, 0 };
 
 static void
 NET_Ban_f(void)
 {
-    char addrStr[32];
-    char maskStr[32];
-    void (*print)(const char *fmt, ...) __attribute__((format(printf,1,2)));
+   char addrStr[32];
+   char maskStr[32];
+   void (*print)(const char *fmt, ...);
 
-    if (cmd_source == src_command) {
-	if (!sv.active) {
-	    Cmd_ForwardToServer();
-	    return;
-	}
-	print = Con_Printf;
-    } else {
-	if (pr_global_struct->deathmatch)
-	    return;
-	print = SV_ClientPrintf;
-    }
+   if (cmd_source == src_command) {
+      if (!sv.active) {
+         Cmd_ForwardToServer();
+         return;
+      }
+      print = Con_Printf;
+   }
+   else
+   {
+      if (pr_global_struct->deathmatch)
+         return;
+      print = SV_ClientPrintf;
+   }
 
-    switch (Cmd_Argc()) {
-    case 1:
-	if (banAddr.ip.l != INADDR_ANY) {
-	    strcpy(addrStr, NET_AdrToString(&banAddr));
-	    strcpy(maskStr, NET_AdrToString(&banMask));
-	    print("Banning %s [%s]\n", addrStr, maskStr);
-	} else
-	    print("Banning not active\n");
-	break;
+   switch (Cmd_Argc())
+   {
+      case 1:
+         if (banAddr.ip.l != INADDR_ANY)
+         {
+            strcpy(addrStr, NET_AdrToString(&banAddr));
+            strcpy(maskStr, NET_AdrToString(&banMask));
+            print("Banning %s [%s]\n", addrStr, maskStr);
+         } else
+            print("Banning not active\n");
+         break;
 
-    case 2:
-	if (strcasecmp(Cmd_Argv(1), "off") == 0)
-	    banAddr.ip.l = INADDR_ANY;
-	else
-	    banAddr.ip.l = inet_addr(Cmd_Argv(1));
-	banMask.ip.l = INADDR_NONE;
-	break;
+      case 2:
+         if (strcasecmp(Cmd_Argv(1), "off") == 0)
+            banAddr.ip.l = INADDR_ANY;
+         else
+            banAddr.ip.l = inet_addr(Cmd_Argv(1));
+         banMask.ip.l = INADDR_NONE;
+         break;
 
-    case 3:
-	banAddr.ip.l = inet_addr(Cmd_Argv(1));
-	banMask.ip.l = inet_addr(Cmd_Argv(2));
-	break;
+      case 3:
+         banAddr.ip.l = inet_addr(Cmd_Argv(1));
+         banMask.ip.l = inet_addr(Cmd_Argv(2));
+         break;
 
-    default:
-	print("BAN ip_address [mask]\n");
-	break;
-    }
+      default:
+         print("BAN ip_address [mask]\n");
+         break;
+   }
 }
 
 static int
@@ -420,12 +424,13 @@ NET_Stats_f(void)
 }
 
 
-struct test_poll_state {
-    qboolean inProgress;
-    int pollCount;
-    int socket;
-    net_landriver_t *driver;
-    PollProcedure *procedure;
+struct test_poll_state
+{
+   qboolean inProgress;
+   int pollCount;
+   int socket;
+   net_landriver_t *driver;
+   PollProcedure *procedure;
 };
 
 
@@ -493,18 +498,20 @@ Test_f(void)
     netadr_t sendaddr;
     net_landriver_t *driver = NULL;
 
-    static struct test_poll_state state = {
-	.inProgress	= false,
-	.pollCount	= 0,
-	.socket		= 0,
-	.driver		= NULL,
-	.procedure	= NULL
+    static struct test_poll_state state =
+    {
+       false,
+       0,
+       0,
+       NULL,
+       NULL
     };
-    static PollProcedure poll_procedure = {
-	.next		= NULL,
-	.nextTime	= 0.0,
-	.procedure	= Test_Poll,
-	.arg		= &state
+    static PollProcedure poll_procedure =
+    {
+       NULL,
+       0.0,
+       Test_Poll,
+       &state
     };
 
     if (state.inProgress)
@@ -623,72 +630,73 @@ Test2_Poll(struct test_poll_state *state)
 static void
 Test2_f(void)
 {
-    const char *host;
-    int i, n;
-    netadr_t sendaddr;
+   const char *host;
+   int i, n;
+   netadr_t sendaddr;
 
-    static struct test_poll_state state = {
-	.inProgress	= false,
-	.pollCount	= 0,
-	.socket		= 0,
-	.driver		= NULL,
-	.procedure	= NULL
-    };
-    static PollProcedure poll_procedure = {
-	.next		= NULL,
-	.nextTime	= 0.0,
-	.procedure	= Test2_Poll,
-	.arg		= &state
-    };
+   static struct test_poll_state state = {
+      false,
+      0,
+      0,
+      NULL,
+      NULL
+   };
+   static PollProcedure poll_procedure = 
+   {
+      NULL,
+      0.0,
+      Test2_Poll,
+      &state
+   };
 
-    if (state.inProgress)
-	return;
+   if (state.inProgress)
+      return;
 
-    host = Cmd_Argv(1);
+   host = Cmd_Argv(1);
 
-    if (host && hostCacheCount) {
-	for (n = 0; n < hostCacheCount; n++)
-	    if (strcasecmp(host, hostcache[n].name) == 0) {
-		if (hostcache[n].driver != dgrm_driver)
-		    continue;
-		state.driver = hostcache[n].ldriver;
-		sendaddr = hostcache[n].addr;
-		break;
-	    }
-	if (state.driver)
-	    goto JustDoIt;
-    }
+   if (host && hostCacheCount) {
+      for (n = 0; n < hostCacheCount; n++)
+         if (strcasecmp(host, hostcache[n].name) == 0) {
+            if (hostcache[n].driver != dgrm_driver)
+               continue;
+            state.driver = hostcache[n].ldriver;
+            sendaddr = hostcache[n].addr;
+            break;
+         }
+      if (state.driver)
+         goto JustDoIt;
+   }
 
-    for (i = 0; i < net_numlandrivers; i++) {
-	if (!net_landrivers[i].initialized)
-	    continue;
-	// see if we can resolve the host name
-	if (net_landrivers[i].GetAddrFromName(host, &sendaddr) != -1) {
-	    state.driver = &net_landrivers[i];
-	    break;
-	}
-    }
-    if (!state.driver)
-	return;
+   for (i = 0; i < net_numlandrivers; i++) {
+      if (!net_landrivers[i].initialized)
+         continue;
+      // see if we can resolve the host name
+      if (net_landrivers[i].GetAddrFromName(host, &sendaddr) != -1) {
+         state.driver = &net_landrivers[i];
+         break;
+      }
+   }
+   if (!state.driver)
+      return;
 
-  JustDoIt:
-    state.socket = state.driver->OpenSocket(0);
-    if (state.socket == -1)
-	return;
+JustDoIt:
+   state.socket = state.driver->OpenSocket(0);
+   if (state.socket == -1)
+      return;
 
-    state.inProgress = true;
-    state.procedure = &poll_procedure;
+   state.inProgress = true;
+   state.procedure = &poll_procedure;
 
-    SZ_Clear(&net_message);
-    // save space for the header, filled in later
-    MSG_WriteLong(&net_message, 0);
-    MSG_WriteByte(&net_message, CCREQ_RULE_INFO);
-    MSG_WriteString(&net_message, "");
-    MSG_WriteControlHeader(&net_message);
-    state.driver->Write(state.socket, net_message.data, net_message.cursize,
-			&sendaddr);
-    SZ_Clear(&net_message);
-    SchedulePollProcedure(&poll_procedure, 0.05);
+   SZ_Clear(&net_message);
+   // save space for the header, filled in later
+   MSG_WriteLong(&net_message, 0);
+   MSG_WriteByte(&net_message, CCREQ_RULE_INFO);
+   MSG_WriteString(&net_message, "");
+   MSG_WriteControlHeader(&net_message);
+   state.driver->Write(state.socket, net_message.data, net_message.cursize,
+         &sendaddr);
+   SZ_Clear(&net_message);
+   SchedulePollProcedure(&poll_procedure, 0.05);
 }
 
 

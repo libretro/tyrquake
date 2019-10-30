@@ -24,60 +24,63 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_udp.h"
 
 net_driver_t net_drivers[] = {
-    {
-	.name				= "Loopback",
-	.initialized			= false,
-	.Init				= Loop_Init,
-	.Listen				= Loop_Listen,
-	.SearchForHosts			= Loop_SearchForHosts,
-	.Connect			= Loop_Connect,
-	.CheckNewConnections		= Loop_CheckNewConnections,
-	.QGetMessage			= Loop_GetMessage,
-	.QSendMessage			= Loop_SendMessage,
-	.SendUnreliableMessage		= Loop_SendUnreliableMessage,
-	.CanSendMessage			= Loop_CanSendMessage,
-	.CanSendUnreliableMessage	= Loop_CanSendUnreliableMessage,
-	.Close				= Loop_Close,
-	.Shutdown			= Loop_Shutdown
-    }, {
-	.name				= "Datagram",
-	.initialized			= false,
-	.Init				= Datagram_Init,
-	.Listen				= Datagram_Listen,
-	.SearchForHosts			= Datagram_SearchForHosts,
-	.Connect			= Datagram_Connect,
-	.CheckNewConnections		= Datagram_CheckNewConnections,
-	.QGetMessage			= Datagram_GetMessage,
-	.QSendMessage			= Datagram_SendMessage,
-	.SendUnreliableMessage		= Datagram_SendUnreliableMessage,
-	.CanSendMessage			= Datagram_CanSendMessage,
-	.CanSendUnreliableMessage	= Datagram_CanSendUnreliableMessage,
-	.Close				= Datagram_Close,
-	.Shutdown			= Datagram_Shutdown
-    }
+   {
+      "Loopback",                      /* name */
+      false,                           /* initialized */
+      Loop_Init,                       /* Init */
+      Loop_Listen,                     /* Listen */
+      Loop_SearchForHosts,             /* SearchForHosts */
+      Loop_Connect,                    /* Connect */
+      Loop_CheckNewConnections,        /* CheckNewConnections */
+      Loop_GetMessage,                 /* QGetMessage */
+      Loop_SendMessage,                /* QSendMessage */
+      Loop_SendUnreliableMessage,      /* SendUnreliableMessage */
+      Loop_CanSendMessage,             /* CanSendMessage */
+      Loop_CanSendUnreliableMessage,   /* CanSendUnreliableMessage */
+      Loop_Close,                      /* Close */
+      Loop_Shutdown,                   /* Shutdown */
+      0                                /* controlSock */
+   },
+   {
+      "Datagram",                      /* name */
+      false,                           /* initialized */
+      Datagram_Init,                   /* Init */
+      Datagram_Listen,                 /* Listen */
+      Datagram_SearchForHosts,         /* SearchForHosts */
+      Datagram_Connect,                /* Connect */
+      Datagram_CheckNewConnections,    /* CheckNewConnections */
+      Datagram_GetMessage,             /* QGetMessage */
+      Datagram_SendMessage,            /* QSendMessage */
+      Datagram_SendUnreliableMessage,  /* SendUnreliableMessage */
+      Datagram_CanSendMessage,         /* CanSendMessage */
+      Datagram_CanSendUnreliableMessage,  /* CanSendUnreliableMessage */
+      Datagram_Close,                     /* Close */
+      Datagram_Shutdown,                  /* Shutdown */
+      0                                   /* controlSock */
+   }
 };
 
 int net_numdrivers = 2;
 
 net_landriver_t net_landrivers[] = {
-    {
-	.name			= "UDP",
-	.initialized		= false,
-	.controlSock		= 0,
-	.Init			= UDP_Init,
-	.Shutdown		= UDP_Shutdown,
-	.Listen			= UDP_Listen,
-	.OpenSocket		= UDP_OpenSocket,
-	.CloseSocket		= UDP_CloseSocket,
-	.CheckNewConnections	= UDP_CheckNewConnections,
-	.Read			= UDP_Read,
-	.Write			= UDP_Write,
-	.Broadcast		= UDP_Broadcast,
-	.GetSocketAddr		= UDP_GetSocketAddr,
-	.GetNameFromAddr	= UDP_GetNameFromAddr,
-	.GetAddrFromName	= UDP_GetAddrFromName,
-	.GetDefaultMTU		= UDP_GetDefaultMTU
-    }
+   {
+      "UDP",                                /* name */
+      false,                                /* initialized */
+      0,                                    /* controlSock */
+      UDP_Init,                             /* Init */
+      UDP_Shutdown,                         /* Shutdown */
+      UDP_Listen,                           /* Listen */
+      UDP_OpenSocket,                       /* OpenSocket */
+      UDP_CloseSocket,                      /* CloseSocket */
+      UDP_CheckNewConnections,              /* CheckNewConnections */
+      UDP_Read,                             /* Read */
+      UDP_Write,                            /* Write */
+      UDP_Broadcast,                        /* Broadcast */
+      UDP_GetSocketAddr,                    /* GetSocketAddr */
+      UDP_GetNameFromAddr,                  /* GetNameFromAddr */
+      UDP_GetAddrFromName,                  /* GetAddrFromName */
+      UDP_GetDefaultMTU                     /* GetDefaultMTU */
+   }
 };
 
 int net_numlandrivers = 1;
