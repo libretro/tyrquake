@@ -19,8 +19,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include <sys/types.h>
+#ifndef _MSC_VER
 #include <sys/param.h>
+#endif
+
+#ifdef _WIN32
+#include <direct.h>
+#else
 #include <unistd.h>
+#endif
 
 #include <net/net_compat.h>
 #include <net/net_socket.h>
