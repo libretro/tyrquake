@@ -53,12 +53,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	INADDR_LOOPBACK		0x7f000001	
 #endif
 
-#ifndef in_addr
-struct in_addr {
-    unsigned long s_addr;  // load with inet_aton()
-};
-#endif
-
 /* socket for fielding new connections */
 static int net_acceptsocket = -1;
 static int net_controlsocket;
