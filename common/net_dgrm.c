@@ -25,9 +25,8 @@ extern int m_state;
 #include <windows.h>
 #else
 #include <sys/types.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
+#include <net/net_compat.h>
+#include <net/net_socket.h>
 #endif
 
 #include "cmd.h"

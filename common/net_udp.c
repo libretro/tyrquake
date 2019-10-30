@@ -32,6 +32,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "sys.h"
 
+#ifdef VITA
+#define IPPROTO_UDP SCE_NET_IPPROTO_UDP
+#define INADDR_BROADCAST SCE_NET_INADDR_BROADCAST
+#define SO_BROADCAST SCE_NET_SO_BROADCAST
+#endif
+
+#ifndef INADDR_LOOPBACK
+#define	INADDR_LOOPBACK		0x7f000001	
+#endif
+
+#ifndef in_addr
+struct in_addr {
+    unsigned long s_addr;  // load with inet_aton()
+};
+#endif
+
 /* socket for fielding new connections */
 static int net_acceptsocket = -1;
 static int net_controlsocket;
@@ -199,7 +215,7 @@ UDP_OpenSocket(int port)
     struct sockaddr_in address;
     int _true = 1;
 
-    if ((newsocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+    if ((newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 	return -1;
 	socket_nonblock(newsocket);
 
@@ -318,7 +334,14 @@ UDP_GetSocketAddr(int socket, netadr_t *addr)
     memset(&saddr, 0, len);
     getsockname(socket, (struct sockaddr *)&saddr, &len);
 
-    /*
+#ifdef VITA
+	unsigned int a, tmp;
+	a = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
+	sceNetInetPton(SCE_NET_AF_INET, "127.0.0.1", &tmp);
+	if (a == 0 || a == tmp)
+		memcpy(&((struct sockaddr_in *)addr)->sin_addr.s_addr, &myAddr, sizeof(unsigned int));
+#else
+	 /*
      * The returned IP is embedded in our repsonse to a broadcast request for
      * server info from clients. The server admin may wish to advertise a
      * specific IP for various reasons, so allow the "default" address
@@ -332,6 +355,7 @@ UDP_GetSocketAddr(int socket, netadr_t *addr)
 	    saddr.sin_addr.s_addr = myAddr.ip.l;
     }
     SockadrToNetadr(&saddr, addr);
+#endif
 
     return 0;
 }
