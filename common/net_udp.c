@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include <stdint.h>
 #include <sys/types.h>
 #ifndef _MSC_VER
 #include <sys/param.h>
@@ -54,7 +55,7 @@ struct in_addr {
 #endif
 
 #ifndef INADDR_NONE
-#define INADDR_NONE    ((u32_t) 0xffffffff)  /* 255.255.255.255 */
+#define INADDR_NONE    ((uint32_t) 0xffffffff)  /* 255.255.255.255 */
 #endif
 
 #ifndef INADDR_LOOPBACK
