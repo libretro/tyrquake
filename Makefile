@@ -7,6 +7,7 @@ ifneq ($(GIT_VERSION)," unknown")
 	CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 endif
 
+HAVE_NETWORKING=1
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=1
 USE_CODEC_VORBIS=1
@@ -335,6 +336,7 @@ else ifeq ($(platform), ngc)
    CFLAGS += -DGEKKO -DHW_DOL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST -I$(DEVKITPRO)/libogc/include
    CFLAGS += -U__INT32_TYPE__ -U __UINT32_TYPE__ -D__INT32_TYPE__=int
 	STATIC_LINKING = 1
+	HAVE_NETWORKING=0
 
 # Nintendo Wii
 else ifeq ($(platform), wii)
@@ -344,6 +346,7 @@ else ifeq ($(platform), wii)
    CFLAGS += -DGEKKO -DHW_RVL -mrvl -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST -I$(DEVKITPRO)/libogc/include
    CFLAGS += -U__INT32_TYPE__ -U __UINT32_TYPE__ -D__INT32_TYPE__=int
 	STATIC_LINKING = 1
+	HAVE_NETWORKING=0
 
 # Nintendo Switch (libnx)
 else ifeq ($(platform), libnx)
@@ -367,6 +370,7 @@ else ifeq ($(platform), wiiu)
    CFLAGS += -DGEKKO -DHW_RVL -DWIIU -mwup -mcpu=750 -meabi -mhard-float -D__ppc__ -DMSB_FIRST -I$(DEVKITPRO)/libogc/include
    CFLAGS += -U__INT32_TYPE__ -U __UINT32_TYPE__ -D__INT32_TYPE__=int
 	STATIC_LINKING = 1
+	HAVE_NETWORKING=0
 
 # Nintendo Switch (libtransistor)
 else ifeq ($(platform), switch)
