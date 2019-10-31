@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // common.c -- misc functions used in client and server
-
+#include <stdio.h>
 #include <ctype.h>
 #include <retro_dirent.h>
 #include <stdarg.h>
