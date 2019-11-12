@@ -126,6 +126,11 @@ UDP_Init(void)
     /* determine my name & address, default to loopback */
     myAddr.ip.l = htonl(INADDR_LOOPBACK);
     myAddr.port = htons(DEFAULTnet_hostport);
+#ifdef VITA
+    SceNetCtlInfo info;
+    sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
+    sceNetInetPton(SCE_NET_AF_INET, info.ip_address, &myAddr.ip.l);
+#else
     err = gethostname(buff, MAXHOSTNAMELEN);
     if (err) {
 	Con_Printf("%s: WARNING: gethostname failed (%s)\n", __func__,
@@ -142,7 +147,7 @@ UDP_Init(void)
 	    myAddr.ip.l = inaddr->s_addr;
 	}
     }
-
+#endif
     i = COM_CheckParm("-ip");
     if (i && i < com_argc - 1) {
 	bindAddr.ip.l = inet_addr(com_argv[i + 1]);
@@ -379,12 +384,13 @@ int
 UDP_GetNameFromAddr(const netadr_t *addr, char *name)
 {
     struct hostent *hostentry;
-
+#ifndef VITA
     hostentry = gethostbyaddr(&addr->ip.l, sizeof(addr->ip.l), AF_INET);
     if (hostentry) {
 	strncpy(name, (char *)hostentry->h_name, NET_NAMELEN - 1);
 	return 0;
     }
+#endif
     strcpy(name, NET_AdrToString(addr));
 
     return 0;
