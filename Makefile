@@ -61,14 +61,6 @@ else
 LIBS := -lm
 endif
 
-ifeq ($(ARCHFLAGS),)
-ifeq ($(archs),ppc)
-   ARCHFLAGS = -arch ppc -arch ppc64
-else
-   ARCHFLAGS = -arch i386 -arch x86_64
-endif
-endif
-
 ifeq ($(STATIC_LINKING),1)
 EXT=a
 
