@@ -102,14 +102,16 @@ endif
 
 ifneq ($(STATIC_LINKING),1)
 	SOURCES_C += \
-					 $(CORE_DIR)/libretro-common/file/retro_dirent.c \
-					 $(CORE_DIR)/libretro-common/encodings/encoding_utf.c \
-					 $(CORE_DIR)/libretro-common/string/stdstring.c \
-					 $(CORE_DIR)/libretro-common/file/file_path.c \
-					 $(CORE_DIR)/libretro-common/compat/compat_strl.c \
-					 $(CORE_DIR)/libretro-common/compat/compat_posix_string.c \
-					 $(CORE_DIR)/libretro-common/compat/compat_strcasestr.c \
-					 $(CORE_DIR)/libretro-common/compat/compat_snprintf.c
+					 $(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
+					 $(LIBRETRO_COMM_DIR)/encodings/encoding_utf.c \
+					 $(LIBRETRO_COMM_DIR)/string/stdstring.c \
+					 $(LIBRETRO_COMM_DIR)/streams/file_stream.c \
+					 $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c \
+					 $(LIBRETRO_COMM_DIR)/file/file_path.c \
+					 $(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
+					 $(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
+					 $(LIBRETRO_COMM_DIR)/compat/compat_strcasestr.c \
+					 $(LIBRETRO_COMM_DIR)/compat/compat_snprintf.c
 endif
 
 ifeq ($(HAVE_NETWORKING),1)
@@ -119,8 +121,8 @@ SOURCES_C += $(CORE_DIR)/common/net_dgrm.c \
 
 ifneq ($(STATIC_LINKING),1)
 SOURCES_C += \
-				 $(CORE_DIR)/libretro-common/net/net_compat.c \
-				 $(CORE_DIR)/libretro-common/net/net_socket.c
+				 $(LIBRETRO_COMM_DIR)/net/net_compat.c \
+				 $(LIBRETRO_COMM_DIR)/net/net_socket.c
 endif
 else
 SOURCES_C += $(CORE_DIR)/common/net_none.c

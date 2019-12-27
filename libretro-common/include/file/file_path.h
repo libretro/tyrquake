@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2018 The RetroArch team
+/* Copyright  (C) 2010-2019 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (file_path.h).
@@ -28,11 +28,16 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <libretro.h>
 #include <retro_common_api.h>
 
 #include <boolean.h>
 
 RETRO_BEGIN_DECLS
+
+#define PATH_REQUIRED_VFS_VERSION 3
+
+void path_vfs_init(const struct retro_vfs_interface_info* vfs_info);
 
 /* Order in this enum is equivalent to negative sort order in filelist
  *  (i.e. DIRECTORY is on top of PLAIN_FILE) */
@@ -45,7 +50,6 @@ enum
    RARCH_DIRECTORY,
    RARCH_FILE_UNSUPPORTED
 };
-
 
 /**
  * path_is_compressed_file:
@@ -104,7 +108,7 @@ const char *path_get_extension(const char *path);
  * text after and including the last '.'.
  * Only '.'s after the last slash are considered.
  *
- * Returns: 
+ * Returns:
  * 1) If path has an extension, returns path with the
  *    extension removed.
  * 2) If there is no extension, returns NULL.
@@ -137,18 +141,44 @@ void path_basedir(char *path);
  *
  * Extracts parent directory by mutating path.
  * Assumes that path is a directory. Keeps trailing '/'.
+ * If the path was already at the root directory, returns empty string
  **/
 void path_parent_dir(char *path);
 
 /**
  * path_resolve_realpath:
- * @buf                : buffer for path
+ * @buf                : input and output buffer for path
  * @size               : size of buffer
+ * @resolve_symlinks   : whether to resolve symlinks or not
  *
- * Turns relative paths into absolute path.
- * If relative, rebases on current working dir.
+ * Resolves use of ".", "..", multiple slashes etc in absolute paths.
+ *
+ * Relative paths are rebased on the current working dir.
+ *
+ * Returns: @buf if successful, NULL otherwise.
+ * Note: Not implemented on consoles
+ * Note: Symlinks are only resolved on Unix-likes
+ * Note: The current working dir might not be what you expect,
+ *       e.g. on Android it is "/"
+ *       Use of fill_pathname_resolve_relative() should be prefered
  **/
-void path_resolve_realpath(char *buf, size_t size);
+char *path_resolve_realpath(char *buf, size_t size, bool resolve_symlinks);
+
+/**
+ * path_relative_to:
+ * @out                : buffer to write the relative path to
+ * @path               : path to be expressed relatively
+ * @base               : relative to this
+ * @size               : size of output buffer
+ *
+ * Turns @path into a path relative to @base and writes it to @out.
+ *
+ * @base is assumed to be a base directory, i.e. a path ending with '/' or '\'.
+ * Both @path and @base are assumed to be absolute paths without "." or "..".
+ *
+ * E.g. path /a/b/e/f.cgp with base /a/b/c/d/ turns into ../../e/f.cgp
+ **/
+size_t path_relative_to(char *out, const char *path, const char *base, size_t size);
 
 /**
  * path_is_absolute:
@@ -196,7 +226,7 @@ void fill_pathname(char *out_path, const char *in_path,
  * E.g.:
  * out_filename = "RetroArch-{month}{day}-{Hours}{Minutes}.{@ext}"
  **/
-void fill_dated_filename(char *out_filename,
+size_t fill_dated_filename(char *out_filename,
       const char *ext, size_t size);
 
 /**
@@ -229,7 +259,7 @@ void fill_str_dated_filename(char *out_filename,
  * present in 'in_path', it will be ignored.
  *
  */
-void fill_pathname_noext(char *out_path, const char *in_path,
+size_t fill_pathname_noext(char *out_path, const char *in_path,
       const char *replace, size_t size);
 
 /**
@@ -259,7 +289,7 @@ char *find_last_slash(const char *str);
  * E.g..: in_dir = "/tmp/some_dir", in_basename = "/some_content/foo.c",
  * replace = ".asm" => in_dir = "/tmp/some_dir/foo.c.asm"
  **/
-void fill_pathname_dir(char *in_dir, const char *in_basename,
+size_t fill_pathname_dir(char *in_dir, const char *in_basename,
       const char *replace, size_t size);
 
 /**
@@ -270,12 +300,12 @@ void fill_pathname_dir(char *in_dir, const char *in_basename,
  *
  * Copies basename of @in_path into @out_path.
  **/
-void fill_pathname_base(char *out_path, const char *in_path, size_t size);
+size_t fill_pathname_base(char *out_path, const char *in_path, size_t size);
 
 void fill_pathname_base_noext(char *out_dir,
       const char *in_path, size_t size);
 
-void fill_pathname_base_ext(char *out,
+size_t fill_pathname_base_ext(char *out,
       const char *in_path, const char *ext,
       size_t size);
 
@@ -315,6 +345,7 @@ bool fill_pathname_parent_dir_name(char *out_dir,
  *
  * Copies parent directory of @in_dir into @out_dir.
  * Assumes @in_dir is a directory. Keeps trailing '/'.
+ * If the path was already at the root directory, @out_dir will be an empty string.
  **/
 void fill_pathname_parent_dir(char *out_dir,
       const char *in_dir, size_t size);
@@ -345,21 +376,20 @@ void fill_pathname_resolve_relative(char *out_path, const char *in_refpath,
  * Makes sure not to get  two consecutive slashes
  * between directory and path.
  **/
-void fill_pathname_join(char *out_path, const char *dir,
+size_t fill_pathname_join(char *out_path, const char *dir,
       const char *path, size_t size);
 
-void fill_pathname_join_special_ext(char *out_path,
+size_t fill_pathname_join_special_ext(char *out_path,
       const char *dir,  const char *path,
       const char *last, const char *ext,
       size_t size);
 
-void fill_pathname_join_concat_noext(
-      char *out_path,
+size_t fill_pathname_join_concat_noext(char *out_path,
       const char *dir, const char *path,
       const char *concat,
       size_t size);
 
-void fill_pathname_join_concat(char *out_path,
+size_t fill_pathname_join_concat(char *out_path,
       const char *dir, const char *path,
       const char *concat,
       size_t size);
@@ -378,10 +408,10 @@ void fill_pathname_join_noext(char *out_path,
  * Joins a directory (@dir) and path (@path) together
  * using the given delimiter (@delim).
  **/
-void fill_pathname_join_delim(char *out_path, const char *dir,
+size_t fill_pathname_join_delim(char *out_path, const char *dir,
       const char *path, const char delim, size_t size);
 
-void fill_pathname_join_delim_concat(char *out_path, const char *dir,
+size_t fill_pathname_join_delim_concat(char *out_path, const char *dir,
       const char *path, const char delim, const char *concat,
       size_t size);
 
@@ -400,7 +430,7 @@ void fill_pathname_join_delim_concat(char *out_path, const char *dir,
  * E.g.: "/path/to/game.img" -> game.img
  *       "/path/to/myarchive.7z#folder/to/game.img" -> game.img
  */
-void fill_short_pathname_representation(char* out_rep,
+size_t fill_short_pathname_representation(char* out_rep,
       const char *in_path, size_t size);
 
 void fill_short_pathname_representation_noext(char* out_rep,
@@ -488,9 +518,13 @@ bool path_is_directory(const char *path);
 
 bool path_is_character_special(const char *path);
 
+int path_stat(const char *path);
+
 bool path_is_valid(const char *path);
 
 int32_t path_get_size(const char *path);
+
+bool is_path_accessible_using_standard_io(const char *path);
 
 RETRO_END_DECLS
 
