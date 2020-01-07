@@ -89,6 +89,8 @@ struct retro_core_option_definition option_defs_us[] = {
          { "200",              "200fps"},
          { "240",              "240fps"},
          { "244",              "244fps"},
+         { "300",              "300fps"},
+         { "360",              "360fps"},
          { NULL, NULL },
       },
       "auto"
