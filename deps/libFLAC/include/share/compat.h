@@ -157,7 +157,7 @@
 #define flac_printf printf_utf8
 #define flac_fprintf fprintf_utf8
 #define flac_vfprintf vfprintf_utf8
-#define flac_fopen fopen_utf8
+#define flac_fopen _fopen_utf8
 #define flac_chmod chmod_utf8
 #define flac_utime utime_utf8
 #define flac_unlink unlink_utf8

@@ -167,7 +167,7 @@ int vfprintf_utf8(FILE *stream, const char *format, va_list argptr)
 
 /* file functions */
 
-FILE *fopen_utf8(const char *filename, const char *mode)
+FILE *_fopen_utf8(const char *filename, const char *mode)
 {
 	wchar_t *wname = NULL;
 	wchar_t *wmode = NULL;
