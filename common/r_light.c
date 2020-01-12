@@ -153,6 +153,7 @@ int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
    unsigned scale;
    int maps;
 
+restart:
    if (node->contents < 0)
       return -1;		// didn't hit anything
 
@@ -173,9 +174,11 @@ int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
    }
    side = front < 0;
 
-   /* FIXME - tail recursion => optimize */
-   if ((back < 0) == side)
-      return RecursiveLightPoint(node->children[side], start, end);
+   if ((back < 0) == side) {
+	    /* Completely on one side - tail recursion optimization */
+	    node = node->children[side];
+	    goto restart;
+    }
 
    frac = front / (front - back);
    mid[0] = start[0] + (end[0] - start[0]) * frac;
@@ -238,8 +241,7 @@ int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
       return r;
    }
 
-   /* FIXME - tail recursion => optimize */
-   /* go down back side */
+   /* Go down back side */
    return RecursiveLightPoint(node->children[!side], mid, end);
 }
 
