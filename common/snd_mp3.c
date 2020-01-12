@@ -320,16 +320,14 @@ static int mp3_decode(snd_stream_t *stream, byte *buf, int len)
 					sample = 0x7FFF;
 				else
 					sample >>= (MAD_F_FRACBITS + 1 - 16);
-				if (bigendien)
-				{
-					*buf++ = (sample >> 8) & 0xFF;
-					*buf++ = sample & 0xFF;
-				}
-				else /* assumed LITTLE_ENDIAN. */
-				{
-					*buf++ = sample & 0xFF;
-					*buf++ = (sample >> 8) & 0xFF;
-				}
+#ifdef MSB_FIRST
+            *buf++ = (sample >> 8) & 0xFF;
+            *buf++ = sample & 0xFF;
+#else
+            /* assumed LITTLE_ENDIAN. */
+            *buf++ = sample & 0xFF;
+            *buf++ = (sample >> 8) & 0xFF;
+#endif
 				i++;
 			}
 			p->cursamp++;

@@ -157,7 +157,11 @@ static int S_VORBIS_CodecReadStream (snd_stream_t *stream, int bytes, void *buff
 	 */
 		res = ov_read( (OggVorbis_File *)stream->priv, ptr, rem,
 #if !defined(VORBIS_USE_TREMOR)
-				bigendien,
+#ifdef MSB_FIRST
+            1, /* endianness - 1 for big endian, 0 for little */
+#else
+            0, /* endianness - 1 for big endian, 0 for little */
+#endif
 				VORBIS_SAMPLEWIDTH,
 				VORBIS_SIGNED_DATA,
 #endif	/* ! VORBIS_USE_TREMOR */

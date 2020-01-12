@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <retro_inline.h>
 
 #include "qtypes.h"
 #include "shell.h"
@@ -94,16 +95,50 @@ void InsertLinkAfter(link_t *l, link_t *after);
 #define Q_MINLONG ((int)0x80000000)
 #define Q_MINFLOAT ((int)0x7fffffff)
 
-//============================================================================
+/*
+ * ========================================================================
+ *                          BYTE ORDER FUNCTIONS
+ * ========================================================================
+ */
 
-extern qboolean bigendien;
+static INLINE short bswap16(short s)
+{
+    return ((s & 255) << 8) | ((s >> 8) & 255);
+}
+static INLINE int bswap32(int l)
+{
+    return
+          (((l >>  0) & 255) << 24)
+        | (((l >>  8) & 255) << 16)
+        | (((l >> 16) & 255) <<  8)
+        | (((l >> 24) & 255) <<  0);
+}
 
-extern short (*BigShort) (short l);
-extern short (*LittleShort) (short l);
-extern int (*BigLong) (int l);
-extern int (*LittleLong) (int l);
-extern float (*BigFloat) (float l);
-extern float (*LittleFloat) (float l);
+#ifdef MSB_FIRST
+static INLINE short BigShort(short s) { return s; }
+static INLINE int BigLong(int l) { return l; }
+static INLINE float BigFloat(float f) { return f; }
+static INLINE short LittleShort(short s) { return bswap16(s); }
+static INLINE int LittleLong(int l) { return bswap32(l); }
+static INLINE float LittleFloat(float f)
+{
+    union { float f; int l; } u = { .f = f };
+    u.l = bswap32(u.l);
+    return u.f;
+}
+#else
+static INLINE short BigShort(short s) { return bswap16(s); }
+static INLINE int BigLong(int l) { return bswap32(l); }
+static INLINE float BigFloat(float f)
+{
+    union { float f; int l; } u = { .f = f };
+    u.l = bswap32(u.l);
+    return u.f;
+}
+static INLINE short LittleShort(short s) { return s; }
+static INLINE int LittleLong(int l) { return l; }
+static INLINE float LittleFloat(float f) { return f; }
+#endif
 
 //============================================================================
 
