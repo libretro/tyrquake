@@ -904,9 +904,15 @@ D_DrawZSpans(espan_t *pspan)
       {
          do
          {
+#ifdef MSB_FIRST
+            unsigned ltemp = izi & 0xFFFF0000;
+            izi += izistep;
+            ltemp |= izi >> 16;
+#else
             unsigned ltemp = izi >> 16;
             izi += izistep;
             ltemp |= izi & 0xFFFF0000;
+#endif
             izi += izistep;
             *(int *)pdest = ltemp;
             pdest += 2;
