@@ -34,13 +34,13 @@ typedef union eval_s {
     int edict;
 } eval_t;
 
-#define	MAX_ENT_LEAFS	16
+#define	MAX_ENT_LEAFS	48
 typedef struct edict_s {
     qboolean free;
     link_t area;		// linked to a division node or leaf
 
     int num_leafs;
-    short leafnums[MAX_ENT_LEAFS];
+    int leafnums[MAX_ENT_LEAFS];
 
     entity_state_t baseline;
 
