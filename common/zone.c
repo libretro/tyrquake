@@ -455,8 +455,7 @@ void * Hunk_AllocName(int size, const char *name)
 
    h->size = size;
    h->sentinal = HUNK_SENTINAL;
-   memset(h->name, 0, HUNK_NAMELEN);
-   memcpy(h->name, name, qmin((int)strlen(name), HUNK_NAMELEN));
+   memcpy(h->name, name, qmin((int)sizeof(h->name), HUNK_NAMELEN));
 
    return (void *)(h + 1);
 }
@@ -547,8 +546,7 @@ void *Hunk_HighAllocName(int size, const char *name)
    memset(h, 0, size);
    h->size = size;
    h->sentinal = HUNK_SENTINAL;
-   strncpy(h->name, name, HUNK_NAMELEN - 1);
-   h->name[HUNK_NAMELEN - 1] = 0;
+   memcpy(h->name, name, qmin((int)sizeof(h->name), HUNK_NAMELEN));
 
    return (void *)(h + 1);
 }
