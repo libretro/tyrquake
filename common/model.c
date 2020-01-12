@@ -996,10 +996,27 @@ CalcSurfaceExtents(msurface_t *s)
 	else
 	    v = &loadmodel->vertexes[loadmodel->edges[-e].v[1]];
 
+/*
+	 * The (long double) casts below are important: The original code was
+	 * written for x87 floating-point which uses 80-bit floats for
+	 * intermediate calculations. But if you compile it without the casts
+	 * for modern x86_64, the compiler will round each intermediate result
+	 * to a 32-bit float, which introduces extra rounding error.
+	 *
+	 * This becomes a problem if the rounding error causes the light
+	 * utilities and the engine to disagree about the lightmap size for
+	 * some surfaces.
+	 *
+	 * Casting to (long double) keeps the intermediate values at at least
+	 * 64 bits of precision, probably 128.
+	 */
+
 	for (j = 0; j < 2; j++) {
-	    val = v->position[0] * tex->vecs[j][0] +
-		v->position[1] * tex->vecs[j][1] +
-		v->position[2] * tex->vecs[j][2] + tex->vecs[j][3];
+       val =
+		(long double)v->position[0] * tex->vecs[j][0] +
+		(long double)v->position[1] * tex->vecs[j][1] +
+		(long double)v->position[2] * tex->vecs[j][2] +
+		                                   tex->vecs[j][3];
 	    if (val < mins[j])
 		mins[j] = val;
 	    if (val > maxs[j])
