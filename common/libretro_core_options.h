@@ -73,6 +73,12 @@ struct retro_core_option_definition option_defs_us[] = {
       "Modify framerate. Requires a restart.",
       {
          { "auto",            "Auto"},
+	 { "10",              "10fps"},
+	 { "15",              "15fps"},
+	 { "20",              "20fps"},
+	 { "25",              "25fps"},
+	 { "30",              "30fps"},
+ 	 { "40",              "40fps"},
          { "50",              "50fps"},
          { "60",              "60fps"},
          { "72",              "72fps"},
@@ -93,7 +99,11 @@ struct retro_core_option_definition option_defs_us[] = {
          { "360",              "360fps"},
          { NULL, NULL },
       },
+#ifdef _3DS
+      "25"
+#else
       "auto"
+#endif
    },
    {
       "tyrquake_colored_lighting",

@@ -1268,7 +1268,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define BUFFER_SIZE (2048)
+#define BUFFER_SIZE (10240)
 
 static int16_t audio_buffer[BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
@@ -1289,10 +1289,20 @@ static void audio_process(void)
    CDAudio_Update();
 }
 
+static void
+audio_batch_cb_blocking(int16_t * sa, size_t sz) {
+  while (sz) {
+    size_t r = audio_batch_cb(sa, sz);
+    sz -= r;
+    sa += r;
+  }
+}
+
 static void audio_callback(void)
 {
    unsigned read_first, read_second;
-   float samples_per_frame = (2 * SAMPLERATE) / framerate;
+   const int nchans = 2;
+   int samples_per_frame = (nchans * SAMPLERATE) / framerate;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
    if (read_end > BUFFER_SIZE)
@@ -1301,10 +1311,10 @@ static void audio_callback(void)
    read_first  = read_end - audio_buffer_ptr;
    read_second = samples_per_frame - read_first;
 
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first / (shm->samplebits / 8));
+   audio_batch_cb_blocking(audio_buffer + audio_buffer_ptr, read_first / nchans);
    audio_buffer_ptr += read_first;
    if (read_second >= 1) {
-      audio_batch_cb(audio_buffer, read_second / (shm->samplebits / 8));
+      audio_batch_cb_blocking(audio_buffer, read_second / nchans);
       audio_buffer_ptr = read_second;
    }
 }
