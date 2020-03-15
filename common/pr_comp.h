@@ -44,7 +44,7 @@ typedef int etype_t;
 #else
 typedef enum {
     ev_void, ev_string, ev_float, ev_vector, ev_entity, ev_field,
-    ev_function, ev_pointer
+    ev_function, ev_pointer, ENSURE_INT_ETYPE = 0x70000000
 } etype_t;
 #endif
 

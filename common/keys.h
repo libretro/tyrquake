@@ -272,7 +272,9 @@ typedef enum {
     K_AUX30,
     K_AUX31,
     K_AUX32,
-    K_LAST
+    K_LAST,
+
+    ENSURE_INT_KNUM = 0x70000000
 } knum_t;
 
 typedef enum {
@@ -280,7 +282,8 @@ typedef enum {
     key_console,
     key_message,
     key_menu,
-    key_none
+    key_none,
+    ENSURE_INT_KEYDEST = 0x70000000
 } keydest_t;
 
 extern keydest_t key_dest;

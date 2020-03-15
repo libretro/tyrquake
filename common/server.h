@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "progs.h"
 #include "client.h"
 
-typedef enum { ss_loading, ss_active } server_state_t;
+typedef enum { ss_loading, ss_active, ENSURE_INT_SERVER_STATE = 0x70000000 } server_state_t;
 
 typedef struct {
     qboolean active;		// false if only a net client

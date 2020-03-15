@@ -34,7 +34,7 @@ typedef unsigned char byte;
 typedef enum{ false, true };
 typedef int qboolean;
 #else
-typedef enum{ false, true } qboolean;
+typedef enum{ false, true, ENSURE_INT_QBOOL = 0x70000000 } qboolean;
 #endif
 
 #ifndef offsetof

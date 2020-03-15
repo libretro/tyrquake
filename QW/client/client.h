@@ -144,7 +144,8 @@ typedef enum {
     ca_demostart,		// starting up a demo
     ca_connected,		// netchan_t established, waiting for svc_serverdata
     ca_onserver,		// processing data lists, donwloading, etc
-    ca_active			// everything is in, so frames can be rendered
+    ca_active,			// everything is in, so frames can be rendered
+    ENSURE_INT_CACTIVE = 0x70000000
 } cactive_t;
 
 typedef enum {
@@ -152,7 +153,8 @@ typedef enum {
     dl_model,
     dl_sound,
     dl_skin,
-    dl_single
+    dl_single,
+    ENSURE_INT_DLTYPE = 0x70000000
 } dltype_t;			// download type
 
 //

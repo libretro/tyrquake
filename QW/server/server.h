@@ -37,7 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef enum {
     ss_dead,			// no map loaded
     ss_loading,			// spawning level edicts
-    ss_active			// actively running
+    ss_active,			// actively running
+    ENSURE_INT_SERVER_STATE = 0x70000000
 } server_state_t;
 
 // some qc commands are only valid before the server has finished
@@ -108,7 +109,8 @@ typedef enum {
     cs_zombie,			// client has been disconnected, but don't reuse
     // connection for a couple seconds
     cs_connected,		// has been assigned to a client_t, but not in game yet
-    cs_spawned			// client is fully in game
+    cs_spawned,			// client is fully in game
+    ENSURE_INT_CLIENT_STATE = 0x70000000
 } client_state_t;
 
 typedef struct {
@@ -429,7 +431,7 @@ void SV_SetMoveVars(void);
 //
 // svonly.c
 //
-typedef enum { RD_NONE, RD_CLIENT, RD_PACKET } redirect_t;
+typedef enum { RD_NONE, RD_CLIENT, RD_PACKET, ENSURE_INT_REDIRECT = 0x70000000 } redirect_t;
 void SV_BeginRedirect(redirect_t rd);
 void SV_EndRedirect(void);
 
