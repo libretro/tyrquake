@@ -54,6 +54,10 @@ struct in_addr {
 #define SO_BROADCAST SCE_NET_SO_BROADCAST
 #endif
 
+#ifdef _3DS
+#define SO_BROADCAST 0x20
+#endif
+
 #ifndef INADDR_NONE
 #define INADDR_NONE    ((uint32_t) 0xffffffff)  /* 255.255.255.255 */
 #endif

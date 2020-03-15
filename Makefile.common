@@ -120,7 +120,11 @@ SOURCES_C += $(CORE_DIR)/common/net_dgrm.c \
 	$(CORE_DIR)/common/net_udp.c \
 	$(CORE_DIR)/common/net_bsd.c
 
-ifneq ($(STATIC_LINKING),1)
+ifeq ($(platform), ctr)
+SOURCES_C += \
+				 $(LIBRETRO_COMM_DIR)/net/net_compat.c \
+				 $(LIBRETRO_COMM_DIR)/net/net_socket.c
+else ifneq ($(STATIC_LINKING),1)
 SOURCES_C += \
 				 $(LIBRETRO_COMM_DIR)/net/net_compat.c \
 				 $(LIBRETRO_COMM_DIR)/net/net_socket.c
