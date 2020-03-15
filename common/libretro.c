@@ -210,7 +210,7 @@ gp_layout_t classic_alt = {
 
 gp_layout_t *gp_layoutp = NULL;
 
-float framerate = 60.0f;
+static float framerate = 60.0f;
 static bool initial_resolution_set = false;
 static int invert_y_axis = 1;
 
@@ -1229,7 +1229,7 @@ void VID_Update(vrect_t *rects)
    uint16_t *pal               = (uint16_t*)&d_8to16table;
    uint16_t *ptr               = (uint16_t*)finalimage;
 
-   if (!video_cb || !rects)
+   if (!video_cb || !rects || did_flip)
       return;
 
    for (y = 0; y < rects->height; ++y)
