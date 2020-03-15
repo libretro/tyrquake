@@ -715,21 +715,23 @@ static void update_variables(bool startup)
    var.key = "tyrquake_framerate";
    var.value = NULL;
 
-   if (startup && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+   if (startup)
    {
-      if (!strcmp(var.value, "auto"))
-      {
-         float target_framerate = 0.0f;
-         if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
-                  &target_framerate))
-            target_framerate = 60.0f;
-         framerate = target_framerate;
-      }
-      else
+     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var)) {
+       if (!strcmp(var.value, "auto"))
+	 {
+	   float target_framerate = 0.0f;
+	   if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
+			   &target_framerate))
+	     target_framerate = 60.0f;
+	   framerate = target_framerate;
+	 }
+       else
          framerate = atof(var.value);
+     }
+     else
+       framerate = 60.0f;
    }
-   else
-      framerate = 60.0f;
 
    var.key = "tyrquake_colored_lighting";
    var.value = NULL;
