@@ -97,6 +97,12 @@ static bool libretro_supports_bitmasks = false;
 
 #define SAMPLERATE 48000
 
+#define MAX_AUDIO_BUFFER_SIZE (10240)
+
+static int16_t audio_buffer[MAX_AUDIO_BUFFER_SIZE];
+static int audio_buffer_size;
+static unsigned audio_buffer_ptr;
+
 // System analog stick range is -0x8000 to 0x8000
 #define ANALOG_RANGE 0x8000
 // Default deadzone: 15%
@@ -731,6 +737,12 @@ static void update_variables(bool startup)
      }
      else
        framerate = 60.0f;
+     if (framerate > 49.0)
+       audio_buffer_size = 2048;
+     else
+       audio_buffer_size = 2 * SAMPLERATE / framerate;
+     if (audio_buffer_size > MAX_AUDIO_BUFFER_SIZE)
+       audio_buffer_size = MAX_AUDIO_BUFFER_SIZE;
    }
 
    var.key = "tyrquake_colored_lighting";
@@ -1268,11 +1280,6 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define BUFFER_SIZE (10240)
-
-static int16_t audio_buffer[BUFFER_SIZE];
-static unsigned audio_buffer_ptr;
-
 static void audio_process(void)
 {
    /* adds music raw samples and/or advances midi driver */
@@ -1305,8 +1312,8 @@ static void audio_callback(void)
    int samples_per_frame = (nchans * SAMPLERATE) / framerate;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
-   if (read_end > BUFFER_SIZE)
-      read_end = BUFFER_SIZE;
+   if (read_end > audio_buffer_size)
+      read_end = audio_buffer_size;
 
    read_first  = read_end - audio_buffer_ptr;
    read_second = samples_per_frame - read_first;
@@ -1327,7 +1334,7 @@ qboolean SNDDMA_Init(dma_t *dma)
    shm->samplepos = 0;
    shm->samplebits = 16;
    shm->signed8 = 0;
-   shm->samples = BUFFER_SIZE;
+   shm->samples = audio_buffer_size;
    shm->buffer = (unsigned char *volatile)audio_buffer;
 
    return true;
