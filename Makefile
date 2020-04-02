@@ -220,6 +220,7 @@ else ifeq ($(platform), ctr)
 	CFLAGS += -march=armv6k -mtune=mpcore -mfloat-abi=hard
 	CFLAGS += -Wall -mword-relocations
 	CFLAGS += -fomit-frame-pointer -ffast-math
+	CFLAGS += -I$(DEVKITPRO)/libctru/include
 	STATIC_LINKING = 1
 
 # Raspberry Pi 1

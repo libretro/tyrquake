@@ -349,7 +349,7 @@ static INLINE sw_aliashdr_t *SW_Aliashdr(aliashdr_t *h)
 // Whole model
 //
 
-typedef enum { mod_brush, mod_sprite, mod_alias } modtype_t;
+typedef enum { mod_brush, mod_sprite, mod_alias, ENSURE_INT_MODTYPE = 0x70000000 } modtype_t;
 
 #define	EF_ROCKET	1	// leave a trail
 #define	EF_GRENADE	2	// leave a trail

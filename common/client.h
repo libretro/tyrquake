@@ -92,7 +92,8 @@ typedef enum {
     ca_disconnected,		// full screen console with no connection
     ca_connected,		// valid netcon, doing signons...
     ca_firstupdate,		// waiting for first update (final signon stage)
-    ca_active			// signons complete, frames can be rendered
+    ca_active,			// signons complete, frames can be rendered
+    ENSURE_INT_CACTIVE = 0x70000000
 } cactive_t;
 
 //

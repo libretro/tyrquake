@@ -97,6 +97,12 @@ static bool libretro_supports_bitmasks = false;
 
 #define SAMPLERATE 48000
 
+#define MAX_AUDIO_BUFFER_SIZE (10240)
+
+static int16_t audio_buffer[MAX_AUDIO_BUFFER_SIZE];
+static int audio_buffer_size;
+static unsigned audio_buffer_ptr;
+
 // System analog stick range is -0x8000 to 0x8000
 #define ANALOG_RANGE 0x8000
 // Default deadzone: 15%
@@ -210,7 +216,7 @@ gp_layout_t classic_alt = {
 
 gp_layout_t *gp_layoutp = NULL;
 
-float framerate = 60.0f;
+static float framerate = 60.0f;
 static bool initial_resolution_set = false;
 static int invert_y_axis = 1;
 
@@ -715,21 +721,29 @@ static void update_variables(bool startup)
    var.key = "tyrquake_framerate";
    var.value = NULL;
 
-   if (startup && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+   if (startup)
    {
-      if (!strcmp(var.value, "auto"))
-      {
-         float target_framerate = 0.0f;
-         if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
-                  &target_framerate))
-            target_framerate = 60.0f;
-         framerate = target_framerate;
-      }
-      else
+     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var)) {
+       if (!strcmp(var.value, "auto"))
+	 {
+	   float target_framerate = 0.0f;
+	   if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
+			   &target_framerate))
+	     target_framerate = 60.0f;
+	   framerate = target_framerate;
+	 }
+       else
          framerate = atof(var.value);
+     }
+     else
+       framerate = 60.0f;
+     if (framerate > 49.0)
+       audio_buffer_size = 2048;
+     else
+       audio_buffer_size = 2 * SAMPLERATE / framerate;
+     if (audio_buffer_size > MAX_AUDIO_BUFFER_SIZE)
+       audio_buffer_size = MAX_AUDIO_BUFFER_SIZE;
    }
-   else
-      framerate = 60.0f;
 
    var.key = "tyrquake_colored_lighting";
    var.value = NULL;
@@ -1227,7 +1241,7 @@ void VID_Update(vrect_t *rects)
    uint16_t *pal               = (uint16_t*)&d_8to16table;
    uint16_t *ptr               = (uint16_t*)finalimage;
 
-   if (!video_cb || !rects)
+   if (!video_cb || !rects || did_flip)
       return;
 
    for (y = 0; y < rects->height; ++y)
@@ -1266,11 +1280,6 @@ void D_EndDirectRect(int x, int y, int width, int height)
  * SOUND (TODO)
  */
 
-#define BUFFER_SIZE (2048)
-
-static int16_t audio_buffer[BUFFER_SIZE];
-static unsigned audio_buffer_ptr;
-
 static void audio_process(void)
 {
    /* adds music raw samples and/or advances midi driver */
@@ -1287,22 +1296,32 @@ static void audio_process(void)
    CDAudio_Update();
 }
 
+static void
+audio_batch_cb_blocking(int16_t * sa, size_t sz) {
+  while (sz) {
+    size_t r = audio_batch_cb(sa, sz);
+    sz -= r;
+    sa += r;
+  }
+}
+
 static void audio_callback(void)
 {
    unsigned read_first, read_second;
-   float samples_per_frame = (2 * SAMPLERATE) / framerate;
+   const int nchans = 2;
+   int samples_per_frame = (nchans * SAMPLERATE) / framerate;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
-   if (read_end > BUFFER_SIZE)
-      read_end = BUFFER_SIZE;
+   if (read_end > audio_buffer_size)
+      read_end = audio_buffer_size;
 
    read_first  = read_end - audio_buffer_ptr;
    read_second = samples_per_frame - read_first;
 
-   audio_batch_cb(audio_buffer + audio_buffer_ptr, read_first / (shm->samplebits / 8));
+   audio_batch_cb_blocking(audio_buffer + audio_buffer_ptr, read_first / nchans);
    audio_buffer_ptr += read_first;
    if (read_second >= 1) {
-      audio_batch_cb(audio_buffer, read_second / (shm->samplebits / 8));
+      audio_batch_cb_blocking(audio_buffer, read_second / nchans);
       audio_buffer_ptr = read_second;
    }
 }
@@ -1315,7 +1334,7 @@ qboolean SNDDMA_Init(dma_t *dma)
    shm->samplepos = 0;
    shm->samplebits = 16;
    shm->signed8 = 0;
-   shm->samples = BUFFER_SIZE;
+   shm->samples = audio_buffer_size;
    shm->buffer = (unsigned char *volatile)audio_buffer;
 
    return true;

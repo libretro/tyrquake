@@ -43,7 +43,8 @@ typedef enum {
 	STREAM_NONE = -1,
 	STREAM_INIT,
 	STREAM_PAUSE,
-	STREAM_PLAY
+	STREAM_PLAY,
+	ENSURE_INT_STREAM_STATUS = 0x70000000
 } stream_status_t;
 
 typedef struct snd_codec_s snd_codec_t;

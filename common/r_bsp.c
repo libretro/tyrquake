@@ -38,7 +38,7 @@ static float entity_rotation[3][3];
 
 int r_currentbkey;
 
-typedef enum { touchessolid, drawnode, nodrawnode } solidstate_t;
+typedef enum { touchessolid, drawnode, nodrawnode, ENSURE_INT_SOLID_STATE = 0x70000000 } solidstate_t;
 
 #define MAX_BMODEL_VERTS	500	// 6K
 #define MAX_BMODEL_EDGES	1000	// 12K

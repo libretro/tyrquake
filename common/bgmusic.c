@@ -44,7 +44,8 @@ typedef enum _bgm_player
 {
 	BGM_NONE = -1,
 	BGM_MIDIDRV = 1,
-	BGM_STREAMER
+	BGM_STREAMER,
+	ENSURE_INT_BGMPLAYER = 0x70000000
 } bgm_player_t;
 
 typedef struct music_handler_s
