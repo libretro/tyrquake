@@ -186,7 +186,7 @@ else ifeq ($(platform), psl1ght)
    TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
    CC = $(PS3DEV)/ppu/bin/ppu-gcc$(EXE_EXT)
    AR = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
-   CFLAGS += -D__ppc__ -DMSB_FIRST
+   CFLAGS += -DMSB_FIRST -D__CELLOS_LV2__ -D__PSL1GHT__ -I$(PS3DEV)/ppu/include
 	STATIC_LINKING = 1
 
 # PSP1
