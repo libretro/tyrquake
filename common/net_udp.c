@@ -130,7 +130,8 @@ UDP_Init(void)
     /* determine my name & address, default to loopback */
     myAddr.ip.l = htonl(INADDR_LOOPBACK);
     myAddr.port = htons(DEFAULTnet_hostport);
-#ifdef VITA
+#ifdef __PSL1GHT__
+#elif defined (VITA)
     SceNetCtlInfo info;
     sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
     sceNetInetPton(SCE_NET_AF_INET, info.ip_address, &myAddr.ip.l);

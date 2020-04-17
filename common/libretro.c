@@ -64,7 +64,9 @@ qboolean isDedicated;
 #include <ogc/lwp_watchdog.h>
 #endif
 
-#ifdef __CELLOS_LV2__
+#ifdef __PSL1GHT__
+#include <lv2/systime.h>
+#elif defined (__CELLOS_LV2__)
 #include <sys/sys_time.h>
 #include <sys/timer.h>
 #endif
@@ -335,6 +337,8 @@ double Sys_DoubleTime(void)
    newtime = (OSGetSystemTime() / 62156250.f);
 #elif defined(GEKKO)
    newtime = ticks_to_microsecs(gettime()) / 1000000.0;
+#elif defined(__PSL1GHT__)
+   newtime = sysGetSystemTime() / 1000000.0;
 #elif defined(__CELLOS_LV2__)
    newtime = sys_time_get_system_time() / 1000000.0;
 #elif defined(_WIN32)
