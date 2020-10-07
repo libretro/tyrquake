@@ -208,7 +208,6 @@ else ifeq ($(platform), vita)
 					-fno-unwind-tables -fno-asynchronous-unwind-tables -ftree-vectorize \
 					-mfloat-abi=hard -ffast-math -fsingle-precision-constant -funroll-loops
 	STATIC_LINKING = 1
-	HAVE_NETWORKING=0
 
 # CTR (3DS)
 else ifeq ($(platform), ctr)
