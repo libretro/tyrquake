@@ -115,93 +115,93 @@ SockadrToNetadr(const struct sockaddr_in *s, netadr_t *a)
 int
 UDP_Init(void)
 {
-    int i;
-    int err;
-    char buff[MAXHOSTNAMELEN];
-    char *colon;
-    struct hostent *local;
-    netadr_t addr;
+   int i;
+   int err;
+   char buff[MAXHOSTNAMELEN];
+   char *colon;
+   struct hostent *local;
+   netadr_t addr;
 
-    if (COM_CheckParm("-noudp"))
-	return -1;
-	
-	network_init();
-	
-    /* determine my name & address, default to loopback */
-    myAddr.ip.l = htonl(INADDR_LOOPBACK);
-    myAddr.port = htons(DEFAULTnet_hostport);
+   if (COM_CheckParm("-noudp"))
+      return -1;
+
+   network_init();
+
+   /* determine my name & address, default to loopback */
+   myAddr.ip.l = htonl(INADDR_LOOPBACK);
+   myAddr.port = htons(DEFAULTnet_hostport);
 #ifdef __PSL1GHT__
 #elif defined (VITA)
-    SceNetCtlInfo info;
-    sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
-    sceNetInetPton(SCE_NET_AF_INET, info.ip_address, &myAddr.ip.l);
+   SceNetCtlInfo info;
+   sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
+   sceNetInetPton(SCE_NET_AF_INET, info.ip_address, &myAddr.ip.l);
 #else
-    err = gethostname(buff, MAXHOSTNAMELEN);
-    if (err) {
-	Con_Printf("%s: WARNING: gethostname failed (%s)\n", __func__,
-		   strerror(errno));
-    } else {
-	buff[MAXHOSTNAMELEN - 1] = 0;
-	local = gethostbyname(buff);
-	if (!local) {
-	    Con_Printf("%s: WARNING: gethostbyname failed\n", __func__);
-	} else if (local->h_addrtype != AF_INET) {
-	    Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
-	} else {
-	    struct in_addr *inaddr = (struct in_addr *)local->h_addr_list[0];
-	    myAddr.ip.l = inaddr->s_addr;
-	}
-    }
+   err = gethostname(buff, MAXHOSTNAMELEN);
+   if (err) {
+      Con_Printf("%s: WARNING: gethostname failed (%s)\n", __func__,
+            strerror(errno));
+   } else {
+      buff[MAXHOSTNAMELEN - 1] = 0;
+      local = gethostbyname(buff);
+      if (!local) {
+         Con_Printf("%s: WARNING: gethostbyname failed\n", __func__);
+      } else if (local->h_addrtype != AF_INET) {
+         Con_Printf("%s: address from gethostbyname not IPv4\n", __func__);
+      } else {
+         struct in_addr *inaddr = (struct in_addr *)local->h_addr_list[0];
+         myAddr.ip.l = inaddr->s_addr;
+      }
+   }
 #endif
-    i = COM_CheckParm("-ip");
-    if (i && i < com_argc - 1) {
-	bindAddr.ip.l = inet_addr(com_argv[i + 1]);
-	if (bindAddr.ip.l == INADDR_NONE)
-	    Sys_Error("%s: %s is not a valid IP address", __func__,
-		      com_argv[i + 1]);
-	Con_Printf("Binding to IP Interface Address of %s\n", com_argv[i + 1]);
-    } else {
-	bindAddr.ip.l = INADDR_NONE;
-    }
+   i = COM_CheckParm("-ip");
+   if (i && i < com_argc - 1) {
+      bindAddr.ip.l = inet_addr(com_argv[i + 1]);
+      if (bindAddr.ip.l == INADDR_NONE)
+         Sys_Error("%s: %s is not a valid IP address", __func__,
+               com_argv[i + 1]);
+      Con_Printf("Binding to IP Interface Address of %s\n", com_argv[i + 1]);
+   } else {
+      bindAddr.ip.l = INADDR_NONE;
+   }
 
-    i = COM_CheckParm("-localip");
-    if (i && i < com_argc - 1) {
-	localAddr.ip.l = inet_addr(com_argv[i + 1]);
-	if (localAddr.ip.l == INADDR_NONE)
-	    Sys_Error("%s: %s is not a valid IP address", __func__,
-		      com_argv[i + 1]);
-	Con_Printf("Advertising %s as the local IP in response packets\n",
-		   com_argv[i + 1]);
-    } else {
-	localAddr.ip.l = INADDR_NONE;
-    }
+   i = COM_CheckParm("-localip");
+   if (i && i < com_argc - 1) {
+      localAddr.ip.l = inet_addr(com_argv[i + 1]);
+      if (localAddr.ip.l == INADDR_NONE)
+         Sys_Error("%s: %s is not a valid IP address", __func__,
+               com_argv[i + 1]);
+      Con_Printf("Advertising %s as the local IP in response packets\n",
+            com_argv[i + 1]);
+   } else {
+      localAddr.ip.l = INADDR_NONE;
+   }
 
-    net_controlsocket = UDP_OpenSocket(0);
-    if (net_controlsocket == -1) {
-	Con_Printf("%s: Unable to open control socket, UDP disabled\n",
-		   __func__);
-	return -1;
-    }
+   net_controlsocket = UDP_OpenSocket(0);
+   if (net_controlsocket == -1) {
+      Con_Printf("%s: Unable to open control socket, UDP disabled\n",
+            __func__);
+      return -1;
+   }
 
-    /* myAddr may resolve to 127.0.0.1, see if we can do any better */
-    memset (ifname, 0, sizeof(ifname));
-    if (ifname[0] == 0) {
-	Con_Printf ("UDP, Local address: %s\n", NET_AdrToString(&myAddr));
-    }
+   /* myAddr may resolve to 127.0.0.1, see if we can do any better */
+   memset (ifname, 0, sizeof(ifname));
+   if (ifname[0] == 0) {
+      Con_Printf ("UDP, Local address: %s\n", NET_AdrToString(&myAddr));
+   }
 
-    broadcastaddr.ip.l = INADDR_BROADCAST;
-    broadcastaddr.port = htons(net_hostport);
+   broadcastaddr.ip.l = INADDR_BROADCAST;
+   broadcastaddr.port = htons(net_hostport);
 
-    UDP_GetSocketAddr(net_controlsocket, &addr);
-    strcpy(my_tcpip_address, NET_AdrToString(&addr));
-    colon = strrchr(my_tcpip_address, ':');
-    if (colon)
-	*colon = 0;
+   UDP_GetSocketAddr(net_controlsocket, &addr);
+   strcpy(my_tcpip_address, NET_AdrToString(&addr));
+   colon = strrchr(my_tcpip_address, ':');
+   if (colon)
+      *colon = 0;
 
-    Con_Printf("UDP Initialized (%s)\n", my_tcpip_address);
-    tcpipAvailable = true;
+   Con_Printf("UDP Initialized (%s)\n", my_tcpip_address);
+   tcpipAvailable = true;
 
-    return net_controlsocket;
+   return net_controlsocket;
 }
 
 
@@ -235,28 +235,27 @@ UDP_Listen(qboolean state)
 int
 UDP_OpenSocket(int port)
 {
-    int newsocket;
-    struct sockaddr_in address;
-    int _true = 1;
+   int newsocket;
+   struct sockaddr_in address;
 
-    if ((newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-	return -1;
-	socket_nonblock(newsocket);
+   if ((newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+      return -1;
+   socket_nonblock(newsocket);
 
-    address.sin_family = AF_INET;
-    if (bindAddr.ip.l != INADDR_NONE)
-	address.sin_addr.s_addr = bindAddr.ip.l;
-    else
-	address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons((unsigned short)port);
-    if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == -1)
-	goto ErrorReturn;
+   address.sin_family = AF_INET;
+   if (bindAddr.ip.l != INADDR_NONE)
+      address.sin_addr.s_addr = bindAddr.ip.l;
+   else
+      address.sin_addr.s_addr = INADDR_ANY;
+   address.sin_port = htons((unsigned short)port);
+   if (bind(newsocket, (struct sockaddr *)&address, sizeof(address)) == -1)
+      goto ErrorReturn;
 
-    return newsocket;
+   return newsocket;
 
-  ErrorReturn:
-    close(newsocket);
-    return -1;
+ErrorReturn:
+   close(newsocket);
+   return -1;
 }
 
 
@@ -272,18 +271,17 @@ UDP_CloseSocket(int socket)
 int
 UDP_CheckNewConnections(void)
 {
-    unsigned long available;
-    struct sockaddr_in from;
-    socklen_t fromlen;
-    char buff[1];
+   struct sockaddr_in from;
+   socklen_t fromlen;
+   char buff[1];
 
-    if (net_acceptsocket == -1)
-	return -1;
+   if (net_acceptsocket == -1)
+      return -1;
 
-    /* quietly absorb empty packets */
-    if (recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *)&from, &fromlen) >= 0)
-		return net_acceptsocket;
-    return -1;
+   /* quietly absorb empty packets */
+   if (recvfrom (net_acceptsocket, buff, 0, 0, (struct sockaddr *)&from, &fromlen) >= 0)
+      return net_acceptsocket;
+   return -1;
 }
 
 
@@ -305,14 +303,14 @@ UDP_Read(int socket, void *buf, int len, netadr_t *addr)
 static int
 UDP_MakeSocketBroadcastCapable(int socket)
 {
-    int i = 1;
+   int i = 1;
 
-    /* make this socket broadcast capable */
-    if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, &i, sizeof(i)) < 0)
-	return -1;
-    net_broadcastsocket = socket;
+   /* make this socket broadcast capable */
+   if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, &i, sizeof(i)) < 0)
+      return -1;
+   net_broadcastsocket = socket;
 
-    return 0;
+   return 0;
 }
 
 
