@@ -30,6 +30,7 @@ extern int m_state;
 #include <net/net_socket.h>
 
 #include "cmd.h"
+#include "common.h"
 #include "console.h"
 #include "keys.h"
 #include "menu.h"
