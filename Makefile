@@ -258,6 +258,15 @@ else ifeq ($(platform), rpi3_64)
         CFLAGS += -march=armv8-a+crc -mtune=cortex-a53
         CFLAGS += -fomit-frame-pointer
 
+# Raspberry Pi 4 with 64bit kernel & libs
+else ifeq ($(platform), rpi4_64)
+        TARGET := $(TARGET_NAME)_libretro.so
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DARM
+        CFLAGS += -march=armv8-a+crc+simd -mtune=cortex-a72
+        CFLAGS += -fomit-frame-pointer
+
 # Classic Platforms ####################
 # Platform affix = classic_<ISA>_<µARCH>
 # Help at https://modmyclassic.com/comp
