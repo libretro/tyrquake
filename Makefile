@@ -222,6 +222,16 @@ else ifeq ($(platform), ctr)
 	CFLAGS += -I$(DEVKITPRO)/libctru/include
 	STATIC_LINKING = 1
 
+# GCW0
+else ifeq ($(platform), gcw0)
+        TARGET := $(TARGET_NAME)_libretro.so
+        CC = /opt/gcw0-toolchain/usr/bin/mipsel-linux-gcc
+        AR = /opt/gcw0-toolchain/usr/bin/mipsel-linux-ar
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DDINGUX -fomit-frame-pointer -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float
+        HAVE_NETWORKING=0
+
 # Raspberry Pi 1
 else ifeq ($(platform), rpi1)
         TARGET := $(TARGET_NAME)_libretro.so
