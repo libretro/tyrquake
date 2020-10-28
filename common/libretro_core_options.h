@@ -40,7 +40,7 @@ struct retro_core_option_definition option_defs_us[] = {
          { "360x400",   NULL },
          { "360x480",   NULL },
          { "400x224",   NULL },
-	 { "400x240",   NULL },
+         { "400x240",   NULL },
          { "480x272",   NULL },
          { "512x224",   NULL },
          { "512x240",   NULL },
@@ -56,18 +56,20 @@ struct retro_core_option_definition option_defs_us[] = {
          { "800x600",   NULL },
          { "960x720",   NULL },
          { "960x600",   NULL },
-         { "1024x768",   NULL },
-         { "1280x720",   NULL },
+         { "1024x768",  NULL },
+         { "1280x720",  NULL },
          { "1280x800",  NULL },
-         { "1600x900",   NULL },
+         { "1600x900",  NULL },
          { "1600x1000", NULL },
          { "1600x1200", NULL },
-         { "1920x1080",   NULL },
+         { "1920x1080", NULL },
          { "1920x1200", NULL },
          { NULL, NULL },
       },
-#ifdef _3DS
-      "400x240",
+#if defined(_3DS)
+      "400x240"
+#elif defined(DINGUX)
+      "320x240"
 #else
       "320x200"
 #endif
@@ -78,12 +80,12 @@ struct retro_core_option_definition option_defs_us[] = {
       "Modify framerate. Requires a restart.",
       {
          { "auto",            "Auto"},
-	 { "10",              "10fps"},
-	 { "15",              "15fps"},
-	 { "20",              "20fps"},
-	 { "25",              "25fps"},
-	 { "30",              "30fps"},
- 	 { "40",              "40fps"},
+         { "10",              "10fps"},
+         { "15",              "15fps"},
+         { "20",              "20fps"},
+         { "25",              "25fps"},
+         { "30",              "30fps"},
+         { "40",              "40fps"},
          { "50",              "50fps"},
          { "60",              "60fps"},
          { "72",              "72fps"},
@@ -104,8 +106,10 @@ struct retro_core_option_definition option_defs_us[] = {
          { "360",              "360fps"},
          { NULL, NULL },
       },
-#ifdef _3DS
+#if defined(_3DS)
       "25"
+#elif defined(DINGUX)
+      "30"
 #else
       "auto"
 #endif

@@ -97,12 +97,11 @@ static bool libretro_supports_bitmasks = false;
 #define DEFAULT_MEMSIZE_MB 32
 #endif
 
-#define SAMPLERATE 48000
+#define DEFAULT_SAMPLERATE 48000
+static uint16_t samplerate = DEFAULT_SAMPLERATE;
 
-#define MAX_AUDIO_BUFFER_SIZE (10240)
-
-static int16_t audio_buffer[MAX_AUDIO_BUFFER_SIZE];
-static int audio_buffer_size;
+#define AUDIO_BUFFER_SIZE 4096
+static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
 
 // System analog stick range is -0x8000 to 0x8000
@@ -149,8 +148,8 @@ gp_layout_t modern = {
       { 0 },
    },
 };
-gp_layout_t classic = {
 
+gp_layout_t classic = {
    {
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "D-Pad Left" },
       { 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "D-Pad Up" },
@@ -182,6 +181,7 @@ gp_layout_t classic = {
       { 0 },
    },
 };
+
 gp_layout_t classic_alt = {
 
    {
@@ -506,7 +506,7 @@ void retro_get_system_info(struct retro_system_info *info)
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing.fps            = framerate;
-   info->timing.sample_rate    = SAMPLERATE;
+   info->timing.sample_rate    = samplerate;
 
    info->geometry.base_width   = width;
    info->geometry.base_height  = height;
@@ -727,26 +727,40 @@ static void update_variables(bool startup)
 
    if (startup)
    {
-     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var)) {
-       if (!strcmp(var.value, "auto"))
-	 {
-	   float target_framerate = 0.0f;
-	   if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
-			   &target_framerate))
-	     target_framerate = 60.0f;
-	   framerate = target_framerate;
-	 }
-       else
-         framerate = atof(var.value);
-     }
-     else
-       framerate = 60.0f;
-     if (framerate > 49.0)
-       audio_buffer_size = 2048;
-     else
-       audio_buffer_size = 2 * SAMPLERATE / framerate;
-     if (audio_buffer_size > MAX_AUDIO_BUFFER_SIZE)
-       audio_buffer_size = MAX_AUDIO_BUFFER_SIZE;
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+      {
+         if (!strcmp(var.value, "auto"))
+         {
+            float target_framerate = 0.0f;
+
+            if (!environ_cb(RETRO_ENVIRONMENT_GET_TARGET_REFRESH_RATE,
+                  &target_framerate))
+               target_framerate = 60.0f;
+
+            framerate = target_framerate;
+         }
+         else
+            framerate = atof(var.value);
+      }
+      else
+         framerate = 60.0f;
+
+      /* Note: The audio handling code of the game engine
+       * completely falls apart below 50 FPS. To go any
+       * lower than this, we have to manipulate the actual
+       * audio sample rate to achieve a fixed 'samples per
+       * frame' matching the default frame rate of 60. This
+       * means we get progressively lower quality audio as
+       * the frame rate decreases, but the alternative is
+       * no sound at all... */
+      if (framerate > 49.0f)
+         samplerate = DEFAULT_SAMPLERATE;
+      else
+      {
+         samplerate = (uint16_t)((float)DEFAULT_SAMPLERATE * (framerate / 60.0f));
+         /* Round up to the nearest power of 2 */
+         samplerate = (samplerate + 0x1) & ~0x1;
+      }
    }
 
    var.key = "tyrquake_colored_lighting";
@@ -968,10 +982,14 @@ bool retro_load_game(const struct retro_game_info *info)
         strstr(path_lower, "hipnotic") ||
         strstr(path_lower, "rogue") )
    {
+      char tmp_dir[1024];
+      tmp_dir[0] = '\0';
+
 #if (defined(HW_RVL) && !defined(WIIU)) || defined(_XBOX1)
       MEMSIZE_MB = 16;
 #endif
-      extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
+      extract_directory(tmp_dir, g_rom_dir, sizeof(tmp_dir));
+      strncpy(g_rom_dir, tmp_dir, sizeof(g_rom_dir) - 1);
    }
 
    memset(&parms, 0, sizeof(parms));
@@ -1301,30 +1319,33 @@ static void audio_process(void)
 }
 
 static void
-audio_batch_cb_blocking(int16_t * sa, size_t sz) {
-  while (sz) {
-    size_t r = audio_batch_cb(sa, sz);
-    sz -= r;
-    sa += r;
-  }
+audio_batch_cb_blocking(int16_t * sa, size_t sz)
+{
+   while (sz)
+   {
+      size_t r = audio_batch_cb(sa, sz);
+      sz -= r;
+      sa += r;
+   }
 }
 
 static void audio_callback(void)
 {
    unsigned read_first, read_second;
    const int nchans = 2;
-   int samples_per_frame = (nchans * SAMPLERATE) / framerate;
+   int samples_per_frame = (nchans * samplerate) / framerate;
    unsigned read_end = audio_buffer_ptr + samples_per_frame;
 
-   if (read_end > audio_buffer_size)
-      read_end = audio_buffer_size;
+   if (read_end > AUDIO_BUFFER_SIZE)
+      read_end = AUDIO_BUFFER_SIZE;
 
    read_first  = read_end - audio_buffer_ptr;
    read_second = samples_per_frame - read_first;
 
    audio_batch_cb_blocking(audio_buffer + audio_buffer_ptr, read_first / nchans);
    audio_buffer_ptr += read_first;
-   if (read_second >= 1) {
+   if (read_second >= 1)
+   {
       audio_batch_cb_blocking(audio_buffer, read_second / nchans);
       audio_buffer_ptr = read_second;
    }
@@ -1333,12 +1354,12 @@ static void audio_callback(void)
 qboolean SNDDMA_Init(dma_t *dma)
 {
    shm = dma;
-   shm->speed = SAMPLERATE;
+   shm->speed = samplerate;
    shm->channels = 2;
    shm->samplepos = 0;
    shm->samplebits = 16;
    shm->signed8 = 0;
-   shm->samples = audio_buffer_size;
+   shm->samples = AUDIO_BUFFER_SIZE;
    shm->buffer = (unsigned char *volatile)audio_buffer;
 
    return true;
