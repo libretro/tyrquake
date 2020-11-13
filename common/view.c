@@ -73,6 +73,11 @@ float   v_oldz, v_stepz;
 float   v_steptime;
 /* EOF - Framerate-independent stair-step smoothing */
 
+static int old_health = 100;
+static float old_velocity_z = 0.0;
+extern void retro_set_rumble_damage(int damage);
+extern void retro_set_rumble_touch(unsigned intensity, float duration);
+
 /*
 ===============
 V_CalcRoll
@@ -148,6 +153,14 @@ float V_CalcBob(void)
       bob = 4;
    else if (bob < -7)
       bob = -7;
+
+   /* Check for a sudden stop in downwards motion
+    * > Means we've just 'touched' the ground, so
+    *   trigger a weak touch-type rumble */
+   if ((old_velocity_z < 0.0) &&
+       (cl.velocity[2] == 0.0))
+      retro_set_rumble_touch(6, 120.0f);
+   old_velocity_z = cl.velocity[2];
 
    return bob;
 }
@@ -407,6 +420,10 @@ void V_BonusFlash_f(void)
     cl.cshifts[CSHIFT_BONUS].initialpct = 50;
     cl.cshifts[CSHIFT_BONUS].time = cl.time;
     /* EOF - Frame-rate independent damage and bonus shifts */
+
+    /* We have touched an item - trigger a moderate
+     * touch-type rumble */
+    retro_set_rumble_touch(9, 140.0f);
 }
 
 /*
@@ -677,10 +694,6 @@ V_CalcViewRoll
 Roll is induced by movement and damage
 ==============
 */
-static int old_health = 100;
-void retro_set_rumble_strong(void);
-void retro_unset_rumble_strong(void);
-
 void V_CalcViewRoll(void)
 {
    float side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
@@ -695,12 +708,12 @@ void V_CalcViewRoll(void)
       v_dmg_time -= host_frametime;
 
       if (old_health > cl.stats[STAT_HEALTH])
-         retro_set_rumble_strong();
+         retro_set_rumble_damage(old_health - cl.stats[STAT_HEALTH]);
+
       old_health = cl.stats[STAT_HEALTH];
    }
    else
-      retro_unset_rumble_strong();
-
+      retro_set_rumble_damage(0);
 
    if (cl.stats[STAT_HEALTH] <= 0) {
       r_refdef.viewangles[ROLL] = 80;	// dead view angle
