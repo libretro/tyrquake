@@ -84,7 +84,6 @@ unsigned device_type = 0;
 
 unsigned MEMSIZE_MB;
 
-static struct retro_rumble_interface rumble;
 static bool libretro_supports_bitmasks = false;
 
 #if defined(HW_DOL)
@@ -218,7 +217,9 @@ gp_layout_t classic_alt = {
 
 gp_layout_t *gp_layoutp = NULL;
 
-static float framerate = 60.0f;
+static float framerate      = 60.0f;
+static float frametime_usec = 1000.0f / 60.0f;
+
 static bool initial_resolution_set = false;
 static int invert_y_axis = 1;
 
@@ -245,6 +246,61 @@ static void extract_basename(char *buf, const char *path, size_t size)
    ext = strrchr(buf, '.');
    if (ext)
       *ext = '\0';
+}
+
+static struct retro_rumble_interface rumble = {0};
+static bool rumble_enabled                  = false;
+static uint16_t rumble_damage_strength      = 0;
+static uint16_t rumble_touch_strength       = 0;
+static int16_t rumble_touch_counter         = -1;
+
+void retro_set_rumble_damage(int damage)
+{
+   /* Rumble scales linearly from 0xFFF to 0xFFFF
+    * as damage increases from 1 to 50 */
+   int capped_damage = (damage < 50) ? damage : 50;
+   uint16_t strength = 0;
+
+   if (!rumble.set_rumble_state ||
+       (!rumble_enabled && (capped_damage > 0)))
+      return;
+
+   if (capped_damage > 0)
+      strength = 0xFFF + (capped_damage * 0x4CC);
+
+   /* Return early if strength matches last
+    * set value */
+   if (strength == rumble_damage_strength)
+      return;
+
+   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength);
+   rumble_damage_strength = strength;
+}
+
+void retro_set_rumble_touch(unsigned intensity, float duration)
+{
+   /* Rumble scales linearly from 0xFF to 0xFFFF
+    * as intensity increases from 1 to 20 */
+   unsigned capped_intensity = (intensity < 20) ? intensity : 20;
+   uint16_t strength         = 0;
+
+   if (!rumble.set_rumble_state ||
+       (!rumble_enabled && (capped_intensity > 0)))
+      return;
+
+   if ((capped_intensity > 0) && (duration > 0.0f))
+   {
+      strength             = 0xFF + (capped_intensity * 0xCC0);
+      rumble_touch_counter = (int16_t)((duration / frametime_usec) + 1.0f);
+   }
+
+   /* Return early if strength matches last
+    * set value */
+   if (strength == rumble_touch_strength)
+      return;
+
+   rumble.set_rumble_state(0, RETRO_RUMBLE_WEAK, strength);
+   rumble_touch_strength = strength;
 }
 
 // =======================================================================
@@ -438,6 +494,15 @@ void retro_deinit(void)
       free(heap);
 
    libretro_supports_bitmasks = false;
+
+   retro_set_rumble_damage(0);
+   retro_set_rumble_touch(0, 0.0f);
+
+   memset(&rumble, 0, sizeof(struct retro_rumble_interface));
+   rumble_enabled         = false;
+   rumble_damage_strength = 0;
+   rumble_touch_strength  = 0;
+   rumble_touch_counter   = -1;
 }
 
 unsigned retro_api_version(void)
@@ -697,26 +762,7 @@ void Sys_Sleep(void)
 const char *argv[MAX_NUM_ARGVS];
 static const char *empty_string = "";
 
-void retro_set_rumble_strong(void)
-{
-   uint16_t strength_strong = 0xffff;
-   if (!rumble.set_rumble_state)
-      return;
-
-   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, strength_strong);
-}
-
-void retro_unset_rumble_strong(void)
-{
-   if (!rumble.set_rumble_state)
-      return;
-
-   rumble.set_rumble_state(0, RETRO_RUMBLE_STRONG, 0);
-}
-
 extern int coloredlights;
-
-bool state_rumble;
 
 static void update_variables(bool startup)
 {
@@ -744,6 +790,8 @@ static void update_variables(bool startup)
       }
       else
          framerate = 60.0f;
+
+      frametime_usec = 1000.0f / framerate;
 
       /* Note: The audio handling code of the game engine
        * completely falls apart below 50 FPS. To go any
@@ -804,9 +852,15 @@ static void update_variables(bool startup)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
       if (strcmp(var.value, "disabled") == 0)
-         state_rumble = false;
+         rumble_enabled = false;
       else
-         state_rumble = true;
+         rumble_enabled = true;
+   }
+
+   if (!rumble_enabled)
+   {
+      retro_set_rumble_damage(0);
+      retro_set_rumble_touch(0, 0.0f);
    }
 
    var.key = "tyrquake_invert_y_axis";
@@ -871,11 +925,16 @@ void retro_run(void)
       update_env_variables();
       has_set_username = true;
    }
-   
-   if (!state_rumble)
-      retro_unset_rumble_strong();
 
    Host_Frame(1.0 / framerate);
+
+   if (rumble_touch_counter > -1)
+   {
+      rumble_touch_counter--;
+
+      if (rumble_touch_counter == 0)
+         retro_set_rumble_touch(0, 0.0f);
+   }
 
    if (shutdown_core)
       return;
