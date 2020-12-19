@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #else
 #include <winsock2.h>
 #endif
-#elif defined(GEKKO) || defined(__CELLOS_LV2__) || defined(_XBOX360)
+#elif defined(MSB_FIRST)
 // Is already big-endian
 #ifndef htons
 #define htons(x) (x)
