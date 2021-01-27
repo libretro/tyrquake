@@ -355,7 +355,7 @@ void _VectorCopy(vec3_t in, vec3_t out)
 
 void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
 {
-#if defined(__ARM_NEON__) && !defined(IOS_ARM64)
+#if defined(__ARM_NEON__) && !defined(__APPLE__)
    asm volatile (
          "flds s3, [%0] \n\t" //d1[1]={x0}
          "add %0, %0, #4 \n\t" //
