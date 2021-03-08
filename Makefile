@@ -125,7 +125,7 @@ ifeq ($(IOSSDK),)
 endif
 ifeq ($(platform), ios-arm64)
    CFLAGS += -DIOS_ARM64
-   CC = clang -arch arm64 -isysroot $(IOSSDK) -march=armv8-a -mtune=cortex-a57 -mtp=soft
+   CC = clang -arch arm64 -isysroot $(IOSSDK) -march=armv8-a -mtune=cortex-a57
 else
    CC = clang -arch armv7 -isysroot $(IOSSDK)
 endif
