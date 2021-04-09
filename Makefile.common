@@ -159,7 +159,7 @@ INCFLAGS  += -I$(LIBVORBIS_DIR)/include \
 				 -I$(LIBVORBIS_DIR)/lib \
 				 -I$(LIBOGG_DIR)/include
 
-SOURCES_C += $(LIBVORBIS_DIR)/lib/analysis.c \
+SOURCES_C += \
 				 $(LIBVORBIS_DIR)/lib/bitrate.c \
 				 $(LIBVORBIS_DIR)/lib/block.c \
 				 $(LIBVORBIS_DIR)/lib/codebook.c \

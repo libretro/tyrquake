@@ -23,8 +23,6 @@
 
 #include "vorbis/codec.h"
 
-/* we don't need or want the static callback symbols here */
-#define OV_EXCLUDE_STATIC_CALLBACKS
 #include "vorbis/vorbisfile.h"
 
 #include "os.h"
