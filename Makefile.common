@@ -135,7 +135,7 @@ endif
 
 ifeq ($(USE_CODEC_FLAC),1)
 INCFLAGS  += -I$(LIBFLAC_DIR)/include
-SOURCES_C += $(LIBFLAC_DIR)/bitmath.c \
+SOURCES_C += \
 				 $(LIBFLAC_DIR)/bitreader.c \
 				 $(LIBFLAC_DIR)/cpu.c \
 				 $(LIBFLAC_DIR)/crc.c \
@@ -145,10 +145,7 @@ SOURCES_C += $(LIBFLAC_DIR)/bitmath.c \
 				 $(LIBFLAC_DIR)/lpc.c \
 				 $(LIBFLAC_DIR)/md5.c \
 				 $(LIBFLAC_DIR)/memory.c \
-				 $(LIBFLAC_DIR)/metadata_iterators.c \
-				 $(LIBFLAC_DIR)/metadata_object.c \
 				 $(LIBFLAC_DIR)/ogg_decoder_aspect.c \
-				 $(LIBFLAC_DIR)/ogg_helper.c \
 				 $(LIBFLAC_DIR)/ogg_mapping.c \
 				 $(LIBFLAC_DIR)/stream_decoder.c \
 				 $(LIBFLAC_DIR)/window.c
