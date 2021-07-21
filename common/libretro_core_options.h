@@ -77,7 +77,7 @@ struct retro_core_option_definition option_defs_us[] = {
    {
       "tyrquake_framerate",
       "Framerate (restart)",
-      "Modify framerate. Requires a restart.",
+      "Modify framerate. Requires a restart. Values above 72 may cause various timing bugs.",
       {
          { "auto",            "Auto"},
          { "10",              "10fps"},

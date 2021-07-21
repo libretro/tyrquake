@@ -513,8 +513,10 @@ Host_FilterTime(float time)
 {
     realtime += time;
 
+    /* allow high framerate, warn about it in core options
     if (!cls.timedemo && realtime - oldrealtime < 1.0 / 72.0)
 	return false;		// framerate is too high
+    */
 
     host_frametime = realtime - oldrealtime;
     oldrealtime = realtime;
