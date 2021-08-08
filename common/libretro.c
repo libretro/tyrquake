@@ -21,7 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "libretro.h"
 #include "libretro_core_options.h"
 #include <retro_miscellaneous.h>
-#include <retro_timers.h>
 #include <file/file_path.h>
 
 #if defined(_WIN32) && !defined(_XBOX)
@@ -747,11 +746,6 @@ static void keyboard_cb(bool down, unsigned keycode,
       else
          Key_Event((knum_t) keycode, 0);
    }
-}
-
-void Sys_Sleep(void)
-{
-   retro_sleep(1);
 }
 
 const char *argv[MAX_NUM_ARGVS];
