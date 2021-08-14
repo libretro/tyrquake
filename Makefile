@@ -668,7 +668,7 @@ else
    CC ?= gcc
    fpic :=
    LD_FLAGS :=
-   SHARED := -shared -static-libgcc -static-libstdc++ -s
+   SHARED := -shared -static-libgcc -static-libstdc++
    CFLAGS += -D__WIN32__
    WINSOCKS := -lws2_32
 endif
