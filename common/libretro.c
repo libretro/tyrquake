@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "libretro_core_options.h"
 #include <retro_miscellaneous.h>
 #include <file/file_path.h>
+#include <streams/file_stream.h>
+#include <string/stdstring.h>
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
@@ -223,26 +225,6 @@ unsigned char *heap;
 
 #define MAX_PADS 1
 static unsigned quake_devices[1];
-
-static void extract_basename(char *buf, const char *path, size_t size)
-{
-   char *ext        = NULL;
-   const char *base = strrchr(path, '/');
-   if (!base)
-      base = strrchr(path, '\\');
-   if (!base)
-      base = path;
-
-   if (*base == '\\' || *base == '/')
-      base++;
-
-   strncpy(buf, base, size - 1);
-   buf[size - 1] = '\0';
-
-   ext = strrchr(buf, '.');
-   if (ext)
-      *ext = '\0';
-}
 
 static struct retro_rumble_interface rumble = {0};
 static bool rumble_enabled                  = false;
@@ -576,6 +558,8 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 void retro_set_environment(retro_environment_t cb)
 {
+   struct retro_vfs_interface_info vfs_iface_info;
+
    static const struct retro_controller_description port_1[] = {
       { "Gamepad Classic", RETRO_DEVICE_JOYPAD },
       { "Gamepad Classic Alt", RETRO_DEVICE_JOYPAD_ALT },
@@ -591,7 +575,12 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb = cb;
 
    libretro_set_core_options(environ_cb);
-   cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
+   environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports);
+
+   vfs_iface_info.required_interface_version = 1;
+   vfs_iface_info.iface                      = NULL;
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
+      filestream_vfs_init(&vfs_iface_info);
 }
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
@@ -934,41 +923,41 @@ void retro_run(void)
    audio_callback();
 }
 
-static void extract_directory(char *buf, const char *path, size_t size)
+static void extract_directory(char *out_dir, const char *in_dir, size_t size)
 {
-   char *base = NULL;
+   size_t len;
 
-   strncpy(buf, path, size - 1);
-   buf[size - 1] = '\0';
+   fill_pathname_parent_dir(out_dir, in_dir, size);
 
-   base = strrchr(buf, '/');
-   if (!base)
-      base = strrchr(buf, '\\');
+   /* Remove trailing slash, if required */
+   len = strlen(out_dir);
+   if ((len > 0) &&
+       (out_dir[len - 1] == PATH_DEFAULT_SLASH_C()))
+      out_dir[len - 1] = '\0';
 
-   if (base)
-      *base = '\0';
-   else
-    {
-       buf[0] = '.';
-       buf[1] = '\0';
-    }
+   /* If parent directory is an empty string,
+    * must set it to '.' */
+   if (string_is_empty(out_dir))
+      strlcpy(out_dir, ".", size);
 }
 
 bool retro_load_game(const struct retro_game_info *info)
 {
    unsigned i;
-   char g_rom_dir[1024], g_pak_path[1024], g_save_dir[1024];
-   char cfg_file[1024];
-   char *path_lower;
+   char g_rom_dir[PATH_MAX_LENGTH];
+   char g_pak_path[PATH_MAX_LENGTH];
+   char g_save_dir[PATH_MAX_LENGTH];
+   char cfg_file[PATH_MAX_LENGTH];
+   char *path_lower = NULL;
    quakeparms_t parms;
-#if defined(_WIN32)
-   char slash = '\\';
-#else
-   char slash = '/';
-#endif
    bool use_external_savedir = false;
    const char *base_save_dir = NULL;
    struct retro_keyboard_callback cb = { keyboard_cb };
+
+   g_rom_dir[0] = '\0';
+   g_pak_path[0] = '\0';
+   g_save_dir[0] = '\0';
+   cfg_file[0] = '\0';
 
    if (!info)
       return false;
@@ -984,18 +973,17 @@ bool retro_load_game(const struct retro_game_info *info)
 
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
 
-   snprintf(g_pak_path, sizeof(g_pak_path), "%s", info->path);
-   
+   strlcpy(g_pak_path, info->path, sizeof(g_pak_path));
+
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
    {
-		if (strlen(base_save_dir) > 0)
+		if (!string_is_empty(base_save_dir))
 		{
 			// Get game 'name' (i.e. subdirectory)
-			char game_name[1024];
-			extract_basename(game_name, g_rom_dir, sizeof(game_name));
-			
+			const char *game_name = path_basename(g_rom_dir);
+
 			// > Build final save path
-			snprintf(g_save_dir, sizeof(g_save_dir), "%s%c%s", base_save_dir, slash, game_name);
+			fill_pathname_join(g_save_dir, base_save_dir, game_name, sizeof(g_save_dir));
 			use_external_savedir = true;
 			
 			// > Create save directory, if required
@@ -1009,7 +997,7 @@ bool retro_load_game(const struct retro_game_info *info)
    if (!use_external_savedir)
    {
 		// > Use ROM directory fallback...
-		snprintf(g_save_dir, sizeof(g_save_dir), "%s", g_rom_dir);
+		strlcpy(g_save_dir, g_rom_dir, sizeof(g_save_dir));
 	}
 	else
 	{
@@ -1030,15 +1018,17 @@ bool retro_load_game(const struct retro_game_info *info)
         strstr(path_lower, "hipnotic") ||
         strstr(path_lower, "rogue") )
    {
-      char tmp_dir[1024];
+      char tmp_dir[PATH_MAX_LENGTH];
       tmp_dir[0] = '\0';
 
 #if (defined(HW_RVL) && !defined(WIIU)) || defined(_XBOX1)
       MEMSIZE_MB = 16;
 #endif
       extract_directory(tmp_dir, g_rom_dir, sizeof(tmp_dir));
-      strncpy(g_rom_dir, tmp_dir, sizeof(g_rom_dir) - 1);
+      strlcpy(g_rom_dir, tmp_dir, sizeof(g_rom_dir));
    }
+   free(path_lower);
+   path_lower = NULL;
 
    memset(&parms, 0, sizeof(parms));
 
@@ -1066,13 +1056,17 @@ bool retro_load_game(const struct retro_game_info *info)
    }
    else if (!strstr(g_pak_path, "id1"))
    {
-      char basename[1024];
+      const char *basename = path_basename(g_rom_dir);
+      char tmp_dir[PATH_MAX_LENGTH];
+      tmp_dir[0] = '\0';
+
       parms.argc++;
       argv[1] = "-game";
       parms.argc++;
-      extract_basename(basename, g_rom_dir, sizeof(basename));
       argv[2] = basename;
-      extract_directory(g_rom_dir, g_rom_dir, sizeof(g_rom_dir));
+
+      extract_directory(tmp_dir, g_rom_dir, sizeof(tmp_dir));
+      strlcpy(g_rom_dir, tmp_dir, sizeof(g_rom_dir));
    }
 
    parms.argv = argv;
@@ -1113,7 +1107,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */
-   snprintf(cfg_file, sizeof(cfg_file), "%s%cconfig.cfg", g_save_dir, slash);
+   fill_pathname_join(cfg_file, g_save_dir, "config.cfg", sizeof(cfg_file));
 
    if (!path_is_valid(cfg_file))
    {

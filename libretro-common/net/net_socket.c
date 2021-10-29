@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2018 The RetroArch team
+/* Copyright  (C) 2010-2020 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (net_socket.c).
@@ -123,18 +123,23 @@ int socket_receive_all_blocking(int fd, void *data_, size_t size)
    return true;
 }
 
-bool socket_nonblock(int fd)
+bool socket_set_block(int fd, bool block)
 {
-#if defined(VITA) || defined(WIIU)
-   int i = 1;
+#if !defined(__PSL1GHT__) && defined(__PS3__) || defined(VITA) || defined(WIIU)
+   int i = !block;
    setsockopt(fd, SOL_SOCKET, SO_NBIO, &i, sizeof(int));
    return true;
 #elif defined(_WIN32)
-   u_long mode = 1;
+   u_long mode = !block;
    return ioctlsocket(fd, FIONBIO, &mode) == 0;
 #else
-   return fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK) == 0;
+   return fcntl(fd, F_SETFL, (fcntl(fd, F_GETFL) & ~O_NONBLOCK) | (block ? 0 : O_NONBLOCK)) == 0;
 #endif
+}
+
+bool socket_nonblock(int fd)
+{
+   return socket_set_block(fd, false);
 }
 
 int socket_close(int fd)
@@ -142,7 +147,7 @@ int socket_close(int fd)
 #if defined(_WIN32) && !defined(_XBOX360)
    /* WinSock has headers from the stone age. */
    return closesocket(fd);
-#elif defined(WIIU)
+#elif !defined(__PSL1GHT__) && defined(__PS3__) || defined(WIIU)
    return socketclose(fd);
 #elif defined(VITA)
    return sceNetSocketClose(fd);
@@ -154,7 +159,9 @@ int socket_close(int fd)
 int socket_select(int nfds, fd_set *readfs, fd_set *writefds,
       fd_set *errorfds, struct timeval *timeout)
 {
-#if defined(VITA)
+#if !defined(__PSL1GHT__) && defined(__PS3__)
+   return socketselect(nfds, readfs, writefds, errorfds, timeout);
+#elif defined(VITA)
    extern int retro_epoll_fd;
    SceNetEpollEvent ev = {0};
 
@@ -249,6 +256,20 @@ int socket_connect(int fd, void *data, bool timeout_enable)
 
       setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof timeout);
    }
+#endif
+#if defined(WIIU)
+   int op = 1;
+   setsockopt(fd, SOL_SOCKET, SO_WINSCALE, &op, sizeof(op));
+   if (addr->ai_socktype == SOCK_STREAM) {
+      setsockopt(fd, SOL_SOCKET, SO_TCPSACK, &op, sizeof(op));
+
+      setsockopt(fd, SOL_SOCKET, 0x10000, &op, sizeof(op));
+      int recvsz = WIIU_RCVBUF;
+      setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &recvsz, sizeof(recvsz));
+      int sendsz = WIIU_SNDBUF;
+      setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sendsz, sizeof(sendsz));
+   }
+
 #endif
 
    return connect(fd, addr->ai_addr, addr->ai_addrlen);
