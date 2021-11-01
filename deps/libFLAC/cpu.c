@@ -229,24 +229,6 @@ void FLAC__cpu_info(FLAC__CPUInfo *info)
 		info->ia32._3dnow = info->ia32.ext3dnow = info->ia32.extmmx = false;
 #endif
 
-#ifdef DEBUG
-		fprintf(stderr, "CPU info (IA-32):\n");
-		fprintf(stderr, "  CPUID ...... %c\n", info->ia32.cpuid   ? 'Y' : 'n');
-		fprintf(stderr, "  BSWAP ...... %c\n", info->ia32.bswap   ? 'Y' : 'n');
-		fprintf(stderr, "  CMOV ....... %c\n", info->ia32.cmov    ? 'Y' : 'n');
-		fprintf(stderr, "  MMX ........ %c\n", info->ia32.mmx     ? 'Y' : 'n');
-		fprintf(stderr, "  FXSR ....... %c\n", info->ia32.fxsr    ? 'Y' : 'n');
-		fprintf(stderr, "  SSE ........ %c\n", info->ia32.sse     ? 'Y' : 'n');
-		fprintf(stderr, "  SSE2 ....... %c\n", info->ia32.sse2    ? 'Y' : 'n');
-		fprintf(stderr, "  SSE3 ....... %c\n", info->ia32.sse3    ? 'Y' : 'n');
-		fprintf(stderr, "  SSSE3 ...... %c\n", info->ia32.ssse3   ? 'Y' : 'n');
-		fprintf(stderr, "  SSE41 ...... %c\n", info->ia32.sse41   ? 'Y' : 'n');
-		fprintf(stderr, "  SSE42 ...... %c\n", info->ia32.sse42   ? 'Y' : 'n');
-		fprintf(stderr, "  3DNow! ..... %c\n", info->ia32._3dnow  ? 'Y' : 'n');
-		fprintf(stderr, "  3DNow!-ext . %c\n", info->ia32.ext3dnow? 'Y' : 'n');
-		fprintf(stderr, "  3DNow!-MMX . %c\n", info->ia32.extmmx  ? 'Y' : 'n');
-#endif
-
 		/*
 		 * now have to check for OS support of SSE instructions
 		 */
@@ -405,9 +387,6 @@ void FLAC__cpu_info(FLAC__CPUInfo *info)
 			/* no way to test, disable to be safe */
 			info->ia32.fxsr = info->ia32.sse = info->ia32.sse2 = info->ia32.sse3 = info->ia32.ssse3 = info->ia32.sse41 = info->ia32.sse42 = false;
 #endif
-#ifdef DEBUG
-			fprintf(stderr, "  SSE OS sup . %c\n", info->ia32.sse     ? 'Y' : 'n');
-#endif
 		}
 		else /* info->ia32.sse == false */
 			info->ia32.fxsr = info->ia32.sse = info->ia32.sse2 = info->ia32.sse3 = info->ia32.ssse3 = info->ia32.sse41 = info->ia32.sse42 = false;
@@ -432,13 +411,6 @@ void FLAC__cpu_info(FLAC__CPUInfo *info)
 		info->x86_64.sse41 = (flags_ecx & FLAC__CPUINFO_IA32_CPUID_SSE41)? true : false;
 		info->x86_64.sse42 = (flags_ecx & FLAC__CPUINFO_IA32_CPUID_SSE42)? true : false;
 	}
-#ifdef DEBUG
-	fprintf(stderr, "CPU info (x86-64):\n");
-	fprintf(stderr, "  SSE3 ....... %c\n", info->x86_64.sse3    ? 'Y' : 'n');
-	fprintf(stderr, "  SSSE3 ...... %c\n", info->x86_64.ssse3   ? 'Y' : 'n');
-	fprintf(stderr, "  SSE41 ...... %c\n", info->x86_64.sse41   ? 'Y' : 'n');
-	fprintf(stderr, "  SSE42 ...... %c\n", info->x86_64.sse42   ? 'Y' : 'n');
-#endif
 
 #else
 	info->use_asm = false;

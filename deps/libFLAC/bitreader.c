@@ -273,36 +273,6 @@ FLAC__bool FLAC__bitreader_clear(FLAC__BitReader *br)
 	return true;
 }
 
-void FLAC__bitreader_dump(const FLAC__BitReader *br, FILE *out)
-{
-	unsigned i, j;
-	if(br == 0) {
-		fprintf(out, "bitreader is NULL\n");
-	}
-	else {
-		fprintf(out, "bitreader: capacity=%u words=%u bytes=%u consumed: words=%u, bits=%u\n", br->capacity, br->words, br->bytes, br->consumed_words, br->consumed_bits);
-
-		for(i = 0; i < br->words; i++) {
-			fprintf(out, "%08X: ", i);
-			for(j = 0; j < FLAC__BITS_PER_WORD; j++)
-				if(i < br->consumed_words || (i == br->consumed_words && j < br->consumed_bits))
-					fprintf(out, ".");
-				else
-					fprintf(out, "%01u", br->buffer[i] & (1 << (FLAC__BITS_PER_WORD-j-1)) ? 1:0);
-			fprintf(out, "\n");
-		}
-		if(br->bytes > 0) {
-			fprintf(out, "%08X: ", i);
-			for(j = 0; j < br->bytes*8; j++)
-				if(i < br->consumed_words || (i == br->consumed_words && j < br->consumed_bits))
-					fprintf(out, ".");
-				else
-					fprintf(out, "%01u", br->buffer[i] & (1 << (br->bytes*8-j-1)) ? 1:0);
-			fprintf(out, "\n");
-		}
-	}
-}
-
 void FLAC__bitreader_reset_read_crc16(FLAC__BitReader *br, FLAC__uint16 seed)
 {
 	FLAC__ASSERT(0 != br);
@@ -607,25 +577,6 @@ FLAC__bool FLAC__bitreader_read_byte_block_aligned_no_crc(FLAC__BitReader *br, F
 }
 
 FLAC__bool FLAC__bitreader_read_unary_unsigned(FLAC__BitReader *br, unsigned *val)
-#if 0 /* slow but readable version */
-{
-	unsigned bit;
-
-	FLAC__ASSERT(0 != br);
-	FLAC__ASSERT(0 != br->buffer);
-
-	*val = 0;
-	while(1) {
-		if(!FLAC__bitreader_read_bit(br, &bit))
-			return false;
-		if(bit)
-			break;
-		else
-			*val++;
-	}
-	return true;
-}
-#else
 {
 	unsigned i;
 
@@ -685,7 +636,6 @@ FLAC__bool FLAC__bitreader_read_unary_unsigned(FLAC__BitReader *br, unsigned *va
 			return false;
 	}
 }
-#endif
 
 FLAC__bool FLAC__bitreader_read_rice_signed(FLAC__BitReader *br, int *val, unsigned parameter)
 {
@@ -853,90 +803,6 @@ incomplete_lsbs:
 
 	return true;
 }
-
-#if 0 /* UNUSED */
-FLAC__bool FLAC__bitreader_read_golomb_signed(FLAC__BitReader *br, int *val, unsigned parameter)
-{
-	FLAC__uint32 lsbs = 0, msbs = 0;
-	unsigned bit, uval, k;
-
-	FLAC__ASSERT(0 != br);
-	FLAC__ASSERT(0 != br->buffer);
-
-	k = FLAC__bitmath_ilog2(parameter);
-
-	/* read the unary MSBs and end bit */
-	if(!FLAC__bitreader_read_unary_unsigned(br, &msbs))
-		return false;
-
-	/* read the binary LSBs */
-	if(!FLAC__bitreader_read_raw_uint32(br, &lsbs, k))
-		return false;
-
-	if(parameter == 1u<<k) {
-		/* compose the value */
-		uval = (msbs << k) | lsbs;
-	}
-	else {
-		unsigned d = (1 << (k+1)) - parameter;
-		if(lsbs >= d) {
-			if(!FLAC__bitreader_read_bit(br, &bit))
-				return false;
-			lsbs <<= 1;
-			lsbs |= bit;
-			lsbs -= d;
-		}
-		/* compose the value */
-		uval = msbs * parameter + lsbs;
-	}
-
-	/* unfold unsigned to signed */
-	if(uval & 1)
-		*val = -((int)(uval >> 1)) - 1;
-	else
-		*val = (int)(uval >> 1);
-
-	return true;
-}
-
-FLAC__bool FLAC__bitreader_read_golomb_unsigned(FLAC__BitReader *br, unsigned *val, unsigned parameter)
-{
-	FLAC__uint32 lsbs, msbs = 0;
-	unsigned bit, k;
-
-	FLAC__ASSERT(0 != br);
-	FLAC__ASSERT(0 != br->buffer);
-
-	k = FLAC__bitmath_ilog2(parameter);
-
-	/* read the unary MSBs and end bit */
-	if(!FLAC__bitreader_read_unary_unsigned(br, &msbs))
-		return false;
-
-	/* read the binary LSBs */
-	if(!FLAC__bitreader_read_raw_uint32(br, &lsbs, k))
-		return false;
-
-	if(parameter == 1u<<k) {
-		/* compose the value */
-		*val = (msbs << k) | lsbs;
-	}
-	else {
-		unsigned d = (1 << (k+1)) - parameter;
-		if(lsbs >= d) {
-			if(!FLAC__bitreader_read_bit(br, &bit))
-				return false;
-			lsbs <<= 1;
-			lsbs |= bit;
-			lsbs -= d;
-		}
-		/* compose the value */
-		*val = msbs * parameter + lsbs;
-	}
-
-	return true;
-}
-#endif /* UNUSED */
 
 /* on return, if *val == 0xffffffff then the utf-8 sequence was invalid, but the return value will be true */
 FLAC__bool FLAC__bitreader_read_utf8_uint32(FLAC__BitReader *br, FLAC__uint32 *val, FLAC__byte *raw, unsigned *rawlen)

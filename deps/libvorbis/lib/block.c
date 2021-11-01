@@ -588,19 +588,15 @@ int vorbis_analysis_blockout(vorbis_dsp_state *v,vorbis_block *vb){
   if(v->W){
     if(!v->lW || !v->nW){
       vbi->blocktype=BLOCKTYPE_TRANSITION;
-      /*fprintf(stderr,"-");*/
     }else{
       vbi->blocktype=BLOCKTYPE_LONG;
-      /*fprintf(stderr,"_");*/
     }
   }else{
     if(_ve_envelope_mark(v)){
       vbi->blocktype=BLOCKTYPE_IMPULSE;
-      /*fprintf(stderr,"|");*/
 
     }else{
       vbi->blocktype=BLOCKTYPE_PADDING;
-      /*fprintf(stderr,".");*/
 
     }
   }

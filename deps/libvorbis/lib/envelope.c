@@ -208,11 +208,6 @@ static int _ve_amp(envelope_lookup *ve,
   return(ret);
 }
 
-#if 0
-static int seq=0;
-static ogg_int64_t totalshift=-1024;
-#endif
-
 long _ve_envelope_search(vorbis_dsp_state *v){
   vorbis_info *vi=v->vi;
   codec_setup_info *ci=vi->codec_setup;
@@ -277,44 +272,6 @@ long _ve_envelope_search(vorbis_dsp_state *v){
       if(ve->mark[j/ve->searchstep]){
         if(j>centerW){
 
-#if 0
-          if(j>ve->curmark){
-            float *marker=alloca(v->pcm_current*sizeof(*marker));
-            int l,m;
-            memset(marker,0,sizeof(*marker)*v->pcm_current);
-            fprintf(stderr,"mark! seq=%d, cursor:%fs time:%fs\n",
-                    seq,
-                    (totalshift+ve->cursor)/44100.,
-                    (totalshift+j)/44100.);
-            _analysis_output_always("pcmL",seq,v->pcm[0],v->pcm_current,0,0,totalshift);
-            _analysis_output_always("pcmR",seq,v->pcm[1],v->pcm_current,0,0,totalshift);
-
-            _analysis_output_always("markL",seq,v->pcm[0],j,0,0,totalshift);
-            _analysis_output_always("markR",seq,v->pcm[1],j,0,0,totalshift);
-
-            for(m=0;m<VE_BANDS;m++){
-              char buf[80];
-              sprintf(buf,"delL%d",m);
-              for(l=0;l<last;l++)marker[l*ve->searchstep]=ve->filter[m].markers[l]*.1;
-              _analysis_output_always(buf,seq,marker,v->pcm_current,0,0,totalshift);
-            }
-
-            for(m=0;m<VE_BANDS;m++){
-              char buf[80];
-              sprintf(buf,"delR%d",m);
-              for(l=0;l<last;l++)marker[l*ve->searchstep]=ve->filter[m+VE_BANDS].markers[l]*.1;
-              _analysis_output_always(buf,seq,marker,v->pcm_current,0,0,totalshift);
-            }
-
-            for(l=0;l<last;l++)marker[l*ve->searchstep]=ve->mark[l]*.4;
-            _analysis_output_always("mark",seq,marker,v->pcm_current,0,0,totalshift);
-
-
-            seq++;
-
-          }
-#endif
-
           ve->curmark=j;
           if(j>=testW)return(1);
           return(0);
@@ -359,14 +316,6 @@ void _ve_envelope_shift(envelope_lookup *e,long shift){
   int smallshift=shift/e->searchstep;
 
   memmove(e->mark,e->mark+smallshift,(smallsize-smallshift)*sizeof(*e->mark));
-
-#if 0
-  for(i=0;i<VE_BANDS*e->ch;i++)
-    memmove(e->filter[i].markers,
-            e->filter[i].markers+smallshift,
-            (1024-smallshift)*sizeof(*(*e->filter).markers));
-  totalshift+=shift;
-#endif
 
   e->current-=shift;
   if(e->curmark>=0)

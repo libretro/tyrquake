@@ -149,8 +149,7 @@ SOURCES_C += \
 				 $(LIBFLAC_DIR)/memory.c \
 				 $(LIBFLAC_DIR)/ogg_decoder_aspect.c \
 				 $(LIBFLAC_DIR)/ogg_mapping.c \
-				 $(LIBFLAC_DIR)/stream_decoder.c \
-				 $(LIBFLAC_DIR)/window.c
+				 $(LIBFLAC_DIR)/stream_decoder.c
 endif
 
 ifeq ($(USE_CODEC_VORBIS),1)
