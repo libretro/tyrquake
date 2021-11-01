@@ -643,8 +643,7 @@ static void
 Mod_LoadLighting(lump_t *l)
 {
 	int		i;
-	byte	*in, *out, *data;
-	byte	d;
+	byte	*data;
 	char	litname[1024];
 	byte 	*lightmapfile;
 

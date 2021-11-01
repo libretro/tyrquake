@@ -146,7 +146,6 @@ testing object's origin to get a point to use with the returned hull.
 static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t offset, edict_t *move_ent)
 {
    hull_t *hull;
-	int			index;
 
    /* decide which clipping hull to use, based on the size */
    if (ent->v.solid == SOLID_BSP)
@@ -176,7 +175,7 @@ static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t o
        */
 		if (move_ent->v.hull)  // Entity is specifying which hull to use
 		{
-			index=move_ent->v.hull-1;
+			int index=move_ent->v.hull-1;
 			hull = &model->hulls[index];
 			if (!hull)  // Invalid hull
 			{
@@ -910,7 +909,6 @@ SV_ClipMoveToEntity(edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs,
 		if (ent->v.solid == SOLID_BSP && 
 		(fabsf(ent->v.angles[0]) > 1 || fabsf(ent->v.angles[1]) > 1 || fabsf(ent->v.angles[2]) > 1) )
 		{
-			vec3_t	a;
 			vec3_t	forward, right, up;
 			vec3_t	temp;
 

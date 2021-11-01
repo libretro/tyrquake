@@ -679,16 +679,14 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
    byte *lptex;
    byte ah;
    vec3_t lc;
-   float nrm;
    unsigned trans[3];
    unsigned char *pix24;	// leilei - colored lighting
    int lsfrac, ltfrac;
    int llight;
    int lzi;
    short *lpz;
-
-	// normalize
-	//VectorNormalize(lightcolor);
+   // normalize
+   //VectorNormalize(lightcolor);
 
    do
    {

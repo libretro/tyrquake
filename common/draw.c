@@ -966,36 +966,32 @@ BestColor
 byte BestColor (int r, int g, int b, int start, int stop)
 {
 	int	i;
-	int	dr, dg, db;
-	int	bestdistortion, distortion;
-	int	berstcolor;
-	byte	*pal;
-
 //
 // let any color go to 0 as a last resort
 //
-	bestdistortion = 256*256*4;
-	berstcolor = 0;
-
-	pal = host_basepal + start*3;
+	int bestdistortion = 256*256*4;
+	int bestcolor      = 0;
+	byte *pal          = host_basepal + start*3;
 	for (i=start ; i<= stop ; i++)
 	{
-		dr = r - (int)pal[0];
-		dg = g - (int)pal[1];
-		db = b - (int)pal[2];
-		pal += 3;
-		distortion = dr*dr + dg*dg + db*db;
+		int dr          = r - (int)pal[0];
+		int dg          = g - (int)pal[1];
+		int db          = b - (int)pal[2];
+		int distortion  = dr * dr + dg * dg + db * db;
+
+		pal            += 3;
+
 		if (distortion < bestdistortion)
 		{
 			if (!distortion)
 				return i;		// perfect match
 
 			bestdistortion = distortion;
-			berstcolor = i;
+			bestcolor      = i;
 		}
 	}
 
-	return berstcolor;
+	return bestcolor;
 }
 
 	
@@ -1003,32 +999,19 @@ byte BestColor (int r, int g, int b, int start, int stop)
 void Draw_Generate18BPPTable (void)
 {
 
-	int		i, j, l, c;
-	float  red, green, blue;
 	int		r, g, b;
-	int		beastcolor;
-	int	ugly;
-	
-	unsigned char*	thepaltouse;
-
-	ugly = 0;
 
 	// Make the 18-bit lookup table here
-
-	printf ("\nGenerating 18-bit lookup table - ");
 	for (r=0 ; r<256 ; r+=4)
 	{
 		for (g=0 ; g<256 ; g+=4)
 		{
 			for (b=0 ; b<256 ; b+=4)
 			{
-				beastcolor = BestColor (r, g, b, 0, 254);
+				int beastcolor = BestColor (r, g, b, 0, 254);
 				palmap2[r>>2][g>>2][b>>2] = beastcolor;
 			}
 		}
 	}
-	printf ("\nGenerated 18-bit lookup table - ");
-
-
 }
 
