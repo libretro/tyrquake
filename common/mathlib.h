@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MATHLIB_H
 
 #include <limits.h>
+#include <stdint.h>
 
 #include "qtypes.h"
 
@@ -48,12 +49,12 @@ typedef int fixed16_t;
 #endif
 
 extern vec3_t vec3_origin;
-extern int nanmask;
+extern int32_t nanmask;
 
 #ifdef _MSC_VER
 #define  IS_NAN(x) _isnan(x)
 #else
-#define	IS_NAN(x) (((*(int *)&x)&nanmask)==nanmask)
+#define	IS_NAN(x) (((*(int32_t *)&x)&nanmask)==nanmask)
 #endif
 
 #define DotProduct(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])

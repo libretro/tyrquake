@@ -303,7 +303,7 @@ UDP_Read(int socket, void *buf, int len, netadr_t *addr)
 static int
 UDP_MakeSocketBroadcastCapable(int socket)
 {
-   int i = 1;
+   char i = 1;
 
    /* make this socket broadcast capable */
    if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, &i, sizeof(i)) < 0)

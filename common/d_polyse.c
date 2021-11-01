@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // d_polyset.c: routines for drawing sets of polygons sharing the same
 // texture (used for Alias models)
 
+#include <stdint.h>
+
 #include "quakedef.h"
 #include "r_local.h"
 #include "d_local.h"
@@ -126,7 +128,7 @@ D_PolysetDraw(void)
    /* one extra because of cache line pretouching */
 
    a_spans = (spanpackage_t *)
-      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
+      (((uintptr_t)&spans[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
 
    if (r_affinetridesc.drawtype)
       D_DrawSubdiv();

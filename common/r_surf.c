@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // r_surf.c: surface-related refresh code
 
+#include <stdint.h>
+
 #include "quakedef.h"
 #include "r_local.h"
 #include "sys.h"
@@ -167,7 +169,7 @@ static void R_AddDynamicLightsRGB(void)
    int smax, tmax;
    mtexinfo_t *tex;
    float		cred, cgreen, cblue, brightness;
-   unsigned	*bl;
+   int *bl;
 
    surf = r_drawsurf.surf;
    smax = (surf->extents[0] >> 4) + 1;
@@ -974,7 +976,7 @@ void R_DrawSurfaceBlock16(void)
       pbasesource += sourcetstep;
       lightright += lightrightstep;
       lightleft += lightleftstep;
-      prowdest = (unsigned short *)((long)prowdest + surfrowbytes);
+      prowdest = (unsigned short *)((uintptr_t)prowdest + surfrowbytes);
    }
 
    prowdestbase = prowdest;
