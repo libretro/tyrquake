@@ -40,7 +40,4 @@
 #include "private/float.h"
 #include "FLAC/format.h"
 
-#ifndef FLAC__INTEGER_ONLY_LIBRARY
-#endif /* !defined FLAC__INTEGER_ONLY_LIBRARY */
-
 #endif

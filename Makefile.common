@@ -136,7 +136,6 @@ ifeq ($(USE_CODEC_FLAC),1)
 INCFLAGS  += -I$(LIBFLAC_DIR)/include
 SOURCES_C += \
 				 $(LIBFLAC_DIR)/bitreader.c \
-				 $(LIBFLAC_DIR)/cpu.c \
 				 $(LIBFLAC_DIR)/crc.c \
 				 $(LIBFLAC_DIR)/fixed.c \
 				 $(LIBFLAC_DIR)/float.c \

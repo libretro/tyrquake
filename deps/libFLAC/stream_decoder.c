@@ -45,7 +45,6 @@
 #include "protected/stream_decoder.h"
 #include "private/bitreader.h"
 #include "private/bitmath.h"
-#include "private/cpu.h"
 #include "private/crc.h"
 #include "private/fixed.h"
 #include "private/format.h"
@@ -157,7 +156,6 @@ typedef struct FLAC__StreamDecoderPrivate {
 	size_t metadata_filter_ids_count, metadata_filter_ids_capacity; /* units for both are IDs, not bytes */
 	FLAC__Frame frame;
 	FLAC__bool cached; /* true if there is a byte in lookahead */
-	FLAC__CPUInfo cpuinfo;
 	FLAC__byte header_warmup[2]; /* contains the sync code and reserved bits */
 	FLAC__byte lookahead; /* temp storage when we need to look ahead one byte in the stream */
 	/* unaligned (original) pointers to allocated data */
@@ -379,63 +377,15 @@ static FLAC__StreamDecoderInitStatus init_stream_internal_(
 		return decoder->protected_->initstate = FLAC__STREAM_DECODER_INIT_STATUS_ERROR_OPENING_FILE;
 #endif
 
-	/*
-	 * get the CPU info and set the function pointers
-	 */
-	FLAC__cpu_info(&decoder->private_->cpuinfo);
 	/* first default to the non-asm routines */
 	decoder->private_->local_lpc_restore_signal = FLAC__lpc_restore_signal;
 	decoder->private_->local_lpc_restore_signal_64bit = FLAC__lpc_restore_signal_wide;
 	decoder->private_->local_lpc_restore_signal_16bit = FLAC__lpc_restore_signal;
 	decoder->private_->local_lpc_restore_signal_16bit_order8 = FLAC__lpc_restore_signal;
 	decoder->private_->local_bitreader_read_rice_signed_block = FLAC__bitreader_read_rice_signed_block;
-	/* now override with asm where appropriate */
-#ifndef FLAC__NO_ASM
-	if(decoder->private_->cpuinfo.use_asm) {
-#ifdef FLAC__CPU_IA32
-		FLAC__ASSERT(decoder->private_->cpuinfo.type == FLAC__CPUINFO_TYPE_IA32);
-#ifdef FLAC__HAS_NASM
-#if 0 /*@@@@@@ OPT: seems to be slower than FLAC__bitreader_read_rice_signed_block */
-		if(decoder->private_->cpuinfo.ia32.bswap)
-			decoder->private_->local_bitreader_read_rice_signed_block = FLAC__bitreader_read_rice_signed_block_asm_ia32_bswap;
-#endif
-		decoder->private_->local_lpc_restore_signal_64bit = FLAC__lpc_restore_signal_wide_asm_ia32;
-		if(decoder->private_->cpuinfo.ia32.mmx) {
-			decoder->private_->local_lpc_restore_signal = FLAC__lpc_restore_signal_asm_ia32;
-			decoder->private_->local_lpc_restore_signal_16bit = FLAC__lpc_restore_signal_asm_ia32_mmx;
-			decoder->private_->local_lpc_restore_signal_16bit_order8 = FLAC__lpc_restore_signal_asm_ia32_mmx;
-		}
-		else {
-			decoder->private_->local_lpc_restore_signal = FLAC__lpc_restore_signal_asm_ia32;
-			decoder->private_->local_lpc_restore_signal_16bit = FLAC__lpc_restore_signal_asm_ia32;
-			decoder->private_->local_lpc_restore_signal_16bit_order8 = FLAC__lpc_restore_signal_asm_ia32;
-		}
-#endif
-#ifdef FLAC__HAS_X86INTRIN
-# if defined FLAC__SSE2_SUPPORTED && !defined FLAC__HAS_NASM /* OPT: not faster than ASM/MMX code */
-		if(decoder->private_->cpuinfo.ia32.sse2) {
-			decoder->private_->local_lpc_restore_signal_16bit = FLAC__lpc_restore_signal_16_intrin_sse2;
-			decoder->private_->local_lpc_restore_signal_16bit_order8 = FLAC__lpc_restore_signal_16_intrin_sse2;
-		}
-# endif
-# if defined FLAC__SSE4_1_SUPPORTED && 1 /* OPT: faster than asm; TODO: more tests */
-		if(decoder->private_->cpuinfo.ia32.sse41)
-			decoder->private_->local_lpc_restore_signal_64bit = FLAC__lpc_restore_signal_wide_intrin_sse41;
-# endif
-#endif
-#elif defined FLAC__CPU_PPC
-		FLAC__ASSERT(decoder->private_->cpuinfo.type == FLAC__CPUINFO_TYPE_PPC);
-		if(decoder->private_->cpuinfo.ppc.altivec) {
-			decoder->private_->local_lpc_restore_signal_16bit = FLAC__lpc_restore_signal_asm_ppc_altivec_16;
-			decoder->private_->local_lpc_restore_signal_16bit_order8 = FLAC__lpc_restore_signal_asm_ppc_altivec_16_order8;
-		}
-#endif
-	}
-#endif
-
 	/* from here on, errors are fatal */
 
-	if(!FLAC__bitreader_init(decoder->private_->input, decoder->private_->cpuinfo, read_callback_, decoder)) {
+	if(!FLAC__bitreader_init(decoder->private_->input, read_callback_, decoder)) {
 		decoder->protected_->state = FLAC__STREAM_DECODER_MEMORY_ALLOCATION_ERROR;
 		return FLAC__STREAM_DECODER_INIT_STATUS_MEMORY_ALLOCATION_ERROR;
 	}

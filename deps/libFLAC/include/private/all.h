@@ -35,8 +35,6 @@
 
 #include "bitmath.h"
 #include "bitreader.h"
-#include "bitwriter.h"
-#include "cpu.h"
 #include "crc.h"
 #include "fixed.h"
 #include "float.h"
@@ -45,6 +43,5 @@
 #include "md5.h"
 #include "memory.h"
 #include "metadata.h"
-#include "stream_encoder_framing.h"
 
 #endif
