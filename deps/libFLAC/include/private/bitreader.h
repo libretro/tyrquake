@@ -33,7 +33,6 @@
 #ifndef FLAC__PRIVATE__BITREADER_H
 #define FLAC__PRIVATE__BITREADER_H
 
-#include <stdio.h> /* for FILE */
 #include "FLAC/ordinals.h"
 #include "cpu.h"
 
