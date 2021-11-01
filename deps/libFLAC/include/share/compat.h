@@ -150,34 +150,6 @@
 #  endif
 #endif /* defined _MSC_VER */
 
-#if defined(_WIN32) && !defined(__MINGW32__)
-/* All char* strings are in UTF-8 format. Added to support Unicode files on Windows */
-#include "share/win_utf8_io.h"
-
-#define flac_printf printf_utf8
-#define flac_fprintf fprintf_utf8
-#define flac_vfprintf vfprintf_utf8
-#define flac_fopen _fopen_utf8
-#define flac_chmod chmod_utf8
-#define flac_utime utime_utf8
-#define flac_unlink unlink_utf8
-#define flac_rename rename_utf8
-#define flac_stat _stat64_utf8
-
-#else
-
-#define flac_printf printf
-#define flac_fprintf fprintf
-#define flac_vfprintf vfprintf
-#define flac_fopen fopen
-#define flac_chmod chmod
-#define flac_utime utime
-#define flac_unlink unlink
-#define flac_rename rename
-#define flac_stat stat
-
-#endif
-
 #ifdef _WIN32
 #define flac_stat_s __stat64 /* stat struct */
 #define flac_fstat _fstat64
@@ -191,20 +163,6 @@
 #endif
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
-#endif
-
-/* FLAC needs to compile and work correctly on systems with a normal ISO C99
- * snprintf as well as Microsoft Visual Studio which has an non-standards
- * conformant snprint_s function.
- *
- * This function wraps the MS version to behave more like the the ISO version.
- */
-#ifdef __cplusplus
-extern "C" {
-#endif
-int flac_snprintf(char *str, size_t size, const char *fmt, ...);
-#ifdef __cplusplus
-};
 #endif
 
 #endif /* FLAC__SHARE__COMPAT_H */

@@ -96,10 +96,6 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/zone.c \
 	$(CORE_DIR)/common/world.c
 
-ifeq ($(USE_CODEC_FLAC),1)
-SOURCES_C += $(CORE_DIR)/deps/libFLAC/win32/win_utf8.c
-endif
-
 ifneq ($(STATIC_LINKING),1)
 	SOURCES_C += \
 		     $(LIBRETRO_COMM_DIR)/file/retro_dirent.c \
