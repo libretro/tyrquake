@@ -35,6 +35,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.h"
 #include "view.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+RFILE* rfopen(const char *path, const char *mode);
+int rfscanf(RFILE * stream, const char * format, ...);
+int rfclose(RFILE* stream);
+
 void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
@@ -496,16 +503,16 @@ static void M_ScanSaves(void)
    {
       int j, version;
       char name[MAX_OSPATH];
-      FILE *f;
+      RFILE *f;
 
       strcpy(m_filenames[i], "--- UNUSED SLOT ---");
       loadable[i] = false;
       sprintf(name, "%s%cs%i.sav", com_savedir, slash, i);
-      f = fopen(name, "r");
+      f = rfopen(name, "r");
       if (!f)
          continue;
-      fscanf(f, "%i\n", &version);
-      fscanf(f, "%79s\n", name);
+      rfscanf(f, "%i\n", &version);
+      rfscanf(f, "%79s\n", name);
       strncpy(m_filenames[i], name, sizeof(m_filenames[i]) - 1);
 
       /* change _ back to space */
@@ -513,7 +520,7 @@ static void M_ScanSaves(void)
          if (m_filenames[i][j] == '_')
             m_filenames[i][j] = ' ';
       loadable[i] = true;
-      fclose(f);
+      rfclose(f);
    }
 }
 

@@ -34,6 +34,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "world.h"
 #include "zone.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+RFILE* rfopen(const char *path, const char *mode);
+int rfscanf(RFILE * stream, const char * format, ...);
+int rfeof(RFILE* stream);
+int rfgetc(RFILE* stream);
+int rfclose(RFILE* stream);
+
 int current_skill;
 
 /*
@@ -545,7 +554,7 @@ Host_Loadgame_f
 void Host_Loadgame_f(void)
 {
    char name[MAX_OSPATH];
-   FILE *f;
+   RFILE *f;
    char mapname[MAX_QPATH];
    float time, tfloat;
    char str[32768];
@@ -580,34 +589,34 @@ void Host_Loadgame_f(void)
    //      SCR_BeginLoadingPlaque();
 
    Con_Printf("Loading game from %s...\n", name);
-   f = fopen(name, "r");
+   f = rfopen(name, "r");
    if (!f) {
       Con_Printf("ERROR: couldn't open.\n");
       return;
    }
 
-   fscanf(f, "%i\n", &version);
+   rfscanf(f, "%i\n", &version);
    if (version != SAVEGAME_VERSION)
    {
-      fclose(f);
+      rfclose(f);
       Con_Printf("Savegame is version %i, not %i\n", version,
             SAVEGAME_VERSION);
       return;
    }
-   fscanf(f, "%s\n", str);
+   rfscanf(f, "%s\n", str);
    for (i = 0; i < NUM_SPAWN_PARMS; i++)
-      fscanf(f, "%f\n", &spawn_parms[i]);
+      rfscanf(f, "%f\n", &spawn_parms[i]);
 
    /*
     * This silliness is so we can load 1.06 save files, which have float
     * skill values
     */
-   fscanf(f, "%f\n", &tfloat);
+   rfscanf(f, "%f\n", &tfloat);
    current_skill = (int)(tfloat + 0.1);
    Cvar_SetValue("skill", (float)current_skill);
 
-   fscanf(f, "%s\n", mapname);
-   fscanf(f, "%f\n", &time);
+   rfscanf(f, "%s\n", mapname);
+   rfscanf(f, "%f\n", &time);
 
    CL_Disconnect_f();
 
@@ -615,7 +624,7 @@ void Host_Loadgame_f(void)
 
    if (!sv.active) {
       Con_Printf("Couldn't load map\n");
-      fclose(f);
+      rfclose(f);
       return;
    }
    sv.paused = true;		// pause until all clients connect
@@ -625,7 +634,7 @@ void Host_Loadgame_f(void)
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++)
    {
-      fscanf(f, "%s\n", str);
+      rfscanf(f, "%s\n", str);
       lightstyle = (char*)Hunk_Alloc(strlen(str) + 1);
       strcpy(lightstyle, str);
       sv.lightstyles[i] = lightstyle;
@@ -633,9 +642,9 @@ void Host_Loadgame_f(void)
 
    // load the edicts out of the savegame file
    entnum = -1;		// -1 is the globals
-   while (!feof(f)) {
+   while (!rfeof(f)) {
       for (i = 0; i < sizeof(str) - 1; i++) {
-         r = fgetc(f);
+         r = rfgetc(f);
          if (r == EOF || !r)
             break;
          str[i] = r;
@@ -673,7 +682,7 @@ void Host_Loadgame_f(void)
    sv.num_edicts = entnum;
    sv.time = time;
 
-   fclose(f);
+   rfclose(f);
 
    for (i = 0; i < NUM_SPAWN_PARMS; i++)
       svs.clients->spawn_parms[i] = spawn_parms[i];
