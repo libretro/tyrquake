@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef NET_H
 #define NET_H
 
+#include <stdint.h>
+
 #include "common.h"
 
 /* net.h -- quake's interface to the networking layer */
@@ -28,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef struct {
     union {
 	byte b[4];
-	unsigned l;
+	uint32_t l;
     } ip;
     unsigned short port;
     unsigned short pad;

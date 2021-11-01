@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // d_clear: clears a specified rectangle to the specified color
 
+#include <stdint.h>
+
 #include "quakedef.h"
 #include "vid.h"
 
@@ -56,10 +58,10 @@ void D_FillRect(vrect_t *rect, int color)
 
    dest = ((byte *)vid.buffer + ry * vid.rowbytes + rx);
 
-   if (((rwidth & 0x03) == 0) && (((long)dest & 0x03) == 0))
+   if (((rwidth & 0x03) == 0) && (((int32_t)dest & 0x03) == 0))
    {
       // faster aligned dword clear
-      unsigned *ldest = (unsigned *)dest;
+      uint32_t *ldest = (uint32_t *)dest;
       color += color << 16;
 
       rwidth >>= 2;
@@ -69,7 +71,7 @@ void D_FillRect(vrect_t *rect, int color)
       {
          for (rx = 0; rx < rwidth; rx++)
             ldest[rx] = color;
-         ldest = (unsigned *)((byte *)ldest + vid.rowbytes);
+         ldest = (uint32_t *)((byte *)ldest + vid.rowbytes);
       }
    }
    else

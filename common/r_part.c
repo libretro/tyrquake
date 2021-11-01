@@ -83,7 +83,7 @@ float timescale = 0.01;
 
 void R_EntityParticles(const entity_t *ent)
 {
-   int i;
+   int i, j;
    particle_t *p;
    float angle;
    float sp, sy, cp, cy;
@@ -92,8 +92,9 @@ void R_EntityParticles(const entity_t *ent)
 
    if (!avelocities[0][0])
    {
-      for (i = 0; i < NUMVERTEXNORMALS * 3; i++)
-         avelocities[0][i] = (rand() & 255) * 0.01;
+      for (i = 0; i < NUMVERTEXNORMALS; i++)
+         for (j = 0; j < 3; j++)
+            avelocities[i][j] = (rand() & 255) * 0.01;
    }
 
    for (i = 0; i < NUMVERTEXNORMALS; i++) {

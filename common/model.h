@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #ifndef MAX_DLIGHTS
 #define MAX_DLIGHTS 32
@@ -297,7 +298,7 @@ typedef struct {
 } maliasframedesc_t;
 
 typedef struct {
-    int firstframe;
+    uintptr_t firstframe;
     int numframes;
 } maliasskindesc_t;
 

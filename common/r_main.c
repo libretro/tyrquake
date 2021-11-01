@@ -1004,13 +1004,11 @@ static void R_EdgeDrawing(void)
    if (auxedges) {
       r_edges = auxedges;
    } else {
-      r_edges =  (edge_t *)
-				(((long)&ledges[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
+      r_edges =  (edge_t *)(((uintptr_t)&ledges[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
    }
 
    if (r_surfsonstack) {
-      surfaces =  (surf_t *)
-				(((long)&lsurfs[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
+      surfaces =  (surf_t *)(((uintptr_t)&lsurfs[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
       surf_max = &surfaces[r_cnumsurfs];
       // surface 0 doesn't really exist; it's just a dummy because index 0
       // is used to indicate no edge attached to surface

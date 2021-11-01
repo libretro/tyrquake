@@ -659,7 +659,8 @@ R_AliasSetupSkin
 */
 static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 {
-   int frame, numframes, skinbytes;
+   uintptr_t frame;
+   int numframes, skinbytes;
    maliasskindesc_t *pskindesc;
    byte *pdata;
    int skinnum = e->skinnum;
@@ -873,7 +874,7 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 
    // cache align
    pfinalverts = (finalvert_t *)
-			(((long)&finalverts[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
+			(((uintptr_t)&finalverts[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
    pauxverts = &auxverts[0];
 
    pahdr = (aliashdr_t*)Mod_Extradata(e->model);
