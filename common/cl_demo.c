@@ -90,7 +90,6 @@ CL_WriteDemoMessage(void)
 {
    int i;
 #ifdef MSB_FIRST
-   int len;
    float f;
    int len = LittleLong(net_message.cursize);
    rfwrite(&len, 4, 1, cls.demofile);
