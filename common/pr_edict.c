@@ -41,6 +41,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qwsvdef.h"
 #endif
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int rfprintf(RFILE * stream, const char * format, ...);
+
 dprograms_t *progs;
 dfunction_t *pr_functions;
 char *pr_strings;
@@ -532,7 +537,7 @@ ED_Write
 For savegames
 =============
 */
-void ED_Write(FILE *f, edict_t *ed)
+void ED_Write(RFILE *f, edict_t *ed)
 {
    ddef_t *d;
    int *v;
@@ -540,11 +545,11 @@ void ED_Write(FILE *f, edict_t *ed)
    const char *name;
    int type;
 
-   fprintf(f, "{\n");
+   rfprintf(f, "{\n");
 
    if (ed->free)
    {
-      fprintf(f, "}\n");
+      rfprintf(f, "}\n");
       return;
    }
 
@@ -564,11 +569,11 @@ void ED_Write(FILE *f, edict_t *ed)
       if (j == type_size[type])
          continue;
 
-      fprintf(f, "\"%s\" ", name);
-      fprintf(f, "\"%s\"\n", PR_UglyValueString((etype_t)d->type, (eval_t *)v));
+      rfprintf(f, "\"%s\" ", name);
+      rfprintf(f, "\"%s\"\n", PR_UglyValueString((etype_t)d->type, (eval_t *)v));
    }
 
-   fprintf(f, "}\n");
+   rfprintf(f, "}\n");
 }
 
 void ED_PrintNum(int ent)
@@ -659,14 +664,14 @@ ED_WriteGlobals
 =============
 */
 void
-ED_WriteGlobals(FILE *f)
+ED_WriteGlobals(RFILE *f)
 {
     ddef_t *def;
     int i;
     const char *name;
     int type;
 
-    fprintf(f, "{\n");
+    rfprintf(f, "{\n");
     for (i = 0; i < progs->numglobaldefs; i++) {
 	def = &pr_globaldefs[i];
 	type = def->type;
@@ -678,11 +683,11 @@ ED_WriteGlobals(FILE *f)
 	    continue;
 
 	name = PR_GetString(def->s_name);
-	fprintf(f, "\"%s\" ", name);
-	fprintf(f, "\"%s\"\n",
+	rfprintf(f, "\"%s\" ", name);
+	rfprintf(f, "\"%s\"\n",
 		PR_UglyValueString((etype_t)type, (eval_t *)&pr_globals[def->ofs]));
     }
-    fprintf(f, "}\n");
+    rfprintf(f, "}\n");
 }
 
 /*

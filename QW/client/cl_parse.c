@@ -32,6 +32,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "d_iface.h"
 
+#include <streams/file_stream.h>
+
+/* Forward declarations */
+int rfclose(RFILE* stream);
+RFILE* rfopen(const char *path, const char *mode);
+int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+
 static const char *svc_strings[] = {
     "svc_bad",
     "svc_nop",
@@ -166,7 +174,7 @@ to start a download from the server.
 qboolean
 CL_CheckOrDownloadFile(char *filename)
 {
-    FILE *f;
+    RFILE *f;
     int maxlen;
 
     if (strstr(filename, "..")) {
@@ -176,7 +184,7 @@ CL_CheckOrDownloadFile(char *filename)
 
     COM_FOpenFile(filename, &f);
     if (f) {			// it exists, no need to download
-	fclose(f);
+	rfclose(f);
 	return true;
     }
     /* can't download when recording */
@@ -345,14 +353,11 @@ A download message has been received from the server
 static void
 CL_ParseDownload(void)
 {
-    int size, percent;
     char name[1024];
     int r;
-
-
     // read the data
-    size = MSG_ReadShort();
-    percent = MSG_ReadByte();
+    int size    = MSG_ReadShort();
+    int percent = MSG_ReadByte();
 
     if (cls.demoplayback) {
 	if (size > 0)
@@ -364,7 +369,7 @@ CL_ParseDownload(void)
 	Con_Printf("File not found.\n");
 	if (cls.download) {
 	    Con_Printf("cls.download shouldn't have been set\n");
-	    fclose(cls.download);
+	    rfclose(cls.download);
 	    cls.download = NULL;
 	}
 	CL_RequestNextDownload();
@@ -379,7 +384,7 @@ CL_ParseDownload(void)
 
 	COM_CreatePath(name);
 
-	cls.download = fopen(name, "wb");
+	cls.download = rfopen(name, "wb");
 	if (!cls.download) {
 	    msg_readcount += size;
 	    Con_Printf("Failed to open %s\n", cls.downloadtempname);
@@ -388,7 +393,7 @@ CL_ParseDownload(void)
 	}
     }
 
-    fwrite(net_message.data + msg_readcount, 1, size, cls.download);
+    rfwrite(net_message.data + msg_readcount, 1, size, cls.download);
     msg_readcount += size;
 
     if (percent != 100) {
@@ -413,7 +418,7 @@ CL_ParseDownload(void)
 	Con_Printf("100%%\n");
 #endif
 
-	fclose(cls.download);
+	rfclose(cls.download);
 
 	// rename the temp file to it's final name
 	if (strcmp(cls.downloadtempname, cls.downloadname)) {
@@ -533,7 +538,7 @@ static void
 CL_ParseServerData(void)
 {
     char *str;
-    FILE *f;
+    RFILE *f;
     char fn[MAX_OSPATH];
     qboolean cflag = false;
     int protover;
@@ -572,8 +577,8 @@ CL_ParseServerData(void)
     //if it exists
     if (cflag) {
 	snprintf(fn, sizeof(fn), "%s/%s", com_gamedir, "config.cfg");
-	if ((f = fopen(fn, "r")) != NULL) {
-	    fclose(f);
+	if ((f = rfopen(fn, "r")) != NULL) {
+	    rfclose(f);
 	    Cbuf_AddText("cl_warncmd 0\n");
 	    Cbuf_AddText("exec config.cfg\n");
 	    Cbuf_AddText("exec frontend.cfg\n");

@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef CVAR_H
 #define CVAR_H
 
-#include <stdio.h>		/* FILE */
+#include <streams/file_stream.h>
 
 #include "shell.h"
 #include "qtypes.h"
@@ -136,7 +136,7 @@ qboolean Cvar_Command(void);
  * Writes lines containing "set variable value" for all variables with the
  * archive flag set to true.
  */
-void Cvar_WriteVariables(FILE *f);
+void Cvar_WriteVariables(RFILE *f);
 
 /* */
 cvar_t *Cvar_FindVar(const char *var_name);

@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef KEYS_H
 #define KEYS_H
 
-#include <stdio.h>
+#include <streams/file_stream.h>
 
 #include "qtypes.h"
 
@@ -298,7 +298,7 @@ extern qboolean chat_team;
 
 void Key_Event(knum_t key, qboolean down);
 void Key_Init(void);
-void Key_WriteBindings(FILE *f);
+void Key_WriteBindings(RFILE *f);
 void Key_SetBinding(knum_t keynum, const char *binding);
 void Key_ClearStates(void);
 void Key_ClearTyping(void);

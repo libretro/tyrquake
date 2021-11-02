@@ -35,6 +35,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <winuser.h>
 #endif
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int rfprintf(RFILE * stream, const char * format, ...);
+
 /*
 
 key up events are sent even if in console mode
@@ -721,13 +726,13 @@ Writes lines containing "bind key value"
 ============
 */
 void
-Key_WriteBindings(FILE *f)
+Key_WriteBindings(RFILE *f)
 {
     int i;
 
     for (i = 0; i < K_LAST; i++)
 	if (keybindings[i])
-	    fprintf(f, "bind \"%s\" \"%s\"\n",
+	    rfprintf(f, "bind \"%s\" \"%s\"\n",
 		    Key_KeynumToString(i), keybindings[i]);
 }
 

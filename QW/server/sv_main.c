@@ -28,6 +28,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+#include <streams/file_stream.h>
+
+/* Forward declarations */
+RFILE* rfopen(const char *path, const char *mode);
+int rfclose(RFILE* stream);
+int rfprintf(RFILE * stream, const char * format, ...);
+
 quakeparms_t host_parms;
 
 qboolean host_initialized;	// true if into command execution (compatability)
@@ -79,8 +86,8 @@ cvar_t watervis = { "watervis", "0", false, true };
 
 cvar_t hostname = { "hostname", "unnamed", false, true };
 
-FILE *sv_logfile;
-FILE *sv_fraglogfile;
+RFILE *sv_logfile;
+RFILE *sv_fraglogfile;
 
 static void Master_Heartbeat(void);
 static void Master_Shutdown(void);
@@ -105,11 +112,11 @@ SV_Shutdown(void)
 {
     Master_Shutdown();
     if (sv_logfile) {
-	fclose(sv_logfile);
+	rfclose(sv_logfile);
 	sv_logfile = NULL;
     }
     if (sv_fraglogfile) {
-	fclose(sv_fraglogfile);
+	rfclose(sv_fraglogfile);
 	sv_logfile = NULL;
     }
     NET_Shutdown();
@@ -213,11 +220,11 @@ SV_DropClient(client_t *drop)
 	Con_Printf("Client %s removed\n", drop->name);
 
     if (drop->download) {
-	fclose(drop->download);
+	rfclose(drop->download);
 	drop->download = NULL;
     }
     if (drop->upload) {
-	fclose(drop->upload);
+	rfclose(drop->upload);
 	drop->upload = NULL;
     }
     *drop->uploadfn = 0;
@@ -1008,7 +1015,7 @@ SV_WriteIP_f
 static void
 SV_WriteIP_f(void)
 {
-    FILE *f;
+    RFILE *f;
     char name[MAX_OSPATH];
     int i;
 
@@ -1016,7 +1023,7 @@ SV_WriteIP_f(void)
 
     Con_Printf("Writing %s.\n", name);
 
-    f = fopen(name, "wb");
+    f = rfopen(name, "wb");
     if (!f) {
 	Con_Printf("Couldn't open %s\n", name);
 	return;
@@ -1024,10 +1031,10 @@ SV_WriteIP_f(void)
 
     for (i = 0; i < numipfilters; i++) {
 	const byte *b = ipfilters[i].addr.b;
-	fprintf(f, "addip %i.%i.%i.%i\n", b[0], b[1], b[2], b[3]);
+	rfprintf(f, "addip %i.%i.%i.%i\n", b[0], b[1], b[2], b[3]);
     }
 
-    fclose(f);
+    rfclose(f);
 }
 
 /*
