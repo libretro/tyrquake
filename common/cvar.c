@@ -18,7 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // cvar.c -- dynamic variable tracking
-#include <stdio.h>
 
 #include "cmd.h"
 #include "common.h"
@@ -42,6 +41,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #endif
 #endif
+
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int rfprintf(RFILE * stream, const char * format, ...);
 
 #define cvar_entry(ptr) container_of(ptr, struct cvar_s, stree)
 DECLARE_STREE_ROOT(cvar_tree);
@@ -370,7 +374,7 @@ Writes lines containing "set variable value" for all variables
 with the archive flag set to true.
 ============
 */
-void Cvar_WriteVariables(FILE *f)
+void Cvar_WriteVariables(RFILE *f)
 {
    struct stree_node *n;
 
@@ -378,6 +382,6 @@ void Cvar_WriteVariables(FILE *f)
    {
       cvar_t *var = cvar_entry(n);
       if (var->archive)
-         fprintf(f, "%s \"%s\"\n", var->name, var->string);
+         rfprintf(f, "%s \"%s\"\n", var->name, var->string);
    }
 }

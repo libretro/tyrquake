@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdarg.h>
 #include <stdio.h>
 #include <retro_inline.h>
+#include <streams/file_stream.h>
 
 #include "qtypes.h"
 #include "shell.h"
@@ -254,7 +255,7 @@ extern char com_savedir[MAX_OSPATH];
 extern int file_from_pak; // global indicating that file came from a pak
 
 void COM_WriteFile(const char *filename, const void *data, int len);
-int COM_FOpenFile(const char *filename, FILE **file);
+int COM_FOpenFile(const char *filename, RFILE **file);
 void COM_ScanDir(struct stree_root *root, const char *path,
 		 const char *pfx, const char *ext, qboolean stripext);
 
@@ -306,7 +307,7 @@ extern byte	palmap2[64][64][64];	// 18-bit lookup table
 
 typedef struct _fshandle_t
 {
-	FILE *file;
+	RFILE *file;
 	qboolean pak;	/* is the file read from a pak */
 	long start;	/* file or data start position */
 	long length;	/* file or data size */

@@ -53,6 +53,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int rfclose(RFILE* stream);
+int64_t rftell(RFILE* stream);
+char *rfgets(char *buffer, int maxCount, RFILE* stream);
+RFILE* rfopen(const char *path, const char *mode);
+int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int64_t rfseek(RFILE* stream, int64_t offset, int origin);
+int rferror(RFILE* stream);
+int rfgetc(RFILE* stream);
+
 #define NUM_SAFE_ARGVS 7
 
 static const char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
@@ -992,7 +1007,7 @@ being registered.
 */
 void COM_CheckRegistered(void)
 {
-   FILE *f;
+   RFILE *f;
 
 #ifdef NQ_HACK
    Cvar_Set("cmdline", com_cmdline);
@@ -1002,7 +1017,7 @@ void COM_CheckRegistered(void)
       Con_Printf("Playing shareware version.\n");
    else
    {
-      fclose(f);
+      rfclose(f);
       Cvar_Set("registered", "1");
       static_registered = 1;
       Con_Printf("Playing registered version.\n");
@@ -1187,21 +1202,21 @@ static searchpath_t *com_base_searchpaths;	// without gamedirs
 COM_filelength
 ================
 */
-static int COM_filelength(FILE *f)
+static int COM_filelength(RFILE *f)
 {
    int end;
-   int pos = ftell(f);
+   int pos = rftell(f);
 
-   fseek(f, 0, SEEK_END);
-   end = ftell(f);
-   fseek(f, pos, SEEK_SET);
+   rfseek(f, 0, SEEK_END);
+   end = rftell(f);
+   rfseek(f, pos, SEEK_SET);
 
    return end;
 }
 
-static int COM_FileOpenRead(const char *path, FILE **hndl)
+static int COM_FileOpenRead(const char *path, RFILE **hndl)
 {
-   FILE *f = fopen(path, "rb");
+   RFILE *f = rfopen(path, "rb");
 
    if (!f)
       goto error;
@@ -1248,21 +1263,21 @@ The filename will be prefixed by the current game directory
 */
 void COM_WriteFile(const char *filename, const void *data, int len)
 {
-   FILE *f;
+   RFILE *f;
    char name[MAX_OSPATH];
 
    snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
 
-   f = fopen(name, "wb");
+   f = rfopen(name, "wb");
    if (!f)
    {
       Sys_mkdir(com_gamedir);
-      f = fopen(name, "wb");
+      f = rfopen(name, "wb");
       if (!f)
          Sys_Error("Error opening %s", filename);
    }
-   fwrite(data, 1, len, f);
-   fclose(f);
+   rfwrite(data, 1, len, f);
+   rfclose(f);
 }
 
 
@@ -1305,7 +1320,7 @@ into the file.
 */
 int file_from_pak; // global indicating file came from pack file
 
-int COM_FOpenFile(const char *filename, FILE **file)
+int COM_FOpenFile(const char *filename, RFILE **file)
 {
    searchpath_t *search;
    char path[MAX_OSPATH];
@@ -1327,11 +1342,11 @@ int COM_FOpenFile(const char *filename, FILE **file)
             if (!strcmp(pak->files[i].name, filename))
             {	// found it!
                // open a new file on the pakfile
-               *file = fopen(pak->filename, "rb");
+               *file = rfopen(pak->filename, "rb");
                if (!*file)
                   Sys_Error("Couldn't reopen %s", pak->filename);
-               fseek(*file, pak->files[i].filepos, SEEK_SET);
-               com_filesize = pak->files[i].filelen;
+               rfseek(*file, pak->files[i].filepos, SEEK_SET);
+               com_filesize  = pak->files[i].filelen;
                file_from_pak = 1;
                return com_filesize;
             }
@@ -1348,13 +1363,13 @@ int COM_FOpenFile(const char *filename, FILE **file)
          if (findtime == -1)
             continue;
 
-         *file = fopen(path, "rb");
+         *file        = rfopen(path, "rb");
          com_filesize = COM_filelength(*file);
          return com_filesize;
       }
    }
 
-   *file = NULL;
+   *file        = NULL;
    com_filesize = -1;
 
    return -1;
@@ -1541,7 +1556,7 @@ static int loadsize;
 
 static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
-   FILE *f;
+   RFILE *f;
    char base[32];
    byte *buf = NULL;			// quiet compiler warning
    int len = com_filesize = COM_FOpenFile(path, &f);  // look for it in the filesystem or pack files
@@ -1579,8 +1594,8 @@ static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 #ifndef SERVERONLY
    Draw_BeginDisc();
 #endif
-   fread(buf, 1, len, f);
-   fclose(f);
+   rfread(buf, 1, len, f);
+   rfclose(f);
 #ifndef SERVERONLY
    Draw_EndDisc();
 #endif
@@ -1631,7 +1646,7 @@ of the list so they override previous pack files.
 static pack_t *COM_LoadPackFile(const char *packfile)
 {
    int mark;
-   FILE *packhandle;
+   RFILE *packhandle;
    dpackheader_t header;
    dpackfile_t *dfiles;
    packfile_t *mfiles;
@@ -1642,7 +1657,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    if (COM_FileOpenRead(packfile, &packhandle) == -1)
       goto error;
 
-   fread(&header, 1, sizeof(header), packhandle);
+   rfread(&header, 1, sizeof(header), packhandle);
    if (header.id[0] != 'P' || header.id[1] != 'A'
          || header.id[2] != 'C' || header.id[3] != 'K')
       Sys_Error("%s is not a packfile", packfile);
@@ -1667,8 +1682,8 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    dfiles = Z_Malloc(numfiles * sizeof(*dfiles));
 #endif
 
-   fseek(packhandle, header.dirofs, SEEK_SET);
-   fread(dfiles, 1, header.dirlen, packhandle);
+   rfseek(packhandle, header.dirofs, SEEK_SET);
+   rfread(dfiles, 1, header.dirlen, packhandle);
 
 #if defined(NQ_HACK) || defined(QW_HACK)
    // crc the directory to check for modifications
@@ -2268,58 +2283,6 @@ static byte chktbl[1024 + 4] = {
     0x00, 0x00, 0x00, 0x00
 };
 
-
-#if 0
-/*
-====================
-COM_BlockSequenceCheckByte
-
-For proxy protecting
-====================
-*/
-byte
-COM_BlockSequenceCheckByte(const byte *base, int length, int sequence,
-			   unsigned mapchecksum)
-{
-   static unsigned last_mapchecksum;
-   unsigned char chkbuf[16 + 60 + 4];
-   int checksum;
-   byte *p;
-
-   if (last_mapchecksum != mapchecksum)
-   {
-      last_mapchecksum = mapchecksum;
-      chktbl[1024] = (mapchecksum & 0xff000000) >> 24;
-      chktbl[1025] = (mapchecksum & 0x00ff0000) >> 16;
-      chktbl[1026] = (mapchecksum & 0x0000ff00) >> 8;
-      chktbl[1027] = (mapchecksum & 0x000000ff);
-
-      Com_BlockFullChecksum(chktbl, sizeof(chktbl), chkbuf);
-   }
-
-   p = chktbl + (sequence % (sizeof(chktbl) - 8));
-
-   if (length > 60)
-      length = 60;
-   memcpy(chkbuf + 16, base, length);
-
-   length += 16;
-
-   chkbuf[length] = (sequence & 0xff) ^ p[0];
-   chkbuf[length + 1] = p[1];
-   chkbuf[length + 2] = ((sequence >> 8) & 0xff) ^ p[2];
-   chkbuf[length + 3] = p[3];
-
-   length += 4;
-
-   checksum = LittleLong(Com_BlockChecksum(chkbuf, length));
-
-   checksum &= 0xff;
-
-   return checksum;
-}
-#endif
-
 /*
 ====================
 COM_BlockSequenceCRCByte
@@ -2420,7 +2383,7 @@ size_t FS_fread(void *ptr, size_t size, size_t nmemb, fshandle_t *fh)
 	byte_size = nmemb * size;
 	if (byte_size > fh->length - fh->pos)	/* just read to end */
 		byte_size = fh->length - fh->pos;
-	bytes_read = fread(ptr, 1, byte_size, fh->file);
+	bytes_read = rfread(ptr, 1, byte_size, fh->file);
 	fh->pos += bytes_read;
 
 	/* fread() must return the number of elements read,
@@ -2470,7 +2433,7 @@ int FS_fseek(fshandle_t *fh, long offset, int whence)
 	if (offset > fh->length)	/* just seek to end */
 		offset = fh->length;
 
-	ret = fseek(fh->file, fh->start + offset, SEEK_SET);
+	ret = rfseek(fh->file, fh->start + offset, SEEK_SET);
 	if (ret < 0)
 		return ret;
 
@@ -2484,7 +2447,7 @@ int FS_fclose(fshandle_t *fh)
 		errno = EBADF;
 		return -1;
 	}
-	return fclose(fh->file);
+	return rfclose(fh->file);
 }
 
 long FS_ftell(fshandle_t *fh)
@@ -2499,8 +2462,7 @@ long FS_ftell(fshandle_t *fh)
 void FS_rewind(fshandle_t *fh)
 {
 	if (!fh) return;
-	clearerr(fh->file);
-	fseek(fh->file, fh->start, SEEK_SET);
+	rfseek(fh->file, fh->start, SEEK_SET);
 	fh->pos = 0;
 }
 
@@ -2521,7 +2483,7 @@ int FS_ferror(fshandle_t *fh)
 		errno = EBADF;
 		return -1;
 	}
-	return ferror(fh->file);
+	return rferror(fh->file);
 }
 
 int FS_fgetc(fshandle_t *fh)
@@ -2533,7 +2495,7 @@ int FS_fgetc(fshandle_t *fh)
 	if (fh->pos >= fh->length)
 		return EOF;
 	fh->pos += 1;
-	return fgetc(fh->file);
+	return rfgetc(fh->file);
 }
 
 char *FS_fgets(char *s, int size, fshandle_t *fh)
@@ -2546,8 +2508,8 @@ char *FS_fgets(char *s, int size, fshandle_t *fh)
 	if (size > (fh->length - fh->pos) + 1)
 		size = (fh->length - fh->pos) + 1;
 
-	ret = fgets(s, size, fh->file);
-	fh->pos = ftell(fh->file) - fh->start;
+	ret     = rfgets(s, size, fh->file);
+	fh->pos = rftell(fh->file) - fh->start;
 
 	return ret;
 }
@@ -2560,4 +2522,3 @@ long FS_filelength (fshandle_t *fh)
 	}
 	return fh->length;
 }
-

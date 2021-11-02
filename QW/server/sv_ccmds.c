@@ -25,6 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+#include <streams/file_stream.h>
+
+/* Forward declarations */
+int rfclose(RFILE* stream);
+RFILE* rfopen(const char *path, const char *mode);
+
 qboolean sv_allow_cheats;
 
 int fp_messages = 4, fp_persecond = 4, fp_secondsdead = 10;
@@ -103,14 +109,14 @@ SV_Logfile_f(void)
 
     if (sv_logfile) {
 	Con_Printf("File logging off.\n");
-	fclose(sv_logfile);
+	rfclose(sv_logfile);
 	sv_logfile = NULL;
 	return;
     }
 
     sprintf(name, "%s/qconsole.log", com_gamedir);
     Con_Printf("Logging text to %s.\n", name);
-    sv_logfile = fopen(name, "w");
+    sv_logfile = rfopen(name, "w");
     if (!sv_logfile)
 	Con_Printf("failed.\n");
 }
@@ -136,9 +142,9 @@ SV_Fraglogfile_f(void)
     // find an unused name
     for (i = 0; i < 1000; i++) {
 	sprintf(name, "%s/frag_%i.log", com_gamedir, i);
-	sv_fraglogfile = fopen(name, "r");
+	sv_fraglogfile = rfopen(name, "r");
 	if (!sv_fraglogfile) {	// can't read it, so create this one
-	    sv_fraglogfile = fopen(name, "w");
+	    sv_fraglogfile = rfopen(name, "w");
 	    if (!sv_fraglogfile)
 		i = 1000;	// give error
 	    break;
@@ -303,7 +309,7 @@ SV_Map_f(void)
 {
     char level[MAX_QPATH];
     char expanded[MAX_QPATH];
-    FILE *f;
+    RFILE *f;
 
     if (Cmd_Argc() != 2) {
 	Con_Printf("map <levelname> : continue game on a new level\n");
@@ -328,7 +334,7 @@ SV_Map_f(void)
 	Con_Printf("Can't find %s\n", expanded);
 	return;
     }
-    fclose(f);
+    rfclose(f);
 
     SV_BroadcastCommand("changing\n");
     SV_SendMessagesToAll();
@@ -341,9 +347,7 @@ SV_Map_f(void)
 static struct stree_root *
 SV_Map_Arg_f(const char *arg)
 {
-    struct stree_root *root;
-
-    root = Z_Malloc(sizeof(struct stree_root));
+    struct stree_root *root = Z_Malloc(sizeof(struct stree_root));
     if (root) {
 	*root = STREE_ROOT;
 
@@ -365,9 +369,7 @@ SV_Kick_f(void)
 {
     int i;
     client_t *cl;
-    int uid;
-
-    uid = atoi(Cmd_Argv(1));
+    int uid = atoi(Cmd_Argv(1));
 
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (!cl->state)
@@ -398,9 +400,8 @@ SV_Status_f(void)
     const char *addr;
     int i;
     client_t *client;
-    float cpu, avg, pak;
-
-    cpu = (svs.stats.latched_active + svs.stats.latched_idle);
+    float avg, pak;
+    float cpu = (svs.stats.latched_active + svs.stats.latched_idle);
     if (cpu)
 	cpu = 100 * svs.stats.latched_active / cpu;
     avg = 1000 * svs.stats.latched_active / STATFRAMES;

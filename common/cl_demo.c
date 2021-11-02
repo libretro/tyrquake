@@ -28,6 +28,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+RFILE* rfopen(const char *path, const char *mode);
+int rfclose(RFILE* stream);
+int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int64_t rfflush(RFILE * stream);
+int64_t rfwrite(void const* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int rfprintf(RFILE * stream, const char * format, ...);
+int rfgetc(RFILE* stream);
+
 static void CL_FinishTimeDemo(void);
 
 /*
@@ -56,10 +69,10 @@ CL_StopPlayback(void)
     if (!cls.demoplayback)
 	return;
 
-    fclose(cls.demofile);
+    rfclose(cls.demofile);
     cls.demoplayback = false;
-    cls.demofile = NULL;
-    cls.state = ca_disconnected;
+    cls.demofile     = NULL;
+    cls.state        = ca_disconnected;
 
     if (cls.timedemo)
 	CL_FinishTimeDemo();
@@ -79,20 +92,19 @@ CL_WriteDemoMessage(void)
 #ifdef MSB_FIRST
    int len;
    float f;
-
-   len = LittleLong(net_message.cursize);
-   fwrite(&len, 4, 1, cls.demofile);
+   int len = LittleLong(net_message.cursize);
+   rfwrite(&len, 4, 1, cls.demofile);
    for (i = 0; i < 3; i++) {
       f = LittleFloat(cl.viewangles[i]);
-      fwrite(&f, 4, 1, cls.demofile);
+      rfwrite(&f, 4, 1, cls.demofile);
    }
 #else
-   fwrite (&net_message.cursize, 4, 1, cls.demofile);
+   rfwrite (&net_message.cursize, 4, 1, cls.demofile);
    for (i = 0 ; i < 3 ; i++)
-      fwrite (&cl.viewangles[i], 4, 1, cls.demofile);
+      rfwrite (&cl.viewangles[i], 4, 1, cls.demofile);
 #endif
-   fwrite(net_message.data, net_message.cursize, 1, cls.demofile);
-   fflush(cls.demofile);
+   rfwrite(net_message.data, net_message.cursize, 1, cls.demofile);
+   rfflush(cls.demofile);
 }
 
 /*
@@ -137,24 +149,24 @@ CL_GetMessage(void)
          }
       }
       // get the next message
-      fread(&net_message.cursize, 4, 1, cls.demofile);
+      rfread(&net_message.cursize, 4, 1, cls.demofile);
       VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
 
       for (i = 0; i < 3; i++)
 #ifdef MSB_FIRST
       {
-         fread(&f, 4, 1, cls.demofile);
+         rfread(&f, 4, 1, cls.demofile);
          cl.mviewangles[0][i] = LittleFloat(f);
       }
 
       net_message.cursize = LittleLong(net_message.cursize);
 #else
-      r = fread (&cl.mviewangles[0][i], 4, 1, cls.demofile);
+      r = rfread (&cl.mviewangles[0][i], 4, 1, cls.demofile);
 #endif
 
       if (net_message.cursize > MAX_MSGLEN)
          Sys_Error("Demo message > MAX_MSGLEN");
-      r = fread(net_message.data, net_message.cursize, 1, cls.demofile);
+      r = rfread(net_message.data, net_message.cursize, 1, cls.demofile);
       if (r != 1) {
          CL_StopPlayback();
          return 0;
@@ -207,8 +219,8 @@ CL_Stop_f(void)
     CL_WriteDemoMessage();
 
 // finish up
-    fclose(cls.demofile);
-    cls.demofile = NULL;
+    rfclose(cls.demofile);
+    cls.demofile      = NULL;
     cls.demorecording = false;
     Con_Printf("Completed demo\n");
 }
@@ -268,14 +280,14 @@ CL_Record_f(void)
     COM_DefaultExtension(name, ".dem");
 
     Con_Printf("recording to %s.\n", name);
-    cls.demofile = fopen(name, "wb");
+    cls.demofile = rfopen(name, "wb");
     if (!cls.demofile) {
 	Con_Printf("ERROR: couldn't open.\n");
 	return;
     }
 
     cls.forcetrack = track;
-    fprintf(cls.demofile, "%i\n", cls.forcetrack);
+    rfprintf(cls.demofile, "%i\n", cls.forcetrack);
 
     cls.demorecording = true;
 }
@@ -325,7 +337,7 @@ CL_PlayDemo_f(void)
     cls.state = ca_connected;
     cls.forcetrack = 0;
 
-    while ((c = getc(cls.demofile)) != '\n')
+    while ((c = rfgetc(cls.demofile)) != '\n')
 	if (c == '-')
 	    neg = true;
 	else

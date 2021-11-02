@@ -388,7 +388,7 @@ UDP_GetNameFromAddr(const netadr_t *addr, char *name)
 {
     struct hostent *hostentry;
 #ifndef VITA
-    hostentry = gethostbyaddr(&addr->ip.l, sizeof(addr->ip.l), AF_INET);
+    hostentry = gethostbyaddr((const char*)&addr->ip.l, sizeof(addr->ip.l), AF_INET);
     if (hostentry) {
 	strncpy(name, (char *)hostentry->h_name, NET_NAMELEN - 1);
 	return 0;

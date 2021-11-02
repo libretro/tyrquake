@@ -28,6 +28,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_iface.h"
 #include "r_local.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int rfscanf(RFILE * stream, const char * format, ...);
+int rfclose(RFILE* stream);
+
 #define MAX_PARTICLES		2048	// default max # of particles at one
 					//  time
 #define ABSOLUTE_MIN_PARTICLES	512	// no fewer than this no matter what's
@@ -153,7 +159,7 @@ void R_ClearParticles(void)
 
 void R_ReadPointFile_f(void)
 {
-   FILE *f;
+   RFILE *f;
    vec3_t org;
    int r;
    int c;
@@ -177,7 +183,7 @@ void R_ReadPointFile_f(void)
    Con_Printf("Reading %s...\n", name);
    c = 0;
    for (;;) {
-      r = fscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
+      r = rfscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
       if (r != 3)
          break;
       c++;
@@ -186,19 +192,19 @@ void R_ReadPointFile_f(void)
          Con_Printf("Not enough free particles\n");
          break;
       }
-      p = free_particles;
-      free_particles = p->next;
-      p->next = active_particles;
+      p                = free_particles;
+      free_particles   = p->next;
+      p->next          = active_particles;
       active_particles = p;
 
-      p->die = 99999;
-      p->color = (-c) & 15;
-      p->type = pt_static;
+      p->die           = 99999;
+      p->color         = (-c) & 15;
+      p->type          = pt_static;
       VectorCopy(vec3_origin, p->vel);
       VectorCopy(org, p->org);
    }
 
-   fclose(f);
+   rfclose(f);
    Con_Printf("%i points read\n", c);
 }
 
@@ -608,24 +614,19 @@ CL_RunParticles
 void CL_RunParticles(void)
 {
    particle_t *p, *kill;
-   float grav;
-   float time1, time2, time3;
-   float frametime;
-   float dvel;
    int i;
-
 #ifdef NQ_HACK
-   frametime = cl.time - cl.oldtime;
-   grav = frametime * sv_gravity.value * 0.05;
+   float frametime = cl.time - cl.oldtime;
+   float grav      = frametime * sv_gravity.value * 0.05;
 #endif
 #ifdef QW_HACK
-   frametime = host_frametime;
-   grav = frametime * 800 * 0.05;
+   float frametime = host_frametime;
+   float grav      = frametime * 800 * 0.05;
 #endif
-   time3 = frametime * 15;
-   time2 = frametime * 10;	// 15;
-   time1 = frametime * 5;
-   dvel = 4 * frametime;
+   float time3     = frametime * 15;
+   float time2     = frametime * 10;	// 15;
+   float time1     = frametime * 5;
+   float dvel      = frametime * 4;
 
    for (;;) {
       kill = active_particles;

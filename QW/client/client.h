@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "vid.h"
 #include "zone.h"
 
+#include <streams/file_stream.h>
+
 //
 // client_state_t should hold all pieces of the client state
 //
@@ -175,7 +177,7 @@ typedef struct {
 
     int qport;
 
-    FILE *download;		// file transfer from server
+    RFILE *download;		// file transfer from server
     char downloadtempname[MAX_OSPATH];
     char downloadname[MAX_OSPATH];
     int downloadnumber;
@@ -191,7 +193,7 @@ typedef struct {
     qboolean demorecording;
     qboolean demoplayback;
     qboolean timedemo;
-    FILE *demofile;
+    RFILE *demofile;
     float td_lastframe;		// to meter out one message a frame
     int td_startframe;		// host_framecount at start
     float td_starttime;		// realtime at second frame of timedemo

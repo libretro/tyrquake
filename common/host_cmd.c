@@ -42,6 +42,8 @@ int rfscanf(RFILE * stream, const char * format, ...);
 int rfeof(RFILE* stream);
 int rfgetc(RFILE* stream);
 int rfclose(RFILE* stream);
+int rfprintf(RFILE * stream, const char * format, ...);
+int64_t rfflush(RFILE * stream);
 
 int current_skill;
 
@@ -463,7 +465,7 @@ Host_Savegame_f
 void Host_Savegame_f(void)
 {
    char name[256];
-   FILE *f;
+   RFILE *f;
    int i;
    char comment[SAVEGAME_COMMENT_LENGTH + 1];
 #ifdef _WIN32
@@ -511,37 +513,37 @@ void Host_Savegame_f(void)
    COM_DefaultExtension(name, ".sav");
 
    Con_Printf("Saving game to %s...\n", name);
-   f = fopen(name, "w");
+   f = rfopen(name, "w");
    if (!f) {
       Con_Printf("ERROR: couldn't open.\n");
       return;
    }
 
-   fprintf(f, "%i\n", SAVEGAME_VERSION);
+   rfprintf(f, "%i\n", SAVEGAME_VERSION);
    Host_SavegameComment(comment);
-   fprintf(f, "%s\n", comment);
+   rfprintf(f, "%s\n", comment);
    for (i = 0; i < NUM_SPAWN_PARMS; i++)
-      fprintf(f, "%f\n", svs.clients->spawn_parms[i]);
-   fprintf(f, "%d\n", current_skill);
-   fprintf(f, "%s\n", sv.name);
-   fprintf(f, "%f\n", sv.time);
+      rfprintf(f, "%f\n", svs.clients->spawn_parms[i]);
+   rfprintf(f, "%d\n", current_skill);
+   rfprintf(f, "%s\n", sv.name);
+   rfprintf(f, "%f\n", sv.time);
 
    // write the light styles
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++) {
       if (sv.lightstyles[i])
-         fprintf(f, "%s\n", sv.lightstyles[i]);
+         rfprintf(f, "%s\n", sv.lightstyles[i]);
       else
-         fprintf(f, "m\n");
+         rfprintf(f, "m\n");
    }
 
 
    ED_WriteGlobals(f);
    for (i = 0; i < sv.num_edicts; i++) {
       ED_Write(f, EDICT_NUM(i));
-      fflush(f);
+      rfflush(f);
    }
-   fclose(f);
+   rfclose(f);
    Con_Printf("done.\n");
 }
 

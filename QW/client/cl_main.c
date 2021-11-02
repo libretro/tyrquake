@@ -48,6 +48,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "d_iface.h"
 
+#include <streams/file_stream.h>
+
+/* Forward declarations */
+RFILE* rfopen(const char *path, const char *mode);
+int rfclose(RFILE* stream);
+int rfprintf(RFILE * stream, const char * format, ...);
+
 /* Argument completion function for the skin cvar */
 static struct stree_root * CL_Skin_Arg_f(const char *arg);
 
@@ -1234,10 +1241,10 @@ Writes key bindings and archived cvars to config.cfg
 void
 Host_WriteConfiguration(void)
 {
-    FILE *f;
+    RFILE *f;
 
     if (host_initialized) {
-	f = fopen(va("%s/config.cfg", com_gamedir), "w");
+	f = rfopen(va("%s/config.cfg", com_gamedir), "w");
 	if (!f) {
 	    Con_Printf("Couldn't write config.cfg.\n");
 	    return;
@@ -1248,42 +1255,14 @@ Host_WriteConfiguration(void)
 
 	/* Save the mlook state (rarely used as an actual key binding) */
 	if (in_mlook.state & 1)
-	    fprintf(f, "+mlook\n");
+	    rfprintf(f, "+mlook\n");
 
-	fclose(f);
+	rfclose(f);
     }
 }
 
 
 //============================================================================
-
-#if 0
-/*
-==================
-Host_SimulationTime
-
-This determines if enough time has passed to run a simulation frame
-==================
-*/
-qboolean
-Host_SimulationTime(float time)
-{
-    float fps;
-
-    if (oldrealtime > realtime)
-	oldrealtime = 0;
-
-    if (cl_maxfps.value)
-	fps = qmax(30.0, qmin(cl_maxfps.value, 72.0));
-    else
-	fps = qmax(30.0, qmin(rate.value / 80.0, 72.0));
-
-    if (!cls.timedemo && (realtime + time) - oldrealtime < 1.0 / fps)
-	return false;		// framerate is too high
-    return true;
-}
-#endif
-
 
 /*
 ==================
@@ -1297,8 +1276,6 @@ Host_Frame(float time)
 {
     static double time1 = 0;
     static double time2 = 0;
-    static double time3 = 0;
-    int pass1, pass2, pass3;
     float fps;
 
     /* something bad happened, or the server disconnected */
@@ -1317,7 +1294,7 @@ Host_Frame(float time)
 	return;		// framerate is too high
 
     host_frametime = realtime - oldrealtime;
-    oldrealtime = realtime;
+    oldrealtime    = realtime;
     if (host_frametime > 0.2)
 	host_frametime = 0.2;
 
@@ -1372,10 +1349,12 @@ Host_Frame(float time)
     CDAudio_Update();
 
     if (host_speeds.value) {
-	pass1 = (time1 - time3) * 1000;
-	time3 = Sys_DoubleTime();
-	pass2 = (time2 - time1) * 1000;
-	pass3 = (time3 - time2) * 1000;
+	static double time3 = 0;
+	int pass1    = (time1 - time3) * 1000;
+	double time4 = Sys_DoubleTime();
+	int pass2    = (time2 - time1) * 1000;
+	int pass3    = (time4 - time2) * 1000;
+        time3        = time4;
 	Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
 		   pass1 + pass2 + pass3, pass1, pass2, pass3);
     }

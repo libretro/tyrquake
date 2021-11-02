@@ -43,8 +43,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 #include "render.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+RFILE* rfopen(const char *path, const char *mode);
+int rfclose(RFILE* stream);
+int rfprintf(RFILE * stream, const char * format, ...);
+
 /*
- * A server can allways be started, even if the system started out as a client
+ * A server can always be started, even if the system started out as a client
  * to a remote system.
  *
  * A client can NOT be started if the system started as a dedicated server.
@@ -264,12 +271,12 @@ Writes key bindings and archived cvars to config.cfg
 void
 Host_WriteConfiguration(void)
 {
-    FILE *f;
+    RFILE *f;
 
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars
     if (host_initialized & !isDedicated) {
-	f = fopen(va("%s/config.cfg", com_savedir), "w");
+	f = rfopen(va("%s/config.cfg", com_savedir), "w");
 	if (!f) {
 	    Con_Printf("Couldn't write config.cfg.\n");
 	    return;
@@ -280,9 +287,9 @@ Host_WriteConfiguration(void)
 
 	/* Save the mlook state (rarely used as an actual key binding) */
 	if (in_mlook.state & 1)
-	    fprintf(f, "+mlook\n");
+	    rfprintf(f, "+mlook\n");
 
-	fclose(f);
+	rfclose(f);
     }
 }
 

@@ -31,16 +31,24 @@
 #include "snd_codeci.h"
 #include "snd_wave.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int64_t rfread(void* buffer,
+   size_t elem_size, size_t elem_count, RFILE* stream);
+int64_t rftell(RFILE* stream);
+int64_t rfseek(RFILE* stream, int64_t offset, int origin);
+
 /*
 =================
 FGetLittleLong
 =================
 */
-static int FGetLittleLong (FILE *f)
+static int FGetLittleLong (RFILE *f)
 {
 	int		v;
 
-	fread(&v, 1, sizeof(v), f);
+	rfread(&v, 1, sizeof(v), f);
 
 	return LittleLong(v);
 }
@@ -50,11 +58,11 @@ static int FGetLittleLong (FILE *f)
 FGetLittleShort
 =================
 */
-static short FGetLittleShort(FILE *f)
+static short FGetLittleShort(RFILE *f)
 {
 	short	v;
 
-	fread(&v, 1, sizeof(v), f);
+	rfread(&v, 1, sizeof(v), f);
 
 	return LittleShort(v);
 }
@@ -64,13 +72,12 @@ static short FGetLittleShort(FILE *f)
 WAV_ReadChunkInfo
 =================
 */
-static int WAV_ReadChunkInfo(FILE *f, char *name)
+static int WAV_ReadChunkInfo(RFILE *f, char *name)
 {
 	int len, r;
 
 	name[4] = 0;
-
-	r = fread(name, 1, 4, f);
+	r       = rfread(name, 1, 4, f);
 	if (r != 4)
 		return -1;
 
@@ -91,7 +98,7 @@ WAV_FindRIFFChunk
 Returns the length of the data in the chunk, or -1 if not found
 =================
 */
-static int WAV_FindRIFFChunk(FILE *f, const char *chunk)
+static int WAV_FindRIFFChunk(RFILE *f, const char *chunk)
 {
 	char	name[5];
 	int		len;
@@ -104,7 +111,7 @@ static int WAV_FindRIFFChunk(FILE *f, const char *chunk)
 		len = ((len + 1) & ~1);	/* pad by 2 . */
 
 		/* Not the right chunk - skip it */
-		fseek(f, len, SEEK_CUR);
+		rfseek(f, len, SEEK_CUR);
 	}
 
 	return -1;
@@ -115,13 +122,13 @@ static int WAV_FindRIFFChunk(FILE *f, const char *chunk)
 WAV_ReadRIFFHeader
 =================
 */
-static qboolean WAV_ReadRIFFHeader(const char *name, FILE *file, snd_info_t *info)
+static qboolean WAV_ReadRIFFHeader(const char *name, RFILE *file, snd_info_t *info)
 {
 	char dump[16];
 	int wav_format;
 	int fmtlen = 0;
 
-	if (fread(dump, 1, 12, file) < 12 ||
+	if (rfread(dump, 1, 12, file) < 12 ||
 	    strncmp(dump, "RIFF", 4) != 0 ||
 	    strncmp(&dump[8], "WAVE", 4) != 0)
 	{
@@ -145,10 +152,10 @@ static qboolean WAV_ReadRIFFHeader(const char *name, FILE *file, snd_info_t *inf
 	}
 
 	info->channels = FGetLittleShort(file);
-	info->rate = FGetLittleLong(file);
+	info->rate     = FGetLittleLong(file);
 	FGetLittleLong(file);
 	FGetLittleShort(file);
-	info->bits = FGetLittleShort(file);
+	info->bits     = FGetLittleShort(file);
 
 	if (info->bits != 8 && info->bits != 16)
 	{
@@ -156,14 +163,14 @@ static qboolean WAV_ReadRIFFHeader(const char *name, FILE *file, snd_info_t *inf
 		return false;
 	}
 
-	info->width = info->bits / 8;
+	info->width   = info->bits / 8;
 	info->dataofs = 0;
 
 	/* Skip the rest of the format chunk if required */
 	if (fmtlen > 16)
 	{
 		fmtlen -= 16;
-		fseek(file, fmtlen, SEEK_CUR);
+		rfseek(file, fmtlen, SEEK_CUR);
 	}
 
 	/* Scan for the data chunk */
@@ -205,7 +212,7 @@ static qboolean S_WAV_CodecOpenStream(snd_stream_t *stream)
 	if (!WAV_ReadRIFFHeader(stream->name, stream->fh.file, &stream->info))
 		return false;
 
-	stream->fh.start = ftell(stream->fh.file); /* reset to data position */
+	stream->fh.start = rftell(stream->fh.file); /* reset to data position */
 	if (stream->fh.start - start + stream->info.size > stream->fh.length)
 	{
 		Con_Printf("%s data size mismatch\n", stream->name);
@@ -230,7 +237,7 @@ int S_WAV_CodecReadStream(snd_stream_t *stream, int bytes, void *buffer)
 	if (bytes > remaining)
 		bytes = remaining;
 	stream->fh.pos += bytes;
-	fread(buffer, 1, bytes, stream->fh.file);
+	rfread(buffer, 1, bytes, stream->fh.file);
 	if (stream->info.width == 2)
 	{
 		samples = bytes / 2;
@@ -275,4 +282,3 @@ snd_codec_t wav_codec =
 };
 
 #endif	/* USE_CODEC_WAVE */
-

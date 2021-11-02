@@ -42,6 +42,11 @@
 #include "snd_vorbis.h"
 #include "snd_opus.h"
 
+#include <streams/file_stream.h>
+
+/* forward declarations */
+int64_t rftell(RFILE* stream);
+int rfclose(RFILE* stream);
 
 static snd_codec_t *codecs;
 
@@ -158,9 +163,7 @@ snd_stream_t *S_CodecOpenStreamExt (const char *filename)
 {
 	snd_codec_t *codec;
 	snd_stream_t *stream;
-	const char *ext;
-
-	ext = COM_FileExtension(filename);
+	const char *ext = COM_FileExtension(filename);
 	if (! *ext)
 	{
 		Con_Printf("No extension for %s\n", filename);
@@ -276,13 +279,10 @@ int S_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 snd_stream_t *S_CodecUtilOpen(const char *filename, snd_codec_t *codec)
 {
 	snd_stream_t *stream;
-	FILE *handle;
-	qboolean pak;
-	long length;
-
+	RFILE *handle;
 	/* Try to open the file */
-	length = (long) COM_FOpenFile(filename, &handle);
-	pak = file_from_pak;
+	long length  = (long) COM_FOpenFile(filename, &handle);
+	qboolean pak = file_from_pak;
 	if (length == -1)
 	{
 		Con_DPrintf("Couldn't open %s\n", filename);
@@ -290,13 +290,13 @@ snd_stream_t *S_CodecUtilOpen(const char *filename, snd_codec_t *codec)
 	}
 
 	/* Allocate a stream, Z_Malloc zeroes its content */
-	stream = (snd_stream_t *) Z_Malloc(sizeof(snd_stream_t));
-	stream->codec = codec;
-	stream->fh.file = handle;
-	stream->fh.start = ftell(handle);
-	stream->fh.pos = 0;
+	stream            = (snd_stream_t *) Z_Malloc(sizeof(snd_stream_t));
+	stream->codec     = codec;
+	stream->fh.file   = handle;
+	stream->fh.start  = rftell(handle);
+	stream->fh.pos    = 0;
 	stream->fh.length = length;
-	stream->fh.pak = stream->pak = pak;
+	stream->fh.pak    = stream->pak = pak;
 	strlcpy(stream->name, filename, MAX_QPATH);
 
 	return stream;
@@ -304,7 +304,7 @@ snd_stream_t *S_CodecUtilOpen(const char *filename, snd_codec_t *codec)
 
 void S_CodecUtilClose(snd_stream_t **stream)
 {
-	fclose((*stream)->fh.file);
+	rfclose((*stream)->fh.file);
 	Z_Free(*stream);
 	*stream = NULL;
 }
@@ -314,9 +314,8 @@ int S_CodecIsAvailable (unsigned int type)
 	snd_codec_t *codec = codecs;
 	while (codec)
 	{
-		if (type == codec->type) {
+		if (type == codec->type)
 			return codec->initialized;
-        }
 		codec = codec->next;
 	}
 	return -1;
