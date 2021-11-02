@@ -41,7 +41,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *	2 of the License, or (at your option) any later version.
  *
  */
-#include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>

@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define COMMON_H
 
 #include <stdarg.h>
-#include <stdio.h>
 #include <retro_inline.h>
 #include <streams/file_stream.h>
 

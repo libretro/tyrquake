@@ -19,8 +19,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // cl_parse.c  -- parse a message received from the server
 
-#include <stdio.h>
-
 #include "cdaudio.h"
 #include "client.h"
 #include "cmd.h"
