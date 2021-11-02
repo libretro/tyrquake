@@ -505,7 +505,6 @@ static void seed_chase(float *seeds, int linesper, long n){
 }
 
 /* bleaugh, this is more complicated than it needs to be */
-#include<stdio.h>
 static void max_seeds(vorbis_look_psy *p,
                       float *seed,
                       float *flr){
