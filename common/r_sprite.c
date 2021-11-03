@@ -165,13 +165,15 @@ static void R_SetupAndDrawSprite(void)
    float scale, *pv;
    vec5_t *pverts;
    vec3_t left, up, right, down, transformed, local;
-   emitpoint_t	*outverts = malloc(sizeof(emitpoint_t)*MAXWORKINGVERTS+1);
+   emitpoint_t	*outverts = NULL;
    emitpoint_t *pout;
    float dot = DotProduct(r_spritedesc.vpn, modelorg);
 
    // backface cull
    if (dot >= 0)
       return;
+
+   outverts = malloc(sizeof(emitpoint_t)*MAXWORKINGVERTS+1);
 
    // build the sprite poster in worldspace
    VectorScale(r_spritedesc.vright, r_spritedesc.pspriteframe->right, right);
@@ -212,7 +214,10 @@ static void R_SetupAndDrawSprite(void)
    for (i = 0; i < 4; i++) {
       nump = R_ClipSpriteFace(nump, &view_clipplanes[i]);
       if (nump < 3)
+      {
+         free(outverts);
          return;
+      }
       if (nump >= MAXWORKINGVERTS)
          Sys_Error("%s: too many points", __func__);
    }

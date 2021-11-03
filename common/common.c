@@ -1645,7 +1645,7 @@ of the list so they override previous pack files.
 static pack_t *COM_LoadPackFile(const char *packfile)
 {
    int mark;
-   RFILE *packhandle;
+   RFILE *packhandle = NULL;
    dpackheader_t header;
    dpackfile_t *dfiles;
    packfile_t *mfiles;
@@ -1728,10 +1728,13 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    pack->files = mfiles;
 
    Con_Printf("Added packfile %s (%i files)\n", packfile, numfiles);
+   rfclose(packhandle);
 
    return pack;
 
 error:
+   if (packhandle)
+      rfclose(packhandle);
    return NULL;
 }
 
