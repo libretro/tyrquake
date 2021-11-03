@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static int sprite_height;
 static int minindex, maxindex;
-static sspan_t *sprite_spans;
 
 /*
 =====================
@@ -188,11 +187,10 @@ D_SpriteScanLeftEdge
 =====================
 */
 void
-D_SpriteScanLeftEdge(void)
+D_SpriteScanLeftEdge(sspan_t * pspan)
 {
    int lmaxindex;
    float vtop;
-   sspan_t *pspan = sprite_spans;
    int i = minindex;
 
    if (i == 0)
@@ -248,10 +246,9 @@ D_SpriteScanRightEdge
 =====================
 */
 void
-D_SpriteScanRightEdge(void)
+D_SpriteScanRightEdge(sspan_t * pspan)
 {
    float vtop;
-   sspan_t *pspan = sprite_spans;
    int          i = minindex;
    float    vvert = r_spritedesc.pverts[i].v;
 
@@ -384,9 +381,7 @@ D_DrawSprite(void)
    int i, nump;
    float ymin, ymax;
    emitpoint_t *pverts;
-   sspan_t		*spans = malloc(sizeof(sspan_t)*MAXHEIGHT+1);
-
-   sprite_spans = spans;
+   sspan_t		*spans = NULL;
 
    // find the top and bottom vertices, and make sure there's at least one scan to
    // draw
@@ -414,6 +409,8 @@ D_DrawSprite(void)
    if (ymin >= ymax)
       return;			// doesn't cross any scans at all
 
+   spans = malloc(sizeof(sspan_t)*MAXHEIGHT+1);
+
    cachewidth = r_spritedesc.pspriteframe->width;
    sprite_height = r_spritedesc.pspriteframe->height;
    cacheblock = (byte *)&r_spritedesc.pspriteframe->rdata[0];
@@ -425,8 +422,8 @@ D_DrawSprite(void)
    pverts[nump] = pverts[0];
 
    D_SpriteCalculateGradients();
-   D_SpriteScanLeftEdge();
-   D_SpriteScanRightEdge();
-   D_SpriteDrawSpans(sprite_spans);
+   D_SpriteScanLeftEdge(spans);
+   D_SpriteScanRightEdge(spans);
+   D_SpriteDrawSpans(spans);
    free(spans);
 }
