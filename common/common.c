@@ -1776,8 +1776,6 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
    }
 #endif
 
-   printf("Adding game directory: %s\n", com_gamedir);
-
    // add the directory to the search path
    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
    strcpy(search->filename, com_gamedir);
