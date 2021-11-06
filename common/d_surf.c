@@ -208,24 +208,6 @@ D_SCAlloc(int width, int size)
 }
 
 
-/*
-=================
-D_SCDump
-=================
-*/
-void
-D_SCDump(void)
-{
-   surfcache_t *test;
-
-   for (test = sc_base; test; test = test->next)
-   {
-      if (test == sc_rover)
-         Sys_Printf("ROVER:\n");
-      printf("%p : %i bytes     %i width\n", test, test->size, test->width);
-   }
-}
-
 //=============================================================================
 
 /* if the num is not a power of 2, assume it will not repeat */

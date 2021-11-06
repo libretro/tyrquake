@@ -117,7 +117,6 @@ Sys_Error(const char *error, ...)
     va_start(argptr, error);
     vsnprintf(string, sizeof(string), error, argptr);
     va_end(argptr);
-    printf("Fatal error: %s\n", string);
 
     exit(1);
 }

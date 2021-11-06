@@ -1463,10 +1463,8 @@ Host_Shutdown(void)
 {
     static qboolean isdown = false;
 
-    if (isdown) {
-	printf("recursive shutdown\n");
+    if (isdown)
 	return;
-    }
     isdown = true;
 
     Host_WriteConfiguration();

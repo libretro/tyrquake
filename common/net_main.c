@@ -437,8 +437,6 @@ NET_Connect(const char *host)
     int i, n;
     int numdrivers = net_numdrivers;
 	
-	printf("Attempting to connect to %s\n", host);
-	
     SetNetTime();
 
     if (host && *host == 0)

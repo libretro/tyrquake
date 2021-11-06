@@ -861,13 +861,11 @@ Host_Shutdown(void)
 {
     static qboolean isdown = false;
 
-    if (isdown) {
-	printf("recursive shutdown\n");
+    if (isdown)
 	return;
-    }
     isdown = true;
 
-// keep Con_Printf from trying to update the screen
+    /* keep Con_Printf from trying to update the screen */
     scr_disabled_for_loading = true;
 
     Host_WriteConfiguration();
@@ -878,7 +876,6 @@ Host_Shutdown(void)
     S_Shutdown();
     IN_Shutdown();
 
-    if (cls.state != ca_dedicated) {
+    if (cls.state != ca_dedicated)
 	VID_Shutdown();
-    }
 }

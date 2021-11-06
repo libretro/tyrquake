@@ -289,10 +289,9 @@ Info_RemoveKey(char *s, char *key)
     char value[512];
     char *o;
 
-    if (strstr(key, "\\")) {
-	printf("Can't use a key with a \\\n");
+    /* Can't use a key with a \\\n */
+    if (strstr(key, "\\"))
 	return;
-    }
 
     while (1) {
 	start = s;
@@ -371,14 +370,12 @@ Info_SetValueForKey(char *s, char *key, char *value)
 {
     char new[512];
 
-    if (strstr(key, "\\") || strstr(value, "\\")) {
-	printf("Can't use keys or values with a \\\n");
+    /* Can't use keys or values with a \\\n */
+    if (strstr(key, "\\") || strstr(value, "\\"))
 	return;
-    }
-    if (strstr(key, "\"") || strstr(value, "\"")) {
-	printf("Can't use keys or values with a \\\n");
+    /* Can't use keys or values with a \\\n */
+    if (strstr(key, "\"") || strstr(value, "\""))
 	return;
-    }
 
     Info_RemoveKey(s, key);
     if (!value || !strlen(value))
@@ -386,10 +383,9 @@ Info_SetValueForKey(char *s, char *key, char *value)
 
     sprintf(new, "\\%s\\%s", key, value);
 
-    if (strlen(new) + strlen(s) > MAX_INFO_STRING) {
-	printf("Info string length exceeded\n");
+    /* Info string length exceeded? */
+    if (strlen(new) + strlen(s) > MAX_INFO_STRING)
 	return;
-    }
     strcat(s, new);
 }
 
@@ -414,12 +410,10 @@ Info_Print(char *s)
 	    key[20] = 0;
 	} else
 	    *o = 0;
-	printf("%s", key);
 
-	if (!*s) {
-	    printf("MISSING VALUE\n");
+	/* Missing value? */
+	if (!*s)
 	    return;
-	}
 
 	o = value;
 	s++;
@@ -429,6 +423,5 @@ Info_Print(char *s)
 
 	if (*s)
 	    s++;
-	printf("%s\n", value);
     }
 }
