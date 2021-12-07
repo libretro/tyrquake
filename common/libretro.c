@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <file/file_path.h>
 #include <streams/file_stream.h>
 #include <string/stdstring.h>
+#include <retro_dirent.h>
 
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
@@ -82,6 +83,8 @@ unsigned device_type = 0;
 
 unsigned MEMSIZE_MB;
 
+bool shutdown_core = false;
+
 static bool libretro_supports_bitmasks = false;
 
 #if defined(HW_DOL)
@@ -94,12 +97,34 @@ static bool libretro_supports_bitmasks = false;
 #define DEFAULT_MEMSIZE_MB 32
 #endif
 
-#define DEFAULT_SAMPLERATE 48000
-static uint16_t samplerate = DEFAULT_SAMPLERATE;
+/* Use 44.1 kHz by default (matches CD
+ * audio tracks) */
+#define AUDIO_SAMPLERATE_DEFAULT 44100
+/* SFX resampling fails with certain fps/
+ * sample rate combinations (seems to be an
+ * internal limitation...). When running at
+ * the affected framerates, we must fall back
+ * to lower or higher sample rates to maintain
+ * acceptable audio quality. */
+#define AUDIO_SAMPLERATE_22KHZ 22050
+#define AUDIO_SAMPLERATE_48KHZ 48000
+static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
-#define AUDIO_BUFFER_SIZE 4096
+/* Audio buffer must be sufficient for operation
+ * at 10 fps
+ * > (2 * 44100) / 10 = 8820 total samples
+ * > buffer size must be a power of 2
+ * > Nearest power of 2 to 8820 is 16384 */
+#define AUDIO_BUFFER_SIZE 16384
+
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
+
+static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
+static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
+static unsigned audio_buffer_ptr = 0;
+
+static unsigned audio_batch_frames_max = AUDIO_BUFFER_SIZE >> 1;
 
 // System analog stick range is -0x8000 to 0x8000
 #define ANALOG_RANGE 0x8000
@@ -465,6 +490,12 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
+   if (!shutdown_core)
+   {
+      CL_Disconnect();
+      Host_ShutdownServer(false);
+   }
+
    Sys_Quit();
    if (heap)
       free(heap);
@@ -547,7 +578,7 @@ void retro_get_system_info(struct retro_system_info *info)
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing.fps            = framerate;
-   info->timing.sample_rate    = samplerate;
+   info->timing.sample_rate    = audio_samplerate;
 
    info->geometry.base_width   = width;
    info->geometry.base_height  = height;
@@ -580,7 +611,10 @@ void retro_set_environment(retro_environment_t cb)
    vfs_iface_info.required_interface_version = 1;
    vfs_iface_info.iface                      = NULL;
    if (environ_cb(RETRO_ENVIRONMENT_GET_VFS_INTERFACE, &vfs_iface_info))
+   {
       filestream_vfs_init(&vfs_iface_info);
+      dirent_vfs_init(&vfs_iface_info);
+   }
 }
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
@@ -771,22 +805,16 @@ static void update_variables(bool startup)
 
       frametime_usec = 1000.0f / framerate;
 
-      /* Note: The audio handling code of the game engine
-       * completely falls apart below 50 FPS. To go any
-       * lower than this, we have to manipulate the actual
-       * audio sample rate to achieve a fixed 'samples per
-       * frame' matching the default frame rate of 60. This
-       * means we get progressively lower quality audio as
-       * the frame rate decreases, but the alternative is
-       * no sound at all... */
-      if (framerate > 49.0f)
-         samplerate = DEFAULT_SAMPLERATE;
+      /* Certain framerates require specific
+       * sample rates to avoid distorted audio */
+      if ((framerate == 40.0f) ||
+          (framerate == 72.0f) ||
+          (framerate == 119.0f))
+         audio_samplerate = AUDIO_SAMPLERATE_22KHZ;
+      else if (framerate == 120.0f)
+         audio_samplerate = AUDIO_SAMPLERATE_48KHZ;
       else
-      {
-         samplerate = (uint16_t)((float)DEFAULT_SAMPLERATE * (framerate / 60.0f));
-         /* Round up to the nearest power of 2 */
-         samplerate = (samplerate + 0x1) & ~0x1;
-      }
+         audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
    }
 
    var.key = "tyrquake_colored_lighting";
@@ -886,8 +914,6 @@ static void audio_process(void);
 static void audio_callback(void);
 
 static bool did_flip;
-
-bool shutdown_core = false;
 
 void retro_run(void)
 {
@@ -1360,23 +1386,15 @@ static void audio_process(void)
    CDAudio_Update();
 }
 
-static void
-audio_batch_cb_blocking(int16_t * sa, size_t sz)
-{
-   while (sz)
-   {
-      size_t r = audio_batch_cb(sa, sz);
-      sz -= r;
-      sa += r;
-   }
-}
-
 static void audio_callback(void)
 {
-   unsigned read_first, read_second;
-   const int nchans = 2;
-   int samples_per_frame = (nchans * samplerate) / framerate;
-   unsigned read_end = audio_buffer_ptr + samples_per_frame;
+   unsigned read_first;
+   unsigned read_second;
+   unsigned samples_per_frame      = (2 * audio_samplerate) / framerate;
+   unsigned audio_frames_remaining = samples_per_frame >> 1;
+   unsigned read_end               = audio_buffer_ptr + samples_per_frame;
+   int16_t *audio_out_ptr          = audio_out_buffer;
+   uintptr_t i;
 
    if (read_end > AUDIO_BUFFER_SIZE)
       read_end = AUDIO_BUFFER_SIZE;
@@ -1384,19 +1402,47 @@ static void audio_callback(void)
    read_first  = read_end - audio_buffer_ptr;
    read_second = samples_per_frame - read_first;
 
-   audio_batch_cb_blocking(audio_buffer + audio_buffer_ptr, read_first / nchans);
+   for (i = 0; i < read_first; i++)
+      *(audio_out_ptr++) = *(audio_buffer + audio_buffer_ptr + i);
+
    audio_buffer_ptr += read_first;
+
    if (read_second >= 1)
    {
-      audio_batch_cb_blocking(audio_buffer, read_second / nchans);
+      for (i = 0; i < read_second; i++)
+         *(audio_out_ptr++) = *(audio_buffer + i);
+
       audio_buffer_ptr = read_second;
    }
+
+   /* At low framerates we generate very large
+    * numbers of samples per frame. This may
+    * exceed the capacity of the frontend audio
+    * batch callback; if so, write the audio
+    * samples in chunks */
+   audio_out_ptr = audio_out_buffer;
+   do
+   {
+      unsigned audio_frames_to_write =
+            (audio_frames_remaining > audio_batch_frames_max) ?
+                  audio_batch_frames_max : audio_frames_remaining;
+      unsigned audio_frames_written  =
+            audio_batch_cb(audio_out_ptr, audio_frames_to_write);
+
+      if ((audio_frames_written < audio_frames_to_write) &&
+          (audio_frames_written > 0))
+         audio_batch_frames_max = audio_frames_written;
+
+      audio_frames_remaining -= audio_frames_to_write;
+      audio_out_ptr          += audio_frames_to_write << 1;
+   }
+   while (audio_frames_remaining > 0);
 }
 
 qboolean SNDDMA_Init(dma_t *dma)
 {
    shm = dma;
-   shm->speed = samplerate;
+   shm->speed = audio_samplerate;
    shm->channels = 2;
    shm->samplepos = 0;
    shm->samplebits = 16;
