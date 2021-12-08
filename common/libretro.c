@@ -776,6 +776,59 @@ static const char *empty_string = "";
 
 extern int coloredlights;
 
+static const float supported_framerates[] = {
+   10.0f,
+   15.0f,
+   20.0f,
+   25.0f,
+   30.0f,
+   40.0f,
+   50.0f,
+   60.0f,
+   72.0f,
+   75.0f,
+   90.0f,
+   100.0f,
+   119.0f,
+   120.0f,
+   144.0f,
+   155.0f,
+   160.0f,
+   165.0f,
+   180.0f,
+   200.0f,
+   240.0f,
+   244.0f,
+   300.0f,
+   360.0f
+};
+#define NUM_SUPPORTED_FRAMERATES (sizeof(supported_framerates) / sizeof(supported_framerates[0]))
+
+static float sanitise_framerate(float target)
+{
+   unsigned i = 1;
+
+   if (target <= supported_framerates[0])
+      return supported_framerates[0];
+
+   if (target >= supported_framerates[NUM_SUPPORTED_FRAMERATES - 1])
+      return supported_framerates[NUM_SUPPORTED_FRAMERATES - 1];
+
+   while (i < NUM_SUPPORTED_FRAMERATES)
+   {
+      if (supported_framerates[i] > target)
+         break;
+
+      i++;
+   }
+
+   if ((supported_framerates[i] - target) <=
+       (target - supported_framerates[i - 1]))
+      return supported_framerates[i];
+
+   return supported_framerates[i - 1];
+}
+
 static void update_variables(bool startup)
 {
    struct retro_variable var;
@@ -795,7 +848,7 @@ static void update_variables(bool startup)
                   &target_framerate))
                target_framerate = 60.0f;
 
-            framerate = target_framerate;
+            framerate = sanitise_framerate(target_framerate);
          }
          else
             framerate = atof(var.value);
