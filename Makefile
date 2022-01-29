@@ -239,50 +239,12 @@ else ifeq ($(platform), gcw0)
         CFLAGS += -DDINGUX -fomit-frame-pointer -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float
         HAVE_NETWORKING=0
 
-# Raspberry Pi 1
-else ifeq ($(platform), rpi1)
+# Raspberry Pi: Modern GCC provides the right flags for each model.
+else ifeq ($(platform), rpi)
         TARGET := $(TARGET_NAME)_libretro.so
         fpic := -fPIC
         SHARED := -shared -Wl,--version-script=common/libretro-link.T
-        CFLAGS += -DARM11
-        CFLAGS += -marm -march=armv6j -mfloat-abi=hard -mfpu=vfp
-        CFLAGS += -fomit-frame-pointer
-
-# Raspberry Pi 2
-else ifeq ($(platform), rpi2)
-        TARGET := $(TARGET_NAME)_libretro.so
-        fpic := -fPIC
-        SHARED := -shared -Wl,--version-script=common/libretro-link.T
-        CFLAGS += -DARM
-        CFLAGS += -marm -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
-        CFLAGS += -fomit-frame-pointer
-            
-# Raspberry Pi 3
-else ifeq ($(platform), rpi3)
-        TARGET := $(TARGET_NAME)_libretro.so
-        fpic := -fPIC
-        SHARED := -shared -Wl,--version-script=common/libretro-link.T
-        CFLAGS += -DARM
-        CFLAGS += -marm -mcpu=cortex-a53 -mfpu=neon-fp-armv8 -mfloat-abi=hard
-        CFLAGS += -fomit-frame-pointer
-
-# Raspberry Pi 3 with 64bit kernel & libs
-else ifeq ($(platform), rpi3_64)
-        TARGET := $(TARGET_NAME)_libretro.so
-        fpic := -fPIC
-        SHARED := -shared -Wl,--version-script=common/libretro-link.T
-        CFLAGS += -DARM
-        CFLAGS += -march=armv8-a+crc -mtune=cortex-a53
-        CFLAGS += -fomit-frame-pointer
-
-# Raspberry Pi 4 with 64bit kernel & libs
-else ifeq ($(platform), rpi4_64)
-        TARGET := $(TARGET_NAME)_libretro.so
-        fpic := -fPIC
-        SHARED := -shared -Wl,--version-script=common/libretro-link.T
-        CFLAGS += -DARM
-        CFLAGS += -march=armv8-a+crc+simd -mtune=cortex-a72
-        CFLAGS += -fomit-frame-pointer
+        CFLAGS += -DARM -march=native -mcpu=native -ftree-vectorize -pipe -fomit-frame-pointer
 
 # Classic Platforms ####################
 # Platform affix = classic_<ISA>_<µARCH>
