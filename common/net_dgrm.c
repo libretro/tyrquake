@@ -26,6 +26,9 @@ extern int m_state;
 #else
 #include <sys/types.h>
 #endif
+#ifdef __PS3__
+#include <netex/errno.h>
+#endif
 #include <net/net_compat.h>
 #include <net/net_socket.h>
 

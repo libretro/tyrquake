@@ -68,6 +68,9 @@ qboolean isDedicated;
 
 #ifdef __PSL1GHT__
 #include <lv2/systime.h>
+#elif defined (__PS3__)
+#include <sys/sys_time.h>
+#include <sys/timer.h>
 #endif
 
 #define SURFCACHE_SIZE 10485760
@@ -398,6 +401,8 @@ double Sys_DoubleTime(void)
    newtime = ticks_to_microsecs(gettime()) / 1000000.0;
 #elif defined(__PSL1GHT__)
    newtime = sysGetSystemTime() / 1000000.0;
+#elif defined(__PS3__)
+   newtime = sys_time_get_system_time() / 1000000.0;
 #elif defined(_WIN32)
    static double pfreq;
    static __int64 startcount;
