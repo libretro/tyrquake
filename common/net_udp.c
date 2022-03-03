@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <stdint.h>
 #include <sys/types.h>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__PS3__)
 #include <sys/param.h>
 #endif
 
@@ -28,6 +28,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <direct.h>
 #else
 #include <unistd.h>
+#endif
+
+#ifdef __PS3__
+#include <netex/errno.h>
 #endif
 
 #include <net/net_compat.h>
@@ -130,7 +134,7 @@ UDP_Init(void)
    /* determine my name & address, default to loopback */
    myAddr.ip.l = htonl(INADDR_LOOPBACK);
    myAddr.port = htons(DEFAULTnet_hostport);
-#ifdef __PSL1GHT__
+#ifdef __PS3__
 #elif defined (VITA)
    SceNetCtlInfo info;
    sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
