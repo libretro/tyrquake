@@ -108,6 +108,8 @@ struct retro_core_option_definition option_defs_us[] = {
       },
 #if defined(_3DS)
       "25"
+#elif defined(_MIYOO)
+      "15"
 #elif defined(DINGUX)
       "30"
 #else
