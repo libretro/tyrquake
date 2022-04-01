@@ -225,6 +225,16 @@ else ifeq ($(platform), gcw0)
         CFLAGS += -DDINGUX -fomit-frame-pointer -ffast-math -march=mips32 -mtune=mips32r2 -mhard-float
         HAVE_NETWORKING=0
 
+# Miyoo
+else ifeq ($(platform), miyoo)
+        TARGET := $(TARGET_NAME)_libretro.so
+        CC = /opt/miyoo/usr/bin/arm-linux-gcc
+        AR = /opt/miyoo/usr/bin/arm-linux-ar
+        fpic := -fPIC
+        SHARED := -shared -Wl,--version-script=common/libretro-link.T
+        CFLAGS += -DDINGUX -D_MIYOO -fomit-frame-pointer -ffast-math -mcpu=arm926ej-s
+        HAVE_NETWORKING=0
+
 # Raspberry Pi 1
 else ifeq ($(platform), rpi1)
         TARGET := $(TARGET_NAME)_libretro.so
