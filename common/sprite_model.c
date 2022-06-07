@@ -48,7 +48,7 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const cha
    int height = (pinframe->height);
 #endif
    int numpixels = width * height;
-   int size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
+   int size = sizeof(mspriteframe_t) + numpixels;
    mspriteframe_t *pspriteframe = (mspriteframe_t*)Hunk_AllocName(size, loadname);
 
    memset(pspriteframe, 0, size);

@@ -54,7 +54,6 @@ D_Init(void)
     Cvar_RegisterVariable(&dither_filter);
 
     r_recursiveaffinetriangles = true;
-    r_pixbytes = 1;
     r_aliasuvscale = 1.0;
 }
 

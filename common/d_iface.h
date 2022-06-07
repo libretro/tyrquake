@@ -109,7 +109,6 @@ extern qboolean r_recursiveaffinetriangles;	// true if a driver wants to use
 extern float r_aliasuvscale;	// scale-up factor for screen u and v
 
 				//  on Alias vertices passed to driver
-extern int r_pixbytes;
 extern qboolean r_dowarp;
 
 extern affinetridesc_t r_affinetridesc;

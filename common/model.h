@@ -247,12 +247,6 @@ typedef struct mspriteframe_s {
 } mspriteframe_t;
 
 /*
- * Renderer provides this function to specify the amount of space it needs for
- * a sprite frame with given pixel count
- */
-int R_SpriteDataSize(int numpixels);
-
-/*
  * Renderer provides this function to translate and store the raw sprite data
  * from the model file as needed.
  */
