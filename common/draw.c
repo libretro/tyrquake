@@ -164,7 +164,6 @@ Draw_Character(int x, int y, int num)
 {
     byte *dest;
     byte *source;
-    unsigned short *pusdest;
     int drawline;
     int row, col;
 
@@ -289,7 +288,7 @@ Draw_Pic
 void Draw_Pic(int x, int y, const qpic_t *pic)
 {
    const byte *source;
-   int v, u;
+   int v;
 
    if (x < 0 || x + pic->width > vid.width ||
          y < 0 || y + pic->height > vid.height)
@@ -319,7 +318,7 @@ void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 	    int height)
 {
    const byte *source;
-   int v, u;
+   int v;
 
    if (x < 0 || x + width > vid.width ||
          y < 0 || y + height > vid.height)
@@ -349,7 +348,6 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
 {
    byte *dest, tbyte;
    const byte *source;
-   unsigned short *pusdest;
    int v, u;
 
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
@@ -408,7 +406,6 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 {
    byte *dest, tbyte;
    const byte *source;
-   unsigned short *pusdest;
    int v, u;
 
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
@@ -518,7 +515,6 @@ Draw_ConsoleBackground(int lines)
     int x, y, v;
     const byte *src;
     byte *dest;
-    unsigned short *pusdest;
     int f, fstep;
     qpic_t *conback = Draw_CachePic("gfx/conback.lmp");
 
@@ -672,8 +668,6 @@ void
 Draw_Fill(int x, int y, int w, int h, int c)
 {
     byte *dest;
-    unsigned short *pusdest;
-    unsigned uc;
     int u, v;
 
     if (x < 0 || x + w > vid.width || y < 0 || y + h > vid.height) {

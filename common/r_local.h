@@ -193,7 +193,6 @@ void R_ReadPointFile_f(void);
 
 void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
 
-extern int r_amodels_drawn;
 extern edge_t *auxedges;
 extern int r_numallocatededges;
 extern edge_t *r_edges, *edge_p, *edge_max;

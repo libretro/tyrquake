@@ -48,7 +48,6 @@ static model_t *pmodel;
 
 static vec3_t alias_forward, alias_right, alias_up;
 
-int r_amodels_drawn;
 int a_skinwidth;
 int r_anumverts;
 
@@ -98,10 +97,9 @@ static void *
 SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 		byte **skindata)
 {
-    int i, j, skinsize;
+    int i;
     byte *ret, *out;
-
-    skinsize = ahdr->skinwidth * ahdr->skinheight;
+    int skinsize = ahdr->skinwidth * ahdr->skinheight;
     ret = out = (byte*)Hunk_Alloc(skinnum * skinsize);
 
     for (i = 0; i < skinnum; i++) {
@@ -117,14 +115,13 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 		const stvert_t *stverts, const trivertx_t **verts)
 {
     int i;
-    trivertx_t *pverts;
     stvert_t *pstverts;
     mtriangle_t *ptris;
 
     /*
      * Save the pose vertex data
      */
-    pverts = (trivertx_t*)Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
+    trivertx_t *pverts = (trivertx_t*)Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
     hdr->posedata = (byte *)pverts - (byte *)hdr;
     for (i = 0; i < hdr->numposes; i++) {
 	memcpy(pverts, verts[i], hdr->numverts * sizeof(*pverts));
@@ -176,7 +173,7 @@ qboolean R_AliasCheckBBox(entity_t *e)
    finalvert_t viewpts[16];
    auxvert_t viewaux[16];
    maliasframedesc_t *pframedesc;
-   qboolean zclipped, zfullyclipped;
+   qboolean zclipped = false, zfullyclipped = true;
    unsigned anyclip, allclip;
    int minz;
 
@@ -213,9 +210,6 @@ qboolean R_AliasCheckBBox(entity_t *e)
       (float)pframedesc->bboxmin.v[2];
    basepts[2][2] = basepts[3][2] = basepts[6][2] = basepts[7][2] =
       (float)pframedesc->bboxmax.v[2];
-
-   zclipped = false;
-   zfullyclipped = true;
 
    minz = 9999;
    for (i = 0; i < 8; i++)
@@ -348,13 +342,11 @@ R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
 		     auxvert_t *pauxverts)
 {
     int i;
-    stvert_t *pstverts;
     finalvert_t *fv;
     auxvert_t *av;
     mtriangle_t *ptri;
     finalvert_t *pfv[3];
-
-    pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
+    stvert_t *pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
     r_anumverts = pahdr->numverts;
     fv = pfinalverts;
     av = pauxverts;
@@ -603,10 +595,8 @@ R_AliasProjectFinalVert
 void
 R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av)
 {
-    float zi;
-
-// project points
-    zi = 1.0 / av->fv[2];
+    // project points
+    float zi = 1.0 / av->fv[2];
 
     fv->v[5] = zi * ziscale;
 
@@ -623,9 +613,7 @@ R_AliasPrepareUnclippedPoints
 static void
 R_AliasPrepareUnclippedPoints(aliashdr_t *pahdr, finalvert_t *pfinalverts)
 {
-    stvert_t *pstverts;
-
-    pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
+    stvert_t *pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
     r_anumverts = pahdr->numverts;
 
     R_AliasTransformAndProjectFinalVerts(pfinalverts, pstverts);
@@ -735,18 +723,17 @@ static trivertx_t *
 R_AliasBlendPoseVerts(const entity_t *e, aliashdr_t *hdr, float blend)
 {
     static trivertx_t blendverts[MAXALIASVERTS];
-    trivertx_t *poseverts, *pv1, *pv2, *light;
-    int i, blend0, blend1;
+    int i;
 
 #define SHIFT 22
-    blend1 = blend * (1 << SHIFT);
-    blend0 = (1 << SHIFT) - blend1;
+    int blend1 = blend * (1 << SHIFT);
+    int blend0 = (1 << SHIFT) - blend1;
 
-    poseverts = (trivertx_t *)((byte *)hdr + hdr->posedata);
-    pv1 = poseverts + e->previouspose * hdr->numverts;
-    pv2 = poseverts + e->currentpose * hdr->numverts;
-    light = (blend < 0.5f) ? pv1 : pv2;
-    poseverts = blendverts;
+    trivertx_t *poseverts = (trivertx_t *)((byte *)hdr + hdr->posedata);
+    trivertx_t *pv1       = poseverts + e->previouspose * hdr->numverts;
+    trivertx_t *pv2       = poseverts + e->currentpose * hdr->numverts;
+    trivertx_t *light     = (blend < 0.5f) ? pv1 : pv2;
+    poseverts             = blendverts;
 
     for (i = 0; i < hdr->numverts; i++, poseverts++, pv1++, pv2++, light++) {
 	poseverts->v[0] = (pv1->v[0] * blend0 + pv2->v[0] * blend1) >> SHIFT;
@@ -777,7 +764,7 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
    if ((frame >= pahdr->numframes) || (frame < 0))
       frame = 0;
 
-   pose = pahdr->frames[frame].firstpose;
+   pose     = pahdr->frames[frame].firstpose;
    numposes = pahdr->frames[frame].numposes;
 
    if (numposes > 1) {
@@ -845,22 +832,13 @@ R_AliasDrawModel
 */
 void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
-   aliashdr_t *pahdr;
-   finalvert_t *pfinalverts;
-   finalvert_t *finalverts;
-   auxvert_t *pauxverts;
-   auxvert_t *auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
-
-   finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
-   
-   r_amodels_drawn++;
-
+   auxvert_t *auxverts      = (auxvert_t*)malloc(sizeof(auxvert_t) * MAXALIASVERTS);
+   finalvert_t *finalverts  = (finalvert_t*)malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
    // cache align
-   pfinalverts = (finalvert_t *)
+   finalvert_t *pfinalverts = (finalvert_t *)
 			(((uintptr_t)&finalverts[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
-   pauxverts = &auxverts[0];
-
-   pahdr = (aliashdr_t*)Mod_Extradata(e->model);
+   auxvert_t *pauxverts     = &auxverts[0];
+   aliashdr_t *pahdr        = (aliashdr_t*)Mod_Extradata(e->model);
 
    R_AliasSetupSkin(e, pahdr);
    R_AliasSetUpTransform(e, pahdr, e->trivial_accept);

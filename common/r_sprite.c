@@ -34,9 +34,7 @@ spritedesc_t r_spritedesc;
 void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
       int framenum, byte *pixels)
 {
-   int i;
    int size = frame->width * frame->height;
-
    memcpy(&frame->rdata[0], pixels, size);
 }
 
