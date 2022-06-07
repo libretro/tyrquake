@@ -66,7 +66,6 @@ static void Snd_WriteLinearBlastStereo16 (void)
 
 static void S_TransferStereo16 (int endtime)
 {
-	int		lpos;
 	int		lpaintedtime;
 
 	snd_p = (int *) paintbuffer;
@@ -74,10 +73,10 @@ static void S_TransferStereo16 (int endtime)
 
 	while (lpaintedtime < endtime)
 	{
-	// handle recirculating buffer issues
-		lpos = lpaintedtime & ((shm->samples >> 1) - 1);
+		// handle recirculating buffer issues
+		int lpos = lpaintedtime & ((shm->samples >> 1) - 1);
 
-		snd_out = (short *)shm->buffer + (lpos << 1);
+		snd_out  = (short *)shm->buffer + (lpos << 1);
 
 		snd_linear_count = (shm->samples >> 1) - lpos;
 		if (lpaintedtime + snd_linear_count > endtime)
@@ -85,76 +84,11 @@ static void S_TransferStereo16 (int endtime)
 
 		snd_linear_count <<= 1;
 
-	// write a linear blast of samples
+		// write a linear blast of samples
 		Snd_WriteLinearBlastStereo16 ();
 
 		snd_p += snd_linear_count;
 		lpaintedtime += (snd_linear_count >> 1);
-	}
-}
-
-static void S_TransferPaintBuffer (int endtime)
-{
-	int	out_idx, out_mask;
-	int	count, step, val;
-	int	*p;
-
-	if (shm->samplebits == 16 && shm->channels == 2)
-	{
-		S_TransferStereo16 (endtime);
-		return;
-	}
-
-	p = (int *) paintbuffer;
-	count = (endtime - paintedtime) * shm->channels;
-	out_mask = shm->samples - 1;
-	out_idx = paintedtime * shm->channels & out_mask;
-	step = 3 - shm->channels;
-
-	if (shm->samplebits == 16)
-	{
-		short *out = (short *)shm->buffer;
-		while (count--)
-		{
-			val = *p >> 8;
-			p+= step;
-			if (val > 0x7fff)
-				val = 0x7fff;
-			else if (val < (short)0x8000)
-				val = (short)0x8000;
-			out[out_idx] = val;
-			out_idx = (out_idx + 1) & out_mask;
-		}
-	}
-	else if (shm->samplebits == 8 && !shm->signed8)
-	{
-		unsigned char *out = shm->buffer;
-		while (count--)
-		{
-			val = *p >> 8;
-			p+= step;
-			if (val > 0x7fff)
-				val = 0x7fff;
-			else if (val < (short)0x8000)
-				val = (short)0x8000;
-			out[out_idx] = (val >> 8) + 128;
-			out_idx = (out_idx + 1) & out_mask;
-		}
-	}
-	else if (shm->samplebits == 8)	/* S8 format, e.g. with Amiga AHI */
-	{
-		signed char *out = (signed char *) shm->buffer;
-		while (count--)
-		{
-			val = *p >> 8;
-			p+= step;
-			if (val > 0x7fff)
-				val = 0x7fff;
-			else if (val < (short)0x8000)
-				val = (short)0x8000;
-			out[out_idx] = (val >> 8);
-			out_idx = (out_idx + 1) & out_mask;
-		}
 	}
 }
 
@@ -268,8 +202,8 @@ void S_PaintChannels (int endtime)
 			//		Con_Printf ("full stream\n");
 		}
 
-	// transfer out according to DMA format
-		S_TransferPaintBuffer(end);
+		// transfer out according to DMA format
+		S_TransferStereo16 (end);
 		paintedtime = end;
 	}
 }
@@ -327,12 +261,10 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 {
 	int	data;
 	int	left, right;
-	int	leftvol, rightvol;
 	signed short	*sfx;
 	int	i;
-
-	leftvol = ch->leftvol * snd_vol;
-	rightvol = ch->rightvol * snd_vol;
+	int leftvol = ch->leftvol * snd_vol;
+	int rightvol = ch->rightvol * snd_vol;
 	leftvol >>= 8;
 	rightvol >>= 8;
 	sfx = (signed short *)sc->data + ch->pos;

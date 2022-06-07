@@ -63,12 +63,9 @@ typedef struct {
 } sfxcache_t;
 
 typedef struct {
-    int channels;
     int samples;		// mono samples in buffer
     int submission_chunk;	// don't mix less than this #
     int samplepos;		// in mono samples
-    int samplebits;
-	int	signed8;		/* device opened for S8 format? (e.g. Amiga AHI) */
     int speed;
     unsigned char *buffer;
 } dma_t;

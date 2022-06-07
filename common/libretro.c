@@ -1468,14 +1468,11 @@ static void audio_callback(void)
 
 qboolean SNDDMA_Init(dma_t *dma)
 {
-   shm = dma;
-   shm->speed = audio_samplerate;
-   shm->channels = 2;
+   shm            = dma;
+   shm->speed     = audio_samplerate;
    shm->samplepos = 0;
-   shm->samplebits = 16;
-   shm->signed8 = 0;
-   shm->samples = AUDIO_BUFFER_SIZE;
-   shm->buffer = (unsigned char *volatile)audio_buffer;
+   shm->samples   = AUDIO_BUFFER_SIZE;
+   shm->buffer    = (unsigned char *volatile)audio_buffer;
 
    return true;
 }

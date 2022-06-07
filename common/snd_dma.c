@@ -53,7 +53,6 @@ int total_channels;
 
 int snd_blocked = 0;
 static qboolean snd_ambient = 1;
-static qboolean snd_initialized = false;
 
 #define CHANNELS 2
 
@@ -104,9 +103,6 @@ static void SND_Callback_sfxvolume (cvar_t *var)
 void
 S_Startup(void)
 {
-   if (!snd_initialized)
-      return;
-
    if (!SNDDMA_Init(&sn))
    {
       sound_started = 0;
@@ -138,8 +134,6 @@ S_Init(void)
     Cvar_RegisterVariable(&snd_noextraupdate);
     Cvar_RegisterVariable(&_snd_mixahead);
 
-    snd_initialized = true;
-
     S_Startup();
 
 	Cvar_SetCallback(&sfxvolume, SND_Callback_sfxvolume);
@@ -152,14 +146,8 @@ S_Init(void)
     if (sound_started)
 	Con_Printf("Sound sampling rate: %i\n", shm->speed);
 
-#if 0
-    /* provides a tick sound until washed clean; for debugging */
-    if (shm->buffer)
-	shm->buffer[4] = shm->buffer[5] = 0x7f;
-#endif
-
     ambient_sfx[AMBIENT_WATER] = S_PrecacheSound("ambience/water1.wav");
-    ambient_sfx[AMBIENT_SKY] = S_PrecacheSound("ambience/wind2.wav");
+    ambient_sfx[AMBIENT_SKY]   = S_PrecacheSound("ambience/wind2.wav");
 
     S_CodecInit();
 
@@ -264,12 +252,12 @@ static channel_t *
 SND_PickChannel(int entnum, int entchannel)
 {
     int i;
-    int life_left;
     channel_t *channel;
     channel_t *first_to_die = NULL;
 
     /* Check for replacement sound, or find the best one to replace */
-    life_left = 0x7fffffff;
+    int life_left = 0x7fffffff;
+
     for (i = NUM_AMBIENTS; i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++) {
 	channel = &channels[i];
 	/*
@@ -464,7 +452,7 @@ void S_ClearBuffer(void)
    if (!sound_started || !shm)
       return;
 
-   memset(shm->buffer, 0, shm->samples * shm->samplebits / 8);
+   memset(shm->buffer, 0, shm->samples * 16 / 8);
 }
 
 /*
