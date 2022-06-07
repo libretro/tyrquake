@@ -42,7 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* FIXME - reorder to remove forward decls? */
 static void S_Play(void);
 static void S_PlayVol(void);
-static void S_SoundList(void);
 static void S_StopAllSoundsC(void);
 
 /*
@@ -85,38 +84,11 @@ static int sound_started = 0;
 cvar_t bgmvolume = { "bgmvolume", "1", true };
 cvar_t sfxvolume = { "volume", "0.7", true };
 
-static cvar_t nosound = { "nosound", "0" };
 static cvar_t precache = { "precache", "1" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
 static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
 static cvar_t _snd_mixahead = { "_snd_mixahead", "0.1", true };
-
-/*
- * User-setable variables
- *
- * Fake dma is a synchronous faking of the DMA progress used for isolating
- * performance in the renderer.
- */
-
-static qboolean fakedma = false;
-
-static void S_SoundInfo_f(void)
-{
-   if (!sound_started || !shm) {
-      Con_Printf("sound system not started\n");
-      return;
-   }
-
-   Con_Printf("%5d channels (%s)\n", "stereo");
-   Con_Printf("%5d samples\n", shm->samples);
-   Con_Printf("%5d samplepos\n", shm->samplepos);
-   Con_Printf("%5d samplebits\n", shm->samplebits);
-   Con_Printf("%5d submission_chunk\n", shm->submission_chunk);
-   Con_Printf("%5d speed\n", shm->speed);
-   Con_Printf("%p dma buffer\n", shm->buffer);
-   Con_Printf("%5d total_channels\n", total_channels);
-}
 
 static void SND_Callback_sfxvolume (cvar_t *var)
 {
@@ -135,15 +107,10 @@ S_Startup(void)
    if (!snd_initialized)
       return;
 
-   if (!fakedma)
+   if (!SNDDMA_Init(&sn))
    {
-      int rc = SNDDMA_Init(&sn);
-      if (!rc)
-      {
-         Con_Printf("%s: SNDDMA_Init failed.\n", __func__);
-         sound_started = 0;
-         return;
-      }
+      sound_started = 0;
+      return;
    }
    sound_started = 1;
 }
@@ -159,18 +126,10 @@ S_Init(void)
 {
     Con_Printf("\nSound Initialization\n");
 
-    if (COM_CheckParm("-nosound"))
-	return;
-    if (COM_CheckParm("-simsound"))
-	fakedma = true;
-
     Cmd_AddCommand("play", S_Play);
     Cmd_AddCommand("playvol", S_PlayVol);
     Cmd_AddCommand("stopsound", S_StopAllSoundsC);
-    Cmd_AddCommand("soundlist", S_SoundList);
-    Cmd_AddCommand("soundinfo", S_SoundInfo_f);
 
-    Cvar_RegisterVariable(&nosound);
     Cvar_RegisterVariable(&sfxvolume);
     Cvar_RegisterVariable(&precache);
     Cvar_RegisterVariable(&bgmvolume);
@@ -188,19 +147,7 @@ S_Init(void)
     SND_InitScaletable();
 
     known_sfx = (sfx_t*)Hunk_AllocName(MAX_SFX * sizeof(sfx_t), "sfx_t");
-    num_sfx = 0;
-
-    /* create a piece of DMA memory */
-    if (fakedma) {
-	shm = (volatile dma_t*)(void *)Hunk_AllocName(sizeof(*shm), "shm");
-	shm->samplebits = 16;
-	shm->speed = 44100;
-	shm->channels = 2;
-	shm->samples = 32768;
-	shm->samplepos = 0;
-	shm->submission_chunk = 1;
-	shm->buffer = (unsigned char *volatile)Hunk_AllocName(1 << 16, "shmbuf");
-    }
+    num_sfx   = 0;
 
     if (sound_started)
 	Con_Printf("Sound sampling rate: %i\n", shm->speed);
@@ -232,8 +179,7 @@ S_Shutdown(void)
    shm = 0;
    sound_started = 0;
 
-   if (!fakedma)
-      SNDDMA_Shutdown();
+   SNDDMA_Shutdown();
 }
 
 /*
@@ -296,7 +242,7 @@ S_PrecacheSound(const char *name)
 {
     sfx_t *sfx;
 
-    if (!sound_started || nosound.value)
+    if (!sound_started)
 	return NULL;
 
     sfx = S_FindName(name);
@@ -420,8 +366,6 @@ S_StartSound(int entnum, int entchannel, sfx_t *sfx, vec3_t origin,
     if (!sound_started)
 	return;
     if (!sfx)
-	return;
-    if (nosound.value)
 	return;
 
     vol = fvol * 255;
@@ -889,35 +833,10 @@ static void S_PlayVol(void)
    }
 }
 
-static void S_SoundList(void)
-{
-   sfx_t *sfx;
-   int i, size;
-   int total = 0;
-
-   for (sfx = known_sfx, i = 0; i < num_sfx; i++, sfx++)
-   {
-      sfxcache_t *sc = (sfxcache_t*)Cache_Check(&sfx->cache);
-      if (!sc)
-         continue;
-      size = sc->length * sc->width * (sc->stereo + 1);
-      total += size;
-      if (sc->loopstart >= 0)
-         Con_Printf("L");
-      else
-         Con_Printf(" ");
-      Con_Printf("(%2db) %6i : %s\n", sc->width * 8, size, sfx->name);
-   }
-   Con_Printf("Total resident: %i\n", total);
-}
-
-
 void S_LocalSound(const char *sound)
 {
    sfx_t *sfx;
 
-   if (nosound.value)
-      return;
    if (!sound_started)
       return;
 
