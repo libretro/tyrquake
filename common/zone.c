@@ -347,102 +347,6 @@ void Hunk_Check(void)
    }
 }
 
-
-/*
- * ==============
- * Hunk_Print
- *
- * If "all" is specified, every single allocation is printed.
- * Otherwise, allocations with the same name will be totaled up before
- * printing.
- * ==============
- */
-static void Hunk_Print(qboolean all)
-{
-   hunk_t *h, *next, *endlow, *starthigh, *endhigh;
-   int count, sum, pwidth;
-   int totalblocks;
-   char safename[HUNK_NAMELEN + 1]; /* Zero terminated copy of hunk name */
-
-   count = 0;
-   sum = 0;
-   totalblocks = 0;
-   memset(safename, 0, sizeof(safename));
-
-   /* Don't put in wide spaces if not printing pointers */
-   pwidth = all ? (sizeof(void *) * 2 + 2) : 8;
-
-   h = (hunk_t *)hunk_base;
-   endlow = (hunk_t *)(hunk_base + hunk_low_used);
-   starthigh = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
-   endhigh = (hunk_t *)(hunk_base + hunk_size);
-
-   Con_Printf("%*s :%10i total hunk size\n", pwidth, "", hunk_size);
-   Con_Printf("-------------------------\n");
-
-   while (1) {
-      /* skip to the high hunk if done with low hunk */
-      if (h == endlow)
-      {
-         Con_Printf("-------------------------\n");
-         Con_Printf("%*s :%10i REMAINING\n", pwidth, "",
-               hunk_size - hunk_low_used - hunk_high_used);
-         Con_Printf("-------------------------\n");
-         h = starthigh;
-      }
-
-      /* if totally done, break */
-      if (h == endhigh)
-         break;
-
-      /* run consistancy checks */
-      if (h->sentinal != HUNK_SENTINAL)
-         Sys_Error("%s: trashed sentinal", __func__);
-      if (h->size < 16 || h->size + (byte *)h - hunk_base > hunk_size)
-         Sys_Error("%s: bad size", __func__);
-
-      next = (hunk_t *)((byte *)h + h->size);
-      count++;
-      totalblocks++;
-      sum += h->size;
-
-      /* print the single block */
-      memcpy(safename, h->name, HUNK_NAMELEN);
-      if (all)
-         Con_Printf("%*p :%10i %-*s\n", pwidth, h, h->size,
-               HUNK_NAMELEN, safename);
-
-      /* print the total */
-      if (next == endlow || next == endhigh ||
-            strncmp(h->name, next->name, HUNK_NAMELEN))
-      {
-         if (!all)
-            Con_Printf("%*s :%10i %-*s (TOTAL)\n", pwidth, "", sum,
-                  HUNK_NAMELEN, safename);
-         count = 0;
-         sum = 0;
-      }
-      h = next;
-   }
-   Con_Printf("-------------------------\n");
-   Con_Printf("%8i total blocks\n", totalblocks);
-}
-
-static void Hunk_f(void)
-{
-   if (Cmd_Argc() == 2) {
-      if (!strcmp(Cmd_Argv(1), "print")) {
-         Hunk_Print(false);
-         return;
-      }
-      if (!strcmp(Cmd_Argv(1), "printall")) {
-         Hunk_Print(true);
-         return;
-      }
-   }
-   Con_Printf("Usage: hunk print|printall\n");
-}
-
 /*
  * ===================
  * Hunk_AllocName
@@ -451,10 +355,6 @@ static void Hunk_f(void)
 void * Hunk_AllocName(int size, const char *name)
 {
    hunk_t *h;
-
-#ifdef PARANOID
-   Hunk_Check();
-#endif
 
    if (size < 0)
       Sys_Error("%s: bad size: %i", __func__, size);
@@ -545,10 +445,6 @@ void *Hunk_HighAllocName(int size, const char *name)
       Hunk_FreeToHighMark(hunk_tempmark);
       hunk_tempactive = false;
    }
-
-#ifdef PARANOID
-   Hunk_Check();
-#endif
 
    size = sizeof(hunk_t) + ((size + 15) & ~15);
 
@@ -877,32 +773,6 @@ static void Cache_Print(void)
 
 /*
  * ============
- * Cache_Report
- * ============
- */
-void Cache_Report(void)
-{
-   Con_DPrintf("%4.1f megabyte data cache\n",
-         (hunk_size - hunk_high_used -
-          hunk_low_used) / (float)(1024 * 1024));
-}
-
-
-/* FIXME - Unused? */
-#if 0
-/*
- * ============
- * Cache_Compact
- * ============
- */
-static void
-Cache_Compact(void)
-{
-}
-#endif
-
-/*
- * ============
  * Cache_Init
  * ============
  */
@@ -1059,6 +929,5 @@ void Memory_Init(void *buf, int size)
 
    /* Needs to be added after the zone init... */
    Cmd_AddCommand("flush", Cache_Flush);
-   Cmd_AddCommand("hunk", Hunk_f);
    Cmd_AddCommand("cache", Cache_f);
 }

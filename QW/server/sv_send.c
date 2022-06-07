@@ -126,29 +126,6 @@ Con_Printf(const char *fmt, ...)
 }
 
 /*
-================
-Con_DPrintf
-
-A Con_Printf that only shows up if the "developer" cvar is set
-================
-*/
-void
-Con_DPrintf(const char *fmt, ...)
-{
-    va_list argptr;
-    char msg[MAX_PRINTMSG];
-
-    if (!developer.value)
-	return;
-
-    va_start(argptr, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, argptr);
-    va_end(argptr);
-
-    Con_Printf("%s", msg);
-}
-
-/*
 =============================================================================
 
 EVENT MESSAGES
@@ -706,9 +683,6 @@ SV_SendClientMessages(void)
 	    // will it fit?
 	    if (c->netchan.message.cursize + c->backbuf_size[0] <
 		c->netchan.message.maxsize) {
-
-		Con_DPrintf("%s: backbuf %d bytes\n",
-			    c->name, c->backbuf_size[0]);
 
 		// it'll fit
 		SZ_Write(&c->netchan.message, c->backbuf_data[0],

@@ -41,8 +41,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __func__ __FUNCTION__
 #endif
 
-//define        PARANOID                        // speed sapping error checking
-
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 #define CACHE_SIZE	32	// used to align key data structures
 #define CACHE_PAD_ARRAY(elements, type)	\

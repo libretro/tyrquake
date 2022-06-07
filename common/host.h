@@ -29,7 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern quakeparms_t host_parms;
 
 extern cvar_t sys_nostdout;
-extern cvar_t developer;
 
 extern qboolean host_initialized;	// true if into command execution
 extern double host_frametime;

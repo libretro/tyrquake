@@ -165,37 +165,6 @@ Sys_Quit(void)
 static int do_stdin = 1;
 
 /*
-================
-Sys_ConsoleInput
-
-Checks for a complete line of text typed in at the console, then forwards
-it to the host command processor
-================
-*/
-char *
-Sys_ConsoleInput(void)
-{
-    static char text[256];
-    int len;
-
-    if (!stdin_ready || !do_stdin)
-	return NULL;		// the select didn't say it was ready
-    stdin_ready = false;
-
-    len = read(0, text, sizeof(text));
-    if (len == 0) {
-	// end of file
-	do_stdin = 0;
-	return NULL;
-    }
-    if (len < 1)
-	return NULL;
-    text[len - 1] = 0;		// rip off the /n and terminate
-
-    return text;
-}
-
-/*
 =============
 Sys_Init
 
@@ -239,12 +208,6 @@ main(int argc, const char *argv[])
 	Sys_Error("Can't allocate %d", parms.memsize);
 
     parms.basedir = stringify(QBASEDIR);
-
-/*
-	if (Sys_FileTime ("id1/pak0.pak") != -1)
-	else
-		parms.basedir = "/raid/quake/v2";
-*/
 
     SV_Init(&parms);
 

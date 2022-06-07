@@ -151,13 +151,10 @@ NET_GetPacket(void)
 
 	if (err == WSAEWOULDBLOCK)
 	    return false;
-	if (err == WSAECONNRESET) {
+	if (err == WSAECONNRESET)
 	    /* This has happened to me a few times, but I don't know how to
 	       reproduce it yet... */
-	    Con_DPrintf("Warning: Connection reset by peer %s in %s\n",
-			NET_AdrToString(net_from), __func__);
 	    return false;
-	}
 	if (err == WSAEMSGSIZE) {
 	    Con_Printf("Warning:  Oversize packet from %s\n",
 		       NET_AdrToString(net_from));
@@ -195,9 +192,7 @@ NET_SendPacket(int length, void *data, netadr_t to)
 	    return;
 
 #ifndef SERVERONLY
-	if (err == WSAEADDRNOTAVAIL)
-	    Con_DPrintf("%s Warning: %i\n", __func__, err);
-	else
+	if (err != WSAEADDRNOTAVAIL)
 #endif
 	    Con_Printf("%s ERROR: %i\n", __func__, err);
     }

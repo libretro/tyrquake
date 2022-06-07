@@ -218,8 +218,6 @@ FindNextChunk(const char *name, const char *filename)
       data_p = last_chunk + 4;
       iff_chunk_len = GetLittleLong();
       if (iff_chunk_len < 0 || iff_chunk_len > iff_end - data_p) {
-         Con_DPrintf("Bad \"%s\" chunk length (%d) in wav file %s\n",
-               name, iff_chunk_len, filename);
          data_p = NULL;
          return;
       }

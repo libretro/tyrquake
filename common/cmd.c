@@ -325,7 +325,7 @@ Cmd_Exec_f(void)
 	Con_Printf("couldn't exec %s\n", Cmd_Argv(1));
 	return;
     }
-    if (cl_warncmd.value || developer.value)
+    if (cl_warncmd.value)
 	Con_Printf("execing %s\n", Cmd_Argv(1));
 
     Cbuf_InsertText(f);
@@ -789,7 +789,7 @@ Cmd_ExecuteString(const char *text)
     }
 
 // check cvars
-    if (!Cvar_Command() && (cl_warncmd.value || developer.value))
+    if (!Cvar_Command() && cl_warncmd.value)
 	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
 }
 

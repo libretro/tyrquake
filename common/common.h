@@ -288,8 +288,6 @@ byte COM_BlockSequenceCheckByte(const byte *base, int length, int sequence,
 				unsigned mapchecksum);
 byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence);
 
-int build_number(void);
-
 extern char gamedirfile[];
 #endif
 

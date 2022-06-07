@@ -250,13 +250,6 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     if (!PM_RecursiveHullCheck(hull, child, p1f, midf, p1, mid, trace))
 	return false;
 
-#ifdef PARANOID
-    if (PM_HullPointContents(pm_hullmodel, child, mid) == CONTENTS_SOLID) {
-	Con_Printf("mid PointInHullSolid\n");
-	return false;
-    }
-#endif
-
     child = node->children[side ^ 1];
     if (PM_HullPointContents(hull, child, mid) != CONTENTS_SOLID)
 	/* go past the node */
@@ -282,7 +275,6 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 	if (frac < 0) {
 	    trace->fraction = midf;
 	    VectorCopy(mid, trace->endpos);
-	    Con_DPrintf("backup past 0\n");
 	    return false;
 	}
 	midf = p1f + (p2f - p1f) * frac;

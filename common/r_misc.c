@@ -69,17 +69,6 @@ Show(void)
 }
 
 /*
-====================
-R_TimeRefresh_f
-
-For program optimization
-====================
-*/
-void
-R_TimeRefresh_f(void)
-{ }
-
-/*
 ================
 R_LineGraph
 
@@ -120,111 +109,7 @@ R_LineGraph(int x, int y, int h)
 	dest[0] = color;
 }
 
-/*
-==============
-R_TimeGraph
-
-Performance monitoring tool
-==============
-*/
 #define MAX_TIMINGS 256
-void
-R_TimeGraph(void)
-{
-}
-
-#ifdef QW_HACK
-/*
-==============
-R_NetGraph
-==============
-*/
-void
-R_NetGraph(void)
-{
-    int a, x, y, y2, w, i;
-    int lost;
-    char st[80];
-
-    if (vid.width - 16 <= NET_TIMINGS)
-	w = vid.width - 16;
-    else
-	w = NET_TIMINGS;
-
-    x = -((vid.width - 320) >> 1);
-    y = vid.height - sb_lines - 24 - (int)r_graphheight.value * 2 - 2;
-
-    M_DrawTextBox(x, y, (w + 7) / 8,
-		  ((int)r_graphheight.value * 2 + 7) / 8 + 1);
-    y2 = y + 8;
-    y = vid.height - sb_lines - 8 - 2;
-
-    x = 8;
-    lost = CL_CalcNet();
-    for (a = NET_TIMINGS - w; a < w; a++) {
-	i = (cls.netchan.outgoing_sequence - a) & NET_TIMINGSMASK;
-	R_LineGraph(x + w - 1 - a, y, packet_latency[i]);
-    }
-    sprintf(st, "%3i%% packet loss", lost);
-    Draw_String(8, y2, st);
-}
-
-/*
-==============
-R_ZGraph
-==============
-*/
-void
-R_ZGraph(void)
-{
-    int a, x, w, i;
-    static int height[256];
-
-    if (r_refdef.vrect.width <= 256)
-	w = r_refdef.vrect.width;
-    else
-	w = 256;
-
-    height[r_framecount & 255] = ((int)r_origin[2]) & 31;
-
-    x = 0;
-    for (a = 0; a < w; a++) {
-	i = (r_framecount - a) & 255;
-	R_LineGraph(x + w - 1 - a, r_refdef.vrect.height - 2, height[i]);
-    }
-}
-#endif
-
-/*
-=============
-R_PrintTimes
-=============
-*/
-void
-R_PrintTimes(void)
-{
-}
-
-/*
-=============
-R_PrintDSpeeds
-=============
-*/
-void
-R_PrintDSpeeds(void)
-{
-}
-
-/*
-=============
-R_PrintAliasStats
-=============
-*/
-void
-R_PrintAliasStats(void)
-{
-    Con_Printf("%3i polygon model drawn\n", r_amodels_drawn);
-}
 
 void
 WarpPalette(void)

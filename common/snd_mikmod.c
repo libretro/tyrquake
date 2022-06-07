@@ -107,10 +107,7 @@ static qboolean S_MIKMOD_CodecInitialize (void)
 	MikMod_RegisterDriver(&drv_nos);	/* only need the "nosound" driver, none else */
 	MikMod_RegisterAllLoaders();
 	if (S_MIKMOD_initlib(NULL))
-	{
-		Con_DPrintf("Could not initialize MikMod: %s\n", MikMod_strerror(MikMod_errno));
 		return false;
-	}
 
 	/* this can't get set with drv_nos, but whatever, be safe: */
 	md_mode &= ~DMODE_SIMDMIXER;	/* SIMD mixer is buggy when combined with HQMIXER */
@@ -144,7 +141,6 @@ static qboolean S_MIKMOD_CodecOpenStream (snd_stream_t *stream)
 	priv->module = Player_LoadGeneric((MREADER *)stream->priv, 64, 0);
 	if (!priv->module)
 	{
-		Con_DPrintf("Could not load module: %s\n", MikMod_strerror(MikMod_errno));
 		Z_Free(stream->priv);
 		return false;
 	}
@@ -162,8 +158,6 @@ static qboolean S_MIKMOD_CodecOpenStream (snd_stream_t *stream)
 	stream->info.bits	= (md_mode & DMODE_16BITS)? 16: 8;
 	stream->info.width	= stream->info.bits / 8;
 	stream->info.channels	= (md_mode & DMODE_STEREO)? 2 : 1;
-/*	Con_DPrintf("Playing %s (%d chn)\n", priv->module->songname, priv->module->numchn);*/
-
 	return true;
 }
 

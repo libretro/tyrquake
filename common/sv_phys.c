@@ -674,7 +674,6 @@ SV_CheckStuck(edict_t *ent)
    VectorCopy(ent->v.oldorigin, ent->v.origin);
    if (!SV_TestEntityPosition(ent))
    {
-      Con_DPrintf("Unstuck.\n");
       SV_LinkEdict(ent, true);
       return;
    }
@@ -688,14 +687,12 @@ SV_CheckStuck(edict_t *ent)
             ent->v.origin[2] = org[2] + z;
             if (!SV_TestEntityPosition(ent))
             {
-               Con_DPrintf("Unstuck.\n");
                SV_LinkEdict(ent, true);
                return;
             }
          }
 
    VectorCopy(org, ent->v.origin);
-   Con_DPrintf("player is stuck.\n");
 }
 
 
@@ -841,10 +838,7 @@ SV_TryUnstick(edict_t *ent, vec3_t oldvel)
       if (
             fabs(oldorg[1] - ent->v.origin[1]) > 4 ||
             fabs(oldorg[0] - ent->v.origin[0]) > 4)
-      {
-         //Con_DPrintf ("unstuck!\n");
          return clip;
-      }
 
       /* go back to the original pos and try again */
       VectorCopy(oldorg, ent->v.origin);

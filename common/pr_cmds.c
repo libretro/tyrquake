@@ -64,10 +64,8 @@ PF_VarString(int first)
 	arglen = strlen(arg);
 	strncat(out, arg, buflen);
 	buflen -= arglen;
-	if (buflen < 0) {
-	    Con_DPrintf("%s: overflow (string truncated)\n", __func__);
+	if (buflen < 0)
 	    break;
-	}
     }
     return out;
 }
@@ -1026,7 +1024,6 @@ PF_dprint
 static void
 PF_dprint(void)
 {
-    Con_DPrintf("%s", PF_VarString(0));
 }
 
 static char pr_string_temp[128];

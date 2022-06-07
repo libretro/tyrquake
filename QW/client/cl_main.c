@@ -75,8 +75,6 @@ cvar_t rcon_address = { "rcon_address", "" };
 
 cvar_t cl_timeout = { "cl_timeout", "60" };
 
-cvar_t cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
-
 cvar_t cl_sbar = { "cl_sbar", "0", true };
 cvar_t cl_hudswap = { "cl_hudswap", "0", true };
 cvar_t cl_maxfps = { "cl_maxfps", "0", true };
@@ -149,9 +147,6 @@ byte *host_basepal;
 byte *host_colormap;
 
 netadr_t master_adr;		// address of the master server
-
-cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
-cvar_t developer = { "developer", "0" };
 
 int fps_count;
 
@@ -372,7 +367,6 @@ CL_ClearState(void)
 
     S_StopAllSounds(true);
 
-    Con_DPrintf("Clearing memory\n");
     D_FlushCaches();
     Mod_ClearAll();
     if (host_hunklevel)		// FIXME: check this...
@@ -806,7 +800,6 @@ CL_ConnectionlessPacket(void)
     c = MSG_ReadByte();
     if (!cls.demoplayback)
 	Con_Printf("%s: ", NET_AdrToString(net_from));
-//      Con_DPrintf ("%s", net_message.data + 5);
     if (c == S2C_CONNECTION) {
 	Con_Printf("connection\n");
 	if (cls.state >= ca_connected) {
@@ -935,8 +928,6 @@ CL_ReadPackets(void)
 	//
 	if (!cls.demoplayback &&
 	    !NET_CompareAdr(net_from, cls.netchan.remote_address)) {
-	    Con_DPrintf("%s:sequenced packet without connection\n",
-			NET_AdrToString(net_from));
 	    continue;
 	}
 	if (!Netchan_Process(&cls.netchan))
@@ -1062,7 +1053,6 @@ CL_Init(void)
 //
 // register our commands
 //
-    Cvar_RegisterVariable(&host_speeds);
     Cvar_RegisterVariable(&cl_warncmd);
     Cvar_RegisterVariable(&cl_upspeed);
     Cvar_RegisterVariable(&cl_forwardspeed);
@@ -1072,7 +1062,6 @@ CL_Init(void)
     Cvar_RegisterVariable(&cl_yawspeed);
     Cvar_RegisterVariable(&cl_pitchspeed);
     Cvar_RegisterVariable(&cl_anglespeedkey);
-    Cvar_RegisterVariable(&cl_shownet);
     Cvar_RegisterVariable(&cl_sbar);
     Cvar_RegisterVariable(&cl_hudswap);
     Cvar_RegisterVariable(&cl_maxfps);
@@ -1113,10 +1102,6 @@ CL_Init(void)
     Cvar_RegisterVariable(&msg);
     Cvar_RegisterVariable(&noaim);
 
-    Cvar_RegisterVariable(&developer);
-    if (COM_CheckParm("-developer"))
-	Cvar_SetValue("developer", 1);
-
     Cmd_AddCommand("version", CL_Version_f);
 
     Cmd_AddCommand("changing", CL_Changing_f);
@@ -1151,8 +1136,6 @@ CL_Init(void)
 
     Cmd_AddCommand("nextul", CL_NextUpload);
     Cmd_AddCommand("stopul", CL_StopUpload);
-
-    Cmd_AddCommand("mcache", Mod_Print);
 
 //
 // forward to server commands
@@ -1274,8 +1257,6 @@ Runs all active servers
 void
 Host_Frame(float time)
 {
-    static double time1 = 0;
-    static double time2 = 0;
     float fps;
 
     /* something bad happened, or the server disconnected */
@@ -1330,14 +1311,8 @@ Host_Frame(float time)
     CL_EmitEntities();
 
     // update video
-    if (host_speeds.value)
-	time1 = Sys_DoubleTime();
-
     SCR_UpdateScreen();
     CL_RunParticles();
-
-    if (host_speeds.value)
-	time2 = Sys_DoubleTime();
 
     /* update audio */
     if (cls.state == ca_active) {
@@ -1347,17 +1322,6 @@ Host_Frame(float time)
 	S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
 
     CDAudio_Update();
-
-    if (host_speeds.value) {
-	static double time3 = 0;
-	int pass1    = (time1 - time3) * 1000;
-	double time4 = Sys_DoubleTime();
-	int pass2    = (time2 - time1) * 1000;
-	int pass3    = (time4 - time2) * 1000;
-        time3        = time4;
-	Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
-		   pass1 + pass2 + pass3, pass1, pass2, pass3);
-    }
 
     host_framecount++;
     fps_count++;

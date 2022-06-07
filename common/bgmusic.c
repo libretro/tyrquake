@@ -239,10 +239,7 @@ void BGM_Play (const char *filename)
 		return;
 
 	if (!filename || !*filename)
-	{
-		Con_DPrintf("null music file name\n");
 		return;
-	}
 
 	ext = COM_FileExtension(filename);
 	if (! *ext)	/* try all things */

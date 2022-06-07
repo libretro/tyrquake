@@ -51,8 +51,6 @@ client_t *host_client;		// current client
 cvar_t sv_mintic = { "sv_mintic", "0.03" };	// bound the size of the
 cvar_t sv_maxtic = { "sv_maxtic", "0.1" };	// physics time tic
 
-cvar_t developer = { "developer", "0" };	// show extra messages
-
 static cvar_t timeout = { "timeout", "65" };	// seconds without any message
 static cvar_t zombietime = { "zombietime", "2" }; // seconds to sink messages
 						// after disconnect
@@ -396,9 +394,7 @@ SV_CheckLog
 static void
 SV_CheckLog(void)
 {
-    sizebuf_t *sz;
-
-    sz = &svs.log[svs.logsequence & 1];
+    sizebuf_t *sz = &svs.log[svs.logsequence & 1];
 
     // bump sequence if almost full, or ten minutes have passed and
     // there is something still sitting there
@@ -441,9 +437,6 @@ SVC_Log(void)
 	NET_SendPacket(1, data, net_from);
 	return;
     }
-
-    Con_DPrintf("sending log %i to %s\n", svs.logsequence - 1,
-		NET_AdrToString(net_from));
 
     sprintf(data, "stdlog %i\n", svs.logsequence - 1);
     strcat(data, (char *)svs.log_buf[((svs.logsequence - 1) & 1)]);
@@ -715,8 +708,6 @@ SVC_DirectConnect(void)
 
     if (newcl->spectator)
 	Con_Printf("Spectator %s connected\n", newcl->name);
-    else
-	Con_DPrintf("Client %s connected\n", newcl->name);
     newcl->sendinfo = true;
 }
 
@@ -1119,10 +1110,8 @@ SV_ReadPackets(void)
 		continue;
 	    if (cl->netchan.qport != qport)
 		continue;
-	    if (cl->netchan.remote_address.port != net_from.port) {
-		Con_DPrintf("SV_ReadPackets: fixing up a translated port\n");
+	    if (cl->netchan.remote_address.port != net_from.port)
 		cl->netchan.remote_address.port = net_from.port;
-	    }
 	    if (Netchan_Process(&cl->netchan)) {
 		/* this is a valid, sequenced packet, so process it */
 		svs.stats.packets++;
@@ -1188,26 +1177,6 @@ SV_CheckTimeouts(void)
 
 /*
 ===================
-SV_GetConsoleCommands
-
-Add them exactly as if they had been typed at the console
-===================
-*/
-static void
-SV_GetConsoleCommands(void)
-{
-    char *cmd;
-
-    while (1) {
-	cmd = Sys_ConsoleInput();
-	if (!cmd)
-	    break;
-	Cbuf_AddText("%s", cmd);
-    }
-}
-
-/*
-===================
 SV_CheckVars
 
 ===================
@@ -1262,20 +1231,17 @@ SV_Frame(float time)
 // check timeouts
     SV_CheckTimeouts();
 
-// toggle the log buffer if full
+    // toggle the log buffer if full
     SV_CheckLog();
 
-// move autonomous things around if enough time has passed
+    // move autonomous things around if enough time has passed
     if (!sv.paused)
 	SV_Physics();
 
-// get packets
+    // get packets
     SV_ReadPackets();
 
-// check for commands typed to the host
-    SV_GetConsoleCommands();
-
-// process console commands
+    // process console commands
     Cbuf_Execute();
 
     SV_CheckVars();
@@ -1360,10 +1326,6 @@ SV_InitLocal(void)
     Cvar_RegisterVariable(&sv_phs);
 
     Cvar_RegisterVariable(&pausable);
-
-    Cvar_RegisterVariable(&developer);
-    if (COM_CheckParm("-developer"))
-	Cvar_SetValue("developer", 1);
 
     Cmd_AddCommand("addip", SV_AddIP_f);
     Cmd_AddCommand("removeip", SV_RemoveIP_f);

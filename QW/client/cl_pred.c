@@ -66,7 +66,6 @@ CL_NudgePosition(void)
 		return;
 	}
     }
-    Con_DPrintf("CL_NudgePosition: stuck\n");
 }
 
 /*

@@ -689,14 +689,12 @@ static void S_Update_(void)
    GetSoundtime();
 
    /* check to make sure that we haven't overshot */
-   if (paintedtime < soundtime) {
-      /* FIXME - handle init & wrap properly and report actual overflow */
-      //Con_DPrintf("%s: overflow\n", __func__);
+   /* FIXME - handle init & wrap properly and report actual overflow */
+   if (paintedtime < soundtime)
       paintedtime = soundtime;
-   }
    /* mix ahead of current position */
    endtime = soundtime + _snd_mixahead.value * shm->speed;
-   samps = shm->samples >> 1;
+   samps   = shm->samples >> 1;
    if (endtime - soundtime > samps)
       endtime = soundtime + samps;
 

@@ -276,8 +276,6 @@ SV_SpawnServer(const char *server)
     edict_t *ent;
     int i;
 
-    Con_DPrintf("SpawnServer: %s\n", server);
-
     SV_SaveSpawnparms();
 
     svs.spawncount++;		// any partially connected client will be
@@ -397,5 +395,4 @@ SV_SpawnServer(const char *server)
     sv.signon_buffer_size[sv.num_signon_buffers - 1] = sv.signon.cursize;
 
     Info_SetValueForKey(svs.info, "map", sv.name, MAX_SERVERINFO_STRING);
-    Con_DPrintf("Server spawned.\n");
 }

@@ -457,17 +457,6 @@ void
 IN_Accumulate(void)
 {}
 
-char * Sys_ConsoleInput(void)
-{
-   return NULL;
-}
-
-qboolean
-window_visible(void)
-{
-    return true;
-}
-
 void Sys_HighFPPrecision(void)
 {
 }

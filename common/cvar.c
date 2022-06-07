@@ -207,12 +207,6 @@ Cvar_Set(const char *var_name, const char *value)
 
     changed = strcmp(var->string, value);
 
-    /* Check for developer-only cvar */
-    if (changed && (var->flags & CVAR_DEVELOPER) && !developer.value) {
-	Con_Printf("%s is settable only in developer mode.\n", var_name);
-	return;
-    }
-
 #ifdef SERVERONLY
     if (var->info) {
 	Info_SetValueForKey(svs.info, var_name, value, MAX_SERVERINFO_STRING);
@@ -284,7 +278,6 @@ Adds a freestanding variable to the variable list.
 void Cvar_RegisterVariable(cvar_t *variable)
 {
    char value[512];		// FIXME - magic numbers...
-   float old_developer;
 
    /* first check to see if it has allready been defined */
    if (Cvar_FindVar(variable->name))
@@ -313,13 +306,9 @@ void Cvar_RegisterVariable(cvar_t *variable)
 
    /*
     * FIXME (BARF) - readonly cvars need to be initialised
-    *                developer 1 allows set
     */
    /* set it through the function to be consistant */
-   old_developer = developer.value;
-   developer.value = 1;
    Cvar_Set(variable->name, value);
-   developer.value = old_developer;
 }
 
 /*

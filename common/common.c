@@ -87,7 +87,6 @@ static int static_registered = 1;	// only for startup check, then set
 qboolean msg_suppress_1 = 0;
 
 static void COM_InitFilesystem(void);
-static void COM_Path_f(void);
 static void *SZ_GetSpace(sizebuf_t *buf, int length);
 
 // if a packfile directory differs from this, it is assumed to be hacked
@@ -744,9 +743,6 @@ static void *SZ_GetSpace(sizebuf_t *buf, int length)
                __func__, buf->cursize + length, buf->maxsize);
       if (length > buf->maxsize)
          Sys_Error("%s: %d is > full buffer size", __func__, length);
-      if (developer.value)
-         /* Con_Printf may be redirected */
-         Sys_Printf("%s: overflow\n", __func__);
       SZ_Clear(buf);
       buf->overflowed = true;
    }
@@ -842,8 +838,8 @@ void COM_FileBase(const char *in, char *out, size_t buflen)
    const char *dot;
    int copylen;
 
-   in = COM_SkipPath(in);
-   dot = strrchr(in, '.');
+   in      = COM_SkipPath(in);
+   dot     = strrchr(in, '.');
    copylen = dot ? dot - in : strlen(in);
 
    if (copylen < 2) {
@@ -1110,8 +1106,6 @@ void COM_Init(void)
 #ifdef NQ_HACK
    Cvar_RegisterVariable(&cmdline);
 #endif
-   Cmd_AddCommand("path", COM_Path_f);
-
    COM_InitFilesystem();
    COM_CheckRegistered();
 }
@@ -1128,15 +1122,11 @@ varargs versions of all text functions.
 char *va(const char *format, ...)
 {
    va_list argptr;
-   int len;
    char *buf = COM_GetStrBuf();
 
    va_start(argptr, format);
-   len = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
+   vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
    va_end(argptr);
-
-   if (len > COM_STRBUF_LEN - 1)
-      Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 
    return buf;
 }
@@ -1226,31 +1216,6 @@ static int COM_FileOpenRead(const char *path, RFILE **hndl)
 error:
    *hndl = NULL;
    return -1;
-}
-
-/*
-============
-COM_Path_f
-
-============
-*/
-static void COM_Path_f(void)
-{
-   searchpath_t *s;
-
-   Con_Printf("Current search path:\n");
-   for (s = com_searchpaths; s; s = s->next)
-   {
-#ifdef QW_HACK
-      if (s == com_base_searchpaths)
-         Con_Printf("----------\n");
-#endif
-      if (s->pack)
-         Con_Printf("%s (%i files)\n", s->pack->filename,
-               s->pack->numfiles);
-      else
-         Con_Printf("%s\n", s->filename);
-   }
 }
 
 /*
@@ -1623,13 +1588,9 @@ void COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
 void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
       unsigned long *length)
 {
-   byte *buf;
-
-   loadbuf = (byte *)buffer;
+   loadbuf  = (byte *)buffer;
    loadsize = bufsize;
-   buf = (byte*)COM_LoadFile(path, 4, length);
-
-   return buf;
+   return (byte*)COM_LoadFile(path, 4, length);
 }
 
 /*
@@ -2010,22 +1971,12 @@ static const char *Info_ReadKey(const char *infostring, char *buffer, int buflen
    pkey = infostring;
    infostring = Info_ReadString(infostring, buffer, buflen);
 
-   /* If we aren't at a separator, then the key was too long */
-   if (*buffer && *infostring != '\\')
-      Con_DPrintf("WARNING: No separator after info key (%s)\n", pkey);
-
    return infostring;
 }
 
 static const char *Info_ReadValue(const char *infostring, char *buffer, int buflen)
 {
-   infostring = Info_ReadString(infostring, buffer, buflen);
-
-   /* If we aren't at a separator, then the value was too long */
-   if (*infostring && *infostring != '\\')
-      Con_DPrintf("WARNING: info value too long? (%s)\n", buffer);
-
-   return infostring;
+   return Info_ReadString(infostring, buffer, buflen);
 }
 
 /*
@@ -2046,7 +1997,7 @@ char *Info_ValueForKey(const char *infostring, const char *key)
    char *buf;
 
    buffer_index = (buffer_index + 1) & 3;
-   buf = buffers[buffer_index];
+   buf          = buffers[buffer_index];
 
    while (1)
    {
@@ -2312,46 +2263,6 @@ byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
    crc &= 0xff;
 
    return crc;
-}
-
-// char *date = "Oct 24 1996";
-static const char *date = __DATE__;
-static const char *mon[12] =
-    { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
-    "Nov", "Dec"
-};
-static char mond[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-// returns days since Oct 24 1996
-int build_number(void)
-{
-   int m = 0;
-   int d = 0;
-   int y = 0;
-   static int b = 0;
-
-   if (b != 0)
-      return b;
-
-   for (m = 0; m < 11; m++)
-   {
-      if (strncasecmp(&date[0], mon[m], 3) == 0)
-         break;
-      d += mond[m];
-   }
-
-   d += atoi(&date[4]) - 1;
-
-   y = atoi(&date[7]) - 1900;
-
-   b = d + (int)((y - 1) * 365.25);
-
-   if (((y % 4) == 0) && m > 1)
-      b += 1;
-
-   b -= 35778;			// Dec 16 1998
-
-   return b;
 }
 #endif /* QW_HACK */
 

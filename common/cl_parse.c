@@ -35,66 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "sys.h"
 
-static const char *svc_strings[] = {
-    "svc_bad",
-    "svc_nop",
-    "svc_disconnect",
-    "svc_updatestat",
-    "svc_version",		// [long] server version
-    "svc_setview",		// [short] entity number
-    "svc_sound",		// <see code>
-    "svc_time",			// [float] server time
-    "svc_print",		// [string] null terminated string
-    "svc_stufftext",		// [string] stuffed into client's console buffer
-    // the string should be \n terminated
-    "svc_setangle",		// [vec3] set the view angle to this absolute value
-
-    "svc_serverinfo",		// [long] version
-    // [string] signon string
-    // [string]..[0]model cache [string]...[0]sounds cache
-    // [string]..[0]item cache
-    "svc_lightstyle",		// [byte] [string]
-    "svc_updatename",		// [byte] [string]
-    "svc_updatefrags",		// [byte] [short]
-    "svc_clientdata",		// <shortbits + data>
-    "svc_stopsound",		// <see code>
-    "svc_updatecolors",		// [byte] [byte]
-    "svc_particle",		// [vec3] <variable>
-    "svc_damage",		// [byte] impact [byte] blood [vec3] from
-
-    "svc_spawnstatic",
-    "OBSOLETE svc_spawnbinary",
-    "svc_spawnbaseline",
-
-    "svc_temp_entity",		// <variable>
-    "svc_setpause",
-    "svc_signonnum",
-    "svc_centerprint",
-    "svc_killedmonster",
-    "svc_foundsecret",
-    "svc_spawnstaticsound",
-    "svc_intermission",
-    "svc_finale",		// [string] music [string] text
-    "svc_cdtrack",		// [byte] track [byte] looptrack
-    "svc_sellscreen",
-    "svc_cutscene",
-    "",				// 35
-    "",				// 36
-    "svc_fitz_skybox",
-    "",				// 38
-    "",				// 39
-    "svc_fitz_bf",
-    "svc_fitz_fog",
-    "svc_fitz_spawnbaseline2",
-    "svc_fitz_spawnstatic2",
-    "svc_fitz_spawnstaticsound2",
-    "",				// 45
-    "",				// 46
-    "",				// 47
-    "",				// 48
-    "",				// 49
-};
-
 //=============================================================================
 
 /*
@@ -214,7 +154,7 @@ CL_KeepaliveMessage(void)
     if (cls.demoplayback)
 	return;
 
-// read messages from server, should just be nops
+    // read messages from server, should just be nops
     old = net_message;
     memcpy(olddata, net_message.data, net_message.cursize);
 
@@ -237,13 +177,13 @@ CL_KeepaliveMessage(void)
     net_message = old;
     memcpy(net_message.data, olddata, net_message.cursize);
 
-// check time
+    // check time
     time = Sys_DoubleTime();
     if (time - lastmsg < 5)
 	return;
     lastmsg = time;
 
-// write out a nop
+    // write out a nop
     Con_Printf("--> client to server keepalive\n");
 
     MSG_WriteByte(&cls.message, clc_nop);
@@ -269,8 +209,6 @@ CL_ParseServerInfo(void)
        model_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
     for (i = 0; i < MAX_SOUNDS; i++)
        sound_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
-
-    Con_DPrintf("Serverinfo packet received.\n");
 
     /* wipe the client_state_t struct */
     CL_ClearState();
@@ -927,15 +865,6 @@ CL_ParseFitzStaticSound2(void)
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
 
-/* helper function (was a macro, hence the CAPS) */
-static void
-SHOWNET(const char *msg)
-{
-    if (cl_shownet.value == 2)
-	Con_Printf("%3i:%s\n", msg_readcount - 1, msg);
-}
-
-
 /*
 =====================
 CL_ParseServerMessage
@@ -948,14 +877,6 @@ CL_ParseServerMessage(void)
    int i;
    unsigned int bits;
    byte colors;
-
-   //
-   // if recording demos, copy the message out
-   //
-   if (cl_shownet.value == 1)
-      Con_Printf("%i ", net_message.cursize);
-   else if (cl_shownet.value == 2)
-      Con_Printf("------------------\n");
 
    cl.onground = false;	// unless the server says otherwise
    // parse the message
@@ -971,17 +892,13 @@ CL_ParseServerMessage(void)
       cmd = MSG_ReadByte();
 
       if (cmd == -1) {
-         SHOWNET("END OF MESSAGE");
          return;		// end of message
       }
       // if the high bit of the command byte is set, it is a fast update
       if (cmd & 128) {
-         SHOWNET("fast update");
          CL_ParseUpdate(cmd & 127);
          continue;
       }
-
-      SHOWNET(svc_strings[cmd]);
 
       // other commands
       switch (cmd) {

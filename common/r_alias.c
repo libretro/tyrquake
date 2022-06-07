@@ -200,10 +200,8 @@ qboolean R_AliasCheckBBox(entity_t *e)
    // construct the base bounding box for this frame
    frame = e->frame;
    // TODO: don't repeat this check when drawing?
-   if ((frame >= pahdr->numframes) || (frame < 0)) {
-      Con_DPrintf("No such frame %d %s\n", frame, pmodel->name);
+   if ((frame >= pahdr->numframes) || (frame < 0))
       frame = 0;
-   }
 
    pframedesc = &pahdr->frames[frame];
 
@@ -662,21 +660,18 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
    uintptr_t frame;
    int numframes, skinbytes;
    maliasskindesc_t *pskindesc;
-   byte *pdata;
+   byte *pdata = NULL;
    int skinnum = e->skinnum;
 
    if ((skinnum >= pahdr->numskins) || (skinnum < 0))
-   {
-      Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
       skinnum = 0;
-   }
 
-   pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
-   pskindesc += skinnum;
+   pskindesc   = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
+   pskindesc  += skinnum;
    a_skinwidth = pahdr->skinwidth;
 
-   frame = pskindesc->firstframe;
-   numframes = pskindesc->numframes;
+   frame       = pskindesc->firstframe;
+   numframes   = pskindesc->numframes;
 
    if (numframes > 1)
    {
@@ -789,10 +784,7 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
    int frame = e->frame;
 
    if ((frame >= pahdr->numframes) || (frame < 0))
-   {
-      Con_DPrintf("%s: no such frame %d\n", __func__, frame);
       frame = 0;
-   }
 
    pose = pahdr->frames[frame].firstpose;
    numposes = pahdr->frames[frame].numposes;

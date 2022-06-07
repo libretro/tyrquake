@@ -141,6 +141,4 @@ void *Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name);
 
 void Cache_Free(cache_user_t *c);
 
-void Cache_Report(void);
-
 #endif /* ZONE_H */

@@ -74,10 +74,7 @@ static qboolean S_MODPLUG_CodecOpenStream (snd_stream_t *stream)
 	stream->priv = ModPlug_Load(moddata, len);
 	Hunk_FreeToLowMark(mark); /* free original file data */
 	if (!stream->priv)
-	{
-		Con_DPrintf("Could not load module %s\n", stream->name);
 		return false;
-	}
 
 	ModPlug_Seek((ModPlugFile*)stream->priv, 0);
 #if 0

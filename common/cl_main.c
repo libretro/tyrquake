@@ -45,7 +45,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 cvar_t cl_name = { "_cl_name", "player", true };
 cvar_t cl_color = { "_cl_color", "0", true };
 
-cvar_t cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
 cvar_t cl_nolerp = { "cl_nolerp", "0" };
 
 cvar_t lookspring = { "lookspring", "0", true };
@@ -165,7 +164,6 @@ void CL_Disconnect(void)
       if (cls.demorecording)
          CL_Stop_f();
 
-      Con_DPrintf("Sending clc_disconnect\n");
       SZ_Clear(&cls.message);
       MSG_WriteByte(&cls.message, clc_disconnect);
       NET_SendUnreliableMessage(cls.netcon, &cls.message);
@@ -213,8 +211,6 @@ void CL_EstablishConnection(const char *host)
    if (!cls.netcon)
       Host_Error("CL_Connect: connect failed");
 
-   Con_DPrintf("CL_EstablishConnection: connected to %s\n", host);
-
    cls.demonum = -1;		// not in the demo loop now
    cls.state = ca_connected;
    cls.signon = 0;		// need all the signon messages before playing
@@ -229,8 +225,6 @@ An svc_signonnum has been received, perform a client side setup
 */
 void CL_SignonReply(void)
 {
-   Con_DPrintf("CL_SignonReply: %i\n", cls.signon);
-
    switch (cls.signon)
    {
       case 1:
@@ -254,7 +248,6 @@ void CL_SignonReply(void)
       case 3:
          MSG_WriteByte(&cls.message, clc_stringcmd);
          MSG_WriteString(&cls.message, "begin");
-         Cache_Report();		// print remaining memory
 
          // FIXME - this the right place for it?
          cls.state = ca_firstupdate;
@@ -300,32 +293,6 @@ void CL_NextDemo(void)
    Cbuf_InsertText(str);
    cls.demonum++;
 }
-
-/*
-==============
-CL_PrintEntities_f
-==============
-*/
-void CL_PrintEntities_f(void)
-{
-   const entity_t *ent;
-   int i;
-
-   for (i = 0, ent = cl_entities; i < cl.num_entities; i++, ent++)
-   {
-      Con_Printf("%3i:", i);
-      if (!ent->model)
-      {
-         Con_Printf("EMPTY\n");
-         continue;
-      }
-      Con_Printf("%s:%2i  (%5.1f,%5.1f,%5.1f) [%5.1f %5.1f %5.1f]\n",
-            ent->model->name, ent->frame, ent->origin[0],
-            ent->origin[1], ent->origin[2], ent->angles[0],
-            ent->angles[1], ent->angles[2]);
-   }
-}
-
 
 float dl_colors[4][4] = {
     { 0.2, 0.1, 0.05, 0.7 },	/* FLASH */
@@ -393,12 +360,8 @@ void
 CL_DecayLights(void)
 {
    int i;
-   dlight_t *dl;
-   float time;
-
-   time = cl.time - cl.oldtime;
-
-   dl = cl_dlights;
+   float time   = cl.time - cl.oldtime;
+   dlight_t *dl = cl_dlights;
    for (i = 0; i < MAX_DLIGHTS; i++, dl++)
    {
       if (dl->die < cl.time || !dl->radius)
@@ -683,9 +646,6 @@ int CL_ReadFromServer(void)
       CL_ParseServerMessage();
    } while (ret && cls.state >= ca_connected);
 
-   if (cl_shownet.value)
-      Con_Printf("\n");
-
    CL_RelinkEntities();
    CL_UpdateTEnts();
 
@@ -728,10 +688,7 @@ void CL_SendCmd(void)
       return;			/* no message at all */
 
    if (!NET_CanSendMessage(cls.netcon))
-   {
-      Con_DPrintf("CL_WriteToServer: can't send\n");
       return;
-   }
 
    if (NET_SendMessage(cls.netcon, &cls.message) == -1)
       Host_Error("CL_WriteToServer: lost server connection");
@@ -762,7 +719,6 @@ void CL_Init(void)
    Cvar_RegisterVariable(&cl_yawspeed);
    Cvar_RegisterVariable(&cl_pitchspeed);
    Cvar_RegisterVariable(&cl_anglespeedkey);
-   Cvar_RegisterVariable(&cl_shownet);
    Cvar_RegisterVariable(&cl_nolerp);
    Cvar_RegisterVariable(&lookspring);
    Cvar_RegisterVariable(&lookstrafe);
@@ -773,7 +729,6 @@ void CL_Init(void)
    Cvar_RegisterVariable(&m_forward);
    Cvar_RegisterVariable(&m_side);
 
-   Cmd_AddCommand("entities", CL_PrintEntities_f);
    Cmd_AddCommand("disconnect", CL_Disconnect_f);
    Cmd_AddCommand("record", CL_Record_f);
    Cmd_AddCommand("stop", CL_Stop_f);
@@ -781,6 +736,4 @@ void CL_Init(void)
    Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
    Cmd_AddCommand("timedemo", CL_TimeDemo_f);
    Cmd_SetCompletion("timedemo", CL_Demo_Arg_f);
-
-   Cmd_AddCommand("mcache", Mod_Print);
 }

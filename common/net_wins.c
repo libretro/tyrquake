@@ -113,10 +113,8 @@ WINS_Init(void)
 
     if (!winsock_initialized) {
 	err = WSAStartup(MAKEWORD(1,1), &winsockdata);
-	if (err) {
-	    Con_SafePrintf("Winsock initialization failed.\n");
+	if (err)
 	    return -1;
-	}
     }
     winsock_initialized++;
 

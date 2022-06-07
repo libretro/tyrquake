@@ -278,16 +278,13 @@ int S_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 
 snd_stream_t *S_CodecUtilOpen(const char *filename, snd_codec_t *codec)
 {
-	snd_stream_t *stream;
-	RFILE *handle;
+	snd_stream_t *stream = NULL;
+	RFILE *handle        = NULL;
 	/* Try to open the file */
-	long length  = (long) COM_FOpenFile(filename, &handle);
-	qboolean pak = file_from_pak;
+	long length          = (long) COM_FOpenFile(filename, &handle);
+	qboolean pak         = file_from_pak;
 	if (length == -1)
-	{
-		Con_DPrintf("Couldn't open %s\n", filename);
 		return NULL;
-	}
 
 	/* Allocate a stream, Z_Malloc zeroes its content */
 	stream            = (snd_stream_t *) Z_Malloc(sizeof(snd_stream_t));

@@ -271,14 +271,8 @@ Datagram_GetMessage(qsocket_t *sock)
 	    return -1;
 	}
 
-	if (NET_AddrCompare(&readaddr, &sock->addr) != 0) {
-#ifdef DEBUG
-	    Con_DPrintf("Forged packet received\n");
-	    Con_DPrintf("Expected: %s\n", StrAddr(&sock->addr));
-	    Con_DPrintf("Received: %s\n", StrAddr(&readaddr));
-#endif
+	if (NET_AddrCompare(&readaddr, &sock->addr) != 0)
 	    continue;
-	}
 
 	if (length < NET_HEADERSIZE) {
 	    shortPacketCount++;
@@ -297,14 +291,12 @@ Datagram_GetMessage(qsocket_t *sock)
 
 	if (flags & NETFLAG_UNRELIABLE) {
 	    if (sequence < sock->unreliableReceiveSequence) {
-		Con_DPrintf("Got a stale datagram\n");
 		ret = 0;
 		break;
 	    }
 	    if (sequence != sock->unreliableReceiveSequence) {
 		count = sequence - sock->unreliableReceiveSequence;
 		droppedDatagrams += count;
-		Con_DPrintf("Dropped %u datagram(s)\n", count);
 	    }
 	    sock->unreliableReceiveSequence = sequence + 1;
 
@@ -318,18 +310,12 @@ Datagram_GetMessage(qsocket_t *sock)
 	}
 
 	if (flags & NETFLAG_ACK) {
-	    if (sequence != (sock->sendSequence - 1)) {
-		Con_DPrintf("Stale ACK received\n");
+	    if (sequence != (sock->sendSequence - 1))
 		continue;
-	    }
-	    if (sequence == sock->ackSequence) {
+	    if (sequence == sock->ackSequence)
 		sock->ackSequence++;
-		if (sock->ackSequence != sock->sendSequence)
-		    Con_DPrintf("ack sequencing error\n");
-	    } else {
-		Con_DPrintf("Duplicate ACK received\n");
+	    else
 		continue;
-	    }
 	    sock->sendMessageLength -= sock->mtu;
 	    if (sock->sendMessageLength > 0) {
 		memmove(sock->sendMessage, sock->sendMessage + sock->mtu,

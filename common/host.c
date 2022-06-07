@@ -83,9 +83,6 @@ static jmp_buf host_abort;
 byte *host_basepal;
 byte *host_colormap;
 
-cvar_t host_framerate = { "host_framerate", "0" };	// set for slow motion
-cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
-
 cvar_t serverprofile = { "serverprofile", "0" };
 
 cvar_t fraglimit = { "fraglimit", "0", false, true };
@@ -94,8 +91,6 @@ cvar_t teamplay = { "teamplay", "0", false, true };
 
 cvar_t samelevel = { "samelevel", "0" };
 cvar_t noexit = { "noexit", "0", false, true };
-
-cvar_t developer = { "developer", "0" };
 
 cvar_t skill = { "skill", "1" };	// 0 - 3
 cvar_t deathmatch = { "deathmatch", "0" };	// 0, 1, or 2
@@ -120,7 +115,6 @@ Host_EndGame(const char *message, ...)
     va_start(argptr, message);
     vsnprintf(string, sizeof(string), message, argptr);
     va_end(argptr);
-    Con_DPrintf("%s: %s\n", __func__, string);
 
     if (sv.active)
 	Host_ShutdownServer(false);
@@ -233,9 +227,6 @@ Host_InitLocal(void)
 {
     Host_InitCommands();
 
-    Cvar_RegisterVariable(&host_framerate);
-    Cvar_RegisterVariable(&host_speeds);
-
     Cvar_RegisterVariable(&serverprofile);
 
     Cvar_RegisterVariable(&fraglimit);
@@ -250,10 +241,6 @@ Host_InitLocal(void)
     Cvar_RegisterVariable(&pausable);
 
     Cvar_RegisterVariable(&temp1);
-
-    Cvar_RegisterVariable(&developer);
-    if (COM_CheckParm("-developer"))
-	Cvar_SetValue("developer", 1);
 
     Host_FindMaxClients();
 
@@ -434,11 +421,11 @@ Host_ShutdownServer(qboolean crash)
 
     sv.active = false;
 
-// stop all client sounds immediately
+    // stop all client sounds immediately
     if (cls.state >= ca_connected)
 	CL_Disconnect();
 
-// flush any pending messages - like the score!!!
+    // flush any pending messages - like the score!!!
     start = Sys_DoubleTime();
     do {
 	count = 0;
@@ -459,8 +446,8 @@ Host_ShutdownServer(qboolean crash)
 	    break;
     } while (count);
 
-// make sure all the clients know we're disconnecting
-    buf.data = message;
+    // make sure all the clients know we're disconnecting
+    buf.data    = message;
     buf.maxsize = 4;
     buf.cursize = 0;
     MSG_WriteByte(&buf, svc_disconnect);
@@ -493,7 +480,6 @@ not reinitialize anything.
 void
 Host_ClearMemory(void)
 {
-    Con_DPrintf("Clearing memory\n");
     D_FlushCaches();
     Mod_ClearAll();
     if (host_hunklevel)
@@ -520,17 +506,10 @@ Host_FilterTime(float time)
 {
     realtime += time;
 
-    /* allow high framerate, warn about it in core options
-    if (!cls.timedemo && realtime - oldrealtime < 1.0 / 72.0)
-	return false;		// framerate is too high
-    */
-
     host_frametime = realtime - oldrealtime;
     oldrealtime = realtime;
 
-    if (host_framerate.value > 0)
-	host_frametime = host_framerate.value;
-    else {			// don't allow really long or short frames
+    { // don't allow really long or short frames
 	if (host_frametime > 0.1)
 	    host_frametime = 0.1;
 	if (host_frametime < 0.001)
@@ -539,28 +518,6 @@ Host_FilterTime(float time)
 
     return true;
 }
-
-
-/*
-===================
-Host_GetConsoleCommands
-
-Add them exactly as if they had been typed at the console
-===================
-*/
-void
-Host_GetConsoleCommands(void)
-{
-    char *cmd;
-
-    while (1) {
-	cmd = Sys_ConsoleInput();
-	if (!cmd)
-	    break;
-	Cbuf_AddText("%s", cmd);
-    }
-}
-
 
 /*
 ==================
@@ -690,9 +647,6 @@ _Host_Frame(float time)
    // server operations
    //
    //-------------------
-
-   /* check for commands typed to the host */
-   Host_GetConsoleCommands();
 
    if (sv.active)
       Host_ServerFrame();
@@ -824,7 +778,7 @@ Host_Init(quakeparms_t *parms)
 
 	S_Init();
 	CDAudio_Init();
-    BGM_Init();
+	BGM_Init();
 
 	Sbar_Init();
 	CL_Init();

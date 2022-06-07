@@ -414,9 +414,6 @@ PR_ExecuteProgram(func_t fnum)
 
 	if (!--runaway)
 	    PR_RunError("runaway loop error");
-	if (runaway <= 50000 && !(runaway % 5000))
-	    Con_DPrintf("%s: progs execution running away (%i left)\n",
-			__func__, runaway);
 
 	pr_xfunction->profile++;
 	pr_xstatement = s;
@@ -579,9 +576,6 @@ PR_ExecuteProgram(func_t fnum)
 
 	case OP_ADDRESS:
 	    ed = PROG_TO_EDICT(a->edict);
-#ifdef PARANOID
-	    NUM_FOR_EDICT(ed);	// make sure it's in range
-#endif
 	    if (ed == (edict_t *)sv.edicts && sv.state == ss_active)
 		PR_RunError("assignment to world entity");
 	    c->_int = (byte *)((int *)&ed->v + b->_int) - (byte *)sv.edicts;
@@ -593,18 +587,12 @@ PR_ExecuteProgram(func_t fnum)
 	case OP_LOAD_S:
 	case OP_LOAD_FNC:
 	    ed = PROG_TO_EDICT(a->edict);
-#ifdef PARANOID
-	    NUM_FOR_EDICT(ed);	// make sure it's in range
-#endif
 	    a = (eval_t *)((int *)&ed->v + b->_int);
 	    c->_int = a->_int;
 	    break;
 
 	case OP_LOAD_V:
 	    ed = PROG_TO_EDICT(a->edict);
-#ifdef PARANOID
-	    NUM_FOR_EDICT(ed);	// make sure it's in range
-#endif
 	    a = (eval_t *)((int *)&ed->v + b->_int);
 	    c->vector[0] = a->vector[0];
 	    c->vector[1] = a->vector[1];

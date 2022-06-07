@@ -1025,8 +1025,6 @@ ED_LoadFromFile(const char *data)
 	SV_FlushSignon();
 #endif
     }
-
-    Con_DPrintf("%i entities inhibited\n", inhibit);
 }
 
 
@@ -1058,7 +1056,6 @@ PR_LoadProgs(void)
 #endif
    if (!progs)
       SV_Error("%s: couldn't load progs.dat", __func__);
-   Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
 #ifdef NQ_HACK
    pr_crc = CRC_Block((byte *)progs, com_filesize);

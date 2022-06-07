@@ -668,8 +668,6 @@ static void make_hull_windings(hull_t *hull)
 {
    struct list_node head = LIST_HEAD_INIT(head);
 
-   Con_DPrintf("%i clipnodes...\n", hull->lastclipnode - hull->firstclipnode);
-
    /*
     * FIXME(s):
     * - Make sure a map is loaded
