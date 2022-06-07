@@ -1287,7 +1287,6 @@ void VID_SetPalette(unsigned char *palette)
 
    for(i = 0, j = 0; i < 256; i++, j += 3)
       *pal++ = MAKECOLOR(palette[j], palette[j+1], palette[j+2]);
-
 }
 
 unsigned 	d_8to24table[256];
@@ -1319,12 +1318,6 @@ void	VID_SetPalette2 (unsigned char *palette)
 	d_8to24table[255] &= 0xffffff;	// 255 is transparent
 	d_8to24table[0] &= 0x000000;	// black is black
 
-}
-
-void VID_ShiftPalette(unsigned char *palette)
-{
-
-   VID_SetPalette(palette);
 }
 
 void VID_Init(unsigned char *palette)
@@ -1392,19 +1385,6 @@ void VID_Update(vrect_t *rects)
    did_flip = true;
 }
 
-qboolean VID_IsFullScreen(void)
-{
-    return true;
-}
-
-void VID_LockBuffer(void)
-{
-}
-
-void VID_UnlockBuffer(void)
-{
-}
-
 void D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
 {
 }
@@ -1414,7 +1394,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
 }
 
 /*
- * SOUND (TODO)
+ * SOUND
  */
 
 static void audio_process(void)
@@ -1559,6 +1539,9 @@ IN_Init(void)
 void
 IN_Shutdown(void)
 {
+   int i;
+   for (i = 0; i < MAX_PADS; i++)
+      quake_devices[i] = RETRO_DEVICE_NONE;
 }
 
 void
@@ -1650,14 +1633,4 @@ IN_Move(usercmd_t *cmd)
       if (cl.viewangles[PITCH] < -70)
          cl.viewangles[PITCH] = -70;
    }
-}
-
-/*
-===========
-IN_ModeChanged
-===========
-*/
-void
-IN_ModeChanged(void)
-{
 }

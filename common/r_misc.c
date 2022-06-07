@@ -130,7 +130,7 @@ WarpPalette(void)
 	}
     }
 
-    VID_ShiftPalette(newpalette);
+    VID_SetPalette(newpalette);
 }
 
 /*

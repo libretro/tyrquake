@@ -560,7 +560,7 @@ void V_UpdatePalette(void)
       newpal += 3;
    }
 
-   VID_ShiftPalette(pal);
+   VID_SetPalette(pal);
 }
 
 /*

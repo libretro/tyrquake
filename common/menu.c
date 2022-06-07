@@ -1164,11 +1164,6 @@ M_OptionsVideo_Draw(void)
     if (vid_menudrawfn)
 	M_Print(16, 48, "         Video Options");
 
-    if (!VID_IsFullScreen()) {
-       M_Print(16, 56, "             Use Mouse");
-       M_DrawCheckbox(220, 56, _windowed_mouse.value);
-    }
-
     cvar = Cvar_FindVar("dither_filter");
     M_Print(16, 64, "      Dither Filtering");
 	M_DrawCheckbox(220, 64, cvar->value);
@@ -1247,7 +1242,7 @@ M_OptionsVideo_Key(int k)
 	else
 	    optionsvideo_cursor = 3;
     }
-    if ((optionsvideo_cursor == 3) && VID_IsFullScreen()) {
+    if ((optionsvideo_cursor == 3)) {
 	if (k == K_UPARROW) {
 	    if (!vid_menudrawfn)
 		optionsvideo_cursor = 1;

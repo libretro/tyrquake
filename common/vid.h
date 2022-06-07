@@ -64,10 +64,6 @@ extern	unsigned 	d_8to24table[256];
 
 void VID_SetPalette(unsigned char *palette);
 
-// called at startup and after any gamma correction
-
-void VID_ShiftPalette(unsigned char *palette);
-
 // called for bonus and pain flashes, and for underwater color changes
 
 extern unsigned short ramps[3][256];
@@ -86,12 +82,5 @@ void VID_Shutdown(void);
 // Called at shutdown
 
 void VID_Update(vrect_t *rects);
-
-// flushes the given rectangles from the view buffer to the screen
-
-void VID_LockBuffer(void);
-void VID_UnlockBuffer(void);
-
-qboolean VID_IsFullScreen(void);
 
 #endif /* VID_H */
