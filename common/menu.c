@@ -456,12 +456,6 @@ M_SinglePlayer_Key(int key)
 
 	switch (m_singleplayer_cursor) {
 	case 0:
-#if 0
-	    if (sv.active)
-		if (!SCR_ModalMessage("Are you sure you want to\n"
-				      "start a new game?\n"))
-		    break;
-#endif
 	    key_dest = key_game;
 	    if (sv.active)
 		Cbuf_AddText("disconnect\n");
@@ -1940,36 +1934,11 @@ M_Menu_Quit_f(void)
 static void
 M_Quit_Key(int key)
 {
-#if 0
-    switch (key) {
-    case K_ESCAPE:
-    case 'n':
-    case 'N':
-	if (wasInMenus) {
-	    m_state = (m_state_enum)m_quit_prevstate;
-	    m_entersound = true;
-	} else {
-	    key_dest = key_game;
-	    m_state = m_none;
-	}
-	break;
-
-    case 'Y':
-    case 'y':
-	key_dest = key_console;
-	Host_Quit_f();
-	break;
-
-    default:
-	break;
-    }
-#else
    extern bool shutdown_core;
 	key_dest = key_console;
 	Host_Quit_f();
    shutdown_core = true;
    environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
-#endif
 }
 
 

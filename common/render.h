@@ -82,12 +82,8 @@ typedef struct entity_s {
     int effects;		// light, particals, etc
 #endif
     int dlightframe;		// dynamic lighting
-    /* qbism - not used here... */
-#if 0
-    int dlightbits;
-#endif
 
-// FIXME: could turn these into a union
+    // FIXME: could turn these into a union
     int trivial_accept;
     struct mnode_s *topnode;	// for bmodels, first world node
 				//  that splits bmodel, or NULL if

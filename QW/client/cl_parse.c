@@ -397,15 +397,8 @@ CL_ParseDownload(void)
     msg_readcount += size;
 
     if (percent != 100) {
-// change display routines by zoid
+        // change display routines by zoid
 	// request next block
-#if 0
-	Con_Printf(".");
-	if (10 * (percent / 10) != cls.downloadpercent) {
-	    cls.downloadpercent = 10 * (percent / 10);
-	    Con_Printf("%i%%", cls.downloadpercent);
-	}
-#endif
 	cls.downloadpercent = percent;
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -413,10 +406,6 @@ CL_ParseDownload(void)
     } else {
 	char oldn[MAX_OSPATH];
 	char newn[MAX_OSPATH];
-
-#if 0
-	Con_Printf("100%%\n");
-#endif
 
 	rfclose(cls.download);
 

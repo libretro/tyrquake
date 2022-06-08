@@ -319,14 +319,6 @@ SV_Map_f(void)
     }
     strcpy(level, Cmd_Argv(1));
 
-#if 0
-    if (!strcmp(level, "e1m8")) {	// QuakeWorld can't go to e1m8
-	SV_BroadcastPrintf(PRINT_HIGH,
-			   "can't go to low grav level in QuakeWorld...\n");
-	strcpy(level, "e1m5");
-    }
-#endif
-
     // check to make sure the level exists
     sprintf(expanded, "maps/%s.bsp", level);
     COM_FOpenFile(expanded, &f);

@@ -114,11 +114,6 @@ extern qboolean r_dowarp;
 extern affinetridesc_t r_affinetridesc;
 extern spritedesc_t r_spritedesc;
 
-extern int d_con_indirect;	// if 0, Quake will draw console directly
-				//  to vid.buffer; if 1, Quake will
-				//  draw console via D_DrawRect. Must be
-				//  defined by driver
-
 extern vec3_t r_pright, r_pup, r_ppn;
 
 

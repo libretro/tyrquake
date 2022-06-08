@@ -2909,11 +2909,6 @@ FLAC__bool seek_to_absolute_sample_(FLAC__StreamDecoder *decoder, FLAC__uint64 s
 		}
 		/* our write callback will change the state when it gets to the target frame */
 		/* actually, we could have got_a_frame if our decoder is at FLAC__STREAM_DECODER_END_OF_STREAM so we need to check for that also */
-#if 0
-		/*@@@@@@ used to be the following; not clear if the check for end of stream is needed anymore */
-		if(decoder->protected_->state != FLAC__SEEKABLE_STREAM_DECODER_SEEKING && decoder->protected_->state != FLAC__STREAM_DECODER_END_OF_STREAM)
-			break;
-#endif
 		if(!decoder->private_->is_seeking)
 			break;
 

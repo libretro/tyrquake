@@ -146,17 +146,6 @@ void InsertLinkBefore(link_t *l, link_t *before)
    l->next->prev = l;
 }
 
-/* Unused */
-#if 0
-void InsertLinkAfter(link_t *l, link_t *after)
-{
-   l->next = after->next;
-   l->prev = after;
-   l->prev->next = l;
-   l->next->prev = l;
-}
-#endif
-
 /*
 ============================================================================
 
