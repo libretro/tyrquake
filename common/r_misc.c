@@ -310,12 +310,5 @@ R_SetupFrame(void)
 
     r_cache_thrash = false;
 
-// clear frame counts
-    c_faceclip = 0;
-    r_polycount = 0;
-    r_drawnpolycount = 0;
-    r_outofsurfaces = 0;
-    r_outofedges = 0;
-
     D_SetupFrame();
 }

@@ -140,9 +140,6 @@ extern void R_EdgeCodeEnd(void);
 
 extern void R_RotateBmodel(const entity_t *e);
 
-extern int c_faceclip;
-extern int r_polycount;
-
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 #define	NEAR_CLIP	0.01
 
@@ -210,9 +207,6 @@ extern int r_bmodelactive;
 
 extern float aliasxscale, aliasyscale, aliasxcenter, aliasycenter;
 extern float r_aliastransition, r_resfudge;
-
-extern int r_outofsurfaces;
-extern int r_outofedges;
 
 extern mvertex_t *r_pcurrentvertbase;
 extern int r_maxvalidedgeoffset;

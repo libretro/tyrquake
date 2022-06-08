@@ -36,8 +36,6 @@ int r_numallocatededges;
 qboolean r_recursiveaffinetriangles = true;
 
 float r_aliasuvscale = 1.0;
-int r_outofsurfaces;
-int r_outofedges;
 
 static vec3_t viewlightvec;
 static alight_t r_viewlighting = { 128, 192, viewlightvec };
@@ -90,8 +88,6 @@ mplane_t screenedge[4];
 //
 int r_framecount = 1;		// so frame counts initialized to 0 don't match
 int r_visframecount;
-int r_polycount;
-int r_drawnpolycount;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
