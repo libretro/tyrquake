@@ -161,9 +161,6 @@ void CL_Disconnect(void)
       CL_StopPlayback();
    else if (cls.state >= ca_connected)
    {
-      if (cls.demorecording)
-         CL_Stop_f();
-
       SZ_Clear(&cls.message);
       MSG_WriteByte(&cls.message, clc_disconnect);
       NET_SendUnreliableMessage(cls.netcon, &cls.message);
@@ -176,7 +173,6 @@ void CL_Disconnect(void)
    }
 
    cls.demoplayback = false;
-   cls.timedemo = false;
    cls.signon = 0;
 }
 
@@ -387,7 +383,7 @@ float CL_LerpPoint(void)
    float frac;
    float f = cl.mtime[0] - cl.mtime[1];
 
-   if (!f || cl_nolerp.value || cls.timedemo || sv.active)
+   if (!f || cl_nolerp.value || sv.active)
    {
       cl.time = cl.mtime[0];
       return 1;
@@ -730,10 +726,6 @@ void CL_Init(void)
    Cvar_RegisterVariable(&m_side);
 
    Cmd_AddCommand("disconnect", CL_Disconnect_f);
-   Cmd_AddCommand("record", CL_Record_f);
-   Cmd_AddCommand("stop", CL_Stop_f);
    Cmd_AddCommand("playdemo", CL_PlayDemo_f);
    Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
-   Cmd_AddCommand("timedemo", CL_TimeDemo_f);
-   Cmd_SetCompletion("timedemo", CL_Demo_Arg_f);
 }

@@ -1082,7 +1082,7 @@ CL_ParseServerMessage(void)
          case svc_cdtrack:
             cl.cdtrack = MSG_ReadByte();
             cl.looptrack = MSG_ReadByte();
-            if ((cls.demoplayback || cls.demorecording)
+            if ((cls.demoplayback)
                   && (cls.forcetrack != -1))
                BGM_PlayCDtrack ((byte)cls.forcetrack, true);
 			else

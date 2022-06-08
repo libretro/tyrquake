@@ -114,7 +114,6 @@ typedef struct {
 
 // demo recording info must be here, because record is started before
 // entering a map (and clearing client_state_t)
-    qboolean demorecording;
     qboolean demoplayback;
     qboolean timedemo;
     int forcetrack;		// -1 = use normal cd track
@@ -339,10 +338,6 @@ void CL_BaseMove(usercmd_t *cmd);
 void CL_StopPlayback(void);
 int CL_GetMessage(void);
 
-void CL_Stop_f(void);
-void CL_Record_f(void);
-
-void CL_TimeDemo_f(void);
 void CL_PlayDemo_f(void);
 struct stree_root *CL_Demo_Arg_f(const char *arg);
 
