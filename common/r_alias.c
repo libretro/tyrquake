@@ -848,8 +848,7 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
    if (!e->colormap)
       Sys_Error("%s: !e->colormap", __func__);
 
-   r_affinetridesc.drawtype = (e->trivial_accept == 3) &&
-      r_recursiveaffinetriangles;
+   r_affinetridesc.drawtype = (e->trivial_accept == 3);
 
    if (r_affinetridesc.drawtype)
       D_PolysetUpdateTables();	// FIXME: precalc...

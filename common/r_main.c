@@ -33,8 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 void *colormap;
 int r_numallocatededges;
 
-qboolean r_recursiveaffinetriangles = true;
-
 float r_aliasuvscale = 1.0;
 
 static vec3_t viewlightvec;

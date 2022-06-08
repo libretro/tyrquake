@@ -53,7 +53,6 @@ D_Init(void)
     Cvar_RegisterVariable(&d_mipscale);
     Cvar_RegisterVariable(&dither_filter);
 
-    r_recursiveaffinetriangles = true;
     r_aliasuvscale = 1.0;
 }
 
