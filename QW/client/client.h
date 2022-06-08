@@ -385,7 +385,6 @@ void CL_BeginServerConnect(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern int fps_count;
 extern int minimum_memory;
 
 //

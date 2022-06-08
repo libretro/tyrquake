@@ -33,7 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - header hacks
 extern int net_socket;
 
-static cvar_t sys_nostdout = { "sys_nostdout", "0" };
 static cvar_t sys_extrasleep = { "sys_extrasleep", "0" };
 
 static qboolean stdin_ready;
@@ -131,23 +130,10 @@ Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
     static char text[MAX_PRINTMSG];
-    unsigned char *p;
 
     va_start(argptr, fmt);
     vsnprintf(text, sizeof(text), fmt, argptr);
     va_end(argptr);
-
-    if (sys_nostdout.value)
-	return;
-
-    for (p = (unsigned char *)text; *p; p++) {
-	*p &= 0x7f;
-	if ((*p > 128 || *p < 32) && *p != 10 && *p != 13 && *p != 9)
-	    printf("[%02x]", *p);
-	else
-	    putc(*p, stdout);
-    }
-    fflush(stdout);
 }
 
 
@@ -175,7 +161,6 @@ is marked
 void
 Sys_Init(void)
 {
-    Cvar_RegisterVariable(&sys_nostdout);
     Cvar_RegisterVariable(&sys_extrasleep);
 }
 

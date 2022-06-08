@@ -51,7 +51,6 @@ static void S_StopAllSoundsC(void);
 channel_t channels[MAX_CHANNELS];
 int total_channels;
 
-int snd_blocked = 0;
 static qboolean snd_ambient = 1;
 
 #define CHANNELS 2
@@ -136,15 +135,12 @@ S_Init(void)
 
     S_Startup();
 
-	Cvar_SetCallback(&sfxvolume, SND_Callback_sfxvolume);
+    Cvar_SetCallback(&sfxvolume, SND_Callback_sfxvolume);
 
     SND_InitScaletable();
 
     known_sfx = (sfx_t*)Hunk_AllocName(MAX_SFX * sizeof(sfx_t), "sfx_t");
     num_sfx   = 0;
-
-    if (sound_started)
-	Con_Printf("Sound sampling rate: %i\n", shm->speed);
 
     ambient_sfx[AMBIENT_WATER] = S_PrecacheSound("ambience/water1.wav");
     ambient_sfx[AMBIENT_SKY]   = S_PrecacheSound("ambience/wind2.wav");
@@ -166,8 +162,6 @@ S_Shutdown(void)
 
    shm = 0;
    sound_started = 0;
-
-   SNDDMA_Shutdown();
 }
 
 /*
@@ -452,7 +446,7 @@ void S_ClearBuffer(void)
    if (!sound_started || !shm)
       return;
 
-   memset(shm->buffer, 0, shm->samples * 16 / 8);
+   memset(shm->buffer, 0, SHM_SAMPLES * 16 / 8);
 }
 
 /*
@@ -515,8 +509,6 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 				break;
 			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
 			s_rawend++;
-		//	s_rawsamples [dst].left = ((signed char *) data)[src * 2] * intVolume;
-		//	s_rawsamples [dst].right = ((signed char *) data)[src * 2 + 1] * intVolume;
 			s_rawsamples [dst].left = (((byte *) data)[src * 2] - 128) * intVolume;
 			s_rawsamples [dst].right = (((byte *) data)[src * 2 + 1] - 128) * intVolume;
 		}
@@ -532,8 +524,6 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 				break;
 			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
 			s_rawend++;
-		//	s_rawsamples [dst].left = ((signed char *) data)[src] * intVolume;
-		//	s_rawsamples [dst].right = ((signed char *) data)[src] * intVolume;
 			s_rawsamples [dst].left = (((byte *) data)[src] - 128) * intVolume;
 			s_rawsamples [dst].right = (((byte *) data)[src] - 128) * intVolume;
 		}
@@ -592,9 +582,6 @@ S_UpdateAmbientSounds(void)
    mleaf_t *leaf;
    int ambient_channel;
 
-   if (!snd_ambient)
-      return;
-
    /* calc ambient sound levels */
    if (!cl.worldmodel)
       return;
@@ -639,7 +626,7 @@ static void GetSoundtime(void)
 {
    static int buffers;
    static int oldsamplepos;
-   int fullsamples = shm->samples / CHANNELS;
+   int fullsamples = SHM_SAMPLES / CHANNELS;
 
    /*
     * it is possible to miscount buffers if it has wrapped twice between
@@ -670,9 +657,6 @@ static void S_Update_(void)
    unsigned endtime;
    int samps;
 
-   if (!sound_started || (snd_blocked > 0))
-      return;
-
    /* Updates DMA time */
    GetSoundtime();
 
@@ -682,12 +666,11 @@ static void S_Update_(void)
       paintedtime = soundtime;
    /* mix ahead of current position */
    endtime = soundtime + _snd_mixahead.value * shm->speed;
-   samps   = shm->samples >> 1;
+   samps   = SHM_SAMPLES >> 1;
    if (endtime - soundtime > samps)
       endtime = soundtime + samps;
 
    S_PaintChannels(endtime);
-   SNDDMA_Submit();
 }
 
 /*
@@ -703,7 +686,7 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
    channel_t *ch;
    channel_t *combine;
 
-   if (!sound_started || (snd_blocked > 0))
+   if (!sound_started)
       return;
 
    VectorCopy(origin, listener_origin);
@@ -712,7 +695,8 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
    VectorCopy(up, listener_up);
 
    /* update general area ambient sound sources */
-   S_UpdateAmbientSounds();
+   if (snd_ambient)
+      S_UpdateAmbientSounds();
 
    combine = NULL;
 
@@ -760,8 +744,6 @@ void S_Update(vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
    /* mix some sound */
    S_Update_();
 }
-
-
 
 /*
 ===============================================================================

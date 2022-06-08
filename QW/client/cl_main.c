@@ -148,8 +148,6 @@ byte *host_colormap;
 
 netadr_t master_adr;		// address of the master server
 
-int fps_count;
-
 static jmp_buf host_abort;
 static float server_version = 0;// version of server we connected to
 
@@ -1282,9 +1280,6 @@ Host_Frame(float time)
     // get new key events
     Sys_SendKeyEvents();
 
-    /* allow mice or other external controllers to add commands */
-    IN_Commands();
-
     /* process console commands */
     Cbuf_Execute();
 
@@ -1324,7 +1319,6 @@ Host_Frame(float time)
     CDAudio_Update();
 
     host_framecount++;
-    fps_count++;
 }
 
 //============================================================================

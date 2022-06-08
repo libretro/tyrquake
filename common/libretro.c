@@ -113,13 +113,6 @@ static bool libretro_supports_bitmasks = false;
 #define AUDIO_SAMPLERATE_48KHZ 48000
 static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
-/* Audio buffer must be sufficient for operation
- * at 10 fps
- * > (2 * 44100) / 10 = 8820 total samples
- * > buffer size must be a power of 2
- * > Nearest power of 2 to 8820 is 16384 */
-#define AUDIO_BUFFER_SIZE 16384
-
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
 
@@ -452,10 +445,6 @@ double Sys_DoubleTime(void)
 // =======================================================================
 // Sleeps for microseconds
 // =======================================================================
-
-void
-IN_Accumulate(void)
-{}
 
 void Sys_HighFPPrecision(void)
 {
@@ -1470,8 +1459,6 @@ qboolean SNDDMA_Init(dma_t *dma)
 {
    shm            = dma;
    shm->speed     = audio_samplerate;
-   shm->samplepos = 0;
-   shm->samples   = AUDIO_BUFFER_SIZE;
    shm->buffer    = (unsigned char *volatile)audio_buffer;
 
    return true;
@@ -1479,24 +1466,7 @@ qboolean SNDDMA_Init(dma_t *dma)
 
 int SNDDMA_GetDMAPos(void)
 {
-   return shm->samplepos = audio_buffer_ptr;
-}
-
-int SNDDMA_LockBuffer(void)
-{
-   return 0;
-}
-
-void SNDDMA_UnlockBuffer(void)
-{
-}
-
-void SNDDMA_Shutdown(void)
-{
-}
-
-void SNDDMA_Submit(void)
-{
+   return audio_buffer_ptr;
 }
 
 /*
@@ -1539,11 +1509,6 @@ IN_Shutdown(void)
    int i;
    for (i = 0; i < MAX_PADS; i++)
       quake_devices[i] = RETRO_DEVICE_NONE;
-}
-
-void
-IN_Commands(void)
-{
 }
 
 void

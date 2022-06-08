@@ -67,7 +67,6 @@ qboolean host_initialized;	// true if into command execution
 double host_frametime;
 double host_time;
 double realtime;		// without any filtering or bounding
-static double oldrealtime;	// last frame run
 int host_framecount;
 
 int host_hunklevel;
@@ -75,8 +74,6 @@ int host_hunklevel;
 int minimum_memory;
 
 client_t *host_client;		// current client
-
-int fps_count;
 
 static jmp_buf host_abort;
 
@@ -497,17 +494,15 @@ Host_ClearMemory(void)
 /*
 ===================
 Host_FilterTime
-
-Returns false if the time is too short to run a frame
 ===================
 */
-qboolean
-Host_FilterTime(float time)
+static void Host_FilterTime(float time)
 {
-    realtime += time;
+    static double oldrealtime;	// last frame run
+    realtime      += time;
 
     host_frametime = realtime - oldrealtime;
-    oldrealtime = realtime;
+    oldrealtime    = realtime;
 
     { // don't allow really long or short frames
 	if (host_frametime > 0.1)
@@ -515,8 +510,6 @@ Host_FilterTime(float time)
 	if (host_frametime < 0.001)
 	    host_frametime = 0.001;
     }
-
-    return true;
 }
 
 /*
@@ -610,13 +603,8 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void
-_Host_Frame(float time)
+static void _Host_Frame(float time)
 {
-   /* something bad happened, or the server disconnected */
-   if (setjmp(host_abort))
-      return;
-
    /* keep the random time dependent */
    rand();
 
@@ -624,14 +612,10 @@ _Host_Frame(float time)
     * Decide the simulation time. Don't run too fast, or packets will flood
     * out.
     */
-   if (!Host_FilterTime(time))
-      return;
+   Host_FilterTime(time);
 
    /* get new key events */
    Sys_SendKeyEvents();
-
-   /* allow mice or other external controllers to add commands */
-   IN_Commands();
 
    /* process console commands */
    Cbuf_Execute();
@@ -674,7 +658,6 @@ _Host_Frame(float time)
    CL_RunParticles();
 
    host_framecount++;
-   fps_count++;
 }
 
 void
@@ -683,13 +666,12 @@ Host_Frame(float time)
    static int timecount;
    int i, c;
 
-   if (!serverprofile.value)
-   {
+   /* If setjmp returns true, something bad happened, or the server disconnected */
+   if (!setjmp(host_abort))
       _Host_Frame(time);
-      return;
-   }
 
-   _Host_Frame(time);
+   if (!serverprofile.value)
+      return;
 
    timecount++;
 

@@ -307,8 +307,6 @@ void CL_NextDemo(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern int fps_count;
-
 //
 // cl_input
 //
