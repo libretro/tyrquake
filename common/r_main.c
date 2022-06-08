@@ -99,8 +99,6 @@ cvar_t r_draworder = { "r_draworder", "0" };
 cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
-cvar_t r_drawentities = { "r_drawentities", "1" };
-cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
 cvar_t r_ambient = { "r_ambient", "0" };
 cvar_t r_numsurfs = { "r_numsurfs", "0" };
 cvar_t r_numedges = { "r_numedges", "0" };
@@ -190,8 +188,6 @@ R_Init(void)
     Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
-    Cvar_RegisterVariable(&r_drawentities);
-    Cvar_RegisterVariable(&r_drawviewmodel);
     Cvar_RegisterVariable(&r_ambient);
     Cvar_RegisterVariable(&r_numsurfs);
     Cvar_RegisterVariable(&r_numedges);
@@ -688,9 +684,6 @@ R_DrawEntitiesOnList(void)
     vec3_t dist;
     float add;
 
-    if (!r_drawentities.value)
-	return;
-
     for (i = 0; i < cl_numvisedicts; i++) {
 	e = &cl_visedicts[i];
 #ifdef NQ_HACK
@@ -780,11 +773,11 @@ R_DrawViewModel(void)
     dlight_t *dl;
 
 #ifdef NQ_HACK
-    if (!r_drawviewmodel.value || chase_active.value)
+    if (chase_active.value)
 	return;
 #endif
 #ifdef QW_HACK
-    if (!r_drawviewmodel.value || !Cam_DrawViewModel())
+    if (!Cam_DrawViewModel())
 	return;
 #endif
 
@@ -890,9 +883,6 @@ static void R_DrawBEntitiesOnList(void)
     vec3_t oldorigin;
     model_t *model;
     vec3_t mins, maxs;
-
-    if (!r_drawentities.value)
-	return;
 
     VectorCopy(modelorg, oldorigin);
     insubmodel = true;

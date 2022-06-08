@@ -116,8 +116,6 @@ D_SetupFrame(void)
    for (i = 0; i < (NUM_MIPS - 1); i++)
       d_scalemip[i] = basemip[i] * d_mipscale.value;
 
-   D_DrawSpans = D_DrawSpans8;
-
    if (cvar && cvar->value == 1.0f)
       D_DrawSpans = D_DrawSpans16QbDither;
    else
