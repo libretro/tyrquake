@@ -199,27 +199,6 @@ ED_Free(edict_t *ed)
     ed->freetime = sv.time;
 }
 
-//===========================================================================
-
-/*
-============
-ED_GlobalAtOfs
-============
-*/
-static ddef_t *
-ED_GlobalAtOfs(int ofs)
-{
-    ddef_t *def;
-    int i;
-
-    for (i = 0; i < progs->numglobaldefs; i++) {
-	def = &pr_globaldefs[i];
-	if (def->ofs == ofs)
-	    return def;
-    }
-    return NULL;
-}
-
 /*
 ============
 ED_FieldAtOfs
@@ -329,59 +308,6 @@ GetEdictFieldValue(edict_t *ed, const char *field)
 
 /*
 ============
-PR_ValueString
-
-Returns a string describing *data in a type specific manner
-=============
-*/
-static char *
-PR_ValueString(etype_t type, eval_t *val)
-{
-    static char line[128];
-    ddef_t *def;
-    dfunction_t *f;
-
-    type &= ~DEF_SAVEGLOBAL;
-
-    switch (type) {
-    case ev_string:
-	snprintf(line, sizeof(line), "%s", PR_GetString(val->string));
-	break;
-    case ev_entity:
-	snprintf(line, sizeof(line), "entity %i",
-		 NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
-	break;
-    case ev_function:
-	f = pr_functions + val->function;
-	snprintf(line, sizeof(line), "%s()", PR_GetString(f->s_name));
-	break;
-    case ev_field:
-	def = ED_FieldAtOfs(val->_int);
-	snprintf(line, sizeof(line), ".%s", PR_GetString(def->s_name));
-	break;
-    case ev_void:
-	snprintf(line, sizeof(line), "void");
-	break;
-    case ev_float:
-	snprintf(line, sizeof(line), "%5.1f", val->_float);
-	break;
-    case ev_vector:
-	snprintf(line, sizeof(line), "'%5.1f %5.1f %5.1f'",
-		 val->vector[0], val->vector[1], val->vector[2]);
-	break;
-    case ev_pointer:
-	snprintf(line, sizeof(line), "pointer");
-	break;
-    default:
-	snprintf(line, sizeof(line), "bad type %i", type);
-	break;
-    }
-
-    return line;
-}
-
-/*
-============
 PR_UglyValueString
 
 Returns a string describing *data in a type specific manner
@@ -432,105 +358,6 @@ PR_UglyValueString(etype_t type, eval_t *val)
 }
 
 /*
-============
-PR_GlobalString
-
-Returns a string with a description and the contents of a global,
-padded to 20 field width
-============
-*/
-char *PR_GlobalString(int ofs)
-{
-   static char line[128];
-   char *s;
-   int i;
-   void *val = (void *)&pr_globals[ofs];
-   ddef_t *def = ED_GlobalAtOfs(ofs);
-
-   if (!def)
-      snprintf(line, sizeof(line), "%i(???"")", ofs);
-   else
-   {
-      s = (char*)PR_ValueString((etype_t)def->type, (eval_t*)val);
-      snprintf(line, sizeof(line), "%i(%s)%s", ofs,
-            PR_GetString(def->s_name), s);
-   }
-
-   for (i = strlen(line); i < 20; i++)
-      strcat(line, " ");
-   strcat(line, " ");
-
-   return line;
-}
-
-char *PR_GlobalStringNoContents(int ofs)
-{
-   static char line[128];
-   int i;
-   ddef_t *def = ED_GlobalAtOfs(ofs);
-   if (!def)
-      snprintf(line, sizeof(line), "%i(???"")", ofs);
-   else
-      snprintf(line, sizeof(line), "%i(%s)", ofs, PR_GetString(def->s_name));
-
-   i = strlen(line);
-   for (; i < 20; i++)
-      strcat(line, " ");
-   strcat(line, " ");
-
-   return line;
-}
-
-
-/*
-=============
-ED_Print
-
-For debugging
-=============
-*/
-void ED_Print(edict_t *ed)
-{
-   int i;
-
-   if (ed->free)
-   {
-      Con_Printf("FREE\n");
-      return;
-   }
-
-   Con_Printf("\nEDICT %i:\n", NUM_FOR_EDICT(ed));
-   for (i = 1; i < progs->numfielddefs; i++)
-   {
-      int *v;
-      int type, j, l;
-      ddef_t        *d = &pr_fielddefs[i];
-      const char *name = PR_GetString(d->s_name);
-
-      if (name[strlen(name) - 2] == '_')
-         continue;		// skip _x, _y, _z vars
-
-      v = (int *)((char *)&ed->v + d->ofs * 4);
-
-      // if the value is still all 0, skip the field
-      type = d->type & ~DEF_SAVEGLOBAL;
-
-      for (j = 0; j < type_size[type]; j++)
-         if (v[j])
-            break;
-      if (j == type_size[type])
-         continue;
-
-      Con_Printf("%s", name);
-      l = strlen(name);
-      while (l++ < 15)
-         Con_Printf(" ");
-
-      Con_Printf("%s\n", PR_ValueString((etype_t)d->type, (eval_t *)v));
-   }
-}
-
-/*
 =============
 ED_Write
 
@@ -574,79 +401,6 @@ void ED_Write(RFILE *f, edict_t *ed)
    }
 
    rfprintf(f, "}\n");
-}
-
-void ED_PrintNum(int ent)
-{
-   ED_Print(EDICT_NUM(ent));
-}
-
-/*
-=============
-ED_PrintEdicts
-
-For debugging, prints all the entities in the current server
-=============
-*/
-void
-ED_PrintEdicts(void)
-{
-   int i;
-
-   Con_Printf("%i entities\n", sv.num_edicts);
-   for (i = 0; i < sv.num_edicts; i++)
-      ED_PrintNum(i);
-}
-
-/*
-=============
-ED_PrintEdict_f
-
-For debugging, prints a single edicy
-=============
-*/
-static void ED_PrintEdict_f(void)
-{
-   int i = Q_atoi(Cmd_Argv(1));
-   if (i >= 0 && i < sv.num_edicts)
-      ED_PrintNum(i);
-   else
-      Con_Printf("Bad edict number\n");
-}
-
-/*
-=============
-ED_Count
-
-For debugging
-=============
-*/
-static void ED_Count(void)
-{
-   int i;
-   int models, solid, step;
-   int active = models = solid = step = 0;
-
-   for (i = 0; i < sv.num_edicts; i++)
-   {
-      edict_t *ent = EDICT_NUM(i);
-      if (ent->free)
-         continue;
-      active++;
-      if (ent->v.solid)
-         solid++;
-      if (ent->v.model)
-         models++;
-      if (ent->v.movetype == MOVETYPE_STEP)
-         step++;
-   }
-
-   Con_Printf("num_edicts:%3i\n", sv.num_edicts);
-   Con_Printf("active    :%3i\n", active);
-   Con_Printf("view      :%3i\n", models);
-   Con_Printf("touch     :%3i\n", solid);
-   Con_Printf("step      :%3i\n", step);
-
 }
 
 /*
@@ -1005,7 +759,6 @@ ED_LoadFromFile(const char *data)
 //
 	if (!ent->v.classname) {
 	    Con_Printf("No classname for:\n");
-	    ED_Print(ent);
 	    ED_Free(ent);
 	    continue;
 	}
@@ -1014,7 +767,6 @@ ED_LoadFromFile(const char *data)
 
 	if (!func) {
 	    Con_Printf("No spawn function for:\n");
-	    ED_Print(ent);
 	    ED_Free(ent);
 	    continue;
 	}
@@ -1172,10 +924,6 @@ PR_Init
 void
 PR_Init(void)
 {
-    Cmd_AddCommand("edict", ED_PrintEdict_f);
-    Cmd_AddCommand("edicts", ED_PrintEdicts);
-    Cmd_AddCommand("edictcount", ED_Count);
-    Cmd_AddCommand("profile", PR_Profile_f);
 #ifdef NQ_HACK
     Cvar_RegisterVariable(&nomonsters);
     Cvar_RegisterVariable(&gamecfg);

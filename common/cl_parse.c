@@ -44,7 +44,7 @@ CL_EntityNum
 This error checks and tracks the total number of entities
 ===============
 */
-entity_t *
+static entity_t *
 CL_EntityNum(int num)
 {
     if (num >= cl.num_entities) {

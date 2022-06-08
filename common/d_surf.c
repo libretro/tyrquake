@@ -60,10 +60,8 @@ int D_SurfaceCacheForRes(int width, int height)
 
 void D_CheckCacheGuard(void)
 {
-   byte *s;
    int i;
-
-   s = (byte *)sc_base + sc_size;
+   byte *s = (byte *)sc_base + sc_size;
    for (i = 0; i < GUARDSIZE; i++)
       if (s[i] != (byte)i)
          Sys_Error("%s: failed", __func__);
@@ -71,10 +69,8 @@ void D_CheckCacheGuard(void)
 
 void D_ClearCacheGuard(void)
 {
-   byte *s;
    int i;
-
-   s = (byte *)sc_base + sc_size;
+   byte *s = (byte *)sc_base + sc_size;
    for (i = 0; i < GUARDSIZE; i++)
       s[i] = (byte)i;
 }
@@ -187,10 +183,6 @@ D_SCAlloc(int width, int size)
       sc_rover = new_surf->next;
 
    new_surf->width = width;
-   // DEBUG
-   if (width > 0)
-      new_surf->height = (size - sizeof(*new_surf) + sizeof(new_surf->data)) / width;
-
    new_surf->owner = NULL;		// should be set properly after return
 
    if (d_roverwrapped) {
@@ -204,36 +196,6 @@ D_SCAlloc(int width, int size)
    return new_surf;
 }
 
-
-//=============================================================================
-
-/* if the num is not a power of 2, assume it will not repeat */
-
-int
-MaskForNum(int num)
-{
-   if (num == 128)
-      return 127;
-   if (num == 64)
-      return 63;
-   if (num == 32)
-      return 31;
-   if (num == 16)
-      return 15;
-   return 255;
-}
-
-int
-D_log2(int num)
-{
-   int c;
-
-   c = 0;
-
-   while (num >>= 1)
-      c++;
-   return c;
-}
 
 //=============================================================================
 

@@ -1027,12 +1027,6 @@ R_RenderView_(void)
     R_MarkSurfaces();		// done here so we know if we're in water
     R_CullSurfaces(r_worldentity.model, r_refdef.vieworg);
 
-    // make FDIV fast. This reduces timing precision after we've been running
-    // for a while, so we don't do it globally.  This also sets chop mode, and
-    // we do it here so that setup stuff like the refresh area calculations
-    // match what's done in screen.c
-    Sys_LowFPPrecision();
-
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
@@ -1048,9 +1042,6 @@ R_RenderView_(void)
 	D_WarpScreen();
 
     V_SetContentsColor(r_viewleaf->contents);
-
-    // back to high floating-point precision
-    Sys_HighFPPrecision();
 }
 
 void

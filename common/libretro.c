@@ -446,14 +446,6 @@ double Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-void Sys_HighFPPrecision(void)
-{
-}
-
-void Sys_LowFPPrecision(void)
-{
-}
-
 viddef_t vid;			// global video state
 
 void retro_init(void)

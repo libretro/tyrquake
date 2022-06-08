@@ -46,7 +46,6 @@ int pr_depth;
 int localstack[LOCALSTACK_SIZE];
 int localstack_used;
 
-qboolean pr_trace;
 dfunction_t *pr_xfunction;
 int pr_xstatement;
 int pr_argc;
@@ -139,115 +138,6 @@ const char *pr_opnames[] = {
     "BITOR"
 };
 
-char *PR_GlobalString(int ofs);
-char *PR_GlobalStringNoContents(int ofs);
-
-
-//=============================================================================
-
-/*
-=================
-PR_PrintStatement
-=================
-*/
-void
-PR_PrintStatement(dstatement_t *s)
-{
-    int i;
-
-    if ((unsigned)s->op < sizeof(pr_opnames) / sizeof(pr_opnames[0])) {
-	Con_Printf("%s ", pr_opnames[s->op]);
-	i = strlen(pr_opnames[s->op]);
-	for (; i < 10; i++)
-	    Con_Printf(" ");
-    }
-
-    if (s->op == OP_IF || s->op == OP_IFNOT)
-	Con_Printf("%sbranch %i", PR_GlobalString(s->a), s->b);
-    else if (s->op == OP_GOTO) {
-	Con_Printf("branch %i", s->a);
-    } else if ((unsigned)(s->op - OP_STORE_F) < 6) {
-	Con_Printf("%s", PR_GlobalString(s->a));
-	Con_Printf("%s", PR_GlobalStringNoContents(s->b));
-    } else {
-	if (s->a)
-	    Con_Printf("%s", PR_GlobalString(s->a));
-	if (s->b)
-	    Con_Printf("%s", PR_GlobalString(s->b));
-	if (s->c)
-	    Con_Printf("%s", PR_GlobalStringNoContents(s->c));
-    }
-    Con_Printf("\n");
-}
-
-/*
-============
-PR_StackTrace
-============
-*/
-void
-PR_StackTrace(void)
-{
-    dfunction_t *f;
-    int i;
-
-    if (pr_depth == 0) {
-	Con_Printf("<NO STACK>\n");
-	return;
-    }
-
-    pr_stack[pr_depth].f = pr_xfunction;
-    for (i = pr_depth; i >= 0; i--) {
-	f = pr_stack[i].f;
-	if (!f)
-	    Con_Printf("<NO FUNCTION>\n");
-	else
-	    Con_Printf("%12s : %s\n", PR_GetString(f->s_file),
-		       PR_GetString(f->s_name));
-    }
-}
-
-
-/*
-============
-PR_Profile_f
-
-============
-*/
-void
-PR_Profile_f(void)
-{
-    dfunction_t *f, *best;
-    int max;
-    int num;
-    int i;
-
-    // FIXME - progs get unloaded? if so, check that progs gets zero'd
-    if (!progs)
-	return;
-
-    num = 0;
-    do {
-	max = 0;
-	best = NULL;
-	for (i = 0; i < progs->numfunctions; i++) {
-	    f = &pr_functions[i];
-	    if (f->profile > max) {
-		max = f->profile;
-		best = f;
-	    }
-	}
-	if (best) {
-	    if (num < 10)
-		Con_Printf("%7i %s\n", best->profile,
-			   PR_GetString(best->s_name));
-	    num++;
-	    best->profile = 0;
-	}
-    } while (best);
-}
-
-
 /*
 ============
 PR_RunError
@@ -265,8 +155,6 @@ PR_RunError(const char *error, ...)
     vsnprintf(string, sizeof(string), error, argptr);
     va_end(argptr);
 
-    PR_PrintStatement(pr_statements + pr_xstatement);
-    PR_StackTrace();
     Con_Printf("%s\n", string);
 
     /* dump the stack so SV/Host_Error can shutdown functions */
@@ -383,9 +271,8 @@ PR_ExecuteProgram(func_t fnum)
     int exitdepth;
     eval_t *ptr;
 
-    if (!fnum || fnum >= progs->numfunctions) {
-	if (pr_global_struct->self)
-	    ED_Print(PROG_TO_EDICT(pr_global_struct->self));
+    if (!fnum || fnum >= progs->numfunctions)
+    {
 #ifdef NQ_HACK
 	Host_Error("PR_ExecuteProgram: NULL function");
 #endif
@@ -397,7 +284,6 @@ PR_ExecuteProgram(func_t fnum)
     f = &pr_functions[fnum];
 
     runaway = 1000000;
-    pr_trace = false;
 
 // make a stack frame
     exitdepth = pr_depth;
@@ -417,9 +303,6 @@ PR_ExecuteProgram(func_t fnum)
 
 	pr_xfunction->profile++;
 	pr_xstatement = s;
-
-	if (pr_trace)
-	    PR_PrintStatement(st);
 
 	switch (st->op) {
 	case OP_ADD_F:

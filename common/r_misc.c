@@ -50,25 +50,6 @@ R_CheckVariables(void)
 }
 
 /*
-============
-Show
-
-Debugging use
-============
-*/
-void
-Show(void)
-{
-    vrect_t vr;
-
-    vr.x = vr.y = 0;
-    vr.width = vid.width;
-    vr.height = vid.height;
-    vr.pnext = NULL;
-    VID_Update(&vr);
-}
-
-/*
 ================
 R_LineGraph
 
@@ -122,7 +103,7 @@ WarpPalette(void)
     basecolor[1] = 80;
     basecolor[2] = 50;
 
-// pull the colors halfway to bright brown
+    // pull the colors halfway to bright brown
     for (i = 0; i < 256; i++) {
 	for (j = 0; j < 3; j++) {
 	    newpalette[i * 3 + j] =
@@ -187,11 +168,9 @@ R_TransformPlane
 void
 R_TransformPlane(mplane_t *p, float *normal, float *dist)
 {
-    float d;
-
-    d = DotProduct(r_origin, p->normal);
-    *dist = p->dist - d;
-// TODO: when we have rotating entities, this will need to use the view matrix
+    float d = DotProduct(r_origin, p->normal);
+    *dist   = p->dist - d;
+    // TODO: when we have rotating entities, this will need to use the view matrix
     TransformVector(p->normal, normal);
 }
 
@@ -259,23 +238,13 @@ R_SetupFrame(void)
 
     r_framecount++;
 
-// debugging
-#if 0
-    r_refdef.vieworg[0] = 80;
-    r_refdef.vieworg[1] = 64;
-    r_refdef.vieworg[2] = 40;
-    r_refdef.viewangles[0] = 0;
-    r_refdef.viewangles[1] = 46.763641357;
-    r_refdef.viewangles[2] = 0;
-#endif
-
-// build the transformation matrix for the given view angles
+    // build the transformation matrix for the given view angles
     VectorCopy(r_refdef.vieworg, modelorg);
     VectorCopy(r_refdef.vieworg, r_origin);
 
     AngleVectors(r_refdef.viewangles, vpn, vright, vup);
 
-// current viewleaf
+    // current viewleaf
     r_oldviewleaf = r_viewleaf;
     r_viewleaf = Mod_PointInLeaf(cl.worldmodel, r_origin);
 
