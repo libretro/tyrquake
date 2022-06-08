@@ -1349,11 +1349,7 @@ SV_RunCmd(usercmd_t *ucmd)
 	mins[i] = pmove.origin[i] - 256;
 	maxs[i] = pmove.origin[i] + 256;
     }
-#if 1
     SV_AddLinksToPmove(mins, maxs);
-#else
-    AddAllEntsToPmove(mins, maxs);
-#endif
 
     PlayerMove();
 

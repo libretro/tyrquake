@@ -1859,19 +1859,12 @@ FLAC__bool read_frame_(FLAC__StreamDecoder *decoder, FLAC__bool *got_a_frame, FL
 				case FLAC__CHANNEL_ASSIGNMENT_MID_SIDE:
 					FLAC__ASSERT(decoder->private_->frame.header.channels == 2);
 					for(i = 0; i < decoder->private_->frame.header.blocksize; i++) {
-#if 1
 						mid = decoder->private_->output[0][i];
 						side = decoder->private_->output[1][i];
 						mid <<= 1;
 						mid |= (side & 1); /* i.e. if 'side' is odd... */
 						decoder->private_->output[0][i] = (mid + side) >> 1;
 						decoder->private_->output[1][i] = (mid - side) >> 1;
-#else
-						/* OPT: without 'side' temp variable */
-						mid = (decoder->private_->output[0][i] << 1) | (decoder->private_->output[1][i] & 1); /* i.e. if 'side' is odd... */
-						decoder->private_->output[0][i] = (mid + decoder->private_->output[1][i]) >> 1;
-						decoder->private_->output[1][i] = (mid - decoder->private_->output[1][i]) >> 1;
-#endif
 					}
 					break;
 				default:
