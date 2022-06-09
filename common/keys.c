@@ -234,8 +234,7 @@ Key_Console
 Interactive line editing and console scrollback
 ====================
 */
-void
-Key_Console(int key)
+static void Key_Console(int key)
 {
     if (key == K_ENTER) {
 	EnterCommand(key_lines[edit_line] + 1);
@@ -319,13 +318,11 @@ Key_Console(int key)
 }
 
 //============================================================================
-
-qboolean chat_team;
-char chat_buffer[MAXCMDLINE];
 int chat_bufferlen = 0;
+char chat_buffer[MAXCMDLINE];
+qboolean chat_team;
 
-void
-Key_Message(int key)
+static void Key_Message(int key)
 {
     if (key == K_ENTER) {
 	if (chat_team)
@@ -456,8 +453,7 @@ Key_SetBinding(knum_t keynum, const char *binding)
 Key_Unbind_f
 ===================
 */
-void
-Key_Unbind_f(void)
+static void Key_Unbind_f(void)
 {
     int b;
 
@@ -475,8 +471,7 @@ Key_Unbind_f(void)
     Key_SetBinding((knum_t)b, NULL);
 }
 
-void
-Key_Unbindall_f(void)
+static void Key_Unbindall_f(void)
 {
     int i;
 
@@ -491,8 +486,7 @@ Key_Unbindall_f(void)
 Key_Bind_f
 ===================
 */
-void
-Key_Bind_f(void)
+static void Key_Bind_f(void)
 {
     int i, keynum, len;
     char cmd[1024];
