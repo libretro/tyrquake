@@ -53,7 +53,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* Forward declarations */
 RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
-int rfprintf(RFILE * stream, const char * format, ...);
 
 /* Argument completion function for the skin cvar */
 static struct stree_root * CL_Skin_Arg_f(const char *arg);

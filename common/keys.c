@@ -35,11 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <winuser.h>
 #endif
 
-#include <streams/file_stream.h>
-
-/* forward declarations */
-int rfprintf(RFILE * stream, const char * format, ...);
-
 /*
 
 key up events are sent even if in console mode
