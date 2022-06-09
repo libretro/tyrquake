@@ -32,49 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include "sys.h"
 
-/*
-================
-R_LineGraph
-
-Only called by R_DisplayTime
-================
-*/
-void
-R_LineGraph(int x, int y, int h)
-{
-    int i;
-    byte *dest;
-    int s;
-    int color;
-
-// FIXME: should be disabled on no-buffer adapters, or should be in the driver
-
-#ifdef NQ_HACK
-    x += r_refdef.vrect.x;
-    y += r_refdef.vrect.y;
-#endif
-    dest = vid.buffer + vid.rowbytes * y + x;
-
-    s = r_graphheight.value;
-
-    if (h == 10000)
-	color = 0x6f;		// yellow
-    else if (h == 9999)
-	color = 0x4f;		// red
-    else if (h == 9998)
-	color = 0xd0;		// blue
-    else
-	color = 0xff;		// pink
-
-    if (h > s)
-	h = s;
-
-    for (i = 0; i < h; i++, dest -= vid.rowbytes * 2)
-	dest[0] = color;
-}
-
-#define MAX_TIMINGS 256
-
 void
 WarpPalette(void)
 {
@@ -233,10 +190,10 @@ R_SetupFrame(void)
 
 	r_viewchanged = false;
     }
-// start off with just the four screen edge clip planes
+    // start off with just the four screen edge clip planes
     R_TransformFrustum();
 
-// save base values
+    // save base values
     VectorCopy(vpn, base_vpn);
     VectorCopy(vright, base_vright);
     VectorCopy(vup, base_vup);
