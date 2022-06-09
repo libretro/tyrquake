@@ -98,14 +98,9 @@ int d_lightstylevalue[256];	// 8.8 fraction of base light value
 cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
-cvar_t r_ambient = { "r_ambient", "0" };
-cvar_t r_numsurfs = { "r_numsurfs", "0" };
-cvar_t r_numedges = { "r_numedges", "0" };
 
 cvar_t r_lockpvs = { "r_lockpvs", "0" };
 cvar_t r_lockfrustum = { "r_lockfrustum", "0" };
-
-cvar_t r_fullbright = { "r_fullbright", "0" };
 
 static cvar_t r_maxsurfs = { "r_maxsurfs", "0" };
 static cvar_t r_maxedges = { "r_maxedges", "0" };
@@ -181,22 +176,15 @@ R_Init(void)
 
     R_InitTurb();
 
-    Cmd_AddCommand("pointfile", R_ReadPointFile_f);
-
     Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
-    Cvar_RegisterVariable(&r_ambient);
-    Cvar_RegisterVariable(&r_numsurfs);
-    Cvar_RegisterVariable(&r_numedges);
 #ifdef NQ_HACK
     Cvar_RegisterVariable(&r_lerpmodels);
     Cvar_RegisterVariable(&r_lerpmove);
 #endif
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);
-
-    Cvar_RegisterVariable(&r_fullbright);
 
     Cvar_RegisterVariable(&r_maxsurfs);
     Cvar_RegisterVariable(&r_maxedges);

@@ -251,7 +251,7 @@ static void R_BuildLightMap(void)
    int size = smax * tmax;
    byte *lightmap = surf->samples;
 
-   if (r_fullbright.value || !cl.worldmodel->lightdata)
+   if (!cl.worldmodel->lightdata)
    {
       for (i = 0; i < size; i++)
          blocklights[i] = 0;
@@ -311,7 +311,7 @@ void R_BuildLightMapRGB (void)
 	size = smax*tmax*3;
 	lightmap = surf->samples;
 
-	if (/* r_fullbright.value || */ !cl.worldmodel->lightdata)
+	if (!cl.worldmodel->lightdata)
 	{
 		for (i=0 ; i<size ; i++)
 			blocklights[i] = 0;

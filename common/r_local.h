@@ -61,10 +61,6 @@ typedef struct {
 extern cvar_t r_graphheight;
 extern cvar_t r_clearcolor;
 extern cvar_t r_waterwarp;
-extern cvar_t r_fullbright;
-extern cvar_t r_ambient;
-extern cvar_t r_numsurfs;
-extern cvar_t r_numedges;
 
 #define XCENTERING	(1.0 / 2.0)
 #define YCENTERING	(1.0 / 2.0)
@@ -181,7 +177,6 @@ qboolean R_AliasCheckBBox(entity_t *e);
 void R_DrawParticles(void);
 void R_InitParticles(void);
 void R_ClearParticles(void);
-void R_ReadPointFile_f(void);
 
 void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
 

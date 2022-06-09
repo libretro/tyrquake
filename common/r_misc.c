@@ -33,23 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 
 /*
-===============
-R_CheckVariables
-===============
-*/
-static void
-R_CheckVariables(void)
-{
-    // FIXME - do it right (cvar callback)
-    static float oldbright;
-
-    if (r_fullbright.value != oldbright) {
-	oldbright = r_fullbright.value;
-	D_FlushCaches();	// so all lighting changes
-    }
-}
-
-/*
 ================
 R_LineGraph
 
@@ -182,47 +165,10 @@ R_SetupFrame
 void
 R_SetupFrame(void)
 {
-    int edgecount;
     vrect_t vrect;
     float w, h;
 
-// don't allow cheats in multiplayer
-#ifdef NQ_HACK
-    if (cl.maxclients > 1) {
-	Cvar_Set("r_fullbright", "0");
-	Cvar_Set("r_ambient", "0");
-    }
-#endif
-#ifdef QW_HACK
-    r_fullbright.value = 0;
-    r_ambient.value = 0;
-#endif
-
-    if (r_numsurfs.value) {
-	if ((surface_p - surfaces) > r_maxsurfsseen)
-	    r_maxsurfsseen = surface_p - surfaces;
-
-	Con_Printf("Used %d of %d surfs; %d max\n",
-		   (int)(surface_p - surfaces),
-		   (int)(surf_max - surfaces), r_maxsurfsseen);
-    }
-
-    if (r_numedges.value) {
-	edgecount = edge_p - r_edges;
-
-	if (edgecount > r_maxedgesseen)
-	    r_maxedgesseen = edgecount;
-
-	Con_Printf("Used %d of %d edges; %d max\n", edgecount,
-		   r_numallocatededges, r_maxedgesseen);
-    }
-
-    r_refdef.ambientlight = r_ambient.value;
-
-    if (r_refdef.ambientlight < 0)
-	r_refdef.ambientlight = 0;
-
-    R_CheckVariables();
+    r_refdef.ambientlight = 0;
 
     R_AnimateLight();
 

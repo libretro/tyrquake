@@ -689,8 +689,7 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 R_AliasSetupLighting
 ================
 */
-void
-R_AliasSetupLighting(alight_t *plighting)
+static void R_AliasSetupLighting(alight_t *plighting)
 {
 
 // guarantee that no vertex will ever be lit below LIGHT_MIN, so we don't have
