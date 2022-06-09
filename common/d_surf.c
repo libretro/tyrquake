@@ -58,15 +58,6 @@ int D_SurfaceCacheForRes(int width, int height)
    return size;
 }
 
-void D_CheckCacheGuard(void)
-{
-   int i;
-   byte *s = (byte *)sc_base + sc_size;
-   for (i = 0; i < GUARDSIZE; i++)
-      if (s[i] != (byte)i)
-         Sys_Error("%s: failed", __func__);
-}
-
 void D_ClearCacheGuard(void)
 {
    int i;
@@ -192,7 +183,6 @@ D_SCAlloc(int width, int size)
       d_roverwrapped = true;
    }
 
-   D_CheckCacheGuard();	// DEBUG
    return new_surf;
 }
 
