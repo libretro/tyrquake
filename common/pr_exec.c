@@ -50,94 +50,6 @@ dfunction_t *pr_xfunction;
 int pr_xstatement;
 int pr_argc;
 
-const char *pr_opnames[] = {
-    "DONE",
-
-    "MUL_F",
-    "MUL_V",
-    "MUL_FV",
-    "MUL_VF",
-
-    "DIV",
-
-    "ADD_F",
-    "ADD_V",
-
-    "SUB_F",
-    "SUB_V",
-
-    "EQ_F",
-    "EQ_V",
-    "EQ_S",
-    "EQ_E",
-    "EQ_FNC",
-
-    "NE_F",
-    "NE_V",
-    "NE_S",
-    "NE_E",
-    "NE_FNC",
-
-    "LE",
-    "GE",
-    "LT",
-    "GT",
-
-    "INDIRECT",
-    "INDIRECT",
-    "INDIRECT",
-    "INDIRECT",
-    "INDIRECT",
-    "INDIRECT",
-
-    "ADDRESS",
-
-    "STORE_F",
-    "STORE_V",
-    "STORE_S",
-    "STORE_ENT",
-    "STORE_FLD",
-    "STORE_FNC",
-
-    "STOREP_F",
-    "STOREP_V",
-    "STOREP_S",
-    "STOREP_ENT",
-    "STOREP_FLD",
-    "STOREP_FNC",
-
-    "RETURN",
-
-    "NOT_F",
-    "NOT_V",
-    "NOT_S",
-    "NOT_ENT",
-    "NOT_FNC",
-
-    "IF",
-    "IFNOT",
-
-    "CALL0",
-    "CALL1",
-    "CALL2",
-    "CALL3",
-    "CALL4",
-    "CALL5",
-    "CALL6",
-    "CALL7",
-    "CALL8",
-
-    "STATE",
-
-    "GOTO",
-
-    "AND",
-    "OR",
-
-    "BITAND",
-    "BITOR"
-};
-
 /*
 ============
 PR_RunError
@@ -183,8 +95,7 @@ PR_EnterFunction
 Returns the new program statement counter
 ====================
 */
-int
-PR_EnterFunction(dfunction_t *f)
+static int PR_EnterFunction(dfunction_t *f)
 {
     int i, j, c, o;
 
@@ -226,18 +137,9 @@ PR_LeaveFunction
 int
 PR_LeaveFunction(void)
 {
-    int i, c;
-
-    if (pr_depth <= 0)
-#ifdef NQ_HACK
-	Sys_Error("prog stack underflow");
-#endif
-#ifdef QW_HACK
-	SV_Error("prog stack underflow");
-#endif
-
-// restore locals from the stack
-    c = pr_xfunction->locals;
+    int i;
+    // restore locals from the stack
+    int c = pr_xfunction->locals;
     localstack_used -= c;
     if (localstack_used < 0)
 	PR_RunError("PR_ExecuteProgram: locals stack underflow\n");
@@ -246,7 +148,7 @@ PR_LeaveFunction(void)
 	((int *)pr_globals)[pr_xfunction->parm_start + i] =
 	    localstack[localstack_used + i];
 
-// up stack
+    // up stack
     pr_depth--;
     pr_xfunction = pr_stack[pr_depth].f;
     return pr_stack[pr_depth].s;
@@ -281,14 +183,14 @@ PR_ExecuteProgram(func_t fnum)
 #endif
     }
 
-    f = &pr_functions[fnum];
+    f         = &pr_functions[fnum];
 
-    runaway = 1000000;
+    runaway   = 1000000;
 
-// make a stack frame
+    // make a stack frame
     exitdepth = pr_depth;
 
-    s = PR_EnterFunction(f);
+    s         = PR_EnterFunction(f);
 
     while (1) {
 	s++;			// next statement
