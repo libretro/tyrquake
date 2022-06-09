@@ -1758,36 +1758,6 @@ PF_changelevel(void)
 #ifdef QW_HACK
 /*
 ==============
-PF_logfrag
-
-logfrag (killer, killee)
-==============
-*/
-static void
-PF_logfrag(void)
-{
-    const char *s;
-    edict_t *ent1 = G_EDICT(OFS_PARM0);
-    edict_t *ent2 = G_EDICT(OFS_PARM1);
-    int e1        = NUM_FOR_EDICT(ent1);
-    int e2        = NUM_FOR_EDICT(ent2);
-
-    if (e1 < 1 || e1 > MAX_CLIENTS || e2 < 1 || e2 > MAX_CLIENTS)
-	return;
-
-    s = va("\\%s\\%s\\\n", svs.clients[e1 - 1].name,
-	   svs.clients[e2 - 1].name);
-
-    SZ_Print(&svs.log[svs.logsequence & 1], s);
-    if (sv_fraglogfile) {
-	fprintf(sv_fraglogfile, "%s", s);
-	fflush(sv_fraglogfile);
-    }
-}
-
-
-/*
-==============
 PF_infokey
 
 string(entity e, string key) infokey
@@ -1858,9 +1828,8 @@ PF_multicast(void)
 static void
 PF_Fixme(void)
 {
-    PR_RunError("unimplemented bulitin");
+    PR_RunError("unimplemented builtin");
 }
-
 
 
 builtin_t pr_builtin[] = {
