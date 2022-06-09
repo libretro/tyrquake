@@ -46,16 +46,12 @@ int current_iv;
 
 int edge_head_u_shift20, edge_tail_u_shift20;
 
-static void (*pdrawfunc) (void);
-
 edge_t edge_head;
 edge_t edge_tail;
 edge_t edge_aftertail;
 edge_t edge_sentinel;
 
 float fv;
-
-void R_GenerateSpans(void);
 
 //=============================================================================
 
@@ -77,9 +73,8 @@ void R_BeginEdgeFrame(void)
    surfaces[1].flags = SURF_DRAWBACKGROUND;
 
    // put the background behind everything in the world
-   pdrawfunc = R_GenerateSpans;
    surfaces[1].key = 0x7FFFFFFF;
-   r_currentkey = 0;
+   r_currentkey    = 0;
 
    // FIXME: set with memset
    for (v = r_refdef.vrect.y; v < r_refdef.vrectbottom; v++) {
@@ -253,9 +248,6 @@ static void R_TrailingEdge(surf_t *surf, edge_t *edge)
    if (--surf->spanstate != 0)
       return;
 
-   if (surf->insubmodel)
-      r_bmodelactive--;
-
    if (surf == surfaces[1].next) {
       // emit a span (current top going away)
       iu = edge->u >> 20;
@@ -297,9 +289,6 @@ static void R_LeadingEdge(edge_t *edge)
    // end edge)
    if (++surf->spanstate != 1)
       return;
-
-   if (surf->insubmodel)
-      r_bmodelactive++;
 
    surf2 = surfaces[1].next;
 
@@ -391,12 +380,10 @@ gotposition:
 R_GenerateSpans
 ==============
 */
-void R_GenerateSpans(void)
+static void R_GenerateSpans(void)
 {
    edge_t *edge;
    surf_t *surf;
-
-   r_bmodelactive = 0;
 
    // clear active surfaces to just the background surface
    surfaces[1].next = surfaces[1].prev = &surfaces[1];
@@ -486,7 +473,7 @@ void R_ScanEdges(void)
          R_InsertNewEdges(newedges[iv], edge_head.next);
       }
 
-      (*pdrawfunc) ();
+      R_GenerateSpans();
 
       // flush the span list if we can't be sure we have enough spans left
       // for the next scan
@@ -521,7 +508,7 @@ void R_ScanEdges(void)
    if (newedges[iv])
       R_InsertNewEdges(newedges[iv], edge_head.next);
 
-   (*pdrawfunc) ();
+   R_GenerateSpans();
 
    // draw whatever's left in the span list
    D_DrawSurfaces();
