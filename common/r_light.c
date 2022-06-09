@@ -65,7 +65,7 @@ DYNAMIC LIGHTS
 R_MarkLights
 =============
 */
-void R_MarkLights (dlight_t *light, int num, mnode_t *node)  //qbism- adapted from MH tute - increased dlights
+static void R_MarkLights (dlight_t *light, int num, mnode_t *node)  //qbism- adapted from MH tute - increased dlights
 {
    mplane_t   *splitplane;
    float      dist;
@@ -138,7 +138,7 @@ LIGHT SAMPLING
 =============================================================================
 */
 
-int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
+static int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
 {
    int r;
    float front, back, frac;
@@ -251,7 +251,7 @@ vec3_t			lightspot;
 // LordHavoc: .lit support begin
 // LordHavoc: original code replaced entirely
 
-int RecursiveLightPointRGB(vec3_t color, mnode_t *node, vec3_t start, vec3_t end)
+static int RecursiveLightPointRGB(vec3_t color, mnode_t *node, vec3_t start, vec3_t end)
 {
 	float		front, back, frac;
 	vec3_t		mid;
@@ -361,15 +361,13 @@ int R_LightPoint(vec3_t p)
    vec3_t end;
    int r;
 
-   if (!cl.worldmodel->lightdata){
-	 lightcolor[0] = lightcolor[1] = lightcolor[2] = 255;
-     	 return 255;
-	}
+   if (!cl.worldmodel->lightdata)
+   {
+      lightcolor[0] = lightcolor[1] = lightcolor[2] = 255;
+      return 255;
+   }
 
-
-
-
-	if (coloredlights)
+   if (coloredlights)
    {
       end[0] = p[0];
       end[1] = p[1];
@@ -378,22 +376,18 @@ int R_LightPoint(vec3_t p)
       r = RecursiveLightPointRGB(lightcolor, cl.worldmodel->nodes, p, end);
       return ((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.0f / 3.0f));
    }
-	else
-   {
-      end[0] = p[0];
-      end[1] = p[1];
-      end[2] = p[2] - (8192 + 2); 
 
+   end[0] = p[0];
+   end[1] = p[1];
+   end[2] = p[2] - (8192 + 2); 
 
-      r = RecursiveLightPoint(cl.worldmodel->nodes, p, end);
+   r      = RecursiveLightPoint(cl.worldmodel->nodes, p, end);
 
-      if (r == -1)
-         r = 0;
+   if (r == -1)
+      r = 0;
 
-      if (r < r_refdef.ambientlight)
-         r = r_refdef.ambientlight;
+   if (r < r_refdef.ambientlight)
+      r = r_refdef.ambientlight;
 
-      return r;
-   }
-
+   return r;
 }

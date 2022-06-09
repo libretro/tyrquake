@@ -81,16 +81,10 @@ cvar_t registered = { "registered", "0" };
 static cvar_t cmdline = { "cmdline", "0", false, true };
 #endif
 
-static qboolean com_modified;		// set true if using non-id files
 static int static_registered = 1;	// only for startup check, then set
 
 static void COM_InitFilesystem(void);
 static void *SZ_GetSpace(sizebuf_t *buf, int length);
-
-// if a packfile directory differs from this, it is assumed to be hacked
-#define PAK0_COUNT		339
-#define NQ_PAK0_CRC		32981
-#define QW_PAK0_CRC		52883
 
 #ifdef NQ_HACK
 #define CMDLINE_LENGTH	256
@@ -1572,7 +1566,6 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    packfile_t *mfiles;
    pack_t *pack;
    int i, numfiles;
-   unsigned short crc;
 
    if (COM_FileOpenRead(packfile, &packhandle) == -1)
       goto error;
@@ -1589,9 +1582,6 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 
    numfiles = header.dirlen / sizeof(dpackfile_t);
 
-   if (numfiles != PAK0_COUNT)
-      com_modified = true;	// not the original file
-
 #ifdef NQ_HACK
    mfiles = (packfile_t*)Hunk_AllocName(numfiles * sizeof(*mfiles), "packfile");
    mark   = Hunk_LowMark();
@@ -1604,19 +1594,6 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 
    rfseek(packhandle, header.dirofs, SEEK_SET);
    rfread(dfiles, 1, header.dirlen, packhandle);
-
-#if defined(NQ_HACK) || defined(QW_HACK)
-   // crc the directory to check for modifications
-   crc = CRC_Block(((byte *)dfiles), header.dirlen);
-#ifdef NQ_HACK
-   if (crc != NQ_PAK0_CRC)
-      com_modified = true;
-#endif
-#ifdef QW_HACK
-   if (crc != QW_PAK0_CRC)
-      com_modified = true;
-#endif
-#endif
 
    /* parse the directory */
    for (i = 0; i < numfiles; i++)
@@ -1835,10 +1812,7 @@ static void COM_InitFilesystem(void)
    // Adds basedir/gamedir as an override game
    i = COM_CheckParm("-game");
    if (i && i < com_argc - 1)
-   {
-      com_modified = true;
       COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
-   }
 #endif
 #ifdef QW_HACK
    COM_AddGameDirectory(com_basedir, "qw");
@@ -1861,7 +1835,6 @@ static void COM_InitFilesystem(void)
 #ifdef NQ_HACK
    i = COM_CheckParm("-path");
    if (i) {
-      com_modified = true;
       com_searchpaths = NULL;
       while (++i < com_argc) {
          if (!com_argv[i] || com_argv[i][0] == '+'
@@ -2185,7 +2158,6 @@ For proxy protecting
 */
 byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
 {
-   unsigned short crc;
    byte chkb[60 + 4];
    const byte *p = chktbl + (sequence % (sizeof(chktbl) - 8));
 
@@ -2200,11 +2172,7 @@ byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
 
    length += 4;
 
-   crc = CRC_Block(chkb, length);
-
-   crc &= 0xff;
-
-   return crc;
+   return CRC_Block(chkb, length) & 0xff;
 }
 #endif /* QW_HACK */
 

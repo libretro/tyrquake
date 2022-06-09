@@ -85,14 +85,11 @@ typedef struct {
 static gefv_cache gefvCache[GEFV_CACHESIZE] = { {NULL, ""}, {NULL, ""} };
 
 #ifdef NQ_HACK
-unsigned short pr_crc;
 cvar_t nomonsters = { "nomonsters", "0" };
-static cvar_t gamecfg = { "gamecfg", "0" };
 static cvar_t scratch1 = { "scratch1", "0" };
 static cvar_t scratch2 = { "scratch2", "0" };
 static cvar_t scratch3 = { "scratch3", "0" };
 static cvar_t scratch4 = { "scratch4", "0" };
-static cvar_t savedgamecfg = { "savedgamecfg", "0", true };
 static cvar_t saved1 = { "saved1", "0", true };
 static cvar_t saved2 = { "saved2", "0", true };
 static cvar_t saved3 = { "saved3", "0", true };
@@ -809,9 +806,6 @@ PR_LoadProgs(void)
    if (!progs)
       SV_Error("%s: couldn't load progs.dat", __func__);
 
-#ifdef NQ_HACK
-   pr_crc = CRC_Block((byte *)progs, com_filesize);
-#endif
 #if defined(QW_HACK) && defined(SERVERONLY)
    // add prog crc to the serverinfo
    sprintf(num, "%i", CRC_Block((byte *)progs, com_filesize));
@@ -926,12 +920,10 @@ PR_Init(void)
 {
 #ifdef NQ_HACK
     Cvar_RegisterVariable(&nomonsters);
-    Cvar_RegisterVariable(&gamecfg);
     Cvar_RegisterVariable(&scratch1);
     Cvar_RegisterVariable(&scratch2);
     Cvar_RegisterVariable(&scratch3);
     Cvar_RegisterVariable(&scratch4);
-    Cvar_RegisterVariable(&savedgamecfg);
     Cvar_RegisterVariable(&saved1);
     Cvar_RegisterVariable(&saved2);
     Cvar_RegisterVariable(&saved3);
@@ -955,9 +947,7 @@ EDICT_NUM(int n)
 int
 NUM_FOR_EDICT(const edict_t *e)
 {
-    int b;
-
-    b = (byte *)e - (byte *)sv.edicts;
+    int b = (byte *)e - (byte *)sv.edicts;
     b = b / pr_edict_size;
 
     if (b < 0 || b >= sv.num_edicts)

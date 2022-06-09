@@ -95,7 +95,6 @@ float r_aliastransition, r_resfudge;
 
 int d_lightstylevalue[256];	// 8.8 fraction of base light value
 
-cvar_t r_draworder = { "r_draworder", "0" };
 cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
@@ -184,7 +183,6 @@ R_Init(void)
 
     Cmd_AddCommand("pointfile", R_ReadPointFile_f);
 
-    Cvar_RegisterVariable(&r_draworder);
     Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);

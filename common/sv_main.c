@@ -349,8 +349,8 @@ void SV_SendServerinfo(client_t *client)
 
    MSG_WriteByte(&client->message, svc_print);
    MSG_WriteStringf(&client->message,
-         "%c\nVERSION TyrQuake-%s SERVER (%i CRC)",
-         2, stringify(TYR_VERSION), pr_crc);
+         "%c\nVERSION TyrQuake-%s SERVER",
+         2, stringify(TYR_VERSION));
 
    MSG_WriteByte(&client->message, svc_serverinfo);
    MSG_WriteLong(&client->message, sv.protocol);

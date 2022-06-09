@@ -189,13 +189,11 @@ R_SetupFrame(void)
 // don't allow cheats in multiplayer
 #ifdef NQ_HACK
     if (cl.maxclients > 1) {
-	Cvar_Set("r_draworder", "0");
 	Cvar_Set("r_fullbright", "0");
 	Cvar_Set("r_ambient", "0");
     }
 #endif
 #ifdef QW_HACK
-    r_draworder.value = 0;
     r_fullbright.value = 0;
     r_ambient.value = 0;
 #endif
@@ -223,14 +221,6 @@ R_SetupFrame(void)
 
     if (r_refdef.ambientlight < 0)
 	r_refdef.ambientlight = 0;
-
-#ifdef NQ_HACK
-    if (!sv.active)
-	r_draworder.value = 0;	// don't let cheaters look behind walls
-#endif
-#ifdef QW_HACK
-    r_draworder.value = 0;	// don't let cheaters look behind walls
-#endif
 
     R_CheckVariables();
 

@@ -121,9 +121,6 @@ extern qboolean pr_trace;
 extern dfunction_t *pr_xfunction;
 extern int pr_xstatement;
 
-#ifdef NQ_HACK
-extern unsigned short pr_crc;
-#endif
 #if defined(QW_HACK) && defined(SERVERONLY)
 extern func_t SpectatorConnect;
 extern func_t SpectatorThink;
