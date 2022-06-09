@@ -540,25 +540,6 @@ Key_Bind_f(void)
 }
 
 /*
-============
-Key_WriteBindings
-
-Writes lines containing "bind key value"
-============
-*/
-void
-Key_WriteBindings(RFILE *f)
-{
-    int i;
-
-    for (i = 0; i < K_LAST; i++)
-	if (keybindings[i])
-	    rfprintf(f, "bind \"%s\" \"%s\"\n",
-		    Key_KeynumToString(i), keybindings[i]);
-}
-
-
-/*
 ===================
 Key_Init
 ===================

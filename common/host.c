@@ -265,14 +265,7 @@ Host_WriteConfiguration(void)
 	    Con_Printf("Couldn't write config.cfg.\n");
 	    return;
 	}
-
-	Key_WriteBindings(f);
 	Cvar_WriteVariables(f);
-
-	/* Save the mlook state (rarely used as an actual key binding) */
-	if (in_mlook.state & 1)
-	    rfprintf(f, "+mlook\n");
-
 	rfclose(f);
     }
 }
