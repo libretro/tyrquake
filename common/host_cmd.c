@@ -438,7 +438,7 @@ Host_SavegameComment
 Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 ===============
 */
-void Host_SavegameComment(char *text)
+static void Host_SavegameComment(char *text)
 {
    int i;
    char kills[20];
@@ -737,15 +737,6 @@ void Host_Name_f(void)
    MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
    MSG_WriteString(&sv.reliable_datagram, host_client->name);
 }
-
-
-void
-Host_Version_f(void)
-{
-    Con_Printf("Version TyrQuake-%s\n", stringify(TYR_VERSION));
-    Con_Printf("Exe: " __TIME__ " " __DATE__ "\n");
-}
-
 
 void
 Host_Say(qboolean teamonly)
@@ -1362,132 +1353,6 @@ Host_Give_f(void)
     }
 }
 
-edict_t *
-FindViewthing(void)
-{
-    int i;
-    edict_t *e;
-
-    for (i = 0; i < sv.num_edicts; i++) {
-	e = EDICT_NUM(i);
-	if (!strcmp(PR_GetString(e->v.classname), "viewthing"))
-	    return e;
-    }
-    Con_Printf("No viewthing on map\n");
-    return NULL;
-}
-
-/*
-==================
-Host_Viewmodel_f
-==================
-*/
-void
-Host_Viewmodel_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-
-    m = Mod_ForName(Cmd_Argv(1), false);
-    if (!m) {
-	Con_Printf("Can't load %s\n", Cmd_Argv(1));
-	return;
-    }
-
-    e->v.frame = 0;
-    cl.model_precache[(int)e->v.modelindex] = m;
-}
-
-/*
-==================
-Host_Viewframe_f
-==================
-*/
-void
-Host_Viewframe_f(void)
-{
-    edict_t *e;
-    int f;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    f = atoi(Cmd_Argv(1));
-    if (f >= m->numframes)
-	f = m->numframes - 1;
-
-    e->v.frame = f;
-}
-
-
-void
-PrintFrameName(model_t *m, int frame)
-{
-    aliashdr_t *hdr;
-    maliasframedesc_t *pframedesc;
-
-    hdr = (aliashdr_t*)Mod_Extradata(m);
-    if (!hdr)
-	return;
-    pframedesc = &hdr->frames[frame];
-
-    Con_Printf("frame %i: %s\n", frame, pframedesc->name);
-}
-
-/*
-==================
-Host_Viewnext_f
-==================
-*/
-void
-Host_Viewnext_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    e->v.frame = e->v.frame + 1;
-    if (e->v.frame >= m->numframes)
-	e->v.frame = m->numframes - 1;
-
-    PrintFrameName(m, e->v.frame);
-}
-
-/*
-==================
-Host_Viewprev_f
-==================
-*/
-void
-Host_Viewprev_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    e->v.frame = e->v.frame - 1;
-    if (e->v.frame < 0)
-	e->v.frame = 0;
-
-    PrintFrameName(m, e->v.frame);
-}
-
 /*
 ===============================================================================
 
@@ -1593,7 +1458,6 @@ Host_InitCommands(void)
     Cmd_AddCommand("reconnect", Host_Reconnect_f);
     Cmd_AddCommand("name", Host_Name_f);
     Cmd_AddCommand("noclip", Host_Noclip_f);
-    Cmd_AddCommand("version", Host_Version_f);
 
     Cmd_AddCommand("say", Host_Say_f);
     Cmd_AddCommand("say_team", Host_Say_Team_f);
@@ -1613,9 +1477,4 @@ Host_InitCommands(void)
     Cmd_AddCommand("startdemos", Host_Startdemos_f);
     Cmd_AddCommand("demos", Host_Demos_f);
     Cmd_AddCommand("stopdemo", Host_Stopdemo_f);
-
-    Cmd_AddCommand("viewmodel", Host_Viewmodel_f);
-    Cmd_AddCommand("viewframe", Host_Viewframe_f);
-    Cmd_AddCommand("viewnext", Host_Viewnext_f);
-    Cmd_AddCommand("viewprev", Host_Viewprev_f);
 }
