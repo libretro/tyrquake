@@ -561,10 +561,8 @@ CL_ParseServerData(void)
 	snprintf(fn, sizeof(fn), "%s/%s", com_gamedir, "config.cfg");
 	if ((f = rfopen(fn, "r")) != NULL) {
 	    rfclose(f);
-	    Cbuf_AddText("cl_warncmd 0\n");
 	    Cbuf_AddText("exec config.cfg\n");
 	    Cbuf_AddText("exec frontend.cfg\n");
-	    Cbuf_AddText("cl_warncmd 1\n");
 	}
     }
     // parse player slot, high bit means spectator

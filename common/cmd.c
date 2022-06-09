@@ -53,8 +53,6 @@ static DECLARE_STREE_ROOT(cmdalias_tree);
 
 static qboolean cmd_wait;
 
-cvar_t cl_warncmd = { "cl_warncmd", "0" };
-
 //=============================================================================
 
 /*
@@ -325,8 +323,6 @@ Cmd_Exec_f(void)
 	Con_Printf("couldn't exec %s\n", Cmd_Argv(1));
 	return;
     }
-    if (cl_warncmd.value)
-	Con_Printf("execing %s\n", Cmd_Argv(1));
 
     Cbuf_InsertText(f);
     Hunk_FreeToLowMark(mark);
@@ -765,11 +761,11 @@ Cmd_ExecuteString(const char *text)
 #endif
     Cmd_TokenizeString(text);
 
-// execute the command line
+    // execute the command line
     if (!Cmd_Argc())
 	return;			// no tokens
 
-// check functions
+    // check functions
     cmd = Cmd_FindCommand(cmd_argv[0]);
     if (cmd) {
 	if (cmd->function)
@@ -781,16 +777,12 @@ Cmd_ExecuteString(const char *text)
 	return;
     }
 
-// check alias
+    // check alias
     a = Cmd_Alias_Find(cmd_argv[0]);
     if (a) {
 	Cbuf_InsertText(a->value);
 	return;
     }
-
-// check cvars
-    if (!Cvar_Command() && cl_warncmd.value)
-	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
 }
 
 /*

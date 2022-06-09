@@ -27,11 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "render.h"
 #include "vid.h"
 
-#include <streams/file_stream.h>
-
-//
 // client_state_t should hold all pieces of the client state
-//
 
 typedef struct {
     vec3_t viewangles;

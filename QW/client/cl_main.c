@@ -1040,7 +1040,6 @@ CL_Init(void)
 //
 // register our commands
 //
-    Cvar_RegisterVariable(&cl_warncmd);
     Cvar_RegisterVariable(&cl_upspeed);
     Cvar_RegisterVariable(&cl_forwardspeed);
     Cvar_RegisterVariable(&cl_backspeed);
@@ -1387,7 +1386,6 @@ Host_Init(quakeparms_t *parms)
 
     Cbuf_AddText("echo Type connect <internet address> or use GameSpy to "
 		 "connect to a game.\n");
-    Cbuf_AddText("cl_warncmd 1\n");
 }
 
 
