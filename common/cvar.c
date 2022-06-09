@@ -42,11 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #endif
 
-#include <streams/file_stream.h>
-
-/* forward declarations */
-int rfprintf(RFILE * stream, const char * format, ...);
-
 #define cvar_entry(ptr) container_of(ptr, struct cvar_s, stree)
 DECLARE_STREE_ROOT(cvar_tree);
 
@@ -324,53 +319,4 @@ void Cvar_SetCallback (cvar_t *var, cvar_callback func)
 	if (func)
 		var->flags |= CVAR_CALLBACK;
 	else	var->flags &= ~CVAR_CALLBACK;
-}
-
-/*
-============
-Cvar_Command
-
-Handles variable inspection and changing from the console
-============
-*/
-qboolean Cvar_Command(void)
-{
-   /* check variables */
-   cvar_t *v = Cvar_FindVar(Cmd_Argv(0));
-   if (!v)
-      return false;
-
-   /* perform a variable print or set */
-   if (Cmd_Argc() == 1)
-   {
-      if (v->flags & CVAR_OBSOLETE)
-         Con_Printf("%s is obsolete.\n", v->name);
-      else
-         Con_Printf("\"%s\" is \"%s\"\n", v->name, v->string);
-      return true;
-   }
-
-   Cvar_Set(v->name, Cmd_Argv(1));
-   return true;
-}
-
-
-/*
-============
-Cvar_WriteVariables
-
-Writes lines containing "set variable value" for all variables
-with the archive flag set to true.
-============
-*/
-void Cvar_WriteVariables(RFILE *f)
-{
-   struct stree_node *n;
-
-   STree_ForEach_After_NullStr(&cvar_tree, n)
-   {
-      cvar_t *var = cvar_entry(n);
-      if (var->archive)
-         rfprintf(f, "%s \"%s\"\n", var->name, var->string);
-   }
 }

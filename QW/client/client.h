@@ -369,7 +369,6 @@ void CL_DecayLights(void);
 void CL_RunParticles(void);
 
 void CL_Init(void);
-void Host_WriteConfiguration(void);
 
 void CL_EstablishConnection(char *host);
 

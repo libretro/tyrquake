@@ -548,8 +548,6 @@ CL_ParseServerData(void)
     str = MSG_ReadString();
 
     if (strcasecmp(gamedirfile, str)) {
-	// save current config
-	Host_WriteConfiguration();
 	cflag = true;
     }
 

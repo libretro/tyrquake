@@ -1200,31 +1200,6 @@ Host_Error(const char *error, ...)
 }
 
 
-/*
-===============
-Host_WriteConfiguration
-
-Writes key bindings and archived cvars to config.cfg
-===============
-*/
-void
-Host_WriteConfiguration(void)
-{
-    RFILE *f;
-
-    if (host_initialized) {
-	f = rfopen(va("%s/config.cfg", com_gamedir), "w");
-	if (!f) {
-	    Con_Printf("Couldn't write config.cfg.\n");
-	    return;
-	}
-
-	Cvar_WriteVariables(f);
-	rfclose(f);
-    }
-}
-
-
 //============================================================================
 
 /*
@@ -1405,8 +1380,6 @@ Host_Shutdown(void)
     if (isdown)
 	return;
     isdown = true;
-
-    Host_WriteConfiguration();
 
     CDAudio_Shutdown();
     NET_Shutdown();
