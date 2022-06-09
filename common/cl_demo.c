@@ -31,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <streams/file_stream.h>
 
 /* forward declarations */
-RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
 int64_t rfread(void* buffer,
    size_t elem_size, size_t elem_count, RFILE* stream);

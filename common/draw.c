@@ -670,10 +670,8 @@ Draw_Fill(int x, int y, int w, int h, int c)
     byte *dest;
     int u, v;
 
-    if (x < 0 || x + w > vid.width || y < 0 || y + h > vid.height) {
-	Con_Printf("Bad Draw_Fill(%d, %d, %d, %d, %c)\n", x, y, w, h, c);
+    if (x < 0 || x + w > vid.width || y < 0 || y + h > vid.height)
 	return;
-    }
 
     {
 	dest = vid.buffer + y * vid.rowbytes + x;
@@ -695,14 +693,11 @@ void
 Draw_FadeScreen(void)
 {
    int x, y;
-   byte *pbuf;
 
    for (y = 0; y < vid.height; y++)
    {
-      int t;
-
-      pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
-      t = (y & 1) << 1;
+      byte *pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
+      int t      = (y & 1) << 1;
 
       for (x = 0; x < vid.width; x++) {
          if ((x & 3) != t)
@@ -742,14 +737,8 @@ Draw_EndDisc(void)
     D_EndDirectRect(vid.width - 24, 0, 24, 24);
 }
 
-
-
 // Colored Lighting lookup tables
-
 byte	palmap2[64][64][64];	
-
-
-
 
 /*
 ===============
@@ -759,9 +748,7 @@ BestColor
 byte BestColor (int r, int g, int b, int start, int stop)
 {
 	int	i;
-//
-// let any color go to 0 as a last resort
-//
+	// let any color go to 0 as a last resort
 	int bestdistortion = 256*256*4;
 	int bestcolor      = 0;
 	byte *pal          = host_basepal + start*3;

@@ -85,7 +85,6 @@ cvar_t sfxvolume = { "volume", "0.7", true };
 static cvar_t precache = { "precache", "1" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
-static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
 static cvar_t _snd_mixahead = { "_snd_mixahead", "0.1", true };
 
 static void SND_Callback_sfxvolume (cvar_t *var)
@@ -130,7 +129,6 @@ S_Init(void)
     Cvar_RegisterVariable(&bgmvolume);
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
-    Cvar_RegisterVariable(&snd_noextraupdate);
     Cvar_RegisterVariable(&_snd_mixahead);
 
     S_Startup();

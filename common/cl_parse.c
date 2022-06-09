@@ -392,7 +392,7 @@ CL_ParseUpdate(unsigned int bits)
    int i;
    model_t *model;
    int modnum;
-   qboolean forcelink;
+   qboolean forcelink = false;
    entity_t *ent;
    int num;
 
@@ -423,8 +423,6 @@ CL_ParseUpdate(unsigned int bits)
 
    if (ent->msgtime != cl.mtime[1])
       forcelink = true;	// no previous frame to lerp from
-   else
-      forcelink = false;
 
    ent->msgtime = cl.mtime[0];
 
@@ -605,9 +603,8 @@ void
 CL_ParseClientdata(void)
 {
     int i, j;
-    unsigned int bits;
+    unsigned int bits = (unsigned short)MSG_ReadShort();
 
-    bits = (unsigned short)MSG_ReadShort();
     if (bits & SU_FITZ_EXTEND1)
 	bits |= MSG_ReadByte() << 16;
     if (bits & SU_FITZ_EXTEND2)
@@ -771,9 +768,7 @@ void
 CL_ParseStatic(unsigned int bits)
 {
     entity_t *ent;
-    int i;
-
-    i = cl.num_statics;
+    int i = cl.num_statics;
     if (i >= MAX_STATIC_ENTITIES)
 	Host_Error("Too many static entities");
     ent = &cl_static_entities[i];
@@ -841,9 +836,9 @@ CL_ParseStaticSound(void)
 
     for (i = 0; i < 3; i++)
 	org[i] = MSG_ReadCoord();
-    sound_num = CL_ReadSoundNum_Static();
-    vol = MSG_ReadByte();
-    atten = MSG_ReadByte();
+    sound_num  = CL_ReadSoundNum_Static();
+    vol        = MSG_ReadByte();
+    atten      = MSG_ReadByte();
 
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
@@ -858,9 +853,9 @@ CL_ParseFitzStaticSound2(void)
 
     for (i = 0; i < 3; i++)
 	org[i] = MSG_ReadCoord();
-    sound_num = MSG_ReadShort();
-    vol = MSG_ReadByte();
-    atten = MSG_ReadByte();
+    sound_num  = MSG_ReadShort();
+    vol        = MSG_ReadByte();
+    atten      = MSG_ReadByte();
 
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
@@ -891,9 +886,8 @@ CL_ParseServerMessage(void)
 
       cmd = MSG_ReadByte();
 
-      if (cmd == -1) {
+      if (cmd == -1) 
          return;		// end of message
-      }
       // if the high bit of the command byte is set, it is a fast update
       if (cmd & 128) {
          CL_ParseUpdate(cmd & 127);
