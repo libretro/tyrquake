@@ -984,7 +984,6 @@ bool retro_load_game(const struct retro_game_info *info)
    char g_rom_dir[PATH_MAX_LENGTH];
    char g_pak_path[PATH_MAX_LENGTH];
    char g_save_dir[PATH_MAX_LENGTH];
-   char cfg_file[PATH_MAX_LENGTH];
    char *path_lower = NULL;
    quakeparms_t parms;
    bool use_external_savedir = false;
@@ -994,7 +993,6 @@ bool retro_load_game(const struct retro_game_info *info)
    g_rom_dir[0] = '\0';
    g_pak_path[0] = '\0';
    g_save_dir[0] = '\0';
-   cfg_file[0] = '\0';
 
    if (!info)
       return false;
@@ -1142,28 +1140,21 @@ bool retro_load_game(const struct retro_game_info *info)
       return false;
    }
 
-   /* Override some default binds with more modern ones if we are booting the 
-    * game for the first time. */
-   fill_pathname_join(cfg_file, g_save_dir, "config.cfg", sizeof(cfg_file));
+   Cvar_Set("gamma", "0.95");
+   Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind ~ \"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind ` \"toggleconsole\"", src_command);
 
-   if (!path_is_valid(cfg_file))
-   {
-       Cvar_Set("gamma", "0.95");
-       Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
-       Cmd_ExecuteString("bind ~ \"toggleconsole\"", src_command);
-       Cmd_ExecuteString("bind ` \"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind f \"+moveup\"", src_command);
+   Cmd_ExecuteString("bind c \"+movedown\"", src_command);
 
-       Cmd_ExecuteString("bind f \"+moveup\"", src_command);
-       Cmd_ExecuteString("bind c \"+movedown\"", src_command);
+   Cmd_ExecuteString("bind a \"+moveleft\"", src_command);
+   Cmd_ExecuteString("bind d \"+moveright\"", src_command);
+   Cmd_ExecuteString("bind w \"+forward\"", src_command);
+   Cmd_ExecuteString("bind s \"+back\"", src_command);
 
-       Cmd_ExecuteString("bind a \"+moveleft\"", src_command);
-       Cmd_ExecuteString("bind d \"+moveright\"", src_command);
-       Cmd_ExecuteString("bind w \"+forward\"", src_command);
-       Cmd_ExecuteString("bind s \"+back\"", src_command);
-
-       Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
-       Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
-   }
+   Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
+   Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
 
    Cmd_ExecuteString("bind AUX1 \"+moveright\"", src_command);
    Cmd_ExecuteString("bind AUX2 \"+moveleft\"", src_command);

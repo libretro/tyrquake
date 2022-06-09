@@ -43,12 +43,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 #include "render.h"
 
-#include <streams/file_stream.h>
-
-/* forward declarations */
-RFILE* rfopen(const char *path, const char *mode);
-int rfclose(RFILE* stream);
-
 /*
  * A server can always be started, even if the system started out as a client
  * to a remote system.
@@ -241,30 +235,6 @@ Host_InitLocal(void)
     Host_FindMaxClients();
 
     host_time = 1.0;		// so a think at time 0 won't get called
-}
-
-
-/*
-===============
-Host_WriteConfiguration
-
-Writes key bindings and archived cvars to config.cfg
-===============
-*/
-void
-Host_WriteConfiguration(void)
-{
-    // dedicated servers initialize the host but don't parse and set the
-    // config.cfg cvars
-    if (host_initialized & !isDedicated) {
-	RFILE *f = rfopen(va("%s/config.cfg", com_savedir), "w");
-	if (!f) {
-	    Con_Printf("Couldn't write config.cfg.\n");
-	    return;
-	}
-	Cvar_WriteVariables(f);
-	rfclose(f);
-    }
 }
 
 
@@ -793,8 +763,6 @@ Host_Shutdown(void)
 
     /* keep Con_Printf from trying to update the screen */
     scr_disabled_for_loading = true;
-
-    Host_WriteConfiguration();
 
     CDAudio_Shutdown();
     NET_Shutdown();
