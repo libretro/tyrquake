@@ -472,10 +472,8 @@ CL_User_f(void)
 	if (!cl.players[i].name[0])
 	    continue;
 	if (cl.players[i].userid == uid
-	    || !strcmp(cl.players[i].name, Cmd_Argv(1))) {
-	    Info_Print(cl.players[i].userinfo);
+	    || !strcmp(cl.players[i].name, Cmd_Argv(1)))
 	    return;
-	}
     }
     Con_Printf("User not in server.\n");
 }
@@ -633,10 +631,8 @@ Allow clients to change userinfo
 void
 CL_SetInfo_f(void)
 {
-    if (Cmd_Argc() == 1) {
-	Info_Print(cls.userinfo);
+    if (Cmd_Argc() == 1)
 	return;
-    }
     if (Cmd_Argc() != 3) {
 	Con_Printf("usage: setinfo [ <key> <value> ]\n");
 	return;

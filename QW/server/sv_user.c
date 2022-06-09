@@ -1032,7 +1032,6 @@ SV_SetInfo_f(void)
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("User info settings:\n");
-	Info_Print(host_client->userinfo);
 	return;
     }
 
@@ -1078,7 +1077,6 @@ Dumps the serverinfo info string
 void
 SV_ShowServerinfo_f(void)
 {
-    Info_Print(svs.info);
 }
 
 void

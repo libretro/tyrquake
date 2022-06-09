@@ -254,12 +254,10 @@ Writes key bindings and archived cvars to config.cfg
 void
 Host_WriteConfiguration(void)
 {
-    RFILE *f;
-
-// dedicated servers initialize the host but don't parse and set the
-// config.cfg cvars
+    // dedicated servers initialize the host but don't parse and set the
+    // config.cfg cvars
     if (host_initialized & !isDedicated) {
-	f = rfopen(va("%s/config.cfg", com_savedir), "w");
+	RFILE *f = rfopen(va("%s/config.cfg", com_savedir), "w");
 	if (!f) {
 	    Con_Printf("Couldn't write config.cfg.\n");
 	    return;

@@ -1207,33 +1207,6 @@ error:
 
 /*
 ============
-COM_WriteFile
-
-The filename will be prefixed by the current game directory
-============
-*/
-void COM_WriteFile(const char *filename, const void *data, int len)
-{
-   RFILE *f;
-   char name[MAX_OSPATH];
-
-   snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
-
-   f = rfopen(name, "wb");
-   if (!f)
-   {
-      Sys_mkdir(com_gamedir);
-      f = rfopen(name, "wb");
-      if (!f)
-         Sys_Error("Error opening %s", filename);
-   }
-   rfwrite(data, 1, len, f);
-   rfclose(f);
-}
-
-
-/*
-============
 COM_CreatePath
 ============
 */
@@ -2163,24 +2136,6 @@ void Info_SetValueForKey(char *infostring, const char *key, const char *value,
       return;
    }
    Info_SetValueForStarKey(infostring, key, value, maxsize);
-}
-
-void Info_Print(const char *infostring)
-{
-   char key[MAX_INFO_STRING];
-   char value[MAX_INFO_STRING];
-
-   while (*infostring)
-   {
-      infostring = Info_ReadKey(infostring, key, sizeof(key));
-      if (*infostring)
-         infostring++;
-      infostring = Info_ReadValue(infostring, value, sizeof(value));
-      if (*infostring)
-         infostring++;
-
-      Con_Printf("%-20.20s %s\n", key, *value ? value : "MISSING VALUE");
-   }
 }
 
 static byte chktbl[1024 + 4] = {

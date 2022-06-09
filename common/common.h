@@ -253,7 +253,6 @@ extern char com_gamedir[MAX_OSPATH];
 extern char com_savedir[MAX_OSPATH];
 extern int file_from_pak; // global indicating that file came from a pak
 
-void COM_WriteFile(const char *filename, const void *data, int len);
 int COM_FOpenFile(const char *filename, RFILE **file);
 void COM_ScanDir(struct stree_root *root, const char *path,
 		 const char *pfx, const char *ext, qboolean stripext);
@@ -279,7 +278,6 @@ void Info_SetValueForKey(char *infostring, const char *key, const char *value,
 			 int maxsize);
 void Info_SetValueForStarKey(char *infostring, const char *key,
 			     const char *value, int maxsize);
-void Info_Print(const char *infostring);
 
 unsigned Com_BlockChecksum(const void *buffer, int length);
 void Com_BlockFullChecksum(const void *buffer, int len,

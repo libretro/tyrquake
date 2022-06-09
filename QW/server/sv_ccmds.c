@@ -540,7 +540,6 @@ SV_Serverinfo_f(void)
 {
     if (Cmd_Argc() == 1) {
 	Con_Printf("Server info settings:\n");
-	Info_Print(svs.info);
 	return;
     }
 
@@ -577,7 +576,6 @@ SV_Localinfo_f(void)
 {
     if (Cmd_Argc() == 1) {
 	Con_Printf("Local info settings:\n");
-	Info_Print(localinfo);
 	return;
     }
 
@@ -612,8 +610,6 @@ SV_User_f(void)
 
     if (!SV_SetPlayer())
 	return;
-
-    Info_Print(host_client->userinfo);
 }
 
 /*
