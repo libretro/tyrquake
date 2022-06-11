@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // sv_edict.c -- entity dictionary
 
+#include <compat/strl.h>
+
 #include "cmd.h"
 #include "console.h"
 #include "crc.h"
@@ -322,7 +324,7 @@ PR_UglyValueString(etype_t type, eval_t *val)
 
     switch (type) {
     case ev_string:
-	snprintf(line, sizeof(line), "%s", PR_GetString(val->string));
+	strlcpy(line, PR_GetString(val->string), sizeof(line));
 	break;
     case ev_entity:
 	snprintf(line, sizeof(line), "%i",
@@ -330,14 +332,14 @@ PR_UglyValueString(etype_t type, eval_t *val)
 	break;
     case ev_function:
 	f = pr_functions + val->function;
-	snprintf(line, sizeof(line), "%s", PR_GetString(f->s_name));
+	strlcpy(line, PR_GetString(f->s_name), sizeof(line));
 	break;
     case ev_field:
 	def = ED_FieldAtOfs(val->_int);
-	snprintf(line, sizeof(line), "%s", PR_GetString(def->s_name));
+	strlcpy(line, PR_GetString(def->s_name), sizeof(line));
 	break;
     case ev_void:
-	snprintf(line, sizeof(line), "void");
+	strlcpy(line, "void", sizeof(line));
 	break;
     case ev_float:
 	snprintf(line, sizeof(line), "%f", val->_float);
@@ -363,11 +365,7 @@ For savegames
 */
 void ED_Write(RFILE *f, edict_t *ed)
 {
-   ddef_t *d;
-   int *v;
-   int i, j;
-   const char *name;
-   int type;
+   int i;
 
    rfprintf(f, "{\n");
 
@@ -377,9 +375,11 @@ void ED_Write(RFILE *f, edict_t *ed)
       return;
    }
 
-   for (i = 1; i < progs->numfielddefs; i++) {
-      d = &pr_fielddefs[i];
-      name = PR_GetString(d->s_name);
+   for (i = 1; i < progs->numfielddefs; i++)
+   {
+      int j, type, *v;
+      ddef_t        *d = &pr_fielddefs[i];
+      const char *name = PR_GetString(d->s_name);
       if (name[strlen(name) - 2] == '_')
          continue;		// skip _x, _y, _z vars
 
@@ -417,15 +417,14 @@ ED_WriteGlobals
 void
 ED_WriteGlobals(RFILE *f)
 {
-    ddef_t *def;
     int i;
-    const char *name;
-    int type;
 
     rfprintf(f, "{\n");
-    for (i = 0; i < progs->numglobaldefs; i++) {
-	def = &pr_globaldefs[i];
-	type = def->type;
+    for (i = 0; i < progs->numglobaldefs; i++)
+    {
+        const char *name;
+	ddef_t *def = &pr_globaldefs[i];
+	int type = def->type;
 	if (!(def->type & DEF_SAVEGLOBAL))
 	    continue;
 	type &= ~DEF_SAVEGLOBAL;
@@ -497,12 +496,10 @@ ED_NewString
 static char *
 ED_NewString(const char *string)
 {
-    char *newobj, *new_p;
-    int i, l;
-
-    l = strlen(string) + 1;
-    newobj = (char*)Hunk_Alloc(l);
-    new_p = newobj;
+    int i;
+    int l        = strlen(string) + 1;
+    char *newobj = (char*)Hunk_Alloc(l);
+    char *new_p  = newobj;
 
     for (i = 0; i < l; i++) {
 	if (string[i] == '\\' && i < l - 1) {
@@ -534,10 +531,8 @@ ED_ParseEpair(void *base, ddef_t *key, const char *s)
     char string[128];
     ddef_t *def;
     char *v, *w;
-    void *d;
     dfunction_t *func;
-
-    d = (void *)((int *)base + key->ofs);
+    void *d = (void *)((int *)base + key->ofs);
 
     switch (key->type & ~DEF_SAVEGLOBAL) {
     case ev_string:
@@ -601,19 +596,17 @@ Used for initial level load and for savegames.
 const char *
 ED_ParseEdict(const char *data, edict_t *ent)
 {
+    int n;
     ddef_t *key;
     qboolean anglehack;
-    qboolean init;
     char keyname[256];
-    int n;
+    qboolean init = false;
 
-    init = false;
-
-// clear it
+    // clear it
     if (ent != sv.edicts)	// hack
 	memset(&ent->v, 0, progs->entityfields * 4);
 
-// go through all the dictionary pairs
+    // go through all the dictionary pairs
     while (1) {
 	// parse key
 	data = COM_Parse(data);
@@ -622,15 +615,15 @@ ED_ParseEdict(const char *data, edict_t *ent)
 	if (!data)
 	    SV_Error("%s: EOF without closing brace", __func__);
 
-// anglehack is to allow QuakeEd to write single scalar angles
-// and allow them to be turned into vectors. (FIXME...)
+	// anglehack is to allow QuakeEd to write single scalar angles
+	// and allow them to be turned into vectors. (FIXME...)
 	if (!strcmp(com_token, "angle")) {
 	    strcpy(com_token, "angles");
 	    anglehack = true;
 	} else
 	    anglehack = false;
 
-// FIXME: change light to _light to get rid of this hack
+	// FIXME: change light to _light to get rid of this hack
 	if (!strcmp(com_token, "light"))
 	    strcpy(com_token, "light_lev");	// hack for single light def
 
@@ -653,8 +646,8 @@ ED_ParseEdict(const char *data, edict_t *ent)
 
 	init = true;
 
-// keynames with a leading underscore are used for utility comments,
-// and are immediately discarded by quake
+	// keynames with a leading underscore are used for utility comments,
+	// and are immediately discarded by quake
 	if (keyname[0] == '_')
 	    continue;
 
@@ -705,17 +698,16 @@ to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 void
 ED_LoadFromFile(const char *data)
 {
-    edict_t *ent;
-    int inhibit;
     dfunction_t *func;
+    edict_t *ent = NULL;
+    int inhibit  = 0;
 
-    ent = NULL;
-    inhibit = 0;
     pr_global_struct->time = sv.time;
 
-// parse ents
-    while (1) {
-// parse the opening brace
+    // parse ents
+    while (1)
+    {
+        // parse the opening brace
 	data = COM_Parse(data);
 	if (!data)
 	    break;
@@ -947,9 +939,7 @@ EDICT_NUM(int n)
 int
 NUM_FOR_EDICT(const edict_t *e)
 {
-    int b = (byte *)e - (byte *)sv.edicts;
-    b = b / pr_edict_size;
-
+    int b = ((byte *)e - (byte *)sv.edicts) / pr_edict_size;
     if (b < 0 || b >= sv.num_edicts)
 	SV_Error("%s: bad pointer", __func__);
     return b;

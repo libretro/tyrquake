@@ -62,8 +62,7 @@ kbutton_t in_up, in_down;
 int in_impulse;
 int walkstate=1;
 
-void
-KeyDown(kbutton_t *b)
+static void KeyDown(kbutton_t *b)
 {
     int k;
     const char *c = Cmd_Argv(1);
@@ -89,8 +88,7 @@ KeyDown(kbutton_t *b)
     b->state |= 1 + 2;		// down + impulse down
 }
 
-void
-KeyUp(kbutton_t *b)
+static void KeyUp(kbutton_t *b)
 {
     int k;
     const char *c = Cmd_Argv(1);
@@ -318,8 +316,7 @@ Returns 0.25 if a key was pressed and released during the frame,
 1.0 if held for the entire time
 ===============
 */
-float
-CL_KeyState(kbutton_t *key)
+static float CL_KeyState(kbutton_t *key)
 {
     qboolean impulsedown = key->state & 2;
     qboolean impulseup   = key->state & 4;
