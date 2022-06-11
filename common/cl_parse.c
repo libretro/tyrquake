@@ -140,8 +140,7 @@ When the client is taking a long time to load stuff, send keepalive messages
 so the server doesn't disconnect.
 ==================
 */
-void
-CL_KeepaliveMessage(void)
+static void CL_KeepaliveMessage(void)
 {
     float time;
     static float lastmsg;
