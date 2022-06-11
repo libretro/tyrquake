@@ -793,8 +793,6 @@ Host_Say(qboolean teamonly)
 	SV_ClientPrintf("%s", text);
     }
     host_client = save;
-
-    Sys_Printf("%s", &text[1]);
 }
 
 

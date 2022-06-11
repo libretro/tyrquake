@@ -36,7 +36,6 @@ void Sys_mkdir(const char *path);
 
 #define MAX_PRINTMSG 4096
 
-void Sys_Printf(const char *fmt, ...);
 bool Sys_Error(const char *error, ...);
 
 // send text to the console

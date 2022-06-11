@@ -314,10 +314,6 @@ retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 
-void Sys_Printf(const char *fmt, ...)
-{
-}
-
 void Sys_Quit(void)
 {
    Host_Shutdown();

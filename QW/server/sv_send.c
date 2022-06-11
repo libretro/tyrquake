@@ -119,10 +119,6 @@ Con_Printf(const char *fmt, ...)
 	strcat(outputbuf, msg);
 	return;
     }
-
-    Sys_Printf("%s", msg);	// also echo to debugging console
-    if (sv_logfile)
-	fprintf(sv_logfile, "%s", msg);
 }
 
 /*
@@ -183,8 +179,6 @@ SV_BroadcastPrintf(int level, const char *fmt, ...)
     va_start(argptr, fmt);
     vsnprintf(string, sizeof(string), fmt, argptr);
     va_end(argptr);
-
-    Sys_Printf("%s", string);	// print to the console
 
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (level < cl->messagelevel)

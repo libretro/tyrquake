@@ -98,70 +98,6 @@ SV_Quit_f(void)
 }
 
 /*
-============
-SV_Logfile_f
-============
-*/
-void
-SV_Logfile_f(void)
-{
-    char name[MAX_OSPATH];
-
-    if (sv_logfile) {
-	Con_Printf("File logging off.\n");
-	rfclose(sv_logfile);
-	sv_logfile = NULL;
-	return;
-    }
-
-    sprintf(name, "%s/qconsole.log", com_gamedir);
-    Con_Printf("Logging text to %s.\n", name);
-    sv_logfile = rfopen(name, "w");
-    if (!sv_logfile)
-	Con_Printf("failed.\n");
-}
-
-
-/*
-============
-SV_Fraglogfile_f
-============
-*/
-void
-SV_Fraglogfile_f(void)
-{
-    char name[MAX_OSPATH];
-    int i;
-
-    if (sv_fraglogfile) {
-	Con_Printf("Frag file logging off.\n");
-	fclose(sv_fraglogfile);
-	sv_fraglogfile = NULL;
-	return;
-    }
-    // find an unused name
-    for (i = 0; i < 1000; i++) {
-	sprintf(name, "%s/frag_%i.log", com_gamedir, i);
-	sv_fraglogfile = rfopen(name, "r");
-	if (!sv_fraglogfile) {	// can't read it, so create this one
-	    sv_fraglogfile = rfopen(name, "w");
-	    if (!sv_fraglogfile)
-		i = 1000;	// give error
-	    break;
-	}
-	fclose(sv_fraglogfile);
-    }
-    if (i == 1000) {
-	Con_Printf("Can't open any logfiles.\n");
-	sv_fraglogfile = NULL;
-	return;
-    }
-
-    Con_Printf("Logging frags to %s.\n", name);
-}
-
-
-/*
 ==================
 SV_SetPlayer
 
@@ -849,9 +785,6 @@ SV_InitOperatorCommands(void)
 	Info_SetValueForStarKey(svs.info, "*cheats", "ON",
 				MAX_SERVERINFO_STRING);
     }
-
-    Cmd_AddCommand("logfile", SV_Logfile_f);
-    Cmd_AddCommand("fraglogfile", SV_Fraglogfile_f);
 
     Cmd_AddCommand("snap", SV_Snap_f);
     Cmd_AddCommand("snapall", SV_SnapAll_f);

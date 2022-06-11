@@ -122,23 +122,6 @@ Sys_Error(const char *error, ...)
 
 /*
 ================
-Sys_Printf
-================
-*/
-void
-Sys_Printf(const char *fmt, ...)
-{
-    va_list argptr;
-    static char text[MAX_PRINTMSG];
-
-    va_start(argptr, fmt);
-    vsnprintf(text, sizeof(text), fmt, argptr);
-    va_end(argptr);
-}
-
-
-/*
-================
 Sys_Quit
 ================
 */

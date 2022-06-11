@@ -1342,7 +1342,6 @@ qboolean COM_FileExists (const char *filename)
       }
    }
 
-   Sys_Printf("FindFile: can't find %s\n", filename);
    com_filesize = -1;
 
    return false;

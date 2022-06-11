@@ -84,9 +84,6 @@ cvar_t watervis = { "watervis", "0", false, true };
 
 cvar_t hostname = { "hostname", "unnamed", false, true };
 
-RFILE *sv_logfile;
-RFILE *sv_fraglogfile;
-
 static void Master_Heartbeat(void);
 static void Master_Shutdown(void);
 
@@ -109,14 +106,6 @@ void
 SV_Shutdown(void)
 {
     Master_Shutdown();
-    if (sv_logfile) {
-	rfclose(sv_logfile);
-	sv_logfile = NULL;
-    }
-    if (sv_fraglogfile) {
-	rfclose(sv_fraglogfile);
-	sv_logfile = NULL;
-    }
     NET_Shutdown();
 }
 
@@ -281,12 +270,8 @@ Writes all update values to a sizebuf
 void
 SV_FullClientUpdate(client_t *client, sizebuf_t *buf)
 {
-    int i;
     char info[MAX_INFO_STRING];
-
-    i = client - svs.clients;
-
-//Sys_Printf("SV_FullClientUpdate:  Updated frags for client %d\n", i);
+    int i = client - svs.clients;
 
     MSG_WriteByte(buf, svc_updatefrags);
     MSG_WriteByte(buf, i);
@@ -423,25 +408,10 @@ instead of the data.
 static void
 SVC_Log(void)
 {
-    int seq;
     char data[MAX_DATAGRAM + 64];
-
-    if (Cmd_Argc() == 2)
-	seq = atoi(Cmd_Argv(1));
-    else
-	seq = -1;
-
     /* they already have this data, or we aren't logging frags */
-    if (seq == svs.logsequence - 1 || !sv_fraglogfile) {
-	data[0] = A2A_NACK;
-	NET_SendPacket(1, data, net_from);
-	return;
-    }
-
-    sprintf(data, "stdlog %i\n", svs.logsequence - 1);
-    strcat(data, (char *)svs.log_buf[((svs.logsequence - 1) & 1)]);
-
-    NET_SendPacket(strlen(data) + 1, data, net_from);
+    data[0] = A2A_NACK;
+    NET_SendPacket(1, data, net_from);
 }
 
 /*

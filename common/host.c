@@ -328,8 +328,6 @@ SV_DropClient(qboolean crash)
 	    PR_ExecuteProgram(pr_global_struct->ClientDisconnect);
 	    pr_global_struct->self = saveSelf;
 	}
-
-	Sys_Printf("Client %s removed\n", host_client->name);
     }
 // break the net connection
     NET_Close(host_client->netconnection);
@@ -680,7 +678,6 @@ Host_Init(quakeparms_t *parms)
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;
-    Sys_Printf("========Quake Initialized=========\n");
 
     /* In case exec of quake.rc fails */
     if (!setjmp(host_abort)) {

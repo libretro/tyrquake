@@ -315,9 +315,6 @@ void Con_Printf(const char *fmt, ...)
    vsnprintf(msg, sizeof(msg), fmt, argptr);
    va_end(argptr);
 
-   /* also echo to debugging console */
-   Sys_Printf("%s", msg);	// also echo to debugging console
-
    if (!con_initialized)
       return;
 

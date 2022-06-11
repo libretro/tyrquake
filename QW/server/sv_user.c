@@ -571,14 +571,11 @@ SV_NextUpload(void)
     if (!host_client->upload) {
 	host_client->upload = fopen(host_client->uploadfn, "wb");
 	if (!host_client->upload) {
-	    Sys_Printf("Can't create %s\n", host_client->uploadfn);
 	    ClientReliableWrite_Begin(host_client, svc_stufftext, 8);
 	    ClientReliableWrite_String(host_client, "stopul");
 	    *host_client->uploadfn = 0;
 	    return;
 	}
-	Sys_Printf("Receiving %s from %d...\n", host_client->uploadfn,
-		   host_client->userid);
 	if (host_client->remote_snap)
 	    OutofBandPrintf(host_client->snap_from,
 			    "Server receiving %s from %d...\n",
@@ -594,8 +591,6 @@ SV_NextUpload(void)
     } else {
 	fclose(host_client->upload);
 	host_client->upload = NULL;
-
-	Sys_Printf("%s upload completed.\n", host_client->uploadfn);
 
 	if (host_client->remote_snap) {
 	    char *p;
@@ -666,7 +661,6 @@ SV_BeginDownload_f(void)
 	    host_client->download = NULL;
 	}
 
-	Sys_Printf("Couldn't upload %s to %s\n", name, host_client->name);
 	ClientReliableWrite_Begin(host_client, svc_download, 4);
 	ClientReliableWrite_Short(host_client, -1);
 	ClientReliableWrite_Byte(host_client, 0);
@@ -674,7 +668,6 @@ SV_BeginDownload_f(void)
     }
 
     SV_NextDownload_f();
-    Sys_Printf("Uploading %s to %s\n", name, host_client->name);
 }
 
 //=============================================================================
@@ -750,8 +743,6 @@ SV_Say(qboolean team)
 	text[len + qmin(strlen(p), space)] = 0;
     }
     strcat(text, "\n");
-
-    Sys_Printf("%s", text);
 
     for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
 	if (client->state != cs_spawned)
