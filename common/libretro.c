@@ -369,10 +369,6 @@ void Sys_mkdir(const char *path)
    path_mkdir(path);
 }
 
-void Sys_DebugLog(const char *file, const char *fmt, ...)
-{
-}
-
 double Sys_DoubleTime(void)
 {
    static int first = true;

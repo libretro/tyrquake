@@ -32,19 +32,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 int Sys_FileTime(const char *path);
 void Sys_mkdir(const char *path);
 
-//
-// memory protection
-//
-void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
-
-//
 // system IO
-//
 
 #define MAX_PRINTMSG 4096
 
 void Sys_Printf(const char *fmt, ...);
-void Sys_DebugLog(const char *file, const char *fmt, ...);
 bool Sys_Error(const char *error, ...);
 
 // send text to the console
