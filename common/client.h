@@ -111,12 +111,8 @@ typedef struct {
 // demo recording info must be here, because record is started before
 // entering a map (and clearing client_state_t)
     qboolean demoplayback;
-    qboolean timedemo;
     int forcetrack;		// -1 = use normal cd track
     RFILE *demofile;
-    int td_lastframe;		// to meter out one message a frame
-    int td_startframe;		// host_framecount at start
-    float td_starttime;		// realtime at second frame of timedemo
 
 // connection information
     int signon;			// 0 to SIGNONS
