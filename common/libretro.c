@@ -329,7 +329,7 @@ void Sys_Init(void)
    }
 }
 
-bool Sys_Error(const char *error, ...)
+void Sys_Error(const char *error, ...)
 {
    char buffer[256];
    va_list ap;
@@ -339,8 +339,6 @@ bool Sys_Error(const char *error, ...)
    if (log_cb)
       log_cb(RETRO_LOG_ERROR, "%s\n", buffer);
    va_end(ap);
-
-   return false;
 }
 
 /*

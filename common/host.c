@@ -109,9 +109,6 @@ Host_EndGame(const char *message, ...)
     if (sv.active)
 	Host_ShutdownServer(false);
 
-    if (cls.state == ca_dedicated)
-	Sys_Error("%s: %s", __func__, string); // dedicated servers exit
-
     if (cls.demonum != -1)
 	CL_NextDemo();
     else
@@ -134,8 +131,6 @@ Host_Error(const char *error, ...)
     char string[MAX_PRINTMSG];
     static qboolean inerror = false;
 
-    if (inerror)
-	Sys_Error("%s: recursively entered", __func__);
     inerror = true;
 
     SCR_EndLoadingPlaque();	// reenable screen updates
@@ -147,9 +142,6 @@ Host_Error(const char *error, ...)
 
     if (sv.active)
 	Host_ShutdownServer(false);
-
-    if (cls.state == ca_dedicated)
-	Sys_Error("%s: %s", __func__, string); // dedicated servers exit
 
     CL_Disconnect();
     cls.demonum = -1;
@@ -183,8 +175,6 @@ Host_FindMaxClients(void)
 
     i = COM_CheckParm("-listen");
     if (i) {
-	if (cls.state == ca_dedicated)
-	    Sys_Error("Only one of -dedicated or -listen can be specified");
 	if (i != (com_argc - 1))
 	    svs.maxclients = Q_atoi(com_argv[i + 1]);
 	else
@@ -617,8 +607,11 @@ Host_Init(quakeparms_t *parms)
     host_parms = *parms;
 
     if (parms->memsize < minimum_memory)
-       return Sys_Error("Only %4.1f megs of memory reported, can't execute game",
+    {
+       Sys_Error("Only %4.1f megs of memory reported, can't execute game",
              parms->memsize / (float)0x100000);
+       return false;
+    }
 
     com_argc = parms->argc;
     com_argv = parms->argv;
@@ -649,10 +642,16 @@ Host_Init(quakeparms_t *parms)
     if (cls.state != ca_dedicated) {
 	host_basepal = (byte*)COM_LoadHunkFile("gfx/palette.lmp");
 	if (!host_basepal)
-	    return Sys_Error("Couldn't load gfx/palette.lmp");
+        {
+	    Sys_Error("Couldn't load gfx/palette.lmp");
+            return false;
+	}
 	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
-	    return Sys_Error("Couldn't load gfx/colormap.lmp");
+        {
+	    Sys_Error("Couldn't load gfx/colormap.lmp");
+	    return false;
+        }
 
 
    if (coloredlights)

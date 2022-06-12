@@ -36,7 +36,7 @@ void Sys_mkdir(const char *path);
 
 #define MAX_PRINTMSG 4096
 
-bool Sys_Error(const char *error, ...);
+void Sys_Error(const char *error, ...);
 
 // send text to the console
 // an error will cause the entire program to exit
