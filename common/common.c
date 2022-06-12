@@ -28,6 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/types.h>
 #include <errno.h>
 
+#include <compat/strl.h>
+#include <file/file_path.h>
+
 #ifdef NQ_HACK
 #include "quakedef.h"
 #include "host.h"
@@ -71,10 +74,6 @@ int rfgetc(RFILE* stream);
 
 static const char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
 static const char *argvdummy = " ";
-
-static const char *safeargvs[NUM_SAFE_ARGVS] = {
-  "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse", "-dibonly"
-};
 
 cvar_t registered = { "registered", "0" };
 #ifdef NQ_HACK
@@ -1008,7 +1007,6 @@ COM_InitArgv
 */
 void COM_InitArgv(int argc, const char **argv)
 {
-   qboolean safe;
    int i;
 #ifdef NQ_HACK
    int j, n = 0;
@@ -1027,22 +1025,9 @@ void COM_InitArgv(int argc, const char **argv)
    com_cmdline[n] = 0;
 #endif
 
-   safe = false;
-
    for (com_argc = 0; (com_argc < MAX_NUM_ARGVS) && (com_argc < argc);
          com_argc++) {
       largv[com_argc] = argv[com_argc];
-      if (!strcmp("-safe", argv[com_argc]))
-         safe = true;
-   }
-
-   if (safe) {
-      // force all the safe-mode switches. Note that we reserved extra space in
-      // case we need to add these, so we don't need an overflow check
-      for (i = 0; i < NUM_SAFE_ARGVS; i++) {
-         largv[com_argc] = safeargvs[i];
-         com_argc++;
-      }
    }
 
    largv[com_argc] = argvdummy;
@@ -1244,7 +1229,6 @@ int COM_FOpenFile(const char *filename, RFILE **file)
    char path[MAX_OSPATH];
    pack_t *pak;
    int i;
-   int findtime;
 
    file_from_pak = 0;
 
@@ -1276,9 +1260,8 @@ int COM_FOpenFile(const char *filename, RFILE **file)
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
-         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-         findtime = Sys_FileTime(path);
-         if (findtime == -1)
+         fill_pathname_join(path, search->filename, filename, sizeof(path));
+         if (Sys_FileTime(path) == -1)
             continue;
 
          *file        = rfopen(path, "rb");
@@ -1333,7 +1316,7 @@ qboolean COM_FileExists (const char *filename)
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
-         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
+         fill_pathname_join(path, search->filename, filename, sizeof(path));
          findtime = Sys_FileTime(path);
          if (findtime == -1)
             continue;
@@ -1445,7 +1428,7 @@ void COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
          COM_ScanDirPak(root, search->pack, path, pfx, ext, stripext);
       else
       {
-         snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
+         fill_pathname_join(fullpath, search->filename, path, MAX_OSPATH);
          fullpath[MAX_OSPATH - 1] = '\0';
          dir = retro_opendir(fullpath);
 
@@ -1597,7 +1580,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    /* parse the directory */
    for (i = 0; i < numfiles; i++)
    {
-      snprintf(mfiles[i].name, sizeof(mfiles[i].name), "%s", dfiles[i].name);
+      strlcpy(mfiles[i].name, dfiles[i].name, sizeof(mfiles[i].name));
 #ifdef MSB_FIRST
       mfiles[i].filepos = LittleLong(dfiles[i].filepos);
       mfiles[i].filelen = LittleLong(dfiles[i].filelen);
@@ -1619,7 +1602,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    if (!pack)
       goto error;
 
-   snprintf(pack->filename, sizeof(pack->filename), "%s", packfile);
+   strlcpy(pack->filename, packfile, sizeof(pack->filename));
    strcpy(pack->filename, packfile);
    pack->numfiles = numfiles;
    pack->files = mfiles;

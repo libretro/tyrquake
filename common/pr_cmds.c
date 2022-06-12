@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include <float.h>
+#include <compat/strl.h>
 
 #include "cmd.h"
 #include "console.h"
@@ -1778,7 +1779,7 @@ PF_infokey(void)
     } else if (e1 <= MAX_CLIENTS) {
 	if (!strcmp(key, "ip")) {
 	    netadr_t addr = svs.clients[e1 - 1].netchan.remote_address;
-	    snprintf(buf, sizeof(buf), "%s", NET_BaseAdrToString(addr));
+	    strlcpy(buf, NET_BaseAdrToString(addr), sizeof(buf));
 	    value = buf;
 	} else if (!strcmp(key, "ping")) {
 	    int ping = SV_CalcPing(&svs.clients[e1 - 1]);

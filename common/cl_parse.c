@@ -35,6 +35,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "sys.h"
 
+#include <compat/strl.h>
+
 //=============================================================================
 
 /*
@@ -200,7 +202,7 @@ CL_ParseServerInfo(void)
 {
     char *level;
     const char *mapname;
-    int i, maxlen;
+    int i;
     int nummodels, numsounds;
     char **model_precache = malloc(sizeof(char*) * MAX_MODELS);
     char **sound_precache = malloc(sizeof(char*) * MAX_SOUNDS);
@@ -235,8 +237,7 @@ CL_ParseServerInfo(void)
 
     /* parse signon message */
     level = cl.levelname;
-    maxlen = sizeof(cl.levelname);
-    snprintf(level, maxlen, "%s", MSG_ReadString());
+    strlcpy(level, MSG_ReadString(), sizeof(cl.levelname));
 
     /* seperate the printfs so the server message can have a color */
     Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
@@ -285,7 +286,7 @@ CL_ParseServerInfo(void)
 
     /* copy the naked name of the map file to the cl structure */
     mapname = COM_SkipPath(model_precache[1]);
-    snprintf(cl.mapname, sizeof(cl.mapname), "%s", mapname);
+    strlcpy(cl.mapname, mapname, sizeof(cl.mapname));
     COM_StripExtension(cl.mapname);
 
     /* now we try to load everything else until a cache allocation fails */
@@ -953,7 +954,7 @@ CL_ParseServerMessage(void)
             if (i >= MAX_LIGHTSTYLES)
                Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
             s = MSG_ReadString();
-            snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
+            strlcpy(cl_lightstyle[i].map, s, MAX_STYLESTRING);
             cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
             break;
 
@@ -972,7 +973,7 @@ CL_ParseServerMessage(void)
             if (i >= cl.maxclients)
                Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
             s = MSG_ReadString();
-            snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
+            strlcpy(cl.players[i].name, s, MAX_SCOREBOARDNAME);
             break;
 
          case svc_updatefrags:

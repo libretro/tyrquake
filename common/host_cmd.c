@@ -62,60 +62,7 @@ Host_Quit_f(void)
     }
     CL_Disconnect();
     Host_ShutdownServer(false);
-
-    //Sys_Quit();
 }
-
-
-/*
-==================
-Host_Status_f
-==================
-*/
-void
-Host_Status_f(void)
-{
-    client_t *client;
-    int seconds;
-    int minutes;
-    int hours = 0;
-    int j;
-    void (*print)(const char *fmt, ...);
-
-    if (cmd_source == src_command) {
-	if (!sv.active) {
-	    Cmd_ForwardToServer();
-	    return;
-	}
-	print = Con_Printf;
-    } else
-	print = SV_ClientPrintf;
-
-    print("host:    %s\n", Cvar_VariableString("hostname"));
-    print("version: TyrQuake-%s\n", stringify(TYR_VERSION));
-    if (tcpipAvailable)
-	print("tcp/ip:  %s\n", my_tcpip_address);
-    print("map:     %s\n", sv.name);
-    print("players: %i active (%i max)\n\n", net_activeconnections,
-	  svs.maxclients);
-    for (j = 0, client = svs.clients; j < svs.maxclients; j++, client++) {
-	if (!client->active)
-	    continue;
-	seconds = (int)(net_time - client->netconnection->connecttime);
-	minutes = seconds / 60;
-	if (minutes) {
-	    seconds -= (minutes * 60);
-	    hours = minutes / 60;
-	    if (hours)
-		minutes -= (hours * 60);
-	} else
-	    hours = 0;
-	print("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j + 1, client->name,
-	      (int)client->edict->v.frags, hours, minutes, seconds);
-	print("   %s\n", client->netconnection->address);
-    }
-}
-
 
 /*
 ==================
@@ -1436,7 +1383,6 @@ Host_InitCommands
 void
 Host_InitCommands(void)
 {
-    Cmd_AddCommand("status", Host_Status_f);
     Cmd_AddCommand("quit", Host_Quit_f);
     Cmd_AddCommand("god", Host_God_f);
     Cmd_AddCommand("notarget", Host_Notarget_f);

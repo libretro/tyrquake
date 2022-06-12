@@ -840,13 +840,10 @@ static void update_variables(bool startup)
    {
       char *pch;
       char str[100];
-      snprintf(str, sizeof(str), "%s", var.value);
-
-      pch = strtok(str, "x");
-      if (pch)
+      strlcpy(str, var.value, sizeof(str));
+      if ((pch = strtok(str, "x")))
          width = strtoul(pch, NULL, 0);
-      pch = strtok(NULL, "x");
-      if (pch)
+      if ((pch = strtok(NULL, "x")))
          height = strtoul(pch, NULL, 0);
 
       if (log_cb)
@@ -1123,10 +1120,11 @@ bool retro_load_game(const struct retro_game_info *info)
 
       Host_Shutdown();
 
-      snprintf(msg_local, sizeof(msg_local),
-            "PAK archive loading failed...");
-      msg.msg    = msg_local;
-      msg.frames = 360;
+      msg_local[0] = '\0';
+      strlcpy(msg_local, 
+            "PAK archive loading failed...", sizeof(msg_local));
+      msg.msg     = msg_local;
+      msg.frames  = 360;
       if (environ_cb)
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void*)&msg);
       return false;
