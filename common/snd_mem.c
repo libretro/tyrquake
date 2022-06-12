@@ -38,9 +38,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
    float stepscale;
    int i;
    int sample, samplefrac, fracstep;
-   sfxcache_t *sc;
-
-   sc = (sfxcache_t*)Cache_Check(&sfx->cache);
+   sfxcache_t *sc = (sfxcache_t*)Cache_Check(&sfx->cache);
    if (!sc)
       return;
 
@@ -115,20 +113,15 @@ S_LoadSound(sfx_t *s)
     wavinfo_t *info;
     int len;
     float stepscale;
-    sfxcache_t *sc;
     byte stackbuf[1024];	// avoid dirtying the cache heap
-
-// see if still in memory
-    sc = (sfxcache_t*)Cache_Check(&s->cache);
+    // see if still in memory
+    sfxcache_t *sc = (sfxcache_t*)Cache_Check(&s->cache);
     if (sc)
 	return sc;
 
-//Con_Printf ("S_LoadSound: %x\n", (int)stackbuf);
-// load it in
+    // load it in
     strcpy(namebuffer, "sound/");
     strcat(namebuffer, s->name);
-
-//      Con_Printf ("loading %s\n",namebuffer);
 
     data = (byte*)COM_LoadStackFile(namebuffer, stackbuf, sizeof(stackbuf), NULL);
 
@@ -317,12 +310,7 @@ wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
    data_p += 4;
    samples = GetLittleLong() / info.width;
 
-   if (info.samples)
-   {
-      if (samples < info.samples)
-         Sys_Error("Sound %s has a bad loop length", name);
-   }
-   else
+   if (!info.samples)
       info.samples = samples;
 
    info.dataofs = data_p - wav;

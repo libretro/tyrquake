@@ -33,20 +33,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	PAINTBUFFER_SIZE	16384
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
-int		snd_scaletable[32][256];
-int		*snd_p, snd_linear_count;
-short		*snd_out;
+static int	snd_scaletable[32][256];
+static int	*snd_p, snd_linear_count;
+static short	*snd_out;
 
 static int	snd_vol;
 
 static void Snd_WriteLinearBlastStereo16 (void)
 {
 	int		i;
-	int		val;
 
 	for (i = 0; i < snd_linear_count; i += 2)
 	{
-		val = snd_p[i] >> 8;
+		int val = snd_p[i] >> 8;
 		if (val > 0x7fff)
 			snd_out[i] = 0x7fff;
 		else if (val < (short)0x8000)
@@ -100,8 +99,51 @@ CHANNEL MIXING
 ===============================================================================
 */
 
-static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
-static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
+static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
+{
+	int		*lscale, *rscale;
+	unsigned char	*sfx;
+	int		i;
+
+	if (ch->leftvol > 255)
+		ch->leftvol = 255;
+	if (ch->rightvol > 255)
+		ch->rightvol = 255;
+
+	lscale = snd_scaletable[ch->leftvol >> 3];
+	rscale = snd_scaletable[ch->rightvol >> 3];
+	sfx = (unsigned char *)sc->data + ch->pos;
+
+	for (i = 0; i < count; i++)
+	{
+		int data = sfx[i];
+		paintbuffer[paintbufferstart + i].left  += lscale[data];
+		paintbuffer[paintbufferstart + i].right += rscale[data];
+	}
+
+	ch->pos += count;
+}
+
+static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
+{
+	int i;
+	int leftvol       = (ch->leftvol * snd_vol)  >> 8;
+	int rightvol      = (ch->rightvol * snd_vol) >> 8;
+	signed short *sfx = (signed short *)sc->data + ch->pos;
+
+	for (i = 0; i < count; i++)
+	{
+		int data  = sfx[i];
+		// this was causing integer overflow as observed in quakespasm
+		// with the warpspasm mod moved >>8 to left/right volume above.
+		int left  = data * leftvol;
+		int right = data * rightvol;
+		paintbuffer[paintbufferstart + i].left  += left;
+		paintbuffer[paintbufferstart + i].right += right;
+	}
+
+	ch->pos += count;
+}
 
 void S_PaintChannels (int endtime)
 {
@@ -221,51 +263,3 @@ void SND_InitScaletable (void)
 		}
 	}
 }
-
-
-static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
-{
-	int		*lscale, *rscale;
-	unsigned char	*sfx;
-	int		i;
-
-	if (ch->leftvol > 255)
-		ch->leftvol = 255;
-	if (ch->rightvol > 255)
-		ch->rightvol = 255;
-
-	lscale = snd_scaletable[ch->leftvol >> 3];
-	rscale = snd_scaletable[ch->rightvol >> 3];
-	sfx = (unsigned char *)sc->data + ch->pos;
-
-	for (i = 0; i < count; i++)
-	{
-		int data = sfx[i];
-		paintbuffer[paintbufferstart + i].left  += lscale[data];
-		paintbuffer[paintbufferstart + i].right += rscale[data];
-	}
-
-	ch->pos += count;
-}
-
-static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
-{
-	int i;
-	int leftvol       = (ch->leftvol * snd_vol)  >> 8;
-	int rightvol      = (ch->rightvol * snd_vol) >> 8;
-	signed short *sfx = (signed short *)sc->data + ch->pos;
-
-	for (i = 0; i < count; i++)
-	{
-		int data  = sfx[i];
-		// this was causing integer overflow as observed in quakespasm
-		// with the warpspasm mod moved >>8 to left/right volume above.
-		int left  = data * leftvol;
-		int right = data * rightvol;
-		paintbuffer[paintbufferstart + i].left  += left;
-		paintbuffer[paintbufferstart + i].right += right;
-	}
-
-	ch->pos += count;
-}
-

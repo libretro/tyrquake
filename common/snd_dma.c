@@ -98,8 +98,7 @@ static void SND_Callback_sfxvolume (cvar_t *var)
  * ================
  */
 
-void
-S_Startup(void)
+static void S_Startup(void)
 {
    if (!SNDDMA_Init(&sn))
    {
@@ -173,18 +172,10 @@ S_FindName(const char *name)
     int i;
     sfx_t *sfx;
 
-    if (!name)
-	Sys_Error("%s: NULL", __func__);
-    if (strlen(name) >= MAX_QPATH)
-	Sys_Error("%s: name too long: %s", __func__, name);
-
     /* see if already loaded */
     for (i = 0; i < num_sfx; i++)
 	if (!strcmp(known_sfx[i].name, name))
 	    return &known_sfx[i];
-
-    if (num_sfx == MAX_SFX)
-	Sys_Error("%s: out of sfx_t", __func__);
 
     sfx = &known_sfx[i];
     strcpy(sfx->name, name);
@@ -761,13 +752,9 @@ static void S_Play(void)
    {
       sfx_t *sfx;
 
+      strcpy(name, Cmd_Argv(i));
       if (!strrchr(Cmd_Argv(i), '.'))
-      {
-         strcpy(name, Cmd_Argv(i));
          strcat(name, ".wav");
-      }
-      else
-         strcpy(name, Cmd_Argv(i));
       sfx = S_PrecacheSound(name);
       S_StartSound(hash++, 0, sfx, listener_origin, 1.0, 1.0);
       i++;
@@ -785,13 +772,9 @@ static void S_PlayVol(void)
       float vol;
       sfx_t *sfx;
 
+      strcpy(name, Cmd_Argv(i));
       if (!strrchr(Cmd_Argv(i), '.'))
-      {
-         strcpy(name, Cmd_Argv(i));
          strcat(name, ".wav");
-      }
-      else
-         strcpy(name, Cmd_Argv(i));
       sfx = S_PrecacheSound(name);
       vol = Q_atof(Cmd_Argv(i + 1));
       S_StartSound(hash++, 0, sfx, listener_origin, vol, 1.0);
@@ -807,10 +790,8 @@ void S_LocalSound(const char *sound)
       return;
 
    sfx = S_PrecacheSound(sound);
-   if (!sfx) {
-      Con_Printf("%s: can't cache %s\n", __func__, sound);
+   if (!sfx)
       return;
-   }
 #ifdef NQ_HACK
    S_StartSound(cl.viewentity, -1, sfx, vec3_origin, 1, 1);
 #endif
