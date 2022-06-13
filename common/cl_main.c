@@ -144,7 +144,7 @@ void CL_Disconnect(void)
    int i;
 
    /* stop sounds (especially looping!) */
-   S_StopAllSounds(true);
+   S_StopAllSounds();
    BGM_Stop();
    CDAudio_Stop();
 

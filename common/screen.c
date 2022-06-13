@@ -512,7 +512,7 @@ SCR_BeginLoadingPlaque
 */
 void SCR_BeginLoadingPlaque(void)
 {
-   S_StopAllSounds(true);
+   S_StopAllSounds();
 
    if (cls.state != ca_active)
       return;
