@@ -80,11 +80,9 @@ entity_t cl_visedicts[MAX_VISEDICTS];
 int
 CL_PlayerEntity(const entity_t *e)
 {
-    ptrdiff_t offset;
     int i;
-
     /* might be a pointer directly into cl_entities... */
-    offset =  e - cl_entities;
+    ptrdiff_t offset =  e - cl_entities;
     if (offset >= 1 && offset <= cl.maxclients)
 	return offset;
 
@@ -422,16 +420,15 @@ CL_RelinkEntities
 */
 void CL_RelinkEntities(void)
 {
+   int i;
    entity_t *ent;
-   int i, j;
-   float frac, f, d;
+   float f, d;
    vec3_t delta;
    float bobjrotate;
    vec3_t oldorg;
    dlight_t *dl;
-
    /* determine partial update time */
-   frac = CL_LerpPoint();
+   float frac = CL_LerpPoint();
 
    cl_numvisedicts = 0;
 
@@ -442,6 +439,7 @@ void CL_RelinkEntities(void)
 
    if (cls.demoplayback)
    {
+      int j;
       /* interpolate the angles */
       for (j = 0; j < 3; j++)
       {
@@ -493,6 +491,7 @@ void CL_RelinkEntities(void)
       }
       else
       {
+         uint8_t j;
          f = frac;
          for (j = 0; j < 3; j++)
          {

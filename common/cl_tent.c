@@ -120,7 +120,6 @@ CL_ParseBeam(model_t *m)
          return;
       }
    }
-   Con_Printf("beam list overflow!\n");
 }
 
 /*
@@ -131,14 +130,11 @@ CL_ParseTEnt
 void
 CL_ParseTEnt(void)
 {
-   int type;
    vec3_t pos;
-
    dlight_t *dl;
    int rnd;
    int colorStart, colorLength;
-
-   type = MSG_ReadByte();
+   int type = MSG_ReadByte();
    switch (type)
    {
       case TE_WIZSPIKE:		// spike hitting wall

@@ -114,11 +114,6 @@ void Cmd_Init(void);
 
 void Cmd_AddCommand(const char *cmd_name, xcommand_t function);
 void Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion);
-const char *Cmd_ArgComplete(const char *name, const char *buf);
-struct stree_root *Cmd_ArgCompletions(const char *name, const char *buf);
-
-struct stree_root *Cmd_CommandCompletions(const char *buf);
-const char *Cmd_CommandComplete(const char *buf);
 
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
@@ -131,12 +126,6 @@ qboolean Cmd_Alias_Exists(const char *cmd_name);
 int Cmd_Argc(void);
 const char *Cmd_Argv(int arg);
 const char *Cmd_Args(void);
-
-// The functions that execute commands get their parameters with these
-// functions. Cmd_Argv () will return an empty string, not a NULL
-// if arg > argc, so string operations are allways safe.
-
-int Cmd_CheckParm(const char *parm);
 
 // Returns the position (1 to argc-1) in the command's argument list
 // where the given parameter apears, or 0 if not present

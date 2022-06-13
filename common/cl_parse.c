@@ -66,17 +66,16 @@ static int CL_ReadSoundNum(int field_mask)
 {
    switch (cl.protocol)
    {
+      case PROTOCOL_VERSION_FITZ:
+         if (field_mask & SND_FITZ_LARGESOUND)
+            return (unsigned short)MSG_ReadShort();
+	 /* fall-through */
       case PROTOCOL_VERSION_NQ:
       case PROTOCOL_VERSION_BJP:
          return MSG_ReadByte();
       case PROTOCOL_VERSION_BJP2:
       case PROTOCOL_VERSION_BJP3:
          return (unsigned short)MSG_ReadShort();
-      case PROTOCOL_VERSION_FITZ:
-         if (field_mask & SND_FITZ_LARGESOUND)
-            return (unsigned short)MSG_ReadShort();
-         else
-            return MSG_ReadByte();
       default:
          Host_Error("%s: Unknown protocol version (%d)\n", __func__,
                cl.protocol);
@@ -96,20 +95,16 @@ CL_ParseStartSoundPacket(void)
    vec3_t pos;
    int channel, ent;
    int sound_num;
-   int volume;
-   float attenuation;
    int i;
-   int field_mask = MSG_ReadByte();
+   int field_mask    = MSG_ReadByte();
+   int volume        = DEFAULT_SOUND_PACKET_VOLUME;
+   float attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
    if (field_mask & SND_VOLUME)
       volume = MSG_ReadByte();
-   else
-      volume = DEFAULT_SOUND_PACKET_VOLUME;
 
    if (field_mask & SND_ATTENUATION)
       attenuation = MSG_ReadByte() / 64.0;
-   else
-      attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_FITZ_LARGEENTITY))
    {
@@ -335,16 +330,16 @@ static int CL_ReadModelIndex(unsigned int bits)
 {
    switch (cl.protocol)
    {
+      case PROTOCOL_VERSION_FITZ:
+         if (bits & B_FITZ_LARGEMODEL)
+            return MSG_ReadShort();
+	 /* fall-through */
       case PROTOCOL_VERSION_NQ:
          return MSG_ReadByte();
       case PROTOCOL_VERSION_BJP:
       case PROTOCOL_VERSION_BJP2:
       case PROTOCOL_VERSION_BJP3:
          return MSG_ReadShort();
-      case PROTOCOL_VERSION_FITZ:
-         if (bits & B_FITZ_LARGEMODEL)
-            return MSG_ReadShort();
-         return MSG_ReadByte();
       default:
          break;
    }
@@ -358,14 +353,14 @@ static int CL_ReadModelFrame(unsigned int bits)
 {
    switch (cl.protocol)
    {
+      case PROTOCOL_VERSION_FITZ:
+         if (bits & B_FITZ_LARGEFRAME)
+            return MSG_ReadShort();
+	 /* fall-through */
       case PROTOCOL_VERSION_NQ:
       case PROTOCOL_VERSION_BJP:
       case PROTOCOL_VERSION_BJP2:
       case PROTOCOL_VERSION_BJP3:
-         return MSG_ReadByte();
-      case PROTOCOL_VERSION_FITZ:
-         if (bits & B_FITZ_LARGEFRAME)
-            return MSG_ReadShort();
          return MSG_ReadByte();
       default:
          break;
@@ -502,9 +497,6 @@ CL_ParseUpdate(unsigned int bits)
       ent->msg_angles[0][2] = ent->baseline.angles[2];
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
-      if (bits & U_NOLERP) {
-         // FIXME - TODO (called U_STEP in FQ)
-      }
       if (bits & U_FITZ_ALPHA) {
          MSG_ReadByte(); // FIXME - TODO
       }
@@ -744,8 +736,9 @@ CL_NewTranslation(int slot)
    top = cl.players[slot].topcolor;
    bottom = cl.players[slot].bottomcolor;
 
-   for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256) {
-      if (top < 128)		// the artists made some backwards ranges.  sigh.
+   for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256)
+   {
+      if (top < 128) // the artists made some backwards ranges.  sigh.
          memcpy(dest + TOP_RANGE, source + top, 16);
       else
          for (j = 0; j < 16; j++)
