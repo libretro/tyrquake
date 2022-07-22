@@ -691,7 +691,7 @@ Host_Say(qboolean teamonly)
     client_t *client;
     client_t *save;
     int i;
-    size_t len, space;
+    size_t len, space, p_len;
     const char *p;
     char text[64];
     qboolean fromServer = false;
@@ -717,16 +717,17 @@ Host_Say(qboolean teamonly)
     else
 	sprintf(text, "%c<%s> ", 1, hostname.string);
 
-    len = strlen(text);
+    len   = strlen(text);
     space = sizeof(text) - len - 2; // -2 for \n and null terminator
-    p = Cmd_Args();
+    p     = Cmd_Args();
+    p_len = strlen(p);
     if (*p == '"') {
 	/* remove quotes */
-	strncat(text, p + 1, qmin(strlen(p) - 2, space));
-	text[len + qmin(strlen(p) - 2, space)] = 0;
+	strncat(text, p + 1, qmin(p_len - 2, space));
+	text[len + qmin(p_len - 2, space)] = 0;
     } else {
 	strncat(text, p, space);
-	text[len + qmin(strlen(p), space)] = 0;
+	text[len + qmin(p_len, space)] = 0;
     }
     strcat(text, "\n");
 
@@ -759,6 +760,7 @@ Host_Say_Team_f(void)
 
 void Host_Tell_f(void)
 {
+   size_t p_len;
    client_t *client;
    client_t *save;
    int i, len, space;
@@ -776,16 +778,17 @@ void Host_Tell_f(void)
    strcpy(text, host_client->name);
    strcat(text, ": ");
 
-   len = strlen(text);
+   len   = strlen(text);
    space = sizeof(text) - len - 2; // -2 for \n and null terminator
-   p = Cmd_Args();
+   p     = Cmd_Args();
+   p_len = strlen(p);
    if (*p == '"') {
       /* remove quotes */
-      strncat(text, p + 1, qmin((int)strlen(p) - 2, space));
-      text[len + qmin((int)strlen(p) - 2, space)] = 0;
+      strncat(text, p + 1, qmin((int)p_len - 2, space));
+      text[len + qmin((int)p_len - 2, space)] = 0;
    } else {
       strncat(text, p, space);
-      text[len + qmin((int)strlen(p), space)] = 0;
+      text[len + qmin((int)p_len, space)] = 0;
    }
    strcat(text, "\n");
 
