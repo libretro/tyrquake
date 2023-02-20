@@ -106,6 +106,7 @@ ifneq ($(STATIC_LINKING),1)
 		     $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c \
 		     $(LIBRETRO_COMM_DIR)/file/file_path.c \
 		     $(LIBRETRO_COMM_DIR)/file/file_path_io.c \
+		     $(LIBRETRO_COMM_DIR)/features/features_cpu.c \
 		     $(LIBRETRO_COMM_DIR)/compat/fopen_utf8.c \
 		     $(LIBRETRO_COMM_DIR)/compat/compat_strl.c \
 		     $(LIBRETRO_COMM_DIR)/compat/compat_posix_string.c \
