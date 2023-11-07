@@ -98,70 +98,6 @@ SV_Quit_f(void)
 }
 
 /*
-============
-SV_Logfile_f
-============
-*/
-void
-SV_Logfile_f(void)
-{
-    char name[MAX_OSPATH];
-
-    if (sv_logfile) {
-	Con_Printf("File logging off.\n");
-	rfclose(sv_logfile);
-	sv_logfile = NULL;
-	return;
-    }
-
-    sprintf(name, "%s/qconsole.log", com_gamedir);
-    Con_Printf("Logging text to %s.\n", name);
-    sv_logfile = rfopen(name, "w");
-    if (!sv_logfile)
-	Con_Printf("failed.\n");
-}
-
-
-/*
-============
-SV_Fraglogfile_f
-============
-*/
-void
-SV_Fraglogfile_f(void)
-{
-    char name[MAX_OSPATH];
-    int i;
-
-    if (sv_fraglogfile) {
-	Con_Printf("Frag file logging off.\n");
-	fclose(sv_fraglogfile);
-	sv_fraglogfile = NULL;
-	return;
-    }
-    // find an unused name
-    for (i = 0; i < 1000; i++) {
-	sprintf(name, "%s/frag_%i.log", com_gamedir, i);
-	sv_fraglogfile = rfopen(name, "r");
-	if (!sv_fraglogfile) {	// can't read it, so create this one
-	    sv_fraglogfile = rfopen(name, "w");
-	    if (!sv_fraglogfile)
-		i = 1000;	// give error
-	    break;
-	}
-	fclose(sv_fraglogfile);
-    }
-    if (i == 1000) {
-	Con_Printf("Can't open any logfiles.\n");
-	sv_fraglogfile = NULL;
-	return;
-    }
-
-    Con_Printf("Logging frags to %s.\n", name);
-}
-
-
-/*
 ==================
 SV_SetPlayer
 
@@ -318,14 +254,6 @@ SV_Map_f(void)
 	return;
     }
     strcpy(level, Cmd_Argv(1));
-
-#if 0
-    if (!strcmp(level, "e1m8")) {	// QuakeWorld can't go to e1m8
-	SV_BroadcastPrintf(PRINT_HIGH,
-			   "can't go to low grav level in QuakeWorld...\n");
-	strcpy(level, "e1m5");
-    }
-#endif
 
     // check to make sure the level exists
     sprintf(expanded, "maps/%s.bsp", level);
@@ -548,7 +476,6 @@ SV_Serverinfo_f(void)
 {
     if (Cmd_Argc() == 1) {
 	Con_Printf("Server info settings:\n");
-	Info_Print(svs.info);
 	return;
     }
 
@@ -585,7 +512,6 @@ SV_Localinfo_f(void)
 {
     if (Cmd_Argc() == 1) {
 	Con_Printf("Local info settings:\n");
-	Info_Print(localinfo);
 	return;
     }
 
@@ -620,8 +546,6 @@ SV_User_f(void)
 
     if (!SV_SetPlayer())
 	return;
-
-    Info_Print(host_client->userinfo);
 }
 
 /*
@@ -862,9 +786,6 @@ SV_InitOperatorCommands(void)
 				MAX_SERVERINFO_STRING);
     }
 
-    Cmd_AddCommand("logfile", SV_Logfile_f);
-    Cmd_AddCommand("fraglogfile", SV_Fraglogfile_f);
-
     Cmd_AddCommand("snap", SV_Snap_f);
     Cmd_AddCommand("snapall", SV_SnapAll_f);
     Cmd_AddCommand("kick", SV_Kick_f);
@@ -888,6 +809,4 @@ SV_InitOperatorCommands(void)
     Cmd_AddCommand("sv_gamedir", SV_Gamedir);
     Cmd_AddCommand("floodprot", SV_Floodprot_f);
     Cmd_AddCommand("floodprotmsg", SV_Floodprotmsg_f);
-
-    cl_warncmd.value = 1;
 }

@@ -32,13 +32,12 @@
 #include "snd_codec.h"
 #include "bgmusic.h"
 
-#define MUSIC_DIRNAME	"music"
+#include <compat/strl.h>
+#include <file/file_path.h>
 
 qboolean	bgmloop;
 cvar_t		bgm_extmusic = {"bgm_extmusic", "1", false};
 
-static qboolean	no_extmusic= false;
-static float	old_volume = -1.0f;
 
 typedef enum _bgm_player
 {
@@ -60,16 +59,16 @@ typedef struct music_handler_s
 
 static music_handler_t wanted_handlers[] =
 {
-	{ CODECTYPE_VORBIS,BGM_STREAMER,-1,  "ogg", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_OPUS, BGM_STREAMER, -1, "opus", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_MP3,  BGM_STREAMER, -1,  "mp3", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_FLAC, BGM_STREAMER, -1, "flac", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_WAV,  BGM_STREAMER, -1,  "wav", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "it",  MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "s3m", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "xm",  MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "mod", MUSIC_DIRNAME, NULL },
-	{ CODECTYPE_UMX,  BGM_STREAMER, -1,  "umx", MUSIC_DIRNAME, NULL },
+	{ CODECTYPE_VORBIS,BGM_STREAMER,-1,  "ogg", "music", NULL },
+	{ CODECTYPE_OPUS, BGM_STREAMER, -1, "opus", "music", NULL },
+	{ CODECTYPE_MP3,  BGM_STREAMER, -1,  "mp3", "music", NULL },
+	{ CODECTYPE_FLAC, BGM_STREAMER, -1, "flac", "music", NULL },
+	{ CODECTYPE_WAV,  BGM_STREAMER, -1,  "wav", "music", NULL },
+	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "it",  "music", NULL },
+	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "s3m", "music", NULL },
+	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "xm",  "music", NULL },
+	{ CODECTYPE_MOD,  BGM_STREAMER, -1,  "mod", "music", NULL },
+	{ CODECTYPE_UMX,  BGM_STREAMER, -1,  "umx", "music", NULL },
 	{ CODECTYPE_NONE, BGM_NONE,     -1,   NULL,         NULL,  NULL }
 };
 
@@ -140,9 +139,6 @@ qboolean BGM_Init (void)
 	Cmd_AddCommand("music_resume", BGM_Resume_f);
 	Cmd_AddCommand("music_loop", BGM_Loop_f);
 	Cmd_AddCommand("music_stop", BGM_Stop_f);
-
-	if (COM_CheckParm("-noextmusic") != 0)
-		no_extmusic = true;
 
 	bgmloop = true;
 
@@ -239,10 +235,7 @@ void BGM_Play (const char *filename)
 		return;
 
 	if (!filename || !*filename)
-	{
-		Con_DPrintf("null music file name\n");
 		return;
-	}
 
 	ext = COM_FileExtension(filename);
 	if (! *ext)	/* try all things */
@@ -264,7 +257,7 @@ void BGM_Play (const char *filename)
 		Con_Printf("Unhandled extension for %s\n", filename);
 		return;
 	}
-	snprintf(tmp, sizeof(tmp), "%s/%s", handler->dir, filename);
+	fill_pathname_join(tmp, handler->dir, filename, sizeof(tmp));
 	switch (handler->player)
 	{
 	case BGM_MIDIDRV:
@@ -303,11 +296,11 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 		return;			/* success */
 	if (music_handlers == NULL)
 		return;
-	if (no_extmusic || !bgm_extmusic.value)
+	if (!bgm_extmusic.value)
 		return;
 
-	type = 0;
-	ext  = NULL;
+	type    = 0;
+	ext     = NULL;
 	handler = music_handlers;
 	while (handler)
 	{
@@ -315,21 +308,19 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 			goto _next;
 		if (! CDRIPTYPE(handler->type))
 			goto _next;
-		snprintf(tmp, sizeof(tmp), "%s/track%02d.%s",
-				MUSIC_DIRNAME, (int)track, handler->ext);
+		snprintf(tmp, sizeof(tmp), "music/track%02d.%s",
+				(int)track, handler->ext);
 		if (! COM_FileExists(tmp))
 			goto _next;
-		type = handler->type;
-		ext = handler->ext;
-	_next:
+		type    = handler->type;
+		ext     = handler->ext;
+_next:
 		handler = handler->next;
 	}
-	if (ext == NULL)
-		Con_Printf("Couldn't find a cdrip for track %d\n", (int)track);
-	else
+	if (ext)
 	{
-		snprintf(tmp, sizeof(tmp), "%s/track%02d.%s",
-				MUSIC_DIRNAME, (int)track, ext);
+		snprintf(tmp, sizeof(tmp), "music/track%02d.%s",
+				(int)track, ext);
 		bgmstream = S_CodecOpenStreamType(tmp, type);
 		if (! bgmstream)
 			Con_Printf("Couldn't handle music file %s\n", tmp);
@@ -397,9 +388,9 @@ static void BGM_UpdateStream (void)
 		fileBytes = fileSamples * (bgmstream->info.width * bgmstream->info.channels);
 		if (fileBytes > (int) sizeof(raw))
 		{
-			fileBytes = (int) sizeof(raw);
+			fileBytes   = (int) sizeof(raw);
 			fileSamples = fileBytes /
-					  (bgmstream->info.width * bgmstream->info.channels);
+				(bgmstream->info.width * bgmstream->info.channels);
 		}
 
 		/* Read */
@@ -412,10 +403,11 @@ static void BGM_UpdateStream (void)
 
 		if (res > 0)	/* data: add to raw buffer */
 		{
-			S_RawSamples(fileSamples, bgmstream->info.rate,
-							bgmstream->info.width,
-							bgmstream->info.channels,
-							raw, bgmvolume.value);
+			S_RawSamples(fileSamples,
+					bgmstream->info.rate,
+					bgmstream->info.width,
+					bgmstream->info.channels,
+					raw, bgmvolume.value);
 		}
 		else if (res == 0)	/* EOF */
 		{
@@ -446,6 +438,8 @@ static void BGM_UpdateStream (void)
 
 void BGM_Update (void)
 {
+	static float old_volume = -1.0f;
+
 	if (old_volume != bgmvolume.value)
 	{
 		if (bgmvolume.value < 0)

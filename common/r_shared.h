@@ -50,8 +50,6 @@ extern int screenwidth;
 
 extern float pixelAspect;
 
-extern int r_drawnpolycount;
-
 extern cvar_t r_clearcolor;
 
 #define TURB_TABLE_SIZE (2*TURB_CYCLE)

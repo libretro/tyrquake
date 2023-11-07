@@ -811,9 +811,6 @@ NET_Init(void)
 
     if (num_inited == 0 && cls.state == ca_dedicated)
 	Sys_Error("Network not available!");
-
-    if (*my_tcpip_address)
-	Con_DPrintf("TCP/IP address %s\n", my_tcpip_address);
 }
 
 /*

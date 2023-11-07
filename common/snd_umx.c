@@ -290,19 +290,15 @@ static int32_t probe_header (void *header)
 	}
 
 	hdr = (struct upkg_hdr *) header;
-	if (hdr->tag != UPKG_HDR_TAG) {
-		Con_DPrintf("Unknown header tag 0x%x\n", hdr->tag);
+	if (hdr->tag != UPKG_HDR_TAG)
 		return -1;
-	}
 	if (hdr->name_count	< 0	||
 	    hdr->name_offset	< 0	||
 	    hdr->export_count	< 0	||
 	    hdr->export_offset	< 0	||
 	    hdr->import_count	< 0	||
-	    hdr->import_offset	< 0	) {
-		Con_DPrintf("Negative values in header\n");
+	    hdr->import_offset	< 0	)
 		return -1;
-	}
 
 	switch (hdr->file_version) {
 	case 35: case 37:	/* Unreal beta - */
@@ -320,7 +316,6 @@ static int32_t probe_header (void *header)
 		return 0;
 	}
 
-	Con_DPrintf("Unknown upkg version %d\n", hdr->file_version);
 	return -1;
 }
 
@@ -351,12 +346,9 @@ static qboolean S_UMX_CodecOpenStream (snd_stream_t *stream)
 	int32_t ofs = 0, size = 0;
 
 	type = process_upkg(&stream->fh, &ofs, &size);
-	if (type < 0) {
-		Con_DPrintf("%s: unrecognized umx\n", stream->name);
+	if (type < 0)
 		return false;
-	}
 
-	Con_DPrintf("%s: %s data @ 0x%x, %d bytes\n", stream->name, mustype[type], ofs, size);
 	/* hack the fshandle_t start pos and length members so
 	 * that only the relevant data is accessed from now on */
 	stream->fh.start += ofs;

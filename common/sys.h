@@ -24,16 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <boolean.h>
 #include "qtypes.h"
 
-// FIXME - QW/server doesn't want this much stuff...
-
 // sys.h -- non-portable functions
-
-// FIXME - don't want win only stuff in header
-//         minimized could be useful on other systems anyway...
-#ifdef _WIN32
-//extern qboolean Minimized;
-extern qboolean window_visible(void);
-#endif
 
 //
 // file IO
@@ -41,20 +32,11 @@ extern qboolean window_visible(void);
 int Sys_FileTime(const char *path);
 void Sys_mkdir(const char *path);
 
-//
-// memory protection
-//
-void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
-
-//
 // system IO
-//
 
 #define MAX_PRINTMSG 4096
 
-void Sys_Printf(const char *fmt, ...);
-void Sys_DebugLog(const char *file, const char *fmt, ...);
-bool Sys_Error(const char *error, ...);
+void Sys_Error(const char *error, ...);
 
 // send text to the console
 // an error will cause the entire program to exit
@@ -63,18 +45,12 @@ void Sys_Quit(void);
 
 double Sys_DoubleTime(void);
 
-char *Sys_ConsoleInput(void);
-
 // called to yield for a little bit so as
 // not to hog cpu when paused or debugging
 
 void Sys_SendKeyEvents(void);
 
 // Perform Key_Event () callbacks until the input que is empty
-
-void Sys_LowFPPrecision(void);
-void Sys_HighFPPrecision(void);
-void Sys_SetFPCW(void);
 
 void Sys_Init(void);
 

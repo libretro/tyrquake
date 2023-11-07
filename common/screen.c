@@ -110,9 +110,6 @@ static cvar_t scr_conspeed = { "scr_conspeed", "300" };
 static vrect_t *pconupdate;
 qboolean scr_skipupdate;
 
-static const qpic_t *scr_ram;
-static const qpic_t *scr_net;
-
 static char scr_centerstring[1024];
 static float scr_centertime_start;	// for slow victory printing
 float scr_centertime_off;
@@ -126,35 +123,10 @@ static float scr_disabled_time;
 #endif
 #ifdef QW_HACK
 static float oldsbar;
-static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 #endif
 
 
 //=============================================================================
-
-/*
-==============
-SCR_DrawNet
-==============
-*/
-static void
-SCR_DrawNet(void)
-{
-#ifdef NQ_HACK
-   if (realtime - cl.last_received_message < 0.3)
-      return;
-#endif
-#ifdef QW_HACK
-   if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
-         UPDATE_BACKUP - 1)
-      return;
-#endif
-
-   if (cls.demoplayback)
-      return;
-
-   Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
-}
 
 //=============================================================================
 
@@ -289,9 +261,7 @@ static void
 SCR_DrawCenterString(void)
 {
     char *start;
-    int l;
-    int j;
-    int x, y;
+    int l, j, x, y;
     int remaining;
 
     scr_copytop = 1;
@@ -305,7 +275,7 @@ SCR_DrawCenterString(void)
     if (key_dest != key_game)
 	return;
 
-// the finale prints the characters one at a time
+    // the finale prints the characters one at a time
     if (cl.intermission)
 	remaining = scr_printspeed.value * (cl.time - scr_centertime_start);
     else
@@ -350,14 +320,9 @@ static qboolean scr_drawdialog;
 static void
 SCR_DrawNotifyString(void)
 {
-    const char *start;
-    int l;
-    int j;
-    int x, y;
-
-    start = scr_notifystring;
-
-    y = vid.height * 0.35;
+    int l, j, x;
+    const char *start = scr_notifystring;
+    int y = vid.height * 0.35;
 
     do {
 	// scan the width of the line
@@ -547,7 +512,7 @@ SCR_BeginLoadingPlaque
 */
 void SCR_BeginLoadingPlaque(void)
 {
-   S_StopAllSounds(true);
+   S_StopAllSounds();
 
    if (cls.state != ca_active)
       return;
@@ -710,7 +675,6 @@ SCR_UpdateScreen(void)
       SCR_DrawCenterString();
 #endif
    } else {
-      SCR_DrawNet();
       SCR_DrawCenterString();
       Sbar_Draw();
       SCR_DrawConsole();
@@ -768,17 +732,6 @@ SCR_Init(void)
 
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
-
-#ifdef NQ_HACK
-    scr_ram = (qpic_t*)Draw_PicFromWad("ram");
-    scr_net = (qpic_t*)Draw_PicFromWad("net");
-#endif
-#ifdef QW_HACK
-    scr_ram = W_GetLumpName("ram");
-    scr_net = W_GetLumpName("net");
-
-    Cvar_RegisterVariable(&scr_allowsnap);
-#endif
 
     scr_initialized = true;
 }

@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_MIPS	4
 
-static cvar_t d_subdiv16 = { "d_subdiv16", "1" };
 static cvar_t d_mipcap = { "d_mipcap", "0" };
 static cvar_t d_mipscale = { "d_mipscale", "1", true };
 
@@ -50,13 +49,10 @@ D_Init(void)
 
     r_skydirect = 1;
 
-    Cvar_RegisterVariable(&d_subdiv16);
     Cvar_RegisterVariable(&d_mipcap);
     Cvar_RegisterVariable(&d_mipscale);
     Cvar_RegisterVariable(&dither_filter);
 
-    r_recursiveaffinetriangles = true;
-    r_pixbytes = 1;
     r_aliasuvscale = 1.0;
 }
 
@@ -119,8 +115,6 @@ D_SetupFrame(void)
 
    for (i = 0; i < (NUM_MIPS - 1); i++)
       d_scalemip[i] = basemip[i] * d_mipscale.value;
-
-   D_DrawSpans = D_DrawSpans8;
 
    if (cvar && cvar->value == 1.0f)
       D_DrawSpans = D_DrawSpans16QbDither;

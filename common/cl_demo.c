@@ -31,17 +31,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <streams/file_stream.h>
 
 /* forward declarations */
-RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
 int64_t rfread(void* buffer,
    size_t elem_size, size_t elem_count, RFILE* stream);
-int64_t rfflush(RFILE * stream);
-int64_t rfwrite(void const* buffer,
-   size_t elem_size, size_t elem_count, RFILE* stream);
-int rfprintf(RFILE * stream, const char * format, ...);
 int rfgetc(RFILE* stream);
-
-static void CL_FinishTimeDemo(void);
 
 /*
 ==============================================================================
@@ -73,37 +66,6 @@ CL_StopPlayback(void)
     cls.demoplayback = false;
     cls.demofile     = NULL;
     cls.state        = ca_disconnected;
-
-    if (cls.timedemo)
-	CL_FinishTimeDemo();
-}
-
-/*
-====================
-CL_WriteDemoMessage
-
-Dumps the current net message, prefixed by the length and view angles
-====================
-*/
-static void
-CL_WriteDemoMessage(void)
-{
-   int i;
-#ifdef MSB_FIRST
-   float f;
-   int len = LittleLong(net_message.cursize);
-   rfwrite(&len, 4, 1, cls.demofile);
-   for (i = 0; i < 3; i++) {
-      f = LittleFloat(cl.viewangles[i]);
-      rfwrite(&f, 4, 1, cls.demofile);
-   }
-#else
-   rfwrite (&net_message.cursize, 4, 1, cls.demofile);
-   for (i = 0 ; i < 3 ; i++)
-      rfwrite (&cl.viewangles[i], 4, 1, cls.demofile);
-#endif
-   rfwrite(net_message.data, net_message.cursize, 1, cls.demofile);
-   rfflush(cls.demofile);
 }
 
 /*
@@ -129,19 +91,7 @@ CL_GetMessage(void)
       // allways grab until fully connected
       if (cls.state == ca_active)
       {
-         if (cls.timedemo)
-         {
-            if (host_framecount == cls.td_lastframe)
-               return 0;	// allready read this frame's message
-
-            cls.td_lastframe = host_framecount;
-
-            // if this is the second frame, grab the real td_starttime
-            // so the bogus time on the first frame doesn't count
-            if (host_framecount == cls.td_startframe + 1)
-               cls.td_starttime = realtime;
-         }
-         else if (cl.time <= cl.mtime[0])
+         if (cl.time <= cl.mtime[0])
          {
             // don't need another message yet
             return 0;
@@ -188,109 +138,8 @@ CL_GetMessage(void)
          break;
    }
 
-   if (cls.demorecording)
-      CL_WriteDemoMessage();
-
    return r;
 }
-
-
-/*
-====================
-CL_Stop_f
-
-stop recording a demo
-====================
-*/
-void
-CL_Stop_f(void)
-{
-    if (cmd_source != src_command)
-	return;
-
-    if (!cls.demorecording) {
-	Con_Printf("Not recording a demo.\n");
-	return;
-    }
-// write a disconnect message to the demo file
-    SZ_Clear(&net_message);
-    MSG_WriteByte(&net_message, svc_disconnect);
-    CL_WriteDemoMessage();
-
-// finish up
-    rfclose(cls.demofile);
-    cls.demofile      = NULL;
-    cls.demorecording = false;
-    Con_Printf("Completed demo\n");
-}
-
-/*
-====================
-CL_Record_f
-
-record <demoname> <map> [cd track]
-====================
-*/
-void
-CL_Record_f(void)
-{
-    int c;
-    char name[MAX_OSPATH];
-    int track;
-
-    if (cmd_source != src_command)
-	return;
-
-    c = Cmd_Argc();
-    if (c != 2 && c != 3 && c != 4) {
-	Con_Printf("record <demoname> [<map> [cd track]]\n");
-	return;
-    }
-
-    if (strstr(Cmd_Argv(1), "..")) {
-	Con_Printf("Relative pathnames are not allowed.\n");
-	return;
-    }
-
-    if (c == 2 && cls.state >= ca_connected) {
-	Con_Printf("Can not record - already connected to server\n"
-		   "Client demo recording must be started before"
-		   " connecting\n");
-	return;
-    }
-// write the forced cd track number, or -1
-    if (c == 4) {
-	track = atoi(Cmd_Argv(3));
-	Con_Printf("Forcing CD track to %i\n", cls.forcetrack);
-    } else
-	track = -1;
-
-    sprintf(name, "%s/%s", com_gamedir, Cmd_Argv(1));
-
-//
-// start the map up
-//
-    if (c > 2)
-	Cmd_ExecuteString(va("map %s", Cmd_Argv(2)), src_command);
-
-//
-// open the demo file
-//
-    COM_DefaultExtension(name, ".dem");
-
-    Con_Printf("recording to %s.\n", name);
-    cls.demofile = rfopen(name, "wb");
-    if (!cls.demofile) {
-	Con_Printf("ERROR: couldn't open.\n");
-	return;
-    }
-
-    cls.forcetrack = track;
-    rfprintf(cls.demofile, "%i\n", cls.forcetrack);
-
-    cls.demorecording = true;
-}
-
 
 /*
 ====================
@@ -357,61 +206,10 @@ CL_Demo_Arg_f(const char *arg)
     root->entries = 0;
     root->maxlen = 0;
     root->minlen = -1;
-    //root->root = NULL;
     root->stack = NULL;
 	STree_AllocInit();
 	COM_ScanDir(root, "", arg, ".dem", true);
     }
 
     return root;
-}
-
-/*
-====================
-CL_FinishTimeDemo
-
-====================
-*/
-static void CL_FinishTimeDemo(void)
-{
-    int frames;
-    float time;
-
-    cls.timedemo = false;
-
-// the first frame didn't count
-    frames = (host_framecount - cls.td_startframe) - 1;
-    time = realtime - cls.td_starttime;
-    if (!time)
-	time = 1;
-    Con_Printf("%i frames %5.1f seconds %5.1f fps\n", frames, time,
-	       frames / time);
-}
-
-/*
-====================
-CL_TimeDemo_f
-
-timedemo [demoname]
-====================
-*/
-void
-CL_TimeDemo_f(void)
-{
-    if (cmd_source != src_command)
-	return;
-
-    if (Cmd_Argc() != 2) {
-	Con_Printf("timedemo <demoname> : gets demo speeds\n");
-	return;
-    }
-
-    CL_PlayDemo_f();
-
-// cls.td_starttime will be grabbed at the second frame of the demo, so
-// all the loading time doesn't get counted
-
-    cls.timedemo = true;
-    cls.td_startframe = host_framecount;
-    cls.td_lastframe = -1;	// get a new message this frame
 }

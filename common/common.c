@@ -28,6 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/types.h>
 #include <errno.h>
 
+#include <compat/strl.h>
+#include <file/file_path.h>
+
 #ifdef NQ_HACK
 #include "quakedef.h"
 #include "host.h"
@@ -72,28 +75,15 @@ int rfgetc(RFILE* stream);
 static const char *largv[MAX_NUM_ARGVS + NUM_SAFE_ARGVS + 1];
 static const char *argvdummy = " ";
 
-static const char *safeargvs[NUM_SAFE_ARGVS] = {
-  "-stdvid", "-nolan", "-nosound", "-nocdaudio", "-nojoy", "-nomouse", "-dibonly"
-};
-
 cvar_t registered = { "registered", "0" };
 #ifdef NQ_HACK
 static cvar_t cmdline = { "cmdline", "0", false, true };
 #endif
 
-static qboolean com_modified;		// set true if using non-id files
 static int static_registered = 1;	// only for startup check, then set
 
-qboolean msg_suppress_1 = 0;
-
 static void COM_InitFilesystem(void);
-static void COM_Path_f(void);
 static void *SZ_GetSpace(sizebuf_t *buf, int length);
-
-// if a packfile directory differs from this, it is assumed to be hacked
-#define PAK0_COUNT		339
-#define NQ_PAK0_CRC		32981
-#define QW_PAK0_CRC		52883
 
 #ifdef NQ_HACK
 #define CMDLINE_LENGTH	256
@@ -148,17 +138,6 @@ void InsertLinkBefore(link_t *l, link_t *before)
    l->prev->next = l;
    l->next->prev = l;
 }
-
-/* Unused */
-#if 0
-void InsertLinkAfter(link_t *l, link_t *after)
-{
-   l->next = after->next;
-   l->prev = after;
-   l->prev->next = l;
-   l->next->prev = l;
-}
-#endif
 
 /*
 ============================================================================
@@ -744,9 +723,6 @@ static void *SZ_GetSpace(sizebuf_t *buf, int length)
                __func__, buf->cursize + length, buf->maxsize);
       if (length > buf->maxsize)
          Sys_Error("%s: %d is > full buffer size", __func__, length);
-      if (developer.value)
-         /* Con_Printf may be redirected */
-         Sys_Printf("%s: overflow\n", __func__);
       SZ_Clear(buf);
       buf->overflowed = true;
    }
@@ -842,8 +818,8 @@ void COM_FileBase(const char *in, char *out, size_t buflen)
    const char *dot;
    int copylen;
 
-   in = COM_SkipPath(in);
-   dot = strrchr(in, '.');
+   in      = COM_SkipPath(in);
+   dot     = strrchr(in, '.');
    copylen = dot ? dot - in : strlen(in);
 
    if (copylen < 2) {
@@ -1031,7 +1007,6 @@ COM_InitArgv
 */
 void COM_InitArgv(int argc, const char **argv)
 {
-   qboolean safe;
    int i;
 #ifdef NQ_HACK
    int j, n = 0;
@@ -1050,22 +1025,9 @@ void COM_InitArgv(int argc, const char **argv)
    com_cmdline[n] = 0;
 #endif
 
-   safe = false;
-
    for (com_argc = 0; (com_argc < MAX_NUM_ARGVS) && (com_argc < argc);
          com_argc++) {
       largv[com_argc] = argv[com_argc];
-      if (!strcmp("-safe", argv[com_argc]))
-         safe = true;
-   }
-
-   if (safe) {
-      // force all the safe-mode switches. Note that we reserved extra space in
-      // case we need to add these, so we don't need an overflow check
-      for (i = 0; i < NUM_SAFE_ARGVS; i++) {
-         largv[com_argc] = safeargvs[i];
-         com_argc++;
-      }
    }
 
    largv[com_argc] = argvdummy;
@@ -1110,8 +1072,6 @@ void COM_Init(void)
 #ifdef NQ_HACK
    Cvar_RegisterVariable(&cmdline);
 #endif
-   Cmd_AddCommand("path", COM_Path_f);
-
    COM_InitFilesystem();
    COM_CheckRegistered();
 }
@@ -1128,15 +1088,11 @@ varargs versions of all text functions.
 char *va(const char *format, ...)
 {
    va_list argptr;
-   int len;
    char *buf = COM_GetStrBuf();
 
    va_start(argptr, format);
-   len = vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
+   vsnprintf(buf, COM_STRBUF_LEN, format, argptr);
    va_end(argptr);
-
-   if (len > COM_STRBUF_LEN - 1)
-      Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 
    return buf;
 }
@@ -1230,58 +1186,6 @@ error:
 
 /*
 ============
-COM_Path_f
-
-============
-*/
-static void COM_Path_f(void)
-{
-   searchpath_t *s;
-
-   Con_Printf("Current search path:\n");
-   for (s = com_searchpaths; s; s = s->next)
-   {
-#ifdef QW_HACK
-      if (s == com_base_searchpaths)
-         Con_Printf("----------\n");
-#endif
-      if (s->pack)
-         Con_Printf("%s (%i files)\n", s->pack->filename,
-               s->pack->numfiles);
-      else
-         Con_Printf("%s\n", s->filename);
-   }
-}
-
-/*
-============
-COM_WriteFile
-
-The filename will be prefixed by the current game directory
-============
-*/
-void COM_WriteFile(const char *filename, const void *data, int len)
-{
-   RFILE *f;
-   char name[MAX_OSPATH];
-
-   snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
-
-   f = rfopen(name, "wb");
-   if (!f)
-   {
-      Sys_mkdir(com_gamedir);
-      f = rfopen(name, "wb");
-      if (!f)
-         Sys_Error("Error opening %s", filename);
-   }
-   rfwrite(data, 1, len, f);
-   rfclose(f);
-}
-
-
-/*
-============
 COM_CreatePath
 ============
 */
@@ -1325,7 +1229,6 @@ int COM_FOpenFile(const char *filename, RFILE **file)
    char path[MAX_OSPATH];
    pack_t *pak;
    int i;
-   int findtime;
 
    file_from_pak = 0;
 
@@ -1357,9 +1260,8 @@ int COM_FOpenFile(const char *filename, RFILE **file)
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
-         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-         findtime = Sys_FileTime(path);
-         if (findtime == -1)
+         fill_pathname_join(path, search->filename, filename, sizeof(path));
+         if (Sys_FileTime(path) == -1)
             continue;
 
          *file        = rfopen(path, "rb");
@@ -1414,7 +1316,7 @@ qboolean COM_FileExists (const char *filename)
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
-         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
+         fill_pathname_join(path, search->filename, filename, sizeof(path));
          findtime = Sys_FileTime(path);
          if (findtime == -1)
             continue;
@@ -1423,7 +1325,6 @@ qboolean COM_FileExists (const char *filename)
       }
    }
 
-   Sys_Printf("FindFile: can't find %s\n", filename);
    com_filesize = -1;
 
    return false;
@@ -1527,7 +1428,7 @@ void COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
          COM_ScanDirPak(root, search->pack, path, pfx, ext, stripext);
       else
       {
-         snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
+         fill_pathname_join(fullpath, search->filename, path, MAX_OSPATH);
          fullpath[MAX_OSPATH - 1] = '\0';
          dir = retro_opendir(fullpath);
 
@@ -1623,13 +1524,9 @@ void COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
 void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
       unsigned long *length)
 {
-   byte *buf;
-
-   loadbuf = (byte *)buffer;
+   loadbuf  = (byte *)buffer;
    loadsize = bufsize;
-   buf = (byte*)COM_LoadFile(path, 4, length);
-
-   return buf;
+   return (byte*)COM_LoadFile(path, 4, length);
 }
 
 /*
@@ -1651,7 +1548,6 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    packfile_t *mfiles;
    pack_t *pack;
    int i, numfiles;
-   unsigned short crc;
 
    if (COM_FileOpenRead(packfile, &packhandle) == -1)
       goto error;
@@ -1668,9 +1564,6 @@ static pack_t *COM_LoadPackFile(const char *packfile)
 
    numfiles = header.dirlen / sizeof(dpackfile_t);
 
-   if (numfiles != PAK0_COUNT)
-      com_modified = true;	// not the original file
-
 #ifdef NQ_HACK
    mfiles = (packfile_t*)Hunk_AllocName(numfiles * sizeof(*mfiles), "packfile");
    mark   = Hunk_LowMark();
@@ -1684,23 +1577,10 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    rfseek(packhandle, header.dirofs, SEEK_SET);
    rfread(dfiles, 1, header.dirlen, packhandle);
 
-#if defined(NQ_HACK) || defined(QW_HACK)
-   // crc the directory to check for modifications
-   crc = CRC_Block(((byte *)dfiles), header.dirlen);
-#ifdef NQ_HACK
-   if (crc != NQ_PAK0_CRC)
-      com_modified = true;
-#endif
-#ifdef QW_HACK
-   if (crc != QW_PAK0_CRC)
-      com_modified = true;
-#endif
-#endif
-
    /* parse the directory */
    for (i = 0; i < numfiles; i++)
    {
-      snprintf(mfiles[i].name, sizeof(mfiles[i].name), "%s", dfiles[i].name);
+      strlcpy(mfiles[i].name, dfiles[i].name, sizeof(mfiles[i].name));
 #ifdef MSB_FIRST
       mfiles[i].filepos = LittleLong(dfiles[i].filepos);
       mfiles[i].filelen = LittleLong(dfiles[i].filelen);
@@ -1722,7 +1602,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    if (!pack)
       goto error;
 
-   snprintf(pack->filename, sizeof(pack->filename), "%s", packfile);
+   strlcpy(pack->filename, packfile, sizeof(pack->filename));
    strcpy(pack->filename, packfile);
    pack->numfiles = numfiles;
    pack->files = mfiles;
@@ -1914,10 +1794,7 @@ static void COM_InitFilesystem(void)
    // Adds basedir/gamedir as an override game
    i = COM_CheckParm("-game");
    if (i && i < com_argc - 1)
-   {
-      com_modified = true;
       COM_AddGameDirectory(com_basedir, com_argv[i + 1]);
-   }
 #endif
 #ifdef QW_HACK
    COM_AddGameDirectory(com_basedir, "qw");
@@ -1940,7 +1817,6 @@ static void COM_InitFilesystem(void)
 #ifdef NQ_HACK
    i = COM_CheckParm("-path");
    if (i) {
-      com_modified = true;
       com_searchpaths = NULL;
       while (++i < com_argc) {
          if (!com_argv[i] || com_argv[i][0] == '+'
@@ -2010,22 +1886,12 @@ static const char *Info_ReadKey(const char *infostring, char *buffer, int buflen
    pkey = infostring;
    infostring = Info_ReadString(infostring, buffer, buflen);
 
-   /* If we aren't at a separator, then the key was too long */
-   if (*buffer && *infostring != '\\')
-      Con_DPrintf("WARNING: No separator after info key (%s)\n", pkey);
-
    return infostring;
 }
 
 static const char *Info_ReadValue(const char *infostring, char *buffer, int buflen)
 {
-   infostring = Info_ReadString(infostring, buffer, buflen);
-
-   /* If we aren't at a separator, then the value was too long */
-   if (*infostring && *infostring != '\\')
-      Con_DPrintf("WARNING: info value too long? (%s)\n", buffer);
-
-   return infostring;
+   return Info_ReadString(infostring, buffer, buflen);
 }
 
 /*
@@ -2046,7 +1912,7 @@ char *Info_ValueForKey(const char *infostring, const char *key)
    char *buf;
 
    buffer_index = (buffer_index + 1) & 3;
-   buf = buffers[buffer_index];
+   buf          = buffers[buffer_index];
 
    while (1)
    {
@@ -2227,24 +2093,6 @@ void Info_SetValueForKey(char *infostring, const char *key, const char *value,
    Info_SetValueForStarKey(infostring, key, value, maxsize);
 }
 
-void Info_Print(const char *infostring)
-{
-   char key[MAX_INFO_STRING];
-   char value[MAX_INFO_STRING];
-
-   while (*infostring)
-   {
-      infostring = Info_ReadKey(infostring, key, sizeof(key));
-      if (*infostring)
-         infostring++;
-      infostring = Info_ReadValue(infostring, value, sizeof(value));
-      if (*infostring)
-         infostring++;
-
-      Con_Printf("%-20.20s %s\n", key, *value ? value : "MISSING VALUE");
-   }
-}
-
 static byte chktbl[1024 + 4] = {
     0x78, 0xd2, 0x94, 0xe3, 0x41, 0xec, 0xd6, 0xd5, 0xcb, 0xfc, 0xdb, 0x8a, 0x4b, 0xcc, 0x85, 0x01,
     0x23, 0xd2, 0xe5, 0xf2, 0x29, 0xa7, 0x45, 0x94, 0x4a, 0x62, 0xe3, 0xa5, 0x6f, 0x3f, 0xe1, 0x7a,
@@ -2292,7 +2140,6 @@ For proxy protecting
 */
 byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
 {
-   unsigned short crc;
    byte chkb[60 + 4];
    const byte *p = chktbl + (sequence % (sizeof(chktbl) - 8));
 
@@ -2307,51 +2154,7 @@ byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
 
    length += 4;
 
-   crc = CRC_Block(chkb, length);
-
-   crc &= 0xff;
-
-   return crc;
-}
-
-// char *date = "Oct 24 1996";
-static const char *date = __DATE__;
-static const char *mon[12] =
-    { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
-    "Nov", "Dec"
-};
-static char mond[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-// returns days since Oct 24 1996
-int build_number(void)
-{
-   int m = 0;
-   int d = 0;
-   int y = 0;
-   static int b = 0;
-
-   if (b != 0)
-      return b;
-
-   for (m = 0; m < 11; m++)
-   {
-      if (strncasecmp(&date[0], mon[m], 3) == 0)
-         break;
-      d += mond[m];
-   }
-
-   d += atoi(&date[4]) - 1;
-
-   y = atoi(&date[7]) - 1900;
-
-   b = d + (int)((y - 1) * 365.25);
-
-   if (((y % 4) == 0) && m > 1)
-      b += 1;
-
-   b -= 35778;			// Dec 16 1998
-
-   return b;
+   return CRC_Block(chkb, length) & 0xff;
 }
 #endif /* QW_HACK */
 

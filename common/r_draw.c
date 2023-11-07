@@ -30,7 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define FULLY_CLIPPED_CACHED	0x80000000
 #define FRAMECOUNT_MASK		0x7FFFFFFF
 
-int c_faceclip;			// number of faces clipped
 unsigned int cacheoffset;
 clipplane_t view_clipplanes[4];
 
@@ -366,17 +365,11 @@ void R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
    clipplane_t *pclip;
 
    // skip out if no more surfs
-   if ((surface_p) >= surf_max) {
-      r_outofsurfaces++;
+   if ((surface_p) >= surf_max)
       return;
-   }
    // ditto if not enough edges left, or switch to auxedges if possible
-   if ((edge_p + fa->numedges + 4) >= edge_max) {
-      r_outofedges += fa->numedges;
+   if ((edge_p + fa->numedges + 4) >= edge_max)
       return;
-   }
-
-   c_faceclip++;
 
    // set up clip planes
    pclip = NULL;
@@ -463,8 +456,6 @@ void R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
    if (!r_emitted)
       return;
 
-   r_polycount++;
-
    surface_p->data = (void *)fa;
    surface_p->nearzi = r_nearzi;
    surface_p->flags = fa->flags;
@@ -505,17 +496,11 @@ void R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf)
    clipplane_t *pclip;
 
    // skip out if no more surfs
-   if (surface_p >= surf_max) {
-      r_outofsurfaces++;
+   if (surface_p >= surf_max)
       return;
-   }
    // ditto if not enough edges left, or switch to auxedges if possible
-   if ((edge_p + psurf->numedges + 4) >= edge_max) {
-      r_outofedges += psurf->numedges;
+   if ((edge_p + psurf->numedges + 4) >= edge_max)
       return;
-   }
-
-   c_faceclip++;
 
    // this is a dummy to give the caching mechanism someplace to write to
    r_pedge = &tedge;
@@ -565,8 +550,6 @@ void R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf)
    // if no edges made it out, return without posting the surface
    if (!r_emitted)
       return;
-
-   r_polycount++;
 
    surface_p->data = (void *)psurf;
    surface_p->nearzi = r_nearzi;

@@ -297,7 +297,6 @@ typedef struct {
 //
 // cvars
 //
-extern cvar_t cl_warncmd;
 extern cvar_t cl_upspeed;
 extern cvar_t cl_forwardspeed;
 extern cvar_t cl_backspeed;
@@ -310,7 +309,6 @@ extern cvar_t cl_pitchspeed;
 
 extern cvar_t cl_anglespeedkey;
 
-extern cvar_t cl_shownet;
 extern cvar_t cl_sbar;
 extern cvar_t cl_hudswap;
 
@@ -371,7 +369,6 @@ void CL_DecayLights(void);
 void CL_RunParticles(void);
 
 void CL_Init(void);
-void Host_WriteConfiguration(void);
 
 void CL_EstablishConnection(char *host);
 
@@ -386,7 +383,6 @@ void CL_BeginServerConnect(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern int fps_count;
 extern int minimum_memory;
 
 //

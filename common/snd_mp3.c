@@ -342,12 +342,9 @@ static int mp3_decode(snd_stream_t *stream, byte *buf, int len)
 		/* check whether input buffer needs a refill */
 		if (p->Stream.error == MAD_ERROR_BUFLEN)
 		{
+			/* check feof() ?? */
 			if (mp3_inputdata(stream) == -1)
-			{
-				/* check feof() ?? */
-				Con_DPrintf("mp3 EOF\n");
 				break;
-			}
 		}
 
 		if (mad_frame_decode(&p->Frame, &p->Stream))
@@ -424,11 +421,7 @@ static int mp3_madseek(snd_stream_t *stream, unsigned long offset)
 		bytes_read = FS_fread(p->mp3_buffer + leftover, (size_t) 1,
 					MP3_BUFFER_SIZE - leftover, &stream->fh);
 		if (bytes_read <= 0)
-		{
-			Con_DPrintf("seek failure. unexpected EOF (frames=%lu leftover=%lu)\n",
-					(unsigned long)p->FrameCount, (unsigned long)leftover);
 			break;
-		}
 		for ( ; !depadded && padding < bytes_read && !p->mp3_buffer[padding]; ++padding)
 			;
 		depadded = true;
@@ -445,10 +438,7 @@ static int mp3_madseek(snd_stream_t *stream, unsigned long offset)
 				if (p->Stream.error == MAD_ERROR_BUFLEN)
 					break;	/* Normal behaviour; get some more data from the file */
 				if (!MAD_RECOVERABLE(p->Stream.error))
-				{
-					Con_DPrintf("unrecoverable MAD error\n");
 					break;
-				}
 				if (p->Stream.error == MAD_ERROR_LOSTSYNC)
 				{
 					unsigned long available = (p->Stream.bufend - p->Stream.this_frame);
@@ -462,14 +452,6 @@ static int mp3_madseek(snd_stream_t *stream, unsigned long offset)
 						}
 						mad_stream_skip(&p->Stream, qmin(tagsize, available));
 					}
-					else
-					{
-						Con_DPrintf("MAD lost sync\n");
-					}
-				}
-				else
-				{
-					Con_DPrintf("recoverable MAD error\n");
 				}
 				continue;
 			}

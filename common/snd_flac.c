@@ -339,12 +339,11 @@ static int S_FLAC_CodecReadStream (snd_stream_t *stream, int len, void *buffer)
 			len -= res;
 			buf += res;
 			ff->pos += res;
-		} else if (res < 0) { /* error */
-			return -1;
-		} else {
-			Con_DPrintf ("FLAC: EOF\n");
-			break;
 		}
+		else if (res < 0) /* error */
+			return -1;
+		else
+			break;
 	}
 	return count;
 }

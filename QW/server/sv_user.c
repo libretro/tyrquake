@@ -246,8 +246,6 @@ SV_PreSpawn_f(void)
 	// should be three numbers following containing checksums
 	check = atoi(Cmd_Argv(3));
 
-//              Con_DPrintf("Client check = %d\n", check);
-
 	if (sv_mapcheck.value && check != sv.worldmodel->checksum &&
 	    check != sv.worldmodel->checksum2) {
 	    SV_ClientPrintf(host_client, PRINT_HIGH,
@@ -483,19 +481,6 @@ SV_Begin_f(void)
 	ClientReliableWrite_Byte(host_client, sv.paused);
 	SV_ClientPrintf(host_client, PRINT_HIGH, "Server is paused.\n");
     }
-#if 0
-//
-// send a fixangle over the reliable channel to make sure it gets there
-// Never send a roll angle, because savegames can catch the server
-// in a state where it is expecting the client to correct the angle
-// and it won't happen if the game was just loaded, so you wind up
-// with a permanent head tilt
-    ent = EDICT_NUM(1 + (host_client - svs.clients));
-    MSG_WriteByte(&host_client->netchan.message, svc_setangle);
-    for (i = 0; i < 2; i++)
-	MSG_WriteAngle(&host_client->netchan.message, ent->v.angles[i]);
-    MSG_WriteAngle(&host_client->netchan.message, 0);
-#endif
 }
 
 //=============================================================================
@@ -586,14 +571,11 @@ SV_NextUpload(void)
     if (!host_client->upload) {
 	host_client->upload = fopen(host_client->uploadfn, "wb");
 	if (!host_client->upload) {
-	    Sys_Printf("Can't create %s\n", host_client->uploadfn);
 	    ClientReliableWrite_Begin(host_client, svc_stufftext, 8);
 	    ClientReliableWrite_String(host_client, "stopul");
 	    *host_client->uploadfn = 0;
 	    return;
 	}
-	Sys_Printf("Receiving %s from %d...\n", host_client->uploadfn,
-		   host_client->userid);
 	if (host_client->remote_snap)
 	    OutofBandPrintf(host_client->snap_from,
 			    "Server receiving %s from %d...\n",
@@ -603,16 +585,12 @@ SV_NextUpload(void)
     fwrite(net_message.data + msg_readcount, 1, size, host_client->upload);
     msg_readcount += size;
 
-    Con_DPrintf("UPLOAD: %d received\n", size);
-
     if (percent != 100) {
 	ClientReliableWrite_Begin(host_client, svc_stufftext, 8);
 	ClientReliableWrite_String(host_client, "nextul\n");
     } else {
 	fclose(host_client->upload);
 	host_client->upload = NULL;
-
-	Sys_Printf("%s upload completed.\n", host_client->uploadfn);
 
 	if (host_client->remote_snap) {
 	    char *p;
@@ -683,7 +661,6 @@ SV_BeginDownload_f(void)
 	    host_client->download = NULL;
 	}
 
-	Sys_Printf("Couldn't upload %s to %s\n", name, host_client->name);
 	ClientReliableWrite_Begin(host_client, svc_download, 4);
 	ClientReliableWrite_Short(host_client, -1);
 	ClientReliableWrite_Byte(host_client, 0);
@@ -691,7 +668,6 @@ SV_BeginDownload_f(void)
     }
 
     SV_NextDownload_f();
-    Sys_Printf("Uploading %s to %s\n", name, host_client->name);
 }
 
 //=============================================================================
@@ -767,8 +743,6 @@ SV_Say(qboolean team)
 	text[len + qmin(strlen(p), space)] = 0;
     }
     strcat(text, "\n");
-
-    Sys_Printf("%s", text);
 
     for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
 	if (client->state != cs_spawned)
@@ -1049,7 +1023,6 @@ SV_SetInfo_f(void)
 
     if (Cmd_Argc() == 1) {
 	Con_Printf("User info settings:\n");
-	Info_Print(host_client->userinfo);
 	return;
     }
 
@@ -1095,7 +1068,6 @@ Dumps the serverinfo info string
 void
 SV_ShowServerinfo_f(void)
 {
-    Info_Print(svs.info);
 }
 
 void
@@ -1366,27 +1338,9 @@ SV_RunCmd(usercmd_t *ucmd)
 	mins[i] = pmove.origin[i] - 256;
 	maxs[i] = pmove.origin[i] + 256;
     }
-#if 1
     SV_AddLinksToPmove(mins, maxs);
-#else
-    AddAllEntsToPmove(mins, maxs);
-#endif
 
-#if 0
-    {
-	int before, after;
-
-	before = PM_TestPlayerPosition(pmove.origin);
-	PlayerMove();
-	after = PM_TestPlayerPosition(pmove.origin);
-
-	if (sv_player->v.health > 0 && before && !after)
-	    Con_Printf("player %s got stuck in playermove!!!!\n",
-		       host_client->name);
-    }
-#else
     PlayerMove();
-#endif
 
     host_client->oldbuttons = pmove.oldbuttons;
     sv_player->v.teleport_time = pmove.waterjumptime;
@@ -1402,14 +1356,7 @@ SV_RunCmd(usercmd_t *ucmd)
 	sv_player->v.origin[i] =
 	    pmove.origin[i] - (sv_player->v.mins[i] - player_mins[i]);
 
-#if 0
-    // truncate velocity the same way the net protocol will
-    for (i = 0; i < 3; i++)
-	sv_player->v.velocity[i] = (int)pmove.velocity[i];
-#else
     VectorCopy(pmove.velocity, sv_player->v.velocity);
-#endif
-
     VectorCopy(pmove.angles, sv_player->v.v_angle);
 
     if (!host_client->spectator) {
@@ -1548,13 +1495,8 @@ SV_ExecuteClientMessage(client_t *cl)
 					 MSG_GetReadCount() -
 					 checksumIndex - 1, seq_hash);
 
-	    if (calculatedChecksum != checksum) {
-		Con_DPrintf
-		    ("Failed command checksum for %s(%d) (%d != %d)\n",
-		     cl->name, cl->netchan.incoming_sequence, checksum,
-		     calculatedChecksum);
+	    if (calculatedChecksum != checksum)
 		return;
-	    }
 
 	    if (!sv.paused) {
 		SV_PreRunCmd();

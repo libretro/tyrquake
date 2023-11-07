@@ -247,12 +247,6 @@ typedef struct mspriteframe_s {
 } mspriteframe_t;
 
 /*
- * Renderer provides this function to specify the amount of space it needs for
- * a sprite frame with given pixel count
- */
-int R_SpriteDataSize(int numpixels);
-
-/*
  * Renderer provides this function to translate and store the raw sprite data
  * from the model file as needed.
  */
@@ -450,7 +444,6 @@ void Mod_ClearAll(void);
 model_t *Mod_ForName(const char *name, qboolean crash);
 void *Mod_Extradata(model_t *mod);	// handles caching
 void Mod_TouchModel(char *name);
-void Mod_Print(void);
 
 /*
  * PVS/PHS information
@@ -465,16 +458,7 @@ mleaf_t *Mod_PointInLeaf(const model_t *model, const vec3_t point);
 const leafbits_t *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
 const leafbits_t *Mod_FatPVS(const model_t *model, const vec3_t point);
 
-#ifdef _WIN32
-static INLINE int __ERRORLONGSIZE(void)
-{
-   fprintf(stderr, "Error occurred.\n");
-   return 0;
-}
-#else
-int __ERRORLONGSIZE(void); /* to generate an error at link time */
-#endif
-#define QBYTESHIFT(x) ((x) == 8 ? 6 : ((x) == 4 ? 5 : __ERRORLONGSIZE() ))
+#define QBYTESHIFT(x) ((x) == 8 ? 6 : ((x) == 4 ? 5 : 0 ))
 #define LEAFSHIFT QBYTESHIFT(sizeof(leafblock_t))
 #define LEAFMASK  ((sizeof(leafblock_t) << 3) - 1UL)
 

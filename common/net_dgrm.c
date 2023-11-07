@@ -44,14 +44,6 @@ extern int m_state;
 #include "screen.h"
 #include "sys.h"
 
-/* statistic counters */
-static int packetsSent = 0;
-static int packetsReSent = 0;
-static int packetsReceived = 0;
-static int receivedDuplicateCount = 0;
-static int shortPacketCount = 0;
-static int droppedDatagrams;
-
 static net_driver_t *dgrm_driver;
 
 static struct {
@@ -59,19 +51,6 @@ static struct {
     unsigned int sequence;
     byte data[NET_MAXMESSAGE];
 } packetBuffer;
-
-#ifdef DEBUG
-static const char *
-StrAddr(netadr_t *addr)
-{
-    static char buf[32];
-
-    snprintf(buf, sizeof(buf), "%d.%d.%d.%d:%d",
-	    addr->ip.b[0], addr->ip.b[1], addr->ip.b[2], addr->ip.b[3],
-	    ntohs(addr->port));
-    return buf;
-}
-#endif
 
 static netadr_t banAddr = { INADDR_ANY, 0, 0 };
 static netadr_t banMask = { INADDR_NONE, 0, 0 };
@@ -81,20 +60,17 @@ NET_Ban_f(void)
 {
    char addrStr[32];
    char maskStr[32];
-   void (*print)(const char *fmt, ...);
 
    if (cmd_source == src_command) {
       if (!sv.active) {
          Cmd_ForwardToServer();
          return;
       }
-      print = Con_Printf;
    }
    else
    {
       if (pr_global_struct->deathmatch)
          return;
-      print = SV_ClientPrintf;
    }
 
    switch (Cmd_Argc())
@@ -104,9 +80,7 @@ NET_Ban_f(void)
          {
             strcpy(addrStr, NET_AdrToString(&banAddr));
             strcpy(maskStr, NET_AdrToString(&banMask));
-            print("Banning %s [%s]\n", addrStr, maskStr);
-         } else
-            print("Banning not active\n");
+         }
          break;
 
       case 2:
@@ -123,7 +97,6 @@ NET_Ban_f(void)
          break;
 
       default:
-         print("BAN ip_address [mask]\n");
          break;
    }
 }
@@ -153,7 +126,6 @@ SendPacket(qsocket_t *sock)
 	return -1;
 
     sock->lastSendTime = net_time;
-    packetsSent++;
 
     return 1;
 }
@@ -161,17 +133,6 @@ SendPacket(qsocket_t *sock)
 int
 Datagram_SendMessage(qsocket_t *sock, sizebuf_t *data)
 {
-#ifdef DEBUG
-    if (data->cursize == 0)
-	Sys_Error("%s: zero length message", __func__);
-
-    if (data->cursize > NET_MAXMESSAGE)
-	Sys_Error("%s: message too big %u", __func__, data->cursize);
-
-    if (sock->canSend == false)
-	Sys_Error("%s: called with canSend == false", __func__);
-#endif
-
     memcpy(sock->sendMessage, data->data, data->cursize);
     sock->sendMessageLength = data->cursize;
     sock->canSend = false;
@@ -212,21 +173,10 @@ Datagram_CanSendUnreliableMessage(qsocket_t *sock)
     return true;
 }
 
-
 int
 Datagram_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
 {
-    int packetLen;
-
-#ifdef DEBUG
-    if (data->cursize == 0)
-	Sys_Error("%s: zero length message", __func__);
-
-    if (data->cursize > sock->mtu)
-	Sys_Error("%s: message too big %u", __func__, data->cursize);
-#endif
-
-    packetLen = NET_HEADERSIZE + data->cursize;
+    int packetLen = NET_HEADERSIZE + data->cursize;
 
     packetBuffer.length = BigLong(packetLen | NETFLAG_UNRELIABLE);
     packetBuffer.sequence = BigLong(sock->unreliableSendSequence++);
@@ -236,7 +186,6 @@ Datagram_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
 			       &sock->addr) == -1)
 	return -1;
 
-    packetsSent++;
     return 1;
 }
 
@@ -249,7 +198,6 @@ Datagram_GetMessage(qsocket_t *sock)
     int ret = 0;
     netadr_t readaddr;
     unsigned int sequence;
-    unsigned int count;
 
     if (!sock->canSend)
 	if ((net_time - sock->lastSendTime) > 1.0)
@@ -258,11 +206,6 @@ Datagram_GetMessage(qsocket_t *sock)
     while (1) {
 	length = sock->landriver->Read(sock->socket, &packetBuffer,
 				       NET_MESSAGESIZE, &readaddr);
-#if 0
-	/* for testing packet loss effects */
-	if ((rand() & 255) > 220)
-	    continue;
-#endif
 	if (length == 0)
 	    break;
 
@@ -271,19 +214,11 @@ Datagram_GetMessage(qsocket_t *sock)
 	    return -1;
 	}
 
-	if (NET_AddrCompare(&readaddr, &sock->addr) != 0) {
-#ifdef DEBUG
-	    Con_DPrintf("Forged packet received\n");
-	    Con_DPrintf("Expected: %s\n", StrAddr(&sock->addr));
-	    Con_DPrintf("Received: %s\n", StrAddr(&readaddr));
-#endif
+	if (NET_AddrCompare(&readaddr, &sock->addr) != 0)
 	    continue;
-	}
 
-	if (length < NET_HEADERSIZE) {
-	    shortPacketCount++;
+	if (length < NET_HEADERSIZE)
 	    continue;
-	}
 
 	length = BigLong(packetBuffer.length);
 	flags = length & (~NETFLAG_LENGTH_MASK);
@@ -293,18 +228,11 @@ Datagram_GetMessage(qsocket_t *sock)
 	    continue;
 
 	sequence = BigLong(packetBuffer.sequence);
-	packetsReceived++;
 
 	if (flags & NETFLAG_UNRELIABLE) {
 	    if (sequence < sock->unreliableReceiveSequence) {
-		Con_DPrintf("Got a stale datagram\n");
 		ret = 0;
 		break;
-	    }
-	    if (sequence != sock->unreliableReceiveSequence) {
-		count = sequence - sock->unreliableReceiveSequence;
-		droppedDatagrams += count;
-		Con_DPrintf("Dropped %u datagram(s)\n", count);
 	    }
 	    sock->unreliableReceiveSequence = sequence + 1;
 
@@ -318,18 +246,12 @@ Datagram_GetMessage(qsocket_t *sock)
 	}
 
 	if (flags & NETFLAG_ACK) {
-	    if (sequence != (sock->sendSequence - 1)) {
-		Con_DPrintf("Stale ACK received\n");
+	    if (sequence != (sock->sendSequence - 1))
 		continue;
-	    }
-	    if (sequence == sock->ackSequence) {
+	    if (sequence == sock->ackSequence)
 		sock->ackSequence++;
-		if (sock->ackSequence != sock->sendSequence)
-		    Con_DPrintf("ack sequencing error\n");
-	    } else {
-		Con_DPrintf("Duplicate ACK received\n");
+	    else
 		continue;
-	    }
 	    sock->sendMessageLength -= sock->mtu;
 	    if (sock->sendMessageLength > 0) {
 		memmove(sock->sendMessage, sock->sendMessage + sock->mtu,
@@ -348,10 +270,8 @@ Datagram_GetMessage(qsocket_t *sock)
 	    sock->landriver->Write(sock->socket, &packetBuffer, NET_HEADERSIZE,
 				   &readaddr);
 
-	    if (sequence != sock->receiveSequence) {
-		receivedDuplicateCount++;
+	    if (sequence != sock->receiveSequence)
 		continue;
-	    }
 	    sock->receiveSequence++;
 
 	    length -= NET_HEADERSIZE;
@@ -379,54 +299,6 @@ Datagram_GetMessage(qsocket_t *sock)
 
     return ret;
 }
-
-static void
-PrintStats(qsocket_t *s)
-{
-    Con_Printf("canSend = %4u   \n", s->canSend);
-    Con_Printf("sendSeq = %4u   ", s->sendSequence);
-    Con_Printf("recvSeq = %4u   \n", s->receiveSequence);
-    Con_Printf("\n");
-}
-
-void
-NET_Stats_f(void)
-{
-    qsocket_t *s;
-
-    if (Cmd_Argc() == 1) {
-	Con_Printf("unreliable messages sent   = %i\n",
-		   unreliableMessagesSent);
-	Con_Printf("unreliable messages recv   = %i\n",
-		   unreliableMessagesReceived);
-	Con_Printf("reliable messages sent     = %i\n", messagesSent);
-	Con_Printf("reliable messages received = %i\n", messagesReceived);
-	Con_Printf("packetsSent                = %i\n", packetsSent);
-	Con_Printf("packetsReSent              = %i\n", packetsReSent);
-	Con_Printf("packetsReceived            = %i\n", packetsReceived);
-	Con_Printf("receivedDuplicateCount     = %i\n",
-		   receivedDuplicateCount);
-	Con_Printf("shortPacketCount           = %i\n", shortPacketCount);
-	Con_Printf("droppedDatagrams           = %i\n", droppedDatagrams);
-    } else if (strcmp(Cmd_Argv(1), "*") == 0) {
-	for (s = net_activeSockets; s; s = s->next)
-	    PrintStats(s);
-	for (s = net_freeSockets; s; s = s->next)
-	    PrintStats(s);
-    } else {
-	for (s = net_activeSockets; s; s = s->next)
-	    if (strcasecmp(Cmd_Argv(1), s->address) == 0)
-		break;
-	if (s == NULL)
-	    for (s = net_freeSockets; s; s = s->next)
-		if (strcasecmp(Cmd_Argv(1), s->address) == 0)
-		    break;
-	if (s == NULL)
-	    return;
-	PrintStats(s);
-    }
-}
-
 
 struct test_poll_state
 {
@@ -710,7 +582,6 @@ Datagram_Init(void)
     int i, csock, num_inited;
 
     dgrm_driver = net_driver;
-    Cmd_AddCommand("net_stats", NET_Stats_f);
 
     if (COM_CheckParm("-nolan"))
 	return -1;
@@ -1198,12 +1069,6 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
 	    if (ret > 0) {
 		// is it from the right place?
 		if (NET_AddrCompare(&readaddr, &sendaddr) != 0) {
-#ifdef DEBUG
-		    Con_Printf("wrong reply address\n");
-		    Con_Printf("Expected: %s\n", StrAddr(&sendaddr));
-		    Con_Printf("Received: %s\n", StrAddr(&readaddr));
-		    SCR_UpdateScreen();
-#endif
 		    ret = 0;
 		    continue;
 		}

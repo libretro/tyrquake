@@ -231,8 +231,6 @@ FlushEntityPacket(void)
     int word;
     entity_state_t olde, newe;
 
-    Con_DPrintf("FlushEntityPacket\n");
-
     memset(&olde, 0, sizeof(olde));
 
     cl.validsequence = 0;	// can't render a frame
@@ -274,12 +272,9 @@ CL_ParsePacketEntities(qboolean delta)
     cl.frames[newpacket].invalid = false;
 
     if (delta) {
-	from = MSG_ReadByte();
+	from      = MSG_ReadByte();
 
 	oldpacket = cl.frames[newpacket].delta_sequence;
-
-	if ((from & UPDATE_MASK) != (oldpacket & UPDATE_MASK))
-	    Con_DPrintf("WARNING: from mismatch\n");
     } else
 	oldpacket = -1;
 
@@ -851,13 +846,11 @@ CL_LinkPlayers(void)
 	if (msec <= 0
 	    || (!cl_predict_players.value && !cl_predict_players2.value)) {
 	    VectorCopy(state->origin, ent->origin);
-//Con_DPrintf ("nopredict\n");
 	} else {
 	    // predict players movement
 	    if (msec > 255)
 		msec = 255;
 	    state->command.msec = msec;
-//Con_DPrintf ("predict: %i\n", msec);
 
 	    oldphysent = pmove.numphysent;
 	    CL_SetSolidPlayers(j);
@@ -971,13 +964,11 @@ CL_SetUpPlayerPrediction(qboolean dopred)
 		(!cl_predict_players.value && !cl_predict_players2.value) ||
 		!dopred) {
 		VectorCopy(state->origin, pplayer->origin);
-		//Con_DPrintf ("nopredict\n");
 	    } else {
 		// predict players movement
 		if (msec > 255)
 		    msec = 255;
 		state->command.msec = msec;
-		//Con_DPrintf ("predict: %i\n", msec);
 
 		CL_PredictUsercmd(state, &exact, &state->command, false);
 		VectorCopy(exact.origin, pplayer->origin);

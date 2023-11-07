@@ -450,12 +450,7 @@ M_Options_Draw(void)
     if (vid_menudrawfn)
 	M_Print(16, 144, "         Video Options");
 
-    if (!VID_IsFullScreen()) {
-	M_Print(16, 152, "             Use Mouse");
-	M_DrawCheckbox(220, 152, _windowed_mouse.value);
-    }
-
-// cursor
+    // cursor
     M_DrawCharacter(200, 32 + options_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -522,7 +517,7 @@ M_Options_Key(int k)
 	}
     }
 
-    if (options_cursor == 15 && VID_IsFullScreen()) {
+    if (options_cursor == 15) {
 	if (k == K_UPARROW) {
 	    options_cursor--;
 	    if (!vid_menudrawfn)

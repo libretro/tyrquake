@@ -706,16 +706,3 @@ CL_InitInput(void)
 
     Cvar_RegisterVariable(&cl_nodelta);
 }
-
-// FIXME - unused function?
-#if 0
-/*
-============
-CL_ClearStates
-============
-*/
-static void
-CL_ClearStates(void)
-{
-}
-#endif

@@ -742,7 +742,6 @@ NudgePosition(void)
 	}
     }
     VectorCopy(base, pmove.origin);
-//      Con_DPrintf ("NudgePosition: stuck\n");
 }
 
 /*

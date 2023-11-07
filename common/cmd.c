@@ -51,26 +51,7 @@ typedef struct cmdalias_s {
 #define cmdalias_entry(ptr) container_of(ptr, struct cmdalias_s, stree)
 static DECLARE_STREE_ROOT(cmdalias_tree);
 
-static qboolean cmd_wait;
-
-cvar_t cl_warncmd = { "cl_warncmd", "0" };
-
 //=============================================================================
-
-/*
-============
-Cmd_Wait_f
-
-Causes execution of the remainder of the command buffer to be delayed until
-next frame.  This allows commands like:
-bind g "impulse 5 ; +attack ; wait ; -attack ; impulse 2"
-============
-*/
-void
-Cmd_Wait_f(void)
-{
-    cmd_wait = true;
-}
 
 /*
 =============================================================================
@@ -115,19 +96,15 @@ void
 Cbuf_AddText(const char *fmt, ...)
 {
     va_list ap;
-    int len, maxlen;
-    char *buf;
-
-    buf = (char *)cmd_text.data + cmd_text.cursize;
-    maxlen = cmd_text.maxsize - cmd_text.cursize;
+    int len;
+    char *buf  = (char *)cmd_text.data + cmd_text.cursize;
+    int maxlen = cmd_text.maxsize - cmd_text.cursize;
     va_start(ap, fmt);
     len = vsnprintf(buf, maxlen, fmt, ap);
     va_end(ap);
 
     if (cmd_text.cursize + len < cmd_text.maxsize)
 	cmd_text.cursize += len;
-    else
-	Con_Printf("%s: overflow\n", __func__);
 }
 
 
@@ -142,21 +119,17 @@ of the command buffer). Adds a \n to the text.
 void
 Cbuf_InsertText(const char *text)
 {
-    int len;
-
-    len = strlen(text);
-    if (cmd_text.cursize) {
-	if (cmd_text.cursize + len + 1 > cmd_text.maxsize)
-	    Sys_Error("%s: overflow", __func__);
-
+    size_t len = strlen(text);
+    if (cmd_text.cursize)
+    {
 	/* move any commands still remaining in the exec buffer */
 	memmove(cmd_text.data + len + 1, cmd_text.data, cmd_text.cursize);
 	memcpy(cmd_text.data, text, len);
 	cmd_text.data[len] = '\n';
 	cmd_text.cursize += len + 1;
-    } else {
-	Cbuf_AddText("%s\n", text);
     }
+    else
+	Cbuf_AddText("%s\n", text);
 }
 
 /*
@@ -212,16 +185,6 @@ void Cbuf_Execute(void)
 #ifdef QW_HACK
       Cmd_ExecuteString(line);
 #endif
-
-      if (cmd_wait)
-      {
-         /*
-          * skip out while text still remains in buffer, leaving it for
-          * next frame
-          */
-         cmd_wait = false;
-         break;
-      }
    }
 }
 
@@ -325,8 +288,6 @@ Cmd_Exec_f(void)
 	Con_Printf("couldn't exec %s\n", Cmd_Argv(1));
 	return;
     }
-    if (cl_warncmd.value || developer.value)
-	Con_Printf("execing %s\n", Cmd_Argv(1));
 
     Cbuf_InsertText(f);
     Hunk_FreeToLowMark(mark);
@@ -476,7 +437,6 @@ Cmd_Init(void)
     Cmd_AddCommand("exec", Cmd_Exec_f);
     Cmd_AddCommand("echo", Cmd_Echo_f);
     Cmd_AddCommand("alias", Cmd_Alias_f);
-    Cmd_AddCommand("wait", Cmd_Wait_f);
 #ifdef NQ_HACK
     Cmd_AddCommand("cmd", Cmd_ForwardToServer);
 #elif defined(QW_HACK) && !defined(SERVERONLY)
@@ -524,7 +484,6 @@ Cmd_Args(void)
     return cmd_args;
 }
 
-
 /*
 ============
 Cmd_TokenizeString
@@ -538,7 +497,7 @@ Cmd_TokenizeString(const char *text)
     int i;
     char *arg;
 
-// clear the args from the last string
+    // clear the args from the last string
     for (i = 0; i < cmd_argc; i++)
 	Z_Free(cmd_argv[i]);
 
@@ -547,9 +506,8 @@ Cmd_TokenizeString(const char *text)
 
     while (1) {
 // skip whitespace up to a /n
-	while (*text && *text <= ' ' && *text != '\n') {
+	while (*text && *text <= ' ' && *text != '\n')
 	    text++;
-	}
 
 	if (*text == '\n') {	// a newline seperates commands in the buffer
 	    text++;
@@ -578,14 +536,10 @@ Cmd_TokenizeString(const char *text)
 static struct cmd_function_s *
 Cmd_FindCommand(const char *name)
 {
-    struct cmd_function_s *ret = NULL;
-    struct stree_node *n;
-
-    n = STree_Find(&cmd_tree, name);
+    struct stree_node *n = STree_Find(&cmd_tree, name);
     if (n)
-	ret = cmd_entry(n);
-
-    return ret;
+	return cmd_entry(n);
+    return NULL;
 }
 
 /*
@@ -601,12 +555,12 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
     if (host_initialized)	// because hunk allocation would get stomped
 	Sys_Error("%s: called after host_initialized", __func__);
 
-// fail if the command is a variable name
+    // fail if the command is a variable name
     if (Cvar_VariableString(cmd_name)[0]) {
 	Con_Printf("%s: %s already defined as a var\n", __func__, cmd_name);
 	return;
     }
-// fail if the command already exists
+    // fail if the command already exists
     cmd = Cmd_FindCommand(cmd_name);
     if (cmd) {
 	Con_Printf("%s: %s already defined\n", __func__, cmd_name);
@@ -624,13 +578,9 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
 void
 Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion)
 {
-    cmd_function_t *cmd;
-
-    cmd = Cmd_FindCommand(cmd_name);
+    cmd_function_t *cmd = Cmd_FindCommand(cmd_name);
     if (cmd)
 	cmd->completion = completion;
-    else
-	Sys_Error("%s: no such command - %s", __func__, cmd_name);
 }
 
 /*
@@ -765,11 +715,11 @@ Cmd_ExecuteString(const char *text)
 #endif
     Cmd_TokenizeString(text);
 
-// execute the command line
+    // execute the command line
     if (!Cmd_Argc())
 	return;			// no tokens
 
-// check functions
+    // check functions
     cmd = Cmd_FindCommand(cmd_argv[0]);
     if (cmd) {
 	if (cmd->function)
@@ -781,107 +731,10 @@ Cmd_ExecuteString(const char *text)
 	return;
     }
 
-// check alias
+    // check alias
     a = Cmd_Alias_Find(cmd_argv[0]);
     if (a) {
 	Cbuf_InsertText(a->value);
 	return;
     }
-
-// check cvars
-    if (!Cvar_Command() && (cl_warncmd.value || developer.value))
-	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
-}
-
-/*
- * Return a string tree with all possible argument completions of the given
- * buffer for the given command.
- */
-struct stree_root *
-Cmd_ArgCompletions(const char *name, const char *buf)
-{
-    cmd_function_t *cmd;
-    struct stree_root *root = NULL;
-
-    cmd = Cmd_FindCommand(name);
-    if (cmd && cmd->completion)
-	root = cmd->completion(buf);
-
-    return root;
-}
-
-/*
- * Call the argument completion function for cmd "name".
- * Returned result should be Z_Free'd after use.
- */
-const char *
-Cmd_ArgComplete(const char *name, const char *buf)
-{
-    char *result = NULL;
-    struct stree_root *root;
-
-    root = Cmd_ArgCompletions(name, buf);
-    if (root) {
-	result = STree_MaxMatch(root, buf);
-	Z_Free(root);
-    }
-
-    return result;
-}
-
-
-/*
-================
-Cmd_CheckParm
-
-Returns the position (1 to argc-1) in the command's argument list
-where the given parameter apears, or 0 if not present
-================
-*/
-int
-Cmd_CheckParm(const char *parm)
-{
-    int i;
-
-    if (!parm)
-	Sys_Error("Cmd_CheckParm: NULL");
-
-    for (i = 1; i < Cmd_Argc(); i++)
-	if (!strcasecmp(parm, Cmd_Argv(i)))
-	    return i;
-
-    return 0;
-}
-
-struct stree_root *Cmd_CommandCompletions(const char *buf)
-{
-    struct stree_root *root_tree;
-
-    root_tree = (struct stree_root*)Z_Malloc(sizeof(struct stree_root));
-
-    root_tree->entries = 0;
-    root_tree->maxlen = 0;
-    root_tree->minlen = -1;
-    //root_tree->root = {NULL};
-    root_tree->stack = NULL;
-
-    STree_AllocInit();
-
-    STree_Completions(root_tree, &cmd_tree, buf);
-    STree_Completions(root_tree, &cmdalias_tree, buf);
-    STree_Completions(root_tree, &cvar_tree, buf);
-
-    return root_tree;
-}
-
-const char *Cmd_CommandComplete(const char *buf)
-{
-    struct stree_root *root;
-    char *ret;
-
-    root = Cmd_CommandCompletions(buf);
-    ret = STree_MaxMatch(root, buf);
-    Z_Free(root);
-
-    return ret;
 }

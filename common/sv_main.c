@@ -349,8 +349,8 @@ void SV_SendServerinfo(client_t *client)
 
    MSG_WriteByte(&client->message, svc_print);
    MSG_WriteStringf(&client->message,
-         "%c\nVERSION TyrQuake-%s SERVER (%i CRC)",
-         2, stringify(TYR_VERSION), pr_crc);
+         "%c\nVERSION TyrQuake-%s SERVER",
+         2, stringify(TYR_VERSION));
 
    MSG_WriteByte(&client->message, svc_serverinfo);
    MSG_WriteLong(&client->message, sv.protocol);
@@ -397,21 +397,13 @@ once for a player each game, not once for each level change.
 */
 void SV_ConnectClient(int clientnum)
 {
-   edict_t *ent;
-   int edictnum;
-   struct qsocket_s *netconnection;
    int i;
    float spawn_parms[NUM_SPAWN_PARMS];
-   client_t *client = svs.clients + clientnum;
-
-   Con_DPrintf("Client %s connected\n", client->netconnection->address);
-
-   edictnum = clientnum + 1;
-
-   ent = EDICT_NUM(edictnum);
-
+   client_t *client                = svs.clients + clientnum;
+   int edictnum                    = clientnum + 1;
+   edict_t *ent                    = EDICT_NUM(edictnum);
    // set up the client_t
-   netconnection = client->netconnection;
+   struct qsocket_s *netconnection = client->netconnection;
 
    if (sv.loadgame)
       memcpy(spawn_parms, client->spawn_parms, sizeof(spawn_parms));
@@ -1221,7 +1213,6 @@ void SV_SpawnServer(char *server)
       Cvar_Set("hostname", "UNNAMED");
    scr_centertime_off = 0;
 
-   Con_DPrintf("SpawnServer: %s\n", server);
    svs.changelevel_issued = false;	// now safe to issue another
 
    //
@@ -1351,6 +1342,4 @@ void SV_SpawnServer(char *server)
          i++, host_client++)
       if (host_client->active)
          SV_SendServerinfo(host_client);
-
-   Con_DPrintf("Server spawned.\n");
 }

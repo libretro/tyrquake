@@ -21,8 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef CVAR_H
 #define CVAR_H
 
-#include <streams/file_stream.h>
-
 #include "shell.h"
 #include "qtypes.h"
 
@@ -124,19 +122,6 @@ float Cvar_VariableValue(const char *var_name);
 
 /* returns an empty string if not defined */
 const char *Cvar_VariableString(const char *var_name);
-
-/*
- * called by Cmd_ExecuteString when Cmd_Argv(0) doesn't match a known command.
- * Returns true if the command was a variable reference that was
- * handled. (print or change)
- */
-qboolean Cvar_Command(void);
-
-/*
- * Writes lines containing "set variable value" for all variables with the
- * archive flag set to true.
- */
-void Cvar_WriteVariables(RFILE *f);
 
 /* */
 cvar_t *Cvar_FindVar(const char *var_name);

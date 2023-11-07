@@ -75,9 +75,11 @@ bool W_LoadWadFile(const char *filename)
    unsigned i;
    int infotableofs;
 
-   wad_base = (byte*)COM_LoadHunkFile(filename);
-   if (!wad_base)
-      return Sys_Error("%s: couldn't load %s", __func__, filename);
+   if (!(wad_base = (byte*)COM_LoadHunkFile(filename)))
+   {
+      Sys_Error("%s: couldn't load %s", __func__, filename);
+      return false;
+   }
 
    header = (wadinfo_t *)wad_base;
 
@@ -85,7 +87,10 @@ bool W_LoadWadFile(const char *filename)
          || header->identification[1] != 'A'
          || header->identification[2] != 'D'
          || header->identification[3] != '2')
-      return Sys_Error("Wad file %s doesn't have WAD2 id", filename);
+   {
+      Sys_Error("Wad file %s doesn't have WAD2 id", filename);
+      return false;
+   }
 
 #ifdef MSB_FIRST
    wad_numlumps = LittleLong(header->numlumps);
@@ -132,7 +137,6 @@ lumpinfo_t * W_GetLumpinfo(const char *name)
          return lump_p;
    }
 
-   Sys_Error("%s: %s not found", __func__, name);
    return NULL;
 }
 
@@ -144,13 +148,7 @@ void * W_GetLumpName(const char *name)
 
 void *W_GetLumpNum(int num)
 {
-   lumpinfo_t *lump;
-
-   if (num < 0 || num > wad_numlumps)
-      Sys_Error("%s: bad number: %i", __func__, num);
-
-   lump = wad_lumps + num;
-
+   lumpinfo_t *lump = wad_lumps + num;
    return (void *)(wad_base + lump->filepos);
 }
 

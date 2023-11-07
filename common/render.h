@@ -82,12 +82,8 @@ typedef struct entity_s {
     int effects;		// light, particals, etc
 #endif
     int dlightframe;		// dynamic lighting
-    /* qbism - not used here... */
-#if 0
-    int dlightbits;
-#endif
 
-// FIXME: could turn these into a union
+    // FIXME: could turn these into a union
     int trivial_accept;
     struct mnode_s *topnode;	// for bmodels, first world node
 				//  that splits bmodel, or NULL if
@@ -168,11 +164,6 @@ void R_AddEfrags(entity_t *ent);
 void R_RemoveEfrags(entity_t *ent);
 
 void R_NewMap(void);
-
-#ifdef QW_HACK
-void R_NetGraph(void);
-void R_ZGraph(void);
-#endif
 
 void R_ParseParticleEffect(void);
 void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count);

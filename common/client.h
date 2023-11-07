@@ -27,11 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "render.h"
 #include "vid.h"
 
-#include <streams/file_stream.h>
-
-//
 // client_state_t should hold all pieces of the client state
-//
 
 typedef struct {
     vec3_t viewangles;
@@ -114,14 +110,9 @@ typedef struct {
 
 // demo recording info must be here, because record is started before
 // entering a map (and clearing client_state_t)
-    qboolean demorecording;
     qboolean demoplayback;
-    qboolean timedemo;
     int forcetrack;		// -1 = use normal cd track
     RFILE *demofile;
-    int td_lastframe;		// to meter out one message a frame
-    int td_startframe;		// host_framecount at start
-    float td_starttime;		// realtime at second frame of timedemo
 
 // connection information
     int signon;			// 0 to SIGNONS
@@ -240,7 +231,6 @@ extern cvar_t cl_anglespeedkey;
 
 extern cvar_t cl_autofire;
 
-extern cvar_t cl_shownet;
 extern cvar_t cl_nolerp;
 
 extern cvar_t cl_pitchdriftspeed;
@@ -308,8 +298,6 @@ void CL_NextDemo(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern int fps_count;
-
 //
 // cl_input
 //
@@ -342,10 +330,6 @@ void CL_BaseMove(usercmd_t *cmd);
 void CL_StopPlayback(void);
 int CL_GetMessage(void);
 
-void CL_Stop_f(void);
-void CL_Record_f(void);
-
-void CL_TimeDemo_f(void);
 void CL_PlayDemo_f(void);
 struct stree_root *CL_Demo_Arg_f(const char *arg);
 
@@ -373,21 +357,5 @@ void V_SetContentsColor(int contents);
 void CL_InitTEnts(void);
 void CL_ClearTEnts(void);
 void CL_SignonReply(void);
-
-typedef struct {
-    char manufacturer;
-    char version;
-    char encoding;
-    char bits_per_pixel;
-    unsigned short xmin, ymin, xmax, ymax;
-    unsigned short hres, vres;
-    unsigned char palette[48];
-    char reserved;
-    char color_planes;
-    unsigned short bytes_per_line;
-    unsigned short palette_type;
-    char filler[58];
-    unsigned char data;		// unbounded
-} pcx_t;
 
 #endif /* CLIENT_H */

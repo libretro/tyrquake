@@ -33,7 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - header hacks
 extern int net_socket;
 
-static cvar_t sys_nostdout = { "sys_nostdout", "0" };
 static cvar_t sys_extrasleep = { "sys_extrasleep", "0" };
 
 static qboolean stdin_ready;
@@ -123,36 +122,6 @@ Sys_Error(const char *error, ...)
 
 /*
 ================
-Sys_Printf
-================
-*/
-void
-Sys_Printf(const char *fmt, ...)
-{
-    va_list argptr;
-    static char text[MAX_PRINTMSG];
-    unsigned char *p;
-
-    va_start(argptr, fmt);
-    vsnprintf(text, sizeof(text), fmt, argptr);
-    va_end(argptr);
-
-    if (sys_nostdout.value)
-	return;
-
-    for (p = (unsigned char *)text; *p; p++) {
-	*p &= 0x7f;
-	if ((*p > 128 || *p < 32) && *p != 10 && *p != 13 && *p != 9)
-	    printf("[%02x]", *p);
-	else
-	    putc(*p, stdout);
-    }
-    fflush(stdout);
-}
-
-
-/*
-================
 Sys_Quit
 ================
 */
@@ -165,37 +134,6 @@ Sys_Quit(void)
 static int do_stdin = 1;
 
 /*
-================
-Sys_ConsoleInput
-
-Checks for a complete line of text typed in at the console, then forwards
-it to the host command processor
-================
-*/
-char *
-Sys_ConsoleInput(void)
-{
-    static char text[256];
-    int len;
-
-    if (!stdin_ready || !do_stdin)
-	return NULL;		// the select didn't say it was ready
-    stdin_ready = false;
-
-    len = read(0, text, sizeof(text));
-    if (len == 0) {
-	// end of file
-	do_stdin = 0;
-	return NULL;
-    }
-    if (len < 1)
-	return NULL;
-    text[len - 1] = 0;		// rip off the /n and terminate
-
-    return text;
-}
-
-/*
 =============
 Sys_Init
 
@@ -206,7 +144,6 @@ is marked
 void
 Sys_Init(void)
 {
-    Cvar_RegisterVariable(&sys_nostdout);
     Cvar_RegisterVariable(&sys_extrasleep);
 }
 
@@ -239,12 +176,6 @@ main(int argc, const char *argv[])
 	Sys_Error("Can't allocate %d", parms.memsize);
 
     parms.basedir = stringify(QBASEDIR);
-
-/*
-	if (Sys_FileTime ("id1/pak0.pak") != -1)
-	else
-		parms.basedir = "/raid/quake/v2";
-*/
 
     SV_Init(&parms);
 

@@ -113,13 +113,6 @@ static bool libretro_supports_bitmasks = false;
 #define AUDIO_SAMPLERATE_48KHZ 48000
 static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
-/* Audio buffer must be sufficient for operation
- * at 10 fps
- * > (2 * 44100) / 10 = 8820 total samples
- * > buffer size must be a power of 2
- * > Nearest power of 2 to 8820 is 16384 */
-#define AUDIO_BUFFER_SIZE 16384
-
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
 
@@ -321,19 +314,6 @@ retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 
-void Sys_Printf(const char *fmt, ...)
-{
-#if 0
-   char buffer[256];
-   va_list ap;
-   va_start(ap, fmt);
-   vsprintf(buffer, fmt, ap);
-   if (log_cb)
-      log_cb(RETRO_LOG_INFO, "%s\n", buffer);
-   va_end(ap);
-#endif
-}
-
 void Sys_Quit(void)
 {
    Host_Shutdown();
@@ -349,7 +329,7 @@ void Sys_Init(void)
    }
 }
 
-bool Sys_Error(const char *error, ...)
+void Sys_Error(const char *error, ...)
 {
    char buffer[256];
    va_list ap;
@@ -359,8 +339,6 @@ bool Sys_Error(const char *error, ...)
    if (log_cb)
       log_cb(RETRO_LOG_ERROR, "%s\n", buffer);
    va_end(ap);
-
-   return false;
 }
 
 /*
@@ -383,10 +361,6 @@ int Sys_FileTime(const char *path)
 void Sys_mkdir(const char *path)
 {
    path_mkdir(path);
-}
-
-void Sys_DebugLog(const char *file, const char *fmt, ...)
-{
 }
 
 double Sys_DoubleTime(void)
@@ -434,15 +408,7 @@ double Sys_DoubleTime(void)
       oldtime = newtime;
    }
 
-   if (newtime < oldtime)
-   {
-#if 0
-      // warn if it's significant
-      if (newtime - oldtime < -0.01)
-         Con_Printf("Sys_DoubleTime: time stepped backwards (went from %f to %f, difference %f)\n", oldtime, newtime, newtime - oldtime);
-#endif
-   }
-   else
+   if (newtime >= oldtime)
       curtime += newtime - oldtime;
    oldtime = newtime;
 
@@ -452,29 +418,6 @@ double Sys_DoubleTime(void)
 // =======================================================================
 // Sleeps for microseconds
 // =======================================================================
-
-void
-IN_Accumulate(void)
-{}
-
-char * Sys_ConsoleInput(void)
-{
-   return NULL;
-}
-
-qboolean
-window_visible(void)
-{
-    return true;
-}
-
-void Sys_HighFPPrecision(void)
-{
-}
-
-void Sys_LowFPPrecision(void)
-{
-}
 
 viddef_t vid;			// global video state
 
@@ -895,13 +838,10 @@ static void update_variables(bool startup)
    {
       char *pch;
       char str[100];
-      snprintf(str, sizeof(str), "%s", var.value);
-
-      pch = strtok(str, "x");
-      if (pch)
+      strlcpy(str, var.value, sizeof(str));
+      if ((pch = strtok(str, "x")))
          width = strtoul(pch, NULL, 0);
-      pch = strtok(NULL, "x");
-      if (pch)
+      if ((pch = strtok(NULL, "x")))
          height = strtoul(pch, NULL, 0);
 
       if (log_cb)
@@ -1031,7 +971,6 @@ bool retro_load_game(const struct retro_game_info *info)
    char g_rom_dir[PATH_MAX_LENGTH];
    char g_pak_path[PATH_MAX_LENGTH];
    char g_save_dir[PATH_MAX_LENGTH];
-   char cfg_file[PATH_MAX_LENGTH];
    char *path_lower = NULL;
    quakeparms_t parms;
    bool use_external_savedir = false;
@@ -1041,7 +980,6 @@ bool retro_load_game(const struct retro_game_info *info)
    g_rom_dir[0] = '\0';
    g_pak_path[0] = '\0';
    g_save_dir[0] = '\0';
-   cfg_file[0] = '\0';
 
    if (!info)
       return false;
@@ -1180,37 +1118,31 @@ bool retro_load_game(const struct retro_game_info *info)
 
       Host_Shutdown();
 
-      snprintf(msg_local, sizeof(msg_local),
-            "PAK archive loading failed...");
-      msg.msg    = msg_local;
-      msg.frames = 360;
+      msg_local[0] = '\0';
+      strlcpy(msg_local, 
+            "PAK archive loading failed...", sizeof(msg_local));
+      msg.msg     = msg_local;
+      msg.frames  = 360;
       if (environ_cb)
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void*)&msg);
       return false;
    }
 
-   /* Override some default binds with more modern ones if we are booting the 
-    * game for the first time. */
-   fill_pathname_join(cfg_file, g_save_dir, "config.cfg", sizeof(cfg_file));
+   Cvar_Set("gamma", "0.95");
+   Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind ~ \"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind ` \"toggleconsole\"", src_command);
 
-   if (!path_is_valid(cfg_file))
-   {
-       Cvar_Set("gamma", "0.95");
-       Cmd_ExecuteString("bind ' \"toggleconsole\"", src_command);
-       Cmd_ExecuteString("bind ~ \"toggleconsole\"", src_command);
-       Cmd_ExecuteString("bind ` \"toggleconsole\"", src_command);
+   Cmd_ExecuteString("bind f \"+moveup\"", src_command);
+   Cmd_ExecuteString("bind c \"+movedown\"", src_command);
 
-       Cmd_ExecuteString("bind f \"+moveup\"", src_command);
-       Cmd_ExecuteString("bind c \"+movedown\"", src_command);
+   Cmd_ExecuteString("bind a \"+moveleft\"", src_command);
+   Cmd_ExecuteString("bind d \"+moveright\"", src_command);
+   Cmd_ExecuteString("bind w \"+forward\"", src_command);
+   Cmd_ExecuteString("bind s \"+back\"", src_command);
 
-       Cmd_ExecuteString("bind a \"+moveleft\"", src_command);
-       Cmd_ExecuteString("bind d \"+moveright\"", src_command);
-       Cmd_ExecuteString("bind w \"+forward\"", src_command);
-       Cmd_ExecuteString("bind s \"+back\"", src_command);
-
-       Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
-       Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
-   }
+   Cmd_ExecuteString("bind e \"impulse 10\"", src_command);
+   Cmd_ExecuteString("bind q \"impulse 12\"", src_command);
 
    Cmd_ExecuteString("bind AUX1 \"+moveright\"", src_command);
    Cmd_ExecuteString("bind AUX2 \"+moveleft\"", src_command);
@@ -1298,7 +1230,6 @@ void VID_SetPalette(unsigned char *palette)
 
    for(i = 0, j = 0; i < 256; i++, j += 3)
       *pal++ = MAKECOLOR(palette[j], palette[j+1], palette[j+2]);
-
 }
 
 unsigned 	d_8to24table[256];
@@ -1330,12 +1261,6 @@ void	VID_SetPalette2 (unsigned char *palette)
 	d_8to24table[255] &= 0xffffff;	// 255 is transparent
 	d_8to24table[0] &= 0x000000;	// black is black
 
-}
-
-void VID_ShiftPalette(unsigned char *palette)
-{
-
-   VID_SetPalette(palette);
 }
 
 void VID_Init(unsigned char *palette)
@@ -1403,19 +1328,6 @@ void VID_Update(vrect_t *rects)
    did_flip = true;
 }
 
-qboolean VID_IsFullScreen(void)
-{
-    return true;
-}
-
-void VID_LockBuffer(void)
-{
-}
-
-void VID_UnlockBuffer(void)
-{
-}
-
 void D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
 {
 }
@@ -1425,7 +1337,7 @@ void D_EndDirectRect(int x, int y, int width, int height)
 }
 
 /*
- * SOUND (TODO)
+ * SOUND
  */
 
 static void audio_process(void)
@@ -1499,38 +1411,16 @@ static void audio_callback(void)
 
 qboolean SNDDMA_Init(dma_t *dma)
 {
-   shm = dma;
-   shm->speed = audio_samplerate;
-   shm->channels = 2;
-   shm->samplepos = 0;
-   shm->samplebits = 16;
-   shm->signed8 = 0;
-   shm->samples = AUDIO_BUFFER_SIZE;
-   shm->buffer = (unsigned char *volatile)audio_buffer;
+   shm            = dma;
+   shm->speed     = audio_samplerate;
+   shm->buffer    = (unsigned char *volatile)audio_buffer;
 
    return true;
 }
 
 int SNDDMA_GetDMAPos(void)
 {
-   return shm->samplepos = audio_buffer_ptr;
-}
-
-int SNDDMA_LockBuffer(void)
-{
-   return 0;
-}
-
-void SNDDMA_UnlockBuffer(void)
-{
-}
-
-void SNDDMA_Shutdown(void)
-{
-}
-
-void SNDDMA_Submit(void)
-{
+   return audio_buffer_ptr;
 }
 
 /*
@@ -1570,11 +1460,9 @@ IN_Init(void)
 void
 IN_Shutdown(void)
 {
-}
-
-void
-IN_Commands(void)
-{
+   int i;
+   for (i = 0; i < MAX_PADS; i++)
+      quake_devices[i] = RETRO_DEVICE_NONE;
 }
 
 void
@@ -1661,14 +1549,4 @@ IN_Move(usercmd_t *cmd)
       if (cl.viewangles[PITCH] < -70)
          cl.viewangles[PITCH] = -70;
    }
-}
-
-/*
-===========
-IN_ModeChanged
-===========
-*/
-void
-IN_ModeChanged(void)
-{
 }

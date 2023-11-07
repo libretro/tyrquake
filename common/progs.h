@@ -72,14 +72,11 @@ void PR_Init(void);
 void PR_ExecuteProgram(func_t fnum);
 void PR_LoadProgs(void);
 
-void PR_Profile_f(void);
-
 edict_t *ED_Alloc(void);
 void ED_Free(edict_t *ed);
 
 // returns a copy of the string allocated from the server's string heap
 
-void ED_Print(edict_t *ed);
 void ED_Write(RFILE *f, edict_t *ed);
 const char *ED_ParseEdict(const char *data, edict_t *ent);
 
@@ -124,9 +121,6 @@ extern qboolean pr_trace;
 extern dfunction_t *pr_xfunction;
 extern int pr_xstatement;
 
-#ifdef NQ_HACK
-extern unsigned short pr_crc;
-#endif
 #if defined(QW_HACK) && defined(SERVERONLY)
 extern func_t SpectatorConnect;
 extern func_t SpectatorThink;
@@ -134,9 +128,6 @@ extern func_t SpectatorDisconnect;
 #endif
 
 void PR_RunError(const char *error, ...);
-
-void ED_PrintEdicts(void);
-void ED_PrintNum(int ent);
 
 eval_t *GetEdictFieldValue(edict_t *ed, const char *field);
 

@@ -35,65 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "sys.h"
 
-static const char *svc_strings[] = {
-    "svc_bad",
-    "svc_nop",
-    "svc_disconnect",
-    "svc_updatestat",
-    "svc_version",		// [long] server version
-    "svc_setview",		// [short] entity number
-    "svc_sound",		// <see code>
-    "svc_time",			// [float] server time
-    "svc_print",		// [string] null terminated string
-    "svc_stufftext",		// [string] stuffed into client's console buffer
-    // the string should be \n terminated
-    "svc_setangle",		// [vec3] set the view angle to this absolute value
-
-    "svc_serverinfo",		// [long] version
-    // [string] signon string
-    // [string]..[0]model cache [string]...[0]sounds cache
-    // [string]..[0]item cache
-    "svc_lightstyle",		// [byte] [string]
-    "svc_updatename",		// [byte] [string]
-    "svc_updatefrags",		// [byte] [short]
-    "svc_clientdata",		// <shortbits + data>
-    "svc_stopsound",		// <see code>
-    "svc_updatecolors",		// [byte] [byte]
-    "svc_particle",		// [vec3] <variable>
-    "svc_damage",		// [byte] impact [byte] blood [vec3] from
-
-    "svc_spawnstatic",
-    "OBSOLETE svc_spawnbinary",
-    "svc_spawnbaseline",
-
-    "svc_temp_entity",		// <variable>
-    "svc_setpause",
-    "svc_signonnum",
-    "svc_centerprint",
-    "svc_killedmonster",
-    "svc_foundsecret",
-    "svc_spawnstaticsound",
-    "svc_intermission",
-    "svc_finale",		// [string] music [string] text
-    "svc_cdtrack",		// [byte] track [byte] looptrack
-    "svc_sellscreen",
-    "svc_cutscene",
-    "",				// 35
-    "",				// 36
-    "svc_fitz_skybox",
-    "",				// 38
-    "",				// 39
-    "svc_fitz_bf",
-    "svc_fitz_fog",
-    "svc_fitz_spawnbaseline2",
-    "svc_fitz_spawnstatic2",
-    "svc_fitz_spawnstaticsound2",
-    "",				// 45
-    "",				// 46
-    "",				// 47
-    "",				// 48
-    "",				// 49
-};
+#include <compat/strl.h>
 
 //=============================================================================
 
@@ -104,7 +46,7 @@ CL_EntityNum
 This error checks and tracks the total number of entities
 ===============
 */
-entity_t *
+static entity_t *
 CL_EntityNum(int num)
 {
     if (num >= cl.num_entities) {
@@ -124,17 +66,16 @@ static int CL_ReadSoundNum(int field_mask)
 {
    switch (cl.protocol)
    {
+      case PROTOCOL_VERSION_FITZ:
+         if (field_mask & SND_FITZ_LARGESOUND)
+            return (unsigned short)MSG_ReadShort();
+	 /* fall-through */
       case PROTOCOL_VERSION_NQ:
       case PROTOCOL_VERSION_BJP:
          return MSG_ReadByte();
       case PROTOCOL_VERSION_BJP2:
       case PROTOCOL_VERSION_BJP3:
          return (unsigned short)MSG_ReadShort();
-      case PROTOCOL_VERSION_FITZ:
-         if (field_mask & SND_FITZ_LARGESOUND)
-            return (unsigned short)MSG_ReadShort();
-         else
-            return MSG_ReadByte();
       default:
          Host_Error("%s: Unknown protocol version (%d)\n", __func__,
                cl.protocol);
@@ -154,20 +95,16 @@ CL_ParseStartSoundPacket(void)
    vec3_t pos;
    int channel, ent;
    int sound_num;
-   int volume;
-   float attenuation;
    int i;
-   int field_mask = MSG_ReadByte();
+   int field_mask    = MSG_ReadByte();
+   int volume        = DEFAULT_SOUND_PACKET_VOLUME;
+   float attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
    if (field_mask & SND_VOLUME)
       volume = MSG_ReadByte();
-   else
-      volume = DEFAULT_SOUND_PACKET_VOLUME;
 
    if (field_mask & SND_ATTENUATION)
       attenuation = MSG_ReadByte() / 64.0;
-   else
-      attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ && (field_mask & SND_FITZ_LARGEENTITY))
    {
@@ -200,8 +137,7 @@ When the client is taking a long time to load stuff, send keepalive messages
 so the server doesn't disconnect.
 ==================
 */
-void
-CL_KeepaliveMessage(void)
+static void CL_KeepaliveMessage(void)
 {
     float time;
     static float lastmsg;
@@ -214,7 +150,7 @@ CL_KeepaliveMessage(void)
     if (cls.demoplayback)
 	return;
 
-// read messages from server, should just be nops
+    // read messages from server, should just be nops
     old = net_message;
     memcpy(olddata, net_message.data, net_message.cursize);
 
@@ -237,13 +173,13 @@ CL_KeepaliveMessage(void)
     net_message = old;
     memcpy(net_message.data, olddata, net_message.cursize);
 
-// check time
+    // check time
     time = Sys_DoubleTime();
     if (time - lastmsg < 5)
 	return;
     lastmsg = time;
 
-// write out a nop
+    // write out a nop
     Con_Printf("--> client to server keepalive\n");
 
     MSG_WriteByte(&cls.message, clc_nop);
@@ -261,7 +197,7 @@ CL_ParseServerInfo(void)
 {
     char *level;
     const char *mapname;
-    int i, maxlen;
+    int i;
     int nummodels, numsounds;
     char **model_precache = malloc(sizeof(char*) * MAX_MODELS);
     char **sound_precache = malloc(sizeof(char*) * MAX_SOUNDS);
@@ -269,8 +205,6 @@ CL_ParseServerInfo(void)
        model_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
     for (i = 0; i < MAX_SOUNDS; i++)
        sound_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
-
-    Con_DPrintf("Serverinfo packet received.\n");
 
     /* wipe the client_state_t struct */
     CL_ClearState();
@@ -298,8 +232,7 @@ CL_ParseServerInfo(void)
 
     /* parse signon message */
     level = cl.levelname;
-    maxlen = sizeof(cl.levelname);
-    snprintf(level, maxlen, "%s", MSG_ReadString());
+    strlcpy(level, MSG_ReadString(), sizeof(cl.levelname));
 
     /* seperate the printfs so the server message can have a color */
     Con_Printf("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36"
@@ -348,7 +281,7 @@ CL_ParseServerInfo(void)
 
     /* copy the naked name of the map file to the cl structure */
     mapname = COM_SkipPath(model_precache[1]);
-    snprintf(cl.mapname, sizeof(cl.mapname), "%s", mapname);
+    strlcpy(cl.mapname, mapname, sizeof(cl.mapname));
     COM_StripExtension(cl.mapname);
 
     /* now we try to load everything else until a cache allocation fails */
@@ -397,16 +330,16 @@ static int CL_ReadModelIndex(unsigned int bits)
 {
    switch (cl.protocol)
    {
+      case PROTOCOL_VERSION_FITZ:
+         if (bits & B_FITZ_LARGEMODEL)
+            return MSG_ReadShort();
+	 /* fall-through */
       case PROTOCOL_VERSION_NQ:
          return MSG_ReadByte();
       case PROTOCOL_VERSION_BJP:
       case PROTOCOL_VERSION_BJP2:
       case PROTOCOL_VERSION_BJP3:
          return MSG_ReadShort();
-      case PROTOCOL_VERSION_FITZ:
-         if (bits & B_FITZ_LARGEMODEL)
-            return MSG_ReadShort();
-         return MSG_ReadByte();
       default:
          break;
    }
@@ -420,14 +353,14 @@ static int CL_ReadModelFrame(unsigned int bits)
 {
    switch (cl.protocol)
    {
+      case PROTOCOL_VERSION_FITZ:
+         if (bits & B_FITZ_LARGEFRAME)
+            return MSG_ReadShort();
+	 /* fall-through */
       case PROTOCOL_VERSION_NQ:
       case PROTOCOL_VERSION_BJP:
       case PROTOCOL_VERSION_BJP2:
       case PROTOCOL_VERSION_BJP3:
-         return MSG_ReadByte();
-      case PROTOCOL_VERSION_FITZ:
-         if (bits & B_FITZ_LARGEFRAME)
-            return MSG_ReadShort();
          return MSG_ReadByte();
       default:
          break;
@@ -454,7 +387,7 @@ CL_ParseUpdate(unsigned int bits)
    int i;
    model_t *model;
    int modnum;
-   qboolean forcelink;
+   qboolean forcelink = false;
    entity_t *ent;
    int num;
 
@@ -485,8 +418,6 @@ CL_ParseUpdate(unsigned int bits)
 
    if (ent->msgtime != cl.mtime[1])
       forcelink = true;	// no previous frame to lerp from
-   else
-      forcelink = false;
 
    ent->msgtime = cl.mtime[0];
 
@@ -566,9 +497,6 @@ CL_ParseUpdate(unsigned int bits)
       ent->msg_angles[0][2] = ent->baseline.angles[2];
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
-      if (bits & U_NOLERP) {
-         // FIXME - TODO (called U_STEP in FQ)
-      }
       if (bits & U_FITZ_ALPHA) {
          MSG_ReadByte(); // FIXME - TODO
       }
@@ -667,9 +595,8 @@ void
 CL_ParseClientdata(void)
 {
     int i, j;
-    unsigned int bits;
+    unsigned int bits = (unsigned short)MSG_ReadShort();
 
-    bits = (unsigned short)MSG_ReadShort();
     if (bits & SU_FITZ_EXTEND1)
 	bits |= MSG_ReadByte() << 16;
     if (bits & SU_FITZ_EXTEND2)
@@ -809,8 +736,9 @@ CL_NewTranslation(int slot)
    top = cl.players[slot].topcolor;
    bottom = cl.players[slot].bottomcolor;
 
-   for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256) {
-      if (top < 128)		// the artists made some backwards ranges.  sigh.
+   for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256)
+   {
+      if (top < 128) // the artists made some backwards ranges.  sigh.
          memcpy(dest + TOP_RANGE, source + top, 16);
       else
          for (j = 0; j < 16; j++)
@@ -833,9 +761,7 @@ void
 CL_ParseStatic(unsigned int bits)
 {
     entity_t *ent;
-    int i;
-
-    i = cl.num_statics;
+    int i = cl.num_statics;
     if (i >= MAX_STATIC_ENTITIES)
 	Host_Error("Too many static entities");
     ent = &cl_static_entities[i];
@@ -903,9 +829,9 @@ CL_ParseStaticSound(void)
 
     for (i = 0; i < 3; i++)
 	org[i] = MSG_ReadCoord();
-    sound_num = CL_ReadSoundNum_Static();
-    vol = MSG_ReadByte();
-    atten = MSG_ReadByte();
+    sound_num  = CL_ReadSoundNum_Static();
+    vol        = MSG_ReadByte();
+    atten      = MSG_ReadByte();
 
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
@@ -920,21 +846,12 @@ CL_ParseFitzStaticSound2(void)
 
     for (i = 0; i < 3; i++)
 	org[i] = MSG_ReadCoord();
-    sound_num = MSG_ReadShort();
-    vol = MSG_ReadByte();
-    atten = MSG_ReadByte();
+    sound_num  = MSG_ReadShort();
+    vol        = MSG_ReadByte();
+    atten      = MSG_ReadByte();
 
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
-
-/* helper function (was a macro, hence the CAPS) */
-static void
-SHOWNET(const char *msg)
-{
-    if (cl_shownet.value == 2)
-	Con_Printf("%3i:%s\n", msg_readcount - 1, msg);
-}
-
 
 /*
 =====================
@@ -949,14 +866,6 @@ CL_ParseServerMessage(void)
    unsigned int bits;
    byte colors;
 
-   //
-   // if recording demos, copy the message out
-   //
-   if (cl_shownet.value == 1)
-      Con_Printf("%i ", net_message.cursize);
-   else if (cl_shownet.value == 2)
-      Con_Printf("------------------\n");
-
    cl.onground = false;	// unless the server says otherwise
    // parse the message
    MSG_BeginReading();
@@ -970,18 +879,13 @@ CL_ParseServerMessage(void)
 
       cmd = MSG_ReadByte();
 
-      if (cmd == -1) {
-         SHOWNET("END OF MESSAGE");
+      if (cmd == -1) 
          return;		// end of message
-      }
       // if the high bit of the command byte is set, it is a fast update
       if (cmd & 128) {
-         SHOWNET("fast update");
          CL_ParseUpdate(cmd & 127);
          continue;
       }
-
-      SHOWNET(svc_strings[cmd]);
 
       // other commands
       switch (cmd) {
@@ -1043,7 +947,7 @@ CL_ParseServerMessage(void)
             if (i >= MAX_LIGHTSTYLES)
                Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
             s = MSG_ReadString();
-            snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
+            strlcpy(cl_lightstyle[i].map, s, MAX_STYLESTRING);
             cl_lightstyle[i].length = strlen(cl_lightstyle[i].map);
             break;
 
@@ -1062,7 +966,7 @@ CL_ParseServerMessage(void)
             if (i >= cl.maxclients)
                Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
             s = MSG_ReadString();
-            snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
+            strlcpy(cl.players[i].name, s, MAX_SCOREBOARDNAME);
             break;
 
          case svc_updatefrags:
@@ -1165,7 +1069,7 @@ CL_ParseServerMessage(void)
          case svc_cdtrack:
             cl.cdtrack = MSG_ReadByte();
             cl.looptrack = MSG_ReadByte();
-            if ((cls.demoplayback || cls.demorecording)
+            if ((cls.demoplayback)
                   && (cls.forcetrack != -1))
                BGM_PlayCDtrack ((byte)cls.forcetrack, true);
 			else

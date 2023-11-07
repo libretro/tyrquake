@@ -348,14 +348,6 @@ void _vp_psy_init(vorbis_look_psy *p,vorbis_info_psy *vi,
         p->vi->noiseoff[j][inthalfoc+1]*del;
 
   }
-#if 0
-  {
-    static int ls=0;
-    _analysis_output_always("noiseoff0",ls,p->noiseoffset[0],n,1,0,0);
-    _analysis_output_always("noiseoff1",ls,p->noiseoffset[1],n,1,0,0);
-    _analysis_output_always("noiseoff2",ls++,p->noiseoffset[2],n,1,0,0);
-  }
-#endif
 }
 
 void _vp_psy_clear(vorbis_look_psy *p){
@@ -712,28 +704,6 @@ void _vp_noisemask(vorbis_look_psy *p,
 
   for(i=0;i<n;i++)work[i]=logmdct[i]-work[i];
 
-#if 0
-  {
-    static int seq=0;
-
-    float work2[n];
-    for(i=0;i<n;i++){
-      work2[i]=logmask[i]+work[i];
-    }
-
-    if(seq&1)
-      _analysis_output("median2R",seq/2,work,n,1,0,0);
-    else
-      _analysis_output("median2L",seq/2,work,n,1,0,0);
-
-    if(seq&1)
-      _analysis_output("envelope2R",seq/2,work2,n,1,0,0);
-    else
-      _analysis_output("envelope2L",seq/2,work2,n,1,0,0);
-    seq++;
-  }
-#endif
-
   for(i=0;i<n;i++){
     int dB=logmask[i]+.5;
     if(dB>=NOISE_COMPAND_LEVELS)dB=NOISE_COMPAND_LEVELS-1;
@@ -1019,9 +989,6 @@ void _vp_couple_quantize_normalize(int blobno,
   int limit = g->coupling_pointlimit[p->vi->blockflag][blobno];
   float prepoint=stereo_threshholds[g->coupling_prepointamp[blobno]];
   float postpoint=stereo_threshholds[g->coupling_postpointamp[blobno]];
-#if 0
-  float de=0.1*p->m_val; /* a blend of the AoTuV M2 and M3 code here and below */
-#endif
 
   /* mdct is our raw mdct output, floor not removed. */
   /* inout passes in the ifloor, passes back quantized result */
@@ -1155,28 +1122,12 @@ void _vp_couple_quantize_normalize(int blobno,
                 reM[j] += reA[j];
                 qeM[j] = fabs(reM[j]);
               }else{
-#if 0
-                /* AoTuV */
-                /** @ M2 **
-                    The boost problem by the combination of noise normalization and point stereo is eased.
-                    However, this is a temporary patch.
-                    by Aoyumi @ 2004/04/18
-                */
-                float derate = (1.0 - de*((float)(j-limit+i) / (float)(n-limit)));
-                /* elliptical */
-                if(reM[j]+reA[j]<0){
-                  reM[j] = - (qeM[j] = (fabs(reM[j])+fabs(reA[j]))*derate*derate);
-                }else{
-                  reM[j] =   (qeM[j] = (fabs(reM[j])+fabs(reA[j]))*derate*derate);
-                }
-#else
                 /* elliptical */
                 if(reM[j]+reA[j]<0){
                   reM[j] = - (qeM[j] = fabs(reM[j])+fabs(reA[j]));
                 }else{
                   reM[j] =   (qeM[j] = fabs(reM[j])+fabs(reA[j]));
                 }
-#endif
 
               }
               reA[j]=qeA[j]=0.f;

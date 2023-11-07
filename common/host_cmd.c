@@ -62,60 +62,7 @@ Host_Quit_f(void)
     }
     CL_Disconnect();
     Host_ShutdownServer(false);
-
-    //Sys_Quit();
 }
-
-
-/*
-==================
-Host_Status_f
-==================
-*/
-void
-Host_Status_f(void)
-{
-    client_t *client;
-    int seconds;
-    int minutes;
-    int hours = 0;
-    int j;
-    void (*print)(const char *fmt, ...);
-
-    if (cmd_source == src_command) {
-	if (!sv.active) {
-	    Cmd_ForwardToServer();
-	    return;
-	}
-	print = Con_Printf;
-    } else
-	print = SV_ClientPrintf;
-
-    print("host:    %s\n", Cvar_VariableString("hostname"));
-    print("version: TyrQuake-%s\n", stringify(TYR_VERSION));
-    if (tcpipAvailable)
-	print("tcp/ip:  %s\n", my_tcpip_address);
-    print("map:     %s\n", sv.name);
-    print("players: %i active (%i max)\n\n", net_activeconnections,
-	  svs.maxclients);
-    for (j = 0, client = svs.clients; j < svs.maxclients; j++, client++) {
-	if (!client->active)
-	    continue;
-	seconds = (int)(net_time - client->netconnection->connecttime);
-	minutes = seconds / 60;
-	if (minutes) {
-	    seconds -= (minutes * 60);
-	    hours = minutes / 60;
-	    if (hours)
-		minutes -= (hours * 60);
-	} else
-	    hours = 0;
-	print("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j + 1, client->name,
-	      (int)client->edict->v.frags, hours, minutes, seconds);
-	print("   %s\n", client->netconnection->address);
-    }
-}
-
 
 /*
 ==================
@@ -438,7 +385,7 @@ Host_SavegameComment
 Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 ===============
 */
-void Host_SavegameComment(char *text)
+static void Host_SavegameComment(char *text)
 {
    int i;
    char kills[20];
@@ -738,22 +685,13 @@ void Host_Name_f(void)
    MSG_WriteString(&sv.reliable_datagram, host_client->name);
 }
 
-
-void
-Host_Version_f(void)
-{
-    Con_Printf("Version TyrQuake-%s\n", stringify(TYR_VERSION));
-    Con_Printf("Exe: " __TIME__ " " __DATE__ "\n");
-}
-
-
 void
 Host_Say(qboolean teamonly)
 {
     client_t *client;
     client_t *save;
     int i;
-    size_t len, space;
+    size_t len, space, p_len;
     const char *p;
     char text[64];
     qboolean fromServer = false;
@@ -779,16 +717,17 @@ Host_Say(qboolean teamonly)
     else
 	sprintf(text, "%c<%s> ", 1, hostname.string);
 
-    len = strlen(text);
+    len   = strlen(text);
     space = sizeof(text) - len - 2; // -2 for \n and null terminator
-    p = Cmd_Args();
+    p     = Cmd_Args();
+    p_len = strlen(p);
     if (*p == '"') {
 	/* remove quotes */
-	strncat(text, p + 1, qmin(strlen(p) - 2, space));
-	text[len + qmin(strlen(p) - 2, space)] = 0;
+	strncat(text, p + 1, qmin(p_len - 2, space));
+	text[len + qmin(p_len - 2, space)] = 0;
     } else {
 	strncat(text, p, space);
-	text[len + qmin(strlen(p), space)] = 0;
+	text[len + qmin(p_len, space)] = 0;
     }
     strcat(text, "\n");
 
@@ -802,8 +741,6 @@ Host_Say(qboolean teamonly)
 	SV_ClientPrintf("%s", text);
     }
     host_client = save;
-
-    Sys_Printf("%s", &text[1]);
 }
 
 
@@ -823,6 +760,7 @@ Host_Say_Team_f(void)
 
 void Host_Tell_f(void)
 {
+   size_t p_len;
    client_t *client;
    client_t *save;
    int i, len, space;
@@ -840,16 +778,17 @@ void Host_Tell_f(void)
    strcpy(text, host_client->name);
    strcat(text, ": ");
 
-   len = strlen(text);
+   len   = strlen(text);
    space = sizeof(text) - len - 2; // -2 for \n and null terminator
-   p = Cmd_Args();
+   p     = Cmd_Args();
+   p_len = strlen(p);
    if (*p == '"') {
       /* remove quotes */
-      strncat(text, p + 1, qmin((int)strlen(p) - 2, space));
-      text[len + qmin((int)strlen(p) - 2, space)] = 0;
+      strncat(text, p + 1, qmin((int)p_len - 2, space));
+      text[len + qmin((int)p_len - 2, space)] = 0;
    } else {
       strncat(text, p, space);
-      text[len + qmin((int)strlen(p), space)] = 0;
+      text[len + qmin((int)p_len, space)] = 0;
    }
    strcat(text, "\n");
 
@@ -1044,10 +983,6 @@ Host_Spawn_f(void)
 	pr_global_struct->time = sv.time;
 	pr_global_struct->self = EDICT_TO_PROG(sv_player);
 	PR_ExecuteProgram(pr_global_struct->ClientConnect);
-
-	if ((Sys_DoubleTime() - host_client->netconnection->connecttime) <=
-	    sv.time)
-	    Sys_Printf("%s entered the game\n", host_client->name);
 
 	PR_ExecuteProgram(pr_global_struct->PutClientInServer);
     }
@@ -1362,132 +1297,6 @@ Host_Give_f(void)
     }
 }
 
-edict_t *
-FindViewthing(void)
-{
-    int i;
-    edict_t *e;
-
-    for (i = 0; i < sv.num_edicts; i++) {
-	e = EDICT_NUM(i);
-	if (!strcmp(PR_GetString(e->v.classname), "viewthing"))
-	    return e;
-    }
-    Con_Printf("No viewthing on map\n");
-    return NULL;
-}
-
-/*
-==================
-Host_Viewmodel_f
-==================
-*/
-void
-Host_Viewmodel_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-
-    m = Mod_ForName(Cmd_Argv(1), false);
-    if (!m) {
-	Con_Printf("Can't load %s\n", Cmd_Argv(1));
-	return;
-    }
-
-    e->v.frame = 0;
-    cl.model_precache[(int)e->v.modelindex] = m;
-}
-
-/*
-==================
-Host_Viewframe_f
-==================
-*/
-void
-Host_Viewframe_f(void)
-{
-    edict_t *e;
-    int f;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    f = atoi(Cmd_Argv(1));
-    if (f >= m->numframes)
-	f = m->numframes - 1;
-
-    e->v.frame = f;
-}
-
-
-void
-PrintFrameName(model_t *m, int frame)
-{
-    aliashdr_t *hdr;
-    maliasframedesc_t *pframedesc;
-
-    hdr = (aliashdr_t*)Mod_Extradata(m);
-    if (!hdr)
-	return;
-    pframedesc = &hdr->frames[frame];
-
-    Con_Printf("frame %i: %s\n", frame, pframedesc->name);
-}
-
-/*
-==================
-Host_Viewnext_f
-==================
-*/
-void
-Host_Viewnext_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    e->v.frame = e->v.frame + 1;
-    if (e->v.frame >= m->numframes)
-	e->v.frame = m->numframes - 1;
-
-    PrintFrameName(m, e->v.frame);
-}
-
-/*
-==================
-Host_Viewprev_f
-==================
-*/
-void
-Host_Viewprev_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    e->v.frame = e->v.frame - 1;
-    if (e->v.frame < 0)
-	e->v.frame = 0;
-
-    PrintFrameName(m, e->v.frame);
-}
-
 /*
 ===============================================================================
 
@@ -1577,7 +1386,6 @@ Host_InitCommands
 void
 Host_InitCommands(void)
 {
-    Cmd_AddCommand("status", Host_Status_f);
     Cmd_AddCommand("quit", Host_Quit_f);
     Cmd_AddCommand("god", Host_God_f);
     Cmd_AddCommand("notarget", Host_Notarget_f);
@@ -1593,7 +1401,6 @@ Host_InitCommands(void)
     Cmd_AddCommand("reconnect", Host_Reconnect_f);
     Cmd_AddCommand("name", Host_Name_f);
     Cmd_AddCommand("noclip", Host_Noclip_f);
-    Cmd_AddCommand("version", Host_Version_f);
 
     Cmd_AddCommand("say", Host_Say_f);
     Cmd_AddCommand("say_team", Host_Say_Team_f);
@@ -1613,9 +1420,4 @@ Host_InitCommands(void)
     Cmd_AddCommand("startdemos", Host_Startdemos_f);
     Cmd_AddCommand("demos", Host_Demos_f);
     Cmd_AddCommand("stopdemo", Host_Stopdemo_f);
-
-    Cmd_AddCommand("viewmodel", Host_Viewmodel_f);
-    Cmd_AddCommand("viewframe", Host_Viewframe_f);
-    Cmd_AddCommand("viewnext", Host_Viewnext_f);
-    Cmd_AddCommand("viewprev", Host_Viewprev_f);
 }

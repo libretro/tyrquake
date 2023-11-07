@@ -28,12 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_iface.h"
 #include "r_local.h"
 
-#include <streams/file_stream.h>
-
-/* forward declarations */
-int rfscanf(RFILE * stream, const char * format, ...);
-int rfclose(RFILE* stream);
-
 #define MAX_PARTICLES		2048	// default max # of particles at one
 					//  time
 #define ABSOLUTE_MIN_PARTICLES	512	// no fewer than this no matter what's
@@ -49,7 +43,6 @@ particle_t *particles;
 int r_numparticles;
 
 vec3_t r_pright, r_pup, r_ppn;
-
 
 /*
 ===============
@@ -154,58 +147,6 @@ void R_ClearParticles(void)
    for (i = 0; i < r_numparticles; i++)
       particles[i].next = &particles[i + 1];
    particles[r_numparticles - 1].next = NULL;
-}
-
-
-void R_ReadPointFile_f(void)
-{
-   RFILE *f;
-   vec3_t org;
-   int r;
-   int c;
-   particle_t *p;
-   char name[MAX_OSPATH];
-
-#ifdef NQ_HACK
-   snprintf(name, sizeof(name), "maps/%s.pts", sv.name);
-#endif
-#ifdef QW_HACK
-   snprintf(name, sizeof(name), "maps/%s.pts",
-         Info_ValueForKey(cl.serverinfo, "map"));
-#endif
-
-   COM_FOpenFile(name, &f);
-   if (!f) {
-      Con_Printf("couldn't open %s\n", name);
-      return;
-   }
-
-   Con_Printf("Reading %s...\n", name);
-   c = 0;
-   for (;;) {
-      r = rfscanf(f, "%f %f %f\n", &org[0], &org[1], &org[2]);
-      if (r != 3)
-         break;
-      c++;
-
-      if (!free_particles) {
-         Con_Printf("Not enough free particles\n");
-         break;
-      }
-      p                = free_particles;
-      free_particles   = p->next;
-      p->next          = active_particles;
-      active_particles = p;
-
-      p->die           = 99999;
-      p->color         = (-c) & 15;
-      p->type          = pt_static;
-      VectorCopy(vec3_origin, p->vel);
-      VectorCopy(org, p->org);
-   }
-
-   rfclose(f);
-   Con_Printf("%i points read\n", c);
 }
 
 #ifdef NQ_HACK

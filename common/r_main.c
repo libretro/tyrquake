@@ -31,15 +31,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.h"
 
 void *colormap;
-float r_time1;
 int r_numallocatededges;
 
-qboolean r_recursiveaffinetriangles = true;
-
-int r_pixbytes = 1;
 float r_aliasuvscale = 1.0;
-int r_outofsurfaces;
-int r_outofedges;
 
 static vec3_t viewlightvec;
 static alight_t r_viewlighting = { 128, 192, viewlightvec };
@@ -92,8 +86,6 @@ mplane_t screenedge[4];
 //
 int r_framecount = 1;		// so frame counts initialized to 0 don't match
 int r_visframecount;
-int r_polycount;
-int r_drawnpolycount;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
@@ -103,33 +95,14 @@ float r_aliastransition, r_resfudge;
 
 int d_lightstylevalue[256];	// 8.8 fraction of base light value
 
-cvar_t r_draworder = { "r_draworder", "0" };
-cvar_t r_speeds = { "r_speeds", "0" };
 cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
-cvar_t r_drawentities = { "r_drawentities", "1" };
-cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
-cvar_t r_ambient = { "r_ambient", "0" };
-cvar_t r_numsurfs = { "r_numsurfs", "0" };
-cvar_t r_numedges = { "r_numedges", "0" };
 
 cvar_t r_lockpvs = { "r_lockpvs", "0" };
 cvar_t r_lockfrustum = { "r_lockfrustum", "0" };
 
-cvar_t r_fullbright = { "r_fullbright", "0" };
-
-#ifdef QW_HACK
-cvar_t r_netgraph = { "r_netgraph", "0" };
-static cvar_t r_zgraph = { "r_zgraph", "0" };
-#endif
-
-static cvar_t r_timegraph = { "r_timegraph", "0" };
-static cvar_t r_aliasstats = { "r_polymodelstats", "0" };
-static cvar_t r_dspeeds = { "r_dspeeds", "0" };
-static cvar_t r_reportsurfout = { "r_reportsurfout", "0" };
 static cvar_t r_maxsurfs = { "r_maxsurfs", "0" };
-static cvar_t r_reportedgeout = { "r_reportedgeout", "0" };
 static cvar_t r_maxedges = { "r_maxedges", "0" };
 static cvar_t r_aliastransbase = { "r_aliastransbase", "200" };
 static cvar_t r_aliastransadj = { "r_aliastransadj", "100" };
@@ -203,19 +176,9 @@ R_Init(void)
 
     R_InitTurb();
 
-    Cmd_AddCommand("timerefresh", R_TimeRefresh_f);
-    Cmd_AddCommand("pointfile", R_ReadPointFile_f);
-
-    Cvar_RegisterVariable(&r_draworder);
-    Cvar_RegisterVariable(&r_speeds);
     Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
-    Cvar_RegisterVariable(&r_drawentities);
-    Cvar_RegisterVariable(&r_drawviewmodel);
-    Cvar_RegisterVariable(&r_ambient);
-    Cvar_RegisterVariable(&r_numsurfs);
-    Cvar_RegisterVariable(&r_numedges);
 #ifdef NQ_HACK
     Cvar_RegisterVariable(&r_lerpmodels);
     Cvar_RegisterVariable(&r_lerpmove);
@@ -223,22 +186,10 @@ R_Init(void)
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);
 
-    Cvar_RegisterVariable(&r_fullbright);
-
-    Cvar_RegisterVariable(&r_timegraph);
-    Cvar_RegisterVariable(&r_aliasstats);
-    Cvar_RegisterVariable(&r_dspeeds);
-    Cvar_RegisterVariable(&r_reportsurfout);
     Cvar_RegisterVariable(&r_maxsurfs);
-    Cvar_RegisterVariable(&r_reportedgeout);
     Cvar_RegisterVariable(&r_maxedges);
     Cvar_RegisterVariable(&r_aliastransbase);
     Cvar_RegisterVariable(&r_aliastransadj);
-
-#ifdef QW_HACK
-    Cvar_RegisterVariable(&r_netgraph);
-    Cvar_RegisterVariable(&r_zgraph);
-#endif
 
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);
@@ -719,9 +670,6 @@ R_DrawEntitiesOnList(void)
     vec3_t dist;
     float add;
 
-    if (!r_drawentities.value)
-	return;
-
     for (i = 0; i < cl_numvisedicts; i++) {
 	e = &cl_visedicts[i];
 #ifdef NQ_HACK
@@ -811,11 +759,11 @@ R_DrawViewModel(void)
     dlight_t *dl;
 
 #ifdef NQ_HACK
-    if (!r_drawviewmodel.value || chase_active.value)
+    if (chase_active.value)
 	return;
 #endif
 #ifdef QW_HACK
-    if (!r_drawviewmodel.value || !Cam_DrawViewModel())
+    if (!Cam_DrawViewModel())
 	return;
 #endif
 
@@ -921,9 +869,6 @@ static void R_DrawBEntitiesOnList(void)
     vec3_t oldorigin;
     model_t *model;
     vec3_t mins, maxs;
-
-    if (!r_drawentities.value)
-	return;
 
     VectorCopy(modelorg, oldorigin);
     insubmodel = true;
@@ -1052,12 +997,6 @@ R_RenderView_(void)
     R_MarkSurfaces();		// done here so we know if we're in water
     R_CullSurfaces(r_worldentity.model, r_refdef.vieworg);
 
-    // make FDIV fast. This reduces timing precision after we've been running
-    // for a while, so we don't do it globally.  This also sets chop mode, and
-    // we do it here so that setup stuff like the refresh area calculations
-    // match what's done in screen.c
-    Sys_LowFPPrecision();
-
     if (!r_worldentity.model || !cl.worldmodel)
 	Sys_Error("%s: NULL worldmodel", __func__);
 
@@ -1073,18 +1012,6 @@ R_RenderView_(void)
 	D_WarpScreen();
 
     V_SetContentsColor(r_viewleaf->contents);
-
-    if (r_aliasstats.value)
-	R_PrintAliasStats();
-
-    if (r_reportsurfout.value && r_outofsurfaces)
-	Con_Printf("Short %d surfaces\n", r_outofsurfaces);
-
-    if (r_reportedgeout.value && r_outofedges)
-	Con_Printf("Short roughly %d edges\n", r_outofedges * 2 / 3);
-
-    // back to high floating-point precision
-    Sys_HighFPPrecision();
 }
 
 void

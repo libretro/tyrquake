@@ -157,7 +157,6 @@ NET_GetPacket(void)
 	    return false;
 	if (errno == ECONNREFUSED)
 	    return false;
-	Sys_Printf("%s: %s\n", __func__, strerror(errno));
 	return false;
     }
 
@@ -176,15 +175,8 @@ NET_SendPacket(int length, void *data, netadr_t to)
 
     NetadrToSockadr(&to, &addr);
 
-    ret = sendto(net_socket, data, length, 0, (struct sockaddr *)&addr,
+    sendto(net_socket, data, length, 0, (struct sockaddr *)&addr,
 		 sizeof(addr));
-    if (ret == -1) {
-	if (errno == EWOULDBLOCK)
-	    return;
-	if (errno == ECONNREFUSED)
-	    return;
-	Sys_Printf("%s: %s\n", __func__, strerror(errno));
-    }
 }
 
 

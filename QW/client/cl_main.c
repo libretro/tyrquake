@@ -53,7 +53,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* Forward declarations */
 RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
-int rfprintf(RFILE * stream, const char * format, ...);
 
 /* Argument completion function for the skin cvar */
 static struct stree_root * CL_Skin_Arg_f(const char *arg);
@@ -74,8 +73,6 @@ cvar_t rcon_password = { "rcon_password", "", false };
 cvar_t rcon_address = { "rcon_address", "" };
 
 cvar_t cl_timeout = { "cl_timeout", "60" };
-
-cvar_t cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
 
 cvar_t cl_sbar = { "cl_sbar", "0", true };
 cvar_t cl_hudswap = { "cl_hudswap", "0", true };
@@ -149,11 +146,6 @@ byte *host_basepal;
 byte *host_colormap;
 
 netadr_t master_adr;		// address of the master server
-
-cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
-cvar_t developer = { "developer", "0" };
-
-int fps_count;
 
 static jmp_buf host_abort;
 static float server_version = 0;// version of server we connected to
@@ -372,7 +364,6 @@ CL_ClearState(void)
 
     S_StopAllSounds(true);
 
-    Con_DPrintf("Clearing memory\n");
     D_FlushCaches();
     Mod_ClearAll();
     if (host_hunklevel)		// FIXME: check this...
@@ -481,10 +472,8 @@ CL_User_f(void)
 	if (!cl.players[i].name[0])
 	    continue;
 	if (cl.players[i].userid == uid
-	    || !strcmp(cl.players[i].name, Cmd_Argv(1))) {
-	    Info_Print(cl.players[i].userinfo);
+	    || !strcmp(cl.players[i].name, Cmd_Argv(1)))
 	    return;
-	}
     }
     Con_Printf("User not in server.\n");
 }
@@ -642,10 +631,8 @@ Allow clients to change userinfo
 void
 CL_SetInfo_f(void)
 {
-    if (Cmd_Argc() == 1) {
-	Info_Print(cls.userinfo);
+    if (Cmd_Argc() == 1)
 	return;
-    }
     if (Cmd_Argc() != 3) {
 	Con_Printf("usage: setinfo [ <key> <value> ]\n");
 	return;
@@ -806,7 +793,6 @@ CL_ConnectionlessPacket(void)
     c = MSG_ReadByte();
     if (!cls.demoplayback)
 	Con_Printf("%s: ", NET_AdrToString(net_from));
-//      Con_DPrintf ("%s", net_message.data + 5);
     if (c == S2C_CONNECTION) {
 	Con_Printf("connection\n");
 	if (cls.state >= ca_connected) {
@@ -898,12 +884,6 @@ CL_ConnectionlessPacket(void)
 	CL_SendConnectPacket();
 	return;
     }
-#if 0
-    if (c == svc_disconnect) {
-	Con_Printf("disconnect\n");
-	Host_EndGame("Server disconnected");
-    }
-#endif
 
     Con_Printf("unknown:  %c\n", c);
 }
@@ -935,8 +915,6 @@ CL_ReadPackets(void)
 	//
 	if (!cls.demoplayback &&
 	    !NET_CompareAdr(net_from, cls.netchan.remote_address)) {
-	    Con_DPrintf("%s:sequenced packet without connection\n",
-			NET_AdrToString(net_from));
 	    continue;
 	}
 	if (!Netchan_Process(&cls.netchan))
@@ -1062,8 +1040,6 @@ CL_Init(void)
 //
 // register our commands
 //
-    Cvar_RegisterVariable(&host_speeds);
-    Cvar_RegisterVariable(&cl_warncmd);
     Cvar_RegisterVariable(&cl_upspeed);
     Cvar_RegisterVariable(&cl_forwardspeed);
     Cvar_RegisterVariable(&cl_backspeed);
@@ -1072,7 +1048,6 @@ CL_Init(void)
     Cvar_RegisterVariable(&cl_yawspeed);
     Cvar_RegisterVariable(&cl_pitchspeed);
     Cvar_RegisterVariable(&cl_anglespeedkey);
-    Cvar_RegisterVariable(&cl_shownet);
     Cvar_RegisterVariable(&cl_sbar);
     Cvar_RegisterVariable(&cl_hudswap);
     Cvar_RegisterVariable(&cl_maxfps);
@@ -1113,10 +1088,6 @@ CL_Init(void)
     Cvar_RegisterVariable(&msg);
     Cvar_RegisterVariable(&noaim);
 
-    Cvar_RegisterVariable(&developer);
-    if (COM_CheckParm("-developer"))
-	Cvar_SetValue("developer", 1);
-
     Cmd_AddCommand("version", CL_Version_f);
 
     Cmd_AddCommand("changing", CL_Changing_f);
@@ -1151,8 +1122,6 @@ CL_Init(void)
 
     Cmd_AddCommand("nextul", CL_NextUpload);
     Cmd_AddCommand("stopul", CL_StopUpload);
-
-    Cmd_AddCommand("mcache", Mod_Print);
 
 //
 // forward to server commands
@@ -1231,37 +1200,6 @@ Host_Error(const char *error, ...)
 }
 
 
-/*
-===============
-Host_WriteConfiguration
-
-Writes key bindings and archived cvars to config.cfg
-===============
-*/
-void
-Host_WriteConfiguration(void)
-{
-    RFILE *f;
-
-    if (host_initialized) {
-	f = rfopen(va("%s/config.cfg", com_gamedir), "w");
-	if (!f) {
-	    Con_Printf("Couldn't write config.cfg.\n");
-	    return;
-	}
-
-	Key_WriteBindings(f);
-	Cvar_WriteVariables(f);
-
-	/* Save the mlook state (rarely used as an actual key binding) */
-	if (in_mlook.state & 1)
-	    rfprintf(f, "+mlook\n");
-
-	rfclose(f);
-    }
-}
-
-
 //============================================================================
 
 /*
@@ -1274,8 +1212,6 @@ Runs all active servers
 void
 Host_Frame(float time)
 {
-    static double time1 = 0;
-    static double time2 = 0;
     float fps;
 
     /* something bad happened, or the server disconnected */
@@ -1300,9 +1236,6 @@ Host_Frame(float time)
 
     // get new key events
     Sys_SendKeyEvents();
-
-    /* allow mice or other external controllers to add commands */
-    IN_Commands();
 
     /* process console commands */
     Cbuf_Execute();
@@ -1330,14 +1263,8 @@ Host_Frame(float time)
     CL_EmitEntities();
 
     // update video
-    if (host_speeds.value)
-	time1 = Sys_DoubleTime();
-
     SCR_UpdateScreen();
     CL_RunParticles();
-
-    if (host_speeds.value)
-	time2 = Sys_DoubleTime();
 
     /* update audio */
     if (cls.state == ca_active) {
@@ -1348,19 +1275,7 @@ Host_Frame(float time)
 
     CDAudio_Update();
 
-    if (host_speeds.value) {
-	static double time3 = 0;
-	int pass1    = (time1 - time3) * 1000;
-	double time4 = Sys_DoubleTime();
-	int pass2    = (time2 - time1) * 1000;
-	int pass3    = (time4 - time2) * 1000;
-        time3        = time4;
-	Con_Printf("%3i tot %3i server %3i gfx %3i snd\n",
-		   pass1 + pass2 + pass3, pass1, pass2, pass3);
-    }
-
     host_framecount++;
-    fps_count++;
 }
 
 //============================================================================
@@ -1446,7 +1361,6 @@ Host_Init(quakeparms_t *parms)
 
     Cbuf_AddText("echo Type connect <internet address> or use GameSpy to "
 		 "connect to a game.\n");
-    Cbuf_AddText("cl_warncmd 1\n");
 }
 
 
@@ -1466,8 +1380,6 @@ Host_Shutdown(void)
     if (isdown)
 	return;
     isdown = true;
-
-    Host_WriteConfiguration();
 
     CDAudio_Shutdown();
     NET_Shutdown();

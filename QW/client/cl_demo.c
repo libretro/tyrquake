@@ -636,20 +636,6 @@ CL_Record_f(void)
 	}
     }
 
-#if 0
-    MSG_WriteByte(&buf, svc_updatestatlong);
-    MSG_WriteByte(&buf, STAT_TOTALMONSTERS);
-    MSG_WriteLong(&buf, cl.stats[STAT_TOTALMONSTERS]);
-
-    MSG_WriteByte(&buf, svc_updatestatlong);
-    MSG_WriteByte(&buf, STAT_SECRETS);
-    MSG_WriteLong(&buf, cl.stats[STAT_SECRETS]);
-
-    MSG_WriteByte(&buf, svc_updatestatlong);
-    MSG_WriteByte(&buf, STAT_MONSTERS);
-    MSG_WriteLong(&buf, cl.stats[STAT_MONSTERS]);
-#endif
-
     // get the client to check and download skins
     // when that is completed, a begin command will be issued
     MSG_WriteByte(&buf, svc_stufftext);

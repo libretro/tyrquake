@@ -62,8 +62,6 @@ static cvar_t con_notifytime = { "con_notifytime", "3" };	//seconds
 static float con_times[NUM_CON_TIMES];	// realtime time the line was generated
 					// for transparent notify lines
 
-static qboolean debuglog;
-
 qboolean con_initialized;
 
 /*
@@ -317,13 +315,6 @@ void Con_Printf(const char *fmt, ...)
    vsnprintf(msg, sizeof(msg), fmt, argptr);
    va_end(argptr);
 
-   /* also echo to debugging console */
-   Sys_Printf("%s", msg);	// also echo to debugging console
-
-   /* log all messages to file */
-   if (debuglog)
-      Sys_DebugLog(va("%s/qconsole.log", com_savedir), "%s", msg);
-
    if (!con_initialized)
       return;
 
@@ -361,38 +352,6 @@ void Con_Printf(const char *fmt, ...)
          }
       }
 }
-
-/*
-================
-Con_DPrintf
-
-A Con_Printf that only shows up if the "developer" cvar is set
-================
-*/
-void
-Con_DPrintf(const char *fmt, ...)
-{
-    va_list argptr;
-    char msg[MAX_PRINTMSG];
-
-    if (!developer.value) {
-	if (debuglog) {
-	    strcpy(msg, "DEBUG: ");
-	    va_start(argptr, fmt);
-	    vsnprintf(msg + 7, sizeof(msg) - 7, fmt, argptr);
-	    va_end(argptr);
-	    Sys_DebugLog(va("%s/qconsole.log", com_savedir), "%s", msg);
-	}
-	return;
-    }
-
-    va_start(argptr, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, argptr);
-    va_end(argptr);
-
-    Con_Printf("%s", msg);
-}
-
 
 /*
 ==============================================================================
@@ -628,157 +587,6 @@ void Con_DrawConsole(int lines)
    Con_DrawInput();
 }
 
-
-/*
-==================
-Con_NotifyBox
-==================
-*/
-void
-Con_NotifyBox(char *text)
-{
-    double t1, t2;
-
-// during startup for sound / cd warnings
-    Con_Printf
-	("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
-
-    Con_Printf("%s", text);
-
-    Con_Printf("Press a key.\n");
-    Con_Printf
-	("\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
-
-    key_count = -2;		// wait for a key down and up
-    key_dest = key_console;
-
-    do
-    {
-       t1 = Sys_DoubleTime();
-       SCR_UpdateScreen();
-       Sys_SendKeyEvents();
-       t2 = Sys_DoubleTime();
-       realtime += t2 - t1;	// make the cursor blink
-    } while (key_count < 0);
-
-    Con_Printf("\n");
-    key_dest = key_game;
-    realtime = 0;		// put the cursor back to invisible
-}
-
-
-/*
-==================
-Con_SafePrintf
-
-Okay to call even when the screen can't be updated
-==================
-*/
-void
-Con_SafePrintf(const char *fmt, ...)
-{
-    va_list argptr;
-    char msg[MAX_PRINTMSG];
-    int temp;
-
-    va_start(argptr, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, argptr);
-    va_end(argptr);
-
-    temp = scr_disabled_for_loading;
-    scr_disabled_for_loading = true;
-    Con_Printf("%s", msg);
-    scr_disabled_for_loading = temp;
-}
-
-void
-Con_ShowList(const char **list, int cnt, int maxlen)
-{
-    const char *s;
-    unsigned i, j, len, cols, rows;
-    char *line;
-
-    /* Lay them out in columns */
-    line = (char*)Z_Malloc(Con_GetWidth() + 1);
-    cols = Con_GetWidth() / (maxlen + 2);
-    rows = cnt / cols + ((cnt % cols) ? 1 : 0);
-
-    /* Looks better if we have a few rows before spreading out */
-    if (rows < 5) {
-	cols = cnt / 5 + ((cnt % 5) ? 1 : 0);
-	rows = cnt / cols + ((cnt % cols) ? 1 : 0);
-    }
-
-    for (i = 0; i < rows; ++i) {
-	line[0] = '\0';
-	for (j = 0; j < cols; ++j) {
-	    if (j * rows + i >= cnt)
-		break;
-	    s = list[j * rows + i];
-	    len = strlen(s);
-
-	    strcat(line, s);
-	    if (j < cols - 1) {
-		while (len < maxlen) {
-		    strcat(line, " ");
-		    len++;
-		}
-		strcat(line, "  ");
-	    }
-	}
-	Con_Printf("%s\n", line);
-    }
-    Z_Free(line);
-}
-
-static const char **showtree_list;
-static unsigned showtree_idx;
-
-static void
-Con_ShowTree_Populate(struct rb_node *n)
-{
-    if (n) {
-	Con_ShowTree_Populate(n->rb_left);
-	showtree_list[showtree_idx++] = stree_entry(n)->string;
-	Con_ShowTree_Populate(n->rb_right);
-    }
-}
-
-void
-Con_ShowTree(struct stree_root *root)
-{
-    /* FIXME - cheating with malloc */
-    showtree_list = (const char**)malloc(root->entries * sizeof(char *));
-    if (showtree_list) {
-	showtree_idx = 0;
-	Con_ShowTree_Populate(root->root.rb_node);
-	Con_ShowList(showtree_list, root->entries, root->maxlen);
-	free(showtree_list);
-    }
-}
-
-
-void
-Con_Maplist_f()
-{
-    struct stree_root st_root;
-    const char *pfx = NULL;
-
-    st_root.entries = 0;
-    st_root.maxlen = 0;
-    st_root.minlen = -1;
-    //st_root.root = NULL;
-    st_root.stack = NULL;
-
-    if (Cmd_Argc() == 2)
-	pfx = Cmd_Argv(1);
-
-    STree_AllocInit();
-    COM_ScanDir(&st_root, "maps", pfx, ".bsp", true);
-    Con_ShowTree(&st_root);
-}
-
-
 /*
 ================
 Con_Init
@@ -787,8 +595,6 @@ Con_Init
 void
 Con_Init(void)
 {
-    debuglog = COM_CheckParm("-condebug");
-
     con_main.text = (char*)Hunk_AllocName(CON_TEXTSIZE, "conmain");
 
     con = &con_main;
@@ -804,7 +610,6 @@ Con_Init(void)
     Cmd_AddCommand("messagemode", Con_MessageMode_f);
     Cmd_AddCommand("messagemode2", Con_MessageMode2_f);
     Cmd_AddCommand("clear", Con_Clear_f);
-    Cmd_AddCommand("maplist", Con_Maplist_f);
 
     con_initialized = true;
 }

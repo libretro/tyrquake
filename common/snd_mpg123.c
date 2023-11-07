@@ -185,7 +185,7 @@ static int S_MP3_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 	switch (res)
 	{
 	case MPG123_DONE:
-		Con_DPrintf("mp3 EOF\n");
+		/* fall-through */
 	case MPG123_OK:
 		return (int)bytes_read;
 	}

@@ -2010,22 +2010,6 @@ void *Mod_Extradata(model_t *mod)
 }
 
 /*
-================
-Mod_Print
-================
-*/
-void Mod_Print(void)
-{
-   int i;
-   model_t *mod;
-
-   Con_Printf("Cached models:\n");
-   for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
-      Con_Printf("%*p : %s\n", (int)sizeof(void *) * 2 + 2,
-            mod->cache.data, mod->name);
-}
-
-/*
 ==================
 Mod_TouchModel
 

@@ -172,18 +172,6 @@ SignbitsForPlane(const mplane_t *plane)
 
 /*
 ==================
-BOPS_Error
-
-Split out like this for ASM to call.
-==================
-*/
-void BOPS_Error(void)
-{
-    Sys_Error("%s:  Bad signbits", __func__);
-}
-
-/*
-==================
 BoxOnPlaneSide
 
 Returns PSIDE_FRONT, PSIDE_BACK, or PSIDE_BOTH (PSIDE_FRONT | PSIDE_BACK)
@@ -263,7 +251,6 @@ BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
             p->normal[2] * maxs[2];
          break;
       default:
-         BOPS_Error();
          break;
    }
 
@@ -272,11 +259,6 @@ BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
       sides = PSIDE_FRONT;
    if (dist2 < p->dist)
       sides |= PSIDE_BACK;
-
-#ifdef PARANOID
-   if (sides == 0)
-      Sys_Error("%s: sides == 0", __func__);
-#endif
 
    return sides;
 }
@@ -391,14 +373,10 @@ double sqrt(double x);
 vec_t Length(vec3_t v)
 {
    int i;
-   float length;
-
-   length = 0;
+   float length = 0.0f;
    for (i = 0; i < 3; i++)
       length += v[i] * v[i];
-   length = sqrt(length);	// FIXME
-
-   return length;
+   return sqrtf(length);
 }
 
 float VectorNormalize(vec3_t v)
@@ -521,16 +499,8 @@ FloorDivMod(double numer, double denom, int *quotient, int *rem)
    int q, r;
    double x;
 
-#ifndef PARANOID
    if (denom <= 0.0)
       Sys_Error("%s: bad denominator %lf", __func__, denom);
-
-#if 0
-   if ((floor(numer) != numer) || (floor(denom) != denom))
-      Sys_Error ("%s: non-integer numer or denom %f %f", __func__
-            numer, denom);
-#endif
-#endif
 
    if (numer >= 0.0)
    {
@@ -571,12 +541,9 @@ GreatestCommonDivisor(int i1, int i2)
          return (i1);
       return GreatestCommonDivisor(i2, i1 % i2);
    }
-   else
-   {
-      if (i1 == 0)
-         return (i2);
-      return GreatestCommonDivisor(i1, i2 % i1);
-   }
+   if (i1 == 0)
+      return (i2);
+   return GreatestCommonDivisor(i1, i2 % i1);
 }
 
 

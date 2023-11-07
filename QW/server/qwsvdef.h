@@ -23,8 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // quakedef.h -- primary header for server
 
-//define        PARANOID                        // speed sapping error checking
-
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
@@ -56,8 +54,6 @@ typedef struct {
 // host
 //
 extern quakeparms_t host_parms;
-
-extern cvar_t developer;
 
 extern qboolean host_initialized;	// true if into command execution
 extern double host_frametime;

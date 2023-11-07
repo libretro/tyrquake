@@ -430,17 +430,6 @@ static void _preextrapolate_helper(vorbis_dsp_state *v){
       /* prime as above */
       vorbis_lpc_from_data(work,lpc,v->pcm_current-v->centerW,order);
 
-#if 0
-      if(v->vi->channels==2){
-        if(i==0)
-          _analysis_output("predataL",0,work,v->pcm_current-v->centerW,0,0,0);
-        else
-          _analysis_output("predataR",0,work,v->pcm_current-v->centerW,0,0,0);
-      }else{
-        _analysis_output("predata",0,work,v->pcm_current-v->centerW,0,0,0);
-      }
-#endif
-
       /* run the predictor filter */
       vorbis_lpc_predict(lpc,work+v->pcm_current-v->centerW-order,
                          order,

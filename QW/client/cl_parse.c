@@ -339,7 +339,7 @@ CL_RequestNextDownload(void)
 	break;
     case dl_none:
     default:
-	Con_DPrintf("Unknown download type.\n");
+	break;
     }
 }
 
@@ -397,15 +397,8 @@ CL_ParseDownload(void)
     msg_readcount += size;
 
     if (percent != 100) {
-// change display routines by zoid
+        // change display routines by zoid
 	// request next block
-#if 0
-	Con_Printf(".");
-	if (10 * (percent / 10) != cls.downloadpercent) {
-	    cls.downloadpercent = 10 * (percent / 10);
-	    Con_Printf("%i%%", cls.downloadpercent);
-	}
-#endif
 	cls.downloadpercent = percent;
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -413,10 +406,6 @@ CL_ParseDownload(void)
     } else {
 	char oldn[MAX_OSPATH];
 	char newn[MAX_OSPATH];
-
-#if 0
-	Con_Printf("100%%\n");
-#endif
 
 	rfclose(cls.download);
 
@@ -473,8 +462,6 @@ CL_NextUpload(void)
     MSG_WriteByte(&cls.netchan.message, percent);
     SZ_Write(&cls.netchan.message, buffer, r);
 
-    Con_DPrintf("UPLOAD: %6d: %d written\n", upload_pos - r, r);
-
     if (upload_pos != upload_size)
 	return;
 
@@ -494,8 +481,6 @@ CL_StartUpload(byte *data, int size)
     // override
     if (upload_data)
 	free(upload_data);
-
-    Con_DPrintf("Upload starting of %d...\n", size);
 
     upload_data = malloc(size);
     memcpy(upload_data, data, size);
@@ -543,14 +528,11 @@ CL_ParseServerData(void)
     qboolean cflag = false;
     int protover;
 
-    Con_DPrintf("Serverdata packet received.\n");
-//
-// wipe the client_state_t struct
-//
+    // wipe the client_state_t struct
     CL_ClearState();
 
-// parse protocol version number
-// allow 2.2 and 2.29 demos to play
+    // parse protocol version number
+    // allow 2.2 and 2.29 demos to play
     protover = MSG_ReadLong();
     if (protover != PROTOCOL_VERSION &&
 	!(cls.demoplayback
@@ -566,8 +548,6 @@ CL_ParseServerData(void)
     str = MSG_ReadString();
 
     if (strcasecmp(gamedirfile, str)) {
-	// save current config
-	Host_WriteConfiguration();
 	cflag = true;
     }
 
@@ -579,10 +559,8 @@ CL_ParseServerData(void)
 	snprintf(fn, sizeof(fn), "%s/%s", com_gamedir, "config.cfg");
 	if ((f = rfopen(fn, "r")) != NULL) {
 	    rfclose(f);
-	    Cbuf_AddText("cl_warncmd 0\n");
 	    Cbuf_AddText("exec config.cfg\n");
 	    Cbuf_AddText("exec frontend.cfg\n");
-	    Cbuf_AddText("cl_warncmd 1\n");
 	}
     }
     // parse player slot, high bit means spectator
@@ -1012,8 +990,6 @@ CL_SetInfo(void)
     snprintf(key, sizeof(key), "%s", MSG_ReadString());
     snprintf(value, sizeof(value), "%s", MSG_ReadString());
 
-    Con_DPrintf("SETINFO %s: %s=%s\n", player->name, key, value);
-
     Info_SetValueForKey(player->userinfo, key, value, MAX_INFO_STRING);
 
     CL_ProcessUserInfo(slot, player);
@@ -1032,8 +1008,6 @@ CL_ServerInfo(void)
 
     snprintf(key, sizeof(key), "%s", MSG_ReadString());
     snprintf(value, sizeof(value), "%s", MSG_ReadString());
-
-    Con_DPrintf("SERVERINFO: %s=%s\n", key, value);
 
     Info_SetValueForKey(cl.serverinfo, key, value, MAX_SERVERINFO_STRING);
 }
@@ -1094,13 +1068,6 @@ CL_MuzzleFlash(void)
    dl->color = dl_colors[DLIGHT_FLASH];
 }
 
-
-#define SHOWNET(x)							\
-	do {								\
-		if(cl_shownet.value == 2)				\
-			Con_Printf ("%3i:%s\n", msg_readcount - 1, x);	\
-	} while (0)
-
 /*
 =====================
 CL_ParseServerMessage
@@ -1118,15 +1085,6 @@ CL_ParseServerMessage(void)
     cl.last_servermessage = realtime;
     CL_ClearProjectiles();
 
-//
-// if recording demos, copy the message out
-//
-    if (cl_shownet.value == 1)
-	Con_Printf("%i ", net_message.cursize);
-    else if (cl_shownet.value == 2)
-	Con_Printf("------------------\n");
-
-
     CL_ParseClientdata();
 
 //
@@ -1140,11 +1098,8 @@ CL_ParseServerMessage(void)
 
 	if (cmd == -1) {
 	    msg_readcount++;	// so the EOM showner has the right value
-	    SHOWNET("END OF MESSAGE");
 	    break;
 	}
-
-	SHOWNET(svc_strings[cmd]);
 
 	// other commands
 	switch (cmd) {

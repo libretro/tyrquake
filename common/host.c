@@ -43,13 +43,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 #include "render.h"
 
-#include <streams/file_stream.h>
-
-/* forward declarations */
-RFILE* rfopen(const char *path, const char *mode);
-int rfclose(RFILE* stream);
-int rfprintf(RFILE * stream, const char * format, ...);
-
 /*
  * A server can always be started, even if the system started out as a client
  * to a remote system.
@@ -67,7 +60,6 @@ qboolean host_initialized;	// true if into command execution
 double host_frametime;
 double host_time;
 double realtime;		// without any filtering or bounding
-static double oldrealtime;	// last frame run
 int host_framecount;
 
 int host_hunklevel;
@@ -76,15 +68,10 @@ int minimum_memory;
 
 client_t *host_client;		// current client
 
-int fps_count;
-
 static jmp_buf host_abort;
 
 byte *host_basepal;
 byte *host_colormap;
-
-cvar_t host_framerate = { "host_framerate", "0" };	// set for slow motion
-cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
 
 cvar_t serverprofile = { "serverprofile", "0" };
 
@@ -94,8 +81,6 @@ cvar_t teamplay = { "teamplay", "0", false, true };
 
 cvar_t samelevel = { "samelevel", "0" };
 cvar_t noexit = { "noexit", "0", false, true };
-
-cvar_t developer = { "developer", "0" };
 
 cvar_t skill = { "skill", "1" };	// 0 - 3
 cvar_t deathmatch = { "deathmatch", "0" };	// 0, 1, or 2
@@ -120,13 +105,9 @@ Host_EndGame(const char *message, ...)
     va_start(argptr, message);
     vsnprintf(string, sizeof(string), message, argptr);
     va_end(argptr);
-    Con_DPrintf("%s: %s\n", __func__, string);
 
     if (sv.active)
 	Host_ShutdownServer(false);
-
-    if (cls.state == ca_dedicated)
-	Sys_Error("%s: %s", __func__, string); // dedicated servers exit
 
     if (cls.demonum != -1)
 	CL_NextDemo();
@@ -150,8 +131,6 @@ Host_Error(const char *error, ...)
     char string[MAX_PRINTMSG];
     static qboolean inerror = false;
 
-    if (inerror)
-	Sys_Error("%s: recursively entered", __func__);
     inerror = true;
 
     SCR_EndLoadingPlaque();	// reenable screen updates
@@ -163,9 +142,6 @@ Host_Error(const char *error, ...)
 
     if (sv.active)
 	Host_ShutdownServer(false);
-
-    if (cls.state == ca_dedicated)
-	Sys_Error("%s: %s", __func__, string); // dedicated servers exit
 
     CL_Disconnect();
     cls.demonum = -1;
@@ -199,8 +175,6 @@ Host_FindMaxClients(void)
 
     i = COM_CheckParm("-listen");
     if (i) {
-	if (cls.state == ca_dedicated)
-	    Sys_Error("Only one of -dedicated or -listen can be specified");
 	if (i != (com_argc - 1))
 	    svs.maxclients = Q_atoi(com_argv[i + 1]);
 	else
@@ -233,9 +207,6 @@ Host_InitLocal(void)
 {
     Host_InitCommands();
 
-    Cvar_RegisterVariable(&host_framerate);
-    Cvar_RegisterVariable(&host_speeds);
-
     Cvar_RegisterVariable(&serverprofile);
 
     Cvar_RegisterVariable(&fraglimit);
@@ -251,46 +222,9 @@ Host_InitLocal(void)
 
     Cvar_RegisterVariable(&temp1);
 
-    Cvar_RegisterVariable(&developer);
-    if (COM_CheckParm("-developer"))
-	Cvar_SetValue("developer", 1);
-
     Host_FindMaxClients();
 
     host_time = 1.0;		// so a think at time 0 won't get called
-}
-
-
-/*
-===============
-Host_WriteConfiguration
-
-Writes key bindings and archived cvars to config.cfg
-===============
-*/
-void
-Host_WriteConfiguration(void)
-{
-    RFILE *f;
-
-// dedicated servers initialize the host but don't parse and set the
-// config.cfg cvars
-    if (host_initialized & !isDedicated) {
-	f = rfopen(va("%s/config.cfg", com_savedir), "w");
-	if (!f) {
-	    Con_Printf("Couldn't write config.cfg.\n");
-	    return;
-	}
-
-	Key_WriteBindings(f);
-	Cvar_WriteVariables(f);
-
-	/* Save the mlook state (rarely used as an actual key binding) */
-	if (in_mlook.state & 1)
-	    rfprintf(f, "+mlook\n");
-
-	rfclose(f);
-    }
 }
 
 
@@ -384,8 +318,6 @@ SV_DropClient(qboolean crash)
 	    PR_ExecuteProgram(pr_global_struct->ClientDisconnect);
 	    pr_global_struct->self = saveSelf;
 	}
-
-	Sys_Printf("Client %s removed\n", host_client->name);
     }
 // break the net connection
     NET_Close(host_client->netconnection);
@@ -434,11 +366,11 @@ Host_ShutdownServer(qboolean crash)
 
     sv.active = false;
 
-// stop all client sounds immediately
+    // stop all client sounds immediately
     if (cls.state >= ca_connected)
 	CL_Disconnect();
 
-// flush any pending messages - like the score!!!
+    // flush any pending messages - like the score!!!
     start = Sys_DoubleTime();
     do {
 	count = 0;
@@ -459,8 +391,8 @@ Host_ShutdownServer(qboolean crash)
 	    break;
     } while (count);
 
-// make sure all the clients know we're disconnecting
-    buf.data = message;
+    // make sure all the clients know we're disconnecting
+    buf.data    = message;
     buf.maxsize = 4;
     buf.cursize = 0;
     MSG_WriteByte(&buf, svc_disconnect);
@@ -493,7 +425,6 @@ not reinitialize anything.
 void
 Host_ClearMemory(void)
 {
-    Con_DPrintf("Clearing memory\n");
     D_FlushCaches();
     Mod_ClearAll();
     if (host_hunklevel)
@@ -511,56 +442,23 @@ Host_ClearMemory(void)
 /*
 ===================
 Host_FilterTime
-
-Returns false if the time is too short to run a frame
 ===================
 */
-qboolean
-Host_FilterTime(float time)
+static void Host_FilterTime(float time)
 {
-    realtime += time;
-
-    /* allow high framerate, warn about it in core options
-    if (!cls.timedemo && realtime - oldrealtime < 1.0 / 72.0)
-	return false;		// framerate is too high
-    */
+    static double oldrealtime;	// last frame run
+    realtime      += time;
 
     host_frametime = realtime - oldrealtime;
-    oldrealtime = realtime;
+    oldrealtime    = realtime;
 
-    if (host_framerate.value > 0)
-	host_frametime = host_framerate.value;
-    else {			// don't allow really long or short frames
+    { // don't allow really long or short frames
 	if (host_frametime > 0.1)
 	    host_frametime = 0.1;
 	if (host_frametime < 0.001)
 	    host_frametime = 0.001;
     }
-
-    return true;
 }
-
-
-/*
-===================
-Host_GetConsoleCommands
-
-Add them exactly as if they had been typed at the console
-===================
-*/
-void
-Host_GetConsoleCommands(void)
-{
-    char *cmd;
-
-    while (1) {
-	cmd = Sys_ConsoleInput();
-	if (!cmd)
-	    break;
-	Cbuf_AddText("%s", cmd);
-    }
-}
-
 
 /*
 ==================
@@ -568,55 +466,6 @@ Host_ServerFrame
 
 ==================
 */
-#ifdef FPS_20
-
-void
-_Host_ServerFrame(void)
-{
-// run the world state
-    pr_global_struct->frametime = host_frametime;
-
-// read client messages
-    SV_RunClients();
-
-// move things around and think
-// always pause in single player if in console or menus
-    if (!sv.paused && (svs.maxclients > 1 || key_dest == key_game))
-	SV_Physics();
-}
-
-void
-Host_ServerFrame(void)
-{
-    float save_host_frametime;
-    float temp_host_frametime;
-
-// run the world state
-    pr_global_struct->frametime = host_frametime;
-
-// set the time and clear the general datagram
-    SV_ClearDatagram();
-
-// check for new clients
-    SV_CheckForNewClients();
-
-    temp_host_frametime = save_host_frametime = host_frametime;
-    while (temp_host_frametime > (1.0 / 72.0)) {
-	if (temp_host_frametime > 0.05)
-	    host_frametime = 0.05;
-	else
-	    host_frametime = temp_host_frametime;
-	temp_host_frametime -= host_frametime;
-	_Host_ServerFrame();
-    }
-    host_frametime = save_host_frametime;
-
-// send all messages to the clients
-    SV_SendClientMessages();
-}
-
-#else
-
 void
 Host_ServerFrame(void)
 {
@@ -643,9 +492,6 @@ Host_ServerFrame(void)
     SV_SendClientMessages();
 }
 
-#endif
-
-
 /*
 ==================
 Host_Frame
@@ -653,13 +499,8 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void
-_Host_Frame(float time)
+static void _Host_Frame(float time)
 {
-   /* something bad happened, or the server disconnected */
-   if (setjmp(host_abort))
-      return;
-
    /* keep the random time dependent */
    rand();
 
@@ -667,14 +508,10 @@ _Host_Frame(float time)
     * Decide the simulation time. Don't run too fast, or packets will flood
     * out.
     */
-   if (!Host_FilterTime(time))
-      return;
+   Host_FilterTime(time);
 
    /* get new key events */
    Sys_SendKeyEvents();
-
-   /* allow mice or other external controllers to add commands */
-   IN_Commands();
 
    /* process console commands */
    Cbuf_Execute();
@@ -690,9 +527,6 @@ _Host_Frame(float time)
    // server operations
    //
    //-------------------
-
-   /* check for commands typed to the host */
-   Host_GetConsoleCommands();
 
    if (sv.active)
       Host_ServerFrame();
@@ -720,7 +554,6 @@ _Host_Frame(float time)
    CL_RunParticles();
 
    host_framecount++;
-   fps_count++;
 }
 
 void
@@ -729,13 +562,12 @@ Host_Frame(float time)
    static int timecount;
    int i, c;
 
-   if (!serverprofile.value)
-   {
+   /* If setjmp returns true, something bad happened, or the server disconnected */
+   if (!setjmp(host_abort))
       _Host_Frame(time);
-      return;
-   }
 
-   _Host_Frame(time);
+   if (!serverprofile.value)
+      return;
 
    timecount++;
 
@@ -775,8 +607,11 @@ Host_Init(quakeparms_t *parms)
     host_parms = *parms;
 
     if (parms->memsize < minimum_memory)
-       return Sys_Error("Only %4.1f megs of memory reported, can't execute game",
+    {
+       Sys_Error("Only %4.1f megs of memory reported, can't execute game",
              parms->memsize / (float)0x100000);
+       return false;
+    }
 
     com_argc = parms->argc;
     com_argv = parms->argv;
@@ -807,10 +642,16 @@ Host_Init(quakeparms_t *parms)
     if (cls.state != ca_dedicated) {
 	host_basepal = (byte*)COM_LoadHunkFile("gfx/palette.lmp");
 	if (!host_basepal)
-	    return Sys_Error("Couldn't load gfx/palette.lmp");
+        {
+	    Sys_Error("Couldn't load gfx/palette.lmp");
+            return false;
+	}
 	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
-	    return Sys_Error("Couldn't load gfx/colormap.lmp");
+        {
+	    Sys_Error("Couldn't load gfx/colormap.lmp");
+	    return false;
+        }
 
 
    if (coloredlights)
@@ -824,7 +665,7 @@ Host_Init(quakeparms_t *parms)
 
 	S_Init();
 	CDAudio_Init();
-    BGM_Init();
+	BGM_Init();
 
 	Sbar_Init();
 	CL_Init();
@@ -836,7 +677,6 @@ Host_Init(quakeparms_t *parms)
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;
-    Sys_Printf("========Quake Initialized=========\n");
 
     /* In case exec of quake.rc fails */
     if (!setjmp(host_abort)) {
@@ -867,8 +707,6 @@ Host_Shutdown(void)
 
     /* keep Con_Printf from trying to update the screen */
     scr_disabled_for_loading = true;
-
-    Host_WriteConfiguration();
 
     CDAudio_Shutdown();
     NET_Shutdown();

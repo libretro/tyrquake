@@ -48,7 +48,6 @@ static model_t *pmodel;
 
 static vec3_t alias_forward, alias_right, alias_up;
 
-int r_amodels_drawn;
 int a_skinwidth;
 int r_anumverts;
 
@@ -98,24 +97,14 @@ static void *
 SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 		byte **skindata)
 {
-    int i, j, skinsize;
+    int i;
     byte *ret, *out;
-
-    skinsize = ahdr->skinwidth * ahdr->skinheight;
-    ret = out = (byte*)Hunk_Alloc(skinnum * skinsize * r_pixbytes);
+    int skinsize = ahdr->skinwidth * ahdr->skinheight;
+    ret = out = (byte*)Hunk_Alloc(skinnum * skinsize);
 
     for (i = 0; i < skinnum; i++) {
-	if (r_pixbytes == 1) {
-	    memcpy(out, skindata[i], skinsize);
-	} else if (r_pixbytes == 2) {
-	    unsigned short *skin16 = (unsigned short *)out;
-	    for (j = 0; j < skinsize; j++)
-		skin16[j] = d_8to16table[skindata[i][j]];
-	} else {
-	    Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
-		      r_pixbytes);
-	}
-	out += skinsize * r_pixbytes;
+	memcpy(out, skindata[i], skinsize);
+	out += skinsize;
     }
 
     return ret;
@@ -126,14 +115,13 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
 		const stvert_t *stverts, const trivertx_t **verts)
 {
     int i;
-    trivertx_t *pverts;
     stvert_t *pstverts;
     mtriangle_t *ptris;
 
     /*
      * Save the pose vertex data
      */
-    pverts = (trivertx_t*)Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
+    trivertx_t *pverts = (trivertx_t*)Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
     hdr->posedata = (byte *)pverts - (byte *)hdr;
     for (i = 0; i < hdr->numposes; i++) {
 	memcpy(pverts, verts[i], hdr->numverts * sizeof(*pverts));
@@ -185,7 +173,7 @@ qboolean R_AliasCheckBBox(entity_t *e)
    finalvert_t viewpts[16];
    auxvert_t viewaux[16];
    maliasframedesc_t *pframedesc;
-   qboolean zclipped, zfullyclipped;
+   qboolean zclipped = false, zfullyclipped = true;
    unsigned anyclip, allclip;
    int minz;
 
@@ -200,10 +188,8 @@ qboolean R_AliasCheckBBox(entity_t *e)
    // construct the base bounding box for this frame
    frame = e->frame;
    // TODO: don't repeat this check when drawing?
-   if ((frame >= pahdr->numframes) || (frame < 0)) {
-      Con_DPrintf("No such frame %d %s\n", frame, pmodel->name);
+   if ((frame >= pahdr->numframes) || (frame < 0))
       frame = 0;
-   }
 
    pframedesc = &pahdr->frames[frame];
 
@@ -224,9 +210,6 @@ qboolean R_AliasCheckBBox(entity_t *e)
       (float)pframedesc->bboxmin.v[2];
    basepts[2][2] = basepts[3][2] = basepts[6][2] = basepts[7][2] =
       (float)pframedesc->bboxmax.v[2];
-
-   zclipped = false;
-   zfullyclipped = true;
 
    minz = 9999;
    for (i = 0; i < 8; i++)
@@ -359,13 +342,11 @@ R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
 		     auxvert_t *pauxverts)
 {
     int i;
-    stvert_t *pstverts;
     finalvert_t *fv;
     auxvert_t *av;
     mtriangle_t *ptri;
     finalvert_t *pfv[3];
-
-    pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
+    stvert_t *pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
     r_anumverts = pahdr->numverts;
     fv = pfinalverts;
     av = pauxverts;
@@ -614,10 +595,8 @@ R_AliasProjectFinalVert
 void
 R_AliasProjectFinalVert(finalvert_t *fv, auxvert_t *av)
 {
-    float zi;
-
-// project points
-    zi = 1.0 / av->fv[2];
+    // project points
+    float zi = 1.0 / av->fv[2];
 
     fv->v[5] = zi * ziscale;
 
@@ -634,9 +613,7 @@ R_AliasPrepareUnclippedPoints
 static void
 R_AliasPrepareUnclippedPoints(aliashdr_t *pahdr, finalvert_t *pfinalverts)
 {
-    stvert_t *pstverts;
-
-    pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
+    stvert_t *pstverts = (stvert_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->stverts);
     r_anumverts = pahdr->numverts;
 
     R_AliasTransformAndProjectFinalVerts(pfinalverts, pstverts);
@@ -662,21 +639,18 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
    uintptr_t frame;
    int numframes, skinbytes;
    maliasskindesc_t *pskindesc;
-   byte *pdata;
+   byte *pdata = NULL;
    int skinnum = e->skinnum;
 
    if ((skinnum >= pahdr->numskins) || (skinnum < 0))
-   {
-      Con_DPrintf("%s: no such skin # %d\n", __func__, skinnum);
       skinnum = 0;
-   }
 
-   pskindesc = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
-   pskindesc += skinnum;
+   pskindesc   = ((maliasskindesc_t *)((byte *)pahdr + pahdr->skindesc));
+   pskindesc  += skinnum;
    a_skinwidth = pahdr->skinwidth;
 
-   frame = pskindesc->firstframe;
-   numframes = pskindesc->numframes;
+   frame       = pskindesc->firstframe;
+   numframes   = pskindesc->numframes;
 
    if (numframes > 1)
    {
@@ -684,7 +658,7 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
       frame += Mod_FindInterval(intervals, numframes, cl.time + e->syncbase);
    }
 
-   skinbytes = pahdr->skinwidth * pahdr->skinheight * r_pixbytes;
+   skinbytes = pahdr->skinwidth * pahdr->skinheight;
    pdata = (byte *)pahdr + pahdr->skindata;
    pdata += frame * skinbytes;
 
@@ -715,8 +689,7 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 R_AliasSetupLighting
 ================
 */
-void
-R_AliasSetupLighting(alight_t *plighting)
+static void R_AliasSetupLighting(alight_t *plighting)
 {
 
 // guarantee that no vertex will ever be lit below LIGHT_MIN, so we don't have
@@ -749,18 +722,17 @@ static trivertx_t *
 R_AliasBlendPoseVerts(const entity_t *e, aliashdr_t *hdr, float blend)
 {
     static trivertx_t blendverts[MAXALIASVERTS];
-    trivertx_t *poseverts, *pv1, *pv2, *light;
-    int i, blend0, blend1;
+    int i;
 
 #define SHIFT 22
-    blend1 = blend * (1 << SHIFT);
-    blend0 = (1 << SHIFT) - blend1;
+    int blend1 = blend * (1 << SHIFT);
+    int blend0 = (1 << SHIFT) - blend1;
 
-    poseverts = (trivertx_t *)((byte *)hdr + hdr->posedata);
-    pv1 = poseverts + e->previouspose * hdr->numverts;
-    pv2 = poseverts + e->currentpose * hdr->numverts;
-    light = (blend < 0.5f) ? pv1 : pv2;
-    poseverts = blendverts;
+    trivertx_t *poseverts = (trivertx_t *)((byte *)hdr + hdr->posedata);
+    trivertx_t *pv1       = poseverts + e->previouspose * hdr->numverts;
+    trivertx_t *pv2       = poseverts + e->currentpose * hdr->numverts;
+    trivertx_t *light     = (blend < 0.5f) ? pv1 : pv2;
+    poseverts             = blendverts;
 
     for (i = 0; i < hdr->numverts; i++, poseverts++, pv1++, pv2++, light++) {
 	poseverts->v[0] = (pv1->v[0] * blend0 + pv2->v[0] * blend1) >> SHIFT;
@@ -789,12 +761,9 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
    int frame = e->frame;
 
    if ((frame >= pahdr->numframes) || (frame < 0))
-   {
-      Con_DPrintf("%s: no such frame %d\n", __func__, frame);
       frame = 0;
-   }
 
-   pose = pahdr->frames[frame].firstpose;
+   pose     = pahdr->frames[frame].firstpose;
    numposes = pahdr->frames[frame].numposes;
 
    if (numposes > 1) {
@@ -862,22 +831,13 @@ R_AliasDrawModel
 */
 void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
-   aliashdr_t *pahdr;
-   finalvert_t *pfinalverts;
-   finalvert_t *finalverts;
-   auxvert_t *pauxverts;
-   auxvert_t *auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
-
-   finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
-   
-   r_amodels_drawn++;
-
+   auxvert_t *auxverts      = (auxvert_t*)malloc(sizeof(auxvert_t) * MAXALIASVERTS);
+   finalvert_t *finalverts  = (finalvert_t*)malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
    // cache align
-   pfinalverts = (finalvert_t *)
+   finalvert_t *pfinalverts = (finalvert_t *)
 			(((uintptr_t)&finalverts[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
-   pauxverts = &auxverts[0];
-
-   pahdr = (aliashdr_t*)Mod_Extradata(e->model);
+   auxvert_t *pauxverts     = &auxverts[0];
+   aliashdr_t *pahdr        = (aliashdr_t*)Mod_Extradata(e->model);
 
    R_AliasSetupSkin(e, pahdr);
    R_AliasSetUpTransform(e, pahdr, e->trivial_accept);
@@ -887,8 +847,7 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
    if (!e->colormap)
       Sys_Error("%s: !e->colormap", __func__);
 
-   r_affinetridesc.drawtype = (e->trivial_accept == 3) &&
-      r_recursiveaffinetriangles;
+   r_affinetridesc.drawtype = (e->trivial_accept == 3);
 
    if (r_affinetridesc.drawtype)
       D_PolysetUpdateTables();	// FIXME: precalc...

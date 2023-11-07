@@ -767,17 +767,10 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
       t2 = DotProduct(plane->normal, p2) - plane->dist;
    }
 
-#if 1
    if (t1 >= 0 && t2 >= 0)
       return SV_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1, p2, trace);
    if (t1 < 0 && t2 < 0)
       return SV_RecursiveHullCheck(hull, node->children[1], p1f, p2f, p1, p2, trace);
-#else
-   if ((t1 >= DIST_EPSILON && t2 >= DIST_EPSILON) || (t2 > t1 && t1 >= 0))
-      return SV_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1, p2, trace);
-   if ((t1 <= -DIST_EPSILON && t2 <= -DIST_EPSILON) || (t2 < t1 && t1 <= 0))
-      return SV_RecursiveHullCheck(hull, node->children[1], p1f, p2f, p1, p2, trace);
-#endif
 
    /* put the crosspoint DIST_EPSILON pixels on the near side */
    if (t1 < 0)
@@ -798,13 +791,6 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
    /* move up to the node */
    if (!SV_RecursiveHullCheck(hull, node->children[side], p1f, midf, p1, mid, trace))
       return false;
-
-#ifdef PARANOID
-   if (SV_HullPointContents(sv_hullmodel, mid, node->children[side]) == CONTENTS_SOLID) {
-      Con_Printf("mid PointInHullSolid\n");
-      return false;
-   }
-#endif
 
    if (SV_HullPointContents(hull, node->children[side ^ 1], mid) != CONTENTS_SOLID)
       /* go past the node */
@@ -842,7 +828,6 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 		{
 			trace->fraction = midf;
 			VectorCopy (mid, trace->endpos);
-			Con_DPrintf ("backup past 0\n");
 			return false;
 		}
 		midf = p1f + (p2f - p1f)*frac;
@@ -859,7 +844,6 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
       if (frac < 0) {
          trace->fraction = midf;
          VectorCopy(mid, trace->endpos);
-         Con_DPrintf("backup past 0\n");
          return false;
       }
       midf = p1f + (p2f - p1f) * frac;

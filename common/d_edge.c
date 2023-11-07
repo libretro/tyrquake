@@ -165,8 +165,6 @@ void D_DrawSurfaces(void)
       if (!s->spans)
          continue;
 
-      r_drawnpolycount++;
-
       d_zistepu = s->d_zistepu;
       d_zistepv = s->d_zistepv;
       d_ziorigin = s->d_ziorigin;

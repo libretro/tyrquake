@@ -119,33 +119,6 @@ Con_Printf(const char *fmt, ...)
 	strcat(outputbuf, msg);
 	return;
     }
-
-    Sys_Printf("%s", msg);	// also echo to debugging console
-    if (sv_logfile)
-	fprintf(sv_logfile, "%s", msg);
-}
-
-/*
-================
-Con_DPrintf
-
-A Con_Printf that only shows up if the "developer" cvar is set
-================
-*/
-void
-Con_DPrintf(const char *fmt, ...)
-{
-    va_list argptr;
-    char msg[MAX_PRINTMSG];
-
-    if (!developer.value)
-	return;
-
-    va_start(argptr, fmt);
-    vsnprintf(msg, sizeof(msg), fmt, argptr);
-    va_end(argptr);
-
-    Con_Printf("%s", msg);
 }
 
 /*
@@ -206,8 +179,6 @@ SV_BroadcastPrintf(int level, const char *fmt, ...)
     va_start(argptr, fmt);
     vsnprintf(string, sizeof(string), fmt, argptr);
     va_end(argptr);
-
-    Sys_Printf("%s", string);	// print to the console
 
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (level < cl->messagelevel)
@@ -706,9 +677,6 @@ SV_SendClientMessages(void)
 	    // will it fit?
 	    if (c->netchan.message.cursize + c->backbuf_size[0] <
 		c->netchan.message.maxsize) {
-
-		Con_DPrintf("%s: backbuf %d bytes\n",
-			    c->name, c->backbuf_size[0]);
 
 		// it'll fit
 		SZ_Write(&c->netchan.message, c->backbuf_data[0],

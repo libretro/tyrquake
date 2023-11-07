@@ -51,8 +51,6 @@ client_t *host_client;		// current client
 cvar_t sv_mintic = { "sv_mintic", "0.03" };	// bound the size of the
 cvar_t sv_maxtic = { "sv_maxtic", "0.1" };	// physics time tic
 
-cvar_t developer = { "developer", "0" };	// show extra messages
-
 static cvar_t timeout = { "timeout", "65" };	// seconds without any message
 static cvar_t zombietime = { "zombietime", "2" }; // seconds to sink messages
 						// after disconnect
@@ -86,9 +84,6 @@ cvar_t watervis = { "watervis", "0", false, true };
 
 cvar_t hostname = { "hostname", "unnamed", false, true };
 
-RFILE *sv_logfile;
-RFILE *sv_fraglogfile;
-
 static void Master_Heartbeat(void);
 static void Master_Shutdown(void);
 
@@ -111,14 +106,6 @@ void
 SV_Shutdown(void)
 {
     Master_Shutdown();
-    if (sv_logfile) {
-	rfclose(sv_logfile);
-	sv_logfile = NULL;
-    }
-    if (sv_fraglogfile) {
-	rfclose(sv_fraglogfile);
-	sv_logfile = NULL;
-    }
     NET_Shutdown();
 }
 
@@ -283,12 +270,8 @@ Writes all update values to a sizebuf
 void
 SV_FullClientUpdate(client_t *client, sizebuf_t *buf)
 {
-    int i;
     char info[MAX_INFO_STRING];
-
-    i = client - svs.clients;
-
-//Sys_Printf("SV_FullClientUpdate:  Updated frags for client %d\n", i);
+    int i = client - svs.clients;
 
     MSG_WriteByte(buf, svc_updatefrags);
     MSG_WriteByte(buf, i);
@@ -396,9 +379,7 @@ SV_CheckLog
 static void
 SV_CheckLog(void)
 {
-    sizebuf_t *sz;
-
-    sz = &svs.log[svs.logsequence & 1];
+    sizebuf_t *sz = &svs.log[svs.logsequence & 1];
 
     // bump sequence if almost full, or ten minutes have passed and
     // there is something still sitting there
@@ -427,28 +408,10 @@ instead of the data.
 static void
 SVC_Log(void)
 {
-    int seq;
     char data[MAX_DATAGRAM + 64];
-
-    if (Cmd_Argc() == 2)
-	seq = atoi(Cmd_Argv(1));
-    else
-	seq = -1;
-
     /* they already have this data, or we aren't logging frags */
-    if (seq == svs.logsequence - 1 || !sv_fraglogfile) {
-	data[0] = A2A_NACK;
-	NET_SendPacket(1, data, net_from);
-	return;
-    }
-
-    Con_DPrintf("sending log %i to %s\n", svs.logsequence - 1,
-		NET_AdrToString(net_from));
-
-    sprintf(data, "stdlog %i\n", svs.logsequence - 1);
-    strcat(data, (char *)svs.log_buf[((svs.logsequence - 1) & 1)]);
-
-    NET_SendPacket(strlen(data) + 1, data, net_from);
+    data[0] = A2A_NACK;
+    NET_SendPacket(1, data, net_from);
 }
 
 /*
@@ -715,8 +678,6 @@ SVC_DirectConnect(void)
 
     if (newcl->spectator)
 	Con_Printf("Spectator %s connected\n", newcl->name);
-    else
-	Con_DPrintf("Client %s connected\n", newcl->name);
     newcl->sendinfo = true;
 }
 
@@ -1119,10 +1080,8 @@ SV_ReadPackets(void)
 		continue;
 	    if (cl->netchan.qport != qport)
 		continue;
-	    if (cl->netchan.remote_address.port != net_from.port) {
-		Con_DPrintf("SV_ReadPackets: fixing up a translated port\n");
+	    if (cl->netchan.remote_address.port != net_from.port)
 		cl->netchan.remote_address.port = net_from.port;
-	    }
 	    if (Netchan_Process(&cl->netchan)) {
 		/* this is a valid, sequenced packet, so process it */
 		svs.stats.packets++;
@@ -1188,26 +1147,6 @@ SV_CheckTimeouts(void)
 
 /*
 ===================
-SV_GetConsoleCommands
-
-Add them exactly as if they had been typed at the console
-===================
-*/
-static void
-SV_GetConsoleCommands(void)
-{
-    char *cmd;
-
-    while (1) {
-	cmd = Sys_ConsoleInput();
-	if (!cmd)
-	    break;
-	Cbuf_AddText("%s", cmd);
-    }
-}
-
-/*
-===================
 SV_CheckVars
 
 ===================
@@ -1262,20 +1201,17 @@ SV_Frame(float time)
 // check timeouts
     SV_CheckTimeouts();
 
-// toggle the log buffer if full
+    // toggle the log buffer if full
     SV_CheckLog();
 
-// move autonomous things around if enough time has passed
+    // move autonomous things around if enough time has passed
     if (!sv.paused)
 	SV_Physics();
 
-// get packets
+    // get packets
     SV_ReadPackets();
 
-// check for commands typed to the host
-    SV_GetConsoleCommands();
-
-// process console commands
+    // process console commands
     Cbuf_Execute();
 
     SV_CheckVars();
@@ -1360,10 +1296,6 @@ SV_InitLocal(void)
     Cvar_RegisterVariable(&sv_phs);
 
     Cvar_RegisterVariable(&pausable);
-
-    Cvar_RegisterVariable(&developer);
-    if (COM_CheckParm("-developer"))
-	Cvar_SetValue("developer", 1);
 
     Cmd_AddCommand("addip", SV_AddIP_f);
     Cmd_AddCommand("removeip", SV_RemoveIP_f);

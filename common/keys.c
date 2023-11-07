@@ -35,11 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <winuser.h>
 #endif
 
-#include <streams/file_stream.h>
-
-/* forward declarations */
-int rfprintf(RFILE * stream, const char * format, ...);
-
 /*
 
 key up events are sent even if in console mode
@@ -194,38 +189,12 @@ keyname_t keynames[] = {
 ==============================================================================
 */
 
-/*
- * Given a command buffer, return a pointer to the start of the current
- * command string. Only simple for now (i.e. search backwards for a command
- * delimiter), but proper parsing of quotation, etc needed later...
- */
-static char *
-GetCommandPos(char *buf)
-{
-    char *pos;
-
-    pos = strrchr(buf, ';');
-    if (pos) {
-	pos++;
-	while (*pos == ' ')
-	    pos++;
-    } else
-	pos = buf;
-
-    if (*pos == '\\' || *pos == '/')
-	pos++;
-
-    return pos;
-}
-
 static qboolean
 CheckForCommand(void)
 {
     char cmd[128];
-    char *s;
     int i;
-
-    s = key_lines[edit_line] + 1;	// skip the ]
+    char *s = key_lines[edit_line] + 1;	// skip the ]
 
     for (i = 0; i < sizeof(cmd) - 1; i++)
 	if (s[i] <= ' ')
@@ -235,111 +204,6 @@ CheckForCommand(void)
     cmd[i] = 0;
 
     return Cmd_Exists(cmd) || Cvar_FindVar(cmd) || Cmd_Alias_Exists(cmd);
-}
-
-
-void
-CompleteCommand(void)
-{
-    const char *cmd, *completion;
-    char *s, *newcmd;
-    int len;
-
-    s = GetCommandPos(key_lines[edit_line] + 1);
-    cmd = Cmd_CommandComplete(s);
-    if (cmd) {
-	key_linepos = s - key_lines[edit_line];
-	if (s == key_lines[edit_line] + 1) {
-	    *s++ = '/';
-	    key_linepos++;
-	}
-	strcpy(s, cmd);
-	key_linepos += strlen(cmd);
-	key_lines[edit_line][key_linepos] = 0;
-	Z_Free(cmd);
-    } else {
-	/* Try argument completion? */
-	cmd = strchr(s, ' ');
-	if (cmd) {
-	    len = cmd - s;
-	    newcmd = (char*)Z_Malloc(len + 1);
-	    strncpy(newcmd, s, len);
-	    newcmd[len] = 0;
-
-	    completion = NULL;
-	    if (Cmd_Exists(newcmd)) {
-		s += len;
-		while (*s == ' ')
-		    s++;
-		completion = Cmd_ArgComplete(newcmd, s);
-	    } else if (Cvar_FindVar(newcmd)) {
-		s += len;
-		while (*s == ' ')
-		    s++;
-		completion = Cvar_ArgComplete(newcmd, s);
-	    }
-	    if (completion) {
-		key_linepos = s - key_lines[edit_line];
-		strcpy(s, completion);
-		key_linepos += strlen(completion);
-		Z_Free(completion);
-	    }
-	    Z_Free(newcmd);
-	}
-    }
-}
-
-static void
-ShowCompletions(void)
-{
-    const char *s;
-    struct stree_root *root;
-    unsigned int len;
-
-    s = GetCommandPos(key_lines[edit_line] + 1);
-
-    root = Cmd_CommandCompletions(s);
-    if (root && root->entries) {
-	Con_Printf("%s\n", key_lines[edit_line]);
-	//Con_Printf("%u possible completions:\n", root->entries);
-	Con_ShowTree(root);
-	Z_Free(root);
-    } else {
-	char *cmd = (char*)strchr(s, ' ');
-	if (cmd) {
-	    len = cmd - s;
-	    cmd = (char*)Z_Malloc(len + 1);
-	    strncpy(cmd, s, len);
-	    cmd[len] = 0;
-
-	    if (Cmd_Exists(cmd)) {
-		struct stree_root *root;
-
-		s += len;
-		while (*s == ' ')
-		    s++;
-		root = Cmd_ArgCompletions(cmd, s);
-		if (root && root->entries) {
-		    Con_Printf("%s\n", key_lines[edit_line]);
-		    Con_ShowTree(root);
-		    Z_Free(root);
-		}
-	    } else if (Cvar_FindVar(cmd)) {
-		struct stree_root *root;
-
-		s += len;
-		while (*s == ' ')
-		    s++;
-		root = Cvar_ArgCompletions(cmd, s);
-		if (root && root->entries) {
-		    Con_Printf("%s\n", key_lines[edit_line]);
-		    Con_ShowTree(root);
-		    Z_Free(root);
-		}
-	    }
-	    Z_Free(cmd);
-	}
-    }
 }
 
 static void
@@ -370,15 +234,8 @@ Key_Console
 Interactive line editing and console scrollback
 ====================
 */
-void
-Key_Console(int key)
+static void Key_Console(int key)
 {
-    /* detect double presses of tab key */
-    static qboolean tab_once = false;
-
-    if (key != K_TAB)
-	tab_once = false;
-
     if (key == K_ENTER) {
 	EnterCommand(key_lines[edit_line] + 1);
 
@@ -390,18 +247,6 @@ Key_Console(int key)
 	if (cls.state == ca_disconnected)
 	    /* force an update, because the command may take some time */
 	    SCR_UpdateScreen();
-	return;
-    }
-
-    if (key == K_TAB) {		// command completion
-	if (tab_once) {
-	    /* double tab */
-	    ShowCompletions();
-	    tab_once = false;
-	    return;
-	}
-	tab_once = true;
-	CompleteCommand();
 	return;
     }
 
@@ -462,35 +307,6 @@ Key_Console(int key)
 	return;
     }
 
-#if 0
-    if ((key == 'V' || key == 'v') && GetKeyState(VK_CONTROL) < 0) {
-	if (OpenClipboard(NULL)) {
-	    th = GetClipboardData(CF_TEXT);
-	    if (th) {
-		clipText = GlobalLock(th);
-		if (clipText) {
-		    textCopied = malloc(GlobalSize(th) + 1);
-		    strcpy(textCopied, clipText);
-		    /* Substitutes a NULL for every token */
-		    strtok(textCopied, "\n\r\b");
-		    i = strlen(textCopied);
-		    if (i + key_linepos >= MAXCMDLINE)
-			i = MAXCMDLINE - key_linepos;
-		    if (i > 0) {
-			textCopied[i] = 0;
-			strcat(key_lines[edit_line], textCopied);
-			key_linepos += i;;
-		    }
-		    free(textCopied);
-		}
-		GlobalUnlock(th);
-	    }
-	    CloseClipboard();
-	    return;
-	}
-    }
-#endif
-
     if (key < 32 || key > 127)
 	return;			// non printable
 
@@ -502,13 +318,11 @@ Key_Console(int key)
 }
 
 //============================================================================
-
-qboolean chat_team;
-char chat_buffer[MAXCMDLINE];
 int chat_bufferlen = 0;
+char chat_buffer[MAXCMDLINE];
+qboolean chat_team;
 
-void
-Key_Message(int key)
+static void Key_Message(int key)
 {
     if (key == K_ENTER) {
 	if (chat_team)
@@ -639,8 +453,7 @@ Key_SetBinding(knum_t keynum, const char *binding)
 Key_Unbind_f
 ===================
 */
-void
-Key_Unbind_f(void)
+static void Key_Unbind_f(void)
 {
     int b;
 
@@ -658,8 +471,7 @@ Key_Unbind_f(void)
     Key_SetBinding((knum_t)b, NULL);
 }
 
-void
-Key_Unbindall_f(void)
+static void Key_Unbindall_f(void)
 {
     int i;
 
@@ -674,14 +486,12 @@ Key_Unbindall_f(void)
 Key_Bind_f
 ===================
 */
-void
-Key_Bind_f(void)
+static void Key_Bind_f(void)
 {
-    int i, argc, keynum, len;
+    int i, keynum, len;
     char cmd[1024];
-
     // FIXME - allow arguments bound with the commands?
-    argc = Cmd_Argc();
+    int argc = Cmd_Argc();
     if (argc != 2 && argc != 3) {
 	Con_Printf("bind <key> [command] : attach a command to a key\n");
 	return;
@@ -717,25 +527,6 @@ Key_Bind_f(void)
 
     Key_SetBinding((knum_t)keynum, cmd);
 }
-
-/*
-============
-Key_WriteBindings
-
-Writes lines containing "bind key value"
-============
-*/
-void
-Key_WriteBindings(RFILE *f)
-{
-    int i;
-
-    for (i = 0; i < K_LAST; i++)
-	if (keybindings[i])
-	    rfprintf(f, "bind \"%s\" \"%s\"\n",
-		    Key_KeynumToString(i), keybindings[i]);
-}
-
 
 /*
 ===================
@@ -833,10 +624,9 @@ Key_Event(knum_t key, qboolean down)
 
     key_lastpress = key;
     key_count++;
-    if (key_count <= 0) {
+    if (key_count <= 0)
 	return;			// just catching keys for Con_NotifyBox
-    }
-// update auto-repeat status
+    // update auto-repeat status
     if (down) {
 	key_repeats[key]++;
 	if (key != K_BACKSPACE
