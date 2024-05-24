@@ -115,7 +115,9 @@ struct retro_core_option_definition option_defs_us[] = {
          { "240",              "240fps"},
          { "244",              "244fps"},
          { "300",              "300fps"},
+         { "320",              "320fps"},
          { "360",              "360fps"},
+         { "540",              "540fps"},
          { NULL, NULL },
       },
 #if defined(_3DS)
