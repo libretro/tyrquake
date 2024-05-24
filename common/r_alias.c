@@ -98,11 +98,10 @@ static void *
 SW_LoadSkinData(const char *modelname, aliashdr_t *ahdr, int skinnum,
 		byte **skindata)
 {
-    int i, j, skinsize;
-    byte *ret, *out;
-
-    skinsize = ahdr->skinwidth * ahdr->skinheight;
-    ret = out = (byte*)Hunk_Alloc(skinnum * skinsize);
+    int i;
+    int skinsize = ahdr->skinwidth * ahdr->skinheight;
+    byte *ret    = (byte*)Hunk_Alloc(skinnum * skinsize);
+    byte *out    = ret;
 
     for (i = 0; i < skinnum; i++)
     {

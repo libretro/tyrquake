@@ -125,12 +125,64 @@ Draw_Init
 ===============
 */
 
-void Draw_Generate18BPPTable (void);
+extern void VID_SetPalette2(unsigned char *palette);
 
-extern void	VID_SetPalette2 (unsigned char *palette);
+// Colored Lighting lookup tables
+byte palmap2[64][64][64];	
 
-void
-Draw_Init(void)
+/*
+===============
+BestColor
+===============
+*/
+static byte BestColor(int r, int g, int b, int start, int stop)
+{
+	int	i;
+	// let any color go to 0 as a last resort
+	int bestdistortion = 256*256*4;
+	int bestcolor      = 0;
+	byte *pal          = host_basepal + start*3;
+	for (i=start ; i<= stop ; i++)
+	{
+		int dr          = r - (int)pal[0];
+		int dg          = g - (int)pal[1];
+		int db          = b - (int)pal[2];
+		int distortion  = dr * dr + dg * dg + db * db;
+
+		pal            += 3;
+
+		if (distortion < bestdistortion)
+		{
+			if (!distortion)
+				return i; // perfect match
+
+			bestdistortion = distortion;
+			bestcolor      = i;
+		}
+	}
+
+	return bestcolor;
+}
+
+static void Draw_Generate18BPPTable (void)
+{
+	int		r, g, b;
+
+	// Make the 18-bit lookup table here
+	for (r=0 ; r<256 ; r+=4)
+	{
+		for (g=0 ; g<256 ; g+=4)
+		{
+			for (b=0 ; b<256 ; b+=4)
+			{
+				int beastcolor = BestColor (r, g, b, 0, 254);
+				palmap2[r>>2][g>>2][b>>2] = beastcolor;
+			}
+		}
+	}
+}
+
+void Draw_Init(void)
 {
     draw_chars = (byte*)W_GetLumpName("conchars");
     draw_disc = (const qpic_t*)W_GetLumpName("disc");
@@ -148,8 +200,6 @@ Draw_Init(void)
     }
 }
 
-
-
 /*
 ================
 Draw_Character
@@ -159,12 +209,10 @@ It can be clipped to the top of the screen to allow the console to be
 smoothly scrolled off.
 ================
 */
-void
-Draw_Character(int x, int y, int num)
+void Draw_Character(int x, int y, int num)
 {
     byte *dest;
     byte *source;
-    unsigned short *pusdest;
     int drawline;
     int row, col;
 
@@ -221,8 +269,7 @@ Draw_Character(int x, int y, int num)
 Draw_String
 ================
 */
-void
-Draw_String(int x, int y, char *str)
+void Draw_String(int x, int y, char *str)
 {
    while (*str)
    {
@@ -237,8 +284,7 @@ Draw_String(int x, int y, char *str)
 Draw_Alt_String
 ================
 */
-void
-Draw_Alt_String(int x, int y, char *str)
+void Draw_Alt_String(int x, int y, char *str)
 {
    while (*str)
    {
@@ -288,9 +334,9 @@ Draw_Pic
 */
 void Draw_Pic(int x, int y, const qpic_t *pic)
 {
+   int v;
    uint8_t *dest;
    const byte *source;
-   int v, u;
 
    if (x < 0 || x + pic->width > vid.width ||
          y < 0 || y + pic->height > vid.height)
@@ -318,7 +364,7 @@ void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 	    int height)
 {
    const byte *source;
-   int v, u;
+   int v;
 
    if (x < 0 || x + width > vid.width ||
          y < 0 || y + height > vid.height)
@@ -348,13 +394,11 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
 {
    byte *dest, tbyte;
    const byte *source;
-   unsigned short *pusdest;
    int v, u;
 
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
-         y < 0 || (unsigned)(y + pic->height) > vid.height) {
+         y < 0 || (unsigned)(y + pic->height) > vid.height)
       Sys_Error("%s: bad coordinates", __func__);
-   }
 
    source = pic->data;
 
@@ -407,13 +451,11 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 {
    byte *dest, tbyte;
    const byte *source;
-   unsigned short *pusdest;
    int v, u;
 
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
-         y < 0 || (unsigned)(y + pic->height) > vid.height) {
+         y < 0 || (unsigned)(y + pic->height) > vid.height)
       Sys_Error("%s: bad coordinates", __func__);
-   }
 
    source = pic->data;
 
@@ -463,23 +505,21 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 static void
 Draw_ScaledCharToConback(const qpic_t *conback, int num, byte *dest)
 {
-    int row, col;
-    byte *source, *src;
-    int drawlines, drawwidth;
-    int x, y, fstep, f;
+    int y;
+    int drawlines = conback->height * CHAR_HEIGHT / 200;
+    int drawwidth = conback->width * CHAR_WIDTH / 320;
+    int row       = num >> 4;
+    int col       = num & 15;
+    byte *source  = draw_chars + (row << 10) + (col << 3);
+    int fstep     = 320 * 0x10000 / conback->width;
 
-    drawlines = conback->height * CHAR_HEIGHT / 200;
-    drawwidth = conback->width * CHAR_WIDTH / 320;
-
-    row = num >> 4;
-    col = num & 15;
-    source = draw_chars + (row << 10) + (col << 3);
-    fstep = 320 * 0x10000 / conback->width;
-
-    for (y = 0; y < drawlines; y++, dest += conback->width) {
-	src = source + (y * CHAR_HEIGHT / drawlines) * 128;
-	f = 0;
-	for (x = 0; x < drawwidth; x++, f += fstep) {
+    for (y = 0; y < drawlines; y++, dest += conback->width)
+    {
+	int x;
+	int f = 0;
+	byte *src = source + (y * CHAR_HEIGHT / drawlines) * 128;
+	for (x = 0; x < drawwidth; x++, f += fstep)
+	{
 	    if (src[f >> 16])
 		dest[x] = 0x60 + src[f >> 16];
 	}
@@ -495,17 +535,13 @@ Draw_ScaledCharToConback(const qpic_t *conback, int num, byte *dest)
  * sizes, the positioning is scaled so as to make it appear the same size and
  * at the same location.
  */
-static void
-Draw_ConbackString(qpic_t *cb, const char *str)
+static void Draw_ConbackString(qpic_t *cb, const char *str)
 {
-    int len, row, col, x;
-    byte *dest;
-
-    len = strlen(str);
-    row = cb->height - ((CHAR_HEIGHT + 6) * cb->height / 200);
-    col = cb->width - ((11 + CHAR_WIDTH * len) * cb->width / 320);
-
-    dest = cb->data + cb->width * row + col;
+    int x;
+    size_t len = strlen(str);
+    int row    = cb->height - ((CHAR_HEIGHT + 6) * cb->height / 200);
+    int col    = cb->width - ((11 + CHAR_WIDTH * len) * cb->width / 320);
+    byte *dest = cb->data + cb->width * row + col;
     for (x = 0; x < len; x++)
 	Draw_ScaledCharToConback(cb, str[x], dest + (x * CHAR_WIDTH *
 						     cb->width / 320));
@@ -524,11 +560,8 @@ Draw_ConsoleBackground(int lines)
     int x, y, v;
     const byte *src;
     byte *dest;
-    unsigned short *pusdest;
     int f, fstep;
-    qpic_t *conback;
-
-    conback = Draw_CachePic("gfx/conback.lmp");
+    qpic_t *conback = Draw_CachePic("gfx/conback.lmp");
 
     /* hack the version number directly into the pic */
     Draw_ConbackString(conback, stringify(TYR_VERSION));
@@ -566,25 +599,23 @@ Draw_ConsoleBackground(int lines)
 R_DrawRect8
 ==============
 */
-static void
-R_DrawRect8(vrect_t *prect, int rowbytes, const byte *psrc, int transparent)
+static void R_DrawRect8(vrect_t *prect, int rowbytes, const byte *psrc, int transparent)
 {
     byte t;
-    int i, j, srcdelta, destdelta;
-    byte *pdest;
+    int i, j;
+    byte *pdest = vid.buffer + (prect->y * vid.rowbytes) + prect->x;
+    int srcdelta = rowbytes - prect->width;
+    int destdelta = vid.rowbytes - prect->width;
 
-    pdest = vid.buffer + (prect->y * vid.rowbytes) + prect->x;
-
-    srcdelta = rowbytes - prect->width;
-    destdelta = vid.rowbytes - prect->width;
-
-    if (transparent) {
-	for (i = 0; i < prect->height; i++) {
-	    for (j = 0; j < prect->width; j++) {
+    if (transparent)
+    {
+	for (i = 0; i < prect->height; i++)
+	{
+	    for (j = 0; j < prect->width; j++)
+	    {
 		t = *psrc;
-		if (t != TRANSPARENT_COLOR) {
+		if (t != TRANSPARENT_COLOR)
 		    *pdest = t;
-		}
 
 		psrc++;
 		pdest++;
@@ -593,65 +624,17 @@ R_DrawRect8(vrect_t *prect, int rowbytes, const byte *psrc, int transparent)
 	    psrc += srcdelta;
 	    pdest += destdelta;
 	}
-    } else {
-	for (i = 0; i < prect->height; i++) {
+    }
+    else
+    {
+	for (i = 0; i < prect->height; i++)
+	{
 	    memcpy(pdest, psrc, prect->width);
 	    psrc += rowbytes;
 	    pdest += vid.rowbytes;
 	}
     }
 }
-
-
-/*
-==============
-R_DrawRect16
-==============
-*/
-static void
-R_DrawRect16(vrect_t *prect, int rowbytes, const byte *psrc, int transparent)
-{
-    byte t;
-    int i, j, srcdelta, destdelta;
-    unsigned short *pdest;
-
-// FIXME: would it be better to pre-expand native-format versions?
-
-    pdest = (unsigned short *)vid.buffer;
-    pdest += prect->y * (vid.rowbytes / 2) + prect->x;
-
-    srcdelta = rowbytes - prect->width;
-    destdelta = (vid.rowbytes / 2) - prect->width;
-
-    if (transparent) {
-	for (i = 0; i < prect->height; i++) {
-	    for (j = 0; j < prect->width; j++) {
-		t = *psrc;
-		if (t != TRANSPARENT_COLOR) {
-		    *pdest = d_8to16table[t];
-		}
-
-		psrc++;
-		pdest++;
-	    }
-
-	    psrc += srcdelta;
-	    pdest += destdelta;
-	}
-    } else {
-	for (i = 0; i < prect->height; i++) {
-	    for (j = 0; j < prect->width; j++) {
-		*pdest = d_8to16table[*psrc];
-		psrc++;
-		pdest++;
-	    }
-
-	    psrc += srcdelta;
-	    pdest += destdelta;
-	}
-    }
-}
-
 
 /*
 =============
@@ -669,9 +652,8 @@ Draw_TileClear(int x, int y, int w, int h)
     vrect_t vr;
 
     if (x < 0 || (unsigned)(x + w) > vid.width ||
-	y < 0 || (unsigned)(y + h) > vid.height) {
+	y < 0 || (unsigned)(y + h) > vid.height)
 	Sys_Error("%s: bad coordinates", __func__);
-    }
 
     r_rectdesc.rect.x = x;
     r_rectdesc.rect.y = y;
@@ -730,15 +712,13 @@ Draw_Fill
 Fills a box of pixels with a single color
 =============
 */
-void
-Draw_Fill(int x, int y, int w, int h, int c)
+void Draw_Fill(int x, int y, int w, int h, int c)
 {
     byte *dest;
-    unsigned short *pusdest;
-    unsigned uc;
     int u, v;
 
-    if (x < 0 || x + w > vid.width || y < 0 || y + h > vid.height) {
+    if (x < 0 || x + w > vid.width || y < 0 || y + h > vid.height)
+    {
 	Con_Printf("Bad Draw_Fill(%d, %d, %d, %d, %c)\n", x, y, w, h, c);
 	return;
     }
@@ -759,18 +739,14 @@ Draw_FadeScreen
 
 ================
 */
-void
-Draw_FadeScreen(void)
+void Draw_FadeScreen(void)
 {
    int x, y;
-   byte *pbuf;
 
    for (y = 0; y < vid.height; y++)
    {
-      int t;
-
-      pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
-      t = (y & 1) << 1;
+      byte *pbuf = (byte *)(vid.buffer + vid.rowbytes * y);
+      int t      = (y & 1) << 1;
 
       for (x = 0; x < vid.width; x++) {
          if ((x & 3) != t)
@@ -789,12 +765,10 @@ Draws the little blue disc in the corner of the screen.
 Call before beginning any disc IO.
 ================
 */
-void
-Draw_BeginDisc(void)
+void Draw_BeginDisc(void)
 {
     D_BeginDirectRect(vid.width - 24, 0, draw_disc->data, 24, 24);
 }
-
 
 /*
 ================
@@ -804,75 +778,7 @@ Erases the disc icon.
 Call after completing any disc IO
 ================
 */
-void
-Draw_EndDisc(void)
+void Draw_EndDisc(void)
 {
     D_EndDirectRect(vid.width - 24, 0, 24, 24);
 }
-
-
-
-// Colored Lighting lookup tables
-
-byte	palmap2[64][64][64];	
-
-
-
-
-/*
-===============
-BestColor
-===============
-*/
-byte BestColor (int r, int g, int b, int start, int stop)
-{
-	int	i;
-//
-// let any color go to 0 as a last resort
-//
-	int bestdistortion = 256*256*4;
-	int bestcolor      = 0;
-	byte *pal          = host_basepal + start*3;
-	for (i=start ; i<= stop ; i++)
-	{
-		int dr          = r - (int)pal[0];
-		int dg          = g - (int)pal[1];
-		int db          = b - (int)pal[2];
-		int distortion  = dr * dr + dg * dg + db * db;
-
-		pal            += 3;
-
-		if (distortion < bestdistortion)
-		{
-			if (!distortion)
-				return i;		// perfect match
-
-			bestdistortion = distortion;
-			bestcolor      = i;
-		}
-	}
-
-	return bestcolor;
-}
-
-	
-
-void Draw_Generate18BPPTable (void)
-{
-
-	int		r, g, b;
-
-	// Make the 18-bit lookup table here
-	for (r=0 ; r<256 ; r+=4)
-	{
-		for (g=0 ; g<256 ; g+=4)
-		{
-			for (b=0 ; b<256 ; b+=4)
-			{
-				int beastcolor = BestColor (r, g, b, 0, 254);
-				palmap2[r>>2][g>>2][b>>2] = beastcolor;
-			}
-		}
-	}
-}
-

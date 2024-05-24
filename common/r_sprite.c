@@ -40,7 +40,6 @@ R_SpriteDataSize(int pixels)
 
 void R_SpriteDataStore(mspriteframe_t *frame, int framenum, byte *pixels)
 {
-   int i;
    int size = frame->width * frame->height;
    memcpy(&frame->rdata[0], pixels, size);
 }
