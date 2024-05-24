@@ -38,8 +38,6 @@ qboolean r_recursiveaffinetriangles = true;
 
 int r_pixbytes = 1;
 float r_aliasuvscale = 1.0;
-int r_outofsurfaces;
-int r_outofedges;
 
 static vec3_t viewlightvec;
 static alight_t r_viewlighting = { 128, 192, viewlightvec };
@@ -92,7 +90,6 @@ mplane_t screenedge[4];
 //
 int r_framecount = 1;		// so frame counts initialized to 0 don't match
 int r_visframecount;
-int r_polycount;
 int r_drawnpolycount;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
@@ -1072,12 +1069,6 @@ R_RenderView_(void)
 
     if (r_aliasstats.value)
 	R_PrintAliasStats();
-
-    if (r_reportsurfout.value && r_outofsurfaces)
-	Con_Printf("Short %d surfaces\n", r_outofsurfaces);
-
-    if (r_reportedgeout.value && r_outofedges)
-	Con_Printf("Short roughly %d edges\n", r_outofedges * 2 / 3);
 
     // back to high floating-point precision
     Sys_HighFPPrecision();
