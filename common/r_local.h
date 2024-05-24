@@ -190,7 +190,6 @@ qboolean R_AliasCheckBBox(entity_t *e);
 void R_DrawParticles(void);
 void R_InitParticles(void);
 void R_ClearParticles(void);
-void R_ReadPointFile_f(void);
 
 void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
 
