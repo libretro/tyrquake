@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/types.h>
 #include <errno.h>
 
+#include <file/file_path.h>
+
 #ifdef NQ_HACK
 #include "quakedef.h"
 #include "host.h"
