@@ -162,9 +162,6 @@ void CL_Disconnect(void)
       CL_StopPlayback();
    else if (cls.state >= ca_connected)
    {
-      if (cls.demorecording)
-         CL_Stop_f();
-
       Con_DPrintf("Sending clc_disconnect\n");
       SZ_Clear(&cls.message);
       MSG_WriteByte(&cls.message, clc_disconnect);
@@ -775,8 +772,6 @@ void CL_Init(void)
 
    Cmd_AddCommand("entities", CL_PrintEntities_f);
    Cmd_AddCommand("disconnect", CL_Disconnect_f);
-   Cmd_AddCommand("record", CL_Record_f);
-   Cmd_AddCommand("stop", CL_Stop_f);
    Cmd_AddCommand("playdemo", CL_PlayDemo_f);
    Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
    Cmd_AddCommand("timedemo", CL_TimeDemo_f);

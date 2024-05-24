@@ -188,9 +188,6 @@ typedef struct {
     int demonum;		// -1 = don't play demos
     char demos[MAX_DEMOS][MAX_DEMONAME];	// when not playing
 
-// demo recording info must be here, because record is started before
-// entering a map (and clearing client_state_t)
-    qboolean demorecording;
     qboolean demoplayback;
     qboolean timedemo;
     RFILE *demofile;
@@ -419,10 +416,6 @@ void CL_BaseMove(usercmd_t *cmd);
 void CL_StopPlayback(void);
 qboolean CL_GetMessage(void);
 void CL_WriteDemoCmd(usercmd_t *pcmd);
-
-void CL_Stop_f(void);
-void CL_Record_f(void);
-void CL_ReRecord_f(void);
 
 void CL_PlayDemo_f(void);
 void CL_TimeDemo_f(void);

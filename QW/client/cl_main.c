@@ -423,9 +423,6 @@ CL_Disconnect(void)
     if (cls.demoplayback)
 	CL_StopPlayback();
     else if (cls.state != ca_disconnected) {
-	if (cls.demorecording)
-	    CL_Stop_f();
-
 	final[0] = clc_stringcmd;
 	strcpy((char *)final + 1, "drop");
 	Netchan_Transmit(&cls.netchan, 6, final);
@@ -434,7 +431,7 @@ CL_Disconnect(void)
 
 	cls.state = ca_disconnected;
 
-	cls.demoplayback = cls.demorecording = cls.timedemo = false;
+	cls.demoplayback = cls.timedemo = false;
     }
     Cam_Reset();
 
@@ -1113,9 +1110,6 @@ CL_Init(void)
 
     Cmd_AddCommand("changing", CL_Changing_f);
     Cmd_AddCommand("disconnect", CL_Disconnect_f);
-    Cmd_AddCommand("record", CL_Record_f);
-    Cmd_AddCommand("rerecord", CL_ReRecord_f);
-    Cmd_AddCommand("stop", CL_Stop_f);
     Cmd_AddCommand("playdemo", CL_PlayDemo_f);
     Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
     Cmd_AddCommand("timedemo", CL_TimeDemo_f);

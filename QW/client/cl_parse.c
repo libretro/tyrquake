@@ -187,12 +187,6 @@ CL_CheckOrDownloadFile(char *filename)
 	rfclose(f);
 	return true;
     }
-    /* can't download when recording */
-    if (cls.demorecording) {
-	Con_Printf("Unable to download %s in record mode.\n",
-		   cls.downloadname);
-	return true;
-    }
     /* can't download when playback */
     if (cls.demoplayback)
 	return true;

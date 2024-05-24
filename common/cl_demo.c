@@ -31,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <streams/file_stream.h>
 
 /* forward declarations */
-RFILE* rfopen(const char *path, const char *mode);
 int rfclose(RFILE* stream);
 int64_t rfread(void* buffer,
    size_t elem_size, size_t elem_count, RFILE* stream);
@@ -76,34 +75,6 @@ CL_StopPlayback(void)
 
     if (cls.timedemo)
 	CL_FinishTimeDemo();
-}
-
-/*
-====================
-CL_WriteDemoMessage
-
-Dumps the current net message, prefixed by the length and view angles
-====================
-*/
-static void
-CL_WriteDemoMessage(void)
-{
-   int i;
-#ifdef MSB_FIRST
-   float f;
-   int len = LittleLong(net_message.cursize);
-   rfwrite(&len, 4, 1, cls.demofile);
-   for (i = 0; i < 3; i++) {
-      f = LittleFloat(cl.viewangles[i]);
-      rfwrite(&f, 4, 1, cls.demofile);
-   }
-#else
-   rfwrite (&net_message.cursize, 4, 1, cls.demofile);
-   for (i = 0 ; i < 3 ; i++)
-      rfwrite (&cl.viewangles[i], 4, 1, cls.demofile);
-#endif
-   rfwrite(net_message.data, net_message.cursize, 1, cls.demofile);
-   rfflush(cls.demofile);
 }
 
 /*
@@ -188,109 +159,8 @@ CL_GetMessage(void)
          break;
    }
 
-   if (cls.demorecording)
-      CL_WriteDemoMessage();
-
    return r;
 }
-
-
-/*
-====================
-CL_Stop_f
-
-stop recording a demo
-====================
-*/
-void
-CL_Stop_f(void)
-{
-    if (cmd_source != src_command)
-	return;
-
-    if (!cls.demorecording) {
-	Con_Printf("Not recording a demo.\n");
-	return;
-    }
-// write a disconnect message to the demo file
-    SZ_Clear(&net_message);
-    MSG_WriteByte(&net_message, svc_disconnect);
-    CL_WriteDemoMessage();
-
-// finish up
-    rfclose(cls.demofile);
-    cls.demofile      = NULL;
-    cls.demorecording = false;
-    Con_Printf("Completed demo\n");
-}
-
-/*
-====================
-CL_Record_f
-
-record <demoname> <map> [cd track]
-====================
-*/
-void
-CL_Record_f(void)
-{
-    int c;
-    char name[MAX_OSPATH];
-    int track;
-
-    if (cmd_source != src_command)
-	return;
-
-    c = Cmd_Argc();
-    if (c != 2 && c != 3 && c != 4) {
-	Con_Printf("record <demoname> [<map> [cd track]]\n");
-	return;
-    }
-
-    if (strstr(Cmd_Argv(1), "..")) {
-	Con_Printf("Relative pathnames are not allowed.\n");
-	return;
-    }
-
-    if (c == 2 && cls.state >= ca_connected) {
-	Con_Printf("Can not record - already connected to server\n"
-		   "Client demo recording must be started before"
-		   " connecting\n");
-	return;
-    }
-// write the forced cd track number, or -1
-    if (c == 4) {
-	track = atoi(Cmd_Argv(3));
-	Con_Printf("Forcing CD track to %i\n", cls.forcetrack);
-    } else
-	track = -1;
-
-    sprintf(name, "%s/%s", com_gamedir, Cmd_Argv(1));
-
-//
-// start the map up
-//
-    if (c > 2)
-	Cmd_ExecuteString(va("map %s", Cmd_Argv(2)), src_command);
-
-//
-// open the demo file
-//
-    COM_DefaultExtension(name, ".dem");
-
-    Con_Printf("recording to %s.\n", name);
-    cls.demofile = rfopen(name, "wb");
-    if (!cls.demofile) {
-	Con_Printf("ERROR: couldn't open.\n");
-	return;
-    }
-
-    cls.forcetrack = track;
-    rfprintf(cls.demofile, "%i\n", cls.forcetrack);
-
-    cls.demorecording = true;
-}
-
 
 /*
 ====================
