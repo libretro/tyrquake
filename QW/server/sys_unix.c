@@ -47,25 +47,6 @@ static qboolean stdin_ready;
 
 /*
 ============
-Sys_FileTime
-
-returns -1 if not present
-============
-*/
-int
-Sys_FileTime(const char *path)
-{
-    struct stat buf;
-
-    if (stat(path, &buf) == -1)
-	return -1;
-
-    return buf.st_mtime;
-}
-
-
-/*
-============
 Sys_mkdir
 
 ============
@@ -225,20 +206,12 @@ main(int argc, const char *argv[])
 
     parms.basedir = stringify(QBASEDIR);
 
-/*
-	if (Sys_FileTime ("id1/pak0.pak") != -1)
-	else
-		parms.basedir = "/raid/quake/v2";
-*/
-
     SV_Init(&parms);
 
-// run one frame immediately for first heartbeat
+    // run one frame immediately for first heartbeat
     SV_Frame(0.1);
 
-//
-// main loop
-//
+    // main loop
     oldtime = Sys_DoubleTime() - 0.1;
     while (1) {
 	// select on the net socket and stdin

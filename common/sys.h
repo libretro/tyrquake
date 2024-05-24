@@ -28,17 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // sys.h -- non-portable functions
 
-// FIXME - don't want win only stuff in header
-//         minimized could be useful on other systems anyway...
-#ifdef _WIN32
-//extern qboolean Minimized;
-extern qboolean window_visible(void);
-#endif
-
-//
 // file IO
-//
-int Sys_FileTime(const char *path);
 void Sys_mkdir(const char *path);
 
 //

@@ -1290,7 +1290,6 @@ int COM_FOpenFile(const char *filename, RFILE **file)
    char path[MAX_OSPATH];
    pack_t *pak;
    int i;
-   int findtime;
 
    file_from_pak = 0;
 
@@ -1323,8 +1322,7 @@ int COM_FOpenFile(const char *filename, RFILE **file)
                continue;
          }
          snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-         findtime = Sys_FileTime(path);
-         if (findtime == -1)
+         if (!path_is_valid(path))
             continue;
 
          *file        = rfopen(path, "rb");
@@ -1352,7 +1350,6 @@ qboolean COM_FileExists (const char *filename)
    char path[MAX_OSPATH];
    pack_t *pak;
    int i;
-   int findtime;
 
    file_from_pak = 0;
 
@@ -1380,8 +1377,7 @@ qboolean COM_FileExists (const char *filename)
                continue;
          }
          snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-         findtime = Sys_FileTime(path);
-         if (findtime == -1)
+         if (!path_is_valid(path))
             continue;
 
          return true;

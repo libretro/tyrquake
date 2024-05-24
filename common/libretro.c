@@ -341,23 +341,6 @@ bool Sys_Error(const char *error, ...)
    return false;
 }
 
-/*
-   ============
-   Sys_FileTime
-
-   returns -1 if not present
-   ============
-   */
-int Sys_FileTime(const char *path)
-{
-   struct stat buf;
-
-   if (stat(path, &buf) == -1)
-      return -1;
-
-   return buf.st_mtime;
-}
-
 void Sys_mkdir(const char *path)
 {
    path_mkdir(path);
@@ -423,28 +406,10 @@ double Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-void
-IN_Accumulate(void)
-{}
-
-char * Sys_ConsoleInput(void)
-{
-   return NULL;
-}
-
-qboolean
-window_visible(void)
-{
-    return true;
-}
-
-void Sys_HighFPPrecision(void)
-{
-}
-
-void Sys_LowFPPrecision(void)
-{
-}
+void IN_Accumulate(void) { }
+void Sys_HighFPPrecision(void) { }
+void Sys_LowFPPrecision(void) { }
+char * Sys_ConsoleInput(void) { return NULL; }
 
 viddef_t vid;			// global video state
 
