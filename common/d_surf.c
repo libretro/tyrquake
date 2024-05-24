@@ -123,7 +123,6 @@ surfcache_t *
 D_SCAlloc(int width, int size)
 {
    surfcache_t *new_surf;
-   qboolean wrapped_this_time;
 
    if ((width < 0) || (width > 256))
       Sys_Error("%s: bad cache width %d", __func__, width);
@@ -136,14 +135,8 @@ D_SCAlloc(int width, int size)
    if (size > sc_size)
       Sys_Error("%s: %i > cache size", __func__, size);
 
-   // if there is not size bytes after the rover, reset to the start
-   wrapped_this_time = false;
-
-   if (!sc_rover || (byte *)sc_rover - (byte *)sc_base > sc_size - size) {
-      if (sc_rover)
-         wrapped_this_time = true;
+   if (!sc_rover || (byte *)sc_rover - (byte *)sc_base > sc_size - size)
       sc_rover = sc_base;
-   }
    // colect and free surfcache_t blocks until the rover block is large enough
    new_surf = sc_rover;
    if (sc_rover->owner)
@@ -178,10 +171,6 @@ D_SCAlloc(int width, int size)
       new_surf->height = (size - sizeof(*new_surf) + sizeof(new_surf->data)) / width;
 
    new_surf->owner = NULL;		// should be set properly after return
-
-   if (d_roverwrapped) { }
-   else if (wrapped_this_time)
-      d_roverwrapped = true;
 
    return new_surf;
 }
