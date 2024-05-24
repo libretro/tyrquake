@@ -87,10 +87,6 @@ void Host_ClientCommands(const char *fmt, ...)
     __attribute__((format(printf,1,2)));
 void Host_ShutdownServer(qboolean crash);
 
-extern qboolean msg_suppress_1;	// suppresses resolution and cache size console
-
-				// output and fullscreen DIB focus gain/loss
-
 //
 // Hacks - FIXME - well, "hacks" says it all really...
 //

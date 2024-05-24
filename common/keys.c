@@ -199,12 +199,9 @@ keyname_t keynames[] = {
  * command string. Only simple for now (i.e. search backwards for a command
  * delimiter), but proper parsing of quotation, etc needed later...
  */
-static char *
-GetCommandPos(char *buf)
+static char *GetCommandPos(char *buf)
 {
-    char *pos;
-
-    pos = strrchr(buf, ';');
+    char *pos = strrchr(buf, ';');
     if (pos) {
 	pos++;
 	while (*pos == ' ')
@@ -218,14 +215,11 @@ GetCommandPos(char *buf)
     return pos;
 }
 
-static qboolean
-CheckForCommand(void)
+static qboolean CheckForCommand(void)
 {
-    char cmd[128];
-    char *s;
     int i;
-
-    s = key_lines[edit_line] + 1;	// skip the ]
+    char cmd[128];
+    char *s = key_lines[edit_line] + 1;	// skip the ]
 
     for (i = 0; i < sizeof(cmd) - 1; i++)
 	if (s[i] <= ' ')

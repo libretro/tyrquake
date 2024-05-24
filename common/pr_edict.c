@@ -582,74 +582,6 @@ void ED_PrintNum(int ent)
 }
 
 /*
-=============
-ED_PrintEdicts
-
-For debugging, prints all the entities in the current server
-=============
-*/
-void
-ED_PrintEdicts(void)
-{
-   int i;
-
-   Con_Printf("%i entities\n", sv.num_edicts);
-   for (i = 0; i < sv.num_edicts; i++)
-      ED_PrintNum(i);
-}
-
-/*
-=============
-ED_PrintEdict_f
-
-For debugging, prints a single edicy
-=============
-*/
-static void ED_PrintEdict_f(void)
-{
-   int i = Q_atoi(Cmd_Argv(1));
-   if (i >= 0 && i < sv.num_edicts)
-      ED_PrintNum(i);
-   else
-      Con_Printf("Bad edict number\n");
-}
-
-/*
-=============
-ED_Count
-
-For debugging
-=============
-*/
-static void ED_Count(void)
-{
-   int i;
-   int models, solid, step;
-   int active = models = solid = step = 0;
-
-   for (i = 0; i < sv.num_edicts; i++)
-   {
-      edict_t *ent = EDICT_NUM(i);
-      if (ent->free)
-         continue;
-      active++;
-      if (ent->v.solid)
-         solid++;
-      if (ent->v.model)
-         models++;
-      if (ent->v.movetype == MOVETYPE_STEP)
-         step++;
-   }
-
-   Con_Printf("num_edicts:%3i\n", sv.num_edicts);
-   Con_Printf("active    :%3i\n", active);
-   Con_Printf("view      :%3i\n", models);
-   Con_Printf("touch     :%3i\n", solid);
-   Con_Printf("step      :%3i\n", step);
-
-}
-
-/*
 ==============================================================================
 
 ARCHIVING GLOBALS
@@ -746,14 +678,13 @@ ED_NewString
 static char *
 ED_NewString(const char *string)
 {
-    char *newobj, *new_p;
-    int i, l;
+    int i;
+    size_t l     = strlen(string) + 1;
+    char *newobj = (char*)Hunk_Alloc(l);
+    char *new_p  = newobj;
 
-    l = strlen(string) + 1;
-    newobj = (char*)Hunk_Alloc(l);
-    new_p = newobj;
-
-    for (i = 0; i < l; i++) {
+    for (i = 0; i < l; i++)
+    {
 	if (string[i] == '\\' && i < l - 1) {
 	    i++;
 	    if (string[i] == 'n')
@@ -783,10 +714,8 @@ ED_ParseEpair(void *base, ddef_t *key, const char *s)
     char string[128];
     ddef_t *def;
     char *v, *w;
-    void *d;
     dfunction_t *func;
-
-    d = (void *)((int *)base + key->ofs);
+    void *d = (void *)((int *)base + key->ofs);
 
     switch (key->type & ~DEF_SAVEGLOBAL) {
     case ev_string:
@@ -850,20 +779,19 @@ Used for initial level load and for savegames.
 const char *
 ED_ParseEdict(const char *data, edict_t *ent)
 {
+    int n;
     ddef_t *key;
     qboolean anglehack;
-    qboolean init;
     char keyname[256];
-    int n;
+    qboolean init = false;
 
-    init = false;
-
-// clear it
+    // clear it
     if (ent != sv.edicts)	// hack
 	memset(&ent->v, 0, progs->entityfields * 4);
 
-// go through all the dictionary pairs
-    while (1) {
+    // go through all the dictionary pairs
+    for (;;)
+    {
 	// parse key
 	data = COM_Parse(data);
 	if (com_token[0] == '}')
@@ -873,13 +801,15 @@ ED_ParseEdict(const char *data, edict_t *ent)
 
 // anglehack is to allow QuakeEd to write single scalar angles
 // and allow them to be turned into vectors. (FIXME...)
-	if (!strcmp(com_token, "angle")) {
+	if (!strcmp(com_token, "angle"))
+	{
 	    strcpy(com_token, "angles");
 	    anglehack = true;
-	} else
+	}
+	else
 	    anglehack = false;
 
-// FIXME: change light to _light to get rid of this hack
+	// FIXME: change light to _light to get rid of this hack
 	if (!strcmp(com_token, "light"))
 	    strcpy(com_token, "light_lev");	// hack for single light def
 
@@ -887,7 +817,8 @@ ED_ParseEdict(const char *data, edict_t *ent)
 
 	// another hack to fix keynames with trailing spaces
 	n = strlen(keyname);
-	while (n && keyname[n - 1] == ' ') {
+	while (n && keyname[n - 1] == ' ')
+	{
 	    keyname[n - 1] = 0;
 	    n--;
 	}
@@ -962,9 +893,10 @@ ED_LoadFromFile(const char *data)
     inhibit = 0;
     pr_global_struct->time = sv.time;
 
-// parse ents
-    while (1) {
-// parse the opening brace
+    // parse ents
+   for (;;)
+   {
+        // parse the opening brace
 	data = COM_Parse(data);
 	if (!data)
 	    break;
@@ -977,7 +909,7 @@ ED_LoadFromFile(const char *data)
 	    ent = ED_Alloc();
 	data = ED_ParseEdict(data, ent);
 
-// remove things from different skill levels or deathmatch
+	// remove things from different skill levels or deathmatch
 #ifdef NQ_HACK
 	if (deathmatch.value) {
 #endif
@@ -1175,9 +1107,6 @@ PR_Init
 void
 PR_Init(void)
 {
-    Cmd_AddCommand("edict", ED_PrintEdict_f);
-    Cmd_AddCommand("edicts", ED_PrintEdicts);
-    Cmd_AddCommand("edictcount", ED_Count);
     Cmd_AddCommand("profile", PR_Profile_f);
 #ifdef NQ_HACK
     Cvar_RegisterVariable(&nomonsters);
@@ -1210,9 +1139,7 @@ EDICT_NUM(int n)
 int
 NUM_FOR_EDICT(const edict_t *e)
 {
-    int b;
-
-    b = (byte *)e - (byte *)sv.edicts;
+    int b = (byte *)e - (byte *)sv.edicts;
     b = b / pr_edict_size;
 
     if (b < 0 || b >= sv.num_edicts)

@@ -84,8 +84,6 @@ static cvar_t cmdline = { "cmdline", "0", false, true };
 static qboolean com_modified;		// set true if using non-id files
 static int static_registered = 1;	// only for startup check, then set
 
-qboolean msg_suppress_1 = 0;
-
 static void COM_InitFilesystem(void);
 static void COM_Path_f(void);
 static void *SZ_GetSpace(sizebuf_t *buf, int length);

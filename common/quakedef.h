@@ -73,7 +73,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // per-level limits
 //
-//#define       MAX_EDICTS      600     // FIXME: ouch! ouch! ouch!
 #define	MAX_EDICTS	8192	// FIXME: Arbitrary increase, make dynamic?
 #define	MAX_LIGHTSTYLES	64
 /*

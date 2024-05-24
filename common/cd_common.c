@@ -47,8 +47,6 @@ static byte maxTrack;
 static byte playTrack;
 static float cdvolume;
 
-static void CDAudio_SetVolume_f(struct cvar_s *var);
-
 static void
 CDAudio_Eject(void)
 {
@@ -76,6 +74,7 @@ CDAudio_GetAudioDiskInfo(void)
     return err;
 }
 
+#if 0
 static void
 CDAudio_SetVolume_f(struct cvar_s *var)
 {
@@ -108,6 +107,7 @@ CDAudio_SetVolume_f(struct cvar_s *var)
    if (changed)
       Cvar_SetValue("bgmvolume", var->value);
 }
+#endif
 
 void
 CDAudio_Stop(void)
