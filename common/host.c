@@ -67,7 +67,6 @@ qboolean host_initialized;	// true if into command execution
 double host_frametime;
 double host_time;
 double realtime;		// without any filtering or bounding
-static double oldrealtime;	// last frame run
 int host_framecount;
 
 int host_hunklevel;
@@ -509,22 +508,15 @@ Host_ClearMemory(void)
 /*
 ===================
 Host_FilterTime
-
-Returns false if the time is too short to run a frame
 ===================
 */
-qboolean
-Host_FilterTime(float time)
+static void Host_FilterTime(float time)
 {
+    static double oldrealtime; // last frame run
     realtime += time;
 
-    /* allow high framerate, warn about it in core options
-    if (!cls.timedemo && realtime - oldrealtime < 1.0 / 72.0)
-	return false;		// framerate is too high
-    */
-
     host_frametime = realtime - oldrealtime;
-    oldrealtime = realtime;
+    oldrealtime    = realtime;
 
     if (host_framerate.value > 0)
 	host_frametime = host_framerate.value;
@@ -534,8 +526,6 @@ Host_FilterTime(float time)
 	if (host_frametime < 0.001)
 	    host_frametime = 0.001;
     }
-
-    return true;
 }
 
 
@@ -651,8 +641,7 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void
-_Host_Frame(float time)
+void _Host_Frame(float time)
 {
    /* something bad happened, or the server disconnected */
    if (setjmp(host_abort))
@@ -665,8 +654,7 @@ _Host_Frame(float time)
     * Decide the simulation time. Don't run too fast, or packets will flood
     * out.
     */
-   if (!Host_FilterTime(time))
-      return;
+   Host_FilterTime(time);
 
    /* get new key events */
    Sys_SendKeyEvents();
@@ -720,8 +708,7 @@ _Host_Frame(float time)
    host_framecount++;
 }
 
-void
-Host_Frame(float time)
+void Host_Frame(float time)
 {
    static int timecount;
    int i, c;
