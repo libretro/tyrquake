@@ -69,49 +69,6 @@ Show(void)
 }
 
 /*
-====================
-R_TimeRefresh_f
-
-For program optimization
-====================
-*/
-void
-R_TimeRefresh_f(void)
-{ }
-
-/*
-==============
-R_TimeGraph
-
-Performance monitoring tool
-==============
-*/
-void
-R_TimeGraph(void)
-{
-}
-
-/*
-=============
-R_PrintTimes
-=============
-*/
-void
-R_PrintTimes(void)
-{
-}
-
-/*
-=============
-R_PrintDSpeeds
-=============
-*/
-void
-R_PrintDSpeeds(void)
-{
-}
-
-/*
 =============
 R_PrintAliasStats
 =============

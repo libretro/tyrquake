@@ -31,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.h"
 
 void *colormap;
-float r_time1;
 int r_numallocatededges;
 
 qboolean r_recursiveaffinetriangles = true;
@@ -195,8 +194,6 @@ R_Init(void)
     r_stack_start = (byte *)&dummy;
 
     R_InitTurb();
-
-    Cmd_AddCommand("timerefresh", R_TimeRefresh_f);
 
     Cvar_RegisterVariable(&r_draworder);
     Cvar_RegisterVariable(&r_speeds);
