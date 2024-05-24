@@ -36,7 +36,6 @@ int r_numallocatededges;
 
 qboolean r_recursiveaffinetriangles = true;
 
-int r_pixbytes = 1;
 float r_aliasuvscale = 1.0;
 
 static vec3_t viewlightvec;

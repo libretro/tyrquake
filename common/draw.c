@@ -189,10 +189,11 @@ Draw_Character(int x, int y, int num)
     } else
 	drawline = 8;
 
-    if (r_pixbytes == 1) {
+    {
 	dest = vid.conbuffer + y * vid.conrowbytes + x;
 
-	while (drawline--) {
+	while (drawline--)
+	{
 	    if (source[0])
 		dest[0] = source[0];
 	    if (source[1])
@@ -211,32 +212,6 @@ Draw_Character(int x, int y, int num)
 		dest[7] = source[7];
 	    source += 128;
 	    dest += vid.conrowbytes;
-	}
-    } else {
-	// FIXME: pre-expand to native format?
-	pusdest = (unsigned short *)
-	    ((byte *)vid.conbuffer + y * vid.conrowbytes + (x << 1));
-
-	while (drawline--) {
-	    if (source[0])
-		pusdest[0] = d_8to16table[source[0]];
-	    if (source[1])
-		pusdest[1] = d_8to16table[source[1]];
-	    if (source[2])
-		pusdest[2] = d_8to16table[source[2]];
-	    if (source[3])
-		pusdest[3] = d_8to16table[source[3]];
-	    if (source[4])
-		pusdest[4] = d_8to16table[source[4]];
-	    if (source[5])
-		pusdest[5] = d_8to16table[source[5]];
-	    if (source[6])
-		pusdest[6] = d_8to16table[source[6]];
-	    if (source[7])
-		pusdest[7] = d_8to16table[source[7]];
-
-	    source += 128;
-	    pusdest += vid.conrowbytes / 2;
 	}
     }
 }
@@ -273,21 +248,10 @@ Draw_Alt_String(int x, int y, char *str)
    }
 }
 
-static void
-Draw_Pixel(int x, int y, byte color)
+static void Draw_Pixel(int x, int y, byte color)
 {
-   if (r_pixbytes == 1)
-   {
       uint8_t *dest = vid.conbuffer + y * vid.conrowbytes + x;
       *dest = color;
-   }
-   else
-   {
-      // FIXME: pre-expand to native format?
-      uint16_t *pusdest = (uint16_t*)
-         ((uint8_t*)vid.conbuffer + y * vid.conrowbytes + (x << 1));
-      *pusdest = d_8to16table[color];
-   }
 }
 
 void
@@ -324,6 +288,7 @@ Draw_Pic
 */
 void Draw_Pic(int x, int y, const qpic_t *pic)
 {
+   uint8_t *dest;
    const byte *source;
    int v, u;
 
@@ -333,30 +298,13 @@ void Draw_Pic(int x, int y, const qpic_t *pic)
 
    source = pic->data;
 
-   if (r_pixbytes == 1)
+   dest = vid.buffer + y * vid.rowbytes + x;
+
+   for (v = 0; v < pic->height; v++)
    {
-      uint8_t *dest = vid.buffer + y * vid.rowbytes + x;
-
-      for (v = 0; v < pic->height; v++)
-      {
-         memcpy(dest, source, pic->width);
-         dest += vid.rowbytes;
-         source += pic->width;
-      }
-   }
-   else
-   {
-      // FIXME: pretranslate at load time?
-      uint16_t *pusdest = (uint16_t*)vid.buffer + y * (vid.rowbytes / 2) + x;
-
-      for (v = 0; v < pic->height; v++)
-      {
-         for (u = 0; u < pic->width; u++)
-            pusdest[u] = d_8to16table[source[u]];
-
-         pusdest += vid.rowbytes / 2;
-         source += pic->width;
-      }
+      memcpy(dest, source, pic->width);
+      dest   += vid.rowbytes;
+      source += pic->width;
    }
 }
 
@@ -378,7 +326,6 @@ void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 
    source = pic->data + srcy * pic->width + srcx;
 
-   if (r_pixbytes == 1)
    {
       uint8_t *dest = vid.buffer + y * vid.rowbytes + x;
 
@@ -386,20 +333,6 @@ void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
       {
          memcpy(dest, source, width);
          dest += vid.rowbytes;
-         source += pic->width;
-      }
-   }
-   else
-   {
-      // FIXME: pretranslate at load time?
-      uint16_t *pusdest = (uint16_t*)vid.buffer + y * (vid.rowbytes / 2) + x;
-
-      for (v = 0; v < height; v++)
-      {
-         for (u = srcx; u < (srcx + width); u++)
-            pusdest[u] = d_8to16table[source[u]];
-
-         pusdest += vid.rowbytes / 2;
          source += pic->width;
       }
    }
@@ -425,7 +358,7 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
 
    source = pic->data;
 
-   if (r_pixbytes == 1) {
+   {
       dest = vid.buffer + y * vid.rowbytes + x;
 
       if (pic->width & 7) {	// general
@@ -461,22 +394,6 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
             source += pic->width;
          }
       }
-   } else {
-      // FIXME: pretranslate at load time?
-      pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
-
-      for (v = 0; v < pic->height; v++) {
-         for (u = 0; u < pic->width; u++) {
-            tbyte = source[u];
-
-            if (tbyte != TRANSPARENT_COLOR) {
-               pusdest[u] = d_8to16table[tbyte];
-            }
-         }
-
-         pusdest += vid.rowbytes / 2;
-         source += pic->width;
-      }
    }
 }
 
@@ -500,7 +417,7 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 
    source = pic->data;
 
-   if (r_pixbytes == 1) {
+   {
       dest = vid.buffer + y * vid.rowbytes + x;
 
       if (pic->width & 7) {	// general
@@ -535,22 +452,6 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
             dest += vid.rowbytes;
             source += pic->width;
          }
-      }
-   } else {
-      // FIXME: pretranslate at load time?
-      pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
-
-      for (v = 0; v < pic->height; v++) {
-         for (u = 0; u < pic->width; u++) {
-            tbyte = source[u];
-
-            if (tbyte != TRANSPARENT_COLOR) {
-               pusdest[u] = d_8to16table[tbyte];
-            }
-         }
-
-         pusdest += vid.rowbytes / 2;
-         source += pic->width;
       }
    }
 }
@@ -633,7 +534,7 @@ Draw_ConsoleBackground(int lines)
     Draw_ConbackString(conback, stringify(TYR_VERSION));
 
     /* draw the pic */
-    if (r_pixbytes == 1) {
+    {
 	dest = vid.conbuffer;
 
 	for (y = 0; y < lines; y++, dest += vid.conrowbytes) {
@@ -654,27 +555,6 @@ Draw_ConsoleBackground(int lines)
 		    dest[x + 3] = src[f >> 16];
 		    f += fstep;
 		}
-	    }
-	}
-    } else {
-	pusdest = (unsigned short *)vid.conbuffer;
-
-	for (y = 0; y < lines; y++, pusdest += vid.conrowbytes / 2) {
-	    // FIXME: pre-expand to native format?
-	    // FIXME: does the endian switching go away in production?
-	    v = (vid.conheight - lines + y) * conback->height / vid.conheight;
-	    src = conback->data + v * conback->width;
-	    f = 0;
-	    fstep = conback->width * 0x10000 / vid.conwidth;
-	    for (x = 0; x < vid.conwidth; x += 4) {
-		pusdest[x] = d_8to16table[src[f >> 16]];
-		f += fstep;
-		pusdest[x + 1] = d_8to16table[src[f >> 16]];
-		f += fstep;
-		pusdest[x + 2] = d_8to16table[src[f >> 16]];
-		f += fstep;
-		pusdest[x + 3] = d_8to16table[src[f >> 16]];
-		f += fstep;
 	    }
 	}
     }
@@ -829,11 +709,7 @@ Draw_TileClear(int x, int y, int w, int h)
 	    psrc = r_rectdesc.ptexbytes +
 		(tileoffsety * r_rectdesc.rowbytes) + tileoffsetx;
 
-	    if (r_pixbytes == 1) {
-		R_DrawRect8(&vr, r_rectdesc.rowbytes, psrc, 0);
-	    } else {
-		R_DrawRect16(&vr, r_rectdesc.rowbytes, psrc, 0);
-	    }
+	    R_DrawRect8(&vr, r_rectdesc.rowbytes, psrc, 0);
 
 	    vr.x += vr.width;
 	    width -= vr.width;
@@ -867,18 +743,11 @@ Draw_Fill(int x, int y, int w, int h, int c)
 	return;
     }
 
-    if (r_pixbytes == 1) {
+    {
 	dest = vid.buffer + y * vid.rowbytes + x;
 	for (v = 0; v < h; v++, dest += vid.rowbytes)
 	    for (u = 0; u < w; u++)
 		dest[u] = c;
-    } else {
-	uc = d_8to16table[c];
-
-	pusdest = (unsigned short *)vid.buffer + y * (vid.rowbytes / 2) + x;
-	for (v = 0; v < h; v++, pusdest += vid.rowbytes / 2)
-	    for (u = 0; u < w; u++)
-		pusdest[u] = uc;
     }
 }
 

@@ -465,19 +465,13 @@ void R_DrawSurface(void)
 
    //==============================
 
-   if (r_pixbytes == 1) {
-      if (coloredlights)
-         pblockdrawer = surfmiptableRGB[r_drawsurf.surfmip]; // 18-bit lookups
-      else
-         pblockdrawer = surfmiptable[r_drawsurf.surfmip];
+   if (coloredlights)
+	   pblockdrawer = surfmiptableRGB[r_drawsurf.surfmip]; // 18-bit lookups
+   else
+	   pblockdrawer = surfmiptable[r_drawsurf.surfmip];
 
-      // TODO: only needs to be set when there is a display settings change
-      horzblockstep = blocksize;
-   } else {
-      pblockdrawer = R_DrawSurfaceBlock16;
-      // TODO: only needs to be set when there is a display settings change
-      horzblockstep = blocksize << 1;
-   }
+   // TODO: only needs to be set when there is a display settings change
+   horzblockstep = blocksize;
 
    smax = mt->width >> r_drawsurf.surfmip;
    twidth = texwidth;
