@@ -64,47 +64,9 @@ CL_StopPlayback(void)
 	CL_FinishTimeDemo();
 }
 
-#define dem_cmd		0
-#define dem_read	1
-#define dem_set		2
-
-/*
-====================
-CL_WriteDemoCmd
-
-Writes the current user cmd
-====================
-*/
-void
-CL_WriteDemoCmd(usercmd_t *pcmd)
-{
-    int i;
-    byte c;
-    usercmd_t cmd;
-    float fl = LittleFloat((float)realtime);
-    fwrite(&fl, sizeof(fl), 1, cls.demofile);
-
-    c = dem_cmd;
-    fwrite(&c, sizeof(c), 1, cls.demofile);
-
-    // correct for byte order, bytes don't matter
-    cmd = *pcmd;
-
-    for (i = 0; i < 3; i++)
-	cmd.angles[i] = LittleFloat(cmd.angles[i]);
-    cmd.forwardmove = LittleShort(cmd.forwardmove);
-    cmd.sidemove = LittleShort(cmd.sidemove);
-    cmd.upmove = LittleShort(cmd.upmove);
-
-    fwrite(&cmd, sizeof(cmd), 1, cls.demofile);
-
-    for (i = 0; i < 3; i++) {
-	fl = LittleFloat(cl.viewangles[i]);
-	fwrite(&fl, 4, 1, cls.demofile);
-    }
-
-    fflush(cls.demofile);
-}
+#define DEM_CMD		0
+#define DEM_READ	1
+#define DEM_SET		2
 
 /*
 ====================
@@ -168,7 +130,7 @@ qboolean CL_GetDemoMessage(void)
     fread(&c, sizeof(c), 1, cls.demofile);
 
     switch (c) {
-    case dem_cmd:
+    case DEM_CMD:
 	// user sent input
 	i = cls.netchan.outgoing_sequence & UPDATE_MASK;
 	pcmd = &cl.frames[i].cmd;
@@ -192,7 +154,7 @@ qboolean CL_GetDemoMessage(void)
 	}
 	break;
 
-    case dem_read:
+    case DEM_READ:
 	// get the next message
 	fread(&net_message.cursize, 4, 1, cls.demofile);
 	net_message.cursize = LittleLong(net_message.cursize);
@@ -206,7 +168,7 @@ qboolean CL_GetDemoMessage(void)
 	}
 	break;
 
-    case dem_set:
+    case DEM_SET:
 	fread(&i, 4, 1, cls.demofile);
 	cls.netchan.outgoing_sequence = LittleLong(i);
 	fread(&i, 4, 1, cls.demofile);

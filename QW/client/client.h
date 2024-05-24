@@ -415,7 +415,6 @@ void CL_BaseMove(usercmd_t *cmd);
 //
 void CL_StopPlayback(void);
 qboolean CL_GetMessage(void);
-void CL_WriteDemoCmd(usercmd_t *pcmd);
 
 void CL_PlayDemo_f(void);
 void CL_TimeDemo_f(void);
