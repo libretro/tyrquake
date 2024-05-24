@@ -166,11 +166,6 @@ void R_RemoveEfrags(entity_t *ent);
 
 void R_NewMap(void);
 
-#ifdef QW_HACK
-void R_NetGraph(void);
-void R_ZGraph(void);
-#endif
-
 void R_ParseParticleEffect(void);
 void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count);
 void R_RocketTrail(vec3_t start, vec3_t end, int type);
