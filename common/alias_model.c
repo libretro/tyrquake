@@ -188,7 +188,7 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
       Sys_Error("%s: skinwidth not multiple of 4", __func__);
 
    skinsize = pheader->skinwidth * pheader->skinheight;
-   pskindesc = (maliasskindesc_t*)Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
+   pskindesc = (maliasskindesc_t*)Hunk_Alloc(numskins * sizeof(maliasskindesc_t));
    pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
 
    skinnum = 0;
@@ -295,7 +295,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
       (pinmodel->numframes) * sizeof(pheader->frames[0]);
 #endif
 
-   container = (byte*)Hunk_AllocName(size, loadname);
+   container = (byte*)Hunk_Alloc(size);
    pheader = (aliashdr_t *)(container + pad);
 
 #ifdef MSB_FIRST
@@ -448,7 +448,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    end = Hunk_LowMark();
    total = end - start;
 
-   Cache_AllocPadded(&mod->cache, pad, total - pad, loadname);
+   Cache_AllocPadded(&mod->cache, pad, total - pad);
    if (!mod->cache.data)
       return;
 

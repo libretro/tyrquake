@@ -187,19 +187,19 @@ S_Init(void)
 
     SND_InitScaletable();
 
-    known_sfx = (sfx_t*)Hunk_AllocName(MAX_SFX * sizeof(sfx_t), "sfx_t");
+    known_sfx = (sfx_t*)Hunk_Alloc(MAX_SFX * sizeof(sfx_t));
     num_sfx = 0;
 
     /* create a piece of DMA memory */
     if (fakedma) {
-	shm = (volatile dma_t*)(void *)Hunk_AllocName(sizeof(*shm), "shm");
+	shm = (volatile dma_t*)(void *)Hunk_Alloc(sizeof(*shm));
 	shm->samplebits = 16;
 	shm->speed = 44100;
 	shm->channels = 2;
 	shm->samples = 32768;
 	shm->samplepos = 0;
 	shm->submission_chunk = 1;
-	shm->buffer = (unsigned char *volatile)Hunk_AllocName(1 << 16, "shmbuf");
+	shm->buffer = (unsigned char *volatile)Hunk_Alloc(1 << 16);
     }
 
     if (sound_started)

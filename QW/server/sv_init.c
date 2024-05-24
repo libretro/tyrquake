@@ -203,8 +203,8 @@ SV_CalcPHS(void)
     /*
      * Allocate space for an array of pointers, followed by the data
      */
-    sv.pvs = Hunk_AllocName((sizeof(leafbits_t *) + leafmem) * numleafs, "pvs");
-    sv.phs = Hunk_AllocName((sizeof(leafbits_t *) + leafmem) * numleafs, "phs");
+    sv.pvs = Hunk_Alloc((sizeof(leafbits_t *) + leafmem) * numleafs);
+    sv.phs = Hunk_Alloc((sizeof(leafbits_t *) + leafmem) * numleafs);
     for (i = 0; i < numleafs; i++) {
 	int offset = sizeof(leafbits_t *) * numleafs + leafmem * i;
 	sv.pvs[i] = (leafbits_t *)((byte *)sv.pvs + offset);
@@ -315,7 +315,7 @@ SV_SpawnServer(const char *server)
     PR_LoadProgs();
 
     // allocate edicts
-    sv.edicts = Hunk_AllocName(MAX_EDICTS * pr_edict_size, "edicts");
+    sv.edicts = Hunk_Alloc(MAX_EDICTS * pr_edict_size);
 
     // leave slots at start for clients only
     sv.num_edicts = MAX_CLIENTS + 1;

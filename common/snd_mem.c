@@ -115,20 +115,15 @@ S_LoadSound(sfx_t *s)
     wavinfo_t *info;
     int len;
     float stepscale;
-    sfxcache_t *sc;
     byte stackbuf[1024];	// avoid dirtying the cache heap
-
-// see if still in memory
-    sc = (sfxcache_t*)Cache_Check(&s->cache);
+    // see if still in memory
+    sfxcache_t *sc = (sfxcache_t*)Cache_Check(&s->cache);
     if (sc)
 	return sc;
 
-//Con_Printf ("S_LoadSound: %x\n", (int)stackbuf);
-// load it in
+    // load it in
     strcpy(namebuffer, "sound/");
     strcat(namebuffer, s->name);
-
-//      Con_Printf ("loading %s\n",namebuffer);
 
     data = (byte*)COM_LoadStackFile(namebuffer, stackbuf, sizeof(stackbuf), NULL);
 
@@ -148,7 +143,7 @@ S_LoadSound(sfx_t *s)
 
     len = len * info->width * info->channels;
 
-    sc = (sfxcache_t*)Cache_Alloc(&s->cache, len + sizeof(sfxcache_t), s->name);
+    sc = (sfxcache_t*)Cache_Alloc(&s->cache, len + sizeof(sfxcache_t));
     if (!sc)
 	return NULL;
 

@@ -173,18 +173,10 @@ Draw_Character(int x, int y, int num)
     if (y <= -8)
 	return;
 
-    /*
-     * FIXME - this was #ifdef PARANOID and Sys_Error instead of Con_DPrintf
-     *       - seems to be affected by "-conwidth ..."
-     */
-    if (y > vid.height - 8 || x < 0 || x > vid.width - 8) {
-	//Con_DPrintf("%s: (%i, %i)\n", __func__, x, y);
+    if (y > vid.height - 8 || x < 0 || x > vid.width - 8)
 	return;
-    }
-    if (num < 0 || num > 255) {
-	//Con_DPrintf("%s: char %i\n", __func__, num);
+    if (num < 0 || num > 255)
 	return;
-    }
 
     row = num >> 4;
     col = num & 15;

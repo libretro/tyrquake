@@ -146,8 +146,7 @@ R_InitTextures(void)
     byte *dest;
 
 // create a simple checkerboard texture for the default
-    r_notexture_mip = (texture_t*)Hunk_AllocName(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2,
-		       "notexture");
+    r_notexture_mip = (texture_t*)Hunk_Alloc(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2);
 
     r_notexture_mip->width = r_notexture_mip->height = 16;
     r_notexture_mip->offsets[0] = sizeof(texture_t);
@@ -283,7 +282,7 @@ R_NewMap(void)
 
     r_cnumsurfs = qclamp((int)r_maxsurfs.value, MINSURFACES, MAXSURFACES);
     if (r_cnumsurfs > NUMSTACKSURFACES) {
-	surfaces = (surf_t*)Hunk_AllocName(r_cnumsurfs * sizeof(surf_t), "surfaces");
+	surfaces = (surf_t*)Hunk_Alloc(r_cnumsurfs * sizeof(surf_t));
 	surface_p = surfaces;
 	surf_max = &surfaces[r_cnumsurfs];
 	r_surfsonstack = false;
@@ -298,12 +297,10 @@ R_NewMap(void)
     r_maxsurfsseen = 0;
 
     r_numallocatededges = qclamp((int)r_maxedges.value, MINEDGES, MAXEDGES);
-    if (r_numallocatededges <= NUMSTACKEDGES) {
+    if (r_numallocatededges <= NUMSTACKEDGES)
 	auxedges = NULL;
-    } else {
-	auxedges = (edge_t*)Hunk_AllocName(r_numallocatededges * sizeof(edge_t),
-				  "edges");
-    }
+    else
+	auxedges = (edge_t*)Hunk_Alloc(r_numallocatededges * sizeof(edge_t));
 
     r_dowarpold = false;
     r_viewchanged = false;

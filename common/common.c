@@ -713,7 +713,7 @@ void SZ_Alloc(sizebuf_t *buf, int startsize)
 {
    if (startsize < 256)
       startsize = 256;
-   buf->data = (byte*)Hunk_AllocName(startsize, "sizebuf");
+   buf->data    = (byte*)Hunk_Alloc(startsize);
    buf->maxsize = startsize;
    buf->cursize = 0;
 }
@@ -1556,7 +1556,6 @@ static int loadsize;
 static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
    RFILE *f;
-   char base[32];
    byte *buf = NULL;			// quiet compiler warning
    int len = com_filesize = COM_FOpenFile(path, &f);  // look for it in the filesystem or pack files
    if (!f)
@@ -1565,17 +1564,14 @@ static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
    if (length)
       *length = len;
 
-   // extract the filename base name for hunk tag
-   COM_FileBase(path, base, sizeof(base));
-
    if (usehunk == 1)
-      buf = (byte*)Hunk_AllocName(len + 1, base);
+      buf = (byte*)Hunk_Alloc(len + 1);
    else if (usehunk == 2)
       buf = (byte*)Hunk_TempAlloc(len + 1);
    else if (usehunk == 0)
       buf = (byte*)Z_Malloc(len + 1);
    else if (usehunk == 3)
-      buf = (byte*)Cache_Alloc(loadcache, len + 1, base);
+      buf = (byte*)Cache_Alloc(loadcache, len + 1);
    else if (usehunk == 4)
    {
       if (len + 1 > loadsize)
@@ -1672,9 +1668,9 @@ static pack_t *COM_LoadPackFile(const char *packfile)
       com_modified = true;	// not the original file
 
 #ifdef NQ_HACK
-   mfiles = (packfile_t*)Hunk_AllocName(numfiles * sizeof(*mfiles), "packfile");
+   mfiles = (packfile_t*)Hunk_Alloc(numfiles * sizeof(*mfiles));
    mark   = Hunk_LowMark();
-   dfiles = Hunk_AllocName(numfiles * sizeof(*dfiles), "packfile");
+   dfiles = Hunk_Alloc(numfiles * sizeof(*dfiles));
 #endif
 #ifdef QW_HACK
    mfiles = Z_Malloc(numfiles * sizeof(mfiles));

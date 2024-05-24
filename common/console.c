@@ -789,7 +789,7 @@ Con_Init(void)
 {
     debuglog = COM_CheckParm("-condebug");
 
-    con_main.text = (char*)Hunk_AllocName(CON_TEXTSIZE, "conmain");
+    con_main.text = (char*)Hunk_Alloc(CON_TEXTSIZE);
 
     con = &con_main;
     con_linewidth = -1;

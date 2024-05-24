@@ -1430,7 +1430,7 @@ Host_Init(quakeparms_t *parms)
     CL_Init();
     IN_Init();
 
-    Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    Hunk_Alloc(0);
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;

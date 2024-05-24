@@ -214,7 +214,7 @@ Host_FindMaxClients(void)
     svs.maxclientslimit = svs.maxclients;
     if (svs.maxclientslimit < 4)
 	svs.maxclientslimit = 4;
-    svs.clients = (client_t*)Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
+    svs.clients = (client_t*)Hunk_Alloc(svs.maxclientslimit * sizeof(client_t));
 
     if (svs.maxclients > 1)
 	Cvar_SetValue("deathmatch", 1.0);
@@ -824,7 +824,7 @@ Host_Init(quakeparms_t *parms)
 
 	S_Init();
 	CDAudio_Init();
-    BGM_Init();
+	BGM_Init();
 
 	Sbar_Init();
 	CL_Init();
@@ -832,7 +832,7 @@ Host_Init(quakeparms_t *parms)
 	IN_Init();
     }
 
-    Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    Hunk_Alloc(0);
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;

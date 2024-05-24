@@ -70,7 +70,7 @@ void R_InitParticles(void)
       r_numparticles = MAX_PARTICLES;
 
    particles = (particle_t *)
-      Hunk_AllocName(r_numparticles * sizeof(particle_t), "particles");
+      Hunk_Alloc(r_numparticles * sizeof(particle_t));
 }
 
 #ifdef NQ_HACK
