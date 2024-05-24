@@ -321,23 +321,8 @@ retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 
-void Sys_Printf(const char *fmt, ...)
-{
-#if 0
-   char buffer[256];
-   va_list ap;
-   va_start(ap, fmt);
-   vsprintf(buffer, fmt, ap);
-   if (log_cb)
-      log_cb(RETRO_LOG_INFO, "%s\n", buffer);
-   va_end(ap);
-#endif
-}
-
-void Sys_Quit(void)
-{
-   Host_Shutdown();
-}
+void Sys_Printf(const char *fmt, ...) { }
+void Sys_Quit(void) { Host_Shutdown(); }
 
 void Sys_Init(void)
 {
@@ -434,15 +419,7 @@ double Sys_DoubleTime(void)
       oldtime = newtime;
    }
 
-   if (newtime < oldtime)
-   {
-#if 0
-      // warn if it's significant
-      if (newtime - oldtime < -0.01)
-         Con_Printf("Sys_DoubleTime: time stepped backwards (went from %f to %f, difference %f)\n", oldtime, newtime, newtime - oldtime);
-#endif
-   }
-   else
+   if (newtime >= oldtime)
       curtime += newtime - oldtime;
    oldtime = newtime;
 

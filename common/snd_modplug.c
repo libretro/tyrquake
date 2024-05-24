@@ -80,10 +80,6 @@ static qboolean S_MODPLUG_CodecOpenStream (snd_stream_t *stream)
 	}
 
 	ModPlug_Seek((ModPlugFile*)stream->priv, 0);
-#if 0
-	/* default volume (128) sounds rather low? */
-	ModPlug_SetMasterVolume((ModPlugFile*)stream->priv, 384);	/* 0-512 */
-#endif
 	return true;
 }
 

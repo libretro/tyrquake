@@ -152,12 +152,6 @@ S_Init(void)
     if (sound_started)
        Con_Printf("Sound sampling rate: %i\n", shm->speed);
 
-#if 0
-    /* provides a tick sound until washed clean; for debugging */
-    if (shm->buffer)
-	shm->buffer[4] = shm->buffer[5] = 0x7f;
-#endif
-
     ambient_sfx[AMBIENT_WATER] = S_PrecacheSound("ambience/water1.wav");
     ambient_sfx[AMBIENT_SKY] = S_PrecacheSound("ambience/wind2.wav");
 

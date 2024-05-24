@@ -360,31 +360,6 @@ Netchan_Process(netchan_t *chan)
 	Con_Printf("<-- s=%i(%i) a=%i(%i) %i\n", sequence, reliable_message,
 		   sequence_ack, reliable_ack, net_message.cursize);
 
-#if 0
-    /* get a rate estimation */
-    if (chan->outgoing_sequence - sequence_ack < MAX_LATENT) {
-	int i;
-	double time, rate;
-
-	i = sequence_ack & (MAX_LATENT - 1);
-	time = realtime - chan->outgoing_time[i];
-	time -= 0.1;		/* subtract 100 ms */
-	if (time <= 0) {	/* gotta be a digital link for <100 ms ping */
-	    if (chan->rate > 1.0 / 5000)
-		chan->rate = 1.0 / 5000;
-	} else {
-	    if (chan->outgoing_size[i] < 512) {	/* only deal with small msgs */
-		rate = chan->outgoing_size[i] / time;
-		if (rate > 5000)
-		    rate = 5000;
-		rate = 1.0 / rate;
-		if (chan->rate > rate)
-		    chan->rate = rate;
-	    }
-	}
-    }
-#endif
-
     /*
      * discard stale or duplicated packets
      */

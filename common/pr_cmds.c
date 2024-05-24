@@ -1678,15 +1678,12 @@ static void PF_makestatic(void)
 
 #ifdef NQ_HACK
     bits = 0;
-    if (sv.protocol == PROTOCOL_VERSION_FITZ) {
+    if (sv.protocol == PROTOCOL_VERSION_FITZ)
+    {
 	if (SV_ModelIndex(PR_GetString(ent->v.model)) & 0xff00)
 	    bits |= B_FITZ_LARGEMODEL;
 	if ((int)ent->v.frame & 0xff00)
 	    bits |= B_FITZ_LARGEFRAME;
-#if 0
-	if (ent->alpha != ENTALPHA_DEFAULT)
-	    bits |= B_FITZ_ALPHA;
-#endif
     }
 
     if (bits) {
@@ -1710,11 +1707,6 @@ static void PF_makestatic(void)
 	MSG_WriteCoord(&sv.signon, ent->v.origin[i]);
 	MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
     }
-
-#if 0
-    if (bits & B_ALPHA)
-	MSG_WriteByte(&sv.signon, ent->alpha);
-#endif
 
     /* throw the entity away now */
     ED_Free(ent);

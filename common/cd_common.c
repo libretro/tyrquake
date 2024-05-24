@@ -74,41 +74,6 @@ CDAudio_GetAudioDiskInfo(void)
     return err;
 }
 
-#if 0
-static void
-CDAudio_SetVolume_f(struct cvar_s *var)
-{
-   qboolean changed = false;
-
-   /* Clamp the volume 0.0 - 1.0 */
-   if (var->value > 1.0) {
-      var->value = 1.0;
-      changed = true;
-   } else if (var->value < 0.0) {
-      var->value = 0.0;
-      changed = true;
-   }
-
-   if (cdvolume != var->value)
-   {
-      int ret = CDDrv_SetVolume(var->value * 255.0);
-      if (ret >= 0)
-         cdvolume = (float)ret / 255.0;
-      if (var->value != cdvolume) {
-         var->value = cdvolume;
-         changed = true;
-      }
-   }
-
-   /*
-    * If the volume we set is not the one originally passed in, we need to set
-    * the cvar again, so the .string member is updated to match
-    */
-   if (changed)
-      Cvar_SetValue("bgmvolume", var->value);
-}
-#endif
-
 void
 CDAudio_Stop(void)
 {

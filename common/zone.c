@@ -721,20 +721,6 @@ void Cache_Report(void)
           hunk_low_used) / (float)(1024 * 1024));
 }
 
-
-/* FIXME - Unused? */
-#if 0
-/*
- * ============
- * Cache_Compact
- * ============
- */
-static void
-Cache_Compact(void)
-{
-}
-#endif
-
 /*
  * ============
  * Cache_Init
