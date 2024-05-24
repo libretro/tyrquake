@@ -76,8 +76,6 @@ int minimum_memory;
 
 client_t *host_client;		// current client
 
-int fps_count;
-
 static jmp_buf host_abort;
 
 byte *host_basepal;
@@ -720,7 +718,6 @@ _Host_Frame(float time)
    CL_RunParticles();
 
    host_framecount++;
-   fps_count++;
 }
 
 void

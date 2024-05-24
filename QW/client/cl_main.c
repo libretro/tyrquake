@@ -153,8 +153,6 @@ netadr_t master_adr;		// address of the master server
 cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
 cvar_t developer = { "developer", "0" };
 
-int fps_count;
-
 static jmp_buf host_abort;
 static float server_version = 0;// version of server we connected to
 
@@ -1360,7 +1358,6 @@ Host_Frame(float time)
     }
 
     host_framecount++;
-    fps_count++;
 }
 
 //============================================================================

@@ -308,11 +308,7 @@ void CL_NextDemo(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern int fps_count;
-
-//
 // cl_input
-//
 typedef struct {
     int down[2];		// key nums holding it down
     int state;			// low bit is down state
