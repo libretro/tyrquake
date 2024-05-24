@@ -1237,7 +1237,7 @@ void COM_WriteFile(const char *filename, const void *data, int len)
    f = rfopen(name, "wb");
    if (!f)
    {
-      Sys_mkdir(com_gamedir);
+      path_mkdir(com_gamedir);
       f = rfopen(name, "wb");
       if (!f)
          Sys_Error("Error opening %s", filename);
@@ -1268,7 +1268,7 @@ void COM_CreatePath(const char *path)
       if (*ofs == '/')
       {	// create the directory
          *ofs = 0;
-         Sys_mkdir(part);
+         path_mkdir(part);
          *ofs = '/';
       }
    }

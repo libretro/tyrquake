@@ -976,7 +976,7 @@ CL_Download_f(void)
     for (;;) {
 	if ((q = strchr(p, '/')) != NULL) {
 	    *q = 0;
-	    Sys_mkdir(cls.downloadname);
+	    path_mkdir(cls.downloadname);
 	    *q = '/';
 	    p = q + 1;
 	} else
@@ -1362,7 +1362,7 @@ Host_Init(quakeparms_t *parms)
     COM_AddParm("-game");
     COM_AddParm("qw");
 
-    Sys_mkdir("qw");
+    path_mkdir("qw");
 
     minimum_memory = MINIMUM_MEMORY;
     if (COM_CheckParm("-minmemory"))

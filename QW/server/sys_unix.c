@@ -46,22 +46,6 @@ static qboolean stdin_ready;
 */
 
 /*
-============
-Sys_mkdir
-
-============
-*/
-void
-Sys_mkdir(const char *path)
-{
-    if (mkdir(path, 0777) != -1)
-	return;
-    if (errno != EEXIST)
-	Sys_Error("mkdir %s: %s", path, strerror(errno));
-}
-
-
-/*
 ================
 Sys_DoubleTime
 ================
