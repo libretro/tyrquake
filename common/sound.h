@@ -153,7 +153,6 @@ extern int paintedtime;
 extern volatile dma_t *shm;
 extern int s_rawend;
 
-extern cvar_t loadas8bit;
 extern cvar_t bgmvolume;
 extern cvar_t sfxvolume;
 

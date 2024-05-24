@@ -35,7 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 // FIXME - windows only?
-extern unsigned int uiWheelMessage;
 extern qboolean mouseactive;
 extern cvar_t _windowed_mouse;
 

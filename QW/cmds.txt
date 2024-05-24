@@ -305,7 +305,6 @@ scr_printspeed
 nosound
 volume
 precache
-loadas8bit
 bgmvolume
 bgmbuffer
 ambient_level
