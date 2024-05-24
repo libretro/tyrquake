@@ -74,11 +74,11 @@ static void S_TransferStereo16 (int endtime)
 	while (lpaintedtime < endtime)
 	{
 		// handle recirculating buffer issues
-		int lpos = lpaintedtime & ((shm->samples >> 1) - 1);
+		int lpos = lpaintedtime & ((AUDIO_BUFFER_SIZE >> 1) - 1);
 
 		snd_out = (short *)shm->buffer + (lpos << 1);
 
-		snd_linear_count = (shm->samples >> 1) - lpos;
+		snd_linear_count = (AUDIO_BUFFER_SIZE >> 1) - lpos;
 		if (lpaintedtime + snd_linear_count > endtime)
 			snd_linear_count = endtime - lpaintedtime;
 

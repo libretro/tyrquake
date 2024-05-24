@@ -172,8 +172,6 @@ S_Shutdown(void)
 
    shm = 0;
    sound_started = 0;
-
-   SNDDMA_Shutdown();
 }
 
 /*
@@ -458,7 +456,7 @@ void S_ClearBuffer(void)
    if (!sound_started || !shm)
       return;
 
-   memset(shm->buffer, 0, shm->samples * shm->samplebits / 8);
+   memset(shm->buffer, 0, AUDIO_BUFFER_SIZE * shm->samplebits / 8);
 }
 
 /*
@@ -645,7 +643,7 @@ static void GetSoundtime(void)
 {
    static int buffers;
    static int oldsamplepos;
-   int fullsamples = shm->samples / CHANNELS;
+   int fullsamples = AUDIO_BUFFER_SIZE / CHANNELS;
 
    /*
     * it is possible to miscount buffers if it has wrapped twice between
@@ -690,12 +688,11 @@ static void S_Update_(void)
    }
    /* mix ahead of current position */
    endtime = soundtime + _snd_mixahead.value * shm->speed;
-   samps = shm->samples >> 1;
+   samps   = AUDIO_BUFFER_SIZE >> 1;
    if (endtime - soundtime > samps)
       endtime = soundtime + samps;
 
    S_PaintChannels(endtime);
-   SNDDMA_Submit();
 }
 
 /*

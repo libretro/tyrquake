@@ -33,6 +33,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bothdefs.h"
 #endif
 
+/* Audio buffer must be sufficient for operation
+ * at 10 fps
+ * > (2 * 44100) / 10 = 8820 total samples
+ * > buffer size must be a power of 2
+ * > Nearest power of 2 to 8820 is 16384 */
+#define AUDIO_BUFFER_SIZE 16384
+
 // sound.h -- client sound i/o functions
 
 // FIXME - QW defines these in protocol.h, which is better?
@@ -64,11 +71,9 @@ typedef struct {
 
 typedef struct {
     int channels;
-    int samples;		// mono samples in buffer
     int submission_chunk;	// don't mix less than this #
     int samplepos;		// in mono samples
     int samplebits;
-	int	signed8;		/* device opened for S8 format? (e.g. Amiga AHI) */
     int speed;
     unsigned char *buffer;
 } dma_t;
@@ -129,13 +134,6 @@ qboolean SNDDMA_Init(dma_t *dma);
 // gets the current DMA position
 int SNDDMA_GetDMAPos(void);
 
-/* Lock and unlock the DMA sound buffer */
-int SNDDMA_LockBuffer(void);
-void SNDDMA_UnlockBuffer(void);
-
-// shutdown the DMA xfer.
-void SNDDMA_Shutdown(void);
-
 // ====================================================================
 // User-setable variables
 // ====================================================================
@@ -168,7 +166,6 @@ void S_LocalSound(const char *s);
 sfxcache_t *S_LoadSound(sfx_t *s);
 
 void SND_InitScaletable(void);
-void SNDDMA_Submit(void);
 wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength);
 
 void S_AmbientOff(void);
