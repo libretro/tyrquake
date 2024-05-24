@@ -58,17 +58,6 @@ int D_SurfaceCacheForRes(int width, int height)
    return size;
 }
 
-void D_CheckCacheGuard(void)
-{
-   byte *s;
-   int i;
-
-   s = (byte *)sc_base + sc_size;
-   for (i = 0; i < GUARDSIZE; i++)
-      if (s[i] != (byte)i)
-         Sys_Error("%s: failed", __func__);
-}
-
 void D_ClearCacheGuard(void)
 {
    byte *s;
@@ -154,9 +143,8 @@ D_SCAlloc(int width, int size)
    wrapped_this_time = false;
 
    if (!sc_rover || (byte *)sc_rover - (byte *)sc_base > sc_size - size) {
-      if (sc_rover) {
+      if (sc_rover)
          wrapped_this_time = true;
-      }
       sc_rover = sc_base;
    }
    // colect and free surfcache_t blocks until the rover block is large enough
@@ -189,20 +177,19 @@ D_SCAlloc(int width, int size)
       sc_rover = new_surf->next;
 
    new_surf->width = width;
-   // DEBUG
    if (width > 0)
       new_surf->height = (size - sizeof(*new_surf) + sizeof(new_surf->data)) / width;
 
    new_surf->owner = NULL;		// should be set properly after return
 
-   if (d_roverwrapped) {
+   if (d_roverwrapped)
+   {
       if (wrapped_this_time || (sc_rover >= d_initial_rover))
          r_cache_thrash = true;
-   } else if (wrapped_this_time) {
-      d_roverwrapped = true;
    }
+   else if (wrapped_this_time)
+      d_roverwrapped = true;
 
-   D_CheckCacheGuard();	// DEBUG
    return new_surf;
 }
 
