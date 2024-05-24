@@ -70,10 +70,8 @@ typedef struct {
 } sfxcache_t;
 
 typedef struct {
-    int channels;
     int submission_chunk;	// don't mix less than this #
     int samplepos;		// in mono samples
-    int samplebits;
     int speed;
     unsigned char *buffer;
 } dma_t;

@@ -456,7 +456,7 @@ void S_ClearBuffer(void)
    if (!sound_started || !shm)
       return;
 
-   memset(shm->buffer, 0, AUDIO_BUFFER_SIZE * shm->samplebits / 8);
+   memset(shm->buffer, 0, AUDIO_BUFFER_SIZE * 16 / 8);
 }
 
 /*

@@ -38,21 +38,18 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
    float stepscale;
    int i;
    int sample, samplefrac, fracstep;
-   sfxcache_t *sc;
-
-   sc = (sfxcache_t*)Cache_Check(&sfx->cache);
+   sfxcache_t *sc = (sfxcache_t*)Cache_Check(&sfx->cache);
    if (!sc)
       return;
 
-   stepscale = (float)inrate / shm->speed;	// this is usually 0.5, 1, or 2
-
-   outcount = sc->length / stepscale;
+   stepscale  = (float)inrate / shm->speed;	// this is usually 0.5, 1, or 2
+   outcount   = sc->length / stepscale;
    sc->length = outcount;
    if (sc->loopstart != -1)
       sc->loopstart = sc->loopstart / stepscale;
 
-   sc->speed = shm->speed;
-   sc->width = inwidth;
+   sc->speed  = shm->speed;
+   sc->width  = inwidth;
    sc->stereo = 1;
 
    // resample / decimate to the current source rate

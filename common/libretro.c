@@ -1436,9 +1436,7 @@ qboolean SNDDMA_Init(dma_t *dma)
 {
    shm             = dma;
    shm->speed      = audio_samplerate;
-   shm->channels   = 2;
    shm->samplepos  = 0;
-   shm->samplebits = 16;
    shm->buffer     = (unsigned char *volatile)audio_buffer;
 
    return true;
