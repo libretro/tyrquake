@@ -32,7 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 float surfscale;
-qboolean r_cache_thrash;	// set if surface cache is thrashing
 
 int sc_size;
 surfcache_t *sc_rover, *sc_base;
@@ -49,11 +48,9 @@ int D_SurfaceCacheForRes(int width, int height)
    }
 
    size = SURFCACHE_SIZE_AT_320X200;
-
-   pix = width * height;
+   pix  = width * height;
    if (pix > 64000)
       size += (pix - 64000) * 3;
-
 
    return size;
 }
@@ -182,46 +179,11 @@ D_SCAlloc(int width, int size)
 
    new_surf->owner = NULL;		// should be set properly after return
 
-   if (d_roverwrapped)
-   {
-      if (wrapped_this_time || (sc_rover >= d_initial_rover))
-         r_cache_thrash = true;
-   }
+   if (d_roverwrapped) { }
    else if (wrapped_this_time)
       d_roverwrapped = true;
 
    return new_surf;
-}
-
-
-//=============================================================================
-
-/* if the num is not a power of 2, assume it will not repeat */
-
-int
-MaskForNum(int num)
-{
-   if (num == 128)
-      return 127;
-   if (num == 64)
-      return 63;
-   if (num == 32)
-      return 31;
-   if (num == 16)
-      return 15;
-   return 255;
-}
-
-int
-D_log2(int num)
-{
-   int c;
-
-   c = 0;
-
-   while (num >>= 1)
-      c++;
-   return c;
 }
 
 //=============================================================================
@@ -268,8 +230,8 @@ D_CacheSurface(const entity_t *e, msurface_t *surface, int miplevel)
       cache = D_SCAlloc(r_drawsurf.surfwidth,
             r_drawsurf.surfwidth * r_drawsurf.surfheight);
       surface->cachespots[miplevel] = cache;
-      cache->owner = &surface->cachespots[miplevel];
-      cache->mipscale = surfscale;
+      cache->owner                  = &surface->cachespots[miplevel];
+      cache->mipscale               = surfscale;
    }
 
    if (surface->dlightframe == r_framecount)

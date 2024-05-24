@@ -340,8 +340,6 @@ R_SetupFrame(void)
 
     R_SetSkyFrame();
 
-    r_cache_thrash = false;
-
     // clear frame counts
     r_drawnpolycount = 0;
     r_amodels_drawn = 0;

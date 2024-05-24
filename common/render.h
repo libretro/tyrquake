@@ -191,8 +191,6 @@ const model_loader_t *R_ModelLoader(void);
 //
 // surface cache related
 //
-extern qboolean r_cache_thrash;	// set if thrashing the surface cache
-
 int D_SurfaceCacheForRes(int width, int height);
 void D_FlushCaches(void);
 void D_DeleteSurfaceCache(void);
