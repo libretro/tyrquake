@@ -833,28 +833,6 @@ const char *COM_FileExtension(const char *in)
 #endif
 
 /*
-============
-COM_FileBase
-============
-*/
-void COM_FileBase(const char *in, char *out, size_t buflen)
-{
-   const char *dot;
-   int copylen;
-
-   in = COM_SkipPath(in);
-   dot = strrchr(in, '.');
-   copylen = dot ? dot - in : strlen(in);
-
-   if (copylen < 2) {
-      in = "?model?";
-      copylen = strlen(in);
-   }
-   snprintf(out, buflen, "%.*s", copylen, in);
-}
-
-
-/*
 ==================
 COM_DefaultExtension
 ==================

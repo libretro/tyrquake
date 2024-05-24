@@ -235,7 +235,6 @@ const char *COM_SkipPath(const char *pathname);
 const char *COM_FileExtension(const char *in);
 qboolean COM_FileExists(const char *filename);
 void COM_StripExtension(char *filename);
-void COM_FileBase(const char *in, char *out, size_t buflen);
 void COM_DefaultExtension(char *path, const char *extension);
 int COM_CheckExtension(const char *path, const char *extn);
 
