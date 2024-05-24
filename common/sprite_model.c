@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Mod_LoadSpriteFrame
 =================
 */
-static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
+static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
       int framenum)
 {
    int origin[2];
@@ -70,7 +70,7 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const cha
    pspriteframe->right = width + origin[0];
 
    /* Let the renderer process the pixel data as needed */
-   R_SpriteDataStore(pspriteframe, loadname, framenum, (byte *)(pinframe + 1));
+   R_SpriteDataStore(pspriteframe, framenum, (byte *)(pinframe + 1));
 
    return (byte *)pinframe + sizeof(dspriteframe_t) + numpixels;
 }
@@ -81,7 +81,7 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const cha
 Mod_LoadSpriteGroup
 =================
 */
-static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
+static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
 		    int framenum)
 {
    int i;
@@ -121,8 +121,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const cha
    ptemp = (void *)pin_intervals;
 
    for (i = 0; i < numframes; i++) {
-      ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], loadname,
-            framenum * 100 + i);
+      ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], framenum * 100 + i);
    }
 
    return ptemp;
@@ -134,7 +133,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const cha
 Mod_LoadSpriteModel
 =================
 */
-void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
+void Mod_LoadSpriteModel(model_t *mod, void *buffer)
 {
    int i;
    msprite_t *psprite;
@@ -205,11 +204,11 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
       if (frametype == SPR_SINGLE) {
          pframetype = (dspriteframetype_t *)
             Mod_LoadSpriteFrame(pframetype + 1,
-                  &psprite->frames[i].frameptr, loadname, i);
+                  &psprite->frames[i].frameptr, i);
       } else {
          pframetype = (dspriteframetype_t *)
             Mod_LoadSpriteGroup(pframetype + 1,
-                  &psprite->frames[i].frameptr, loadname, i);
+                  &psprite->frames[i].frameptr, i);
       }
    }
 

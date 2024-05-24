@@ -37,8 +37,7 @@ R_SpriteDataSize(int pixels)
     return pixels * r_pixbytes;
 }
 
-void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
-      int framenum, byte *pixels)
+void R_SpriteDataStore(mspriteframe_t *frame, int framenum, byte *pixels)
 {
    int i;
    int size = frame->width * frame->height;

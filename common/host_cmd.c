@@ -1437,8 +1437,6 @@ PrintFrameName(model_t *m, int frame)
     if (!hdr)
 	return;
     pframedesc = &hdr->frames[frame];
-
-    Con_Printf("frame %i: %s\n", frame, pframedesc->name);
 }
 
 /*

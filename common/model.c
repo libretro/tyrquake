@@ -46,7 +46,6 @@ static texture_t r_notexture_mip_qwsv;
 #endif
 
 static model_t *loadmodel;
-static char loadname[MAX_QPATH];	/* for hunk tags */
 
 static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size);
 static model_t *Mod_LoadModel(model_t *mod, qboolean crash);
@@ -416,20 +415,16 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 	} else
 	    return mod;		// not cached at all
     }
-//
-// load the file
-//
+
+    // load the file
     buf = (unsigned int*)COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf), &size);
     if (!buf) {
 	if (crash)
 	    SV_Error("%s: %s not found", __func__, mod->name);
 	return NULL;
     }
-//
-// allocate a new model
-//
-    COM_FileBase(mod->name, loadname, sizeof(loadname));
 
+    // allocate a new model
     loadmodel = mod;
 
 //
@@ -443,11 +438,11 @@ Mod_LoadModel(model_t *mod, qboolean crash)
     {
 #ifndef SERVERONLY
        case IDPOLYHEADER:
-          Mod_LoadAliasModel(mod_loader, mod, buf, loadmodel, loadname);
+          Mod_LoadAliasModel(mod_loader, mod, buf, loadmodel);
           break;
 
        case IDSPRITEHEADER:
-          Mod_LoadSpriteModel(mod, buf, loadname);
+          Mod_LoadSpriteModel(mod, buf);
           break;
 #endif
        default:
