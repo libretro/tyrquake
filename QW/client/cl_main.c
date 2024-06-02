@@ -153,8 +153,6 @@ netadr_t master_adr;		// address of the master server
 cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
 cvar_t developer = { "developer", "0" };
 
-int fps_count;
-
 static jmp_buf host_abort;
 static float server_version = 0;// version of server we connected to
 
@@ -425,9 +423,6 @@ CL_Disconnect(void)
     if (cls.demoplayback)
 	CL_StopPlayback();
     else if (cls.state != ca_disconnected) {
-	if (cls.demorecording)
-	    CL_Stop_f();
-
 	final[0] = clc_stringcmd;
 	strcpy((char *)final + 1, "drop");
 	Netchan_Transmit(&cls.netchan, 6, final);
@@ -436,7 +431,7 @@ CL_Disconnect(void)
 
 	cls.state = ca_disconnected;
 
-	cls.demoplayback = cls.demorecording = cls.timedemo = false;
+	cls.demoplayback = cls.timedemo = false;
     }
     Cam_Reset();
 
@@ -898,12 +893,6 @@ CL_ConnectionlessPacket(void)
 	CL_SendConnectPacket();
 	return;
     }
-#if 0
-    if (c == svc_disconnect) {
-	Con_Printf("disconnect\n");
-	Host_EndGame("Server disconnected");
-    }
-#endif
 
     Con_Printf("unknown:  %c\n", c);
 }
@@ -987,7 +976,7 @@ CL_Download_f(void)
     for (;;) {
 	if ((q = strchr(p, '/')) != NULL) {
 	    *q = 0;
-	    Sys_mkdir(cls.downloadname);
+	    path_mkdir(cls.downloadname);
 	    *q = '/';
 	    p = q + 1;
 	} else
@@ -1121,9 +1110,6 @@ CL_Init(void)
 
     Cmd_AddCommand("changing", CL_Changing_f);
     Cmd_AddCommand("disconnect", CL_Disconnect_f);
-    Cmd_AddCommand("record", CL_Record_f);
-    Cmd_AddCommand("rerecord", CL_ReRecord_f);
-    Cmd_AddCommand("stop", CL_Stop_f);
     Cmd_AddCommand("playdemo", CL_PlayDemo_f);
     Cmd_SetCompletion("playdemo", CL_Demo_Arg_f);
     Cmd_AddCommand("timedemo", CL_TimeDemo_f);
@@ -1360,7 +1346,6 @@ Host_Frame(float time)
     }
 
     host_framecount++;
-    fps_count++;
 }
 
 //============================================================================
@@ -1377,7 +1362,7 @@ Host_Init(quakeparms_t *parms)
     COM_AddParm("-game");
     COM_AddParm("qw");
 
-    Sys_mkdir("qw");
+    path_mkdir("qw");
 
     minimum_memory = MINIMUM_MEMORY;
     if (COM_CheckParm("-minmemory"))
@@ -1430,7 +1415,7 @@ Host_Init(quakeparms_t *parms)
     CL_Init();
     IN_Init();
 
-    Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    Hunk_Alloc(0);
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;

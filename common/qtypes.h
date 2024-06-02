@@ -41,10 +41,6 @@ typedef enum{ false, true, ENSURE_INT_QBOOL = 0x70000000 } qboolean;
 #define offsetof(type, member)  __builtin_offsetof (type, member)
 #endif
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 /**
  * container_of - cast a member of a structure out to the containing structure
  * @ptr:        the pointer to the member.

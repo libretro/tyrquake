@@ -297,7 +297,6 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 	unsigned int type;
 	music_handler_t *handler;
 
-
 	BGM_Stop();
 	if (CDAudio_Play(track, looping) == 0)
 		return;			/* success */
@@ -324,9 +323,7 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 	_next:
 		handler = handler->next;
 	}
-	if (ext == NULL)
-		Con_Printf("Couldn't find a cdrip for track %d\n", (int)track);
-	else
+	if (ext)
 	{
 		snprintf(tmp, sizeof(tmp), "%s/track%02d.%s",
 				MUSIC_DIRNAME, (int)track, ext);

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CLIENT_BOTHDEFS_H
 
 #include <inttypes.h>
+#include <retro_miscellaneous.h>
 
 // defs common to client and server
 
@@ -47,8 +48,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	SOUND_CHANNELS		8
 
 
-#define	MAX_QPATH		64	// max length of a quake game pathname
-#define	MAX_OSPATH		128	// max length of a filesystem pathname
+#define	MAX_QPATH		PATH_MAX_LENGTH	// max length of a quake game pathname
+#define	MAX_OSPATH		PATH_MAX_LENGTH	// max length of a filesystem pathname
 
 #define	ON_EPSILON		0.1	// point on plane side epsilon
 

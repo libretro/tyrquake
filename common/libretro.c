@@ -113,13 +113,6 @@ static bool libretro_supports_bitmasks = false;
 #define AUDIO_SAMPLERATE_48KHZ 48000
 static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
-/* Audio buffer must be sufficient for operation
- * at 10 fps
- * > (2 * 44100) / 10 = 8820 total samples
- * > buffer size must be a power of 2
- * > Nearest power of 2 to 8820 is 16384 */
-#define AUDIO_BUFFER_SIZE 16384
-
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr;
 
@@ -321,23 +314,8 @@ retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 
-void Sys_Printf(const char *fmt, ...)
-{
-#if 0
-   char buffer[256];
-   va_list ap;
-   va_start(ap, fmt);
-   vsprintf(buffer, fmt, ap);
-   if (log_cb)
-      log_cb(RETRO_LOG_INFO, "%s\n", buffer);
-   va_end(ap);
-#endif
-}
-
-void Sys_Quit(void)
-{
-   Host_Shutdown();
-}
+void Sys_Printf(const char *fmt, ...) { }
+void Sys_Quit(void) { Host_Shutdown(); }
 
 void Sys_Init(void)
 {
@@ -361,32 +339,6 @@ bool Sys_Error(const char *error, ...)
    va_end(ap);
 
    return false;
-}
-
-/*
-   ============
-   Sys_FileTime
-
-   returns -1 if not present
-   ============
-   */
-int Sys_FileTime(const char *path)
-{
-   struct stat buf;
-
-   if (stat(path, &buf) == -1)
-      return -1;
-
-   return buf.st_mtime;
-}
-
-void Sys_mkdir(const char *path)
-{
-   path_mkdir(path);
-}
-
-void Sys_DebugLog(const char *file, const char *fmt, ...)
-{
 }
 
 double Sys_DoubleTime(void)
@@ -434,15 +386,7 @@ double Sys_DoubleTime(void)
       oldtime = newtime;
    }
 
-   if (newtime < oldtime)
-   {
-#if 0
-      // warn if it's significant
-      if (newtime - oldtime < -0.01)
-         Con_Printf("Sys_DoubleTime: time stepped backwards (went from %f to %f, difference %f)\n", oldtime, newtime, newtime - oldtime);
-#endif
-   }
-   else
+   if (newtime >= oldtime)
       curtime += newtime - oldtime;
    oldtime = newtime;
 
@@ -453,28 +397,10 @@ double Sys_DoubleTime(void)
 // Sleeps for microseconds
 // =======================================================================
 
-void
-IN_Accumulate(void)
-{}
-
-char * Sys_ConsoleInput(void)
-{
-   return NULL;
-}
-
-qboolean
-window_visible(void)
-{
-    return true;
-}
-
-void Sys_HighFPPrecision(void)
-{
-}
-
-void Sys_LowFPPrecision(void)
-{
-}
+void IN_Accumulate(void) { }
+void Sys_HighFPPrecision(void) { }
+void Sys_LowFPPrecision(void) { }
+char * Sys_ConsoleInput(void) { return NULL; }
 
 viddef_t vid;			// global video state
 
@@ -1499,14 +1425,10 @@ static void audio_callback(void)
 
 qboolean SNDDMA_Init(dma_t *dma)
 {
-   shm = dma;
-   shm->speed = audio_samplerate;
-   shm->channels = 2;
-   shm->samplepos = 0;
-   shm->samplebits = 16;
-   shm->signed8 = 0;
-   shm->samples = AUDIO_BUFFER_SIZE;
-   shm->buffer = (unsigned char *volatile)audio_buffer;
+   shm             = dma;
+   shm->speed      = audio_samplerate;
+   shm->samplepos  = 0;
+   shm->buffer     = (unsigned char *volatile)audio_buffer;
 
    return true;
 }
@@ -1514,23 +1436,6 @@ qboolean SNDDMA_Init(dma_t *dma)
 int SNDDMA_GetDMAPos(void)
 {
    return shm->samplepos = audio_buffer_ptr;
-}
-
-int SNDDMA_LockBuffer(void)
-{
-   return 0;
-}
-
-void SNDDMA_UnlockBuffer(void)
-{
-}
-
-void SNDDMA_Shutdown(void)
-{
-}
-
-void SNDDMA_Submit(void)
-{
 }
 
 /*

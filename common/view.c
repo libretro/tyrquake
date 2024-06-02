@@ -175,10 +175,8 @@ cvar_t v_centerspeed = { "v_centerspeed", "500" };
 
 void V_StartPitchDrift(void)
 {
-#if 1
    if (cl.laststop == cl.time)
       return;			// something else is keeping it from drifting
-#endif
    if (cl.nodrift || !cl.pitchvel)
    {
       cl.pitchvel = v_centerspeed.value;

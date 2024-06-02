@@ -30,9 +30,6 @@ contiguous.  Memory can be allocated from either the low or high end in a
 stack fashion.  The only way memory is released is by resetting one of the
 pointers.
 
-Hunk allocations should be given a name, so the Hunk_Print () function
-can display usage.
-
 Hunk allocations are guaranteed to be 16 byte aligned.
 
 The video buffers are allocated high to avoid leaving a hole underneath
@@ -94,9 +91,8 @@ void *Z_Malloc(int size);	// returns 0 filled memory
 void *Z_Realloc(const void *ptr, int size);
 
 void *Hunk_Alloc(int size);	// returns 0 filled memory
-void *Hunk_AllocName(int size, const char *name);
 
-void *Hunk_HighAllocName(int size, const char *name);
+void *Hunk_HighAlloc(int size);
 
 int Hunk_LowMark(void);
 void Hunk_FreeToLowMark(int mark);
@@ -129,7 +125,7 @@ void *Cache_Check(const cache_user_t *c);
  *   wasn't enough room. Otherwise returns a pointer to the cached
  *   data requested.
  */
-void *Cache_Alloc(cache_user_t *c, int size, const char *name);
+void *Cache_Alloc(cache_user_t *c, int size);
 
 /*
  * Cache_AllocPadded
@@ -137,7 +133,7 @@ void *Cache_Alloc(cache_user_t *c, int size, const char *name);
  *   pointer for extra data to be accessed via e.g. container_of(x).
  *
  */
-void *Cache_AllocPadded(cache_user_t *c, int pad, int size, const char *name);
+void *Cache_AllocPadded(cache_user_t *c, int pad, int size);
 
 void Cache_Free(cache_user_t *c);
 

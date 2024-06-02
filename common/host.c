@@ -67,7 +67,6 @@ qboolean host_initialized;	// true if into command execution
 double host_frametime;
 double host_time;
 double realtime;		// without any filtering or bounding
-static double oldrealtime;	// last frame run
 int host_framecount;
 
 int host_hunklevel;
@@ -75,8 +74,6 @@ int host_hunklevel;
 int minimum_memory;
 
 client_t *host_client;		// current client
-
-int fps_count;
 
 static jmp_buf host_abort;
 
@@ -214,7 +211,7 @@ Host_FindMaxClients(void)
     svs.maxclientslimit = svs.maxclients;
     if (svs.maxclientslimit < 4)
 	svs.maxclientslimit = 4;
-    svs.clients = (client_t*)Hunk_AllocName(svs.maxclientslimit * sizeof(client_t), "clients");
+    svs.clients = (client_t*)Hunk_Alloc(svs.maxclientslimit * sizeof(client_t));
 
     if (svs.maxclients > 1)
 	Cvar_SetValue("deathmatch", 1.0);
@@ -511,22 +508,15 @@ Host_ClearMemory(void)
 /*
 ===================
 Host_FilterTime
-
-Returns false if the time is too short to run a frame
 ===================
 */
-qboolean
-Host_FilterTime(float time)
+static void Host_FilterTime(float time)
 {
+    static double oldrealtime; // last frame run
     realtime += time;
 
-    /* allow high framerate, warn about it in core options
-    if (!cls.timedemo && realtime - oldrealtime < 1.0 / 72.0)
-	return false;		// framerate is too high
-    */
-
     host_frametime = realtime - oldrealtime;
-    oldrealtime = realtime;
+    oldrealtime    = realtime;
 
     if (host_framerate.value > 0)
 	host_frametime = host_framerate.value;
@@ -536,8 +526,6 @@ Host_FilterTime(float time)
 	if (host_frametime < 0.001)
 	    host_frametime = 0.001;
     }
-
-    return true;
 }
 
 
@@ -653,8 +641,7 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void
-_Host_Frame(float time)
+void _Host_Frame(float time)
 {
    /* something bad happened, or the server disconnected */
    if (setjmp(host_abort))
@@ -667,8 +654,7 @@ _Host_Frame(float time)
     * Decide the simulation time. Don't run too fast, or packets will flood
     * out.
     */
-   if (!Host_FilterTime(time))
-      return;
+   Host_FilterTime(time);
 
    /* get new key events */
    Sys_SendKeyEvents();
@@ -720,11 +706,9 @@ _Host_Frame(float time)
    CL_RunParticles();
 
    host_framecount++;
-   fps_count++;
 }
 
-void
-Host_Frame(float time)
+void Host_Frame(float time)
 {
    static int timecount;
    int i, c;
@@ -824,7 +808,7 @@ Host_Init(quakeparms_t *parms)
 
 	S_Init();
 	CDAudio_Init();
-    BGM_Init();
+	BGM_Init();
 
 	Sbar_Init();
 	CL_Init();
@@ -832,7 +816,7 @@ Host_Init(quakeparms_t *parms)
 	IN_Init();
     }
 
-    Hunk_AllocName(0, "-HOST_HUNKLEVEL-");
+    Hunk_Alloc(0);
     host_hunklevel = Hunk_LowMark();
 
     host_initialized = true;

@@ -31,7 +31,6 @@ static cvar_t d_mipscale = { "d_mipscale", "1", true };
 cvar_t dither_filter = { "dither_filter", "0", true };
 
 surfcache_t *d_initial_rover;
-qboolean d_roverwrapped;
 int d_minmip;
 float d_scalemip[NUM_MIPS - 1];
 
@@ -56,7 +55,6 @@ D_Init(void)
     Cvar_RegisterVariable(&dither_filter);
 
     r_recursiveaffinetriangles = true;
-    r_pixbytes = 1;
     r_aliasuvscale = 1.0;
 }
 
@@ -108,7 +106,6 @@ D_SetupFrame(void)
    else
       screenwidth = vid.rowbytes;
 
-   d_roverwrapped = false;
    d_initial_rover = sc_rover;
 
    d_minmip = d_mipcap.value;

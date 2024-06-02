@@ -85,11 +85,7 @@ static qboolean S_MIKMOD_CodecInitialize (void)
 		return true;
 
 	/* set mode flags to only we like: */
-	md_mode = 0;
-	if ((shm->samplebits / 8) == 2)
-		md_mode |= DMODE_16BITS;
-	if (shm->channels == 2)
-		md_mode |= DMODE_STEREO;
+	md_mode = DMODE_16BITS | DMODE_STEREO;
 	md_mode |= DMODE_SOFT_MUSIC;	/* this is a software-only mixer */
 	md_mode |= DMODE_HQMIXER;		/* high-quality mixer is OK */
 

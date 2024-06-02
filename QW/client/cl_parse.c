@@ -187,12 +187,6 @@ CL_CheckOrDownloadFile(char *filename)
 	rfclose(f);
 	return true;
     }
-    /* can't download when recording */
-    if (cls.demorecording) {
-	Con_Printf("Unable to download %s in record mode.\n",
-		   cls.downloadname);
-	return true;
-    }
     /* can't download when playback */
     if (cls.demoplayback)
 	return true;
@@ -396,27 +390,19 @@ CL_ParseDownload(void)
     rfwrite(net_message.data + msg_readcount, 1, size, cls.download);
     msg_readcount += size;
 
-    if (percent != 100) {
-// change display routines by zoid
+    if (percent != 100)
+    {
+	// change display routines by zoid
 	// request next block
-#if 0
-	Con_Printf(".");
-	if (10 * (percent / 10) != cls.downloadpercent) {
-	    cls.downloadpercent = 10 * (percent / 10);
-	    Con_Printf("%i%%", cls.downloadpercent);
-	}
-#endif
 	cls.downloadpercent = percent;
 
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
 	MSG_WriteString(&cls.netchan.message, "nextdl");
-    } else {
+    }
+    else
+    {
 	char oldn[MAX_OSPATH];
 	char newn[MAX_OSPATH];
-
-#if 0
-	Con_Printf("100%%\n");
-#endif
 
 	rfclose(cls.download);
 

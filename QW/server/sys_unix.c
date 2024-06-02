@@ -33,7 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // FIXME - header hacks
 extern int net_socket;
 
-static cvar_t sys_nostdout = { "sys_nostdout", "0" };
 static cvar_t sys_extrasleep = { "sys_extrasleep", "0" };
 
 static qboolean stdin_ready;
@@ -45,41 +44,6 @@ static qboolean stdin_ready;
 
 ===============================================================================
 */
-
-/*
-============
-Sys_FileTime
-
-returns -1 if not present
-============
-*/
-int
-Sys_FileTime(const char *path)
-{
-    struct stat buf;
-
-    if (stat(path, &buf) == -1)
-	return -1;
-
-    return buf.st_mtime;
-}
-
-
-/*
-============
-Sys_mkdir
-
-============
-*/
-void
-Sys_mkdir(const char *path)
-{
-    if (mkdir(path, 0777) != -1)
-	return;
-    if (errno != EEXIST)
-	Sys_Error("mkdir %s: %s", path, strerror(errno));
-}
-
 
 /*
 ================
@@ -131,23 +95,10 @@ Sys_Printf(const char *fmt, ...)
 {
     va_list argptr;
     static char text[MAX_PRINTMSG];
-    unsigned char *p;
 
     va_start(argptr, fmt);
     vsnprintf(text, sizeof(text), fmt, argptr);
     va_end(argptr);
-
-    if (sys_nostdout.value)
-	return;
-
-    for (p = (unsigned char *)text; *p; p++) {
-	*p &= 0x7f;
-	if ((*p > 128 || *p < 32) && *p != 10 && *p != 13 && *p != 9)
-	    printf("[%02x]", *p);
-	else
-	    putc(*p, stdout);
-    }
-    fflush(stdout);
 }
 
 
@@ -206,7 +157,6 @@ is marked
 void
 Sys_Init(void)
 {
-    Cvar_RegisterVariable(&sys_nostdout);
     Cvar_RegisterVariable(&sys_extrasleep);
 }
 
@@ -240,20 +190,12 @@ main(int argc, const char *argv[])
 
     parms.basedir = stringify(QBASEDIR);
 
-/*
-	if (Sys_FileTime ("id1/pak0.pak") != -1)
-	else
-		parms.basedir = "/raid/quake/v2";
-*/
-
     SV_Init(&parms);
 
-// run one frame immediately for first heartbeat
+    // run one frame immediately for first heartbeat
     SV_Frame(0.1);
 
-//
-// main loop
-//
+    // main loop
     oldtime = Sys_DoubleTime() - 0.1;
     while (1) {
 	// select on the net socket and stdin

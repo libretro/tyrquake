@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __func__ __FUNCTION__
 #endif
 
-//define        PARANOID                        // speed sapping error checking
+#include <retro_miscellaneous.h>
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
 #define CACHE_SIZE	32	// used to align key data structures
@@ -61,8 +61,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	ROLL	2
 
 
-#define	MAX_QPATH	64	// max length of a quake game pathname
-#define	MAX_OSPATH	128	// max length of a filesystem pathname
+#define	MAX_QPATH	PATH_MAX_LENGTH	// max length of a quake game pathname
+#define	MAX_OSPATH	PATH_MAX_LENGTH	// max length of a filesystem pathname
 
 #define	ON_EPSILON	0.1	// point on plane side epsilon
 
@@ -73,7 +73,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // per-level limits
 //
-//#define       MAX_EDICTS      600     // FIXME: ouch! ouch! ouch!
 #define	MAX_EDICTS	8192	// FIXME: Arbitrary increase, make dynamic?
 #define	MAX_LIGHTSTYLES	64
 /*

@@ -112,9 +112,6 @@ typedef struct {
     int demonum;		// -1 = don't play demos
     char demos[MAX_DEMOS][MAX_DEMONAME];	// when not playing
 
-// demo recording info must be here, because record is started before
-// entering a map (and clearing client_state_t)
-    qboolean demorecording;
     qboolean demoplayback;
     qboolean timedemo;
     int forcetrack;		// -1 = use normal cd track
@@ -308,11 +305,7 @@ void CL_NextDemo(void);
 extern int cl_numvisedicts;
 extern entity_t cl_visedicts[];
 
-extern int fps_count;
-
-//
 // cl_input
-//
 typedef struct {
     int down[2];		// key nums holding it down
     int state;			// low bit is down state
@@ -341,9 +334,6 @@ void CL_BaseMove(usercmd_t *cmd);
 //
 void CL_StopPlayback(void);
 int CL_GetMessage(void);
-
-void CL_Stop_f(void);
-void CL_Record_f(void);
 
 void CL_TimeDemo_f(void);
 void CL_PlayDemo_f(void);

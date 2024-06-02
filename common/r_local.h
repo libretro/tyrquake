@@ -141,9 +141,6 @@ extern void R_EdgeCodeEnd(void);
 
 extern void R_RotateBmodel(const entity_t *e);
 
-extern int c_faceclip;
-extern int r_polycount;
-
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 #define	NEAR_CLIP	0.01
 
@@ -190,7 +187,6 @@ qboolean R_AliasCheckBBox(entity_t *e);
 void R_DrawParticles(void);
 void R_InitParticles(void);
 void R_ClearParticles(void);
-void R_ReadPointFile_f(void);
 
 void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
 
@@ -213,9 +209,6 @@ extern int r_bmodelactive;
 extern float aliasxscale, aliasyscale, aliasxcenter, aliasycenter;
 extern float r_aliastransition, r_resfudge;
 
-extern int r_outofsurfaces;
-extern int r_outofedges;
-
 extern mvertex_t *r_pcurrentvertbase;
 extern int r_maxvalidedgeoffset;
 
@@ -226,9 +219,6 @@ void R_Alias_clip_bottom(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 void R_Alias_clip_left(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
 void R_Alias_clip_right(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out);
 
-extern float r_time1;
-extern float dp_time1, dp_time2, db_time1, db_time2, rw_time1, rw_time2;
-extern float se_time1, se_time2, de_time1, de_time2, dv_time1, dv_time2;
 extern int r_maxsurfsseen, r_maxedgesseen;
 extern cshift_t cshift_water;
 extern qboolean r_dowarpold, r_viewchanged;
@@ -240,11 +230,7 @@ extern mnode_t *r_pefragtopnode;
 extern int r_clipflags;
 
 void R_StoreEfrags(efrag_t **ppefrag);
-void R_TimeRefresh_f(void);
-void R_TimeGraph(void);
 void R_PrintAliasStats(void);
-void R_PrintTimes(void);
-void R_PrintDSpeeds(void);
 void R_AnimateLight(void);
 int R_LightPoint(vec3_t p);
 void R_SetupFrame(void);

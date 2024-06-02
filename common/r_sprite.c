@@ -31,33 +31,17 @@ static int sprite_width, sprite_height;
 
 spritedesc_t r_spritedesc;
 
+/* TODO/FIXME - turn into macro */
 int
 R_SpriteDataSize(int pixels)
 {
-    return pixels * r_pixbytes;
+    return pixels;
 }
 
-void R_SpriteDataStore(mspriteframe_t *frame, const char *modelname,
-      int framenum, byte *pixels)
+void R_SpriteDataStore(mspriteframe_t *frame, int framenum, byte *pixels)
 {
-   int i;
    int size = frame->width * frame->height;
-
-   if (r_pixbytes == 1)
-   {
-      memcpy(&frame->rdata[0], pixels, size);
-   }
-   else if (r_pixbytes == 2)
-   {
-      unsigned short *pixout = (unsigned short *)&frame->rdata[0];
-      for (i = 0; i < size; i++)
-         pixout[i] = d_8to16table[pixels[i]];
-   }
-   else
-   {
-      Sys_Error("%s: driver set invalid r_pixbytes: %d", __func__,
-            r_pixbytes);
-   }
+   memcpy(&frame->rdata[0], pixels, size);
 }
 
 /*

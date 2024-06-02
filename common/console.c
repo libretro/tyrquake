@@ -62,8 +62,6 @@ static cvar_t con_notifytime = { "con_notifytime", "3" };	//seconds
 static float con_times[NUM_CON_TIMES];	// realtime time the line was generated
 					// for transparent notify lines
 
-static qboolean debuglog;
-
 qboolean con_initialized;
 
 /*
@@ -320,10 +318,6 @@ void Con_Printf(const char *fmt, ...)
    /* also echo to debugging console */
    Sys_Printf("%s", msg);	// also echo to debugging console
 
-   /* log all messages to file */
-   if (debuglog)
-      Sys_DebugLog(va("%s/qconsole.log", com_savedir), "%s", msg);
-
    if (!con_initialized)
       return;
 
@@ -375,16 +369,8 @@ Con_DPrintf(const char *fmt, ...)
     va_list argptr;
     char msg[MAX_PRINTMSG];
 
-    if (!developer.value) {
-	if (debuglog) {
-	    strcpy(msg, "DEBUG: ");
-	    va_start(argptr, fmt);
-	    vsnprintf(msg + 7, sizeof(msg) - 7, fmt, argptr);
-	    va_end(argptr);
-	    Sys_DebugLog(va("%s/qconsole.log", com_savedir), "%s", msg);
-	}
+    if (!developer.value)
 	return;
-    }
 
     va_start(argptr, fmt);
     vsnprintf(msg, sizeof(msg), fmt, argptr);
@@ -787,9 +773,7 @@ Con_Init
 void
 Con_Init(void)
 {
-    debuglog = COM_CheckParm("-condebug");
-
-    con_main.text = (char*)Hunk_AllocName(CON_TEXTSIZE, "conmain");
+    con_main.text = (char*)Hunk_Alloc(CON_TEXTSIZE);
 
     con = &con_main;
     con_linewidth = -1;

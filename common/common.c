@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/types.h>
 #include <errno.h>
 
+#include <file/file_path.h>
+
 #ifdef NQ_HACK
 #include "quakedef.h"
 #include "host.h"
@@ -83,8 +85,6 @@ static cvar_t cmdline = { "cmdline", "0", false, true };
 
 static qboolean com_modified;		// set true if using non-id files
 static int static_registered = 1;	// only for startup check, then set
-
-qboolean msg_suppress_1 = 0;
 
 static void COM_InitFilesystem(void);
 static void COM_Path_f(void);
@@ -148,17 +148,6 @@ void InsertLinkBefore(link_t *l, link_t *before)
    l->prev->next = l;
    l->next->prev = l;
 }
-
-/* Unused */
-#if 0
-void InsertLinkAfter(link_t *l, link_t *after)
-{
-   l->next = after->next;
-   l->prev = after;
-   l->prev->next = l;
-   l->next->prev = l;
-}
-#endif
 
 /*
 ============================================================================
@@ -713,7 +702,7 @@ void SZ_Alloc(sizebuf_t *buf, int startsize)
 {
    if (startsize < 256)
       startsize = 256;
-   buf->data = (byte*)Hunk_AllocName(startsize, "sizebuf");
+   buf->data    = (byte*)Hunk_Alloc(startsize);
    buf->maxsize = startsize;
    buf->cursize = 0;
 }
@@ -831,28 +820,6 @@ const char *COM_FileExtension(const char *in)
    return exten;
 }
 #endif
-
-/*
-============
-COM_FileBase
-============
-*/
-void COM_FileBase(const char *in, char *out, size_t buflen)
-{
-   const char *dot;
-   int copylen;
-
-   in = COM_SkipPath(in);
-   dot = strrchr(in, '.');
-   copylen = dot ? dot - in : strlen(in);
-
-   if (copylen < 2) {
-      in = "?model?";
-      copylen = strlen(in);
-   }
-   snprintf(out, buflen, "%.*s", copylen, in);
-}
-
 
 /*
 ==================
@@ -1270,7 +1237,7 @@ void COM_WriteFile(const char *filename, const void *data, int len)
    f = rfopen(name, "wb");
    if (!f)
    {
-      Sys_mkdir(com_gamedir);
+      path_mkdir(com_gamedir);
       f = rfopen(name, "wb");
       if (!f)
          Sys_Error("Error opening %s", filename);
@@ -1301,7 +1268,7 @@ void COM_CreatePath(const char *path)
       if (*ofs == '/')
       {	// create the directory
          *ofs = 0;
-         Sys_mkdir(part);
+         path_mkdir(part);
          *ofs = '/';
       }
    }
@@ -1325,7 +1292,6 @@ int COM_FOpenFile(const char *filename, RFILE **file)
    char path[MAX_OSPATH];
    pack_t *pak;
    int i;
-   int findtime;
 
    file_from_pak = 0;
 
@@ -1358,8 +1324,7 @@ int COM_FOpenFile(const char *filename, RFILE **file)
                continue;
          }
          snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-         findtime = Sys_FileTime(path);
-         if (findtime == -1)
+         if (!path_is_valid(path))
             continue;
 
          *file        = rfopen(path, "rb");
@@ -1387,7 +1352,6 @@ qboolean COM_FileExists (const char *filename)
    char path[MAX_OSPATH];
    pack_t *pak;
    int i;
-   int findtime;
 
    file_from_pak = 0;
 
@@ -1415,8 +1379,7 @@ qboolean COM_FileExists (const char *filename)
                continue;
          }
          snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
-         findtime = Sys_FileTime(path);
-         if (findtime == -1)
+         if (!path_is_valid(path))
             continue;
 
          return true;
@@ -1556,7 +1519,6 @@ static int loadsize;
 static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
    RFILE *f;
-   char base[32];
    byte *buf = NULL;			// quiet compiler warning
    int len = com_filesize = COM_FOpenFile(path, &f);  // look for it in the filesystem or pack files
    if (!f)
@@ -1565,17 +1527,14 @@ static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
    if (length)
       *length = len;
 
-   // extract the filename base name for hunk tag
-   COM_FileBase(path, base, sizeof(base));
-
    if (usehunk == 1)
-      buf = (byte*)Hunk_AllocName(len + 1, base);
+      buf = (byte*)Hunk_Alloc(len + 1);
    else if (usehunk == 2)
       buf = (byte*)Hunk_TempAlloc(len + 1);
    else if (usehunk == 0)
       buf = (byte*)Z_Malloc(len + 1);
    else if (usehunk == 3)
-      buf = (byte*)Cache_Alloc(loadcache, len + 1, base);
+      buf = (byte*)Cache_Alloc(loadcache, len + 1);
    else if (usehunk == 4)
    {
       if (len + 1 > loadsize)
@@ -1672,9 +1631,9 @@ static pack_t *COM_LoadPackFile(const char *packfile)
       com_modified = true;	// not the original file
 
 #ifdef NQ_HACK
-   mfiles = (packfile_t*)Hunk_AllocName(numfiles * sizeof(*mfiles), "packfile");
+   mfiles = (packfile_t*)Hunk_Alloc(numfiles * sizeof(*mfiles));
    mark   = Hunk_LowMark();
-   dfiles = Hunk_AllocName(numfiles * sizeof(*dfiles), "packfile");
+   dfiles = Hunk_Alloc(numfiles * sizeof(*dfiles));
 #endif
 #ifdef QW_HACK
    mfiles = Z_Malloc(numfiles * sizeof(mfiles));

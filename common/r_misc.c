@@ -69,153 +69,6 @@ Show(void)
 }
 
 /*
-====================
-R_TimeRefresh_f
-
-For program optimization
-====================
-*/
-void
-R_TimeRefresh_f(void)
-{ }
-
-/*
-================
-R_LineGraph
-
-Only called by R_DisplayTime
-================
-*/
-void
-R_LineGraph(int x, int y, int h)
-{
-    int i;
-    byte *dest;
-    int s;
-    int color;
-
-// FIXME: should be disabled on no-buffer adapters, or should be in the driver
-
-#ifdef NQ_HACK
-    x += r_refdef.vrect.x;
-    y += r_refdef.vrect.y;
-#endif
-    dest = vid.buffer + vid.rowbytes * y + x;
-
-    s = r_graphheight.value;
-
-    if (h == 10000)
-	color = 0x6f;		// yellow
-    else if (h == 9999)
-	color = 0x4f;		// red
-    else if (h == 9998)
-	color = 0xd0;		// blue
-    else
-	color = 0xff;		// pink
-
-    if (h > s)
-	h = s;
-
-    for (i = 0; i < h; i++, dest -= vid.rowbytes * 2)
-	dest[0] = color;
-}
-
-/*
-==============
-R_TimeGraph
-
-Performance monitoring tool
-==============
-*/
-#define MAX_TIMINGS 256
-void
-R_TimeGraph(void)
-{
-}
-
-#ifdef QW_HACK
-/*
-==============
-R_NetGraph
-==============
-*/
-void
-R_NetGraph(void)
-{
-    int a, x, y, y2, w, i;
-    int lost;
-    char st[80];
-
-    if (vid.width - 16 <= NET_TIMINGS)
-	w = vid.width - 16;
-    else
-	w = NET_TIMINGS;
-
-    x = -((vid.width - 320) >> 1);
-    y = vid.height - sb_lines - 24 - (int)r_graphheight.value * 2 - 2;
-
-    M_DrawTextBox(x, y, (w + 7) / 8,
-		  ((int)r_graphheight.value * 2 + 7) / 8 + 1);
-    y2 = y + 8;
-    y = vid.height - sb_lines - 8 - 2;
-
-    x = 8;
-    lost = CL_CalcNet();
-    for (a = NET_TIMINGS - w; a < w; a++) {
-	i = (cls.netchan.outgoing_sequence - a) & NET_TIMINGSMASK;
-	R_LineGraph(x + w - 1 - a, y, packet_latency[i]);
-    }
-    sprintf(st, "%3i%% packet loss", lost);
-    Draw_String(8, y2, st);
-}
-
-/*
-==============
-R_ZGraph
-==============
-*/
-void
-R_ZGraph(void)
-{
-    int a, x, w, i;
-    static int height[256];
-
-    if (r_refdef.vrect.width <= 256)
-	w = r_refdef.vrect.width;
-    else
-	w = 256;
-
-    height[r_framecount & 255] = ((int)r_origin[2]) & 31;
-
-    x = 0;
-    for (a = 0; a < w; a++) {
-	i = (r_framecount - a) & 255;
-	R_LineGraph(x + w - 1 - a, r_refdef.vrect.height - 2, height[i]);
-    }
-}
-#endif
-
-/*
-=============
-R_PrintTimes
-=============
-*/
-void
-R_PrintTimes(void)
-{
-}
-
-/*
-=============
-R_PrintDSpeeds
-=============
-*/
-void
-R_PrintDSpeeds(void)
-{
-}
-
-/*
 =============
 R_PrintAliasStats
 =============
@@ -374,23 +227,13 @@ R_SetupFrame(void)
 
     r_framecount++;
 
-// debugging
-#if 0
-    r_refdef.vieworg[0] = 80;
-    r_refdef.vieworg[1] = 64;
-    r_refdef.vieworg[2] = 40;
-    r_refdef.viewangles[0] = 0;
-    r_refdef.viewangles[1] = 46.763641357;
-    r_refdef.viewangles[2] = 0;
-#endif
-
-// build the transformation matrix for the given view angles
+    // build the transformation matrix for the given view angles
     VectorCopy(r_refdef.vieworg, modelorg);
     VectorCopy(r_refdef.vieworg, r_origin);
 
     AngleVectors(r_refdef.viewangles, vpn, vright, vup);
 
-// current viewleaf
+    // current viewleaf
     r_oldviewleaf = r_viewleaf;
     r_viewleaf = Mod_PointInLeaf(cl.worldmodel, r_origin);
 
@@ -454,15 +297,9 @@ R_SetupFrame(void)
 
     R_SetSkyFrame();
 
-    r_cache_thrash = false;
-
-// clear frame counts
-    c_faceclip = 0;
-    r_polycount = 0;
+    // clear frame counts
     r_drawnpolycount = 0;
     r_amodels_drawn = 0;
-    r_outofsurfaces = 0;
-    r_outofedges = 0;
 
     D_SetupFrame();
 }

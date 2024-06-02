@@ -29,7 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 /* Forward declarations */
 int rfclose(RFILE* stream);
-RFILE* rfopen(const char *path, const char *mode);
 
 qboolean sv_allow_cheats;
 
@@ -96,70 +95,6 @@ SV_Quit_f(void)
     SV_Shutdown();
     Sys_Quit();
 }
-
-/*
-============
-SV_Logfile_f
-============
-*/
-void
-SV_Logfile_f(void)
-{
-    char name[MAX_OSPATH];
-
-    if (sv_logfile) {
-	Con_Printf("File logging off.\n");
-	rfclose(sv_logfile);
-	sv_logfile = NULL;
-	return;
-    }
-
-    sprintf(name, "%s/qconsole.log", com_gamedir);
-    Con_Printf("Logging text to %s.\n", name);
-    sv_logfile = rfopen(name, "w");
-    if (!sv_logfile)
-	Con_Printf("failed.\n");
-}
-
-
-/*
-============
-SV_Fraglogfile_f
-============
-*/
-void
-SV_Fraglogfile_f(void)
-{
-    char name[MAX_OSPATH];
-    int i;
-
-    if (sv_fraglogfile) {
-	Con_Printf("Frag file logging off.\n");
-	fclose(sv_fraglogfile);
-	sv_fraglogfile = NULL;
-	return;
-    }
-    // find an unused name
-    for (i = 0; i < 1000; i++) {
-	sprintf(name, "%s/frag_%i.log", com_gamedir, i);
-	sv_fraglogfile = rfopen(name, "r");
-	if (!sv_fraglogfile) {	// can't read it, so create this one
-	    sv_fraglogfile = rfopen(name, "w");
-	    if (!sv_fraglogfile)
-		i = 1000;	// give error
-	    break;
-	}
-	fclose(sv_fraglogfile);
-    }
-    if (i == 1000) {
-	Con_Printf("Can't open any logfiles.\n");
-	sv_fraglogfile = NULL;
-	return;
-    }
-
-    Con_Printf("Logging frags to %s.\n", name);
-}
-
 
 /*
 ==================
@@ -318,14 +253,6 @@ SV_Map_f(void)
 	return;
     }
     strcpy(level, Cmd_Argv(1));
-
-#if 0
-    if (!strcmp(level, "e1m8")) {	// QuakeWorld can't go to e1m8
-	SV_BroadcastPrintf(PRINT_HIGH,
-			   "can't go to low grav level in QuakeWorld...\n");
-	strcpy(level, "e1m5");
-    }
-#endif
 
     // check to make sure the level exists
     sprintf(expanded, "maps/%s.bsp", level);
@@ -757,98 +684,6 @@ SV_Gamedir_f(void)
 }
 
 /*
-================
-SV_Snap
-================
-*/
-void
-SV_Snap(int uid)
-{
-    client_t *cl;
-    char pcxname[80];
-    char checkname[MAX_OSPATH];
-    int i;
-
-    for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
-	if (!cl->state)
-	    continue;
-	if (cl->userid == uid)
-	    break;
-    }
-    if (i >= MAX_CLIENTS) {
-	Con_Printf("userid not found\n");
-	return;
-    }
-
-    sprintf(pcxname, "%d-00.pcx", uid);
-
-    sprintf(checkname, "%s/snap", gamedirfile);
-    Sys_mkdir(gamedirfile);
-    Sys_mkdir(checkname);
-
-    for (i = 0; i <= 99; i++) {
-	pcxname[strlen(pcxname) - 6] = i / 10 + '0';
-	pcxname[strlen(pcxname) - 5] = i % 10 + '0';
-	sprintf(checkname, "%s/snap/%s", gamedirfile, pcxname);
-	if (Sys_FileTime(checkname) == -1)
-	    break;		// file doesn't exist
-    }
-    if (i == 100) {
-	Con_Printf("Snap: Couldn't create a file, clean some out.\n");
-	return;
-    }
-    strcpy(cl->uploadfn, checkname);
-
-    memcpy(&cl->snap_from, &net_from, sizeof(net_from));
-    if (sv_redirected != RD_NONE)
-	cl->remote_snap = true;
-    else
-	cl->remote_snap = false;
-
-    ClientReliableWrite_Begin(cl, svc_stufftext, 24);
-    ClientReliableWrite_String(cl, "cmd snap");
-    Con_Printf("Requesting snap from user %d...\n", uid);
-}
-
-/*
-================
-SV_Snap_f
-================
-*/
-void
-SV_Snap_f(void)
-{
-    int uid;
-
-    if (Cmd_Argc() != 2) {
-	Con_Printf("Usage:  snap <userid>\n");
-	return;
-    }
-
-    uid = atoi(Cmd_Argv(1));
-
-    SV_Snap(uid);
-}
-
-/*
-================
-SV_Snap
-================
-*/
-void
-SV_SnapAll_f(void)
-{
-    client_t *cl;
-    int i;
-
-    for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
-	if (cl->state < cs_connected || cl->spectator)
-	    continue;
-	SV_Snap(cl->userid);
-    }
-}
-
-/*
 ==================
 SV_InitOperatorCommands
 ==================
@@ -862,11 +697,6 @@ SV_InitOperatorCommands(void)
 				MAX_SERVERINFO_STRING);
     }
 
-    Cmd_AddCommand("logfile", SV_Logfile_f);
-    Cmd_AddCommand("fraglogfile", SV_Fraglogfile_f);
-
-    Cmd_AddCommand("snap", SV_Snap_f);
-    Cmd_AddCommand("snapall", SV_SnapAll_f);
     Cmd_AddCommand("kick", SV_Kick_f);
     Cmd_AddCommand("status", SV_Status_f);
 

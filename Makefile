@@ -148,6 +148,8 @@ else ifeq ($(platform), tvos-arm64)
 ifeq ($(IOSSDK),)
    IOSSDK := $(shell xcodebuild -version -sdk appletvos Path)
 endif
+   CC = clang -arch arm64 -isysroot $(IOSSDK)
+   CXX = clang++ -arch arm64 -isysroot $(IOSSDK)
    CFLAGS += -DIOS -DIOS_ARM64
 
 # iOS Theos
@@ -839,9 +841,7 @@ else
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-ifeq ($(platform), emscripten)
-	$(CXX) $(CFLAGS) $(OBJOUT)$@ $^
-else ifeq ($(STATIC_LINKING), 1)
+ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
 	$(LD) $(fpic) $(SHARED) $(LINKOUT)$@ $(OBJECTS) $(LDFLAGS) $(WINSOCKS)

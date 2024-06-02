@@ -25,8 +25,6 @@ impulse
 version", CL_Version_f
 changing", CL_Changing_f
 disconnect", CL_Disconnect_f
-record", CL_Record_f
-stop", CL_Stop_f
 playdemo", CL_PlayDemo_f
 timedemo", CL_TimeDemo_f
 skins", Skin_Skins_f
@@ -307,7 +305,6 @@ scr_printspeed
 nosound
 volume
 precache
-loadas8bit
 bgmvolume
 bgmbuffer
 ambient_level

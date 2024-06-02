@@ -31,15 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "view.h"
 
 void *colormap;
-float r_time1;
 int r_numallocatededges;
 
 qboolean r_recursiveaffinetriangles = true;
 
-int r_pixbytes = 1;
 float r_aliasuvscale = 1.0;
-int r_outofsurfaces;
-int r_outofedges;
 
 static vec3_t viewlightvec;
 static alight_t r_viewlighting = { 128, 192, viewlightvec };
@@ -92,7 +88,6 @@ mplane_t screenedge[4];
 //
 int r_framecount = 1;		// so frame counts initialized to 0 don't match
 int r_visframecount;
-int r_polycount;
 int r_drawnpolycount;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
@@ -127,9 +122,7 @@ static cvar_t r_zgraph = { "r_zgraph", "0" };
 static cvar_t r_timegraph = { "r_timegraph", "0" };
 static cvar_t r_aliasstats = { "r_polymodelstats", "0" };
 static cvar_t r_dspeeds = { "r_dspeeds", "0" };
-static cvar_t r_reportsurfout = { "r_reportsurfout", "0" };
 static cvar_t r_maxsurfs = { "r_maxsurfs", "0" };
-static cvar_t r_reportedgeout = { "r_reportedgeout", "0" };
 static cvar_t r_maxedges = { "r_maxedges", "0" };
 static cvar_t r_aliastransbase = { "r_aliastransbase", "200" };
 static cvar_t r_aliastransadj = { "r_aliastransadj", "100" };
@@ -146,8 +139,7 @@ R_InitTextures(void)
     byte *dest;
 
 // create a simple checkerboard texture for the default
-    r_notexture_mip = (texture_t*)Hunk_AllocName(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2,
-		       "notexture");
+    r_notexture_mip = (texture_t*)Hunk_Alloc(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2);
 
     r_notexture_mip->width = r_notexture_mip->height = 16;
     r_notexture_mip->offsets[0] = sizeof(texture_t);
@@ -203,9 +195,6 @@ R_Init(void)
 
     R_InitTurb();
 
-    Cmd_AddCommand("timerefresh", R_TimeRefresh_f);
-    Cmd_AddCommand("pointfile", R_ReadPointFile_f);
-
     Cvar_RegisterVariable(&r_draworder);
     Cvar_RegisterVariable(&r_speeds);
     Cvar_RegisterVariable(&r_graphheight);
@@ -228,9 +217,7 @@ R_Init(void)
     Cvar_RegisterVariable(&r_timegraph);
     Cvar_RegisterVariable(&r_aliasstats);
     Cvar_RegisterVariable(&r_dspeeds);
-    Cvar_RegisterVariable(&r_reportsurfout);
     Cvar_RegisterVariable(&r_maxsurfs);
-    Cvar_RegisterVariable(&r_reportedgeout);
     Cvar_RegisterVariable(&r_maxedges);
     Cvar_RegisterVariable(&r_aliastransbase);
     Cvar_RegisterVariable(&r_aliastransadj);
@@ -283,7 +270,7 @@ R_NewMap(void)
 
     r_cnumsurfs = qclamp((int)r_maxsurfs.value, MINSURFACES, MAXSURFACES);
     if (r_cnumsurfs > NUMSTACKSURFACES) {
-	surfaces = (surf_t*)Hunk_AllocName(r_cnumsurfs * sizeof(surf_t), "surfaces");
+	surfaces = (surf_t*)Hunk_Alloc(r_cnumsurfs * sizeof(surf_t));
 	surface_p = surfaces;
 	surf_max = &surfaces[r_cnumsurfs];
 	r_surfsonstack = false;
@@ -298,12 +285,10 @@ R_NewMap(void)
     r_maxsurfsseen = 0;
 
     r_numallocatededges = qclamp((int)r_maxedges.value, MINEDGES, MAXEDGES);
-    if (r_numallocatededges <= NUMSTACKEDGES) {
+    if (r_numallocatededges <= NUMSTACKEDGES)
 	auxedges = NULL;
-    } else {
-	auxedges = (edge_t*)Hunk_AllocName(r_numallocatededges * sizeof(edge_t),
-				  "edges");
-    }
+    else
+	auxedges = (edge_t*)Hunk_Alloc(r_numallocatededges * sizeof(edge_t));
 
     r_dowarpold = false;
     r_viewchanged = false;
@@ -1076,12 +1061,6 @@ R_RenderView_(void)
 
     if (r_aliasstats.value)
 	R_PrintAliasStats();
-
-    if (r_reportsurfout.value && r_outofsurfaces)
-	Con_Printf("Short %d surfaces\n", r_outofsurfaces);
-
-    if (r_reportedgeout.value && r_outofedges)
-	Con_Printf("Short roughly %d edges\n", r_outofedges * 2 / 3);
 
     // back to high floating-point precision
     Sys_HighFPPrecision();

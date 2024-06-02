@@ -291,7 +291,7 @@ CL_ParseServerInfo(void)
        Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
        return;
     }
-    cl.players = (player_info_t*)Hunk_AllocName(cl.maxclients * sizeof(*cl.players), "players");
+    cl.players = (player_info_t*)Hunk_Alloc(cl.maxclients * sizeof(*cl.players));
 
     /* parse gametype */
     cl.gametype = MSG_ReadByte();
@@ -1165,8 +1165,7 @@ CL_ParseServerMessage(void)
          case svc_cdtrack:
             cl.cdtrack = MSG_ReadByte();
             cl.looptrack = MSG_ReadByte();
-            if ((cls.demoplayback || cls.demorecording)
-                  && (cls.forcetrack != -1))
+            if (cls.demoplayback && (cls.forcetrack != -1))
                BGM_PlayCDtrack ((byte)cls.forcetrack, true);
 			else
                BGM_PlayCDtrack ((byte)cl.cdtrack, true);

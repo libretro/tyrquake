@@ -50,21 +50,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ===============================================================================
 */
 
-static const char *
-PF_VarString(int first)
+static const char *PF_VarString(int first)
 {
     static char out[512];
     const char *arg;
-    int i, buflen, arglen;
-
-    buflen = sizeof(out) - 1;
+    int i, arglen;
+    int buflen = sizeof(out) - 1;
     out[0] = 0;
-    for (i = first; i < pr_argc; i++) {
+    for (i = first; i < pr_argc; i++)
+    {
 	arg = G_STRING(OFS_PARM0 + i * 3);
 	arglen = strlen(arg);
 	strncat(out, arg, buflen);
 	buflen -= arglen;
-	if (buflen < 0) {
+	if (buflen < 0)
+	{
 	    Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 	    break;
 	}
@@ -83,13 +83,10 @@ Dumps self.
 error(value)
 =================
 */
-static void
-PF_error(void)
+static void PF_error(void)
 {
-    const char *s;
     edict_t *ed;
-
-    s = PF_VarString(0);
+    const char *s = PF_VarString(0);
     Con_Printf("======SERVER ERROR in %s:\n%s\n",
 	       PR_GetString(pr_xfunction->s_name), s);
     ed = PROG_TO_EDICT(pr_global_struct->self);
@@ -278,14 +275,11 @@ Also sets size, mins, and maxs for inline bmodels
 static void
 PF_setmodel(void)
 {
-    edict_t *e;
-    const char **check;
-    const char *m;
-    model_t *mod;
     int i;
-
-    e = G_EDICT(OFS_PARM0);
-    m = G_STRING(OFS_PARM1);
+    model_t *mod;
+    const char **check;
+    edict_t *e    = G_EDICT(OFS_PARM0);
+    const char *m = G_STRING(OFS_PARM1);
 
     /* check to see if model was properly precached */
     for (i = 0, check = sv.model_precache; *check; i++, check++)
@@ -330,17 +324,12 @@ static void
 PF_bprint(void)
 {
 #ifdef NQ_HACK
-    const char *s;
-
-    s = PF_VarString(0);
+    const char *s = PF_VarString(0);
     SV_BroadcastPrintf("%s", s);
 #endif
 #ifdef QW_HACK
-    const char *s;
-    int level;
-
-    level = G_FLOAT(OFS_PARM0);
-    s = PF_VarString(1);
+    int level     = G_FLOAT(OFS_PARM0);
+    const char *s = PF_VarString(1);
     SV_BroadcastPrintf(level, "%s", s);
 #endif
 }
@@ -358,12 +347,9 @@ static void
 PF_sprint(void)
 {
 #ifdef NQ_HACK
-    const char *s;
     client_t *client;
-    int entnum;
-
-    entnum = G_EDICTNUM(OFS_PARM0);
-    s = PF_VarString(1);
+    int entnum    = G_EDICTNUM(OFS_PARM0);
+    const char *s = PF_VarString(1);
 
     if (entnum < 1 || entnum > svs.maxclients) {
 	Con_Printf("tried to sprint to a non-client\n");
@@ -375,14 +361,10 @@ PF_sprint(void)
     MSG_WriteString(&client->message, s);
 #endif
 #ifdef QW_HACK
-    const char *s;
     client_t *client;
-    int entnum;
-    int level;
-
-    entnum = G_EDICTNUM(OFS_PARM0);
-    level = G_FLOAT(OFS_PARM1);
-    s = PF_VarString(2);
+    int entnum    = G_EDICTNUM(OFS_PARM0);
+    int level     = G_FLOAT(OFS_PARM1);
+    const char *s = PF_VarString(2);
 
     if (entnum < 1 || entnum > MAX_CLIENTS) {
 	Con_Printf("tried to sprint to a non-client\n");
@@ -407,12 +389,9 @@ centerprint(clientent, value)
 static void
 PF_centerprint(void)
 {
-    const char *s;
     client_t *client;
-    int entnum;
-
-    entnum = G_EDICTNUM(OFS_PARM0);
-    s = PF_VarString(1);
+    int entnum    = G_EDICTNUM(OFS_PARM0);
+    const char *s = PF_VarString(1);
 
 #ifdef NQ_HACK
     if (entnum < 1 || entnum > svs.maxclients) {
@@ -446,13 +425,9 @@ vector normalize(vector)
 static void
 PF_normalize(void)
 {
-    float *value1;
     vec3_t newvalue;
-    float newval;
-
-    value1 = G_VECTOR(OFS_PARM0);
-
-    newval =
+    float *value1 = G_VECTOR(OFS_PARM0);
+    float newval  =
 	value1[0] * value1[0] + value1[1] * value1[1] + value1[2] * value1[2];
     newval = sqrt(newval);
 
@@ -478,12 +453,8 @@ scalar vlen(vector)
 static void
 PF_vlen(void)
 {
-    float *value1;
-    float newobj;
-
-    value1 = G_VECTOR(OFS_PARM0);
-
-    newobj =
+    float *value1 = G_VECTOR(OFS_PARM0);
+    float newobj  =
 	value1[0] * value1[0] + value1[1] * value1[1] + value1[2] * value1[2];
     newobj = sqrt(newobj);
 
@@ -500,14 +471,13 @@ float vectoyaw(vector)
 static void
 PF_vectoyaw(void)
 {
-    float *value1;
     float yaw;
-
-    value1 = G_VECTOR(OFS_PARM0);
+    float *value1 = G_VECTOR(OFS_PARM0);
 
     if (value1[1] == 0 && value1[0] == 0)
 	yaw = 0;
-    else {
+    else
+    {
 	yaw = (int)(atan2(value1[1], value1[0]) * 180 / M_PI);
 	if (yaw < 0)
 	    yaw += 360;
@@ -527,11 +497,9 @@ vector vectoangles(vector)
 static void
 PF_vectoangles(void)
 {
-    float *value1;
     float forward;
     float yaw, pitch;
-
-    value1 = G_VECTOR(OFS_PARM0);
+    float *value1 = G_VECTOR(OFS_PARM0);
 
     if (value1[1] == 0 && value1[0] == 0) {
 	yaw = 0;
@@ -567,9 +535,7 @@ random()
 static void
 PF_random(void)
 {
-    float num;
-
-    num = (rand() & 0x7fff) / ((float)0x7fff);
+    float num = (rand() & 0x7fff) / ((float)0x7fff);
 
     G_FLOAT(OFS_RETURN) = num;
 }
@@ -585,14 +551,10 @@ particle(origin, color, count)
 static void
 PF_particle(void)
 {
-    float *org, *dir;
-    float color;
-    float count;
-
-    org = G_VECTOR(OFS_PARM0);
-    dir = G_VECTOR(OFS_PARM1);
-    color = G_FLOAT(OFS_PARM2);
-    count = G_FLOAT(OFS_PARM3);
+    float *org  = G_VECTOR(OFS_PARM0);
+    float *dir  = G_VECTOR(OFS_PARM1);
+    float color = G_FLOAT(OFS_PARM2);
+    float count = G_FLOAT(OFS_PARM3);
     SV_StartParticle(org, dir, color, count);
 }
 
@@ -630,18 +592,14 @@ PF_ambientsound
 static void
 PF_ambientsound(void)
 {
-    const char **check;
-    const char *samp;
-    float *pos;
-    float vol, attenuation;
     int i, soundnum;
+    const char **check;
+    float *pos        = G_VECTOR(OFS_PARM0);
+    const char *samp  = G_STRING(OFS_PARM1);
+    float vol         = G_FLOAT(OFS_PARM2);
+    float attenuation = G_FLOAT(OFS_PARM3);
 
-    pos = G_VECTOR(OFS_PARM0);
-    samp = G_STRING(OFS_PARM1);
-    vol = G_FLOAT(OFS_PARM2);
-    attenuation = G_FLOAT(OFS_PARM3);
-
-// check to see if samp was properly precached
+    // check to see if samp was properly precached
     for (soundnum = 0, check = sv.sound_precache; *check; check++, soundnum++)
 	if (!strcmp(*check, samp))
 	    break;
@@ -689,20 +647,13 @@ Larger attenuations will drop off.
 
 =================
 */
-static void
-PF_sound(void)
+static void PF_sound(void)
 {
-    const char *sample;
-    int channel;
-    edict_t *entity;
-    int volume;
-    float attenuation;
-
-    entity = G_EDICT(OFS_PARM0);
-    channel = G_FLOAT(OFS_PARM1);
-    sample = G_STRING(OFS_PARM2);
-    volume = G_FLOAT(OFS_PARM3) * 255;
-    attenuation = G_FLOAT(OFS_PARM4);
+    edict_t *entity    = G_EDICT(OFS_PARM0);
+    int channel        = G_FLOAT(OFS_PARM1);
+    const char *sample = G_STRING(OFS_PARM2);
+    int volume         = G_FLOAT(OFS_PARM3) * 255;
+    float attenuation  = G_FLOAT(OFS_PARM4);
 
 #ifdef NQ_HACK
     if (volume < 0 || volume > 255)
@@ -891,11 +842,9 @@ stuffcmd (clientent, value)
 static void
 PF_stuffcmd(void)
 {
-    int entnum;
     const char *str;
     client_t *client;
-
-    entnum = G_EDICTNUM(OFS_PARM0);
+    int entnum = G_EDICTNUM(OFS_PARM0);
 #ifdef NQ_HACK
     if (entnum < 1 || entnum > svs.maxclients)
 	PR_RunError("Parm 0 not a client");
@@ -933,8 +882,7 @@ Sends text over to the client's execution buffer
 localcmd (string)
 =================
 */
-static void
-PF_localcmd(void)
+static void PF_localcmd(void)
 {
     Cbuf_AddText("%s", G_STRING(OFS_PARM0));
 }
@@ -946,12 +894,9 @@ PF_cvar
 float cvar (string)
 =================
 */
-static void
-PF_cvar(void)
+static void PF_cvar(void)
 {
-    const char *var;
-
-    var = G_STRING(OFS_PARM0);
+    const char *var = G_STRING(OFS_PARM0);
 
     G_FLOAT(OFS_RETURN) = Cvar_VariableValue(var);
 }
@@ -963,14 +908,10 @@ PF_cvar_set
 float cvar (string)
 =================
 */
-static void
-PF_cvar_set(void)
+static void PF_cvar_set(void)
 {
-    const char *var, *val;
-
-    var = G_STRING(OFS_PARM0);
-    val = G_STRING(OFS_PARM1);
-
+    const char *var = G_STRING(OFS_PARM0);
+    const char *val = G_STRING(OFS_PARM1);
     Cvar_Set(var, val);
 }
 
@@ -983,22 +924,17 @@ Returns a chain of entities that have origins within a spherical area
 findradius (origin, radius)
 =================
 */
-static void
-PF_findradius(void)
+static void PF_findradius(void)
 {
-    edict_t *ent, *chain;
-    float rad;
-    float *org;
-    vec3_t eorg;
     int i, j;
+    vec3_t eorg;
+    edict_t *chain = (edict_t *)sv.edicts;
+    float *org     = G_VECTOR(OFS_PARM0);
+    float rad      = G_FLOAT(OFS_PARM1);
+    edict_t *ent   = NEXT_EDICT(sv.edicts);
 
-    chain = (edict_t *)sv.edicts;
-
-    org = G_VECTOR(OFS_PARM0);
-    rad = G_FLOAT(OFS_PARM1);
-
-    ent = NEXT_EDICT(sv.edicts);
-    for (i = 1; i < sv.num_edicts; i++, ent = NEXT_EDICT(ent)) {
+    for (i = 1; i < sv.num_edicts; i++, ent = NEXT_EDICT(ent))
+    {
 	if (ent->free)
 	    continue;
 	if (ent->v.solid == SOLID_NOT)
@@ -1023,21 +959,16 @@ PF_findradius(void)
 PF_dprint
 =========
 */
-static void
-PF_dprint(void)
+static void PF_dprint(void)
 {
     Con_DPrintf("%s", PF_VarString(0));
 }
 
 static char pr_string_temp[128];
 
-static void
-PF_ftos(void)
+static void PF_ftos(void)
 {
-    float v;
-
-    v = G_FLOAT(OFS_PARM0);
-
+    float v = G_FLOAT(OFS_PARM0);
     if (v == (int)v)
 	sprintf(pr_string_temp, "%d", (int)v);
     else
@@ -1045,12 +976,9 @@ PF_ftos(void)
     G_INT(OFS_RETURN) = PR_SetString(pr_string_temp);
 }
 
-static void
-PF_fabs(void)
+static void PF_fabs(void)
 {
-    float v;
-
-    v = G_FLOAT(OFS_PARM0);
+    float v = G_FLOAT(OFS_PARM0);
     G_FLOAT(OFS_RETURN) = fabs(v);
 }
 
@@ -1197,13 +1125,6 @@ PF_precache_model(void)
 #ifdef QW_HACK
     PR_RunError("%s: overflow (max = %d)", __func__, MAX_MODELS);
 #endif
-}
-
-
-static void
-PF_coredump(void)
-{
-    ED_PrintEdicts();
 }
 
 static void
@@ -1444,7 +1365,7 @@ cvar_t sv_aim = { "sv_aim", "2" };
 static void
 PF_aim(void)
 {
-    edict_t *ent, *check, *bestent;
+    edict_t *check, *bestent;
     vec3_t start, dir, end, bestdir;
     int i, j;
     trace_t tr;
@@ -1454,9 +1375,7 @@ PF_aim(void)
 #ifdef QW_HACK
     char *noaim;
 #endif
-
-    ent = G_EDICT(OFS_PARM0);
-    //speed = G_FLOAT(OFS_PARM1);
+    edict_t *ent = G_EDICT(OFS_PARM0);
 
     VectorCopy(ent->v.origin, start);
     start[2] += 20;
@@ -1530,16 +1449,13 @@ PF_changeyaw
 This was a major timewaster in progs, so it was converted to C
 ==============
 */
-void
-PF_changeyaw(void)
+void PF_changeyaw(void)
 {
-    edict_t *ent;
-    float ideal, current, move, speed;
-
-    ent = PROG_TO_EDICT(pr_global_struct->self);
-    current = anglemod(ent->v.angles[1]);
-    ideal = ent->v.ideal_yaw;
-    speed = ent->v.yaw_speed;
+    float move;
+    edict_t *ent  = PROG_TO_EDICT(pr_global_struct->self);
+    float current = anglemod(ent->v.angles[1]);
+    float ideal   = ent->v.ideal_yaw;
+    float speed   = ent->v.yaw_speed;
 
     if (current == ideal)
 	return;
@@ -1581,13 +1497,11 @@ MESSAGE WRITING
 static sizebuf_t *
 WriteDest(void)
 {
-    int dest;
 #ifdef NQ_HACK
     int entnum;
     edict_t *ent;
 #endif
-
-    dest = G_FLOAT(OFS_PARM0);
+    int dest = G_FLOAT(OFS_PARM0);
     switch (dest) {
     case MSG_BROADCAST:
 	return &sv.datagram;
@@ -1632,11 +1546,8 @@ WriteDest(void)
 static client_t *
 Write_GetClient(void)
 {
-    int entnum;
-    edict_t *ent;
-
-    ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
-    entnum = NUM_FOR_EDICT(ent);
+    edict_t *ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
+    int entnum   = NUM_FOR_EDICT(ent);
     if (entnum < 1 || entnum > MAX_CLIENTS)
 	PR_RunError("%s: not a client", __func__);
     return &svs.clients[entnum - 1];
@@ -1757,28 +1668,22 @@ PF_WriteEntity(void)
 
 //=============================================================================
 
-static void
-PF_makestatic(void)
+static void PF_makestatic(void)
 {
-    edict_t *ent;
     int i;
 #ifdef NQ_HACK
     unsigned int bits;
 #endif
-
-    ent = G_EDICT(OFS_PARM0);
+    edict_t *ent = G_EDICT(OFS_PARM0);
 
 #ifdef NQ_HACK
     bits = 0;
-    if (sv.protocol == PROTOCOL_VERSION_FITZ) {
+    if (sv.protocol == PROTOCOL_VERSION_FITZ)
+    {
 	if (SV_ModelIndex(PR_GetString(ent->v.model)) & 0xff00)
 	    bits |= B_FITZ_LARGEMODEL;
 	if ((int)ent->v.frame & 0xff00)
 	    bits |= B_FITZ_LARGEFRAME;
-#if 0
-	if (ent->alpha != ENTALPHA_DEFAULT)
-	    bits |= B_FITZ_ALPHA;
-#endif
     }
 
     if (bits) {
@@ -1803,11 +1708,6 @@ PF_makestatic(void)
 	MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
     }
 
-#if 0
-    if (bits & B_ALPHA)
-	MSG_WriteByte(&sv.signon, ent->alpha);
-#endif
-
     /* throw the entity away now */
     ED_Free(ent);
 }
@@ -1819,15 +1719,11 @@ PF_makestatic(void)
 PF_setspawnparms
 ==============
 */
-static void
-PF_setspawnparms(void)
+static void PF_setspawnparms(void)
 {
-    edict_t *ent;
-    int i;
     client_t *client;
-
-    ent = G_EDICT(OFS_PARM0);
-    i = NUM_FOR_EDICT(ent);
+    edict_t *ent = G_EDICT(OFS_PARM0);
+    int i        = NUM_FOR_EDICT(ent);
 #ifdef NQ_HACK
     if (i < 1 || i > svs.maxclients)
 #endif
@@ -1879,18 +1775,13 @@ PF_logfrag
 logfrag (killer, killee)
 ==============
 */
-static void
-PF_logfrag(void)
+static void PF_logfrag(void)
 {
-    edict_t *ent1, *ent2;
-    int e1, e2;
     const char *s;
-
-    ent1 = G_EDICT(OFS_PARM0);
-    ent2 = G_EDICT(OFS_PARM1);
-
-    e1 = NUM_FOR_EDICT(ent1);
-    e2 = NUM_FOR_EDICT(ent2);
+    edict_t *ent1 = G_EDICT(OFS_PARM0);
+    edict_t *ent2 = G_EDICT(OFS_PARM1);
+    int e1        = NUM_FOR_EDICT(ent1);
+    int e2        = NUM_FOR_EDICT(ent2);
 
     if (e1 < 1 || e1 > MAX_CLIENTS || e2 < 1 || e2 > MAX_CLIENTS)
 	return;
@@ -1916,15 +1807,11 @@ string(entity e, string key) infokey
 static void
 PF_infokey(void)
 {
-    static char buf[256]; /* only needs to fit IP or ping */
     const char *value;
-    const char *key;
-    edict_t *e;
-    int e1;
-
-    e = G_EDICT(OFS_PARM0);
-    e1 = NUM_FOR_EDICT(e);
-    key = G_STRING(OFS_PARM1);
+    static char buf[256]; /* only needs to fit IP or ping */
+    edict_t *e      = G_EDICT(OFS_PARM0);
+    int e1          = NUM_FOR_EDICT(e);
+    const char *key = G_STRING(OFS_PARM1);
 
     if (e1 == 0) {
 	if ((value = Info_ValueForKey(svs.info, key)) == NULL || !*value)
@@ -1953,13 +1840,9 @@ PF_stof
 float(string s) stof
 ==============
 */
-static void
-PF_stof(void)
+static void PF_stof(void)
 {
-    const char *s;
-
-    s = G_STRING(OFS_PARM0);
-
+    const char *s = G_STRING(OFS_PARM0);
     G_FLOAT(OFS_RETURN) = atof(s);
 }
 
@@ -1974,23 +1857,16 @@ void(vector where, float set) multicast
 static void
 PF_multicast(void)
 {
-    float *o;
-    int to;
-
-    o = G_VECTOR(OFS_PARM0);
-    to = G_FLOAT(OFS_PARM1);
-
+    float *o = G_VECTOR(OFS_PARM0);
+    int to   = G_FLOAT(OFS_PARM1);
     SV_Multicast(o, to);
 }
 #endif /* QW_HACK */
 
-static void
-PF_Fixme(void)
+static void PF_Fixme(void)
 {
     PR_RunError("unimplemented bulitin");
 }
-
-
 
 builtin_t pr_builtin[] = {
     PF_Fixme,
@@ -2021,7 +1897,7 @@ builtin_t pr_builtin[] = {
     PF_dprint,		// void(string s) dprint                         = #25;
     PF_ftos,		// void(string s) ftos                           = #26;
     PF_vtos,		// void(string s) vtos                           = #27;
-    PF_coredump,
+    PF_Fixme,		// PF_coredump - print edicts
     PF_traceon,
     PF_traceoff,
     PF_eprint,		// void(entity e) debug print an entire entity

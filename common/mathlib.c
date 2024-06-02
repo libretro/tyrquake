@@ -273,11 +273,6 @@ BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *p)
    if (dist2 < p->dist)
       sides |= PSIDE_BACK;
 
-#ifdef PARANOID
-   if (sides == 0)
-      Sys_Error("%s: sides == 0", __func__);
-#endif
-
    return sides;
 }
 
@@ -521,16 +516,8 @@ FloorDivMod(double numer, double denom, int *quotient, int *rem)
    int q, r;
    double x;
 
-#ifndef PARANOID
    if (denom <= 0.0)
       Sys_Error("%s: bad denominator %lf", __func__, denom);
-
-#if 0
-   if ((floor(numer) != numer) || (floor(denom) != denom))
-      Sys_Error ("%s: non-integer numer or denom %f %f", __func__
-            numer, denom);
-#endif
-#endif
 
    if (numer >= 0.0)
    {

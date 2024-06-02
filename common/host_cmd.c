@@ -1426,21 +1426,6 @@ Host_Viewframe_f(void)
     e->v.frame = f;
 }
 
-
-void
-PrintFrameName(model_t *m, int frame)
-{
-    aliashdr_t *hdr;
-    maliasframedesc_t *pframedesc;
-
-    hdr = (aliashdr_t*)Mod_Extradata(m);
-    if (!hdr)
-	return;
-    pframedesc = &hdr->frames[frame];
-
-    Con_Printf("frame %i: %s\n", frame, pframedesc->name);
-}
-
 /*
 ==================
 Host_Viewnext_f
@@ -1460,8 +1445,6 @@ Host_Viewnext_f(void)
     e->v.frame = e->v.frame + 1;
     if (e->v.frame >= m->numframes)
 	e->v.frame = m->numframes - 1;
-
-    PrintFrameName(m, e->v.frame);
 }
 
 /*
@@ -1472,20 +1455,13 @@ Host_Viewprev_f
 void
 Host_Viewprev_f(void)
 {
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
+    edict_t *e = FindViewthing();
     if (!e)
 	return;
-
-    m = cl.model_precache[(int)e->v.modelindex];
 
     e->v.frame = e->v.frame - 1;
     if (e->v.frame < 0)
 	e->v.frame = 0;
-
-    PrintFrameName(m, e->v.frame);
 }
 
 /*

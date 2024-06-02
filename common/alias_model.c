@@ -57,8 +57,6 @@ Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
 {
     int i;
 
-    strncpy(frame->name, in->name, sizeof(frame->name));
-    frame->name[sizeof(frame->name) - 1] = 0;
     frame->firstpose = posenum;
     frame->numposes = 1;
 
@@ -83,8 +81,7 @@ returns a pointer to the memory location following this frame group
 =================
 */
 static daliasframetype_t *
-Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
-		   const char *loadname)
+Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
 {
    int i, numframes;
    daliasframe_t *dframe;
@@ -104,8 +101,6 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
    }
 
    dframe = (daliasframe_t *)&in->intervals[numframes];
-   strncpy(frame->name, dframe->name, sizeof(frame->name));
-   frame->name[sizeof(frame->name) - 1] = 0;
    for (i = 0; i < numframes; i++) {
       poseverts[posenum] = dframe->verts;
 #ifdef MSB_FIRST
@@ -174,8 +169,7 @@ Mod_LoadAllSkins
 */
 static void *
 Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
-		 int numskins, daliasskintype_t *pskintype,
-		 const char *loadname)
+		 int numskins, daliasskintype_t *pskintype)
 {
    int i, skinsize;
    maliasskindesc_t *pskindesc;
@@ -188,7 +182,7 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
       Sys_Error("%s: skinwidth not multiple of 4", __func__);
 
    skinsize = pheader->skinwidth * pheader->skinheight;
-   pskindesc = (maliasskindesc_t*)Hunk_AllocName(numskins * sizeof(maliasskindesc_t), loadname);
+   pskindesc = (maliasskindesc_t*)Hunk_Alloc(numskins * sizeof(maliasskindesc_t));
    pheader->skindesc = (byte *)pskindesc - (byte *)pheader;
 
    skinnum = 0;
@@ -233,7 +227,7 @@ Mod_LoadAliasModel
 */
 void
 Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
-		   const model_t *loadmodel, const char *loadname)
+		   const model_t *loadmodel)
 {
    byte *container;
    int i, j, pad;
@@ -295,7 +289,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
       (pinmodel->numframes) * sizeof(pheader->frames[0]);
 #endif
 
-   container = (byte*)Hunk_AllocName(size, loadname);
+   container = (byte*)Hunk_Alloc(size);
    pheader = (aliashdr_t *)(container + pad);
 
 #ifdef MSB_FIRST
@@ -363,7 +357,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    // load the skins
    pskintype = (daliasskintype_t *)&pinmodel[1];
    pskintype = (daliasskintype_t *)Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
-         pskintype, loadname);
+         pskintype);
 
    // set base s and t vertices
    pinstverts = (stvert_t *)pskintype;
@@ -424,8 +418,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
             pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];
          } else {
             group = (daliasgroup_t *)(pframetype + 1);
-            pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i],
-                  loadname);
+            pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i]);
          }
    }
    pheader->numposes = posenum;
@@ -448,7 +441,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    end = Hunk_LowMark();
    total = end - start;
 
-   Cache_AllocPadded(&mod->cache, pad, total - pad, loadname);
+   Cache_AllocPadded(&mod->cache, pad, total - pad);
    if (!mod->cache.data)
       return;
 

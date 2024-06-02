@@ -199,12 +199,9 @@ keyname_t keynames[] = {
  * command string. Only simple for now (i.e. search backwards for a command
  * delimiter), but proper parsing of quotation, etc needed later...
  */
-static char *
-GetCommandPos(char *buf)
+static char *GetCommandPos(char *buf)
 {
-    char *pos;
-
-    pos = strrchr(buf, ';');
+    char *pos = strrchr(buf, ';');
     if (pos) {
 	pos++;
 	while (*pos == ' ')
@@ -218,14 +215,11 @@ GetCommandPos(char *buf)
     return pos;
 }
 
-static qboolean
-CheckForCommand(void)
+static qboolean CheckForCommand(void)
 {
-    char cmd[128];
-    char *s;
     int i;
-
-    s = key_lines[edit_line] + 1;	// skip the ]
+    char cmd[128];
+    char *s = key_lines[edit_line] + 1;	// skip the ]
 
     for (i = 0; i < sizeof(cmd) - 1; i++)
 	if (s[i] <= ' ')
@@ -461,35 +455,6 @@ Key_Console(int key)
 	con->display = con->current;
 	return;
     }
-
-#if 0
-    if ((key == 'V' || key == 'v') && GetKeyState(VK_CONTROL) < 0) {
-	if (OpenClipboard(NULL)) {
-	    th = GetClipboardData(CF_TEXT);
-	    if (th) {
-		clipText = GlobalLock(th);
-		if (clipText) {
-		    textCopied = malloc(GlobalSize(th) + 1);
-		    strcpy(textCopied, clipText);
-		    /* Substitutes a NULL for every token */
-		    strtok(textCopied, "\n\r\b");
-		    i = strlen(textCopied);
-		    if (i + key_linepos >= MAXCMDLINE)
-			i = MAXCMDLINE - key_linepos;
-		    if (i > 0) {
-			textCopied[i] = 0;
-			strcat(key_lines[edit_line], textCopied);
-			key_linepos += i;;
-		    }
-		    free(textCopied);
-		}
-		GlobalUnlock(th);
-	    }
-	    CloseClipboard();
-	    return;
-	}
-    }
-#endif
 
     if (key < 32 || key > 127)
 	return;			// non printable

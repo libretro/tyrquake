@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 Mod_LoadSpriteFrame
 =================
 */
-static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const char *loadname,
+static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
       int framenum)
 {
    int origin[2];
@@ -49,7 +49,7 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const cha
 #endif
    int numpixels = width * height;
    int size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
-   mspriteframe_t *pspriteframe = (mspriteframe_t*)Hunk_AllocName(size, loadname);
+   mspriteframe_t *pspriteframe = (mspriteframe_t*)Hunk_Alloc(size);
 
    memset(pspriteframe, 0, size);
    *ppframe = pspriteframe;
@@ -70,7 +70,7 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const cha
    pspriteframe->right = width + origin[0];
 
    /* Let the renderer process the pixel data as needed */
-   R_SpriteDataStore(pspriteframe, loadname, framenum, (byte *)(pinframe + 1));
+   R_SpriteDataStore(pspriteframe, framenum, (byte *)(pinframe + 1));
 
    return (byte *)pinframe + sizeof(dspriteframe_t) + numpixels;
 }
@@ -81,7 +81,7 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe, const cha
 Mod_LoadSpriteGroup
 =================
 */
-static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const char *loadname,
+static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
 		    int framenum)
 {
    int i;
@@ -96,14 +96,13 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const cha
    int numframes = (pingroup->numframes);
 #endif
 
-   mspritegroup_t *pspritegroup = (mspritegroup_t*)Hunk_AllocName(sizeof(*pspritegroup) +
-         numframes * sizeof(pspritegroup->frames[0]),
-         loadname);
+   mspritegroup_t *pspritegroup = (mspritegroup_t*)Hunk_Alloc(sizeof(*pspritegroup) +
+         numframes * sizeof(pspritegroup->frames[0]));
 
    pspritegroup->numframes = numframes;
    *ppframe = (mspriteframe_t *)pspritegroup;
    pin_intervals = (dspriteinterval_t *)(pingroup + 1);
-   poutintervals = (float*)Hunk_AllocName(numframes * sizeof(float), loadname);
+   poutintervals = (float*)Hunk_Alloc(numframes * sizeof(float));
    pspritegroup->intervals = poutintervals;
 
    for (i = 0; i < numframes; i++) {
@@ -122,8 +121,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const cha
    ptemp = (void *)pin_intervals;
 
    for (i = 0; i < numframes; i++) {
-      ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], loadname,
-            framenum * 100 + i);
+      ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], framenum * 100 + i);
    }
 
    return ptemp;
@@ -135,7 +133,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe, const cha
 Mod_LoadSpriteModel
 =================
 */
-void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
+void Mod_LoadSpriteModel(model_t *mod, void *buffer)
 {
    int i;
    msprite_t *psprite;
@@ -159,7 +157,7 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
    numframes = (pin->numframes);
 #endif
    size = sizeof(*psprite) + numframes * sizeof(psprite->frames[0]);
-   psprite = (msprite_t*)Hunk_AllocName(size, loadname);
+   psprite = (msprite_t*)Hunk_Alloc(size);
    mod->cache.data = psprite;
 
 #ifdef MSB_FIRST
@@ -206,11 +204,11 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer, const char *loadname)
       if (frametype == SPR_SINGLE) {
          pframetype = (dspriteframetype_t *)
             Mod_LoadSpriteFrame(pframetype + 1,
-                  &psprite->frames[i].frameptr, loadname, i);
+                  &psprite->frames[i].frameptr, i);
       } else {
          pframetype = (dspriteframetype_t *)
             Mod_LoadSpriteGroup(pframetype + 1,
-                  &psprite->frames[i].frameptr, loadname, i);
+                  &psprite->frames[i].frameptr, i);
       }
    }
 

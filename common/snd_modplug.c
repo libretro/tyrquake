@@ -33,19 +33,19 @@ static void S_MODPLUG_SetSettings (snd_stream_t *stream)
 	ModPlug_Settings settings;
 
 	ModPlug_GetSettings(&settings);
-	settings.mFlags = MODPLUG_ENABLE_OVERSAMPLING;
-	settings.mChannels = shm->channels;
-	settings.mBits = shm->samplebits;
+	settings.mFlags     = MODPLUG_ENABLE_OVERSAMPLING;
+	settings.mChannels  = 2;
+	settings.mBits      = 16;
 	settings.mFrequency = shm->speed;
 	settings.mResamplingMode = MODPLUG_RESAMPLE_SPLINE;/*MODPLUG_RESAMPLE_FIR*/
 	settings.mLoopCount = 0;
 	ModPlug_SetSettings(&settings);
 
 	if (stream) {
-		stream->info.rate = shm->speed;
-		stream->info.bits = shm->samplebits;
-		stream->info.width = stream->info.bits / 8;
-		stream->info.channels = shm->channels;
+		stream->info.rate     = shm->speed;
+		stream->info.bits     = 16;
+		stream->info.width    = stream->info.bits / 8;
+		stream->info.channels = 2;
 	}
 }
 
@@ -80,10 +80,6 @@ static qboolean S_MODPLUG_CodecOpenStream (snd_stream_t *stream)
 	}
 
 	ModPlug_Seek((ModPlugFile*)stream->priv, 0);
-#if 0
-	/* default volume (128) sounds rather low? */
-	ModPlug_SetMasterVolume((ModPlugFile*)stream->priv, 384);	/* 0-512 */
-#endif
 	return true;
 }
 

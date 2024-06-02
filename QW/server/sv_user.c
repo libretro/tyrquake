@@ -483,19 +483,6 @@ SV_Begin_f(void)
 	ClientReliableWrite_Byte(host_client, sv.paused);
 	SV_ClientPrintf(host_client, PRINT_HIGH, "Server is paused.\n");
     }
-#if 0
-//
-// send a fixangle over the reliable channel to make sure it gets there
-// Never send a roll angle, because savegames can catch the server
-// in a state where it is expecting the client to correct the angle
-// and it won't happen if the game was just loaded, so you wind up
-// with a permanent head tilt
-    ent = EDICT_NUM(1 + (host_client - svs.clients));
-    MSG_WriteByte(&host_client->netchan.message, svc_setangle);
-    for (i = 0; i < 2; i++)
-	MSG_WriteAngle(&host_client->netchan.message, ent->v.angles[i]);
-    MSG_WriteAngle(&host_client->netchan.message, 0);
-#endif
 }
 
 //=============================================================================
@@ -1366,27 +1353,9 @@ SV_RunCmd(usercmd_t *ucmd)
 	mins[i] = pmove.origin[i] - 256;
 	maxs[i] = pmove.origin[i] + 256;
     }
-#if 1
     SV_AddLinksToPmove(mins, maxs);
-#else
-    AddAllEntsToPmove(mins, maxs);
-#endif
 
-#if 0
-    {
-	int before, after;
-
-	before = PM_TestPlayerPosition(pmove.origin);
-	PlayerMove();
-	after = PM_TestPlayerPosition(pmove.origin);
-
-	if (sv_player->v.health > 0 && before && !after)
-	    Con_Printf("player %s got stuck in playermove!!!!\n",
-		       host_client->name);
-    }
-#else
     PlayerMove();
-#endif
 
     host_client->oldbuttons = pmove.oldbuttons;
     sv_player->v.teleport_time = pmove.waterjumptime;
@@ -1402,14 +1371,7 @@ SV_RunCmd(usercmd_t *ucmd)
 	sv_player->v.origin[i] =
 	    pmove.origin[i] - (sv_player->v.mins[i] - player_mins[i]);
 
-#if 0
-    // truncate velocity the same way the net protocol will
-    for (i = 0; i < 3; i++)
-	sv_player->v.velocity[i] = (int)pmove.velocity[i];
-#else
     VectorCopy(pmove.velocity, sv_player->v.velocity);
-#endif
-
     VectorCopy(pmove.angles, sv_player->v.v_angle);
 
     if (!host_client->spectator) {

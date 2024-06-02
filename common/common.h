@@ -79,10 +79,6 @@ void InsertLinkAfter(link_t *l, link_t *after);
 
 //============================================================================
 
-#ifndef NULL
-#define NULL ((void *)0)
-#endif
-
 #define Q_MAXCHAR ((char)0x7f)
 #define Q_MAXSHORT ((short)0x7fff)
 #define Q_MAXINT ((int)0x7fffffff)
@@ -115,9 +111,9 @@ static INLINE int bswap32(int l)
 }
 
 #ifdef MSB_FIRST
-static INLINE short BigShort(short s) { return s; }
-static INLINE int BigLong(int l) { return l; }
-static INLINE float BigFloat(float f) { return f; }
+#define BigShort(s) (s)
+#define BigLong(l) (l)
+#define BigFloat(f) (f)
 static INLINE short LittleShort(short s) { return bswap16(s); }
 static INLINE int LittleLong(int l) { return bswap32(l); }
 static INLINE float LittleFloat(float f)
@@ -151,9 +147,9 @@ static INLINE float BigFloat(float f)
    dat2.b[3] = dat1.b[0];
    return dat2.f;
 }
-static INLINE short LittleShort(short s) { return s; }
-static INLINE int LittleLong(int l) { return l; }
-static INLINE float LittleFloat(float f) { return f; }
+#define LittleShort(s) (s)
+#define LittleLong(l) (l)
+#define LittleFloat(f) (f)
 #endif
 
 //============================================================================
@@ -235,7 +231,6 @@ const char *COM_SkipPath(const char *pathname);
 const char *COM_FileExtension(const char *in);
 qboolean COM_FileExists(const char *filename);
 void COM_StripExtension(char *filename);
-void COM_FileBase(const char *in, char *out, size_t buflen);
 void COM_DefaultExtension(char *path, const char *extension);
 int COM_CheckExtension(const char *path, const char *extn);
 

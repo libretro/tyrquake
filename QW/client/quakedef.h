@@ -23,8 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // quakedef.h -- primary header for client
 
-//define        PARANOID                        // speed sapping error checking
-
 #include <math.h>
 #include <string.h>
 #include <stdarg.h>
@@ -61,7 +59,6 @@ extern qboolean noclip_anglehack;
 //
 extern quakeparms_t host_parms;
 
-extern cvar_t sys_nostdout;
 extern cvar_t developer;
 
 extern cvar_t password;
@@ -88,10 +85,6 @@ void Host_Quit_f(void);
 void Host_ClientCommands(const char *fmt, ...)
     __attribute__((format(printf,1,2)));
 void Host_ShutdownServer(qboolean crash);
-
-extern qboolean msg_suppress_1;	// suppresses resolution and cache size console
-
-				// output and fullscreen DIB focus gain/loss
 
 //
 // Hacks - FIXME - well, "hacks" says it all really...

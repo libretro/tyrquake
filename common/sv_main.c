@@ -655,18 +655,10 @@ void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
          MSG_WriteCoord(msg, ent->v.origin[2]);
       if (bits & U_ANGLE3)
          MSG_WriteAngle(msg, ent->v.angles[2]);
-#if 0 /* FIXME */
-      if (bits & U_FITZ_ALPHA)
-         MSG_WriteByte(msg, ent->alpha);
-#endif
       if (bits & U_FITZ_FRAME2)
          MSG_WriteByte(msg, (int)ent->v.frame >> 8);
       if (bits & U_FITZ_MODEL2)
          MSG_WriteByte(msg, (int)ent->v.modelindex >> 8);
-#if 0 /* FIXME */
-      if (bits & U_FITZ_LERPFINISH)
-         MSG_WriteByte(msg, (byte)floorf(((ent->v.nextthink - sv.time) * 255.0f) + 0.5f));
-#endif
    }
 }
 
@@ -787,11 +779,6 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
       if ((bits & SU_WEAPONFRAME) &&
             ((int)ent->v.weaponframe & 0xff00))
          bits |= SU_FITZ_WEAPONFRAME2;
-#if 0 /* FIXME - TODO */
-      if ((bits & SU_WEAPON) && ent->alpha != ENTALPHA_DEFAULT)
-         // for now, weaponalpha = client entity alpha
-         bits |= SU_FITZ_WEAPONALPHA;
-#endif
       if (bits & 0x00ff0000)
          bits |= SU_FITZ_EXTEND1;
       if (bits & 0xff000000)
@@ -865,11 +852,6 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
       MSG_WriteByte(msg, (int)ent->v.ammo_cells >> 8);
    if (bits & SU_FITZ_WEAPONFRAME2)
       MSG_WriteByte(msg, (int)ent->v.weaponframe >> 8);
-#if 0 /* FIXME - TODO */
-   if (bits & SU_FITZ_WEAPONALPHA)
-      // for now, weaponalpha = client entity alpha
-      MSG_WriteByte(msg, ent->alpha);
-#endif
 }
 
 /*
@@ -1113,10 +1095,6 @@ void SV_CreateBaseline(void)
             bits |= B_FITZ_LARGEMODEL;
          if (svent->baseline.frame & 0xff00)
             bits |= B_FITZ_LARGEFRAME;
-#if 0 /* FIXME - TODO */
-         if (svent->baseline.alpha != ENTALPHA_DEFAULT)
-            bits |= B_FITZ_ALPHA
-#endif
       }
 
       //
@@ -1142,11 +1120,6 @@ void SV_CreateBaseline(void)
          MSG_WriteCoord(&sv.signon, svent->baseline.origin[i]);
          MSG_WriteAngle(&sv.signon, svent->baseline.angles[i]);
       }
-
-#if 0 /* FIXME - TODO */
-      if (bits & B_FITZ_ALPHA)
-         MSG_WriteByte(&sv.signon, svent->baseline.alpha);
-#endif
    }
 }
 
@@ -1259,7 +1232,7 @@ void SV_SpawnServer(char *server)
 
    // allocate server memory
    sv.max_edicts = MAX_EDICTS;
-   sv.edicts = (edict_t*)Hunk_AllocName(sv.max_edicts * pr_edict_size, "edicts");
+   sv.edicts = (edict_t*)Hunk_Alloc(sv.max_edicts * pr_edict_size);
 
    sv.datagram.maxsize = sizeof(sv.datagram_buf);
    sv.datagram.cursize = 0;

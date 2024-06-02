@@ -28,7 +28,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern quakeparms_t host_parms;
 
-extern cvar_t sys_nostdout;
 extern cvar_t developer;
 
 extern qboolean host_initialized;	// true if into command execution
@@ -52,9 +51,6 @@ void Host_Quit_f(void);
 void Host_ClientCommands(const char *fmt, ...);
 void Host_ShutdownServer(qboolean crash);
 
-extern qboolean msg_suppress_1;	// suppresses resolution and cache size console
-
-				//  output an fullscreen DIB focus gain/loss
 extern int current_skill;	// skill level for currently loaded level (in
 
 				//  case the user changes the cvar while the

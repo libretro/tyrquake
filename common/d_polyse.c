@@ -633,7 +633,7 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
       else
          d_aspancount += ubasestep;
 
-      if (lcount)
+      if (lcount > 0)
       {
          lpdest = (byte*)pspanpackage->pdest;
          lptex = pspanpackage->ptex;
@@ -701,7 +701,7 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
       else
          d_aspancount += ubasestep;
 
-      if (lcount)
+      if (lcount > 0)
       {
          lpdest = (byte*)pspanpackage->pdest;
          lptex = pspanpackage->ptex;

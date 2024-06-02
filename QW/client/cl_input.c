@@ -639,8 +639,7 @@ CL_SendCmd(void)
     if (cls.netchan.outgoing_sequence - cl.validsequence >= UPDATE_BACKUP - 1)
 	cl.validsequence = 0;
 
-    if (cl.validsequence && !cl_nodelta.value && cls.state == ca_active &&
-	!cls.demorecording) {
+    if (cl.validsequence && !cl_nodelta.value && cls.state == ca_active) {
 	cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].
 	    delta_sequence = cl.validsequence;
 	MSG_WriteByte(&buf, clc_delta);
@@ -649,12 +648,7 @@ CL_SendCmd(void)
 	cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].
 	    delta_sequence = -1;
 
-    if (cls.demorecording)
-	CL_WriteDemoCmd(cmd);
-
-//
-// deliver the message
-//
+    // deliver the message
     Netchan_Transmit(&cls.netchan, buf.cursize, buf.data);
 }
 
@@ -706,16 +700,3 @@ CL_InitInput(void)
 
     Cvar_RegisterVariable(&cl_nodelta);
 }
-
-// FIXME - unused function?
-#if 0
-/*
-============
-CL_ClearStates
-============
-*/
-static void
-CL_ClearStates(void)
-{
-}
-#endif

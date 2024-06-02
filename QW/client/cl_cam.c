@@ -141,14 +141,6 @@ Cam_Lock(int playernum)
 static pmtrace_t
 Cam_DoTrace(vec3_t vec1, vec3_t vec2)
 {
-#if 0
-    memset(&pmove, 0, sizeof(pmove));
-
-    pmove.numphysent = 1;
-    VectorCopy(vec3_origin, pmove.physents[0].origin);
-    pmove.physents[0].model = cl.worldmodel;
-#endif
-
     VectorCopy(vec1, pmove.origin);
     return PM_PlayerMove(pmove.origin, vec2);
 }
@@ -408,75 +400,6 @@ Cam_Track(usercmd_t *cmd)
    }
 }
 
-#if 0
-static float
-adjustang(float current, float ideal, float speed)
-{
-    float move;
-
-    current = anglemod(current);
-    ideal = anglemod(ideal);
-
-    if (current == ideal)
-	return current;
-
-    move = ideal - current;
-    if (ideal > current) {
-	if (move >= 180)
-	    move = move - 360;
-    } else {
-	if (move <= -180)
-	    move = move + 360;
-    }
-    if (move > 0) {
-	if (move > speed)
-	    move = speed;
-    } else {
-	if (move < -speed)
-	    move = -speed;
-    }
-
-//Con_Printf("c/i: %4.2f/%4.2f move: %4.2f\n", current, ideal, move);
-    return anglemod(current + move);
-}
-#endif
-
-#if 0
-static void
-Cam_SetView(void)
-{
-    return;
-    player_state_t *player, *self;
-    frame_t *frame;
-    vec3_t vec, vec2;
-
-    if (cls.state != ca_active || !cl.spectator || !autocam || !locked)
-	return;
-
-    frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
-    player = frame->playerstate + spec_track;
-    self = frame->playerstate + cl.playernum;
-
-    VectorSubtract(player->origin, cl.simorg, vec);
-    if (cam_forceview) {
-	cam_forceview = false;
-	vectoangles(vec, cam_viewangles);
-	cam_viewangles[0] = -cam_viewangles[0];
-    } else {
-	vectoangles(vec, vec2);
-	vec2[PITCH] = -vec2[PITCH];
-
-	cam_viewangles[PITCH] =
-	    adjustang(cam_viewangles[PITCH], vec2[PITCH],
-		      cl_camera_maxpitch.value);
-	cam_viewangles[YAW] =
-	    adjustang(cam_viewangles[YAW], vec2[YAW], cl_camera_maxyaw.value);
-    }
-    VectorCopy(cam_viewangles, cl.viewangles);
-    VectorCopy(cl.viewangles, cl.simangles);
-}
-#endif
-
 void
 Cam_FinishMove(usercmd_t *cmd)
 {
@@ -489,32 +412,6 @@ Cam_FinishMove(usercmd_t *cmd)
 
     if (!cl.spectator)		// only in spectator mode
 	return;
-
-#if 0
-    if (autocam && locked) {
-	frame = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
-	player = frame->playerstate + spec_track;
-	self = frame->playerstate + cl.playernum;
-
-	VectorSubtract(player->origin, self->origin, vec);
-	if (cam_forceview) {
-	    cam_forceview = false;
-	    vectoangles(vec, cam_viewangles);
-	    cam_viewangles[0] = -cam_viewangles[0];
-	} else {
-	    vectoangles(vec, vec2);
-	    vec2[PITCH] = -vec2[PITCH];
-
-	    cam_viewangles[PITCH] =
-		adjustang(cam_viewangles[PITCH], vec2[PITCH],
-			  cl_camera_maxpitch.value);
-	    cam_viewangles[YAW] =
-		adjustang(cam_viewangles[YAW], vec2[YAW],
-			  cl_camera_maxyaw.value);
-	}
-	VectorCopy(cam_viewangles, cl.viewangles);
-    }
-#endif
 
     if (cmd->buttons & BUTTON_ATTACK) {
 	if (!(oldbuttons & BUTTON_ATTACK)) {

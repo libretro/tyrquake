@@ -38,21 +38,18 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
    float stepscale;
    int i;
    int sample, samplefrac, fracstep;
-   sfxcache_t *sc;
-
-   sc = (sfxcache_t*)Cache_Check(&sfx->cache);
+   sfxcache_t *sc = (sfxcache_t*)Cache_Check(&sfx->cache);
    if (!sc)
       return;
 
-   stepscale = (float)inrate / shm->speed;	// this is usually 0.5, 1, or 2
-
-   outcount = sc->length / stepscale;
+   stepscale  = (float)inrate / shm->speed;	// this is usually 0.5, 1, or 2
+   outcount   = sc->length / stepscale;
    sc->length = outcount;
    if (sc->loopstart != -1)
       sc->loopstart = sc->loopstart / stepscale;
 
-   sc->speed = shm->speed;
-   sc->width = inwidth;
+   sc->speed  = shm->speed;
+   sc->width  = inwidth;
    sc->stereo = 1;
 
    // resample / decimate to the current source rate
@@ -115,20 +112,15 @@ S_LoadSound(sfx_t *s)
     wavinfo_t *info;
     int len;
     float stepscale;
-    sfxcache_t *sc;
     byte stackbuf[1024];	// avoid dirtying the cache heap
-
-// see if still in memory
-    sc = (sfxcache_t*)Cache_Check(&s->cache);
+    // see if still in memory
+    sfxcache_t *sc = (sfxcache_t*)Cache_Check(&s->cache);
     if (sc)
 	return sc;
 
-//Con_Printf ("S_LoadSound: %x\n", (int)stackbuf);
-// load it in
+    // load it in
     strcpy(namebuffer, "sound/");
     strcat(namebuffer, s->name);
-
-//      Con_Printf ("loading %s\n",namebuffer);
 
     data = (byte*)COM_LoadStackFile(namebuffer, stackbuf, sizeof(stackbuf), NULL);
 
@@ -148,7 +140,7 @@ S_LoadSound(sfx_t *s)
 
     len = len * info->width * info->channels;
 
-    sc = (sfxcache_t*)Cache_Alloc(&s->cache, len + sizeof(sfxcache_t), s->name);
+    sc = (sfxcache_t*)Cache_Alloc(&s->cache, len + sizeof(sfxcache_t));
     if (!sc)
 	return NULL;
 

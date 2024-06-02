@@ -258,11 +258,6 @@ Datagram_GetMessage(qsocket_t *sock)
     while (1) {
 	length = sock->landriver->Read(sock->socket, &packetBuffer,
 				       NET_MESSAGESIZE, &readaddr);
-#if 0
-	/* for testing packet loss effects */
-	if ((rand() & 255) > 220)
-	    continue;
-#endif
 	if (length == 0)
 	    break;
 
