@@ -151,6 +151,8 @@ endif
    CC = clang -arch arm64 -isysroot $(IOSSDK)
    CXX = clang++ -arch arm64 -isysroot $(IOSSDK)
    CFLAGS += -DIOS -DIOS_ARM64
+   CC     += -mappletvos-version-min=11.0
+   CFLAGS += -mappletvos-version-min=11.0
 
 # iOS Theos
 else ifeq ($(platform), theos_ios)
