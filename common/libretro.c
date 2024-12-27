@@ -731,7 +731,9 @@ static const float supported_framerates[] = {
    240.0f,
    244.0f,
    300.0f,
-   360.0f
+   360.0f,
+   480.0f,
+   540.0f,
 };
 #define NUM_SUPPORTED_FRAMERATES (sizeof(supported_framerates) / sizeof(supported_framerates[0]))
 
