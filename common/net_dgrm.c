@@ -434,7 +434,7 @@ struct test_poll_state
 
 
 static void
-Test_Poll(struct test_poll_state *state)
+Test_Poll(void *vstate)
 {
     netadr_t clientaddr;
     int control;
@@ -445,6 +445,7 @@ Test_Poll(struct test_poll_state *state)
     int frags;
     int connectTime;
     byte playerNumber;
+    struct test_poll_state *state = (struct test_poll_state *) vstate;
 
     while (1) {
 	len = state->driver->Read(state->socket, net_message.data,
@@ -570,13 +571,14 @@ Test_f(void)
 
 
 static void
-Test2_Poll(struct test_poll_state *state)
+Test2_Poll(void *vstate)
 {
     netadr_t clientaddr;
     int control;
     int len;
     char *name;
     char *value;
+    struct test_poll_state *state = (struct test_poll_state *) vstate;
 
     len = state->driver->Read(state->socket, net_message.data,
 			      net_message.maxsize, &clientaddr);

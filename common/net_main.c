@@ -107,8 +107,8 @@ qboolean slistLocal = true;
 static double slistStartTime;
 static int slistLastShown;
 
-static void Slist_Send(void);
-static void Slist_Poll(void);
+static void Slist_Send(void *);
+static void Slist_Poll(void *);
 static PollProcedure slistSendProcedure = { NULL, 0.0, Slist_Send };
 static PollProcedure slistPollProcedure = { NULL, 0.0, Slist_Poll };
 
@@ -370,7 +370,7 @@ NET_Slist_f(void)
 
 
 static void
-Slist_Send(void)
+Slist_Send(void *arg)
 {
     int i;
 
@@ -391,7 +391,7 @@ Slist_Send(void)
 
 
 static void
-Slist_Poll(void)
+Slist_Poll(void *arg)
 {
     int i;
 

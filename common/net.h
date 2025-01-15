@@ -317,7 +317,7 @@ void NET_Poll(void);
 typedef struct _PollProcedure {
     struct _PollProcedure *next;
     double nextTime;
-    void (*procedure) ();
+    void (*procedure) (void *);
     void *arg;
 } PollProcedure;
 
