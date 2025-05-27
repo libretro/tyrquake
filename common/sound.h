@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * > (2 * 44100) / 10 = 8820 total samples
  * > buffer size must be a power of 2
  * > Nearest power of 2 to 8820 is 16384 */
-#define AUDIO_BUFFER_SIZE 8820
+#define AUDIO_BUFFER_SIZE 16384
 
 // sound.h -- client sound i/o functions
 
