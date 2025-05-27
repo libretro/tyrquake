@@ -25,7 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef unsigned char byte;
 
-// KJB Undefine true and false defined in SciTech's DEBUG.H header
 #undef true
 #undef false
 
@@ -34,7 +33,7 @@ typedef unsigned char byte;
 typedef enum{ false, true };
 typedef int qboolean;
 #else
-typedef enum{ false0, true1, ENSURE_INT_QBOOL = 0x70000000 } qboolean;
+typedef enum{ false, true, ENSURE_INT_QBOOL = 0x70000000 } qboolean;
 #endif
 
 #ifndef offsetof

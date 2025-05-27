@@ -863,8 +863,8 @@ NET_Poll(void)
 	    break;
 	pollProcedureList = pp->next;
 #ifdef _WIN32
-//not sure what is going on here - params is void in NQ/net.h?
-    pp->procedure();
+        /* not sure what is going on here - params is void in NQ/net.h? */
+        pp->procedure(pp->arg);
 #else
 	pp->procedure(pp->arg);
 #endif
