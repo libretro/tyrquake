@@ -134,7 +134,7 @@ UDP_Init(void)
    /* determine my name & address, default to loopback */
    myAddr.ip.l = htonl(INADDR_LOOPBACK);
    myAddr.port = htons(DEFAULTnet_hostport);
-#if !defined(__PSL1GHT__) && defined(__PS3__)
+#if defined(__PS3__)
 #elif defined (VITA)
    SceNetCtlInfo info;
    sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_IP_ADDRESS, &info);
