@@ -73,6 +73,8 @@ qboolean isDedicated;
 #include <sys/timer.h>
 #endif
 
+#include "sbar.h"
+
 #define SURFCACHE_SIZE 10485760
 
 #define RETRO_DEVICE_MODERN  RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 2)
@@ -1262,8 +1264,8 @@ void	VID_SetPalette2 (unsigned char *palette)
 
 void VID_ShiftPalette(unsigned char *palette)
 {
-
    VID_SetPalette(palette);
+   Sbar_Changed();
 }
 
 void VID_Init(unsigned char *palette)
