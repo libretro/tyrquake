@@ -26,7 +26,7 @@ extern int m_state;
 #else
 #include <sys/types.h>
 #endif
-#ifdef __PS3__
+#if !defined(__PSL1GHT__) && defined(__PS3__)
 #include <netex/errno.h>
 #endif
 #include <net/net_compat.h>
