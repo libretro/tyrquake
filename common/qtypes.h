@@ -22,19 +22,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QTYPES_H
 
 #include <stddef.h>
+#include <boolean.h>
 
 typedef unsigned char byte;
 
-#undef true
-#undef false
-
-#ifdef _MSC_VER
-#include <compat/msvc.h>
-typedef enum{ false, true };
 typedef int qboolean;
-#else
-typedef enum{ false, true, ENSURE_INT_QBOOL = 0x70000000 } qboolean;
-#endif
 
 #ifndef offsetof
 #define offsetof(type, member)  __builtin_offsetof (type, member)

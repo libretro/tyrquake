@@ -92,6 +92,10 @@ bool shutdown_core = false;
 
 static bool libretro_supports_bitmasks = false;
 
+/* Tri-state: unknown until first frame, then latched */
+enum sw_fb_state { SW_FB_UNKNOWN, SW_FB_SUPPORTED, SW_FB_UNSUPPORTED };
+static enum sw_fb_state sw_fb_status = SW_FB_UNKNOWN;
+
 #if defined(HW_DOL)
 #define DEFAULT_MEMSIZE_MB 8
 #elif defined(WIIU)
@@ -434,6 +438,7 @@ void retro_deinit(void)
       free(heap);
 
    libretro_supports_bitmasks = false;
+   sw_fb_status               = SW_FB_UNKNOWN;
 
    retro_set_rumble_damage(0);
    retro_set_rumble_touch(0, 0.0f);
@@ -1313,14 +1318,62 @@ void VID_Shutdown(void)
 void VID_Update(vrect_t *rects)
 {
    unsigned x, y;
-   unsigned pitch              = width;
+   unsigned pitch;
    uint8_t *ilineptr           = (uint8_t*)vid.buffer;
-   uint16_t *olineptr          = (uint16_t*)finalimage;
+   uint16_t *olineptr;
    uint16_t *pal               = (uint16_t*)&d_8to16table;
-   uint16_t *ptr               = (uint16_t*)finalimage;
+   uint16_t *ptr;
 
    if (!video_cb || !rects || did_flip)
       return;
+
+   /* Try to render directly into a frontend-provided
+    * framebuffer to avoid an extra copy.
+    * Probe once on the first frame, then latch the result
+    * so we don't spam the environ callback. */
+   if (sw_fb_status != SW_FB_UNSUPPORTED)
+   {
+      struct retro_framebuffer fb = {0};
+      fb.width                    = width;
+      fb.height                   = height;
+      fb.access_flags             = RETRO_MEMORY_ACCESS_WRITE;
+
+      if (environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb)
+            && fb.format == RETRO_PIXEL_FORMAT_RGB565)
+      {
+         if (sw_fb_status == SW_FB_UNKNOWN)
+         {
+            sw_fb_status = SW_FB_SUPPORTED;
+            if (log_cb)
+               log_cb(RETRO_LOG_INFO,
+                     "Using frontend software framebuffer.\n");
+         }
+
+         pitch    = (unsigned)(fb.pitch / sizeof(uint16_t));
+         ptr      = (uint16_t*)fb.data;
+         olineptr = ptr;
+
+         for (y = 0; y < rects->height; ++y)
+         {
+            for (x = 0; x < rects->width; ++x)
+               *olineptr++ = pal[*ilineptr++];
+            olineptr += pitch - rects->width;
+         }
+
+         video_cb(ptr, width, height, fb.pitch);
+         did_flip = true;
+         return;
+      }
+
+      /* First probe failed - stop asking */
+      if (sw_fb_status == SW_FB_UNKNOWN)
+         sw_fb_status = SW_FB_UNSUPPORTED;
+   }
+
+   /* Fallback: render into our own finalimage buffer */
+   pitch    = width;
+   ptr      = (uint16_t*)finalimage;
+   olineptr = ptr;
 
    for (y = 0; y < rects->height; ++y)
    {
