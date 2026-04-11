@@ -26,8 +26,6 @@
 #include <errno.h>
 #include <sys/types.h>
 
-#include <string/stdstring.h> /* string_is_empty */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -213,6 +211,14 @@
 #include <vfs/vfs_implementation_cdrom.h>
 #endif
 
+#if defined(ANDROID) && defined(HAVE_SAF)
+#include <vfs/vfs_implementation_saf.h>
+#endif
+
+#ifdef HAVE_SMBCLIENT
+#include "vfs_implementation_smb.h"
+#endif
+
 #if (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE - 0) >= 200112) || (defined(__POSIX_VISIBLE) && __POSIX_VISIBLE >= 200112) || (defined(_POSIX_VERSION) && _POSIX_VERSION >= 200112) || __USE_LARGEFILE || (defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64)
 #ifndef HAVE_64BIT_OFFSETS
 #define HAVE_64BIT_OFFSETS
@@ -221,10 +227,42 @@
 
 #define RFILE_HINT_UNBUFFERED (1 << 8)
 
+#ifdef HAVE_CDROM
+static int path_is_cdrom(const char *p)
+{
+   return (p
+         && p[0] == 'c' && p[1] == 'd' && p[2] == 'r'
+         && p[3] == 'o' && p[4] == 'm' && p[5] == ':'
+         && p[6] == '/' && p[7] == '/' && p[8] != '\0');
+}
+#endif
+
+#ifdef HAVE_SMBCLIENT
+static int path_is_smb(const char *p)
+{
+   return (p
+         && p[0] == 's' && p[1] == 'm' && p[2] == 'b'
+         && p[3] == ':' && p[4] == '/' && p[5] == '/'
+         && p[6] != '\0');
+}
+#endif
+
+#if defined(ANDROID) && defined(HAVE_SAF)
+static int path_is_saf(const char *p)
+{
+   return (p
+         && p[0] == 's' && p[1] == 'a' && p[2] == 'f'
+         && p[3] == ':' && p[4] == '/' && p[5] == '/'
+         && p[6] != '\0');
+}
+#endif
+
 int64_t retro_vfs_file_seek_internal(
       libretro_vfs_implementation_file *stream,
       int64_t offset, int whence)
 {
+   int64_t val;
+
    if (!stream)
       return -1;
 
@@ -233,6 +271,10 @@ int64_t retro_vfs_file_seek_internal(
 #ifdef HAVE_CDROM
       if (stream->scheme == VFS_SCHEME_CDROM)
          return retro_vfs_file_seek_cdrom(stream, offset, whence);
+#endif
+#ifdef HAVE_SMBCLIENT
+      if (stream->scheme == VFS_SCHEME_SMB)
+         return retro_vfs_file_seek_smb(stream, offset, whence);
 #endif
 #ifdef ATLEAST_VC2005
       /* VC2005 and up have a special 64-bit fseek */
@@ -246,12 +288,13 @@ int64_t retro_vfs_file_seek_internal(
 #ifdef HAVE_MMAP
    /* Need to check stream->mapped because this function is
     * called in filestream_open() */
-   if (stream->mapped && stream->hints &
-         RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS)
+   if (stream->mapped && (stream->hints &
+         RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS))
    {
       /* fseek() returns error on under/overflow but
        * allows cursor > EOF for
        read-only file descriptors. */
+      /* The file position must never be negative. */
       switch (whence)
       {
          case SEEK_SET:
@@ -262,15 +305,18 @@ int64_t retro_vfs_file_seek_internal(
             break;
 
          case SEEK_CUR:
-            if (  (offset < 0 && stream->mappos + offset > stream->mappos) ||
-                  (offset > 0 && stream->mappos + offset < stream->mappos))
-               return -1;
+            if ((int64_t)stream->mappos + offset < 0)
+              return -1;
 
             stream->mappos += offset;
             break;
 
          case SEEK_END:
-            if (stream->mapsize + offset < stream->mapsize)
+            /* RETRO_VFS_SEEK_POSITION_END states offset should be negative.
+             * However, this is impractical because we would be forcing the
+             * end of file to always be off by one.
+             */
+            if (offset > 0 || (int64_t)stream->mapsize + offset < 0)
                return -1;
 
             stream->mappos = stream->mapsize + offset;
@@ -280,10 +326,10 @@ int64_t retro_vfs_file_seek_internal(
    }
 #endif
 
-   if (lseek(stream->fd, (off_t)offset, whence) < 0)
+   if ((val = lseek(stream->fd, (off_t)offset, whence)) < 0)
       return -1;
 
-   return 0;
+   return val;
 }
 
 /**
@@ -301,25 +347,15 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
 {
    int                                flags = 0;
    const char                     *mode_str = NULL;
-   libretro_vfs_implementation_file *stream = 
+   libretro_vfs_implementation_file *stream =
       (libretro_vfs_implementation_file*)
-      malloc(sizeof(*stream));
+      calloc(1, sizeof(*stream));
 
    if (!stream)
       return NULL;
 
-   stream->fd                     = 0;
+   stream->fd                     = -1;
    stream->hints                  = hints;
-   stream->size                   = 0;
-   stream->buf                    = NULL;
-   stream->fp                     = NULL;
-#ifdef _WIN32
-   stream->fh                     = 0;
-#endif
-   stream->orig_path              = NULL;
-   stream->mappos                 = 0;
-   stream->mapsize                = 0;
-   stream->mapped                 = NULL;
    stream->scheme                 = VFS_SCHEME_NONE;
 
 #ifdef VFS_FRONTEND
@@ -338,36 +374,29 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
 #endif
 
 #ifdef HAVE_CDROM
-   stream->cdrom.cue_buf          = NULL;
-   stream->cdrom.cue_len          = 0;
-   stream->cdrom.byte_pos         = 0;
-   stream->cdrom.drive            = 0;
-   stream->cdrom.cur_min          = 0;
-   stream->cdrom.cur_sec          = 0;
-   stream->cdrom.cur_frame        = 0;
-   stream->cdrom.cur_track        = 0;
-   stream->cdrom.cur_lba          = 0;
-   stream->cdrom.last_frame_lba   = 0;
-   stream->cdrom.last_frame[0]    = '\0';
-   stream->cdrom.last_frame_valid = false;
-
-   if (     path
-         && path[0] == 'c'
-         && path[1] == 'd'
-         && path[2] == 'r'
-         && path[3] == 'o'
-         && path[4] == 'm'
-         && path[5] == ':'
-         && path[6] == '/'
-         && path[7] == '/'
-         && path[8] != '\0')
+   if (path_is_cdrom(path))
    {
       path             += sizeof("cdrom://")-1;
       stream->scheme    = VFS_SCHEME_CDROM;
    }
 #endif
 
-   stream->orig_path       = strdup(path);
+#ifdef HAVE_SMBCLIENT
+   if (path_is_smb(path))
+   {
+      stream->scheme    = VFS_SCHEME_SMB;
+   }
+#endif
+
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (path_is_saf(path))
+   {
+      stream->scheme    = VFS_SCHEME_SAF;
+   }
+#endif
+
+   if (path)
+      stream->orig_path = strdup(path);
 
 #ifdef HAVE_MMAP
    if (stream->hints & RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS && mode == RETRO_VFS_FILE_ACCESS_READ)
@@ -391,9 +420,7 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
          mode_str = "wb";
 
          flags    = O_WRONLY | O_CREAT | O_TRUNC;
-#if !defined(_WIN32)
-         flags   |= S_IRUSR | S_IWUSR;
-#else
+#if defined(_WIN32)
          flags   |= O_BINARY;
 #endif
          break;
@@ -401,9 +428,7 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
       case RETRO_VFS_FILE_ACCESS_READ_WRITE:
          mode_str = "w+b";
          flags    = O_RDWR | O_CREAT | O_TRUNC;
-#if !defined(_WIN32)
-         flags   |= S_IRUSR | S_IWUSR;
-#else
+#if defined(_WIN32)
          flags   |= O_BINARY;
 #endif
          break;
@@ -413,9 +438,7 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
          mode_str = "r+b";
 
          flags    = O_RDWR;
-#if !defined(_WIN32)
-         flags   |= S_IRUSR | S_IWUSR;
-#else
+#if defined(_WIN32)
          flags   |= O_BINARY;
 #endif
          break;
@@ -427,39 +450,79 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
    if ((stream->hints & RFILE_HINT_UNBUFFERED) == 0)
    {
       FILE *fp;
+      switch (stream->scheme)
+      {
 #ifdef HAVE_CDROM
-      if (stream->scheme == VFS_SCHEME_CDROM)
-      {
-         retro_vfs_file_open_cdrom(stream, path, mode, hints);
+         case VFS_SCHEME_CDROM:
+            retro_vfs_file_open_cdrom(stream, path, mode, hints);
 #if defined(_WIN32) && !defined(_XBOX)
-         if (!stream->fh)
-            goto error;
+            if (!stream->fh)
+               goto error;
 #else
-         if (!stream->fp)
-            goto error;
+            if (!stream->fp)
+               goto error;
 #endif
-      }
-      else
+            break;
 #endif
-      {
-         if (!(fp = (FILE*)fopen_utf8(path, mode_str)))
-            goto error;
 
-         stream->fp  = fp;
+#ifdef HAVE_SMBCLIENT
+         case VFS_SCHEME_SMB:
+            if (!retro_vfs_file_open_smb(stream, path, mode, hints))
+               goto error;
+            break;
+#endif
+
+#if defined(ANDROID) && defined(HAVE_SAF)
+         case VFS_SCHEME_SAF:
+            {
+               struct libretro_vfs_implementation_saf_path_split_result saf_split_result;
+               int fd;
+               if (!retro_vfs_path_split_saf(&saf_split_result, path))
+                  goto error;
+               fd = retro_vfs_file_open_saf(saf_split_result.tree, saf_split_result.path, mode);
+               free(saf_split_result.path);
+               free(saf_split_result.tree);
+               if (fd == -1)
+                  goto error;
+               stream->fp = fdopen(fd, mode_str);
+               if (!stream->fp)
+               {
+                  close(fd);
+                  goto error;
+               }
+            }
+            break;
+#endif
+
+         default:
+            if (!(fp = (FILE*)fopen_utf8(path, mode_str)))
+            {
+#ifdef IOS
+               if (errno == EEXIST)
+               {
+                  retro_vfs_file_remove_impl(path);
+                  fp = (FILE*)fopen_utf8(path, mode_str);
+               }
+               if (!fp)
+#endif
+               goto error;
+            }
+            stream->fp  = fp;
+            break;
       }
 
       /* Regarding setvbuf:
        *
        * https://www.freebsd.org/cgi/man.cgi?query=setvbuf&apropos=0&sektion=0&manpath=FreeBSD+11.1-RELEASE&arch=default&format=html
        *
-       * If the size argument is not zero but buf is NULL, 
+       * If the size argument is not zero but buf is NULL,
        * a buffer of the given size will be allocated immediately, and
        * released on close. This is an extension to ANSI C.
        *
-       * Since C89 does not support specifying a NULL buffer 
+       * Since C89 does not support specifying a NULL buffer
        * with a non-zero size, we create and track our own buffer for it.
        */
-      /* TODO: this is only useful for a few platforms, 
+      /* TODO: this is only useful for a few platforms,
        * find which and add ifdef */
 #if defined(_3DS)
       if (stream->scheme != VFS_SCHEME_CDROM)
@@ -475,29 +538,46 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
          stream->buf = (char*)memalign(0x40, bufsize);
          if (stream->fp)
             setvbuf(stream->fp, stream->buf, _IOFBF, bufsize);
-         stream->buf = (char*)calloc(1, 0x4000);
-         if (stream->fp)
-            setvbuf(stream->fp, stream->buf, _IOFBF, 0x4000);
       }
 #endif
    }
    else
    {
+      switch (stream->scheme)
+      {
+#if defined(ANDROID) && defined(HAVE_SAF)
+         case VFS_SCHEME_SAF:
+            {
+               struct libretro_vfs_implementation_saf_path_split_result saf_split_result;
+               if (!retro_vfs_path_split_saf(&saf_split_result, path))
+                  goto error;
+               stream->fd = retro_vfs_file_open_saf(saf_split_result.tree, saf_split_result.path, mode);
+               free(saf_split_result.path);
+               free(saf_split_result.tree);
+            }
+            break;
+#endif
+
+         default:
+            {
 #if defined(_WIN32) && !defined(_XBOX)
 #if defined(LEGACY_WIN32)
-      char *path_local    = utf8_to_local_string_alloc(path);
-      stream->fd          = open(path_local, flags, 0);
-      if (path_local)
-         free(path_local);
+               char *path_local    = utf8_to_local_string_alloc(path);
+               stream->fd          = open(path_local, flags, 0);
+               if (path_local)
+                  free(path_local);
 #else
-      wchar_t * path_wide = utf8_to_utf16_string_alloc(path);
-      stream->fd          = _wopen(path_wide, flags, 0);
-      if (path_wide)
-         free(path_wide);
+               wchar_t * path_wide = utf8_to_utf16_string_alloc(path);
+               stream->fd          = _wopen(path_wide, flags, 0);
+               if (path_wide)
+                  free(path_wide);
 #endif
 #else
-      stream->fd          = open(path, flags, 0);
+               stream->fd          = open(path, flags, S_IRUSR | S_IWUSR);
 #endif
+            }
+            break;
+      }
 
       if (stream->fd == -1)
          goto error;
@@ -516,14 +596,16 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
 
          if ((stream->mapped = (uint8_t*)mmap((void*)0,
                stream->mapsize, PROT_READ,  MAP_SHARED, stream->fd, 0)) == MAP_FAILED)
+         {
+            stream->mapped = NULL;
             stream->hints &= ~RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS;
+         }
       }
 #endif
    }
 #ifdef HAVE_CDROM
    if (stream->scheme == VFS_SCHEME_CDROM)
    {
-      retro_vfs_file_seek_cdrom(stream, 0, SEEK_SET);
       retro_vfs_file_seek_cdrom(stream, 0, SEEK_END);
 
       stream->size = retro_vfs_file_tell_impl(stream);
@@ -533,7 +615,6 @@ libretro_vfs_implementation_file *retro_vfs_file_open_impl(
    else
 #endif
    {
-      retro_vfs_file_seek_internal(stream, 0, SEEK_SET);
       retro_vfs_file_seek_internal(stream, 0, SEEK_END);
 
       stream->size = retro_vfs_file_tell_impl(stream);
@@ -560,6 +641,14 @@ int retro_vfs_file_close_impl(libretro_vfs_implementation_file *stream)
    }
 #endif
 
+#ifdef HAVE_SMBCLIENT
+   if (stream->scheme == VFS_SCHEME_SMB)
+   {
+      retro_vfs_file_close_smb(stream);
+      goto smbend;
+   }
+#endif
+
    if ((stream->hints & RFILE_HINT_UNBUFFERED) == 0)
    {
       if (stream->fp)
@@ -568,18 +657,22 @@ int retro_vfs_file_close_impl(libretro_vfs_implementation_file *stream)
    else
    {
 #ifdef HAVE_MMAP
-      if (stream->hints & RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS)
+      if (stream->mapped && (stream->hints & RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS))
          munmap(stream->mapped, stream->mapsize);
 #endif
    }
 
-   if (stream->fd > 0)
+   if (stream->fd >= 0)
       close(stream->fd);
 #ifdef HAVE_CDROM
 end:
    if (stream->cdrom.cue_buf)
       free(stream->cdrom.cue_buf);
 #endif
+#ifdef HAVE_SMBCLIENT
+smbend:
+#endif
+
    if (stream->buf)
       free(stream->buf);
 
@@ -593,10 +686,18 @@ end:
 
 int retro_vfs_file_error_impl(libretro_vfs_implementation_file *stream)
 {
+   if (!stream)
+      return -1;
 #ifdef HAVE_CDROM
    if (stream->scheme == VFS_SCHEME_CDROM)
       return retro_vfs_file_error_cdrom(stream);
 #endif
+#ifdef HAVE_SMBCLIENT
+    if (stream->scheme == VFS_SCHEME_SMB)
+        return retro_vfs_file_error_smb(stream);
+#endif
+   if (!stream->fp)
+      return -1;
    return ferror(stream->fp);
 }
 
@@ -607,18 +708,18 @@ int64_t retro_vfs_file_size_impl(libretro_vfs_implementation_file *stream)
    return 0;
 }
 
-int64_t retro_vfs_file_truncate_impl(libretro_vfs_implementation_file *stream, int64_t length)
+int64_t retro_vfs_file_truncate_impl(libretro_vfs_implementation_file *stream, int64_t len)
 {
 #ifdef _WIN32
-   if (stream && _chsize(_fileno(stream->fp), length) == 0)
+   if (stream && stream->fp && _chsize(_fileno(stream->fp), len) == 0)
    {
-	   stream->size = length;
+	   stream->size = len;
 	   return 0;
    }
 #elif !defined(VITA) && !defined(PSP) && !defined(PS2) && !defined(ORBIS) && (!defined(SWITCH) || defined(HAVE_LIBNX))
-   if (stream && ftruncate(fileno(stream->fp), (off_t)length) == 0)
+   if (stream && stream->fp && ftruncate(fileno(stream->fp), (off_t)len) == 0)
    {
-      stream->size = length;
+      stream->size = len;
       return 0;
    }
 #endif
@@ -627,6 +728,8 @@ int64_t retro_vfs_file_truncate_impl(libretro_vfs_implementation_file *stream, i
 
 int64_t retro_vfs_file_tell_impl(libretro_vfs_implementation_file *stream)
 {
+   int64_t val;
+
    if (!stream)
       return -1;
 
@@ -635,6 +738,10 @@ int64_t retro_vfs_file_tell_impl(libretro_vfs_implementation_file *stream)
 #ifdef HAVE_CDROM
       if (stream->scheme == VFS_SCHEME_CDROM)
          return retro_vfs_file_tell_cdrom(stream);
+#endif
+#ifdef HAVE_SMBCLIENT
+      if (stream->scheme == VFS_SCHEME_SMB)
+         return retro_vfs_file_tell_smb(stream);
 #endif
 #ifdef ATLEAST_VC2005
       /* VC2005 and up have a special 64-bit ftell */
@@ -648,14 +755,14 @@ int64_t retro_vfs_file_tell_impl(libretro_vfs_implementation_file *stream)
 #ifdef HAVE_MMAP
    /* Need to check stream->mapped because this function
     * is called in filestream_open() */
-   if (stream->mapped && stream->hints & 
-         RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS)
+   if (stream->mapped && (stream->hints &
+         RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS))
       return stream->mappos;
 #endif
-   if (lseek(stream->fd, 0, SEEK_CUR) < 0)
+   if ((val = lseek(stream->fd, 0, SEEK_CUR)) < 0)
       return -1;
 
-   return 0;
+   return val;
 }
 
 int64_t retro_vfs_file_seek_impl(libretro_vfs_implementation_file *stream,
@@ -675,6 +782,10 @@ int64_t retro_vfs_file_read_impl(libretro_vfs_implementation_file *stream,
 #ifdef HAVE_CDROM
       if (stream->scheme == VFS_SCHEME_CDROM)
          return retro_vfs_file_read_cdrom(stream, s, len);
+#endif
+#ifdef HAVE_SMBCLIENT
+      if (stream->scheme == VFS_SCHEME_SMB)
+         return retro_vfs_file_read_smb(stream, s, len);
 #endif
       return fread(s, 1, (size_t)len, stream->fp);
    }
@@ -699,83 +810,140 @@ int64_t retro_vfs_file_read_impl(libretro_vfs_implementation_file *stream,
 
 int64_t retro_vfs_file_write_impl(libretro_vfs_implementation_file *stream, const void *s, uint64_t len)
 {
-   int64_t pos   = 0;
-   size_t result = -1;
+   int64_t pos = 0;
+   ssize_t ret = -1;
 
    if (!stream)
       return -1;
 
    if ((stream->hints & RFILE_HINT_UNBUFFERED) == 0)
    {
-      pos    = retro_vfs_file_tell_impl(stream);
-      result = fwrite(s, 1, (size_t)len, stream->fp);
+#ifdef HAVE_SMBCLIENT
+      if (stream->scheme == VFS_SCHEME_SMB)
+      {
+         pos = retro_vfs_file_tell_smb(stream);
+         ret = retro_vfs_file_write_smb(stream, s, len);
+         if (ret != -1 && pos + ret > stream->size)
+            stream->size = pos + ret;
+         return ret;
+      }
+#endif
+      pos = retro_vfs_file_tell_impl(stream);
+      ret = fwrite(s, 1, (size_t)len, stream->fp);
 
-      if (result != -1 && pos + result > stream->size)
-         stream->size = pos + result;
+      if (ret > 0 && pos + ret > stream->size)
+         stream->size = pos + ret;
 
-      return result;
+      return ret;
    }
 #ifdef HAVE_MMAP
    if (stream->hints & RETRO_VFS_FILE_ACCESS_HINT_FREQUENT_ACCESS)
       return -1;
 #endif
 
-   pos    = retro_vfs_file_tell_impl(stream);
-   result = write(stream->fd, s, (size_t)len);
+   pos = retro_vfs_file_tell_impl(stream);
+   ret = write(stream->fd, s, (size_t)len);
 
-   if (result != -1 && pos + result > stream->size)
-      stream->size = pos + result;
+   if (ret != -1 && pos + ret > stream->size)
+      stream->size = pos + ret;
 
-   return result;
+   return ret;
 }
 
 int retro_vfs_file_flush_impl(libretro_vfs_implementation_file *stream)
 {
-   if (stream && fflush(stream->fp) == 0)
+   if (!stream)
+      return -1;
+#ifdef HAVE_CDROM
+   if (stream->scheme == VFS_SCHEME_CDROM)
+      return 0;
+#endif
+#ifdef HAVE_SMBCLIENT
+   if (stream->scheme == VFS_SCHEME_SMB)
+      return 0;
+#endif
+   if (stream->fp && fflush(stream->fp) == 0)
       return 0;
    return -1;
 }
 
 int retro_vfs_file_remove_impl(const char *path)
 {
+   if (path && *path)
+   {
+      int ret          = -1;
+
+#if defined(ANDROID) && defined(HAVE_SAF)
+      if (path_is_saf(path))
+      {
+         struct libretro_vfs_implementation_saf_path_split_result saf_split_result;
+         if (!retro_vfs_path_split_saf(&saf_split_result, path))
+            return -1;
+         ret = retro_vfs_file_remove_saf(saf_split_result.tree, saf_split_result.path);
+         free(saf_split_result.path);
+         free(saf_split_result.tree);
+         return ret;
+      }
+#endif
+
 #if defined(_WIN32) && !defined(_XBOX)
-   /* Win32 (no Xbox) */
-
+      /* Win32 (no Xbox) */
 #if defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0500
-   char *path_local    = NULL;
+      char *path_local = NULL;
+      if ((path_local = utf8_to_local_string_alloc(path)))
+      {
+         /* We need to check if path is a directory */
+         if ((retro_vfs_stat_impl(path, NULL) & RETRO_VFS_STAT_IS_DIRECTORY) != 0)
+            ret = _rmdir(path_local);
+         else
+            ret = remove(path_local);
+         free(path_local);
+      }
 #else
-   wchar_t *path_wide  = NULL;
+      wchar_t *path_wide = NULL;
+      if ((path_wide = utf8_to_utf16_string_alloc(path)))
+      {
+         /* We need to check if path is a directory */
+         if ((retro_vfs_stat_impl(path, NULL) & RETRO_VFS_STAT_IS_DIRECTORY) != 0)
+            ret = _wrmdir(path_wide);
+         else
+            ret = _wremove(path_wide);
+         free(path_wide);
+      }
 #endif
-   if (!path || !*path)
-      return -1;
-#if defined(_WIN32_WINNT) && _WIN32_WINNT < 0x0500
-   if ((path_local = utf8_to_local_string_alloc(path)))
-   {
-      int ret = remove(path_local);
-      free(path_local);
-
+#else
+      ret = remove(path);
+#endif
       if (ret == 0)
          return 0;
    }
-#else
-   if ((path_wide = utf8_to_utf16_string_alloc(path)))
-   {
-      int ret = _wremove(path_wide);
-      free(path_wide);
-
-      if (ret == 0)
-         return 0;
-   }
-#endif
-#else
-   if (remove(path) == 0)
-      return 0;
-#endif
    return -1;
 }
 
 int retro_vfs_file_rename_impl(const char *old_path, const char *new_path)
 {
+#if defined(ANDROID) && defined(HAVE_SAF)
+      if (path_is_saf(old_path) && path_is_saf(new_path))
+      {
+         int ret;
+         struct libretro_vfs_implementation_saf_path_split_result saf_split_result_old, saf_split_result_new;
+         if (!retro_vfs_path_split_saf(&saf_split_result_old, old_path))
+            return -1;
+         if (!retro_vfs_path_split_saf(&saf_split_result_new, new_path))
+         {
+            free(saf_split_result_old.path);
+            free(saf_split_result_old.tree);
+            return -1;
+         }
+         ret = retro_vfs_file_rename_saf(saf_split_result_old.tree, saf_split_result_old.path, saf_split_result_new.tree, saf_split_result_new.path);
+         free(saf_split_result_new.path);
+         free(saf_split_result_new.tree);
+         free(saf_split_result_old.path);
+         free(saf_split_result_old.tree);
+         return ret;
+      }
+#endif
+
 #if defined(_WIN32) && !defined(_XBOX)
    /* Win32 (no Xbox) */
    int ret                 = -1;
@@ -834,200 +1002,250 @@ int retro_vfs_file_rename_impl(const char *old_path, const char *new_path)
 const char *retro_vfs_file_get_path_impl(
       libretro_vfs_implementation_file *stream)
 {
-   /* should never happen, do something noisy so caller can be fixed */
    if (!stream)
-      abort();
+      return NULL;
    return stream->orig_path;
 }
 
 int retro_vfs_stat_impl(const char *path, int32_t *size)
 {
-   bool is_dir               = false;
-   bool is_character_special = false;
-#if defined(VITA)
-   /* Vita / PSP */
-   SceIoStat buf;
-   int dir_ret;
-   char *tmp                 = NULL;
-   size_t len                = 0;
+   int ret                   = RETRO_VFS_STAT_IS_VALID;
 
    if (!path || !*path)
       return 0;
 
-   tmp                       = strdup(path);
-   len                       = strlen(tmp);
-   if (tmp[len-1] == '/')
-      tmp[len-1]             = '\0';
-
-   dir_ret                   = sceIoGetstat(tmp, &buf);
-   free(tmp);
-   if (dir_ret < 0)
-      return 0;
-
-   if (size)
-      *size                  = (int32_t)buf.st_size;
-
-   is_dir                    = FIO_S_ISDIR(buf.st_mode);
-#elif defined(__PSL1GHT__) || defined(__PS3__)
-   /* Lowlevel Lv2 */
-   sysFSStat buf;
-
-   if (!path || !*path)
-      return 0;
-   if (sysFsStat(path, &buf) < 0)
-      return 0;
-
-   if (size)
-      *size                  = (int32_t)buf.st_size;
-
-   is_dir                    = ((buf.st_mode & S_IFMT) == S_IFDIR);
-#elif defined(_WIN32)
-   /* Windows */
-   DWORD file_info;
-   struct _stat buf;
-#if defined(LEGACY_WIN32)
-   char *path_local          = NULL;
-#else
-   wchar_t *path_wide        = NULL;
+#ifdef HAVE_SMBCLIENT
+   if (path_is_smb(path))
+      return retro_vfs_stat_smb(path, size);
 #endif
 
-   if (!path || !*path)
-      return 0;
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (path_is_saf(path))
+   {
+      struct libretro_vfs_implementation_saf_path_split_result saf_split_result;
+      if (!retro_vfs_path_split_saf(&saf_split_result, path))
+         return 0;
+      ret = retro_vfs_stat_saf(saf_split_result.tree, saf_split_result.path, size);
+      free(saf_split_result.path);
+      free(saf_split_result.tree);
+      return ret;
+   }
+#endif
 
+   {
+#if defined(VITA)
+      /* Vita / PSP */
+      SceIoStat stat_buf;
+      int dir_ret;
+      char path_buf[PATH_MAX_LENGTH];
+      size_t _len               = strlcpy(path_buf, path, sizeof(path_buf));
+      if (_len > 0 && path_buf[_len-1] == '/')
+          path_buf[_len-1]      = '\0';
+
+      dir_ret                   = sceIoGetstat(path_buf, &stat_buf);
+      if (dir_ret < 0)
+         return 0;
+
+      if (size)
+         *size                  = (int32_t)stat_buf.st_size;
+
+      if (FIO_S_ISDIR(stat_buf.st_mode))
+         ret              |= RETRO_VFS_STAT_IS_DIRECTORY;
+#elif defined(__PSL1GHT__) || defined(__PS3__)
+      /* Lowlevel Lv2 */
+      sysFSStat stat_buf;
+
+      if (sysFsStat(path, &stat_buf) < 0)
+         return 0;
+
+      if (size)
+         *size = (int32_t)stat_buf.st_size;
+
+      if ((stat_buf.st_mode & S_IFMT) == S_IFDIR)
+         ret  |= RETRO_VFS_STAT_IS_DIRECTORY;
+#elif defined(_WIN32)
+      /* Windows
+       * Older MSVC _stat may fail on directory paths 
+       * with a trailing backslash */
+      struct _stat stat_buf;
+      char path_buf[PATH_MAX_LENGTH];
+      const char *stat_path = path;
+      DWORD file_info;
 #if defined(LEGACY_WIN32)
-   path_local                = utf8_to_local_string_alloc(path);
-   file_info                 = GetFileAttributes(path_local);
+      char *path_local;
+#else
+      wchar_t *path_wide;
+#endif
+      size_t _len = strlcpy(path_buf, path, sizeof(path_buf));
 
-   if (!string_is_empty(path_local))
-      _stat(path_local, &buf);
+      if (_len > 0 && _len < sizeof(path_buf))
+      {
+         while (_len > 0 && 
+               (path_buf[_len - 1] == '\\' || path_buf[_len - 1] == '/'))
+         {
+            /* Keep drive roots like "C:\" intact */
+            if (_len == 3 &&
+                  ((((path_buf[0] >= 'A') && (path_buf[0] <= 'Z')) ||
+                    ((path_buf[0] >= 'a') && (path_buf[0] <= 'z'))) &&
+                   path_buf[1] == ':' && path_buf[2] == '\\'))
+               break;
 
-   if (path_local)
+            path_buf[--_len] = '\0';
+         }
+
+         stat_path = path_buf;
+      }
+#if defined(LEGACY_WIN32)
+      path_local                = utf8_to_local_string_alloc(stat_path);
+
+      if (!path_local)
+         return 0;
+
+      file_info                 = GetFileAttributes(path_local);
+
+      if (file_info == INVALID_FILE_ATTRIBUTES
+            || _stat(path_local, &stat_buf) != 0)
+      {
+         free(path_local);
+         return 0;
+      }
+
       free(path_local);
 #else
-   path_wide                 = utf8_to_utf16_string_alloc(path);
-   file_info                 = GetFileAttributesW(path_wide);
+      path_wide                 = utf8_to_utf16_string_alloc(stat_path);
 
-   _wstat(path_wide, &buf);
+      if (!path_wide)
+         return 0;
 
-   if (path_wide)
+      file_info                 = GetFileAttributesW(path_wide);
+
+      if (file_info == INVALID_FILE_ATTRIBUTES
+            || _wstat(path_wide, &stat_buf) != 0)
+      {
+         free(path_wide);
+         return 0;
+      }
+
       free(path_wide);
 #endif
 
-   if (file_info == INVALID_FILE_ATTRIBUTES)
-      return 0;
+      if (size)
+         *size = (int32_t)stat_buf.st_size;
 
-   if (size)
-      *size = (int32_t)buf.st_size;
-
-   is_dir = (file_info & FILE_ATTRIBUTE_DIRECTORY);
-
+      if (file_info & FILE_ATTRIBUTE_DIRECTORY)
+         ret  |= RETRO_VFS_STAT_IS_DIRECTORY;
 #elif defined(GEKKO)
-   /* On GEKKO platforms, paths cannot have
-    * trailing slashes - we must therefore
-    * remove them */
-   char *path_buf = NULL;
-   int stat_ret   = -1;
-   struct stat stat_buf;
-   size_t len;
+      /* On GEKKO platforms, paths cannot have
+       * trailing slashes - we must therefore
+       * remove them */
+      size_t _len;
+      char path_buf[PATH_MAX_LENGTH];
+      struct stat stat_buf;
 
-   if (string_is_empty(path))
-      return 0;
+      _len = strlcpy(path_buf, path, sizeof(path_buf));
+      if (_len > 0 && path_buf[_len - 1] == '/')
+          path_buf[_len - 1] = '\0';
 
-   if (!(path_buf = strdup(path)))
-      return 0;
+      if (stat(path_buf, &stat_buf) < 0)
+         return 0;
 
-   if ((len = strlen(path_buf)) > 0)
-      if (path_buf[len - 1] == '/')
-         path_buf[len - 1] = '\0';
+      if (size)
+         *size = (int32_t)stat_buf.st_size;
 
-   stat_ret = stat(path_buf, &stat_buf);
-   free(path_buf);
-
-   if (stat_ret < 0)
-      return 0;
-
-   if (size)
-      *size             = (int32_t)stat_buf.st_size;
-
-   is_dir               = S_ISDIR(stat_buf.st_mode);
-   is_character_special = S_ISCHR(stat_buf.st_mode);
-
+      if (S_ISDIR(stat_buf.st_mode))
+         ret |= RETRO_VFS_STAT_IS_DIRECTORY;
+      if (S_ISCHR(stat_buf.st_mode))
+         ret |= RETRO_VFS_STAT_IS_CHARACTER_SPECIAL;
 #else
-   /* Every other platform */
-   struct stat buf;
+      /* Every other platform */
+      struct stat stat_buf;
 
-   if (!path || !*path)
-      return 0;
-   if (stat(path, &buf) < 0)
-      return 0;
+      if (stat(path, &stat_buf) < 0)
+         return 0;
 
-   if (size)
-      *size             = (int32_t)buf.st_size;
+      if (size)
+         *size = (int32_t)stat_buf.st_size;
 
-   is_dir               = S_ISDIR(buf.st_mode);
-   is_character_special = S_ISCHR(buf.st_mode);
+      if (S_ISDIR(stat_buf.st_mode))
+         ret |= RETRO_VFS_STAT_IS_DIRECTORY;
+      if (S_ISCHR(stat_buf.st_mode))
+         ret |= RETRO_VFS_STAT_IS_CHARACTER_SPECIAL;
 #endif
-   return RETRO_VFS_STAT_IS_VALID | (is_dir ? RETRO_VFS_STAT_IS_DIRECTORY : 0) | (is_character_special ? RETRO_VFS_STAT_IS_CHARACTER_SPECIAL : 0);
+   }
+   return ret;
 }
 
 #if defined(VITA)
-#define path_mkdir_error(ret) (((ret) == SCE_ERROR_ERRNO_EEXIST))
+#define path_mkdir_err(ret) (((ret) == SCE_ERROR_ERRNO_EEXIST))
 #elif defined(PSP) || defined(PS2) || defined(_3DS) || defined(WIIU) || defined(SWITCH)
-#define path_mkdir_error(ret) ((ret) == -1)
+#define path_mkdir_err(ret) ((ret) == -1)
 #else
-#define path_mkdir_error(ret) ((ret) < 0 && errno == EEXIST)
+#define path_mkdir_err(ret) ((ret) < 0 && errno == EEXIST)
 #endif
 
 int retro_vfs_mkdir_impl(const char *dir)
 {
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (path_is_saf(dir))
+   {
+      int ret;
+      struct libretro_vfs_implementation_saf_path_split_result saf_split_result;
+      if (!retro_vfs_path_split_saf(&saf_split_result, dir))
+         return -1;
+      ret = retro_vfs_mkdir_saf(saf_split_result.tree, saf_split_result.path);
+      free(saf_split_result.path);
+      free(saf_split_result.tree);
+      return ret;
+   }
+   else
+#endif
+   {
 #if defined(_WIN32)
 #ifdef LEGACY_WIN32
-   int ret        = _mkdir(dir);
+      int ret        = _mkdir(dir);
 #else
-   wchar_t *dir_w = utf8_to_utf16_string_alloc(dir);
-   int       ret  = -1;
+      wchar_t *dir_w = utf8_to_utf16_string_alloc(dir);
+      int       ret  = -1;
 
-   if (dir_w)
-   {
-      ret = _wmkdir(dir_w);
-      free(dir_w);
-   }
+      if (dir_w)
+      {
+         ret = _wmkdir(dir_w);
+         free(dir_w);
+      }
 #endif
 #elif defined(IOS)
-   int ret = mkdir(dir, 0755);
+      int ret = mkdir(dir, 0755);
 #elif defined(VITA)
-   int ret = sceIoMkdir(dir, 0777);
+      int ret = sceIoMkdir(dir, 0777);
 #elif defined(__QNX__)
-   int ret = mkdir(dir, 0777);
+      int ret = mkdir(dir, 0777);
 #elif defined(GEKKO) || defined(WIIU)
-   /* On GEKKO platforms, mkdir() fails if
-    * the path has a trailing slash. We must
-    * therefore remove it. */
-   int ret = -1;
-   if (!string_is_empty(dir))
-   {
+      /* On GEKKO platforms, mkdir() fails if
+       * the path has a trailing slash. We must
+       * therefore remove it. */
+      int ret       = -1;
       char *dir_buf = strdup(dir);
 
       if (dir_buf)
       {
-         size_t len = strlen(dir_buf);
+         size_t _len = strlen(dir_buf);
 
-         if (len > 0)
-            if (dir_buf[len - 1] == '/')
-               dir_buf[len - 1] = '\0';
+         if (_len > 0)
+            if (dir_buf[_len - 1] == '/')
+               dir_buf[_len - 1] = '\0';
 
          ret = mkdir(dir_buf, 0750);
 
          free(dir_buf);
       }
-   }
 #else
-   int ret = mkdir(dir, 0750);
+      int ret = mkdir(dir, 0750);
 #endif
 
-   if (path_mkdir_error(ret))
-      return -2;
-   return ret < 0 ? -1 : 0;
+      if (path_mkdir_err(ret))
+         return -2;
+      return ret < 0 ? -1 : 0;
+   }
 }
 
 #ifdef VFS_FRONTEND
@@ -1057,9 +1275,16 @@ struct libretro_vfs_implementation_dir
    DIR *directory;
    const struct dirent *entry;
 #endif
+#if defined(ANDROID) && defined(HAVE_SAF)
+   libretro_vfs_implementation_saf_dir *saf_directory;
+#endif
+#ifdef HAVE_SMBCLIENT
+   smb_dir_handle* smb_handle;
+   char smb_path[PATH_MAX_LENGTH];
+#endif
 };
 
-static bool dirent_check_error(libretro_vfs_implementation_dir *rdir)
+static bool dirent_check_err(libretro_vfs_implementation_dir *rdir)
 {
 #if defined(_WIN32)
    return (rdir->directory == INVALID_HANDLE_VALUE);
@@ -1077,7 +1302,7 @@ libretro_vfs_implementation_dir *retro_vfs_opendir_impl(
 {
 #if defined(_WIN32)
    char path_buf[1024];
-   size_t copied      = 0;
+   size_t _len;
 #if defined(LEGACY_WIN32)
    char *path_local   = NULL;
 #else
@@ -1096,27 +1321,69 @@ libretro_vfs_implementation_dir *retro_vfs_opendir_impl(
       return NULL;
 
    rdir->orig_path       = strdup(name);
+   if (rdir->orig_path == NULL)
+   {
+      free(rdir);
+      return NULL;
+   }
+
+#ifdef HAVE_SMBCLIENT
+   if (path_is_smb(name))
+   {
+      smb_dir_handle *dh = retro_vfs_opendir_smb(name, include_hidden);
+      if (!dh || !dh->dir)
+      {
+         free(rdir->orig_path);
+         free(rdir);
+         return NULL;
+      }
+      rdir->smb_handle = dh;
+      rdir->smb_path[0] = '\0';
+      return rdir;
+   }
+#endif
+
+#if defined(ANDROID) && defined(HAVE_SAF)
+   rdir->saf_directory = NULL;
+
+   if (path_is_saf(name))
+   {
+      struct libretro_vfs_implementation_saf_path_split_result saf_split_result;
+      if (!retro_vfs_path_split_saf(&saf_split_result, name))
+      {
+         free(rdir->orig_path);
+         free(rdir);
+         return NULL;
+      }
+      rdir->saf_directory = retro_vfs_opendir_saf(saf_split_result.tree, saf_split_result.path, include_hidden);
+      free(saf_split_result.path);
+      free(saf_split_result.tree);
+      if (rdir->saf_directory == NULL)
+      {
+         free(rdir->orig_path);
+         free(rdir);
+         return NULL;
+      }
+      return rdir;
+   }
+#endif
 
 #if defined(_WIN32)
-   copied                = strlcpy(path_buf, name, sizeof(path_buf));
-
+   _len = strlcpy(path_buf, name, sizeof(path_buf));
    /* Non-NT platforms don't like extra slashes in the path */
-   if (path_buf[copied - 1] != '\\')
-      path_buf [copied++]  = '\\';
+   if (path_buf[_len - 1] != '\\')
+      path_buf [_len++]    = '\\';
 
-   path_buf[copied  ]      = '*';
-   path_buf[copied+1]      = '\0';
-
+   path_buf[_len    ]      = '*';
+   path_buf[_len + 1]      = '\0';
 #if defined(LEGACY_WIN32)
    path_local              = utf8_to_local_string_alloc(path_buf);
    rdir->directory         = FindFirstFile(path_local, &rdir->entry);
-
    if (path_local)
       free(path_local);
 #else
    path_wide               = utf8_to_utf16_string_alloc(path_buf);
    rdir->directory         = FindFirstFileW(path_wide, &rdir->entry);
-
    if (path_wide)
       free(path_wide);
 #endif
@@ -1124,7 +1391,7 @@ libretro_vfs_implementation_dir *retro_vfs_opendir_impl(
 #elif defined(VITA)
    rdir->directory       = sceIoDopen(name);
 #elif defined(_3DS)
-   rdir->directory       = !string_is_empty(name) ? opendir(name) : NULL;
+   rdir->directory       = opendir(name);
    rdir->entry           = NULL;
 #elif defined(__PSL1GHT__) || defined(__PS3__)
    rdir->error           = sysFsOpendir(name, &rdir->directory);
@@ -1138,9 +1405,11 @@ libretro_vfs_implementation_dir *retro_vfs_opendir_impl(
       rdir->entry.dwFileAttributes |= FILE_ATTRIBUTE_HIDDEN;
    else
       rdir->entry.dwFileAttributes &= ~FILE_ATTRIBUTE_HIDDEN;
+#else
+   (void)include_hidden;
 #endif
 
-   if (rdir->directory && !dirent_check_error(rdir))
+   if (rdir->directory && !dirent_check_err(rdir))
       return rdir;
 
    retro_vfs_closedir_impl(rdir);
@@ -1149,6 +1418,24 @@ libretro_vfs_implementation_dir *retro_vfs_opendir_impl(
 
 bool retro_vfs_readdir_impl(libretro_vfs_implementation_dir *rdir)
 {
+#ifdef HAVE_SMBCLIENT
+   if (rdir->smb_handle && rdir->smb_handle->dir)
+   {
+      struct smbc_dirent *de = retro_vfs_readdir_smb(rdir->smb_handle);
+      if (!de)
+         return false;
+      strlcpy(rdir->smb_path, de->name, sizeof(rdir->smb_path));
+      return true;
+   }
+   /* If we opened an SMB path but failed, do not fall through to native readdir */
+   if (path_is_smb(rdir->orig_path))
+      return false;
+#endif
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (rdir->saf_directory != NULL)
+      return retro_vfs_readdir_saf(rdir->saf_directory);
+#endif
+
 #if defined(_WIN32)
    if (rdir->next)
 #if defined(LEGACY_WIN32)
@@ -1172,75 +1459,128 @@ bool retro_vfs_readdir_impl(libretro_vfs_implementation_dir *rdir)
 
 const char *retro_vfs_dirent_get_name_impl(libretro_vfs_implementation_dir *rdir)
 {
+#ifdef HAVE_SMBCLIENT
+   if (rdir->smb_handle && rdir->smb_handle->dir)
+      return rdir->smb_path;
+#endif
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (rdir->saf_directory != NULL)
+      return retro_vfs_dirent_get_name_saf(rdir->saf_directory);
+   else
+#endif
+   {
 #if defined(_WIN32)
 #if defined(LEGACY_WIN32)
-   char *name       = local_to_utf8_string_alloc(rdir->entry.cFileName);
+      char *name       = local_to_utf8_string_alloc(rdir->entry.cFileName);
 #else
-   char *name       = utf16_to_utf8_string_alloc(rdir->entry.cFileName);
+      char *name       = utf16_to_utf8_string_alloc(rdir->entry.cFileName);
 #endif
-   memset(rdir->entry.cFileName, 0, sizeof(rdir->entry.cFileName));
-   strlcpy((char*)rdir->entry.cFileName, name, sizeof(rdir->entry.cFileName));
-   if (name)
+      if (!name)
+         return NULL;
+      memset(rdir->entry.cFileName, 0, sizeof(rdir->entry.cFileName));
+      strlcpy((char*)rdir->entry.cFileName, name, sizeof(rdir->entry.cFileName));
       free(name);
-   return (char*)rdir->entry.cFileName;
+      return (char*)rdir->entry.cFileName;
 #elif defined(VITA) || defined(__PSL1GHT__) || defined(__PS3__)
-   return rdir->entry.d_name;
+      return rdir->entry.d_name;
 #else
-   if (!rdir || !rdir->entry)
-      return NULL;
-   return rdir->entry->d_name;
+      if (!rdir || !rdir->entry)
+         return NULL;
+      return rdir->entry->d_name;
 #endif
+   }
 }
 
 bool retro_vfs_dirent_is_dir_impl(libretro_vfs_implementation_dir *rdir)
 {
+#ifdef HAVE_SMBCLIENT
+   if (rdir->smb_handle && rdir->smb_handle->dir)
+   {
+      char full[PATH_MAX_LENGTH];
+      const char *name = retro_vfs_dirent_get_name_impl(rdir);
+      int32_t sz = 0;
+      int st = 0;
+
+      if (!name)
+         return false;
+
+      fill_pathname_join_special(full, rdir->orig_path, name, sizeof(full));
+      st = retro_vfs_stat_smb(full, &sz);
+
+      return (st & RETRO_VFS_STAT_IS_DIRECTORY) != 0;
+   }
+#endif
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (rdir->saf_directory != NULL)
+      return retro_vfs_dirent_is_dir_saf(rdir->saf_directory);
+   else
+#endif
+   {
 #if defined(_WIN32)
-   const WIN32_FIND_DATA *entry = (const WIN32_FIND_DATA*)&rdir->entry;
-   return entry->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+      const WIN32_FIND_DATA *entry = (const WIN32_FIND_DATA*)&rdir->entry;
+      return entry->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 #elif defined(VITA)
-   const SceIoDirent *entry     = (const SceIoDirent*)&rdir->entry;
-   return SCE_S_ISDIR(entry->d_stat.st_mode);
+      const SceIoDirent *entry     = (const SceIoDirent*)&rdir->entry;
+      return SCE_S_ISDIR(entry->d_stat.st_mode);
 #elif defined(__PSL1GHT__) || defined(__PS3__)
-   sysFSDirent *entry          = (sysFSDirent*)&rdir->entry;
-   return (entry->d_type == FS_TYPE_DIR);
+      sysFSDirent *entry          = (sysFSDirent*)&rdir->entry;
+      return (entry->d_type == FS_TYPE_DIR);
 #else
-   struct stat buf;
-   char path[PATH_MAX_LENGTH];
+      struct stat buf;
+      char path[PATH_MAX_LENGTH];
 #if defined(DT_DIR)
-   const struct dirent *entry = (const struct dirent*)rdir->entry;
-   if (entry->d_type == DT_DIR)
-      return true;
-   /* This can happen on certain file systems. */
-   if (!(entry->d_type == DT_UNKNOWN || entry->d_type == DT_LNK))
-      return false;
+      const struct dirent *entry = (const struct dirent*)rdir->entry;
+      if (entry->d_type == DT_DIR)
+         return true;
+      /* This can happen on certain file systems. */
+      if (!(entry->d_type == DT_UNKNOWN || entry->d_type == DT_LNK))
+         return false;
 #endif
-   /* dirent struct doesn't have d_type, do it the slow way ... */
-   fill_pathname_join_special(path, rdir->orig_path, retro_vfs_dirent_get_name_impl(rdir), sizeof(path));
-   if (stat(path, &buf) < 0)
-      return false;
-   return S_ISDIR(buf.st_mode);
+      /* dirent struct doesn't have d_type, do it the slow way ... */
+      fill_pathname_join_special(path, rdir->orig_path, retro_vfs_dirent_get_name_impl(rdir), sizeof(path));
+      if (stat(path, &buf) < 0)
+         return false;
+      return S_ISDIR(buf.st_mode);
 #endif
+   }
 }
 
 int retro_vfs_closedir_impl(libretro_vfs_implementation_dir *rdir)
 {
+   int ret = 0;
+
    if (!rdir)
       return -1;
 
-#if defined(_WIN32)
-   if (rdir->directory != INVALID_HANDLE_VALUE)
-      FindClose(rdir->directory);
-#elif defined(VITA)
-   sceIoDclose(rdir->directory);
-#elif defined(__PSL1GHT__) || defined(__PS3__)
-   rdir->error = sysFsClosedir(rdir->directory);
-#else
-   if (rdir->directory)
-      closedir(rdir->directory);
+#ifdef HAVE_SMBCLIENT
+   if (rdir->smb_handle && rdir->smb_handle->dir)
+   {
+      retro_vfs_closedir_smb(rdir->smb_handle);
+      rdir->smb_handle = NULL;
+   }
 #endif
+
+#if defined(ANDROID) && defined(HAVE_SAF)
+   if (rdir->saf_directory != NULL)
+      ret = retro_vfs_closedir_saf(rdir->saf_directory);
+   else
+#endif
+   {
+#if defined(_WIN32)
+      if (rdir->directory != INVALID_HANDLE_VALUE)
+         FindClose(rdir->directory);
+#elif defined(VITA)
+      sceIoDclose(rdir->directory);
+#elif defined(__PSL1GHT__) || defined(__PS3__)
+      rdir->error = sysFsClosedir(rdir->directory);
+#else
+      if (rdir->directory)
+         closedir(rdir->directory);
+#endif
+   }
 
    if (rdir->orig_path)
       free(rdir->orig_path);
    free(rdir);
-   return 0;
+   return ret;
 }

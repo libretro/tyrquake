@@ -32,23 +32,19 @@
 #include <retro_common_api.h>
 #include <retro_inline.h>
 #include <compat/strl.h>
+#include <compat/posix_string.h>
 
 RETRO_BEGIN_DECLS
 
 #define STRLEN_CONST(x)                   ((sizeof((x))-1))
 
-#define strcpy_literal(a, b)              strcpy(a, b)
-
 #define string_is_not_equal(a, b)         !string_is_equal((a), (b))
-
-#define string_is_not_equal_fast(a, b, size) (memcmp(a, b, size) != 0)
-#define string_is_equal_fast(a, b, size)     (memcmp(a, b, size) == 0)
 
 #define TOLOWER(c)   ((c) |  (lr_char_props[(unsigned char)(c)] & 0x20))
 #define TOUPPER(c)   ((c) & ~(lr_char_props[(unsigned char)(c)] & 0x20))
 
 /* C standard says \f \v are space, but this one disagrees */
-#define ISSPACE(c)   (lr_char_props[(unsigned char)(c)] & 0x80) 
+#define ISSPACE(c)   (lr_char_props[(unsigned char)(c)] & 0x80)
 
 #define ISDIGIT(c)   (lr_char_props[(unsigned char)(c)] & 0x40)
 #define ISALPHA(c)   (lr_char_props[(unsigned char)(c)] & 0x20)
@@ -64,18 +60,22 @@ RETRO_BEGIN_DECLS
 
 static INLINE bool string_is_empty(const char *data)
 {
-   return !data || (*data == '\0');
+   return !data || !*data;
 }
 
 static INLINE bool string_is_equal(const char *a, const char *b)
 {
-   return (a && b) ? !strcmp(a, b) : false;
+   if (a == b)
+      return true;
+   if (!a || !b)
+      return false;
+   return !strcmp(a, b);
 }
 
 static INLINE bool string_starts_with_size(const char *str, const char *prefix,
-      size_t size)
+      size_t len)
 {
-   return (str && prefix) ? !strncmp(prefix, str, size) : false;
+   return (str && prefix) ? !strncmp(prefix, str, len) : false;
 }
 
 static INLINE bool string_starts_with(const char *str, const char *prefix)
@@ -83,16 +83,16 @@ static INLINE bool string_starts_with(const char *str, const char *prefix)
    return (str && prefix) ? !strncmp(prefix, str, strlen(prefix)) : false;
 }
 
-static INLINE bool string_ends_with_size(const char *str, const char *suffix,
-      size_t str_len, size_t suffix_len)
+static INLINE bool string_ends_with_size(const char *s, const char *suffix,
+      size_t len, size_t suffix_len)
 {
-   return (str_len < suffix_len) ? false :
-         !memcmp(suffix, str + (str_len - suffix_len), suffix_len);
+   return (len < suffix_len) ? false :
+         !memcmp(suffix, s + (len - suffix_len), suffix_len);
 }
 
-static INLINE bool string_ends_with(const char *str, const char *suffix)
+static INLINE bool string_ends_with(const char *s, const char *suffix)
 {
-   return str && suffix && string_ends_with_size(str, suffix, strlen(str), strlen(suffix));
+   return s && suffix && string_ends_with_size(s, suffix, strlen(s), strlen(suffix));
 }
 
 /**
@@ -106,14 +106,13 @@ static INLINE bool string_ends_with(const char *str, const char *suffix)
  * - If 'str' is not NULL and no '\0' character is found
  *   in the first 'size' characters, returns 'size'
  **/
-static INLINE size_t strlen_size(const char *str, size_t size)
+static INLINE size_t strlen_size(const char *str, size_t len)
 {
    size_t i = 0;
    if (str)
-      while (i < size && str[i]) i++;
+      while (i < len && str[i]) i++;
    return i;
 }
-
 
 static INLINE bool string_is_equal_case_insensitive(const char *a,
       const char *b)
@@ -159,8 +158,9 @@ char *string_to_lower(char *s);
 
 char *string_ucwords(char *s);
 
-char *string_replace_substring(const char *in,
-      const char *pattern, size_t pattern_len,
+char *string_replace_substring(
+      const char *in,          size_t in_len,
+      const char *pattern,     size_t pattern_len,
       const char *replacement, size_t replacement_len);
 
 /**
@@ -204,7 +204,7 @@ char *string_trim_whitespace(char *const s);
  * correctly any text containing so-called 'wide' Unicode
  * characters (e.g. CJK languages, emojis, etc.).
  **/
-void word_wrap(char *dst, size_t dst_size, const char *src, size_t src_len,
+size_t word_wrap(char *dst, size_t dst_size, const char *src, size_t src_len,
       int line_width, int wideglyph_width, unsigned max_lines);
 
 /**
@@ -241,7 +241,7 @@ void word_wrap(char *dst, size_t dst_size, const char *src, size_t src_len,
  * on-screen pixel width deviates greatly from the set
  * @wideglyph_width value.
  **/
-void word_wrap_wideglyph(
+size_t word_wrap_wideglyph(
       char *dst, size_t dst_size,
       const char *src, size_t src_len,
       int line_width, int wideglyph_width,
@@ -250,7 +250,7 @@ void word_wrap_wideglyph(
 /**
  * string_tokenize:
  *
- * Splits string into tokens seperated by @delim
+ * Splits string into tokens separated by @delim
  * > Returned token string must be free()'d
  * > Returns NULL if token is not found
  * > After each call, @str is set to the position after the
@@ -267,17 +267,19 @@ void word_wrap_wideglyph(
  *        token = NULL;
  *    }
  **/
-char* string_tokenize(char **str, const char *delim);
+char *string_tokenize(char **str, const char *delim);
 
 /**
  * string_remove_all_chars:
- * @str                : input string (must be non-NULL, otherwise UB)
+ * @s                 : input string (must be non-NULL, otherwise UB)
  *
  * Leaf function.
  *
- * Removes every instance of character @c from @str
+ * Removes every instance of character @c from @s
+ *
+ * Returns the length of the resulting string.
  **/
-void string_remove_all_chars(char *str, char c);
+size_t string_remove_all_chars(char *s, char c);
 
 /**
  * string_replace_all_chars:
@@ -314,10 +316,6 @@ unsigned string_to_unsigned(const char *str);
  **/
 unsigned string_hex_to_unsigned(const char *str);
 
-char *string_init(const char *src);
-
-void string_set(char **string, const char *src);
-
 /**
  * string_count_occurrences_single_character:
  *
@@ -331,7 +329,7 @@ int string_count_occurrences_single_character(const char *str, char c);
 
 /**
  * string_replace_whitespace_with_single_character:
- * 
+ *
  * Leaf function.
  *
  * Replaces all spaces with given character @c.
@@ -353,8 +351,9 @@ void string_replace_multi_space_with_single_space(char *str);
  * Leaf function.
  *
  * Remove all spaces from the given string.
+ * Returns the length of the resulting string.
  **/
-void string_remove_all_whitespace(char *str_trimmed, const char *str);
+size_t string_remove_all_whitespace(char *str_trimmed, const char *str);
 
 /* Retrieve the last occurance of the given character in a string. */
 int string_index_last_occurance(const char *str, char c);
