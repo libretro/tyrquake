@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// d_init.c: rasterization driver initialization
+/* d_init.c: rasterization driver initialization */
 
 #include "quakedef.h"
 #include "d_local.h"
@@ -81,7 +81,7 @@ D_TurnZOn
 void
 D_TurnZOn(void)
 {
-// not needed for software version
+/* not needed for software version */
 }
 
 

@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_phys.c
+/* sv_phys.c */
 
 #include "quakedef.h"
 #include "host.h"
@@ -281,14 +281,14 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
       }
 
       if (trace.fraction == 1)
-         break;		// moved the entire distance
+         break;		/* moved the entire distance */
 
       if (!trace.ent)
          Sys_Error("%s: !trace.ent", __func__);
 
       if (trace.plane.normal[2] > 0.7)
       {
-         blocked |= 1;	// floor
+         blocked |= 1;	/* floor */
          if (trace.ent->v.solid == SOLID_BSP) 
          {
             ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
@@ -297,15 +297,15 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
       }
       if (!trace.plane.normal[2])
       {
-         blocked |= 2;	// step
+         blocked |= 2;	/* step */
          if (steptrace)
-            *steptrace = trace;	// save for player extrafriction
+            *steptrace = trace;	/* save for player extrafriction */
       }
 
       /* run the impact function */
       SV_Impact(ent, trace.ent);
       if (ent->free)
-         break;		// removed by the impact function
+         break;		/* removed by the impact function */
 
 
       time_left -= time_left * trace.fraction;
@@ -344,7 +344,7 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
          /* go along the crease */
          if (numplanes != 2)
          {
-            //                              Con_Printf ("clip velocity, numplanes == %i\n",numplanes);
+            /*                              Con_Printf ("clip velocity, numplanes == %i\n",numplanes); */
             VectorCopy(vec3_origin, ent->v.velocity);
             free(planes);
             return 7;
@@ -378,7 +378,7 @@ void SV_FlyExtras (edict_t *ent, float time, trace_t *steptrace)
 {
    const float hoverinc = 0.4;
 
-	ent->v.flags = (int) ent->v.flags | FL_ONGROUND;  // Jumping makes you loose this flag so reset it
+	ent->v.flags = (int) ent->v.flags | FL_ONGROUND;  /* Jumping makes you loose this flag so reset it */
 
 	if ((ent->v.velocity[2]<=6) && (ent->v.velocity[2]>=-6))
 	{
@@ -395,7 +395,7 @@ void SV_FlyExtras (edict_t *ent, float time, trace_t *steptrace)
 			ent->v.velocity[2]+=ent->v.hoverz;
 		}
 	}
-	else  // friction for upward or downward progress once key is released
+	else  /* friction for upward or downward progress once key is released */
 	{
 		ent->v.velocity[2]-=sv_player->v.velocity[2] * .1;
 	}
@@ -453,7 +453,7 @@ SV_PushEntity(edict_t *ent, vec3_t push)
          SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end,
                MOVE_MISSILE, ent);
    else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
-      // only clip against bmodels
+      /* only clip against bmodels */
       trace =
          SV_Move(ent->v.origin, ent->v.mins, ent->v.maxs, end,
                MOVE_NOMONSTERS, ent);
@@ -793,7 +793,7 @@ SV_TryUnstick(edict_t *ent, vec3_t oldvel)
 
    for (i = 0; i < 8; i++)
    {
-      // try pushing a little in an axial direction
+      /* try pushing a little in an axial direction */
       switch (i)
       {
          case 0:
@@ -842,7 +842,7 @@ SV_TryUnstick(edict_t *ent, vec3_t oldvel)
             fabs(oldorg[1] - ent->v.origin[1]) > 4 ||
             fabs(oldorg[0] - ent->v.origin[0]) > 4)
       {
-         //Con_DPrintf ("unstuck!\n");
+         /* Con_DPrintf ("unstuck!\n"); */
          return clip;
       }
 
@@ -851,7 +851,7 @@ SV_TryUnstick(edict_t *ent, vec3_t oldvel)
    }
 
    VectorCopy(vec3_origin, ent->v.velocity);
-   return 7;			// still not moving
+   return 7;			/* still not moving */
 }
 
 /*
@@ -882,13 +882,13 @@ SV_WalkMove(edict_t *ent)
    clip = SV_FlyMove(ent, host_frametime, &steptrace);
 
    if (!(clip & 2))
-      return;			// move didn't block on a step
+      return;			/* move didn't block on a step */
 
    if (!oldonground && ent->v.waterlevel == 0)
-      return;			// don't stair up while jumping
+      return;			/* don't stair up while jumping */
 
    if (ent->v.movetype != MOVETYPE_WALK)
-      return;			// gibbed by a trigger
+      return;			/* gibbed by a trigger */
 
    if (sv_nostep.value)
       return;
@@ -966,7 +966,7 @@ void
 SV_Physics_Client(edict_t *ent, int num)
 {
    if (!svs.clients[num - 1].active)
-      return;			// unconnected slot
+      return;			/* unconnected slot */
 
    /* call standard client pre-think */
    pr_global_struct->time = sv.time;
@@ -1023,7 +1023,7 @@ SV_Physics_Client(edict_t *ent, int num)
    PR_ExecuteProgram(pr_global_struct->PlayerPostThink);
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 =============
@@ -1153,7 +1153,7 @@ SV_Physics_Toss(edict_t *ent)
    /* move angles */
    VectorMA(ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
 
-   // move origin
+   /* move origin */
    VectorScale(ent->v.velocity, host_frametime, move);
    trace = SV_PushEntity(ent, move);
    if (trace.fraction == 1)
@@ -1224,7 +1224,7 @@ SV_Physics_Step(edict_t *ent)
 
       if ((int)ent->v.flags & FL_ONGROUND)
       {
-         // just hit ground
+         /* just hit ground */
          if (hitsound)
          {
 #ifdef HEXEN2
@@ -1236,11 +1236,11 @@ SV_Physics_Step(edict_t *ent)
       }
    }
 
-   SV_RunThink(ent); // regular thinking
+   SV_RunThink(ent); /* regular thinking */
    SV_CheckWaterTransition(ent);
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ================
@@ -1263,7 +1263,7 @@ SV_Physics(void)
    pr_global_struct->time  = sv.time;
    PR_ExecuteProgram(pr_global_struct->StartFrame);
 
-   //SV_CheckAllEnts ();
+   /* SV_CheckAllEnts (); */
 
    /* treat each object in turn */
    ent = sv.edicts;
@@ -1321,7 +1321,7 @@ SV_Physics(void)
             VectorSubtract(ent->v.angles,oldAngle,oldAngle);
 
             for(c=0;c<10;c++)
-            {   // chain a max of 10 objects
+            {   /* chain a max of 10 objects */
                if (ent2->free) break;
 
                VectorAdd(oldOrigin,ent2->v.origin,ent2->v.origin);
@@ -1331,7 +1331,7 @@ SV_Physics(void)
                }
 
                if (originMoved && ent2->v.chainmoved)
-               {	// callback function
+               {	/* callback function */
                   pr_global_struct->self = EDICT_TO_PROG(ent2);
                   pr_global_struct->other = EDICT_TO_PROG(ent);
                   PR_ExecuteProgram(ent2->v.chainmoved);

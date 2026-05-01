@@ -24,20 +24,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"		/* qboolean     */
 #include "quakedef.h"		/* quakeparms_t */
 
-// FIXME - some of this is out of place or badly named...
+/* FIXME - some of this is out of place or badly named... */
 
 extern quakeparms_t host_parms;
 
 extern cvar_t developer;
 
-extern qboolean host_initialized;	// true if into command execution
+extern qboolean host_initialized;	/* true if into command execution */
 extern double host_frametime;
 extern byte *host_basepal;
 extern byte *host_colormap;
-extern int host_framecount;	// incremented every frame, never reset
-extern double realtime;		// not bounded in any way, changed at
+extern int host_framecount;	/* incremented every frame, never reset */
+extern double realtime;		/* not bounded in any way, changed at */
 
-				// start of every frame, never reset
+				/* start of every frame, never reset */
 
 void Host_ClearMemory(void);
 void Host_ServerFrame(void);
@@ -51,11 +51,11 @@ void Host_Quit_f(void);
 void Host_ClientCommands(const char *fmt, ...);
 void Host_ShutdownServer(qboolean crash);
 
-extern int current_skill;	// skill level for currently loaded level (in
+extern int current_skill;	/* skill level for currently loaded level (in */
 
-				//  case the user changes the cvar while the
-				//  level is running, this reflects the level
-				//  actually in use)
+				/*  case the user changes the cvar while the */
+				/*  level is running, this reflects the level */
+				/*  actually in use) */
 
 extern qboolean isDedicated;
 

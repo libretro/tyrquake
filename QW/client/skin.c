@@ -71,7 +71,7 @@ Skin_Find(player_info_t * sc)
 	}
     }
 
-    if (numskins == MAX_CACHED_SKINS) {	// ran out of spots, so flush everything
+    if (numskins == MAX_CACHED_SKINS) {	/* ran out of spots, so flush everything */
 	Skin_Skins_f();
 	return;
     }
@@ -103,10 +103,10 @@ Skin_Cache(skin_t * skin)
     int runLength;
 
     if (cls.downloadtype == dl_skin)
-	return NULL;		// use base until downloaded
+	return NULL;		/* use base until downloaded */
 
-    if (noskins.value == 1)	// JACK: So NOSKINS > 1 will show skins, but
-	return NULL;		// not download new ones.
+    if (noskins.value == 1)	/* JACK: So NOSKINS > 1 will show skins, but */
+	return NULL;		/* not download new ones. */
 
     if (skin->failedload)
 	return NULL;
@@ -115,9 +115,9 @@ Skin_Cache(skin_t * skin)
     if (out)
 	return out;
 
-//
-// load the pic from disk
-//
+/**/
+/* load the pic from disk */
+/**/
     snprintf(name, sizeof(name), "skins/%s.pcx", skin->name);
     pcx = COM_LoadTempFile(name);
     if (!pcx) {
@@ -127,9 +127,9 @@ Skin_Cache(skin_t * skin)
 	if (!pcx)
 	    goto Fail;
     }
-//
-// parse the PCX file
-//
+/**/
+/* parse the PCX file */
+/**/
     if (pcx->manufacturer != 0x0a
 	|| pcx->version != 5
 	|| pcx->encoding != 1
@@ -162,7 +162,7 @@ Skin_Cache(skin_t * skin)
 	    } else
 		runLength = 1;
 
-	    // skin sanity check
+	    /* skin sanity check */
 	    if (runLength + x > pcx->xmax + 2)
 		goto Fail_Malformed;
 
@@ -210,12 +210,12 @@ Skin_NextDownload(void)
       if (noskins.value)
          continue;
       if (!CL_CheckOrDownloadFile(va("skins/%s.pcx", sc->skin->name)))
-         return;		// started a download
+         return;		/* started a download */
    }
 
    cls.downloadtype = dl_none;
 
-   // now load them in for real
+   /* now load them in for real */
    for (i = 0; i < MAX_CLIENTS; i++) {
       sc = &cl.players[i];
       if (!sc->name[0])
@@ -223,10 +223,10 @@ Skin_NextDownload(void)
       Skin_Cache(sc->skin);
    }
 
-   if (cls.state != ca_active) {	// get next signon phase
+   if (cls.state != ca_active) {	/* get next signon phase */
       MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
       MSG_WriteStringf(&cls.netchan.message, "begin %i", cl.servercount);
-      Cache_Report();		// print remaining memory
+      Cache_Report();		/* print remaining memory */
    }
 }
 

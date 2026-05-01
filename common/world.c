@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// world.c -- world query functions
+/* world.c -- world query functions */
 
 #include "bspfile.h"
 #include "console.h"
@@ -50,9 +50,9 @@ line of sight checks trace->crosscontent, but bullets don't
 cvar_t	sys_quake2 = {"sys_quake2","1",true};
 
 typedef struct {
-    vec3_t boxmins, boxmaxs;	// enclose the test object along entire move
-    float *mins, *maxs;		// size of the moving object
-    vec3_t mins2, maxs2;	// size when clipping against mosnters
+    vec3_t boxmins, boxmaxs;	/* enclose the test object along entire move */
+    float *mins, *maxs;		/* size of the moving object */
+    vec3_t mins2, maxs2;	/* size when clipping against mosnters */
     float *start, *end;
     trace_t trace;
     int type;
@@ -173,17 +173,17 @@ static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t o
        * THIS WILL INCORRECTLY OFFSET THE TEST MOVE BY THE MINS AND
        * MAXS OF THE MONSTER!  WILL CHECK FOR SIDE EFFECTS...
        */
-		if (move_ent->v.hull)  // Entity is specifying which hull to use
+		if (move_ent->v.hull)  /* Entity is specifying which hull to use */
 		{
 			int index=move_ent->v.hull-1;
 			hull = &model->hulls[index];
-			if (!hull)  // Invalid hull
+			if (!hull)  /* Invalid hull */
 			{
 				Con_Printf ("ERROR: hull %d is null.\n",hull);
 				hull = &model->hulls[0];
 			}
 		}
-		else  // Using the old way uses size to determine hull to use
+		else  /* Using the old way uses size to determine hull to use */
 #endif
       {
          if (size[0] < 3)              /* Point */
@@ -237,7 +237,7 @@ ENTITY AREA CHECKING
 */
 
 typedef struct areanode_s {
-    int axis;			// -1 = leaf node
+    int axis;			/* -1 = leaf node */
     float dist;
     struct areanode_s *children[2];
     link_t trigger_edicts;
@@ -267,13 +267,13 @@ SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
    physent_t *pe;
    int pl = EDICT_TO_PROG(sv_player);
 
-   // touch linked edicts
+   /* touch linked edicts */
    for (l = node->solid_edicts.next; l != &node->solid_edicts; l = next) {
       next = l->next;
       check = EDICT_FROM_AREA(l);
 
       if (check->v.owner == pl)
-         continue;		// player's own missile
+         continue;		/* player's own missile */
       if (check->v.solid == SOLID_BSP
             || check->v.solid == SOLID_BBOX
             || check->v.solid == SOLID_SLIDEBOX) {
@@ -303,7 +303,7 @@ SV_AddLinksToPmove_r(const areanode_t *node, const vec3_t mins,
       }
    }
 
-   // recurse down both sides
+   /* recurse down both sides */
    if (node->axis == -1)
       return;
 
@@ -392,7 +392,7 @@ void
 SV_UnlinkEdict(edict_t *ent)
 {
    if (!ent->area.prev)
-      return;			// not linked in anywhere
+      return;			/* not linked in anywhere */
    RemoveLink(&ent->area);
    ent->area.prev = ent->area.next = NULL;
 }
@@ -528,7 +528,7 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
 #ifdef QUAKE2RJ
 	if (ent->v.solid == SOLID_BSP && 
 	(ent->v.angles[0] || ent->v.angles[1] || ent->v.angles[2]) )
-	{	// expand for rotation
+	{	/* expand for rotation */
 		float		max, v;
 		int			i;
 
@@ -595,7 +595,7 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
       else if (ent->v.absmax[node->axis] < node->dist)
          node = node->children[1];
       else
-         break;		// crosses the node
+         break;		/* crosses the node */
    }
 
    /* link it in */
@@ -679,7 +679,7 @@ int SV_TruePointContents (vec3_t p)
 }
 
 
-//===========================================================================
+/* =========================================================================== */
 
 /*
 ============
@@ -707,7 +707,7 @@ LINE TESTING IN HULLS
 ===============================================================================
 */
 
-// 1/32 epsilon to keep floating point happy
+/* 1/32 epsilon to keep floating point happy */
 #define	DIST_EPSILON	(0.03125)
 
 void WackyBugFixer(float *p1f, float *p2f, float *p1, float *p2, float *frac, float *midf, float *mid)
@@ -736,7 +736,7 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
    int side;
    float midf;
 
-   // check for empty
+   /* check for empty */
    if (num < 0) {
       if (num != CONTENTS_SOLID) {
          trace->allsolid = false;
@@ -746,7 +746,7 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
             trace->inwater = true;
       } else
          trace->startsolid = true;
-      return true;		// empty
+      return true;		/* empty */
    }
 
    if (num < hull->firstclipnode || num > hull->lastclipnode)
@@ -799,9 +799,9 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
    if (trace->allsolid)
       return false;		/* never got out of the solid area */
 
-   //==================
-   // the other side of the node is solid, this is the impact point
-   //==================
+   /* ================== */
+   /* the other side of the node is solid, this is the impact point */
+   /* ================== */
    if (!side)
    {
       VectorCopy(plane->normal, trace->plane.normal);
@@ -815,11 +815,11 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 
 #ifdef HEXEN2
 	while (1)
-		//SV_HullPointContents (hull, hull->firstclipnode, mid) == CONTENTS_SOLID)
-	{ // shouldn't really happen, but does occasionally
+		/* SV_HullPointContents (hull, hull->firstclipnode, mid) == CONTENTS_SOLID) */
+	{ /* shouldn't really happen, but does occasionally */
 		contents = SV_HullPointContents (hull, hull->firstclipnode, mid);
-//		if (contents != CONTENTS_SOLID && 
-//			(contents == CONTENTS_WATER || move_type != MOVE_WATER))
+/* 		if (contents != CONTENTS_SOLID && */ 
+/* 			(contents == CONTENTS_WATER || move_type != MOVE_WATER)) */
 		if (contents != CONTENTS_SOLID)
 			break;
 
@@ -833,8 +833,8 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 		}
 		midf = p1f + (p2f - p1f)*frac;
 
-//		for (i=0 ; i<3 ; i++)
-//			mid[i] = p1[i] + frac * (p2[i] - p1[i]);
+/* 		for (i=0 ; i<3 ; i++) */
+/* 			mid[i] = p1[i] + frac * (p2[i] - p1[i]); */
 
 		WackyBugFixer(&p1f, &p2f, p1, p2, &frac, &midf, mid);
 	}
@@ -891,7 +891,7 @@ SV_ClipMoveToEntity(edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs,
 
 	if (sys_quake2.value)
 	{
-		// rotate start and end into the models frame of reference
+		/* rotate start and end into the models frame of reference */
 		if (ent->v.solid == SOLID_BSP && 
 		(fabsf(ent->v.angles[0]) > 1 || fabsf(ent->v.angles[1]) > 1 || fabsf(ent->v.angles[2]) > 1) )
 		{
@@ -926,7 +926,7 @@ SV_ClipMoveToEntity(edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs,
 
 	if (sys_quake2.value)
 	{
-		// rotate endpos back to world frame of reference
+		/* rotate endpos back to world frame of reference */
 		if (ent->v.solid == SOLID_BSP && 
 		(fabsf(ent->v.angles[0]) > 1 || fabsf(ent->v.angles[1]) > 1 || fabsf(ent->v.angles[2]) > 1) )
 		{
@@ -952,18 +952,18 @@ SV_ClipMoveToEntity(edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs,
 		}
 	}
 
-   // fix trace up by the offset
+   /* fix trace up by the offset */
    if (trace.fraction != 1)
       VectorAdd(trace.endpos, offset, trace.endpos);
 
-   // did we clip the move?
+   /* did we clip the move? */
    if (trace.fraction < 1 || trace.startsolid)
       trace.ent = ent;
 
    return trace;
 }
 
-//===========================================================================
+/* =========================================================================== */
 
 /*
 ====================

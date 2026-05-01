@@ -128,9 +128,9 @@ static unsigned audio_buffer_ptr = 0;
 
 static unsigned audio_batch_frames_max = AUDIO_BUFFER_SIZE >> 1;
 
-// System analog stick range is -0x8000 to 0x8000
+/* System analog stick range is -0x8000 to 0x8000 */
 #define ANALOG_RANGE 0x8000
-// Default deadzone: 15%
+/* Default deadzone: 15% */
 static int analog_deadzone = (int)(0.15f * ANALOG_RANGE);
 
 #define GP_MAXBINDS 32
@@ -308,10 +308,10 @@ void retro_set_rumble_touch(unsigned intensity, float duration)
    rumble_touch_strength = strength;
 }
 
-// =======================================================================
-// General routines
-// =======================================================================
-//
+/* ======================================================================= */
+/* General routines */
+/* ======================================================================= */
+/**/
 static retro_log_printf_t log_cb;
 static retro_video_refresh_t video_cb;
 static retro_audio_sample_t audio_cb;
@@ -371,7 +371,7 @@ double Sys_DoubleTime(void)
       __int64 freq;
       if (QueryPerformanceFrequency((LARGE_INTEGER*)&freq) && freq > 0)
       {
-         //hardware timer available
+         /* hardware timer available */
          pfreq = (double)freq;
          QueryPerformanceCounter((LARGE_INTEGER*)&startcount);
       }
@@ -399,16 +399,16 @@ double Sys_DoubleTime(void)
    return curtime;
 }
 
-// =======================================================================
-// Sleeps for microseconds
-// =======================================================================
+/* ======================================================================= */
+/* Sleeps for microseconds */
+/* ======================================================================= */
 
 void IN_Accumulate(void) { }
 void Sys_HighFPPrecision(void) { }
 void Sys_LowFPPrecision(void) { }
 char * Sys_ConsoleInput(void) { return NULL; }
 
-viddef_t vid;			// global video state
+viddef_t vid;			/* global video state */
 
 void retro_init(void)
 {
@@ -700,7 +700,7 @@ void Sys_SendKeyEvents(void)
 static void keyboard_cb(bool down, unsigned keycode,
       uint32_t character, uint16_t mod)
 {
-  // character-only events are discarded
+  /* character-only events are discarded */
   if (keycode != RETROK_UNKNOWN) {
       if (down)
          Key_Event((knum_t) keycode, 1);
@@ -998,30 +998,30 @@ bool retro_load_game(const struct retro_game_info *info)
    {
 		if (!string_is_empty(base_save_dir))
 		{
-			// Get game 'name' (i.e. subdirectory)
+			/* Get game 'name' (i.e. subdirectory) */
 			const char *game_name = path_basename(g_rom_dir);
 
-			// > Build final save path
+			/* > Build final save path */
 			fill_pathname_join(g_save_dir, base_save_dir, game_name, sizeof(g_save_dir));
 			use_external_savedir = true;
 			
-			// > Create save directory, if required
+			/* > Create save directory, if required */
 			if (!path_is_directory(g_save_dir))
 			{
 				use_external_savedir = path_mkdir(g_save_dir);
 			}
 		}
    }
-   // > Error check
+   /* > Error check */
    if (!use_external_savedir)
    {
-		// > Use ROM directory fallback...
+		/* > Use ROM directory fallback... */
 		strlcpy(g_save_dir, g_rom_dir, sizeof(g_save_dir));
 	}
 	else
 	{
-		// > Final check: is the save directory the same as the 'rom' directory?
-		//   (i.e. ensure logical behaviour if user has set a bizarre save path...)
+		/* > Final check: is the save directory the same as the 'rom' directory? */
+		/*   (i.e. ensure logical behaviour if user has set a bizarre save path...) */
 		use_external_savedir = (strcmp(g_save_dir, g_rom_dir) != 0);
 	}
 
@@ -1262,8 +1262,8 @@ void	VID_SetPalette2 (unsigned char *palette)
 	}
 
 	
-	d_8to24table[255] &= 0xffffff;	// 255 is transparent
-	d_8to24table[0] &= 0x000000;	// black is black
+	d_8to24table[255] &= 0xffffff;	/* 255 is transparent */
+	d_8to24table[0] &= 0x000000;	/* black is black */
 
 }
 
@@ -1570,7 +1570,7 @@ IN_Move(usercmd_t *cmd)
          cur_my = my;
       }
    } else if (quake_devices[0] != RETRO_DEVICE_NONE && quake_devices[0] != RETRO_DEVICE_KEYBOARD) {
-      // Left stick move
+      /* Left stick move */
       lsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
                RETRO_DEVICE_ID_ANALOG_X);
       lsy = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT,
@@ -1592,7 +1592,7 @@ IN_Move(usercmd_t *cmd)
          cmd->forwardmove -= cl_forwardspeed.value * lsy / (ANALOG_RANGE - analog_deadzone);
       }
 
-      // Right stick Look
+      /* Right stick Look */
       rsx = input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
                RETRO_DEVICE_ID_ANALOG_X);
       rsy = invert_y_axis * input_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT,
@@ -1604,7 +1604,7 @@ IN_Move(usercmd_t *cmd)
             rsx = rsx - analog_deadzone;
          if (rsx < -analog_deadzone)
             rsx = rsx + analog_deadzone;
-         // For now we are sharing the sensitivity with the mouse setting
+         /* For now we are sharing the sensitivity with the mouse setting */
          cl.viewangles[YAW] -= (float)(sensitivity.value * rsx / (ANALOG_RANGE - analog_deadzone)) / (framerate / 60.0f);
       }
 

@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_edict.c -- entity dictionary
+/* sv_edict.c -- entity dictionary */
 
 #include "cmd.h"
 #include "console.h"
@@ -52,8 +52,8 @@ char *pr_strings;
 int pr_strings_size;
 dstatement_t *pr_statements;
 globalvars_t *pr_global_struct;
-float *pr_globals;		// same as pr_global_struct
-int pr_edict_size;		// in bytes
+float *pr_globals;		/* same as pr_global_struct */
+int pr_edict_size;		/* in bytes */
 
 static ddef_t *pr_fielddefs;
 static ddef_t *pr_globaldefs;
@@ -62,14 +62,14 @@ static ddef_t *pr_globaldefs;
  * These are the sizes of the types enumerated in etype_t (pr_comp.h)
  */
 static int type_size[8] = {
-    1,				// ev_void
-    1,				// ev_string
-    1,				// ev_float
-    3,				// ev_vector
-    1,				// ev_entity
-    1,				// ev_field
-    1,				// ev_function
-    1				// ev_pointer
+    1,				/* ev_void */
+    1,				/* ev_string */
+    1,				/* ev_float */
+    3,				/* ev_vector */
+    1,				/* ev_entity */
+    1,				/* ev_field */
+    1,				/* ev_function */
+    1				/* ev_pointer */
 };
 
 static qboolean ED_ParseEpair(void *base, ddef_t *key, const char *s);
@@ -142,8 +142,8 @@ ED_Alloc(void)
     for (i = MAX_CLIENTS + 1; i < sv.num_edicts; i++) {
 #endif
 	e = EDICT_NUM(i);
-	// the first couple seconds of server time can involve a lot of
-	// freeing and allocating, so relax the replacement policy
+	/* the first couple seconds of server time can involve a lot of */
+	/* freeing and allocating, so relax the replacement policy */
 	if (e->free && (e->freetime < 2 || sv.time - e->freetime > 0.5)) {
 	    ED_ClearEdict(e);
 	    return e;
@@ -158,7 +158,7 @@ ED_Alloc(void)
 #if defined(QW_HACK) && defined(SERVERONLY)
     if (i == MAX_EDICTS) {
 	Con_Printf("WARNING: ED_Alloc: no free edicts\n");
-	i--;			// step on whatever is the last edict
+	i--;			/* step on whatever is the last edict */
 	e = EDICT_NUM(i);
 	SV_UnlinkEdict(e);
     } else
@@ -182,7 +182,7 @@ FIXME: walk all entities and NULL out references to this entity
 void
 ED_Free(edict_t *ed)
 {
-    SV_UnlinkEdict(ed);		// unlink from world bsp
+    SV_UnlinkEdict(ed);		/* unlink from world bsp */
 
     ed->free = true;
     ed->v.model = 0;
@@ -199,7 +199,7 @@ ED_Free(edict_t *ed)
     ed->freetime = sv.time;
 }
 
-//===========================================================================
+/* =========================================================================== */
 
 /*
 ============
@@ -508,11 +508,11 @@ void ED_Print(edict_t *ed)
       const char *name = PR_GetString(d->s_name);
 
       if (name[strlen(name) - 2] == '_')
-         continue;		// skip _x, _y, _z vars
+         continue;		/* skip _x, _y, _z vars */
 
       v = (int *)((char *)&ed->v + d->ofs * 4);
 
-      // if the value is still all 0, skip the field
+      /* if the value is still all 0, skip the field */
       type = d->type & ~DEF_SAVEGLOBAL;
 
       for (j = 0; j < type_size[type]; j++)
@@ -557,11 +557,11 @@ void ED_Write(RFILE *f, edict_t *ed)
       d = &pr_fielddefs[i];
       name = PR_GetString(d->s_name);
       if (name[strlen(name) - 2] == '_')
-         continue;		// skip _x, _y, _z vars
+         continue;		/* skip _x, _y, _z vars */
 
       v = (int *)((char *)&ed->v + d->ofs * 4);
 
-      // if the value is still all 0, skip the field
+      /* if the value is still all 0, skip the field */
       type = d->type & ~DEF_SAVEGLOBAL;
       for (j = 0; j < type_size[type]; j++)
          if (v[j])
@@ -634,7 +634,7 @@ ED_ParseGlobals(const char *data)
     ddef_t *key;
 
     while (1) {
-	// parse key
+	/* parse key */
 	data = COM_Parse(data);
 	if (com_token[0] == '}')
 	    break;
@@ -643,7 +643,7 @@ ED_ParseGlobals(const char *data)
 
 	strcpy(keyname, com_token);
 
-	// parse value
+	/* parse value */
 	data = COM_Parse(data);
 	if (!data)
 	    SV_Error("%s: EOF without closing brace", __func__);
@@ -667,7 +667,7 @@ ED_ParseGlobals(const char *data)
     }
 }
 
-//============================================================================
+/* ============================================================================ */
 
 
 /*
@@ -785,22 +785,22 @@ ED_ParseEdict(const char *data, edict_t *ent)
     char keyname[256];
     qboolean init = false;
 
-    // clear it
-    if (ent != sv.edicts)	// hack
+    /* clear it */
+    if (ent != sv.edicts)	/* hack */
 	memset(&ent->v, 0, progs->entityfields * 4);
 
-    // go through all the dictionary pairs
+    /* go through all the dictionary pairs */
     for (;;)
     {
-	// parse key
+	/* parse key */
 	data = COM_Parse(data);
 	if (com_token[0] == '}')
 	    break;
 	if (!data)
 	    SV_Error("%s: EOF without closing brace", __func__);
 
-// anglehack is to allow QuakeEd to write single scalar angles
-// and allow them to be turned into vectors. (FIXME...)
+/* anglehack is to allow QuakeEd to write single scalar angles */
+/* and allow them to be turned into vectors. (FIXME...) */
 	if (!strcmp(com_token, "angle"))
 	{
 	    strcpy(com_token, "angles");
@@ -809,13 +809,13 @@ ED_ParseEdict(const char *data, edict_t *ent)
 	else
 	    anglehack = false;
 
-	// FIXME: change light to _light to get rid of this hack
+	/* FIXME: change light to _light to get rid of this hack */
 	if (!strcmp(com_token, "light"))
-	    strcpy(com_token, "light_lev");	// hack for single light def
+	    strcpy(com_token, "light_lev");	/* hack for single light def */
 
 	strcpy(keyname, com_token);
 
-	// another hack to fix keynames with trailing spaces
+	/* another hack to fix keynames with trailing spaces */
 	n = strlen(keyname);
 	while (n && keyname[n - 1] == ' ')
 	{
@@ -823,7 +823,7 @@ ED_ParseEdict(const char *data, edict_t *ent)
 	    n--;
 	}
 
-	// parse value
+	/* parse value */
 	data = COM_Parse(data);
 	if (!data)
 	    SV_Error("%s: EOF without closing brace", __func__);
@@ -833,8 +833,8 @@ ED_ParseEdict(const char *data, edict_t *ent)
 
 	init = true;
 
-// keynames with a leading underscore are used for utility comments,
-// and are immediately discarded by quake
+/* keynames with a leading underscore are used for utility comments, */
+/* and are immediately discarded by quake */
 	if (keyname[0] == '_')
 	    continue;
 
@@ -893,10 +893,10 @@ ED_LoadFromFile(const char *data)
     inhibit = 0;
     pr_global_struct->time = sv.time;
 
-    // parse ents
+    /* parse ents */
    for (;;)
    {
-        // parse the opening brace
+        /* parse the opening brace */
 	data = COM_Parse(data);
 	if (!data)
 	    break;
@@ -909,7 +909,7 @@ ED_LoadFromFile(const char *data)
 	    ent = ED_Alloc();
 	data = ED_ParseEdict(data, ent);
 
-	// remove things from different skill levels or deathmatch
+	/* remove things from different skill levels or deathmatch */
 #ifdef NQ_HACK
 	if (deathmatch.value) {
 #endif
@@ -932,16 +932,16 @@ ED_LoadFromFile(const char *data)
 	}
 #endif
 
-//
-// immediately call spawn function
-//
+/**/
+/* immediately call spawn function */
+/**/
 	if (!ent->v.classname) {
 	    Con_Printf("No classname for:\n");
 	    ED_Print(ent);
 	    ED_Free(ent);
 	    continue;
 	}
-	// look for the spawn function
+	/* look for the spawn function */
 	func = ED_FindFunction(PR_GetString(ent->v.classname));
 
 	if (!func) {
@@ -976,7 +976,7 @@ PR_LoadProgs(void)
    dfunction_t *f;
 #endif
 
-   // flush the non-C variable lookup cache
+   /* flush the non-C variable lookup cache */
    for (i = 0; i < GEFV_CACHESIZE; i++)
       gefvCache[i].field[0] = 0;
 
@@ -996,13 +996,13 @@ PR_LoadProgs(void)
    pr_crc = CRC_Block((byte *)progs, com_filesize);
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
-   // add prog crc to the serverinfo
+   /* add prog crc to the serverinfo */
    sprintf(num, "%i", CRC_Block((byte *)progs, com_filesize));
    Info_SetValueForStarKey(svs.info, "*progs", num, MAX_SERVERINFO_STRING);
 #endif
 
 #ifdef MSB_FIRST
-   // byte swap the header
+   /* byte swap the header */
    for (i = 0; i < sizeof(*progs) / 4; i++)
       ((int *)progs)[i] = LittleLong(((int *)progs)[i]);
 #endif
@@ -1042,7 +1042,7 @@ PR_LoadProgs(void)
       progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
 
 #ifdef MSB_FIRST
-   // byte swap the lumps
+   /* byte swap the lumps */
    for (i = 0; i < progs->numstatements; i++)
    {
       pr_statements[i].op = LittleShort(pr_statements[i].op);
@@ -1086,7 +1086,7 @@ PR_LoadProgs(void)
 #endif
 
 #if defined(QW_HACK) && defined(SERVERONLY)
-   // Zoid, find the spectator functions
+   /* Zoid, find the spectator functions */
    SpectatorConnect = SpectatorThink = SpectatorDisconnect = 0;
 
    if ((f = ED_FindFunction("SpectatorConnect")) != NULL)

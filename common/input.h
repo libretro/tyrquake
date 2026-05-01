@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef INPUT_H
 #define INPUT_H
 
-// input.h -- external (non-keyboard) input devices
+/* input.h -- external (non-keyboard) input devices */
 
 #include "qtypes.h"
 #include "cvar.h"
@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "protocol.h"
 #endif
 
-// FIXME - windows only?
+/* FIXME - windows only? */
 extern qboolean mouseactive;
 extern cvar_t _windowed_mouse;
 
@@ -42,19 +42,19 @@ void IN_Init(void);
 void IN_Shutdown(void);
 
 void IN_Commands(void);
-// oportunity for devices to stick commands on the script buffer
+/* oportunity for devices to stick commands on the script buffer */
 
 void IN_Move(usercmd_t *cmd);
-// add additional movement on top of the keyboard move cmd
+/* add additional movement on top of the keyboard move cmd */
 
 void IN_ModeChanged(void);
-// called whenever screen dimensions change
+/* called whenever screen dimensions change */
 
 void IN_ClearStates(void);
-// restores all button and position states to defaults
+/* restores all button and position states to defaults */
 
 void IN_Accumulate(void);
-// save accumulated mouse movement (used in S_ExtraUpdate(), _WIN32 only)
+/* save accumulated mouse movement (used in S_ExtraUpdate(), _WIN32 only) */
 
 /* FIXME - hack to allow SDL input to pass back key events... */
 void IN_ProcessEvents(void);

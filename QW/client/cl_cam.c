@@ -39,22 +39,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define BUTTON_ATTACK		  1
 #define MAX_ANGLE_TURN		 10
 
-static vec3_t desired_position;	// where the camera wants to be
+static vec3_t desired_position;	/* where the camera wants to be */
 static qboolean locked = false;
 static int oldbuttons;
 
-// track high fragger
+/* track high fragger */
 static cvar_t cl_hightrack = { "cl_hightrack", "0" };
 static cvar_t cl_chasecam = { "cl_chasecam", "0" };
 
-//cvar_t cl_camera_maxpitch = {"cl_camera_maxpitch", "10" };
-//cvar_t cl_camera_maxyaw = {"cl_camera_maxyaw", "30" };
+/* cvar_t cl_camera_maxpitch = {"cl_camera_maxpitch", "10" }; */
+/* cvar_t cl_camera_maxyaw = {"cl_camera_maxyaw", "30" }; */
 
 static qboolean cam_forceview;
-//static vec3_t cam_viewangles;
+/* static vec3_t cam_viewangles; */
 static double cam_lastviewtime;
 
-int spec_track = 0;		// player# of who we are tracking
+int spec_track = 0;		/* player# of who we are tracking */
 int autocam = CAM_NONE;
 
 static void vectoangles(vec3_t vec, vec3_t ang)
@@ -93,7 +93,7 @@ vlen(vec3_t v)
     return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
-// returns true if weapon model should be drawn in camera mode
+/* returns true if weapon model should be drawn in camera mode */
 qboolean
 Cam_DrawViewModel(void)
 {
@@ -105,7 +105,7 @@ Cam_DrawViewModel(void)
     return false;
 }
 
-// returns true if we should draw this player, we don't if we are chase camming
+/* returns true if we should draw this player, we don't if we are chase camming */
 qboolean
 Cam_DrawPlayer(int playernum)
 {
@@ -145,7 +145,7 @@ Cam_DoTrace(vec3_t vec1, vec3_t vec2)
     return PM_PlayerMove(pmove.origin, vec2);
 }
 
-// Returns distance or 9999 if invalid for some reason
+/* Returns distance or 9999 if invalid for some reason */
 static float Cam_TryFlyby(player_state_t * self,
       player_state_t * player, vec3_t vec,
       qboolean checkvis)
@@ -158,8 +158,8 @@ static float Cam_TryFlyby(player_state_t * self,
    VectorCopy(v, pmove.angles);
    VectorNormalize(vec);
    VectorMA(player->origin, 800, vec, v);
-   // v is endpos
-   // fake a player move
+   /* v is endpos */
+   /* fake a player move */
    trace = Cam_DoTrace(player->origin, v);
    if ( /*trace.inopen || */ trace.inwater)
       return 9999;
@@ -180,7 +180,7 @@ static float Cam_TryFlyby(player_state_t * self,
    return len;
 }
 
-// Is player visible?
+/* Is player visible? */
 static qboolean
 Cam_IsVisible(player_state_t * player, vec3_t vec)
 {
@@ -191,7 +191,7 @@ Cam_IsVisible(player_state_t * player, vec3_t vec)
     trace = Cam_DoTrace(player->origin, vec);
     if (trace.fraction != 1 || /*trace.inopen || */ trace.inwater)
 	return false;
-    // check distance, don't let the player get too far away or too close
+    /* check distance, don't let the player get too far away or too close */
     VectorSubtract(player->origin, vec, v);
     d = vlen(v);
     if (d < 16)
@@ -209,8 +209,8 @@ InitFlyby(player_state_t * self, player_state_t * player, int checkvis)
     VectorCopy(player->viewangles, vec);
     vec[0] = 0;
     AngleVectors(vec, forward, right, up);
-//      for (i = 0; i < 3; i++)
-//              forward[i] *= 3;
+/*      for (i = 0; i < 3; i++) */
+/*              forward[i] *= 3; */
 
     max = 1000;
     VectorAdd(forward, up, vec2);
@@ -257,7 +257,7 @@ InitFlyby(player_state_t * self, player_state_t * player, int checkvis)
 	max = f;
 	VectorCopy(vec2, vec);
     }
-    // invert
+    /* invert */
     VectorSubtract(vec3_origin, forward, vec2);
     if ((f = Cam_TryFlyby(self, player, vec2, checkvis)) < max) {
 	max = f;
@@ -268,7 +268,7 @@ InitFlyby(player_state_t * self, player_state_t * player, int checkvis)
 	max = f;
 	VectorCopy(vec2, vec);
     }
-    // invert
+    /* invert */
     VectorSubtract(vec3_origin, right, vec2);
     if ((f = Cam_TryFlyby(self, player, vec2, checkvis)) < max) {
 	max = f;
@@ -279,9 +279,9 @@ InitFlyby(player_state_t * self, player_state_t * player, int checkvis)
 	max = f;
 	VectorCopy(vec2, vec);
     }
-    // ack, can't find him
+    /* ack, can't find him */
     if (max >= 1000) {
-//              Cam_Unlock();
+/*              Cam_Unlock(); */
 	return false;
     }
     locked = true;
@@ -310,10 +310,10 @@ Cam_CheckHighTarget(void)
 	Cam_Unlock();
 }
 
-// ZOID
-//
-// Take over the user controls and track a player.
-// We find a nice position to watch the player and move there
+/* ZOID */
+/**/
+/* Take over the user controls and track a player. */
+/* We find a nice position to watch the player and move there */
 void
 Cam_Track(usercmd_t *cmd)
 {
@@ -354,7 +354,7 @@ Cam_Track(usercmd_t *cmd)
    } else
       cam_lastviewtime = realtime;
 
-   // couldn't track for some reason
+   /* couldn't track for some reason */
    if (!locked || !autocam)
       return;
 
@@ -371,7 +371,7 @@ Cam_Track(usercmd_t *cmd)
          MSG_WriteCoord(&cls.netchan.message, desired_position[0]);
          MSG_WriteCoord(&cls.netchan.message, desired_position[1]);
          MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
-         // move there locally immediately
+         /* move there locally immediately */
          VectorCopy(desired_position, self->origin);
       }
       self->weaponframe = player->weaponframe;
@@ -380,18 +380,18 @@ Cam_Track(usercmd_t *cmd)
    else
    {
       float len;
-      // Ok, move to our desired position and set our angles to view
-      // the player
+      /* Ok, move to our desired position and set our angles to view */
+      /* the player */
       VectorSubtract(desired_position, self->origin, vec);
       len = vlen(vec);
       cmd->forwardmove = cmd->sidemove = cmd->upmove = 0;
-      if (len > 16) {		// close enough?
+      if (len > 16) {		/* close enough? */
          MSG_WriteByte(&cls.netchan.message, clc_tmove);
          MSG_WriteCoord(&cls.netchan.message, desired_position[0]);
          MSG_WriteCoord(&cls.netchan.message, desired_position[1]);
          MSG_WriteCoord(&cls.netchan.message, desired_position[2]);
       }
-      // move there locally immediately
+      /* move there locally immediately */
       VectorCopy(desired_position, self->origin);
 
       VectorSubtract(player->origin, desired_position, vec);
@@ -410,7 +410,7 @@ Cam_FinishMove(usercmd_t *cmd)
     if (cls.state != ca_active)
 	return;
 
-    if (!cl.spectator)		// only in spectator mode
+    if (!cl.spectator)		/* only in spectator mode */
 	return;
 
     if (cmd->buttons & BUTTON_ATTACK) {
@@ -439,15 +439,15 @@ Cam_FinishMove(usercmd_t *cmd)
 
     if (locked) {
 	if ((cmd->buttons & BUTTON_JUMP) && (oldbuttons & BUTTON_JUMP))
-	    return;		// don't pogo stick
+	    return;		/* don't pogo stick */
 
 	if (!(cmd->buttons & BUTTON_JUMP)) {
 	    oldbuttons &= ~BUTTON_JUMP;
 	    return;
 	}
-	oldbuttons |= BUTTON_JUMP;	// don't jump again until released
+	oldbuttons |= BUTTON_JUMP;	/* don't jump again until released */
     }
-//      Con_Printf("Selecting track target...\n");
+/*      Con_Printf("Selecting track target...\n"); */
 
     if (locked && autocam)
 	end = (spec_track + 1) % MAX_CLIENTS;
@@ -462,7 +462,7 @@ Cam_FinishMove(usercmd_t *cmd)
 	}
 	i = (i + 1) % MAX_CLIENTS;
     } while (i != end);
-    // stay on same guy?
+    /* stay on same guy? */
     i = spec_track;
     s = &cl.players[i];
     if (s->name[0] && !s->spectator) {
@@ -485,6 +485,6 @@ CL_InitCam(void)
 {
     Cvar_RegisterVariable(&cl_hightrack);
     Cvar_RegisterVariable(&cl_chasecam);
-//      Cvar_RegisterVariable (&cl_camera_maxpitch);
-//      Cvar_RegisterVariable (&cl_camera_maxyaw);
+/*      Cvar_RegisterVariable (&cl_camera_maxpitch); */
+/*      Cvar_RegisterVariable (&cl_camera_maxyaw); */
 }

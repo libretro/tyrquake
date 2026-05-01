@@ -178,13 +178,13 @@ SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 	if (min[i] > max[i])
 	    PR_RunError("backwards mins/maxs");
 
-    rotate = false;		// FIXME: implement rotation properly again
+    rotate = false;		/* FIXME: implement rotation properly again */
 
     if (!rotate) {
 	VectorCopy(min, rmin);
 	VectorCopy(max, rmax);
     } else {
-	// find min / max for rotations
+	/* find min / max for rotations */
 	angles = e->v.angles;
 
 	a = angles[1] / 180 * M_PI;
@@ -207,7 +207,7 @@ SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 		for (k = 0; k <= 1; k++) {
 		    base[2] = bounds[k][2];
 
-		    // transform the point
+		    /* transform the point */
 		    transformed[0] =
 			xvector[0] * base[0] + yvector[0] * base[1];
 		    transformed[1] =
@@ -225,7 +225,7 @@ SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 	}
     }
 
-// set derived values
+/* set derived values */
     VectorCopy(rmin, e->v.mins);
     VectorCopy(rmax, e->v.maxs);
     VectorSubtract(max, min, e->v.size);
@@ -599,7 +599,7 @@ PF_ambientsound(void)
     float vol         = G_FLOAT(OFS_PARM2);
     float attenuation = G_FLOAT(OFS_PARM3);
 
-    // check to see if samp was properly precached
+    /* check to see if samp was properly precached */
     for (soundnum = 0, check = sv.sound_precache; *check; check++, soundnum++)
 	if (!strcmp(*check, samp))
 	    break;
@@ -609,7 +609,7 @@ PF_ambientsound(void)
 	return;
     }
 
-// add an svc_spawnambient command to the level signon packet
+/* add an svc_spawnambient command to the level signon packet */
 #ifdef NQ_HACK
     if (sv.protocol == PROTOCOL_VERSION_FITZ && soundnum > 255)
 	MSG_WriteByte(&sv.signon, svc_fitz_spawnstaticsound2);
@@ -722,7 +722,7 @@ PF_traceline(void)
 	pr_global_struct->trace_ent = EDICT_TO_PROG(sv.edicts);
 }
 
-//============================================================================
+/* ============================================================================ */
 
 static int
 PF_newcheckclient(int check)
@@ -731,7 +731,7 @@ PF_newcheckclient(int check)
     edict_t *ent;
     vec3_t org;
 
-// cycle to the next one
+/* cycle to the next one */
 #ifdef NQ_HACK
     check = qclamp(check, 1, svs.maxclients);
     entnum = (check == svs.maxclients) ? 1 : check + 1;
@@ -754,7 +754,7 @@ PF_newcheckclient(int check)
 	ent = EDICT_NUM(entnum);
 
 	if (entnum == check)
-	    break;		// didn't find anything else
+	    break;		/* didn't find anything else */
 
 	if (ent->free)
 	    continue;
@@ -763,11 +763,11 @@ PF_newcheckclient(int check)
 	if ((int)ent->v.flags & FL_NOTARGET)
 	    continue;
 
-	// anything that is a client, or has a client as an enemy
+	/* anything that is a client, or has a client as an enemy */
 	break;
     }
 
-// get the current leaf for the entity
+/* get the current leaf for the entity */
     VectorAdd(ent->v.origin, ent->v.view_ofs, org);
     sv.checkleaf = Mod_PointInLeaf(sv.worldmodel, org);
 
@@ -800,18 +800,18 @@ PF_checkclient(void)
     const leafbits_t *checkpvs;
     vec3_t view;
 
-// find a new check if on a new frame
+/* find a new check if on a new frame */
     if (sv.time - sv.lastchecktime >= 0.1) {
 	sv.lastcheck = PF_newcheckclient(sv.lastcheck);
 	sv.lastchecktime = sv.time;
     }
-// return check if it might be visible
+/* return check if it might be visible */
     ent = EDICT_NUM(sv.lastcheck);
     if (ent->free || ent->v.health <= 0) {
 	RETURN_EDICT(sv.edicts);
 	return;
     }
-// if current entity can't possibly see the check entity, return 0
+/* if current entity can't possibly see the check entity, return 0 */
     checkpvs = Mod_LeafPVS(sv.worldmodel, sv.checkleaf);
     self = PROG_TO_EDICT(pr_global_struct->self);
     VectorAdd(self->v.origin, self->v.view_ofs, view);
@@ -822,12 +822,12 @@ PF_checkclient(void)
 	RETURN_EDICT(sv.edicts);
 	return;
     }
-// might be able to see it
+/* might be able to see it */
     c_invis++;
     RETURN_EDICT(ent);
 }
 
-//============================================================================
+/* ============================================================================ */
 
 
 /*
@@ -864,7 +864,7 @@ PF_stuffcmd(void)
 #ifdef QW_HACK
     client = &svs.clients[entnum - 1];
     if (strcmp(str, "disconnect\n") == 0) {
-	// so long and thanks for all the fish
+	/* so long and thanks for all the fish */
 	client->drop = true;
 	return;
     }
@@ -1009,7 +1009,7 @@ PF_Remove(void)
 }
 
 
-// entity (entity start, .string field, string match) find = #5;
+/* entity (entity start, .string field, string match) find = #5; */
 static void
 PF_Find(void)
 {
@@ -1050,7 +1050,7 @@ PR_CheckEmptyString(const char *s)
 static void
 PF_precache_file(void)
 {
-    // precache_file is only used to copy files with qcc, it does nothing
+    /* precache_file is only used to copy files with qcc, it does nothing */
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
 }
 
@@ -1176,14 +1176,14 @@ PF_walkmove(void)
     move[1] = sin(yaw) * dist;
     move[2] = 0;
 
-// save program state, because SV_movestep may call other progs
+/* save program state, because SV_movestep may call other progs */
     oldf = pr_xfunction;
     oldself = pr_global_struct->self;
 
     G_FLOAT(OFS_RETURN) = SV_movestep(ent, move, true);
 
 
-// restore program state
+/* restore program state */
     pr_xfunction = oldf;
     pr_global_struct->self = oldself;
 }
@@ -1238,10 +1238,10 @@ PF_lightstyle(void)
     style = G_FLOAT(OFS_PARM0);
     val = G_STRING(OFS_PARM1);
 
-// change the string in sv
+/* change the string in sv */
     sv.lightstyles[style] = val;
 
-// send message to all clients on this server
+/* send message to all clients on this server */
     if (sv.state != ss_active)
 	return;
 
@@ -1371,7 +1371,7 @@ PF_aim(void)
     trace_t tr;
     float dist, bestdist;
     /* NOTE: missilespeed parameter is ignored */
-    //float speed;
+    /* float speed; */
 #ifdef QW_HACK
     char *noaim;
 #endif
@@ -1381,7 +1381,7 @@ PF_aim(void)
     start[2] += 20;
 
 #ifdef QW_HACK
-// noaim option
+/* noaim option */
     i = NUM_FOR_EDICT(ent);
     if (i > 0 && i < MAX_CLIENTS) {
 	noaim = Info_ValueForKey(svs.clients[i - 1].userinfo, "noaim");
@@ -1392,7 +1392,7 @@ PF_aim(void)
     }
 #endif
 
-// try sending a trace straight
+/* try sending a trace straight */
     VectorCopy(pr_global_struct->v_forward, dir);
     VectorMA(start, 2048, dir, end);
     tr = SV_Move(start, vec3_origin, vec3_origin, end, false, ent);
@@ -1402,7 +1402,7 @@ PF_aim(void)
 	VectorCopy(pr_global_struct->v_forward, G_VECTOR(OFS_RETURN));
 	return;
     }
-// try all possible entities
+/* try all possible entities */
     VectorCopy(dir, bestdir);
     bestdist = sv_aim.value;
     bestent = NULL;
@@ -1414,7 +1414,7 @@ PF_aim(void)
 	if (check == ent)
 	    continue;
 	if (teamplay.value && ent->v.team > 0 && ent->v.team == check->v.team)
-	    continue;		// don't aim at teammate
+	    continue;		/* don't aim at teammate */
 	for (j = 0; j < 3; j++)
 	    end[j] = check->v.origin[j]
 		+ 0.5 * (check->v.mins[j] + check->v.maxs[j]);
@@ -1422,9 +1422,9 @@ PF_aim(void)
 	VectorNormalize(dir);
 	dist = DotProduct(dir, pr_global_struct->v_forward);
 	if (dist < bestdist)
-	    continue;		// to far to turn
+	    continue;		/* to far to turn */
 	tr = SV_Move(start, vec3_origin, vec3_origin, end, false, ent);
-	if (tr.ent == check) {	// can shoot at this one
+	if (tr.ent == check) {	/* can shoot at this one */
 	    bestdist = dist;
 	    bestent = check;
 	}
@@ -1666,7 +1666,7 @@ PF_WriteEntity(void)
     MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 static void PF_makestatic(void)
 {
@@ -1712,7 +1712,7 @@ static void PF_makestatic(void)
     ED_Free(ent);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==============
@@ -1732,7 +1732,7 @@ static void PF_setspawnparms(void)
 #endif
 	PR_RunError("%s: Entity is not a client", __func__);
 
-    // copy spawn parms out of the client_t
+    /* copy spawn parms out of the client_t */
     client = svs.clients + (i - 1);
 
     for (i = 0; i < NUM_SPAWN_PARMS; i++)
@@ -1870,39 +1870,39 @@ static void PF_Fixme(void)
 
 builtin_t pr_builtin[] = {
     PF_Fixme,
-    PF_makevectors,	// void(entity e) makevectors                    = #1;
-    PF_setorigin,	// void(entity e, vector o) setorigin            = #2;
-    PF_setmodel,	// void(entity e, string m) setmodel             = #3;
-    PF_setsize,		// void(entity e, vector min, vector max) setsize = #4;
-    PF_Fixme,		// void(entity e, vector min, vector max) setabssize = #5;
-    PF_break,		// void() break                                  = #6;
-    PF_random,		// float() random                                = #7;
-    PF_sound,		// void(entity e, float chan, string samp) sound = #8;
-    PF_normalize,	// vector(vector v) normalize                    = #9;
-    PF_error,		// void(string e) error                          = #10;
-    PF_objerror,	// void(string e) objerror                       = #11;
-    PF_vlen,		// float(vector v) vlen                          = #12;
-    PF_vectoyaw,	// float(vector v) vectoyaw                      = #13;
-    PF_Spawn,		// entity() spawn                                = #14;
-    PF_Remove,		// void(entity e) remove                         = #15;
-    PF_traceline,	// float(vector v1, vector v2, float tryents) traceline = #16;
-    PF_checkclient,	// entity() clientlist                           = #17;
-    PF_Find,		// entity(entity start, .string fld, string match) find = #18;
-    PF_precache_sound,	// void(string s) precache_sound                 = #19;
-    PF_precache_model,	// void(string s) precache_model                 = #20;
-    PF_stuffcmd,	// void(entity client, string s)stuffcmd         = #21;
-    PF_findradius,	// entity(vector org, float rad) findradius      = #22;
-    PF_bprint,		// void(string s) bprint                         = #23;
-    PF_sprint,		// void(entity client, string s) sprint          = #24;
-    PF_dprint,		// void(string s) dprint                         = #25;
-    PF_ftos,		// void(string s) ftos                           = #26;
-    PF_vtos,		// void(string s) vtos                           = #27;
-    PF_Fixme,		// PF_coredump - print edicts
+    PF_makevectors,	/* void(entity e) makevectors                    = #1; */
+    PF_setorigin,	/* void(entity e, vector o) setorigin            = #2; */
+    PF_setmodel,	/* void(entity e, string m) setmodel             = #3; */
+    PF_setsize,		/* void(entity e, vector min, vector max) setsize = #4; */
+    PF_Fixme,		/* void(entity e, vector min, vector max) setabssize = #5; */
+    PF_break,		/* void() break                                  = #6; */
+    PF_random,		/* float() random                                = #7; */
+    PF_sound,		/* void(entity e, float chan, string samp) sound = #8; */
+    PF_normalize,	/* vector(vector v) normalize                    = #9; */
+    PF_error,		/* void(string e) error                          = #10; */
+    PF_objerror,	/* void(string e) objerror                       = #11; */
+    PF_vlen,		/* float(vector v) vlen                          = #12; */
+    PF_vectoyaw,	/* float(vector v) vectoyaw                      = #13; */
+    PF_Spawn,		/* entity() spawn                                = #14; */
+    PF_Remove,		/* void(entity e) remove                         = #15; */
+    PF_traceline,	/* float(vector v1, vector v2, float tryents) traceline = #16; */
+    PF_checkclient,	/* entity() clientlist                           = #17; */
+    PF_Find,		/* entity(entity start, .string fld, string match) find = #18; */
+    PF_precache_sound,	/* void(string s) precache_sound                 = #19; */
+    PF_precache_model,	/* void(string s) precache_model                 = #20; */
+    PF_stuffcmd,	/* void(entity client, string s)stuffcmd         = #21; */
+    PF_findradius,	/* entity(vector org, float rad) findradius      = #22; */
+    PF_bprint,		/* void(string s) bprint                         = #23; */
+    PF_sprint,		/* void(entity client, string s) sprint          = #24; */
+    PF_dprint,		/* void(string s) dprint                         = #25; */
+    PF_ftos,		/* void(string s) ftos                           = #26; */
+    PF_vtos,		/* void(string s) vtos                           = #27; */
+    PF_Fixme,		/* PF_coredump - print edicts */
     PF_traceon,
     PF_traceoff,
-    PF_eprint,		// void(entity e) debug print an entire entity
-    PF_walkmove,	// float(float yaw, float dist) walkmove
-    PF_Fixme,		// float(float yaw, float dist) walkmove
+    PF_eprint,		/* void(entity e) debug print an entire entity */
+    PF_walkmove,	/* float(float yaw, float dist) walkmove */
+    PF_Fixme,		/* float(float yaw, float dist) walkmove */
     PF_droptofloor,
     PF_lightstyle,
     PF_rint,

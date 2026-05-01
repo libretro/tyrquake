@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_sky.c
+/* r_sky.c */
 
 #include "quakedef.h"
 #include "r_local.h"
@@ -32,7 +32,7 @@ float skytime;
 
 byte *r_skysource;
 
-int r_skydirect;		// not used?
+int r_skydirect;		/* not used? */
 
 /*
 =============
@@ -44,8 +44,8 @@ A sky texture is 256*128, with the right side being a masked overlay
 void R_InitSky (texture_t *mt)
 {
 
-   skyoverlay = (byte *)mt + mt->offsets[0]; // Manoel Kasimier - smooth sky
-   skyunderlay = skyoverlay+128; // Manoel Kasimier - smooth sky
+   skyoverlay = (byte *)mt + mt->offsets[0]; /* Manoel Kasimier - smooth sky */
+   skyunderlay = skyoverlay+128; /* Manoel Kasimier - smooth sky */
 }
 
 /*

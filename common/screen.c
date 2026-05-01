@@ -85,7 +85,7 @@ console is:
 
 static qboolean scr_initialized;	/* ready to draw */
 
-// only the refresh window will be updated unless these variables are flagged
+/* only the refresh window will be updated unless these variables are flagged */
 int scr_copytop;
 int scr_copyeverything;
 
@@ -105,7 +105,7 @@ static cvar_t scr_centertime = { "scr_centertime", "2" };
 static cvar_t scr_printspeed = { "scr_printspeed", "8" };
 
 cvar_t scr_viewsize = { "viewsize", "100", true };
-cvar_t scr_fov = { "fov", "90" };	// 10 - 170
+cvar_t scr_fov = { "fov", "90" };	/* 10 - 170 */
 static cvar_t scr_conspeed = { "scr_conspeed", "300" };
 static vrect_t *pconupdate;
 qboolean scr_skipupdate;
@@ -114,7 +114,7 @@ static const qpic_t *scr_ram;
 static const qpic_t *scr_net;
 
 static char scr_centerstring[1024];
-static float scr_centertime_start;	// for slow victory printing
+static float scr_centertime_start;	/* for slow victory printing */
 float scr_centertime_off;
 static int scr_center_lines;
 static int scr_erase_lines;
@@ -130,7 +130,7 @@ static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 #endif
 
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==============
@@ -156,7 +156,7 @@ SCR_DrawNet(void)
    Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================
@@ -169,10 +169,10 @@ static void SCR_SetUpToDrawConsole(void)
 
 #ifdef NQ_HACK
    if (scr_drawloading)
-      return;			// never a console with loading plaque
+      return;			/* never a console with loading plaque */
 #endif
 
-   // decide on the height of the console
+   /* decide on the height of the console */
 #ifdef NQ_HACK
    con_forcedup = !cl.worldmodel || cls.state != ca_active;
 #endif
@@ -181,12 +181,12 @@ static void SCR_SetUpToDrawConsole(void)
 #endif
 
    if (con_forcedup) {
-      scr_conlines = vid.height;	// full screen
+      scr_conlines = vid.height;	/* full screen */
       scr_con_current = scr_conlines;
    } else if (key_dest == key_console)
-      scr_conlines = vid.height / 2;	// half screen
+      scr_conlines = vid.height / 2;	/* half screen */
    else
-      scr_conlines = 0;	// none visible
+      scr_conlines = 0;	/* none visible */
 
    if (scr_conlines < scr_con_current) {
       scr_con_current -= scr_conspeed.value * host_frametime;
@@ -225,7 +225,7 @@ static void SCR_DrawConsole(void)
    else
    {
       if (key_dest == key_game || key_dest == key_message)
-         Con_DrawNotify();	// only draw notify in game
+         Con_DrawNotify();	/* only draw notify in game */
    }
 }
 
@@ -305,7 +305,7 @@ SCR_DrawCenterString(void)
     if (key_dest != key_game)
 	return;
 
-// the finale prints the characters one at a time
+/* the finale prints the characters one at a time */
     if (cl.intermission)
 	remaining = scr_printspeed.value * (cl.time - scr_centertime_start);
     else
@@ -320,7 +320,7 @@ SCR_DrawCenterString(void)
 	y = 48;
 
     do {
-	// scan the width of the line
+	/* scan the width of the line */
 	for (l = 0; l < 40; l++)
 	    if (start[l] == '\n' || !start[l])
 		break;
@@ -338,11 +338,11 @@ SCR_DrawCenterString(void)
 
 	if (!*start)
 	    break;
-	start++;		// skip the \n
+	start++;		/* skip the \n */
     } while (1);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 static const char *scr_notifystring;
 static qboolean scr_drawdialog;
@@ -360,7 +360,7 @@ SCR_DrawNotifyString(void)
     y = vid.height * 0.35;
 
     do {
-	// scan the width of the line
+	/* scan the width of the line */
 	for (l = 0; l < 40; l++)
 	    if (start[l] == '\n' || !start[l])
 		break;
@@ -375,7 +375,7 @@ SCR_DrawNotifyString(void)
 
 	if (!*start)
 	    break;
-	start++;		// skip the \n
+	start++;		/* skip the \n */
     } while (1);
 }
 
@@ -398,16 +398,16 @@ SCR_ModalMessage(const char *text)
 
     scr_notifystring = text;
 
-// draw a fresh screen
+/* draw a fresh screen */
     scr_fullupdate = 0;
     scr_drawdialog = true;
     SCR_UpdateScreen();
     scr_drawdialog = false;
 
-    S_ClearBuffer();		// so dma doesn't loop current sound
+    S_ClearBuffer();		/* so dma doesn't loop current sound */
 
     do {
-	key_count = -1;		// wait for a key down and up
+	key_count = -1;		/* wait for a key down and up */
 	Sys_SendKeyEvents();
     } while (key_lastpress != 'y' && key_lastpress != 'n'
 	     && key_lastpress != K_ESCAPE);
@@ -418,7 +418,7 @@ SCR_ModalMessage(const char *text)
     return key_lastpress == 'y';
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ====================
@@ -455,41 +455,41 @@ static void SCR_CalcRefdef(void)
    vrect_t vrect;
    float size;
 
-   scr_fullupdate = 0;		// force a background redraw
+   scr_fullupdate = 0;		/* force a background redraw */
    vid.recalc_refdef = 0;
 
-   // force the status bar to redraw
+   /* force the status bar to redraw */
    Sbar_Changed();
 
-   //========================================
+   /* ======================================== */
 
-   // bound viewsize
+   /* bound viewsize */
    if (scr_viewsize.value < 30)
       Cvar_Set("viewsize", "30");
    if (scr_viewsize.value > 120)
       Cvar_Set("viewsize", "120");
 
-   // bound field of view
+   /* bound field of view */
    if (scr_fov.value < 10)
       Cvar_Set("fov", "10");
    if (scr_fov.value > 170)
       Cvar_Set("fov", "170");
 
-   // intermission is always full screen
+   /* intermission is always full screen */
    if (cl.intermission)
       size = 120;
    else
       size = scr_viewsize.value;
 
    if (size >= 120)
-      sb_lines = 0;		// no status bar at all
+      sb_lines = 0;		/* no status bar at all */
    else if (size >= 110)
-      sb_lines = 24;		// no inventory
+      sb_lines = 24;		/* no inventory */
    else
       sb_lines = 24 + 16 + 8;
 
-   // these calculations mirror those in R_Init() for r_refdef, but take no
-   // account of water warping
+   /* these calculations mirror those in R_Init() for r_refdef, but take no */
+   /* account of water warping */
    vrect.x = 0;
    vrect.y = 0;
    vrect.width = vid.width;
@@ -501,12 +501,12 @@ static void SCR_CalcRefdef(void)
    r_refdef.fov_y =
       CalcFov(r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
 
-   // guard against going from one mode to another that's less than half the
-   // vertical resolution
+   /* guard against going from one mode to another that's less than half the */
+   /* vertical resolution */
    if (scr_con_current > vid.height)
       scr_con_current = vid.height;
 
-   // notify the refresh of the change
+   /* notify the refresh of the change */
    R_ViewChanged(&vrect, sb_lines, vid.aspect);
 }
 
@@ -552,7 +552,7 @@ void SCR_BeginLoadingPlaque(void)
    if (cls.state != ca_active)
       return;
 
-   // redraw with no console and the loading plaque
+   /* redraw with no console and the loading plaque */
    Con_ClearNotify();
    scr_centertime_off = 0;
    scr_con_current = 0;
@@ -599,7 +599,7 @@ void SCR_EndLoadingPlaque(void)
 }
 #endif /* NQ_HACK */
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================
@@ -644,11 +644,11 @@ SCR_UpdateScreen(void)
 
 #ifdef NQ_HACK
    if (cls.state == ca_dedicated)
-      return;			// stdout only
+      return;			/* stdout only */
 #endif
 
    if (!scr_initialized || !con_initialized)
-      return;			// not initialized yet
+      return;			/* not initialized yet */
 
    scr_copytop = 0;
    scr_copyeverything = 0;
@@ -750,7 +750,7 @@ SCR_UpdateScreen(void)
    VID_Update(&vrect);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================

@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_main.c
+/* r_main.c */
 
 #include <stdint.h>
 
@@ -56,17 +56,17 @@ static byte *r_stack_start;
 
 entity_t r_worldentity;
 
-//
-// view origin
-//
+/**/
+/* view origin */
+/**/
 vec3_t vup, base_vup;
 vec3_t vpn, base_vpn;
 vec3_t vright, base_vright;
 vec3_t r_origin;
 
-//
-// screen size info
-//
+/**/
+/* screen size info */
+/**/
 refdef_t r_refdef;
 float xcenter, ycenter;
 float xscale, yscale;
@@ -83,10 +83,10 @@ static float xOrigin, yOrigin;
 
 mplane_t screenedge[4];
 
-//
-// refresh flags
-//
-int r_framecount = 1;		// so frame counts initialized to 0 don't match
+/**/
+/* refresh flags */
+/**/
+int r_framecount = 1;		/* so frame counts initialized to 0 don't match */
 int r_visframecount;
 int r_drawnpolycount;
 
@@ -96,7 +96,7 @@ texture_t *r_notexture_mip;
 
 float r_aliastransition, r_resfudge;
 
-int d_lightstylevalue[256];	// 8.8 fraction of base light value
+int d_lightstylevalue[256];	/* 8.8 fraction of base light value */
 
 cvar_t r_draworder = { "r_draworder", "0" };
 cvar_t r_speeds = { "r_speeds", "0" };
@@ -138,7 +138,7 @@ R_InitTextures(void)
     int x, y, m;
     byte *dest;
 
-// create a simple checkerboard texture for the default
+/* create a simple checkerboard texture for the default */
     r_notexture_mip = (texture_t*)Hunk_Alloc(sizeof(texture_t) + 16 * 16 + 8 * 8 + 4 * 4 + 2 * 2);
 
     r_notexture_mip->width = r_notexture_mip->height = 16;
@@ -190,7 +190,7 @@ R_Init(void)
 {
     int dummy;
 
-    // get stack position so we can guess if we are going to overflow
+    /* get stack position so we can guess if we are going to overflow */
     r_stack_start = (byte *)&dummy;
 
     R_InitTurb();
@@ -260,8 +260,8 @@ R_NewMap(void)
     memset(&r_worldentity, 0, sizeof(r_worldentity));
     r_worldentity.model = cl.worldmodel;
 
-// clear out efrags in case the level hasn't been reloaded
-// FIXME: is this one short?
+/* clear out efrags in case the level hasn't been reloaded */
+/* FIXME: is this one short? */
     for (i = 0; i < cl.worldmodel->numleafs; i++)
 	cl.worldmodel->leafs[i].efrags = NULL;
 
@@ -274,8 +274,8 @@ R_NewMap(void)
 	surface_p = surfaces;
 	surf_max = &surfaces[r_cnumsurfs];
 	r_surfsonstack = false;
-	// surface 0 doesn't really exist; it's just a dummy because index 0
-	// is used to indicate no edge attached to surface
+	/* surface 0 doesn't really exist; it's just a dummy because index 0 */
+	/* is used to indicate no edge attached to surface */
 	surfaces--;
     } else {
 	r_surfsonstack = true;
@@ -333,7 +333,7 @@ R_SetVrect(const vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
     pvrect->width = pvrectin->width * size;
     if (pvrect->width < 96) {
 	size = 96.0 / pvrectin->width;
-	pvrect->width = 96;	// min for icons
+	pvrect->width = 96;	/* min for icons */
     }
     pvrect->width &= ~7;
 
@@ -402,18 +402,18 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
     yOrigin = r_refdef.yOrigin;
 
     screenAspect = r_refdef.vrect.width * pixelAspect / r_refdef.vrect.height;
-// 320*200 1.0 pixelAspect = 1.6 screenAspect
-// 320*240 1.0 pixelAspect = 1.3333 screenAspect
-// proper 320*200 pixelAspect = 0.8333333
+/* 320*200 1.0 pixelAspect = 1.6 screenAspect */
+/* 320*240 1.0 pixelAspect = 1.3333 screenAspect */
+/* proper 320*200 pixelAspect = 0.8333333 */
 
     verticalFieldOfView = r_refdef.horizontalFieldOfView / screenAspect;
 
-// values for perspective projection
-// if math were exact, the values would range from 0.5 to to range+0.5
-// hopefully they wll be in the 0.000001 to range+.999999 and truncate
-// the polygon rasterization will never render in the first row or column
-// but will definately render in the [range] row and column, so adjust the
-// buffer origin to get an exact edge to edge fill
+/* values for perspective projection */
+/* if math were exact, the values would range from 0.5 to to range+0.5 */
+/* hopefully they wll be in the 0.000001 to range+.999999 and truncate */
+/* the polygon rasterization will never render in the first row or column */
+/* but will definately render in the [range] row and column, so adjust the */
+/* buffer origin to get an exact edge to edge fill */
     xcenter = ((float)r_refdef.vrect.width * XCENTERING) +
 	r_refdef.vrect.x - 0.5;
     aliasxcenter = xcenter * r_aliasuvscale;
@@ -431,27 +431,27 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
 	(r_refdef.vrect.width - 6) / r_refdef.horizontalFieldOfView;
     yscaleshrink = xscaleshrink * pixelAspect;
 
-// left side clip
+/* left side clip */
     screenedge[0].normal[0] =
 	-1.0 / (xOrigin * r_refdef.horizontalFieldOfView);
     screenedge[0].normal[1] = 0;
     screenedge[0].normal[2] = 1;
     screenedge[0].type = PLANE_ANYZ;
 
-// right side clip
+/* right side clip */
     screenedge[1].normal[0] =
 	1.0 / ((1.0 - xOrigin) * r_refdef.horizontalFieldOfView);
     screenedge[1].normal[1] = 0;
     screenedge[1].normal[2] = 1;
     screenedge[1].type = PLANE_ANYZ;
 
-// top side clip
+/* top side clip */
     screenedge[2].normal[0] = 0;
     screenedge[2].normal[1] = -1.0 / (yOrigin * verticalFieldOfView);
     screenedge[2].normal[2] = 1;
     screenedge[2].type = PLANE_ANYZ;
 
-// bottom side clip
+/* bottom side clip */
     screenedge[3].normal[0] = 0;
     screenedge[3].normal[1] = 1.0 / ((1.0 - yOrigin) * verticalFieldOfView);
     screenedge[3].normal[2] = 1;
@@ -598,7 +598,7 @@ R_CullSurfaces(model_t *model, vec3_t vieworg)
 	    }
 	}
 
-//  DownLeft:
+/*  DownLeft: */
 	/* Don't descend into solid leafs because parent links are broken */
 	if (node->children[0]->contents == CONTENTS_SOLID)
 	    goto DownRight;
@@ -699,7 +699,7 @@ R_DrawEntitiesOnList(void)
     int lnum;
     alight_t lighting;
 
-// FIXME: remove and do real lighting
+/* FIXME: remove and do real lighting */
     float lightvec[3] = { -1, 0, 0 };
     vec3_t dist;
     float add;
@@ -711,7 +711,7 @@ R_DrawEntitiesOnList(void)
 	e = &cl_visedicts[i];
 #ifdef NQ_HACK
 	if (e == &cl_entities[cl.viewentity])
-	    continue;		// don't draw the player
+	    continue;		/* don't draw the player */
 #endif
 	switch (e->model->type) {
 	case mod_sprite:
@@ -741,8 +741,8 @@ R_DrawEntitiesOnList(void)
 	    }
 	    VectorSubtract(r_origin, r_entorigin, modelorg);
 
-	    // see if the bounding box lets us trivially reject, also sets
-	    // trivial accept status
+	    /* see if the bounding box lets us trivially reject, also sets */
+	    /* trivial accept status */
 	    if (R_AliasCheckBBox(e)) {
 		j = R_LightPoint(e->origin);
 
@@ -762,7 +762,7 @@ R_DrawEntitiesOnList(void)
 		    }
 		}
 
-		// clamp lighting so it doesn't overbright as much
+		/* clamp lighting so it doesn't overbright as much */
 		if (lighting.ambientlight > 128)
 		    lighting.ambientlight = 128;
 		if (lighting.ambientlight + lighting.shadelight > 192)
@@ -787,7 +787,7 @@ static void
 R_DrawViewModel(void)
 {
     entity_t *e;
-// FIXME: remove and do real lighting
+/* FIXME: remove and do real lighting */
     float lightvec[3] = { -1, 0, 0 };
     int j;
     int lnum;
@@ -823,11 +823,11 @@ R_DrawViewModel(void)
     j = R_LightPoint(e->origin);
 
     if (j < 24)
-	j = 24;			// allways give some light on gun
+	j = 24;			/* allways give some light on gun */
     r_viewlighting.ambientlight = j;
     r_viewlighting.shadelight = j;
 
-// add dynamic lights
+/* add dynamic lights */
     for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
 	dl = &cl_dlights[lnum];
 	if (!dl->radius)
@@ -843,7 +843,7 @@ R_DrawViewModel(void)
 	    r_viewlighting.ambientlight += add;
     }
 
-// clamp lighting so it doesn't overbright as much
+/* clamp lighting so it doesn't overbright as much */
     if (r_viewlighting.ambientlight > 128)
 	r_viewlighting.ambientlight = 128;
     if (r_viewlighting.ambientlight + r_viewlighting.shadelight > 192)
@@ -920,8 +920,8 @@ static void R_DrawBEntitiesOnList(void)
 
 	model = e->model;
 
-	// see if the bounding box lets us trivially reject, also sets
-	// trivial accept status
+	/* see if the bounding box lets us trivially reject, also sets */
+	/* trivial accept status */
 	VectorAdd(e->origin, model->mins, mins);
 	VectorAdd(e->origin, model->maxs, maxs);
 	clipflags = R_BmodelCheckBBox(e, model, mins, maxs);
@@ -933,11 +933,11 @@ static void R_DrawBEntitiesOnList(void)
 	VectorSubtract(r_origin, r_entorigin, modelorg);
 	r_pcurrentvertbase = model->vertexes;
 
-	// FIXME: stop transforming twice
+	/* FIXME: stop transforming twice */
 	R_RotateBmodel(e);
 
-	// calculate dynamic lighting for bmodel if it's not an
-	// instanced model
+	/* calculate dynamic lighting for bmodel if it's not an */
+	/* instanced model */
 	if (model->firstmodelsurface != 0)
        R_PushDlights (model->nodes + model->hulls[0].firstclipnode);  /*qbism - from MH */
 
@@ -951,19 +951,19 @@ static void R_DrawBEntitiesOnList(void)
 	    e->topnode = r_pefragtopnode;
 
 	    if (r_pefragtopnode->contents >= 0) {
-		// not a leaf; has to be clipped to the world BSP
+		/* not a leaf; has to be clipped to the world BSP */
 		R_DrawSolidClippedSubmodelPolygons(e, model);
 	    } else {
-		// falls entirely in one leaf, so we just put all
-		// the edges in the edge list and let 1/z sorting
-		// handle drawing order
+		/* falls entirely in one leaf, so we just put all */
+		/* the edges in the edge list and let 1/z sorting */
+		/* handle drawing order */
 		R_DrawSubmodelPolygons(e, model, clipflags);
 	    }
 	    e->topnode = NULL;
 	}
 
-	// put back world rotation and frustum clipping
-	// FIXME: R_RotateBmodel should just work off base_vxx
+	/* put back world rotation and frustum clipping */
+	/* FIXME: R_RotateBmodel should just work off base_vxx */
 	VectorCopy(base_vpn, vpn);
 	VectorCopy(base_vup, vup);
 	VectorCopy(base_vright, vright);
@@ -995,8 +995,8 @@ static void R_EdgeDrawing(void)
    if (r_surfsonstack) {
       surfaces =  (surf_t *)(((uintptr_t)&lsurfs[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
       surf_max = &surfaces[r_cnumsurfs];
-      // surface 0 doesn't really exist; it's just a dummy because index 0
-      // is used to indicate no edge attached to surface
+      /* surface 0 doesn't really exist; it's just a dummy because index 0 */
+      /* is used to indicate no edge attached to surface */
       surfaces--;
    }
 
@@ -1004,8 +1004,8 @@ static void R_EdgeDrawing(void)
 
    R_RenderWorld();
 
-   // only the world can be drawn back to front with no z reads or compares,
-   // just z writes, so have the driver turn z compares on now
+   /* only the world can be drawn back to front with no z reads or compares, */
+   /* just z writes, so have the driver turn z compares on now */
    D_TurnZOn();
 
    R_DrawBEntitiesOnList();
@@ -1034,13 +1034,13 @@ R_RenderView_(void)
 
     R_SetupFrame();
     R_PushDlights (cl.worldmodel->nodes);  /* qbism - moved here from view.c */
-    R_MarkSurfaces();		// done here so we know if we're in water
+    R_MarkSurfaces();		/* done here so we know if we're in water */
     R_CullSurfaces(r_worldentity.model, r_refdef.vieworg);
 
-    // make FDIV fast. This reduces timing precision after we've been running
-    // for a while, so we don't do it globally.  This also sets chop mode, and
-    // we do it here so that setup stuff like the refresh area calculations
-    // match what's done in screen.c
+    /* make FDIV fast. This reduces timing precision after we've been running */
+    /* for a while, so we don't do it globally.  This also sets chop mode, and */
+    /* we do it here so that setup stuff like the refresh area calculations */
+    /* match what's done in screen.c */
     Sys_LowFPPrecision();
 
     if (!r_worldentity.model || !cl.worldmodel)
@@ -1062,7 +1062,7 @@ R_RenderView_(void)
     if (r_aliasstats.value)
 	R_PrintAliasStats();
 
-    // back to high floating-point precision
+    /* back to high floating-point precision */
     Sys_HighFPPrecision();
 }
 

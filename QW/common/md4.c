@@ -285,7 +285,7 @@ Decode(UINT4 * output, unsigned char *input, unsigned int len)
 	    (((UINT4) input[j + 2]) << 16) | (((UINT4) input[j + 3]) << 24);
 }
 
-//===================================================================
+/* =================================================================== */
 
 unsigned
 Com_BlockChecksum(void *buffer, int length)

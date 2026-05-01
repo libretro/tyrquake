@@ -557,7 +557,7 @@ Test_f(void)
 
     for (n = 0; n < max; n++) {
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREQ_PLAYER_INFO);
 	MSG_WriteByte(&net_message, n);
@@ -607,7 +607,7 @@ Test2_Poll(void *vstate)
     Con_Printf("%-16.16s  %-16.16s\n", name, value);
 
     SZ_Clear(&net_message);
-    // save space for the header, filled in later
+    /* save space for the header, filled in later */
     MSG_WriteLong(&net_message, 0);
     MSG_WriteByte(&net_message, CCREQ_RULE_INFO);
     MSG_WriteString(&net_message, name);
@@ -671,7 +671,7 @@ Test2_f(void)
    for (i = 0; i < net_numlandrivers; i++) {
       if (!net_landrivers[i].initialized)
          continue;
-      // see if we can resolve the host name
+      /* see if we can resolve the host name */
       if (net_landrivers[i].GetAddrFromName(host, &sendaddr) != -1) {
          state.driver = &net_landrivers[i];
          break;
@@ -689,7 +689,7 @@ JustDoIt:
    state.procedure = &poll_procedure;
 
    SZ_Clear(&net_message);
-   // save space for the header, filled in later
+   /* save space for the header, filled in later */
    MSG_WriteLong(&net_message, 0);
    MSG_WriteByte(&net_message, CCREQ_RULE_INFO);
    MSG_WriteString(&net_message, "");
@@ -738,9 +738,9 @@ Datagram_Shutdown(void)
 {
     int i;
 
-//
-// shutdown the lan drivers
-//
+/**/
+/* shutdown the lan drivers */
+/**/
     for (i = 0; i < net_numlandrivers; i++) {
 	if (net_landrivers[i].initialized) {
 	    net_landrivers[i].Shutdown();
@@ -811,7 +811,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	    return NULL;
 
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_SERVER_INFO);
 	driver->GetSocketAddr(acceptsock, &newaddr);
@@ -848,7 +848,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	    return NULL;
 
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_PLAYER_INFO);
 	MSG_WriteByte(&net_message, playerNumber);
@@ -870,16 +870,16 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	char *prevCvarName;
 	cvar_t *var;
 
-	// find the search start location
+	/* find the search start location */
 	prevCvarName = MSG_ReadString();
 	var = Cvar_NextServerVar(prevCvarName);
 	if (!var)
 	    return NULL;
 
-	// send the response
+	/* send the response */
 
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_RULE_INFO);
 	if (var) {
@@ -902,7 +902,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 
     if (MSG_ReadByte() != NET_PROTOCOL_VERSION) {
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_REJECT);
 	MSG_WriteString(&net_message, "Incompatible version.\n");
@@ -913,11 +913,11 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	return NULL;
     }
 
-    // check for a ban
+    /* check for a ban */
     testAddr.ip.l = clientaddr.ip.l;
     if ((testAddr.ip.l & banMask.ip.l) == banAddr.ip.l) {
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_REJECT);
 	MSG_WriteString(&net_message, "You have been banned.\n");
@@ -928,17 +928,17 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	return NULL;
     }
 
-    // see if this guy is already connected
+    /* see if this guy is already connected */
     for (s = net_activeSockets; s; s = s->next) {
 	if (s->driver != net_driver)
 	    continue;
 	ret = NET_AddrCompare(&clientaddr, &s->addr);
 	if (ret >= 0) {
-	    // is this a duplicate connection reqeust?
+	    /* is this a duplicate connection reqeust? */
 	    if (ret == 0 && net_time - s->connecttime < 2.0) {
-		// yes, so send a duplicate reply
+		/* yes, so send a duplicate reply */
 		SZ_Clear(&net_message);
-		// save space for the header, filled in later
+		/* save space for the header, filled in later */
 		MSG_WriteLong(&net_message, 0);
 		MSG_WriteByte(&net_message, CCREP_ACCEPT);
 		driver->GetSocketAddr(s->socket, &newaddr);
@@ -958,12 +958,12 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	}
     }
 
-    // allocate a QSocket
+    /* allocate a QSocket */
     sock = NET_NewQSocket();
     if (sock == NULL) {
-	// no room; try to let him know
+	/* no room; try to let him know */
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREP_REJECT);
 	MSG_WriteString(&net_message, "Server is full.\n");
@@ -973,23 +973,23 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 	SZ_Clear(&net_message);
 	return NULL;
     }
-    // allocate a network socket
+    /* allocate a network socket */
     newsock = driver->OpenSocket(0);
     if (newsock == -1) {
 	NET_FreeQSocket(sock);
 	return NULL;
     }
 
-    // everything is allocated, just fill in the details
+    /* everything is allocated, just fill in the details */
     sock->socket = newsock;
     sock->landriver = driver;
     sock->addr = clientaddr;
     strcpy(sock->address, NET_AdrToString(&clientaddr));
     sock->mtu = driver->GetDefaultMTU() - NET_HEADERSIZE;
 
-    // send him back the info about the server connection he has been allocated
+    /* send him back the info about the server connection he has been allocated */
     SZ_Clear(&net_message);
-    // save space for the header, filled in later
+    /* save space for the header, filled in later */
     MSG_WriteLong(&net_message, 0);
     MSG_WriteByte(&net_message, CCREP_ACCEPT);
     driver->GetSocketAddr(newsock, &newaddr);
@@ -1033,7 +1033,7 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
     driver->GetSocketAddr(driver->controlSock, &myaddr);
     if (xmit) {
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREQ_SERVER_INFO);
 	MSG_WriteString(&net_message, "QUAKE");
@@ -1050,11 +1050,11 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	    continue;
 	net_message.cursize = ret;
 
-	// don't answer our own query
+	/* don't answer our own query */
 	if (NET_AddrCompare(&readaddr, &myaddr) >= 0)
 	    continue;
 
-	// is the cache full?
+	/* is the cache full? */
 	if (hostCacheCount == HOSTCACHESIZE)
 	    continue;
 
@@ -1071,17 +1071,17 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	    continue;
 
 	driver->GetAddrFromName(MSG_ReadString(), &readaddr);
-	// search the cache for this server
+	/* search the cache for this server */
 	for (i = 0, host = hostcache; i < hostCacheCount; i++, host++)
 	    if (NET_AddrCompare(&readaddr, &host->addr) == 0)
 		break;
 	hostnum = i;
 
-	// is it already there?
+	/* is it already there? */
 	if (hostnum < hostCacheCount)
 	    continue;
 
-	// add it
+	/* add it */
 	hostCacheCount++;
 
 	snprintf(host->name, sizeof(host->name), "%s", MSG_ReadString());
@@ -1156,7 +1156,7 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
     int control;
     const char *reason;
 
-    // see if we can resolve the host name
+    /* see if we can resolve the host name */
     if (driver->GetAddrFromName(host, &sendaddr) == -1)
 	return NULL;
 
@@ -1172,14 +1172,14 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
     sock->landriver = driver;
     sock->mtu = driver->GetDefaultMTU() - NET_HEADERSIZE;
 
-    // send the connection request
+    /* send the connection request */
     Con_Printf("trying...\n");
     SCR_UpdateScreen();
     start_time = net_time;
 
     for (reps = 0; reps < 3; reps++) {
 	SZ_Clear(&net_message);
-	// save space for the header, filled in later
+	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
 	MSG_WriteByte(&net_message, CCREQ_CONNECT);
 	MSG_WriteString(&net_message, "QUAKE");
@@ -1191,9 +1191,9 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
 	do {
 	    ret = driver->Read(newsock, net_message.data, net_message.maxsize,
 			       &readaddr);
-	    // if we got something, validate it
+	    /* if we got something, validate it */
 	    if (ret > 0) {
-		// is it from the right place?
+		/* is it from the right place? */
 		if (NET_AddrCompare(&readaddr, &sendaddr) != 0) {
 #ifdef DEBUG
 		    Con_Printf("wrong reply address\n");

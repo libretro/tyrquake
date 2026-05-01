@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cvar.c -- dynamic variable tracking
+/* cvar.c -- dynamic variable tracking */
 
 #include "cmd.h"
 #include "common.h"
@@ -217,7 +217,7 @@ Cvar_Set(const char *var_name, const char *value)
     if (var->info) {
 	Info_SetValueForKey(svs.info, var_name, value, MAX_SERVERINFO_STRING);
 	SV_SendServerInfoChange(var_name, value);
-//              SV_BroadcastCommand ("fullserverinfo \"%s\"\n", svs.info);
+/*              SV_BroadcastCommand ("fullserverinfo \"%s\"\n", svs.info); */
     }
 #else
 #ifdef QW_HACK
@@ -232,7 +232,7 @@ Cvar_Set(const char *var_name, const char *value)
 #endif
 #endif
 
-    Z_Free(var->string);	// free the old value string
+    Z_Free(var->string);	/* free the old value string */
 
     newstring = (char*)Z_Malloc(strlen(value) + 1);
     strcpy(newstring, value);
@@ -251,7 +251,7 @@ Cvar_Set(const char *var_name, const char *value)
 	var->callback(var);
 
 #ifdef NQ_HACK
-    // Don't allow deathmatch and coop at the same time...
+    /* Don't allow deathmatch and coop at the same time... */
     if ((var->value != 0) && (!strcmp(var->name, deathmatch.name)))
 	Cvar_Set("coop", "0");
     if ((var->value != 0) && (!strcmp(var->name, coop.name)))
@@ -283,7 +283,7 @@ Adds a freestanding variable to the variable list.
 */
 void Cvar_RegisterVariable(cvar_t *variable)
 {
-   char value[512];		// FIXME - magic numbers...
+   char value[512];		/* FIXME - magic numbers... */
    float old_developer;
 
    /* first check to see if it has allready been defined */
@@ -303,7 +303,7 @@ void Cvar_RegisterVariable(cvar_t *variable)
    variable->stree.string = variable->name;
    STree_Insert(&cvar_tree, &variable->stree);
 
-   // copy the value off, because future sets will Z_Free it
+   /* copy the value off, because future sets will Z_Free it */
    strncpy(value, variable->string, 511);
    value[511] = '\0';
    variable->string = (const char*)Z_Malloc(1);

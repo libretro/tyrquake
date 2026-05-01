@@ -31,13 +31,13 @@ typedef struct {
 } plane_t;
 
 typedef struct {
-    qboolean allsolid;		// if true, plane is not valid
-    qboolean startsolid;	// if true, the initial point was in a solid area
+    qboolean allsolid;		/* if true, plane is not valid */
+    qboolean startsolid;	/* if true, the initial point was in a solid area */
     qboolean inopen, inwater;
-    float fraction;		// time completed, 1.0 = didn't hit anything
-    vec3_t endpos;		// final position
-    plane_t plane;		// surface normal at impact
-    edict_t *ent;		// entity the surface is on
+    float fraction;		/* time completed, 1.0 = didn't hit anything */
+    vec3_t endpos;		/* final position */
+    plane_t plane;		/* surface normal at impact */
+    edict_t *ent;		/* entity the surface is on */
 } trace_t;
 
 
@@ -51,47 +51,47 @@ typedef struct {
 
 void SV_ClearWorld(void);
 
-// called after the world model has been loaded, before linking any entities
+/* called after the world model has been loaded, before linking any entities */
 
 void SV_UnlinkEdict(edict_t *ent);
 
-// call before removing an entity, and before trying to move one,
-// so it doesn't clip against itself
-// flags ent->v.modified
+/* call before removing an entity, and before trying to move one, */
+/* so it doesn't clip against itself */
+/* flags ent->v.modified */
 
 void SV_LinkEdict(edict_t *ent, qboolean touch_triggers);
 
-// Needs to be called any time an entity changes origin, mins, maxs, or solid
-// flags ent->v.modified
-// sets ent->v.absmin and ent->v.absmax
-// if touchtriggers, calls prog functions for the intersected triggers
+/* Needs to be called any time an entity changes origin, mins, maxs, or solid */
+/* flags ent->v.modified */
+/* sets ent->v.absmin and ent->v.absmax */
+/* if touchtriggers, calls prog functions for the intersected triggers */
 
 int SV_PointContents(vec3_t p);
 
-// returns the CONTENTS_* value from the world at the given point.
-// does not check any entities at all
+/* returns the CONTENTS_* value from the world at the given point. */
+/* does not check any entities at all */
 
 edict_t *SV_TestEntityPosition(edict_t *ent);
 
 trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end,
 		int type, edict_t *passedict);
-// mins and maxs are reletive
+/* mins and maxs are reletive */
 
-// if the entire move stays in a solid volume, trace.allsolid will be set
+/* if the entire move stays in a solid volume, trace.allsolid will be set */
 
-// if the starting point is in a solid, it will be allowed to move out
-// to an open area
+/* if the starting point is in a solid, it will be allowed to move out */
+/* to an open area */
 
-// nomonsters is used for line of sight or edge testing, where mosnters
-// shouldn't be considered solid objects
+/* nomonsters is used for line of sight or edge testing, where mosnters */
+/* shouldn't be considered solid objects */
 
-// passedict is explicitly excluded from clipping checks (normally NULL)
+/* passedict is explicitly excluded from clipping checks (normally NULL) */
 
 #if defined(QW_HACK) && defined(SERVERONLY)
 void SV_AddLinksToPmove(const vec3_t mins, const vec3_t maxs);
 #endif
 #ifdef NQ_HACK
-// FIXME - needed in chase.c, but doesn't seem like the right interface
+/* FIXME - needed in chase.c, but doesn't seem like the right interface */
 #include "model.h"
 qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 			       vec3_t p1, vec3_t p2, trace_t *trace);

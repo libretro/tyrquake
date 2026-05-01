@@ -21,23 +21,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef MODELGEN_H
 #define MODELGEN_H
 
-//
-// modelgen.h: header file for model generation program
-//
+/**/
+/* modelgen.h: header file for model generation program */
+/**/
 
 #include "mathlib.h"
 #include "qtypes.h"
 
-// *********************************************************
-// * This file must be identical in the modelgen directory *
-// * and in the Quake directory, because it's used to      *
-// * pass data from one to the other via model files.      *
-// *********************************************************
+/* ********************************************************* */
+/* * This file must be identical in the modelgen directory * */
+/* * and in the Quake directory, because it's used to      * */
+/* * pass data from one to the other via model files.      * */
+/* ********************************************************* */
 
 #define ALIAS_VERSION 6
 #define ALIAS_ONSEAM 0x0020
 
-// must match definition in spritegn.h
+/* must match definition in spritegn.h */
 #ifndef SYNCTYPE_T
 #define SYNCTYPE_T
 typedef enum { ST_SYNC = 0, ST_RAND, ENSURE_INT_SYNCTYPE = 0x70000000 } synctype_t;
@@ -65,7 +65,7 @@ typedef struct {
     float size;
 } mdl_t;
 
-// TODO: could be shorts
+/* TODO: could be shorts */
 
 typedef struct {
     int onseam;
@@ -80,8 +80,8 @@ typedef struct dtriangle_s {
 
 #define DT_FACES_FRONT				0x0010
 
-// This mirrors trivert_t in trilib.h, is present so Quake knows how to
-// load this data
+/* This mirrors trivert_t in trilib.h, is present so Quake knows how to */
+/* load this data */
 
 typedef struct {
     byte v[3];
@@ -89,10 +89,10 @@ typedef struct {
 } trivertx_t;
 
 typedef struct {
-    trivertx_t bboxmin;		// lightnormal isn't used
-    trivertx_t bboxmax;		// lightnormal isn't used
-    char name[16];		// frame name from grabbing
-    trivertx_t verts[1];	// frame verticies (mdl_t->numverts)
+    trivertx_t bboxmin;		/* lightnormal isn't used */
+    trivertx_t bboxmax;		/* lightnormal isn't used */
+    char name[16];		/* frame name from grabbing */
+    trivertx_t verts[1];	/* frame verticies (mdl_t->numverts) */
 } daliasframe_t;
 
 typedef struct {
@@ -101,9 +101,9 @@ typedef struct {
 
 typedef struct {
     int numframes;
-    trivertx_t bboxmin;		// lightnormal isn't used
-    trivertx_t bboxmax;		// lightnormal isn't used
-    daliasinterval_t intervals[1];	// daliasgroup_t->numframes
+    trivertx_t bboxmin;		/* lightnormal isn't used */
+    trivertx_t bboxmax;		/* lightnormal isn't used */
+    daliasinterval_t intervals[1];	/* daliasgroup_t->numframes */
 } daliasgroup_t;
 
 typedef struct {

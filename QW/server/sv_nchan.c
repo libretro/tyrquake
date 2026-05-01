@@ -17,20 +17,20 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_nchan.c, user reliable data stream writes
+/* sv_nchan.c, user reliable data stream writes */
 
 #include "console.h"
 #include "server.h"
 #include "qwsvdef.h"
 
-// check to see if client block will fit, if not, rotate buffers
+/* check to see if client block will fit, if not, rotate buffers */
 void
 ClientReliableCheckBlock(client_t *cl, int maxsize)
 {
     if (cl->num_backbuf ||
 	cl->netchan.message.cursize >
 	cl->netchan.message.maxsize - maxsize - 1) {
-	// we would probably overflow the buffer, save it for next
+	/* we would probably overflow the buffer, save it for next */
 	if (!cl->num_backbuf) {
 	    memset(&cl->backbuf, 0, sizeof(cl->backbuf));
 	    cl->backbuf.allowoverflow = true;
@@ -43,8 +43,8 @@ ClientReliableCheckBlock(client_t *cl, int maxsize)
 	if (cl->backbuf.cursize > cl->backbuf.maxsize - maxsize - 1) {
 	    if (cl->num_backbuf == MAX_BACK_BUFFERS) {
 		Con_Printf("WARNING: MAX_BACK_BUFFERS for %s\n", cl->name);
-		cl->backbuf.cursize = 0;	// don't overflow without allowoverflow set
-		cl->netchan.message.overflowed = true;	// this will drop the client
+		cl->backbuf.cursize = 0;	/* don't overflow without allowoverflow set */
+		cl->netchan.message.overflowed = true;	/* this will drop the client */
 		return;
 	    }
 	    memset(&cl->backbuf, 0, sizeof(cl->backbuf));
@@ -57,7 +57,7 @@ ClientReliableCheckBlock(client_t *cl, int maxsize)
     }
 }
 
-// begin a client block, estimated maximum size
+/* begin a client block, estimated maximum size */
 void
 ClientReliableWrite_Begin(client_t *cl, int c, int maxsize)
 {
@@ -74,7 +74,7 @@ ClientReliable_FinishWrite(client_t *cl)
 	if (cl->backbuf.overflowed) {
 	    Con_Printf("WARNING: backbuf [%d] reliable overflow for %s\n",
 		       cl->num_backbuf, cl->name);
-	    cl->netchan.message.overflowed = true;	// this will drop the client
+	    cl->netchan.message.overflowed = true;	/* this will drop the client */
 	}
     }
 }

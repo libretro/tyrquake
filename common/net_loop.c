@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// net_loop.c
+/* net_loop.c */
 
 #include "quakedef.h"
 #include "net_loop.h"
@@ -144,7 +144,7 @@ Loop_GetMessage(qsocket_t *sock)
 
     ret = sock->receiveMessage[0];
     length = sock->receiveMessage[1] + (sock->receiveMessage[2] << 8);
-    // alignment byte skipped here
+    /* alignment byte skipped here */
     SZ_Clear(&net_message);
     SZ_Write(&net_message, &sock->receiveMessage[4], length);
 
@@ -178,17 +178,17 @@ Loop_SendMessage(qsocket_t *sock, sizebuf_t *data)
 
     buffer = ((qsocket_t *)sock->driverdata)->receiveMessage + *bufferLength;
 
-    // message type
+    /* message type */
     *buffer++ = 1;
 
-    // length
+    /* length */
     *buffer++ = data->cursize & 0xff;
     *buffer++ = data->cursize >> 8;
 
-    // align
+    /* align */
     buffer++;
 
-    // message
+    /* message */
     memcpy(buffer, data->data, data->cursize);
     *bufferLength = IntAlign(*bufferLength + data->cursize + 4);
 
@@ -214,17 +214,17 @@ Loop_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
 
     buffer = ((qsocket_t *)sock->driverdata)->receiveMessage + *bufferLength;
 
-    // message type
+    /* message type */
     *buffer++ = 2;
 
-    // length
+    /* length */
     *buffer++ = data->cursize & 0xff;
     *buffer++ = data->cursize >> 8;
 
-    // align
+    /* align */
     buffer++;
 
-    // message
+    /* message */
     memcpy(buffer, data->data, data->cursize);
     *bufferLength = IntAlign(*bufferLength + data->cursize + 4);
     return 1;

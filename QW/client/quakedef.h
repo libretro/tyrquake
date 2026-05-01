@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef CLIENT_QUAKEDEF_H
 #define CLIENT_QUAKEDEF_H
 
-// quakedef.h -- primary header for client
+/* quakedef.h -- primary header for client */
 
 #include <math.h>
 #include <string.h>
@@ -33,11 +33,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "cvar.h"
 
-//=============================================================================
+/* ============================================================================= */
 
-// the host system specifies the base of the directory tree, the
-// command line parms passed to the program, and the amount of memory
-// available for the program to use
+/* the host system specifies the base of the directory tree, the */
+/* command line parms passed to the program, and the amount of memory */
+/* available for the program to use */
 
 typedef struct {
     const char *basedir;
@@ -48,28 +48,28 @@ typedef struct {
 } quakeparms_t;
 
 
-//=============================================================================
+/* ============================================================================= */
 
 #define	MINIMUM_MEMORY	0x550000
 
 extern qboolean noclip_anglehack;
 
-//
-// host
-//
+/**/
+/* host */
+/**/
 extern quakeparms_t host_parms;
 
 extern cvar_t developer;
 
 extern cvar_t password;
 
-extern qboolean host_initialized;	// true if into command execution
+extern qboolean host_initialized;	/* true if into command execution */
 extern double host_frametime;
 extern byte *host_basepal;
 extern byte *host_colormap;
-extern int host_framecount;	// incremented every frame, never reset
-extern double realtime;		// not bounded in any way, changed at
-				// start of every frame, never reset
+extern int host_framecount;	/* incremented every frame, never reset */
+extern double realtime;		/* not bounded in any way, changed at */
+				/* start of every frame, never reset */
 
 void Host_ServerFrame(void);
 void Host_InitCommands(void);
@@ -86,10 +86,10 @@ void Host_ClientCommands(const char *fmt, ...)
     __attribute__((format(printf,1,2)));
 void Host_ShutdownServer(qboolean crash);
 
-//
-// Hacks - FIXME - well, "hacks" says it all really...
-//
-extern cvar_t r_lockfrustum;	// FIXME - with rendering stuff please...
-extern cvar_t r_lockpvs;	// FIXME - with rendering stuff please...
+/**/
+/* Hacks - FIXME - well, "hacks" says it all really... */
+/**/
+extern cvar_t r_lockfrustum;	/* FIXME - with rendering stuff please... */
+extern cvar_t r_lockpvs;	/* FIXME - with rendering stuff please... */
 
 #endif /* CLIENT_QUAKEDEF_H */

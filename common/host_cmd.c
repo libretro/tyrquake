@@ -63,7 +63,7 @@ Host_Quit_f(void)
     CL_Disconnect();
     Host_ShutdownServer(false);
 
-    //Sys_Quit();
+    /* Sys_Quit(); */
 }
 
 
@@ -284,15 +284,15 @@ void Host_Map_f(void)
       return;
    }
 
-   cls.demonum = -1;		// stop demo loop in case this fails
+   cls.demonum = -1;		/* stop demo loop in case this fails */
 
    CL_Disconnect();
    Host_ShutdownServer(false);
 
-   key_dest = key_game;	// remove console or menu
+   key_dest = key_game;	/* remove console or menu */
    SCR_BeginLoadingPlaque();
 
-   svs.serverflags = 0;	// haven't completed an episode yet
+   svs.serverflags = 0;	/* haven't completed an episode yet */
    strcpy(name, Cmd_Argv(1));
 
    SV_SpawnServer(name);
@@ -373,8 +373,8 @@ void Host_Restart_f(void)
 
    if (cmd_source != src_command)
       return;
-   strcpy(mapname, sv.name);	// must copy out, because it gets cleared
-   // in sv_spawnserver
+   strcpy(mapname, sv.name);	/* must copy out, because it gets cleared */
+   /* in sv_spawnserver */
    SV_SpawnServer(mapname);
 }
 
@@ -389,9 +389,9 @@ This is sent just before a server changes levels
 void Host_Reconnect_f(void)
 {
    SCR_BeginLoadingPlaque();
-   cls.signon = 0;		// need new connection messages
+   cls.signon = 0;		/* need new connection messages */
 
-   // FIXME - this check is just paranoia until I understand it better
+   /* FIXME - this check is just paranoia until I understand it better */
    if (cls.state < ca_connected)
       Host_Error("Host_Reconnect_f: cls.state < ca_connected");
 
@@ -409,7 +409,7 @@ void Host_Connect_f(void)
 {
    char name[MAX_QPATH];
 
-   cls.demonum = -1;		// stop demo loop in case this fails
+   cls.demonum = -1;		/* stop demo loop in case this fails */
    if (cls.demoplayback)
    {
       CL_StopPlayback();
@@ -449,7 +449,7 @@ void Host_SavegameComment(char *text)
    sprintf(kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS],
          cl.stats[STAT_TOTALMONSTERS]);
    memcpy(text + 22, kills, strlen(kills));
-   // convert space to _ to make stdio happy
+   /* convert space to _ to make stdio happy */
    for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
       if (text[i] == ' ')
          text[i] = '_';
@@ -509,7 +509,7 @@ void Host_Savegame_f(void)
       }
    }
 
-   sprintf(name, "%s%c%s", com_savedir, slash, Cmd_Argv(1));
+   snprintf(name, sizeof(name), "%s%c%s", com_savedir, slash, Cmd_Argv(1));
    COM_DefaultExtension(name, ".sav");
 
    Con_Printf("Saving game to %s...\n", name);
@@ -528,7 +528,7 @@ void Host_Savegame_f(void)
    rfprintf(f, "%s\n", sv.name);
    rfprintf(f, "%f\n", sv.time);
 
-   // write the light styles
+   /* write the light styles */
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++) {
       if (sv.lightstyles[i])
@@ -581,14 +581,14 @@ void Host_Loadgame_f(void)
       return;
    }
 
-   cls.demonum = -1;		// stop demo loop in case this fails
+   cls.demonum = -1;		/* stop demo loop in case this fails */
 
-   sprintf(name, "%s%c%s", com_savedir, slash, Cmd_Argv(1));
+   snprintf(name, sizeof(name), "%s%c%s", com_savedir, slash, Cmd_Argv(1));
    COM_DefaultExtension(name, ".sav");
 
-   // we can't call SCR_BeginLoadingPlaque, because too much stack space has
-   // been used.  The menu calls it before stuffing loadgame command
-   //      SCR_BeginLoadingPlaque();
+   /* we can't call SCR_BeginLoadingPlaque, because too much stack space has */
+   /* been used.  The menu calls it before stuffing loadgame command */
+   /*      SCR_BeginLoadingPlaque(); */
 
    Con_Printf("Loading game from %s...\n", name);
    f = rfopen(name, "r");
@@ -629,10 +629,10 @@ void Host_Loadgame_f(void)
       rfclose(f);
       return;
    }
-   sv.paused = true;		// pause until all clients connect
+   sv.paused = true;		/* pause until all clients connect */
    sv.loadgame = true;
 
-   // load the light styles
+   /* load the light styles */
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++)
    {
@@ -642,8 +642,8 @@ void Host_Loadgame_f(void)
       sv.lightstyles[i] = lightstyle;
    }
 
-   // load the edicts out of the savegame file
-   entnum = -1;		// -1 is the globals
+   /* load the edicts out of the savegame file */
+   entnum = -1;		/* -1 is the globals */
    while (!rfeof(f)) {
       for (i = 0; i < sizeof(str) - 1; i++) {
          r = rfgetc(f);
@@ -660,20 +660,20 @@ void Host_Loadgame_f(void)
       str[i] = 0;
       start = COM_Parse(str);
       if (!com_token[0])
-         break;		// end of file
+         break;		/* end of file */
       if (strcmp(com_token, "{"))
          Sys_Error("First token isn't a brace");
 
-      if (entnum == -1) {	// parse the global vars
+      if (entnum == -1) {	/* parse the global vars */
          ED_ParseGlobals(start);
-      } else {		// parse an edict
+      } else {		/* parse an edict */
 
          ent = EDICT_NUM(entnum);
          memset(&ent->v, 0, progs->entityfields * 4);
          ent->free = false;
          ED_ParseEdict(start, ent);
 
-         // link it into the bsp tree
+         /* link it into the bsp tree */
          if (!ent->free)
             SV_LinkEdict(ent, false);
       }
@@ -695,7 +695,7 @@ void Host_Loadgame_f(void)
    }
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ======================
@@ -731,7 +731,7 @@ void Host_Name_f(void)
    strcpy(host_client->name, new_name);
    host_client->edict->v.netname = PR_SetString(host_client->name);
 
-   // send notification to all clients
+   /* send notification to all clients */
 
    MSG_WriteByte(&sv.reliable_datagram, svc_updatename);
    MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
@@ -773,14 +773,14 @@ Host_Say(qboolean teamonly)
 
     save = host_client;
 
-// turn on color set 1
+/* turn on color set 1 */
     if (!fromServer)
 	sprintf(text, "%c%s: ", 1, save->name);
     else
 	sprintf(text, "%c<%s> ", 1, hostname.string);
 
     len = strlen(text);
-    space = sizeof(text) - len - 2; // -2 for \n and null terminator
+    space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
     p = Cmd_Args();
     if (*p == '"') {
 	/* remove quotes */
@@ -841,7 +841,7 @@ void Host_Tell_f(void)
    strcat(text, ": ");
 
    len = strlen(text);
-   space = sizeof(text) - len - 2; // -2 for \n and null terminator
+   space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
    p = Cmd_Args();
    if (*p == '"') {
       /* remove quotes */
@@ -911,7 +911,7 @@ Host_Color_f(void)
     host_client->colors = playercolor;
     host_client->edict->v.team = bottom + 1;
 
-// send notification to all clients
+/* send notification to all clients */
     MSG_WriteByte(&sv.reliable_datagram, svc_updatecolors);
     MSG_WriteByte(&sv.reliable_datagram, host_client - svs.clients);
     MSG_WriteByte(&sv.reliable_datagram, host_client->colors);
@@ -967,13 +967,13 @@ Host_Pause_f(void)
 			       PR_GetString(sv_player->v.netname));
 	}
 
-	// send notification to all clients
+	/* send notification to all clients */
 	MSG_WriteByte(&sv.reliable_datagram, svc_setpause);
 	MSG_WriteByte(&sv.reliable_datagram, sv.paused);
     }
 }
 
-//===========================================================================
+/* =========================================================================== */
 
 
 /*
@@ -1021,12 +1021,12 @@ Host_Spawn_f(void)
 	Con_Printf("Spawn not valid -- allready spawned\n");
 	return;
     }
-// run the entrance script
-    if (sv.loadgame) {		// loaded games are fully inited allready
-	// if this is the last client to be connected, unpause
+/* run the entrance script */
+    if (sv.loadgame) {		/* loaded games are fully inited allready */
+	/* if this is the last client to be connected, unpause */
 	sv.paused = false;
     } else {
-	// set up the edict
+	/* set up the edict */
 	ent = host_client->edict;
 
 	memset(&ent->v, 0, progs->entityfields * 4);
@@ -1034,12 +1034,12 @@ Host_Spawn_f(void)
 	ent->v.team = (host_client->colors & 15) + 1;
 	ent->v.netname = PR_SetString(host_client->name);
 
-	// copy spawn parms out of the client_t
+	/* copy spawn parms out of the client_t */
 
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 	    (&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
 
-	// call the spawn function
+	/* call the spawn function */
 
 	pr_global_struct->time = sv.time;
 	pr_global_struct->self = EDICT_TO_PROG(sv_player);
@@ -1053,10 +1053,10 @@ Host_Spawn_f(void)
     }
 
 
-// send all current names, colors, and frag counts
+/* send all current names, colors, and frag counts */
     SZ_Clear(&host_client->message);
 
-// send time of update
+/* send time of update */
     MSG_WriteByte(&host_client->message, svc_time);
     MSG_WriteFloat(&host_client->message, sv.time);
 
@@ -1072,16 +1072,16 @@ Host_Spawn_f(void)
 	MSG_WriteByte(&host_client->message, client->colors);
     }
 
-// send all current light styles
+/* send all current light styles */
     for (i = 0; i < MAX_LIGHTSTYLES; i++) {
 	MSG_WriteByte(&host_client->message, svc_lightstyle);
 	MSG_WriteByte(&host_client->message, (char)i);
 	MSG_WriteString(&host_client->message, sv.lightstyles[i]);
     }
 
-//
-// send some stats
-//
+/**/
+/* send some stats */
+/**/
     MSG_WriteByte(&host_client->message, svc_updatestat);
     MSG_WriteByte(&host_client->message, STAT_TOTALSECRETS);
     MSG_WriteLong(&host_client->message, pr_global_struct->total_secrets);
@@ -1099,12 +1099,12 @@ Host_Spawn_f(void)
     MSG_WriteLong(&host_client->message, pr_global_struct->killed_monsters);
 
 
-//
-// send a fixangle
-// Never send a roll angle, because savegames can catch the server
-// in a state where it is expecting the client to correct the angle
-// and it won't happen if the game was just loaded, so you wind up
-// with a permanent head tilt
+/**/
+/* send a fixangle */
+/* Never send a roll angle, because savegames can catch the server */
+/* in a state where it is expecting the client to correct the angle */
+/* and it won't happen if the game was just loaded, so you wind up */
+/* with a permanent head tilt */
     ent = EDICT_NUM(1 + (host_client - svs.clients));
     MSG_WriteByte(&host_client->message, svc_setangle);
     for (i = 0; i < 2; i++)
@@ -1134,7 +1134,7 @@ Host_Begin_f(void)
     host_client->spawned = true;
 }
 
-//===========================================================================
+/* =========================================================================== */
 
 
 /*
@@ -1190,17 +1190,17 @@ Host_Kick_f(void)
 	else
 	    who = save->name;
 
-	// can't kick yourself!
+	/* can't kick yourself! */
 	if (host_client == save)
 	    return;
 
 	if (Cmd_Argc() > 2) {
 	    message = COM_Parse(Cmd_Args());
 	    if (byNumber) {
-		message++;	// skip the #
-		while (*message == ' ')	// skip white space
+		message++;	/* skip the # */
+		while (*message == ' ')	/* skip white space */
 		    message++;
-		message += strlen(Cmd_Argv(2));	// skip the number
+		message += strlen(Cmd_Argv(2));	/* skip the number */
 	    }
 	    while (*message && *message == ' ')
 		message++;
@@ -1257,7 +1257,7 @@ Host_Give_f(void)
     case '7':
     case '8':
     case '9':
-	// MED 01/04/97 added hipnotic give stuff
+	/* MED 01/04/97 added hipnotic give stuff */
 	if (hipnotic) {
 	    if (t[0] == '6') {
 		if (t[1] == 'a')
@@ -1543,7 +1543,7 @@ Host_Stopdemo_f(void)
     CL_Disconnect();
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================

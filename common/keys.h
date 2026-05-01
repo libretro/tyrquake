@@ -289,7 +289,7 @@ typedef enum {
 extern keydest_t key_dest;
 extern const char *keybindings[K_LAST];
 extern int key_repeats[K_LAST];
-extern int key_count;		// incremented every key event
+extern int key_count;		/* incremented every key event */
 extern int key_lastpress;
 
 extern char chat_buffer[];

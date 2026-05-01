@@ -254,7 +254,7 @@ SV_Map_f(void)
     }
     strcpy(level, Cmd_Argv(1));
 
-    // check to make sure the level exists
+    /* check to make sure the level exists */
     sprintf(expanded, "maps/%s.bsp", level);
     COM_FOpenFile(expanded, &f);
     if (!f) {
@@ -303,8 +303,8 @@ SV_Kick_f(void)
 	    continue;
 	if (cl->userid == uid) {
 	    SV_BroadcastPrintf(PRINT_HIGH, "%s was kicked\n", cl->name);
-	    // print directly, because the dropped client won't get the
-	    // SV_BroadcastPrintf message
+	    /* print directly, because the dropped client won't get the */
+	    /* SV_BroadcastPrintf message */
 	    SV_ClientPrintf(cl, PRINT_HIGH,
 			    "You were kicked from the game\n");
 	    SV_DropClient(cl);
@@ -339,10 +339,10 @@ SV_Status_f(void)
     Con_Printf("avg response time: %i ms\n", (int)avg);
     Con_Printf("packets/frame    : %5.2f\n", pak);
 
-// min fps lat drp
+/* min fps lat drp */
     if (sv_redirected != RD_NONE) {
-	// most remote clients are 40 columns
-	//          0123456789012345678901234567890123456789
+	/* most remote clients are 40 columns */
+	/*          0123456789012345678901234567890123456789 */
 	Con_Printf("name               userid frags\n"
 		   "  address          rate ping drop\n"
 		   "  ---------------- ---- ---- -----\n");
@@ -421,7 +421,7 @@ SV_ConSay_f(void)
     strcpy(text, "console: ");
 
     len = strlen(text);
-    space = sizeof(text) - len - 2; // -2 for \n and null terminator
+    space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
     p = Cmd_Args();
     if (*p == '"') {
 	/* remove quotes */
@@ -491,8 +491,8 @@ SV_Serverinfo_f(void)
     Info_SetValueForKey(svs.info, Cmd_Argv(1), Cmd_Argv(2),
 			MAX_SERVERINFO_STRING);
 
-    // if this is a cvar, change it too
-    // FIXME - double cvar search just to avoid a Con_Printf
+    /* if this is a cvar, change it too */
+    /* FIXME - double cvar search just to avoid a Con_Printf */
     if (Cvar_FindVar(Cmd_Argv(1)))
 	Cvar_Set(Cmd_Argv(1), Cmd_Argv(2));
 

@@ -37,29 +37,29 @@ int rfprintf(RFILE * stream, const char * format, ...);
 
 quakeparms_t host_parms;
 
-qboolean host_initialized;	// true if into command execution (compatability)
+qboolean host_initialized;	/* true if into command execution (compatability) */
 
 double host_frametime;
-double realtime;		// without any filtering or bounding
+double realtime;		/* without any filtering or bounding */
 
 int host_hunklevel;
 
-netadr_t master_adr[MAX_MASTERS];	// address of group servers
+netadr_t master_adr[MAX_MASTERS];	/* address of group servers */
 
-client_t *host_client;		// current client
+client_t *host_client;		/* current client */
 
-cvar_t sv_mintic = { "sv_mintic", "0.03" };	// bound the size of the
-cvar_t sv_maxtic = { "sv_maxtic", "0.1" };	// physics time tic
+cvar_t sv_mintic = { "sv_mintic", "0.03" };	/* bound the size of the */
+cvar_t sv_maxtic = { "sv_maxtic", "0.1" };	/* physics time tic */
 
-cvar_t developer = { "developer", "0" };	// show extra messages
+cvar_t developer = { "developer", "0" };	/* show extra messages */
 
-static cvar_t timeout = { "timeout", "65" };	// seconds without any message
-static cvar_t zombietime = { "zombietime", "2" }; // seconds to sink messages
-						// after disconnect
+static cvar_t timeout = { "timeout", "65" };	/* seconds without any message */
+static cvar_t zombietime = { "zombietime", "2" }; /* seconds to sink messages */
+						/* after disconnect */
 
-static cvar_t rcon_password = { "rcon_password", "" };	// for remote commands
-static cvar_t password = { "password", "" };	// for entering the game
-static cvar_t spectator_password = { "spectator_password", "" }; // for entering as a spectator
+static cvar_t rcon_password = { "rcon_password", "" };	/* for remote commands */
+static cvar_t password = { "password", "" };	/* for entering the game */
+static cvar_t spectator_password = { "spectator_password", "" }; /* for entering as a spectator */
 
 cvar_t allow_download = { "allow_download", "1" };
 cvar_t allow_download_skins = { "allow_download_skins", "1" };
@@ -71,16 +71,16 @@ cvar_t sv_highchars = { "sv_highchars", "1" };
 cvar_t sv_phs = { "sv_phs", "1" };
 cvar_t pausable = { "pausable", "1" };
 
-//
-// game rules mirrored in svs.info
-//
+/**/
+/* game rules mirrored in svs.info */
+/**/
 cvar_t fraglimit = { "fraglimit", "0", false, true };
 cvar_t timelimit = { "timelimit", "0", false, true };
 cvar_t teamplay = { "teamplay", "0", false, true };
 cvar_t samelevel = { "samelevel", "0", false, true };
 cvar_t maxclients = { "maxclients", "8", false, true };
 cvar_t maxspectators = { "maxspectators", "8", false, true };
-cvar_t deathmatch = { "deathmatch", "1", false, true };	// 0, 1, or 2
+cvar_t deathmatch = { "deathmatch", "1", false, true };	/* 0, 1, or 2 */
 cvar_t spawn = { "spawn", "0", false, true };
 cvar_t watervis = { "watervis", "0", false, true };
 
@@ -92,7 +92,7 @@ RFILE *sv_fraglogfile;
 static void Master_Heartbeat(void);
 static void Master_Shutdown(void);
 
-//============================================================================
+/* ============================================================================ */
 
 qboolean
 ServerPaused(void)
@@ -197,18 +197,18 @@ or crashing.
 void
 SV_DropClient(client_t *drop)
 {
-    // add the disconnect
+    /* add the disconnect */
     MSG_WriteByte(&drop->netchan.message, svc_disconnect);
 
     if (drop->state == cs_spawned) {
 	if (!drop->spectator) {
-	    // call the prog function for removing a client
-	    // this will set the body to a dead frame, among other things
+	    /* call the prog function for removing a client */
+	    /* this will set the body to a dead frame, among other things */
 	    pr_global_struct->self = EDICT_TO_PROG(drop->edict);
 	    PR_ExecuteProgram(pr_global_struct->ClientDisconnect);
 	} else if (SpectatorDisconnect) {
-	    // call the prog function for removing a client
-	    // this will set the body to a dead frame, among other things
+	    /* call the prog function for removing a client */
+	    /* this will set the body to a dead frame, among other things */
 	    pr_global_struct->self = EDICT_TO_PROG(drop->edict);
 	    PR_ExecuteProgram(SpectatorDisconnect);
 	}
@@ -229,20 +229,20 @@ SV_DropClient(client_t *drop)
     }
     *drop->uploadfn = 0;
 
-    drop->state = cs_zombie;	// become free in a few seconds
-    drop->connection_started = realtime;	// for zombie timeout
+    drop->state = cs_zombie;	/* become free in a few seconds */
+    drop->connection_started = realtime;	/* for zombie timeout */
 
     drop->old_frags = 0;
     drop->edict->v.frags = 0;
     drop->name[0] = 0;
     memset(drop->userinfo, 0, sizeof(drop->userinfo));
 
-// send notification to all remaining clients
+/* send notification to all remaining clients */
     SV_FullClientUpdate(drop, &sv.reliable_datagram);
 }
 
 
-//====================================================================
+/* ==================================================================== */
 
 /*
 ===================
@@ -288,7 +288,7 @@ SV_FullClientUpdate(client_t *client, sizebuf_t *buf)
 
     i = client - svs.clients;
 
-//Sys_Printf("SV_FullClientUpdate:  Updated frags for client %d\n", i);
+/* Sys_Printf("SV_FullClientUpdate:  Updated frags for client %d\n", i); */
 
     MSG_WriteByte(buf, svc_updatefrags);
     MSG_WriteByte(buf, i);
@@ -312,7 +312,7 @@ SV_FullClientUpdate(client_t *client, sizebuf_t *buf)
      * buffer?
      */
     strcpy(info, client->userinfo);
-    Info_RemovePrefixedKeys(info, '_');	// server passwords, etc
+    Info_RemovePrefixedKeys(info, '_');	/* server passwords, etc */
 
     MSG_WriteByte(buf, svc_updateuserinfo);
     MSG_WriteByte(buf, i);
@@ -400,11 +400,11 @@ SV_CheckLog(void)
 
     sz = &svs.log[svs.logsequence & 1];
 
-    // bump sequence if almost full, or ten minutes have passed and
-    // there is something still sitting there
+    /* bump sequence if almost full, or ten minutes have passed and */
+    /* there is something still sitting there */
     if (sz->cursize > LOG_HIGHWATER
 	|| (realtime - svs.logtime > LOG_FLUSH && sz->cursize)) {
-	// swap buffers and bump sequence
+	/* swap buffers and bump sequence */
 	svs.logtime = realtime;
 	svs.logsequence++;
 	sz = &svs.log[svs.logsequence & 1];
@@ -489,7 +489,7 @@ SVC_GetChallenge(void)
     oldest = 0;
     oldestTime = 0x7fffffff;
 
-    // see if we already have a challenge for this ip
+    /* see if we already have a challenge for this ip */
     for (i = 0; i < MAX_CHALLENGES; i++) {
 	if (NET_CompareBaseAdr(net_from, svs.challenges[i].adr))
 	    break;
@@ -500,13 +500,13 @@ SVC_GetChallenge(void)
     }
 
     if (i == MAX_CHALLENGES) {
-	// overwrite the oldest
+	/* overwrite the oldest */
 	svs.challenges[oldest].challenge = (rand() << 16) ^ rand();
 	svs.challenges[oldest].adr = net_from;
 	svs.challenges[oldest].time = realtime;
 	i = oldest;
     }
-    // send it back
+    /* send it back */
     Netchan_OutOfBandPrint(net_from, "%c%i", S2C_CHALLENGE,
 			   svs.challenges[i].challenge);
 }
@@ -548,15 +548,15 @@ SVC_DirectConnect(void)
 
     challenge = atoi(Cmd_Argv(3));
 
-    // note an extra byte is needed to replace spectator key
+    /* note an extra byte is needed to replace spectator key */
     strncpy(userinfo, Cmd_Argv(4), sizeof(userinfo) - 2);
     userinfo[sizeof(userinfo) - 2] = 0;
 
-    // see if the challenge is valid
+    /* see if the challenge is valid */
     for (i = 0; i < MAX_CHALLENGES; i++) {
 	if (NET_CompareBaseAdr(net_from, svs.challenges[i].adr)) {
 	    if (challenge == svs.challenges[i].challenge)
-		break;		// good
+		break;		/* good */
 	    Netchan_OutOfBandPrint(net_from, "%c\nBad challenge.\n",
 				   A2C_PRINT);
 	    return;
@@ -567,12 +567,12 @@ SVC_DirectConnect(void)
 			       A2C_PRINT);
 	return;
     }
-    // check for password or spectator_password
+    /* check for password or spectator_password */
     s = Info_ValueForKey(userinfo, "spectator");
     if (s[0] && strcmp(s, "0")) {
 	if (spectator_password.string[0] &&
 	    strcasecmp(spectator_password.string, "none") &&
-	    strcmp(spectator_password.string, s)) {	// failed
+	    strcmp(spectator_password.string, s)) {	/* failed */
 	    Con_Printf("%s:spectator password failed\n",
 		       NET_AdrToString(net_from));
 	    Netchan_OutOfBandPrint(net_from,
@@ -580,7 +580,7 @@ SVC_DirectConnect(void)
 				   A2C_PRINT);
 	    return;
 	}
-	Info_RemoveKey(userinfo, "spectator");	// remove passwd
+	Info_RemoveKey(userinfo, "spectator");	/* remove passwd */
 	Info_SetValueForStarKey(userinfo, "*spectator", "1", MAX_INFO_STRING);
 	spectator = true;
     } else {
@@ -595,18 +595,18 @@ SVC_DirectConnect(void)
 	    return;
 	}
 	spectator = false;
-	Info_RemoveKey(userinfo, "password");	// remove passwd
+	Info_RemoveKey(userinfo, "password");	/* remove passwd */
     }
 
     adr = net_from;
-    userid++;			// so every client gets a unique id
+    userid++;			/* so every client gets a unique id */
 
     newcl = &temp;
     memset(newcl, 0, sizeof(client_t));
 
     newcl->userid = userid;
 
-    // works properly
+    /* works properly */
     if (!sv_highchars.value) {
 	byte *p, *q;
 
@@ -619,7 +619,7 @@ SVC_DirectConnect(void)
     } else
 	strncpy(newcl->userinfo, userinfo, sizeof(newcl->userinfo) - 1);
 
-    // if there is allready a slot for this ip, drop it
+    /* if there is allready a slot for this ip, drop it */
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (cl->state == cs_free)
 	    continue;
@@ -638,7 +638,7 @@ SVC_DirectConnect(void)
 	}
     }
 
-    // count up the clients and spectators
+    /* count up the clients and spectators */
     clients = 0;
     spectators = 0;
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
@@ -650,7 +650,7 @@ SVC_DirectConnect(void)
 	    clients++;
     }
 
-    // if at server limits, refuse connection
+    /* if at server limits, refuse connection */
     if (maxclients.value > MAX_CLIENTS)
 	Cvar_SetValue("maxclients", MAX_CLIENTS);
     if (maxspectators.value > MAX_CLIENTS)
@@ -664,7 +664,7 @@ SVC_DirectConnect(void)
 	Netchan_OutOfBandPrint(adr, "%c\nserver is full\n\n", A2C_PRINT);
 	return;
     }
-    // find a client slot
+    /* find a client slot */
     newcl = NULL;
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (cl->state == cs_free) {
@@ -676,9 +676,9 @@ SVC_DirectConnect(void)
 	Con_Printf("WARNING: miscounted available clients\n");
 	return;
     }
-    // build a new connection
-    // accept the new client
-    // this is the only place a client_t is ever initialized
+    /* build a new connection */
+    /* accept the new client */
+    /* this is the only place a client_t is ever initialized */
     *newcl = temp;
 
     Netchan_OutOfBandPrint(adr, "%c", S2C_CONNECTION);
@@ -693,22 +693,22 @@ SVC_DirectConnect(void)
     newcl->datagram.data = newcl->datagram_buf;
     newcl->datagram.maxsize = sizeof(newcl->datagram_buf);
 
-    // spectator mode can ONLY be set at join time
+    /* spectator mode can ONLY be set at join time */
     newcl->spectator = spectator;
 
     ent = EDICT_NUM(edictnum);
     newcl->edict = ent;
 
-    // parse some info from the info strings
+    /* parse some info from the info strings */
     SV_ExtractFromUserinfo(newcl);
 
-    // JACK: Init the floodprot stuff.
+    /* JACK: Init the floodprot stuff. */
     for (i = 0; i < 10; i++)
 	newcl->whensaid[i] = 0.0;
     newcl->whensaidhead = 0;
     newcl->lockedtill = 0;
 
-    // call the progs to get default spawn parms for the new client
+    /* call the progs to get default spawn parms for the new client */
     PR_ExecuteProgram(pr_global_struct->SetNewParms);
     for (i = 0; i < NUM_SPAWN_PARMS; i++)
 	newcl->spawn_parms[i] = (&pr_global_struct->parm1)[i];
@@ -785,7 +785,7 @@ SV_ConnectionlessPacket(void)
     const char *cmd;
 
     MSG_BeginReading();
-    MSG_ReadLong();		// skip the -1 marker
+    MSG_ReadLong();		/* skip the -1 marker */
 
     cmdstring = MSG_ReadStringLine();
     Cmd_TokenizeString(cmdstring);
@@ -945,7 +945,7 @@ SV_AddIP_f(void)
 
     for (i = 0; i < numipfilters; i++)
 	if (ipfilters[i].addr.l == 0xffffffff)
-	    break;		// free spot
+	    break;		/* free spot */
     if (i == numipfilters) {
 	if (numipfilters == MAX_IPFILTERS) {
 	    Con_Printf("IP filter list is full\n");
@@ -1080,7 +1080,7 @@ SV_FilterPacket(void)
     return !filterban.value;
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 =================
@@ -1096,22 +1096,22 @@ SV_ReadPackets(void)
 
     while (NET_GetPacket()) {
 	if (SV_FilterPacket()) {
-	    SV_SendBan();	// tell them we aren't listening...
+	    SV_SendBan();	/* tell them we aren't listening... */
 	    continue;
 	}
-	// check for connectionless packet (0xffffffff) first
+	/* check for connectionless packet (0xffffffff) first */
 	if (*(int *)net_message.data == -1) {
 	    SV_ConnectionlessPacket();
 	    continue;
 	}
-	// read the qport out of the message so we can fix up
-	// stupid address translating routers
+	/* read the qport out of the message so we can fix up */
+	/* stupid address translating routers */
 	MSG_BeginReading();
-	MSG_ReadLong();		// sequence number
-	MSG_ReadLong();		// sequence number
+	MSG_ReadLong();		/* sequence number */
+	MSG_ReadLong();		/* sequence number */
 	qport = MSG_ReadShort() & 0xffff;
 
-	// check for packets from connected clients
+	/* check for packets from connected clients */
 	for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	    if (cl->state == cs_free)
 		continue;
@@ -1136,9 +1136,9 @@ SV_ReadPackets(void)
 	if (i != MAX_CLIENTS)
 	    continue;
 
-	// packet is not from a known client
-	//      Con_Printf ("%s:sequenced packet without connection\n"
-	// ,NET_AdrToString(net_from));
+	/* packet is not from a known client */
+	/*      Con_Printf ("%s:sequenced packet without connection\n" */
+	/* ,NET_AdrToString(net_from)); */
     }
 }
 
@@ -1172,16 +1172,16 @@ SV_CheckTimeouts(void)
 	    if (cl->netchan.last_received < droptime) {
 		SV_BroadcastPrintf(PRINT_HIGH, "%s timed out\n", cl->name);
 		SV_DropClient(cl);
-		cl->state = cs_free;	// don't bother with zombie state
+		cl->state = cs_free;	/* don't bother with zombie state */
 	    }
 	}
 	if (cl->state == cs_zombie &&
 	    realtime - cl->connection_started > zombietime.value) {
-	    cl->state = cs_free;	// can now be reused
+	    cl->state = cs_free;	/* can now be reused */
 	}
     }
     if (sv.paused && !nclients) {
-	// nobody left, unpause the server
+	/* nobody left, unpause the server */
 	SV_TogglePause("Pause released since no players are left.\n");
     }
 }
@@ -1251,42 +1251,42 @@ SV_Frame(float time)
     start = Sys_DoubleTime();
     svs.stats.idle += start - end;
 
-// keep the random time dependent
+/* keep the random time dependent */
     rand();
 
-// decide the simulation time
+/* decide the simulation time */
     if (!sv.paused) {
 	realtime += time;
 	sv.time += time;
     }
-// check timeouts
+/* check timeouts */
     SV_CheckTimeouts();
 
-// toggle the log buffer if full
+/* toggle the log buffer if full */
     SV_CheckLog();
 
-// move autonomous things around if enough time has passed
+/* move autonomous things around if enough time has passed */
     if (!sv.paused)
 	SV_Physics();
 
-// get packets
+/* get packets */
     SV_ReadPackets();
 
-// check for commands typed to the host
+/* check for commands typed to the host */
     SV_GetConsoleCommands();
 
-// process console commands
+/* process console commands */
     Cbuf_Execute();
 
     SV_CheckVars();
 
-// send messages back to the clients that had packets read this frame
+/* send messages back to the clients that had packets read this frame */
     SV_SendClientMessages();
 
-// send a heartbeat to the master if needed
+/* send a heartbeat to the master if needed */
     Master_Heartbeat();
 
-// collect timing statistics
+/* collect timing statistics */
     end = Sys_DoubleTime();
     svs.stats.active += end - start;
     if (++svs.stats.count == STATFRAMES) {
@@ -1377,7 +1377,7 @@ SV_InitLocal(void)
 			    va("TyrQuake-%s", stringify(TYR_VERSION)),
 			    MAX_SERVERINFO_STRING);
 
-    // init fraglog stuff
+    /* init fraglog stuff */
     svs.logsequence = 1;
     svs.logtime = realtime;
     svs.log[0].data = svs.log_buf[0];
@@ -1391,7 +1391,7 @@ SV_InitLocal(void)
 }
 
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ================
@@ -1410,13 +1410,13 @@ Master_Heartbeat(void)
     int i;
 
     if (realtime - svs.last_heartbeat < HEARTBEAT_SECONDS)
-	return;			// not time to send yet
+	return;			/* not time to send yet */
 
     svs.last_heartbeat = realtime;
 
-    //
-    // count active users
-    //
+    /**/
+    /* count active users */
+    /**/
     active = 0;
     for (i = 0; i < MAX_CLIENTS; i++)
 	if (svs.clients[i].state == cs_connected ||
@@ -1427,7 +1427,7 @@ Master_Heartbeat(void)
     sprintf(string, "%c\n%i\n%i\n", S2M_HEARTBEAT,
 	    svs.heartbeat_sequence, active);
 
-    // send to group master
+    /* send to group master */
     for (i = 0; i < MAX_MASTERS; i++)
 	if (master_adr[i].port) {
 	    Con_Printf("Sending heartbeat to %s\n",
@@ -1451,7 +1451,7 @@ Master_Shutdown(void)
 
     sprintf(string, "%c\n", S2M_SHUTDOWN);
 
-    // send to group master
+    /* send to group master */
     for (i = 0; i < MAX_MASTERS; i++)
 	if (master_adr[i].port) {
 	    Con_Printf("Sending heartbeat to %s\n",
@@ -1478,17 +1478,17 @@ SV_ExtractFromUserinfo(client_t *cl)
     char newname[80];
 
 
-    // name for C code
+    /* name for C code */
     val = Info_ValueForKey(cl->userinfo, "name");
 
-    // trim user name
+    /* trim user name */
     strncpy(newname, val, sizeof(newname) - 1);
     newname[sizeof(newname) - 1] = 0;
 
     for (p = newname; (*p == ' ' || *p == '\r' || *p == '\n') && *p; p++);
 
     if (p != newname && !*p) {
-	//white space only
+	/* white space only */
 	strcpy(newname, "unnamed");
 	p = newname;
     }
@@ -1510,7 +1510,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 	Info_SetValueForKey(cl->userinfo, "name", "unnamed", MAX_INFO_STRING);
 	val = Info_ValueForKey(cl->userinfo, "name");
     }
-    // check to see if another user by the same name exists
+    /* check to see if another user by the same name exists */
     while (1) {
 	for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
 	    if (client->state != cs_spawned || client == cl)
@@ -1518,7 +1518,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 	    if (!strcasecmp(client->name, val))
 		break;
 	}
-	if (i != MAX_CLIENTS) {	// dup name
+	if (i != MAX_CLIENTS) {	/* dup name */
 	    if (strlen(val) > sizeof(cl->name) - 1)
 		val[sizeof(cl->name) - 4] = 0;
 	    p = val;
@@ -1561,7 +1561,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 
     strncpy(cl->name, val, sizeof(cl->name) - 1);
 
-    // rate command
+    /* rate command */
     val = Info_ValueForKey(cl->userinfo, "rate");
     if (strlen(val)) {
 	i = atoi(val);
@@ -1571,7 +1571,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 	    i = 10000;
 	cl->netchan.rate = 1.0 / i;
     }
-    // msg command
+    /* msg command */
     val = Info_ValueForKey(cl->userinfo, "msg");
     if (strlen(val)) {
 	cl->messagelevel = atoi(val);
@@ -1580,7 +1580,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 }
 
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ====================
@@ -1603,9 +1603,9 @@ SV_InitNet(void)
 
     Netchan_Init();
 
-    // heartbeats will allways be sent to the id master
-    svs.last_heartbeat = -99999;	// send immediately
-//      NET_StringToAdr ("192.246.40.70:27000", &idmaster_adr);
+    /* heartbeats will allways be sent to the id master */
+    svs.last_heartbeat = -99999;	/* send immediately */
+/*      NET_StringToAdr ("192.246.40.70:27000", &idmaster_adr); */
 }
 
 /*
@@ -1667,7 +1667,7 @@ SV_Init(quakeparms_t *parms)
     Cbuf_InsertText("stuffcmds\nexec server.cfg\n");
     Cbuf_Execute();
 
-// if a map wasn't specified on the command line, spawn start.map
+/* if a map wasn't specified on the command line, spawn start.map */
     if (sv.state == ss_dead)
 	Cmd_ExecuteString("map start");
     if (sv.state == ss_dead)

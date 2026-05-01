@@ -17,10 +17,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl.input.c  -- builds an intended movement command to send to the server
+/* cl.input.c  -- builds an intended movement command to send to the server */
 
-// Quake is a trademark of Id Software, Inc., (c) 1996 Id Software, Inc. All
-// rights reserved.
+/* Quake is a trademark of Id Software, Inc., (c) 1996 Id Software, Inc. All */
+/* rights reserved. */
 
 #include "quakedef.h"
 #include "host.h"
@@ -72,10 +72,10 @@ KeyDown(kbutton_t *b)
     if (c[0])
 	k = atoi(c);
     else
-	k = -1;			// typed manually at the console for continuous down
+	k = -1;			/* typed manually at the console for continuous down */
 
     if (k == b->down[0] || k == b->down[1])
-	return;			// repeating key
+	return;			/* repeating key */
 
     if (!b->down[0])
 	b->down[0] = k;
@@ -87,8 +87,8 @@ KeyDown(kbutton_t *b)
     }
 
     if (b->state & 1)
-	return;			// still down
-    b->state |= 1 + 2;		// down + impulse down
+	return;			/* still down */
+    b->state |= 1 + 2;		/* down + impulse down */
 }
 
 void
@@ -100,9 +100,9 @@ KeyUp(kbutton_t *b)
     c = Cmd_Argv(1);
     if (c[0])
 	k = atoi(c);
-    else {			// typed manually at the console, assume for unsticking, so clear all
+    else {			/* typed manually at the console, assume for unsticking, so clear all */
 	b->down[0] = b->down[1] = 0;
-	b->state = 4;		// impulse up
+	b->state = 4;		/* impulse up */
 	return;
     }
 
@@ -111,14 +111,14 @@ KeyUp(kbutton_t *b)
     else if (b->down[1] == k)
 	b->down[1] = 0;
     else
-	return;			// key up without coresponding down (menu pass through)
+	return;			/* key up without coresponding down (menu pass through) */
     if (b->down[0] || b->down[1])
-	return;			// some other key is still holding it down
+	return;			/* some other key is still holding it down */
 
     if (!(b->state & 1))
-	return;			// still up (this should not happen)
-    b->state &= ~1;		// now up
-    b->state |= 4;		// impulse up
+	return;			/* still up (this should not happen) */
+    b->state &= ~1;		/* now up */
+    b->state |= 4;		/* impulse up */
 }
 
 void
@@ -374,31 +374,31 @@ CL_KeyState(kbutton_t *key)
 
     if (impulsedown && !impulseup) {
 	if (down)
-	    val = 0.5;		// pressed and held this frame
+	    val = 0.5;		/* pressed and held this frame */
 	else
-	    val = 0;		//      I_Error ();
+	    val = 0;		/*      I_Error (); */
     }
-    // FIXME: both alternatives zero?
+    /* FIXME: both alternatives zero? */
     if (impulseup && !impulsedown) {
 	if (down)
-	    val = 0;		//      I_Error ();
+	    val = 0;		/*      I_Error (); */
 	else
-	    val = 0;		// released this frame
+	    val = 0;		/* released this frame */
     }
     if (!impulsedown && !impulseup) {
 	if (down)
-	    val = 1.0;		// held the entire frame
+	    val = 1.0;		/* held the entire frame */
 	else
-	    val = 0;		// up the entire frame
+	    val = 0;		/* up the entire frame */
     }
     if (impulsedown && impulseup) {
 	if (down)
-	    val = 0.75;		// released and re-pressed this frame
+	    val = 0.75;		/* released and re-pressed this frame */
 	else
-	    val = 0.25;		// pressed and released this frame
+	    val = 0.25;		/* pressed and released this frame */
     }
 
-    key->state &= 1;		// clear impulses
+    key->state &= 1;		/* clear impulses */
 
     return val;
 }
@@ -406,7 +406,7 @@ CL_KeyState(kbutton_t *key)
 
 
 
-//==========================================================================
+/* ========================================================================== */
 
 cvar_t cl_upspeed = { "cl_upspeed", "200" };
 cvar_t cl_forwardspeed = { "cl_forwardspeed", "400", true };
@@ -515,9 +515,9 @@ CL_BaseMove(usercmd_t *cmd)
 	    cmd->forwardmove -= cl_backspeed.value * CL_KeyState(&in_back) * walkstate;
         }
     }
-//
-// adjust for speed key
-//
+/**/
+/* adjust for speed key */
+/**/
     if (in_speed.state & 1) {
 	cmd->forwardmove *= cl_movespeedkey.value;
 	cmd->sidemove *= cl_movespeedkey.value;

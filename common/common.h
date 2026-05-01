@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// common.h -- general definitions
+/* common.h -- general definitions */
 
 #ifndef COMMON_H
 #define COMMON_H
@@ -48,11 +48,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_LOCALINFO_STRING 32768
 #endif
 
-//============================================================================
+/* ============================================================================ */
 
 typedef struct sizebuf_s {
-    qboolean allowoverflow;	// if false, do a Sys_Error
-    qboolean overflowed;	// set to true if the buffer size failed
+    qboolean allowoverflow;	/* if false, do a Sys_Error */
+    qboolean overflowed;	/* set to true if the buffer size failed */
     byte *data;
     int maxsize;
     int cursize;
@@ -64,9 +64,9 @@ void SZ_Free(sizebuf_t *buf);
 #endif
 void SZ_Clear(sizebuf_t *buf);
 void SZ_Write(sizebuf_t *buf, const void *data, int length);
-void SZ_Print(sizebuf_t *buf, const char *data); // strcats onto the sizebuf
+void SZ_Print(sizebuf_t *buf, const char *data); /* strcats onto the sizebuf */
 
-//============================================================================
+/* ============================================================================ */
 
 typedef struct link_s {
     struct link_s *prev, *next;
@@ -77,7 +77,7 @@ void RemoveLink(link_t *l);
 void InsertLinkBefore(link_t *l, link_t *before);
 void InsertLinkAfter(link_t *l, link_t *after);
 
-//============================================================================
+/* ============================================================================ */
 
 #define Q_MAXCHAR ((char)0x7f)
 #define Q_MAXSHORT ((short)0x7fff)
@@ -99,15 +99,16 @@ void InsertLinkAfter(link_t *l, link_t *after);
 
 static INLINE short bswap16(short s)
 {
-    return ((s & 255) << 8) | ((s >> 8) & 255);
+    unsigned short u = (unsigned short)s;
+    return (short)((u << 8) | (u >> 8));
 }
 static INLINE int bswap32(int l)
 {
-    return
-          (((l >>  0) & 255) << 24)
-        | (((l >>  8) & 255) << 16)
-        | (((l >> 16) & 255) <<  8)
-        | (((l >> 24) & 255) <<  0);
+    unsigned int u = (unsigned int)l;
+    return (int)(((u & 0x000000FFu) << 24)
+               | ((u & 0x0000FF00u) <<  8)
+               | ((u & 0x00FF0000u) >>  8)
+               | ((u & 0xFF000000u) >> 24));
 }
 
 #ifdef MSB_FIRST
@@ -152,7 +153,7 @@ static INLINE float BigFloat(float f)
 #define LittleFloat(f) (f)
 #endif
 
-//============================================================================
+/* ============================================================================ */
 
 #ifdef QW_HACK
 extern struct usercmd_s nullcmd;
@@ -178,7 +179,7 @@ void MSG_WriteControlHeader(sizebuf_t *sb);
 #endif
 
 extern int msg_readcount;
-extern qboolean msg_badread;	// set if a read goes beyond end of message
+extern qboolean msg_badread;	/* set if a read goes beyond end of message */
 
 void MSG_BeginReading(void);
 #ifdef QW_HACK
@@ -204,12 +205,12 @@ void MSG_ReadDeltaUsercmd(const struct usercmd_s *from, struct usercmd_s *cmd);
 int MSG_ReadControlHeader(void);
 #endif
 
-//============================================================================
+/* ============================================================================ */
 
 int Q_atoi(const char *str);
 float Q_atof(const char *str);
 
-//============================================================================
+/* ============================================================================ */
 
 extern char com_token[1024];
 extern qboolean com_eof;
@@ -236,9 +237,9 @@ int COM_CheckExtension(const char *path, const char *extn);
 
 char *va(const char *format, ...);
 
-// does a varargs printf into a temp buffer
+/* does a varargs printf into a temp buffer */
 
-//============================================================================
+/* ============================================================================ */
 
 extern int com_filesize;
 struct cache_user_s;
@@ -246,7 +247,7 @@ struct cache_user_s;
 extern char com_basedir[MAX_OSPATH];
 extern char com_gamedir[MAX_OSPATH];
 extern char com_savedir[MAX_OSPATH];
-extern int file_from_pak; // global indicating that file came from a pak
+extern int file_from_pak; /* global indicating that file came from a pak */
 
 void COM_WriteFile(const char *filename, const void *data, int len);
 int COM_FOpenFile(const char *filename, RFILE **file);
@@ -289,9 +290,9 @@ extern char gamedirfile[];
 #endif
 
 
-// Leilei Colored lighting
+/* Leilei Colored lighting */
 
-extern byte	palmap2[64][64][64];	// 18-bit lookup table 
+extern byte	palmap2[64][64][64];	/* 18-bit lookup table */ 
 
 /* The following FS_*() stdio replacements are necessary if one is
  * to perform non-sequential reads on files reopened on pak files

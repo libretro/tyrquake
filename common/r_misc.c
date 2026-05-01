@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_misc.c
+/* r_misc.c */
 
 #include "console.h"
 #include "draw.h"
@@ -40,12 +40,12 @@ R_CheckVariables
 static void
 R_CheckVariables(void)
 {
-    // FIXME - do it right (cvar callback)
+    /* FIXME - do it right (cvar callback) */
     static float oldbright;
 
     if (r_fullbright.value != oldbright) {
 	oldbright = r_fullbright.value;
-	D_FlushCaches();	// so all lighting changes
+	D_FlushCaches();	/* so all lighting changes */
     }
 }
 
@@ -90,7 +90,7 @@ WarpPalette(void)
     basecolor[1] = 80;
     basecolor[2] = 50;
 
-// pull the colors halfway to bright brown
+/* pull the colors halfway to bright brown */
     for (i = 0; i < 256; i++) {
 	for (j = 0; j < 3; j++) {
 	    newpalette[i * 3 + j] =
@@ -159,7 +159,7 @@ R_TransformPlane(mplane_t *p, float *normal, float *dist)
 
     d = DotProduct(r_origin, p->normal);
     *dist = p->dist - d;
-// TODO: when we have rotating entities, this will need to use the view matrix
+/* TODO: when we have rotating entities, this will need to use the view matrix */
     TransformVector(p->normal, normal);
 }
 
@@ -175,7 +175,7 @@ R_SetupFrame(void)
     vrect_t vrect;
     float w, h;
 
-// don't allow cheats in multiplayer
+/* don't allow cheats in multiplayer */
 #ifdef NQ_HACK
     if (cl.maxclients > 1) {
 	Cvar_Set("r_draworder", "0");
@@ -215,10 +215,10 @@ R_SetupFrame(void)
 
 #ifdef NQ_HACK
     if (!sv.active)
-	r_draworder.value = 0;	// don't let cheaters look behind walls
+	r_draworder.value = 0;	/* don't let cheaters look behind walls */
 #endif
 #ifdef QW_HACK
-    r_draworder.value = 0;	// don't let cheaters look behind walls
+    r_draworder.value = 0;	/* don't let cheaters look behind walls */
 #endif
 
     R_CheckVariables();
@@ -227,13 +227,13 @@ R_SetupFrame(void)
 
     r_framecount++;
 
-    // build the transformation matrix for the given view angles
+    /* build the transformation matrix for the given view angles */
     VectorCopy(r_refdef.vieworg, modelorg);
     VectorCopy(r_refdef.vieworg, r_origin);
 
     AngleVectors(r_refdef.viewangles, vpn, vright, vup);
 
-    // current viewleaf
+    /* current viewleaf */
     r_oldviewleaf = r_viewleaf;
     r_viewleaf = Mod_PointInLeaf(cl.worldmodel, r_origin);
 
@@ -286,10 +286,10 @@ R_SetupFrame(void)
 
 	r_viewchanged = false;
     }
-// start off with just the four screen edge clip planes
+/* start off with just the four screen edge clip planes */
     R_TransformFrustum();
 
-// save base values
+/* save base values */
     VectorCopy(vpn, base_vpn);
     VectorCopy(vright, base_vright);
     VectorCopy(vup, base_vup);
@@ -297,7 +297,7 @@ R_SetupFrame(void)
 
     R_SetSkyFrame();
 
-    // clear frame counts
+    /* clear frame counts */
     r_drawnpolycount = 0;
     r_amodels_drawn = 0;
 

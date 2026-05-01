@@ -83,11 +83,11 @@ qboolean CL_GetDemoMessage(void)
     byte c;
     usercmd_t *pcmd;
 
-    // read the time from the packet
+    /* read the time from the packet */
     fread(&demotime, sizeof(demotime), 1, cls.demofile);
     demotime = LittleFloat(demotime);
 
-    // decide if it is time to grab the next message
+    /* decide if it is time to grab the next message */
     if (cls.timedemo)
     {
 	if (cls.td_lastframe < 0)
@@ -95,43 +95,43 @@ qboolean CL_GetDemoMessage(void)
 	else if (demotime > cls.td_lastframe)
 	{
 	    cls.td_lastframe = demotime;
-	    // rewind back to time
+	    /* rewind back to time */
 	    fseek(cls.demofile, ftell(cls.demofile) - sizeof(demotime),
 		  SEEK_SET);
-	    return 0;		// allready read this frame's message
+	    return 0;		/* allready read this frame's message */
 	}
 	if (!cls.td_starttime && cls.state == ca_active)
 	{
 	    cls.td_starttime = Sys_DoubleTime();
 	    cls.td_startframe = host_framecount;
 	}
-	realtime = demotime;	// warp
-    } else if (!cl.paused && cls.state >= ca_onserver) {	// allways grab until fully connected
+	realtime = demotime;	/* warp */
+    } else if (!cl.paused && cls.state >= ca_onserver) {	/* allways grab until fully connected */
 	if (realtime + 1.0 < demotime) {
-	    // too far back
+	    /* too far back */
 	    realtime = demotime - 1.0;
-	    // rewind back to time
+	    /* rewind back to time */
 	    fseek(cls.demofile, ftell(cls.demofile) - sizeof(demotime),
 		  SEEK_SET);
 	    return 0;
 	} else if (realtime < demotime) {
-	    // rewind back to time
+	    /* rewind back to time */
 	    fseek(cls.demofile, ftell(cls.demofile) - sizeof(demotime),
 		  SEEK_SET);
-	    return 0;		// don't need another message yet
+	    return 0;		/* don't need another message yet */
 	}
     } else
-	realtime = demotime;	// we're warping
+	realtime = demotime;	/* we're warping */
 
     if (cls.state < ca_demostart)
 	Host_Error("CL_GetDemoMessage: cls.state != ca_active");
 
-    // get the msg type
+    /* get the msg type */
     fread(&c, sizeof(c), 1, cls.demofile);
 
     switch (c) {
     case DEM_CMD:
-	// user sent input
+	/* user sent input */
 	i = cls.netchan.outgoing_sequence & UPDATE_MASK;
 	pcmd = &cl.frames[i].cmd;
 	r = fread(pcmd, sizeof(*pcmd), 1, cls.demofile);
@@ -139,14 +139,14 @@ qboolean CL_GetDemoMessage(void)
 	    CL_StopPlayback();
 	    return 0;
 	}
-	// byte order stuff
+	/* byte order stuff */
 	for (j = 0; j < 3; j++)
 	    pcmd->angles[j] = LittleFloat(pcmd->angles[j]);
 	pcmd->forwardmove = LittleShort(pcmd->forwardmove);
 	pcmd->sidemove = LittleShort(pcmd->sidemove);
 	pcmd->upmove = LittleShort(pcmd->upmove);
 	cl.frames[i].senttime = demotime;
-	cl.frames[i].receivedtime = -1;	// we haven't gotten a reply yet
+	cl.frames[i].receivedtime = -1;	/* we haven't gotten a reply yet */
 	cls.netchan.outgoing_sequence++;
 	for (i = 0; i < 3; i++) {
 	    fread(&f, 4, 1, cls.demofile);
@@ -155,10 +155,10 @@ qboolean CL_GetDemoMessage(void)
 	break;
 
     case DEM_READ:
-	// get the next message
+	/* get the next message */
 	fread(&net_message.cursize, 4, 1, cls.demofile);
 	net_message.cursize = LittleLong(net_message.cursize);
-	//Con_Printf("read: %ld bytes\n", net_message.cursize);
+	/* Con_Printf("read: %ld bytes\n", net_message.cursize); */
 	if (net_message.cursize > MAX_MSGLEN)
 	    Sys_Error("Demo message > MAX_MSGLEN");
 	r = fread(net_message.data, net_message.cursize, 1, cls.demofile);
@@ -220,10 +220,10 @@ CL_PlayDemo_f(void)
 	Con_Printf("play <demoname> : plays a demo\n");
 	return;
     }
-    // disconnect from server
+    /* disconnect from server */
     CL_Disconnect();
 
-    // open the demo file
+    /* open the demo file */
     strcpy(name, Cmd_Argv(1));
     COM_DefaultExtension(name, ".qwd");
 
@@ -231,7 +231,7 @@ CL_PlayDemo_f(void)
     COM_FOpenFile(name, &cls.demofile);
     if (!cls.demofile) {
 	Con_Printf("ERROR: couldn't open.\n");
-	cls.demonum = -1;	// stop demo loop
+	cls.demonum = -1;	/* stop demo loop */
 	return;
     }
 
@@ -268,7 +268,7 @@ CL_FinishTimeDemo(void)
 
     cls.timedemo = false;
 
-    // the first frame didn't count
+    /* the first frame didn't count */
     frames = (host_framecount - cls.td_startframe) - 1;
     time   = Sys_DoubleTime() - cls.td_starttime;
     if (!time)
@@ -296,11 +296,11 @@ void CL_TimeDemo_f(void)
     if (cls.state != ca_demostart)
 	return;
 
-    // cls.td_starttime will be grabbed at the second frame of the demo, so
-    // all the loading time doesn't get counted
+    /* cls.td_starttime will be grabbed at the second frame of the demo, so */
+    /* all the loading time doesn't get counted */
 
     cls.timedemo = true;
     cls.td_starttime = 0;
     cls.td_startframe = host_framecount;
-    cls.td_lastframe = -1;	// get a new message this frame
+    cls.td_lastframe = -1;	/* get a new message this frame */
 }

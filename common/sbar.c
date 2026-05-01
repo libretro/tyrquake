@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sbar.c -- status bar code
+/* sbar.c -- status bar code */
 
 #include "client.h"
 #include "cmd.h"
@@ -31,23 +31,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "wad.h"
 
-int sb_updates;			// if >= vid.numpages, no update needed
+int sb_updates;			/* if >= vid.numpages, no update needed */
 
-#define STAT_MINUS 10		// num frame for '-' stats digit
+#define STAT_MINUS 10		/* num frame for '-' stats digit */
 const qpic_t *sb_nums[2][11];
 const qpic_t *sb_colon, *sb_slash;
 const qpic_t *sb_ibar;
 const qpic_t *sb_sbar;
 const qpic_t *sb_scorebar;
 
-const qpic_t *sb_weapons[7][8];	// 0 is active, 1 is owned, 2-5 are flashes
+const qpic_t *sb_weapons[7][8];	/* 0 is active, 1 is owned, 2-5 are flashes */
 const qpic_t *sb_ammo[4];
 const qpic_t *sb_sigil[4];
 const qpic_t *sb_armor[3];
 const qpic_t *sb_items[32];
 
-const qpic_t *sb_faces[7][2];	// 0 is gibbed, 1 is dead, 2-6 are alive
-				// 0 is static, 1 is temporary animation
+const qpic_t *sb_faces[7][2];	/* 0 is gibbed, 1 is dead, 2-6 are alive */
+				/* 0 is static, 1 is temporary animation */
 const qpic_t *sb_face_invis;
 const qpic_t *sb_face_quad;
 const qpic_t *sb_face_invuln;
@@ -55,18 +55,18 @@ const qpic_t *sb_face_invis_invuln;
 
 qboolean sb_showscores;
 
-int sb_lines;			// scan lines to draw
+int sb_lines;			/* scan lines to draw */
 
 const qpic_t *rsb_invbar[2];
 const qpic_t *rsb_weapons[5];
 const qpic_t *rsb_items[2];
 const qpic_t *rsb_ammo[3];
-const qpic_t *rsb_teambord;	// PGM 01/19/97 - team color border
+const qpic_t *rsb_teambord;	/* PGM 01/19/97 - team color border */
 
-//MED 01/04/97 added two more weapons + 3 alternates for grenade launcher
-const qpic_t *hsb_weapons[7][5]; // 0 is active, 1 is owned, 2-5 are flashes
+/* MED 01/04/97 added two more weapons + 3 alternates for grenade launcher */
+const qpic_t *hsb_weapons[7][5]; /* 0 is active, 1 is owned, 2-5 are flashes */
 
-//MED 01/04/97 added array to simplify weapon parsing
+/* MED 01/04/97 added array to simplify weapon parsing */
 int hipweapons[4] = {
     HIT_LASER_CANNON_BIT,
     HIT_MJOLNIR_BIT,
@@ -74,7 +74,7 @@ int hipweapons[4] = {
     HIT_PROXIMITY_GUN_BIT
 };
 
-//MED 01/04/97 added hipnotic items array
+/* MED 01/04/97 added hipnotic items array */
 const qpic_t *hsb_items[2];
 
 void Sbar_MiniDeathmatchOverlay(void);
@@ -118,7 +118,7 @@ Sbar_Changed
 void
 Sbar_Changed(void)
 {
-    sb_updates = 0;		// update next frame
+    sb_updates = 0;		/* update next frame */
 }
 
 /*
@@ -212,7 +212,7 @@ Sbar_Init(void)
     sb_ibar = (qpic_t*)Draw_PicFromWad("ibar");
     sb_scorebar = (qpic_t*)Draw_PicFromWad("scorebar");
 
-//MED 01/04/97 added new hipnotic weapons
+/* MED 01/04/97 added new hipnotic weapons */
     if (hipnotic) {
 	hsb_weapons[0][0] = (qpic_t*)Draw_PicFromWad("inv_laser");
 	hsb_weapons[0][1] = (qpic_t*)Draw_PicFromWad("inv_mjolnir");
@@ -255,9 +255,9 @@ Sbar_Init(void)
 	rsb_items[0] = (qpic_t*)Draw_PicFromWad("r_shield1");
 	rsb_items[1] = (qpic_t*)Draw_PicFromWad("r_agrav1");
 
-// PGM 01/19/97 - team color border
+/* PGM 01/19/97 - team color border */
 	rsb_teambord = (qpic_t*)Draw_PicFromWad("r_teambord");
-// PGM 01/19/97 - team color border
+/* PGM 01/19/97 - team color border */
 
 	rsb_ammo[0] = (qpic_t*)Draw_PicFromWad("r_ammolava");
 	rsb_ammo[1] = (qpic_t*)Draw_PicFromWad("r_ammomulti");
@@ -266,9 +266,9 @@ Sbar_Init(void)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 
-// drawing routines are relative to the status bar location
+/* drawing routines are relative to the status bar location */
 
 /*
 =============
@@ -401,7 +401,7 @@ Sbar_DrawNum(int x, int y, int num, int digits, int color)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 int fragsort[MAX_SCOREBOARD];
 
@@ -421,7 +421,7 @@ Sbar_SortFrags(void)
 {
     int i, j, k;
 
-// sort by frags
+/* sort by frags */
     scoreboardlines = 0;
     for (i = 0; i < cl.maxclients; i++) {
 	if (cl.players[i].name[0]) {
@@ -445,7 +445,7 @@ Sbar_ColorForMap(int m)
 {
     m = qclamp(m, 0, 13) * 16;
 
-    //return m < 128 ? m + 8 : m + 8;
+    /* return m < 128 ? m + 8 : m + 8; */
     return m + 8;
 }
 
@@ -462,7 +462,7 @@ Sbar_UpdateScoreboard(void)
 
     Sbar_SortFrags();
 
-// draw the text
+/* draw the text */
     memset(scoreboardtext, 0, sizeof(scoreboardtext));
 
     for (i = 0; i < scoreboardlines; i++) {
@@ -497,7 +497,7 @@ Sbar_SoloScoreboard(void)
 	    cl.stats[STAT_TOTALSECRETS]);
     Sbar_DrawString(8, 12, str);
 
-// time
+/* time */
     minutes = cl.time / 60;
     seconds = cl.time - 60 * minutes;
     tens = seconds / 10;
@@ -505,7 +505,7 @@ Sbar_SoloScoreboard(void)
     sprintf(str, "Time :%3i:%i%i", minutes, tens, units);
     Sbar_DrawString(184, 4, str);
 
-// draw level name
+/* draw level name */
     l = strlen(cl.levelname);
     Sbar_DrawString(232 - l * 4, 12, cl.levelname);
 }
@@ -523,7 +523,7 @@ Sbar_DrawScoreboard(void)
 	Sbar_DeathmatchOverlay();
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ===============
@@ -547,7 +547,7 @@ Sbar_DrawInventory(void)
 	Sbar_DrawPic(0, -24, sb_ibar);
     }
 
-// weapons
+/* weapons */
     for (i = 0; i < 7; i++) {
 	if (cl.stats[STAT_ITEMS] & (IT_SHOTGUN << i)) {
 	    time = cl.item_gettime[i];
@@ -563,12 +563,12 @@ Sbar_DrawInventory(void)
 	    Sbar_DrawPic(i * 24, -16, sb_weapons[flashon][i]);
 
 	    if (flashon > 1)
-		sb_updates = 0;	// force update to remove flash
+		sb_updates = 0;	/* force update to remove flash */
 	}
     }
 
-// MED 01/04/97
-// hipnotic weapons
+/* MED 01/04/97 */
+/* hipnotic weapons */
     if (hipnotic) {
 	int grenadeflashing = 0;
 
@@ -584,7 +584,7 @@ Sbar_DrawInventory(void)
 		} else
 		    flashon = (flashon % 5) + 2;
 
-		// check grenade launcher
+		/* check grenade launcher */
 		if (i == 2) {
 		    if (cl.stats[STAT_ITEMS] & HIT_PROXIMITY_GUN) {
 			if (flashon) {
@@ -605,13 +605,13 @@ Sbar_DrawInventory(void)
 		    Sbar_DrawPic(176 + (i * 24), -16,
 				 hsb_weapons[flashon][i]);
 		if (flashon > 1)
-		    sb_updates = 0;	// force update to remove flash
+		    sb_updates = 0;	/* force update to remove flash */
 	    }
 	}
     }
 
     if (rogue) {
-	// check for powered up weapon.
+	/* check for powered up weapon. */
 	if (cl.stats[STAT_ACTIVEWEAPON] >= RIT_LAVA_NAILGUN) {
 	    for (i = 0; i < 5; i++) {
 		if (cl.stats[STAT_ACTIVEWEAPON] == (RIT_LAVA_NAILGUN << i)) {
@@ -620,7 +620,7 @@ Sbar_DrawInventory(void)
 	    }
 	}
     }
-// ammo counts
+/* ammo counts */
     for (i = 0; i < 4; i++) {
 	sprintf(num, "%3i", cl.stats[STAT_SHELLS + i]);
 	if (num[0] != ' ')
@@ -632,14 +632,14 @@ Sbar_DrawInventory(void)
     }
 
     flashon = 0;
-    // items
+    /* items */
     for (i = 0; i < 6; i++)
 	if (cl.stats[STAT_ITEMS] & (1 << (17 + i))) {
 	    time = cl.item_gettime[17 + i];
-	    if (time && time > cl.time - 2 && flashon) {	// flash frame
+	    if (time && time > cl.time - 2 && flashon) {	/* flash frame */
 		sb_updates = 0;
 	    } else {
-		//MED 01/04/97 changed keys
+		/* MED 01/04/97 changed keys */
 		if (!hipnotic || (i > 1)) {
 		    Sbar_DrawPic(192 + i * 16, -16, sb_items[i]);
 		}
@@ -647,13 +647,13 @@ Sbar_DrawInventory(void)
 	    if (time && time > cl.time - 2)
 		sb_updates = 0;
 	}
-    //MED 01/04/97 added hipnotic items
-    // hipnotic items
+    /* MED 01/04/97 added hipnotic items */
+    /* hipnotic items */
     if (hipnotic) {
 	for (i = 0; i < 2; i++)
 	    if (cl.stats[STAT_ITEMS] & (1 << (24 + i))) {
 		time = cl.item_gettime[24 + i];
-		if (time && time > cl.time - 2 && flashon) {	// flash frame
+		if (time && time > cl.time - 2 && flashon) {	/* flash frame */
 		    sb_updates = 0;
 		} else {
 		    Sbar_DrawPic(288 + i * 16, -16, hsb_items[i]);
@@ -664,12 +664,12 @@ Sbar_DrawInventory(void)
     }
 
     if (rogue) {
-	// new rogue items
+	/* new rogue items */
 	for (i = 0; i < 2; i++) {
 	    if (cl.stats[STAT_ITEMS] & (1 << (29 + i))) {
 		time = cl.item_gettime[29 + i];
 
-		if (time && time > cl.time - 2 && flashon) {	// flash frame
+		if (time && time > cl.time - 2 && flashon) {	/* flash frame */
 		    sb_updates = 0;
 		} else {
 		    Sbar_DrawPic(288 + i * 16, -16, rsb_items[i]);
@@ -680,11 +680,11 @@ Sbar_DrawInventory(void)
 	    }
 	}
     } else {
-	// sigils
+	/* sigils */
 	for (i = 0; i < 4; i++) {
 	    if (cl.stats[STAT_ITEMS] & (1 << (28 + i))) {
 		time = cl.item_gettime[28 + i];
-		if (time && time > cl.time - 2 && flashon) {	// flash frame
+		if (time && time > cl.time - 2 && flashon) {	/* flash frame */
 		    sb_updates = 0;
 		} else
 		    Sbar_DrawPic(320 - 32 + i * 8, -16, sb_sigil[i]);
@@ -695,7 +695,7 @@ Sbar_DrawInventory(void)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ===============
@@ -714,7 +714,7 @@ Sbar_DrawFrags(void)
 
     Sbar_SortFrags();
 
-// draw the text
+/* draw the text */
     l = scoreboardlines <= 4 ? scoreboardlines : 4;
 
     x = 23;
@@ -730,14 +730,14 @@ Sbar_DrawFrags(void)
 	if (!p->name[0])
 	    continue;
 
-	// draw background
+	/* draw background */
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(xofs + x * 8 + 10, y, 28, 4, top);
 	Draw_Fill(xofs + x * 8 + 10, y + 4, 28, 3, bottom);
 
-	// draw number
+	/* draw number */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
@@ -753,7 +753,7 @@ Sbar_DrawFrags(void)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 
 /*
@@ -766,8 +766,8 @@ Sbar_DrawFace(void)
 {
     int f, anim;
 
-// PGM 01/19/97 - team color drawing
-// PGM 03/02/97 - fixed so color swatch only appears in CTF modes
+/* PGM 01/19/97 - team color drawing */
+/* PGM 03/02/97 - fixed so color swatch only appears in CTF modes */
     if (rogue &&
 	(cl.maxclients != 1) &&
 	(teamplay.value > 3) && (teamplay.value < 7)) {
@@ -777,7 +777,7 @@ Sbar_DrawFace(void)
 	player_info_t *p;
 
 	p = &cl.players[cl.viewentity - 1];
-	// draw background
+	/* draw background */
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
@@ -790,7 +790,7 @@ Sbar_DrawFace(void)
 	Draw_Fill(xofs, vid.height - SBAR_HEIGHT + 3, 22, 9, top);
 	Draw_Fill(xofs, vid.height - SBAR_HEIGHT + 12, 22, 9, bottom);
 
-	// draw number
+	/* draw number */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
@@ -809,7 +809,7 @@ Sbar_DrawFace(void)
 
 	return;
     }
-// PGM 01/19/97 - team color drawing
+/* PGM 01/19/97 - team color drawing */
 
     if ((cl.stats[STAT_ITEMS] & (IT_INVISIBILITY | IT_INVULNERABILITY))
 	== (IT_INVISIBILITY | IT_INVULNERABILITY)) {
@@ -836,7 +836,7 @@ Sbar_DrawFace(void)
 
     if (cl.time <= cl.faceanimtime) {
 	anim = 1;
-	sb_updates = 0;		// make sure the anim gets drawn over
+	sb_updates = 0;		/* make sure the anim gets drawn over */
     } else
 	anim = 0;
     Sbar_DrawPic(112, 0, sb_faces[f][anim]);
@@ -851,7 +851,7 @@ void
 Sbar_Draw(void)
 {
     if (scr_con_current == vid.height)
-	return;			// console is full screen
+	return;			/* console is full screen */
 
     if (sb_updates >= vid.numpages)
 	return;
@@ -876,15 +876,15 @@ Sbar_Draw(void)
     } else if (sb_lines) {
 	Sbar_DrawPic(0, 0, sb_sbar);
 
-	// keys (hipnotic only)
-	//MED 01/04/97 moved keys here so they would not be overwritten
+	/* keys (hipnotic only) */
+	/* MED 01/04/97 moved keys here so they would not be overwritten */
 	if (hipnotic) {
 	    if (cl.stats[STAT_ITEMS] & IT_KEY1)
 		Sbar_DrawPic(209, 3, sb_items[0]);
 	    if (cl.stats[STAT_ITEMS] & IT_KEY2)
 		Sbar_DrawPic(209, 12, sb_items[1]);
 	}
-	// armor
+	/* armor */
 	if (cl.stats[STAT_ITEMS] & IT_INVULNERABILITY) {
 	    Sbar_DrawNum(24, 0, 666, 3, 1);
 	    Sbar_DrawPic(0, 0, draw_disc);
@@ -910,14 +910,14 @@ Sbar_Draw(void)
 	    }
 	}
 
-	// face
+	/* face */
 	Sbar_DrawFace();
 
-	// health
+	/* health */
 	Sbar_DrawNum(136, 0, cl.stats[STAT_HEALTH], 3,
 		     cl.stats[STAT_HEALTH] <= 25);
 
-	// ammo icon
+	/* ammo icon */
 	if (rogue) {
 	    if (cl.stats[STAT_ITEMS] & RIT_SHELLS)
 		Sbar_DrawPic(224, 0, sb_ammo[0]);
@@ -954,7 +954,7 @@ Sbar_Draw(void)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================
@@ -1010,10 +1010,10 @@ Sbar_DeathmatchOverlay(void)
     pic = Draw_CachePic("gfx/ranking.lmp");
     M_DrawPic((320 - pic->width) / 2, 8, pic);
 
-// scores
+/* scores */
     Sbar_SortFrags();
 
-// draw the text
+/* draw the text */
     l = scoreboardlines;
 
     x = 80 + ((vid.width - 320) >> 1);
@@ -1024,14 +1024,14 @@ Sbar_DeathmatchOverlay(void)
 	if (!p->name[0])
 	    continue;
 
-	// draw background
+	/* draw background */
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(x, y, 40, 4, top);
 	Draw_Fill(x, y + 4, 40, 4, bottom);
 
-	// draw number
+	/* draw number */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
@@ -1043,7 +1043,7 @@ Sbar_DeathmatchOverlay(void)
 	    Draw_Character(x - 8, y, 12);
 
 
-	// draw name
+	/* draw name */
 	Draw_String(x + 64, y, p->name);
 
 	y += 10;
@@ -1072,23 +1072,23 @@ Sbar_MiniDeathmatchOverlay(void)
     scr_copyeverything = 1;
     scr_fullupdate = 0;
 
-// scores
+/* scores */
     Sbar_SortFrags();
 
-// draw the text
+/* draw the text */
     y = vid.height - sb_lines;
     numlines = sb_lines / 8;
     if (numlines < 3)
 	return;
 
-    //find us
+    /* find us */
     for (i = 0; i < scoreboardlines; i++)
 	if (fragsort[i] == cl.viewentity - 1)
 	    break;
 
-    if (i == scoreboardlines)	// we're not there
+    if (i == scoreboardlines)	/* we're not there */
 	i = 0;
-    else			// figure out start
+    else			/* figure out start */
 	i = i - numlines / 2;
 
     if (i > scoreboardlines - numlines)
@@ -1103,14 +1103,14 @@ Sbar_MiniDeathmatchOverlay(void)
 	if (!p->name[0])
 	    continue;
 
-	// draw background
+	/* draw background */
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	Draw_Fill(x, y + 1, 40, 3, top);
 	Draw_Fill(x, y + 4, 40, 4, bottom);
 
-	// draw number
+	/* draw number */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
@@ -1123,7 +1123,7 @@ Sbar_MiniDeathmatchOverlay(void)
 	    Draw_Character(x + 32, y, 17);
 	}
 
-	// draw name
+	/* draw name */
 	Draw_String(x + 48, y, p->name);
 
 	y += 8;
@@ -1157,7 +1157,7 @@ Sbar_IntermissionOverlay(void)
     pic = Draw_CachePic("gfx/inter.lmp");
     Draw_TransPic(0, 56, pic);
 
-// time
+/* time */
     dig = cl.completed_time / 60;
     Sbar_IntermissionNumber(160, 64, dig, 3, 0);
     num = cl.completed_time - dig * 60;

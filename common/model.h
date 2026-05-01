@@ -89,7 +89,7 @@ m*_t structures are in-memory
 
 */
 
-// entity effects
+/* entity effects */
 #define EF_BRIGHTFIELD	1
 #define EF_MUZZLEFLASH 	2
 #define EF_BRIGHTLIGHT 	4
@@ -108,10 +108,10 @@ BRUSH MODELS
 */
 
 
-//
-// in memory representation
-//
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/**/
+/* in memory representation */
+/**/
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 typedef struct {
     vec3_t position;
 } mvertex_t;
@@ -119,11 +119,11 @@ typedef struct {
 typedef struct texture_s {
     char name[16];
     unsigned width, height;
-    int anim_total;		// total tenths in sequence ( 0 = no)
-    int anim_min, anim_max;	// time for this frame min <=time< max
-    struct texture_s *anim_next;	// in the animation sequence
-    struct texture_s *alternate_anims;	// bmodels in frmae 1 use these
-    unsigned offsets[MIPLEVELS];	// four mip maps stored
+    int anim_total;		/* total tenths in sequence ( 0 = no) */
+    int anim_min, anim_max;	/* time for this frame min <=time< max */
+    struct texture_s *anim_next;	/* in the animation sequence */
+    struct texture_s *alternate_anims;	/* bmodels in frmae 1 use these */
+    unsigned offsets[MIPLEVELS];	/* four mip maps stored */
 } texture_t;
 
 
@@ -134,7 +134,7 @@ typedef struct texture_s {
 #define SURF_DRAWTILED		(1 << 5)
 #define SURF_DRAWBACKGROUND	(1 << 6)
 
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 typedef struct {
     unsigned int v[2];
     unsigned int cachededgeoffset;
@@ -148,18 +148,18 @@ typedef struct {
 } mtexinfo_t;
 
 typedef struct msurface_s {
-    int visframe;	// should be drawn when node is crossed
-    int clipflags;	// flags for clipping against frustum
-    vec3_t mins;	// bounding box for frustum culling
+    int visframe;	/* should be drawn when node is crossed */
+    int clipflags;	/* flags for clipping against frustum */
+    vec3_t mins;	/* bounding box for frustum culling */
     vec3_t maxs;
 
     mplane_t *plane;
     int flags;
 
-    int firstedge;	// look up in model->surfedges[], negative numbers
-    int numedges;	// are backwards edges
+    int firstedge;	/* look up in model->surfedges[], negative numbers */
+    int numedges;	/* are backwards edges */
 
-    // surface generation data
+    /* surface generation data */
     struct surfcache_s *cachespots[MIPLEVELS];
 
     short texturemins[2];
@@ -167,26 +167,26 @@ typedef struct msurface_s {
 
     mtexinfo_t *texinfo;
 
-// lighting info
+/* lighting info */
     int dlightframe;
     unsigned dlightbits[(MAX_DLIGHTS + 31) >> 5]; /* qbism from MH - increase max_dlights */
 
     byte styles[MAXLIGHTMAPS];
-    byte *samples;		// [numstyles*surfsize]
+    byte *samples;		/* [numstyles*surfsize] */
 } msurface_t;
 
 typedef struct mnode_s {
-// common with leaf
-    int contents;		// 0, to differentiate from leafs
-    int visframe;		// node needs to be traversed if current
-    int clipflags;		// frustum plane clip flags
+/* common with leaf */
+    int contents;		/* 0, to differentiate from leafs */
+    int visframe;		/* node needs to be traversed if current */
+    int clipflags;		/* frustum plane clip flags */
 
-    vec3_t mins;		// for bounding box culling
+    vec3_t mins;		/* for bounding box culling */
     vec3_t maxs;
 
     struct mnode_s *parent;
 
-// node specific
+/* node specific */
     mplane_t *plane;
     struct mnode_s *children[2];
 
@@ -199,27 +199,27 @@ struct efrag_s;
 struct entity_s;
 
 typedef struct mleaf_s {
-// common with node
-    int contents;		// wil be a negative contents number
-    int visframe;		// node needs to be traversed if current
-    int clipflags;		// frustum plane clip flags
+/* common with node */
+    int contents;		/* wil be a negative contents number */
+    int visframe;		/* node needs to be traversed if current */
+    int clipflags;		/* frustum plane clip flags */
 
-    vec3_t mins;		// for bounding box culling
+    vec3_t mins;		/* for bounding box culling */
     vec3_t maxs;
 
     struct mnode_s *parent;
 
-// leaf specific
+/* leaf specific */
     byte *compressed_vis;
     struct efrag_s *efrags;
 
     msurface_t **firstmarksurface;
     int nummarksurfaces;
-    int key;			// BSP sequence number for leaf's contents
+    int key;			/* BSP sequence number for leaf's contents */
     byte ambient_sound_level[NUM_AMBIENTS];
 } mleaf_t;
 
-// !!! if this is changed, it must be changed in asm_i386.h too !!!
+/* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct {
     mclipnode_t *clipnodes;
     mplane_t *planes;
@@ -238,7 +238,7 @@ SPRITE MODELS
 */
 
 
-// FIXME: shorten these?
+/* FIXME: shorten these? */
 typedef struct mspriteframe_s {
     int width;
     int height;
@@ -274,7 +274,7 @@ typedef struct {
     int maxwidth;
     int maxheight;
     int numframes;
-    float beamlength;		// remove?
+    float beamlength;		/* remove? */
     mspriteframedesc_t frames[1];	/* variable sized */
 } msprite_t;
 
@@ -300,7 +300,7 @@ typedef struct {
     int numframes;
 } maliasskindesc_t;
 
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 typedef struct mtriangle_s {
     int facesfront;
     int vertindex[3];
@@ -321,8 +321,8 @@ typedef struct {
     float size;
     int numposes;
     int poseintervals;
-    int posedata;	// (numposes * numverts) trivertx_t
-    maliasframedesc_t frames[1];	// variable sized
+    int posedata;	/* (numposes * numverts) trivertx_t */
+    maliasframedesc_t frames[1];	/* variable sized */
 } aliashdr_t;
 
 
@@ -342,26 +342,26 @@ static INLINE sw_aliashdr_t *SW_Aliashdr(aliashdr_t *h)
 #define	MAXALIASFRAMES	512
 #define	MAXALIASTRIS	4096
 
-//===================================================================
+/* =================================================================== */
 
-//
-// Whole model
-//
+/**/
+/* Whole model */
+/**/
 
 typedef enum { mod_brush, mod_sprite, mod_alias, ENSURE_INT_MODTYPE = 0x70000000 } modtype_t;
 
-#define	EF_ROCKET	1	// leave a trail
-#define	EF_GRENADE	2	// leave a trail
-#define	EF_GIB		4	// leave a trail
-#define	EF_ROTATE	8	// rotate (bonus items)
-#define	EF_TRACER	16	// green split trail
-#define	EF_ZOMGIB	32	// small blood trail
-#define	EF_TRACER2	64	// orange split trail + rotate
-#define	EF_TRACER3	128	// purple trail
+#define	EF_ROCKET	1	/* leave a trail */
+#define	EF_GRENADE	2	/* leave a trail */
+#define	EF_GIB		4	/* leave a trail */
+#define	EF_ROTATE	8	/* rotate (bonus items) */
+#define	EF_TRACER	16	/* green split trail */
+#define	EF_ZOMGIB	32	/* small blood trail */
+#define	EF_TRACER2	64	/* orange split trail + rotate */
+#define	EF_TRACER3	128	/* purple trail */
 
 typedef struct model_s {
     char name[MAX_QPATH];
-    qboolean needload;		// bmodels and sprites don't cache normally
+    qboolean needload;		/* bmodels and sprites don't cache normally */
 
     modtype_t type;
     int numframes;
@@ -369,15 +369,15 @@ typedef struct model_s {
 
     int flags;
 
-//
-// volume occupied by the model graphics
-//
+/**/
+/* volume occupied by the model graphics */
+/**/
     vec3_t mins, maxs;
     float radius;
 
-//
-// brush model
-//
+/**/
+/* brush model */
+/**/
     int firstmodelsurface, nummodelsurfaces;
 
     int numsubmodels;
@@ -386,7 +386,7 @@ typedef struct model_s {
     int numplanes;
     mplane_t *planes;
 
-    int numleafs;		// number of visible leafs, not counting 0
+    int numleafs;		/* number of visible leafs, not counting 0 */
     mleaf_t *leafs;
 
     int numvertexes;
@@ -423,14 +423,14 @@ typedef struct model_s {
     char *entities;
 
 #ifdef QW_HACK
-    unsigned checksum;		// for world models only
-    unsigned checksum2;		// for world models only
+    unsigned checksum;		/* for world models only */
+    unsigned checksum2;		/* for world models only */
 #endif
 
-//
-// additional model data
-//
-    cache_user_t cache;		// only access through Mod_Extradata
+/**/
+/* additional model data */
+/**/
+    cache_user_t cache;		/* only access through Mod_Extradata */
 
 } model_t;
 
@@ -441,12 +441,12 @@ typedef struct model_loader {
 			 const stvert_t *, const trivertx_t **);
 } model_loader_t;
 
-//============================================================================
+/* ============================================================================ */
 
 void Mod_Init(const model_loader_t *loader);
 void Mod_ClearAll(void);
 model_t *Mod_ForName(const char *name, qboolean crash);
-void *Mod_Extradata(model_t *mod);	// handles caching
+void *Mod_Extradata(model_t *mod);	/* handles caching */
 void Mod_TouchModel(char *name);
 void Mod_Print(void);
 
@@ -530,7 +530,7 @@ void Mod_AddLeafBits(leafbits_t *dst, const leafbits_t *src);
 int Mod_CountLeafBits(const leafbits_t *leafbits);
 #endif
 
-// FIXME - surely this doesn't belong here?
+/* FIXME - surely this doesn't belong here? */
 texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);
 
 void Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod,

@@ -29,8 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct {
     union {
-	byte b[4];
 	uint32_t l;
+	byte b[4];
     } ip;
     unsigned short port;
     unsigned short pad;
@@ -42,7 +42,7 @@ typedef struct {
 #define NET_HEADERSIZE		(2 * sizeof(unsigned int))
 #define NET_MESSAGESIZE		(NET_MAXMESSAGE + NET_HEADERSIZE)
 
-// NetHeader flags
+/* NetHeader flags */
 #define NETFLAG_LENGTH_MASK	0x0000ffff
 #define NETFLAG_DATA		0x00010000
 #define NETFLAG_ACK		0x00020000

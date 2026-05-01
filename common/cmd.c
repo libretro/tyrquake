@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cmd.c -- Quake script command processing module
+/* cmd.c -- Quake script command processing module */
 
 #include <string.h>
 
@@ -55,7 +55,7 @@ static qboolean cmd_wait;
 
 cvar_t cl_warncmd = { "cl_warncmd", "0" };
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ============
@@ -254,11 +254,11 @@ Cmd_StuffCmds_f(void)
 	Con_Printf("stuffcmds : execute command line parameters\n");
 	return;
     }
-// build the combined string to parse from
+/* build the combined string to parse from */
     s = 0;
     for (i = 1; i < com_argc; i++) {
 	if (!com_argv[i])
-	    continue;		// NEXTSTEP nulls out -NXHost
+	    continue;		/* NEXTSTEP nulls out -NXHost */
 	s += strlen(com_argv[i]) + 1;
     }
     if (!s)
@@ -268,13 +268,13 @@ Cmd_StuffCmds_f(void)
     text[0] = 0;
     for (i = 1; i < com_argc; i++) {
 	if (!com_argv[i])
-	    continue;		// NEXTSTEP nulls out -NXHost
+	    continue;		/* NEXTSTEP nulls out -NXHost */
 	strcat(text, com_argv[i]);
 	if (i != com_argc - 1)
 	    strcat(text, " ");
     }
 
-// pull out the commands
+/* pull out the commands */
     build = (char*)Z_Malloc(s + 1);
     build[0] = 0;
 
@@ -318,7 +318,7 @@ Cmd_Exec_f(void)
 	Con_Printf("exec <filename> : execute a script file\n");
 	return;
     }
-    // FIXME: is this safe freeing the hunk here???
+    /* FIXME: is this safe freeing the hunk here??? */
     mark = Hunk_LowMark();
     f = (char*)COM_LoadHunkFile(Cmd_Argv(1));
     if (!f) {
@@ -397,7 +397,7 @@ Cmd_Alias_f(void)
 	return;
     }
 
-    // if the alias already exists, reuse it
+    /* if the alias already exists, reuse it */
     a = Cmd_Alias_Find(s);
     if (a)
 	Z_Free(a->value);
@@ -409,8 +409,8 @@ Cmd_Alias_f(void)
 	STree_Insert(&cmdalias_tree, &a->stree);
     }
 
-// copy the rest of the command line
-    cmd[0] = 0;			// start out with a null string
+/* copy the rest of the command line */
+    cmd[0] = 0;			/* start out with a null string */
     c = Cmd_Argc();
     cmd_len = 1;
     for (i = 2; i < c; i++) {
@@ -419,7 +419,7 @@ Cmd_Alias_f(void)
 		cmd_len++;
 	if (cmd_len >= sizeof(cmd)) {
 	    Con_Printf("Alias value is too long\n");
-	    cmd[0] = 0;	// nullify the string
+	    cmd[0] = 0;	/* nullify the string */
 	    break;
 	}
 	strcat(cmd, Cmd_Argv(i));
@@ -469,9 +469,9 @@ Cmd_Init
 void
 Cmd_Init(void)
 {
-//
-// register our commands
-//
+/**/
+/* register our commands */
+/**/
     Cmd_AddCommand("stuffcmds", Cmd_StuffCmds_f);
     Cmd_AddCommand("exec", Cmd_Exec_f);
     Cmd_AddCommand("echo", Cmd_Echo_f);
@@ -518,7 +518,7 @@ Returns a single string containing argv(1) to argv(argc()-1)
 const char *
 Cmd_Args(void)
 {
-    // FIXME - check necessary?
+    /* FIXME - check necessary? */
     if (!cmd_args)
 	return "";
     return cmd_args;
@@ -538,7 +538,7 @@ Cmd_TokenizeString(const char *text)
     int i;
     char *arg;
 
-// clear the args from the last string
+/* clear the args from the last string */
     for (i = 0; i < cmd_argc; i++)
 	Z_Free(cmd_argv[i]);
 
@@ -546,12 +546,12 @@ Cmd_TokenizeString(const char *text)
     cmd_args = NULL;
 
     while (1) {
-// skip whitespace up to a /n
+/* skip whitespace up to a /n */
 	while (*text && *text <= ' ' && *text != '\n') {
 	    text++;
 	}
 
-	if (*text == '\n') {	// a newline seperates commands in the buffer
+	if (*text == '\n') {	/* a newline seperates commands in the buffer */
 	    text++;
 	    break;
 	}
@@ -598,15 +598,15 @@ Cmd_AddCommand(const char *cmd_name, xcommand_t function)
 {
     cmd_function_t *cmd;
 
-    if (host_initialized)	// because hunk allocation would get stomped
+    if (host_initialized)	/* because hunk allocation would get stomped */
 	Sys_Error("%s: called after host_initialized", __func__);
 
-// fail if the command is a variable name
+/* fail if the command is a variable name */
     if (Cvar_VariableString(cmd_name)[0]) {
 	Con_Printf("%s: %s already defined as a var\n", __func__, cmd_name);
 	return;
     }
-// fail if the command already exists
+/* fail if the command already exists */
     cmd = Cmd_FindCommand(cmd_name);
     if (cmd) {
 	Con_Printf("%s: %s already defined\n", __func__, cmd_name);
@@ -668,7 +668,7 @@ Cmd_ForwardToServer(void)
     }
 
     if (cls.demoplayback)
-	return;			// not really connected
+	return;			/* not really connected */
 
     MSG_WriteByte(&cls.message, clc_stringcmd);
     if (strcasecmp(Cmd_Argv(0), "cmd") != 0) {
@@ -701,7 +701,7 @@ Cmd_ForwardToServer(void)
     }
 
     if (cls.demoplayback)
-	return;			// not really connected
+	return;			/* not really connected */
 
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Print(&cls.netchan.message, Cmd_Argv(0));
@@ -711,7 +711,7 @@ Cmd_ForwardToServer(void)
     }
 }
 
-// don't forward the first argument
+/* don't forward the first argument */
 static void
 Cmd_ForwardToServer_f(void)
 {
@@ -726,7 +726,7 @@ Cmd_ForwardToServer_f(void)
     }
 
     if (cls.demoplayback)
-	return;			// not really connected
+	return;			/* not really connected */
 
     if (Cmd_Argc() > 1) {
 	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -765,11 +765,11 @@ Cmd_ExecuteString(const char *text)
 #endif
     Cmd_TokenizeString(text);
 
-// execute the command line
+/* execute the command line */
     if (!Cmd_Argc())
-	return;			// no tokens
+	return;			/* no tokens */
 
-// check functions
+/* check functions */
     cmd = Cmd_FindCommand(cmd_argv[0]);
     if (cmd) {
 	if (cmd->function)
@@ -781,14 +781,14 @@ Cmd_ExecuteString(const char *text)
 	return;
     }
 
-// check alias
+/* check alias */
     a = Cmd_Alias_Find(cmd_argv[0]);
     if (a) {
 	Cbuf_InsertText(a->value);
 	return;
     }
 
-// check cvars
+/* check cvars */
     if (!Cvar_Command() && (cl_warncmd.value || developer.value))
 	Con_Printf("Unknown command \"%s\"\n", Cmd_Argv(0));
 }
@@ -862,7 +862,7 @@ struct stree_root *Cmd_CommandCompletions(const char *buf)
     root_tree->entries = 0;
     root_tree->maxlen = 0;
     root_tree->minlen = -1;
-    //root_tree->root = {NULL};
+    /* root_tree->root = {NULL}; */
     root_tree->stack = NULL;
 
     STree_AllocInit();

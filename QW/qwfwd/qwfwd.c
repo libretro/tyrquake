@@ -61,13 +61,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #endif
 
-int host_port;			// port we are listening on
+int host_port;			/* port we are listening on */
 
 typedef struct peer {
     time_t last;
     struct sockaddr_in sin;
     struct sockaddr_in dest;
-    int s;			// connected socket to remote
+    int s;			/* connected socket to remote */
     struct peer *next;
 } peer_t;
 
@@ -84,10 +84,10 @@ NET_Init(void)
 #ifdef _WIN32
     static WSADATA winsockdata;
 
-//    WORD    wVersionRequested;
+/*    WORD    wVersionRequested; */
     int r;
 
-//    wVersionRequested = MAKEWORD(1, 1);
+/*    wVersionRequested = MAKEWORD(1, 1); */
 
     r = WSAStartup(MAKEWORD(2, 1), &winsockdata);
 
@@ -222,7 +222,7 @@ main(int argc, char *argv[])
 			    time(&p->last);
 			    break;
 			}
-		    if (p == NULL) {	// new peer
+		    if (p == NULL) {	/* new peer */
 			printf("peer %s:%d added", inet_ntoa(fsin.sin_addr),
 			       (int)ntohs(fsin.sin_port));
 			p = malloc(sizeof *p);

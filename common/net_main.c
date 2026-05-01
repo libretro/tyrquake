@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <winsock2.h>
 #endif
 #elif defined(MSB_FIRST)
-// Is already big-endian
+/* Is already big-endian */
 #ifndef htons
 #define htons(x) (x)
 #define ntohs(x) (x)

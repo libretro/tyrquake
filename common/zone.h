@@ -87,10 +87,10 @@ Zone block
 void Memory_Init(void *buf, int size);
 
 void Z_Free(const void *ptr);
-void *Z_Malloc(int size);	// returns 0 filled memory
+void *Z_Malloc(int size);	/* returns 0 filled memory */
 void *Z_Realloc(const void *ptr, int size);
 
-void *Hunk_Alloc(int size);	// returns 0 filled memory
+void *Hunk_Alloc(int size);	/* returns 0 filled memory */
 
 void *Hunk_HighAlloc(int size);
 

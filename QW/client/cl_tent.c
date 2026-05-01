@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl_tent.c -- client side temporary entities
+/* cl_tent.c -- client side temporary entities */
 
 #include "client.h"
 #include "console.h"
@@ -101,7 +101,7 @@ CL_AllocExplosion(void)
     for (i = 0; i < MAX_EXPLOSIONS; i++)
 	if (!cl_explosions[i].model)
 	    return &cl_explosions[i];
-// find the oldest explosion
+/* find the oldest explosion */
     time = cl.time;
     index = 0;
 
@@ -136,7 +136,7 @@ CL_ParseBeam(model_t *m)
     end[1] = MSG_ReadCoord();
     end[2] = MSG_ReadCoord();
 
-// override any beam with the same entity
+/* override any beam with the same entity */
     for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
 	if (b->entity == ent) {
 	    b->entity = ent;
@@ -146,7 +146,7 @@ CL_ParseBeam(model_t *m)
 	    VectorCopy(end, b->end);
 	    return;
 	}
-// find a free beam
+/* find a free beam */
     for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++) {
 	if (!b->model || b->endtime < cl.time) {
 	    b->entity = ent;
@@ -177,7 +177,7 @@ CL_ParseTEnt(void)
 
     type = MSG_ReadByte();
     switch (type) {
-    case TE_WIZSPIKE:		// spike hitting wall
+    case TE_WIZSPIKE:		/* spike hitting wall */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
@@ -185,7 +185,7 @@ CL_ParseTEnt(void)
 	S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
 	break;
 
-    case TE_KNIGHTSPIKE:	// spike hitting wall
+    case TE_KNIGHTSPIKE:	/* spike hitting wall */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
@@ -193,7 +193,7 @@ CL_ParseTEnt(void)
 	S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
 	break;
 
-    case TE_SPIKE:		// spike hitting wall
+    case TE_SPIKE:		/* spike hitting wall */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
@@ -211,7 +211,7 @@ CL_ParseTEnt(void)
 		S_StartSound(-1, 0, cl_sfx_ric3, pos, 1, 1);
 	}
 	break;
-    case TE_SUPERSPIKE:	// super spike hitting wall
+    case TE_SUPERSPIKE:	/* super spike hitting wall */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
@@ -230,14 +230,14 @@ CL_ParseTEnt(void)
 	}
 	break;
 
-    case TE_EXPLOSION:		// rocket explosion
-	// particles
+    case TE_EXPLOSION:		/* rocket explosion */
+	/* particles */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
 	R_ParticleExplosion(pos);
 
-	// light
+	/* light */
 	dl = CL_AllocDlight(0);
 	VectorCopy(pos, dl->origin);
 	dl->radius = 350;
@@ -245,17 +245,17 @@ CL_ParseTEnt(void)
 	dl->decay = 300;
 	dl->color = dl_colors[DLIGHT_FLASH];
 
-	// sound
+	/* sound */
 	S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 
-	// sprite
+	/* sprite */
 	ex = CL_AllocExplosion();
 	VectorCopy(pos, ex->origin);
 	ex->start = cl.time;
 	ex->model = Mod_ForName("progs/s_explod.spr", true);
 	break;
 
-    case TE_TAREXPLOSION:	// tarbaby explosion
+    case TE_TAREXPLOSION:	/* tarbaby explosion */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
@@ -264,15 +264,15 @@ CL_ParseTEnt(void)
 	S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 	break;
 
-    case TE_LIGHTNING1:	// lightning bolts
+    case TE_LIGHTNING1:	/* lightning bolts */
 	CL_ParseBeam(Mod_ForName("progs/bolt.mdl", true));
 	break;
 
-    case TE_LIGHTNING2:	// lightning bolts
+    case TE_LIGHTNING2:	/* lightning bolts */
 	CL_ParseBeam(Mod_ForName("progs/bolt2.mdl", true));
 	break;
 
-    case TE_LIGHTNING3:	// lightning bolts
+    case TE_LIGHTNING3:	/* lightning bolts */
 	CL_ParseBeam(Mod_ForName("progs/bolt3.mdl", true));
 	break;
 
@@ -290,7 +290,7 @@ CL_ParseTEnt(void)
 	R_TeleportSplash(pos);
 	break;
 
-    case TE_GUNSHOT:		// bullet hitting wall
+    case TE_GUNSHOT:		/* bullet hitting wall */
 	cnt = MSG_ReadByte();
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
@@ -298,7 +298,7 @@ CL_ParseTEnt(void)
 	R_RunParticleEffect(pos, vec3_origin, 0, 20 * cnt);
 	break;
 
-    case TE_BLOOD:		// bullets hitting body
+    case TE_BLOOD:		/* bullets hitting body */
 	cnt = MSG_ReadByte();
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
@@ -306,7 +306,7 @@ CL_ParseTEnt(void)
 	R_RunParticleEffect(pos, vec3_origin, 73, 20 * cnt);
 	break;
 
-    case TE_LIGHTNINGBLOOD:	// lightning hitting body
+    case TE_LIGHTNINGBLOOD:	/* lightning hitting body */
 	pos[0] = MSG_ReadCoord();
 	pos[1] = MSG_ReadCoord();
 	pos[2] = MSG_ReadCoord();
@@ -358,18 +358,18 @@ CL_UpdateBeams(void)
     float yaw, pitch;
     float forward;
 
-// update lightning
+/* update lightning */
     for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++) {
 	if (!b->model || b->endtime < cl.time)
 	    continue;
 
-	// if coming from the player, update the start position
-	if (b->entity == cl.playernum + 1)	// entity 0 is the world
+	/* if coming from the player, update the start position */
+	if (b->entity == cl.playernum + 1)	/* entity 0 is the world */
 	{
 	    VectorCopy(cl.simorg, b->start);
-//                      b->start[2] -= 22;      // adjust for view height
+/*                      b->start[2] -= 22;      // adjust for view height */
 	}
-	// calculate pitch and yaw
+	/* calculate pitch and yaw */
 	VectorSubtract(b->end, b->start, dist);
 
 	if (dist[1] == 0 && dist[0] == 0) {
@@ -389,7 +389,7 @@ CL_UpdateBeams(void)
 		pitch += 360;
 	}
 
-	// add new entities for the lightning
+	/* add new entities for the lightning */
 	VectorCopy(b->start, org);
 	d = VectorNormalize(dist);
 	while (d > 0) {

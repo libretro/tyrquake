@@ -23,9 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "wad.h"
 
-//
-// menus
-//
+/**/
+/* menus */
+/**/
 void M_Init(void);
 void M_Keydown(int key);
 void M_Draw(void);

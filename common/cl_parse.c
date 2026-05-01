@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl_parse.c  -- parse a message received from the server
+/* cl_parse.c  -- parse a message received from the server */
 
 #include "cdaudio.h"
 #include "client.h"
@@ -40,33 +40,33 @@ static const char *svc_strings[] = {
     "svc_nop",
     "svc_disconnect",
     "svc_updatestat",
-    "svc_version",		// [long] server version
-    "svc_setview",		// [short] entity number
-    "svc_sound",		// <see code>
-    "svc_time",			// [float] server time
-    "svc_print",		// [string] null terminated string
-    "svc_stufftext",		// [string] stuffed into client's console buffer
-    // the string should be \n terminated
-    "svc_setangle",		// [vec3] set the view angle to this absolute value
+    "svc_version",		/* [long] server version */
+    "svc_setview",		/* [short] entity number */
+    "svc_sound",		/* <see code> */
+    "svc_time",			/* [float] server time */
+    "svc_print",		/* [string] null terminated string */
+    "svc_stufftext",		/* [string] stuffed into client's console buffer */
+    /* the string should be \n terminated */
+    "svc_setangle",		/* [vec3] set the view angle to this absolute value */
 
-    "svc_serverinfo",		// [long] version
-    // [string] signon string
-    // [string]..[0]model cache [string]...[0]sounds cache
-    // [string]..[0]item cache
-    "svc_lightstyle",		// [byte] [string]
-    "svc_updatename",		// [byte] [string]
-    "svc_updatefrags",		// [byte] [short]
-    "svc_clientdata",		// <shortbits + data>
-    "svc_stopsound",		// <see code>
-    "svc_updatecolors",		// [byte] [byte]
-    "svc_particle",		// [vec3] <variable>
-    "svc_damage",		// [byte] impact [byte] blood [vec3] from
+    "svc_serverinfo",		/* [long] version */
+    /* [string] signon string */
+    /* [string]..[0]model cache [string]...[0]sounds cache */
+    /* [string]..[0]item cache */
+    "svc_lightstyle",		/* [byte] [string] */
+    "svc_updatename",		/* [byte] [string] */
+    "svc_updatefrags",		/* [byte] [short] */
+    "svc_clientdata",		/* <shortbits + data> */
+    "svc_stopsound",		/* <see code> */
+    "svc_updatecolors",		/* [byte] [byte] */
+    "svc_particle",		/* [vec3] <variable> */
+    "svc_damage",		/* [byte] impact [byte] blood [vec3] from */
 
     "svc_spawnstatic",
     "OBSOLETE svc_spawnbinary",
     "svc_spawnbaseline",
 
-    "svc_temp_entity",		// <variable>
+    "svc_temp_entity",		/* <variable> */
     "svc_setpause",
     "svc_signonnum",
     "svc_centerprint",
@@ -74,28 +74,28 @@ static const char *svc_strings[] = {
     "svc_foundsecret",
     "svc_spawnstaticsound",
     "svc_intermission",
-    "svc_finale",		// [string] music [string] text
-    "svc_cdtrack",		// [byte] track [byte] looptrack
+    "svc_finale",		/* [string] music [string] text */
+    "svc_cdtrack",		/* [byte] track [byte] looptrack */
     "svc_sellscreen",
     "svc_cutscene",
-    "",				// 35
-    "",				// 36
+    "",				/* 35 */
+    "",				/* 36 */
     "svc_fitz_skybox",
-    "",				// 38
-    "",				// 39
+    "",				/* 38 */
+    "",				/* 39 */
     "svc_fitz_bf",
     "svc_fitz_fog",
     "svc_fitz_spawnbaseline2",
     "svc_fitz_spawnstatic2",
     "svc_fitz_spawnstaticsound2",
-    "",				// 45
-    "",				// 46
-    "",				// 47
-    "",				// 48
-    "",				// 49
+    "",				/* 45 */
+    "",				/* 46 */
+    "",				/* 47 */
+    "",				/* 48 */
+    "",				/* 49 */
 };
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ===============
@@ -210,11 +210,11 @@ CL_KeepaliveMessage(void)
     byte olddata[8192];
 
     if (sv.active)
-	return;			// no need if server is local
+	return;			/* no need if server is local */
     if (cls.demoplayback)
 	return;
 
-// read messages from server, should just be nops
+/* read messages from server, should just be nops */
     old = net_message;
     memcpy(olddata, net_message.data, net_message.cursize);
 
@@ -222,7 +222,7 @@ CL_KeepaliveMessage(void)
 	ret = CL_GetMessage();
 	switch (ret) {
 	case 0:
-	    break;		// nothing waiting
+	    break;		/* nothing waiting */
 	case 1:
 	    Host_Error("%s: received a message", __func__);
 	case 2:
@@ -237,13 +237,13 @@ CL_KeepaliveMessage(void)
     net_message = old;
     memcpy(net_message.data, olddata, net_message.cursize);
 
-// check time
+/* check time */
     time = Sys_DoubleTime();
     if (time - lastmsg < 5)
 	return;
     lastmsg = time;
 
-// write out a nop
+/* write out a nop */
     Con_Printf("--> client to server keepalive\n");
 
     MSG_WriteByte(&cls.message, clc_nop);
@@ -307,9 +307,9 @@ CL_ParseServerInfo(void)
     Con_Printf("%c%s\n", 2, level);
     Con_Printf("Using protocol %i\n", cl.protocol);
 
-    // first we go through and touch all of the precache data that still
-    // happens to be in the cache, so precaching something else doesn't
-    // needlessly purge it
+    /* first we go through and touch all of the precache data that still */
+    /* happens to be in the cache, so precaching something else doesn't */
+    /* needlessly purge it */
 
     /* precache models */
     memset(cl.model_precache, 0, sizeof(cl.model_precache));
@@ -459,7 +459,7 @@ CL_ParseUpdate(unsigned int bits)
    int num;
 
    if (cls.state == ca_firstupdate) {
-      // first update is the final signon stage
+      /* first update is the final signon stage */
       cls.signon = SIGNONS;
       CL_SignonReply();
    }
@@ -484,7 +484,7 @@ CL_ParseUpdate(unsigned int bits)
    ent = CL_EntityNum(num);
 
    if (ent->msgtime != cl.mtime[1])
-      forcelink = true;	// no previous frame to lerp from
+      forcelink = true;	/* no previous frame to lerp from */
    else
       forcelink = false;
 
@@ -534,7 +534,7 @@ CL_ParseUpdate(unsigned int bits)
    else
       ent->effects = ent->baseline.effects;
 
-   // shift the known values for interpolation
+   /* shift the known values for interpolation */
    VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
    VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
 
@@ -567,32 +567,32 @@ CL_ParseUpdate(unsigned int bits)
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
       if (bits & U_NOLERP) {
-         // FIXME - TODO (called U_STEP in FQ)
+         /* FIXME - TODO (called U_STEP in FQ) */
       }
       if (bits & U_FITZ_ALPHA) {
-         MSG_ReadByte(); // FIXME - TODO
+         MSG_ReadByte(); /* FIXME - TODO */
       }
       if (bits & U_FITZ_FRAME2)
          ent->frame = (ent->frame & 0xFF) | (MSG_ReadByte() << 8);
       if (bits & U_FITZ_MODEL2)
          modnum = (modnum & 0xFF)| (MSG_ReadByte() << 8);
       if (bits & U_FITZ_LERPFINISH) {
-         MSG_ReadByte(); // FIXME - TODO
+         MSG_ReadByte(); /* FIXME - TODO */
       }
    }
 
    model = cl.model_precache[modnum];
    if (model != ent->model) {
       ent->model = model;
-      // automatic animation (torches, etc) can be either all together
-      // or randomized
+      /* automatic animation (torches, etc) can be either all together */
+      /* or randomized */
       if (model) {
          if (model->synctype == ST_RAND)
             ent->syncbase = (float)(rand() & 0x7fff) / 0x7fff;
          else
             ent->syncbase = 0.0;
       } else
-         forcelink = true;	// hack to make null model players work
+         forcelink = true;	/* hack to make null model players work */
    }
 
    /* MOVEMENT LERP INFO - could I just extend baseline instead? */
@@ -622,7 +622,7 @@ CL_ParseUpdate(unsigned int bits)
    if (bits & U_NOLERP)
       ent->forcelink = true;
 
-   if (forcelink) {		// didn't have an update last message
+   if (forcelink) {		/* didn't have an update last message */
       VectorCopy(ent->msg_origins[0], ent->msg_origins[1]);
       VectorCopy(ent->msg_origins[0], ent->origin);
       VectorCopy(ent->msg_angles[0], ent->msg_angles[1]);
@@ -652,7 +652,7 @@ CL_ParseBaseline(entity_t *ent, unsigned int bits)
    }
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ && (bits & B_FITZ_ALPHA))
-      MSG_ReadByte(); // FIXME - TODO
+      MSG_ReadByte(); /* FIXME - TODO */
 }
 
 
@@ -697,10 +697,10 @@ CL_ParseClientdata(void)
 	    cl.mvelocity[0][i] = 0;
     }
 
-// [always sent]        if (bits & SU_ITEMS)
+/* [always sent]        if (bits & SU_ITEMS) */
     i = MSG_ReadLong();
 
-    if (cl.stats[STAT_ITEMS] != i) {	// set flash times
+    if (cl.stats[STAT_ITEMS] != i) {	/* set flash times */
 	Sbar_Changed();
 	for (j = 0; j < 32; j++)
 	    if ((i & (1 << j)) && !(cl.stats[STAT_ITEMS] & (1 << j)))
@@ -786,7 +786,7 @@ CL_ParseClientdata(void)
     if (bits & SU_FITZ_WEAPONFRAME2)
 	cl.stats[STAT_WEAPONFRAME] |= MSG_ReadByte() << 8;
     if (bits & SU_FITZ_WEAPONALPHA)
-	MSG_ReadByte(); // FIXME - TODO
+	MSG_ReadByte(); /* FIXME - TODO */
 }
 
 /*
@@ -810,7 +810,7 @@ CL_NewTranslation(int slot)
    bottom = cl.players[slot].bottomcolor;
 
    for (i = 0; i < VID_GRADES; i++, dest += 256, source += 256) {
-      if (top < 128)		// the artists made some backwards ranges.  sigh.
+      if (top < 128)		/* the artists made some backwards ranges.  sigh. */
          memcpy(dest + TOP_RANGE, source + top, 16);
       else
          for (j = 0; j < 16; j++)
@@ -842,7 +842,7 @@ CL_ParseStatic(unsigned int bits)
     cl.num_statics++;
     CL_ParseBaseline(ent, bits);
 
-// copy it to the current state
+/* copy it to the current state */
     ent->model = cl.model_precache[ent->baseline.modelindex];
     ent->frame = ent->baseline.frame;
     ent->colormap = vid.colormap;
@@ -949,16 +949,16 @@ CL_ParseServerMessage(void)
    unsigned int bits;
    byte colors;
 
-   //
-   // if recording demos, copy the message out
-   //
+   /**/
+   /* if recording demos, copy the message out */
+   /**/
    if (cl_shownet.value == 1)
       Con_Printf("%i ", net_message.cursize);
    else if (cl_shownet.value == 2)
       Con_Printf("------------------\n");
 
-   cl.onground = false;	// unless the server says otherwise
-   // parse the message
+   cl.onground = false;	/* unless the server says otherwise */
+   /* parse the message */
    MSG_BeginReading();
 
    while (1)
@@ -972,9 +972,9 @@ CL_ParseServerMessage(void)
 
       if (cmd == -1) {
          SHOWNET("END OF MESSAGE");
-         return;		// end of message
+         return;		/* end of message */
       }
-      // if the high bit of the command byte is set, it is a fast update
+      /* if the high bit of the command byte is set, it is a fast update */
       if (cmd & 128) {
          SHOWNET("fast update");
          CL_ParseUpdate(cmd & 127);
@@ -983,7 +983,7 @@ CL_ParseServerMessage(void)
 
       SHOWNET(svc_strings[cmd]);
 
-      // other commands
+      /* other commands */
       switch (cmd) {
          case svc_nop:
             break;
@@ -1026,7 +1026,7 @@ CL_ParseServerMessage(void)
 
          case svc_serverinfo:
             CL_ParseServerInfo();
-            vid.recalc_refdef = true;	// leave intermission full screen
+            vid.recalc_refdef = true;	/* leave intermission full screen */
             break;
 
          case svc_setangle:
@@ -1090,7 +1090,7 @@ CL_ParseServerMessage(void)
 
          case svc_spawnbaseline:
             i = MSG_ReadShort();
-            // must use CL_EntityNum() to force cl.num_entities up
+            /* must use CL_EntityNum() to force cl.num_entities up */
             CL_ParseBaseline(CL_EntityNum(i), 0);
             break;
 
@@ -1098,7 +1098,7 @@ CL_ParseServerMessage(void)
             /* FIXME - check here that protocol is FITZ? => Host_Error() */
             i = MSG_ReadShort();
             bits = MSG_ReadByte();
-            // must use CL_EntityNum() to force cl.num_entities up
+            /* must use CL_EntityNum() to force cl.num_entities up */
             CL_ParseBaseline(CL_EntityNum(i), bits);
             break;
 
@@ -1174,20 +1174,20 @@ CL_ParseServerMessage(void)
          case svc_intermission:
             cl.intermission = 1;
             cl.completed_time = cl.time;
-            vid.recalc_refdef = true;	// go to full screen
+            vid.recalc_refdef = true;	/* go to full screen */
             break;
 
          case svc_finale:
             cl.intermission = 2;
             cl.completed_time = cl.time;
-            vid.recalc_refdef = true;	// go to full screen
+            vid.recalc_refdef = true;	/* go to full screen */
             SCR_CenterPrint(MSG_ReadString());
             break;
 
          case svc_cutscene:
             cl.intermission = 3;
             cl.completed_time = cl.time;
-            vid.recalc_refdef = true;	// go to full screen
+            vid.recalc_refdef = true;	/* go to full screen */
             SCR_CenterPrint(MSG_ReadString());
             break;
 
@@ -1197,7 +1197,7 @@ CL_ParseServerMessage(void)
 
             /* Various FITZ protocol messages - FIXME - !protocol => Host_Error */
          case svc_fitz_skybox:
-            MSG_ReadString(); // FIXME - TODO
+            MSG_ReadString(); /* FIXME - TODO */
             break;
 
          case svc_fitz_bf:
@@ -1206,11 +1206,11 @@ CL_ParseServerMessage(void)
 
          case svc_fitz_fog:
             /* FIXME - TODO */
-            MSG_ReadByte(); // density
-            MSG_ReadByte(); // red
-            MSG_ReadByte(); // green
-            MSG_ReadByte(); // blue
-            MSG_ReadShort(); // time
+            MSG_ReadByte(); /* density */
+            MSG_ReadByte(); /* red */
+            MSG_ReadByte(); /* green */
+            MSG_ReadByte(); /* blue */
+            MSG_ReadShort(); /* time */
             break;
 
          default:

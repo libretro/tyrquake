@@ -33,12 +33,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "protocol.h"
 #endif
 
-// render.h -- public interface to refresh functions
+/* render.h -- public interface to refresh functions */
 
-#define	TOP_RANGE	16	// soldier uniform colors
+#define	TOP_RANGE	16	/* soldier uniform colors */
 #define	BOTTOM_RANGE	96
 
-//=============================================================================
+/* ============================================================================= */
 
 typedef struct efrag_s {
     struct mleaf_s *leaf;
@@ -50,45 +50,45 @@ typedef struct efrag_s {
 
 typedef struct entity_s {
 #ifdef NQ_HACK
-    qboolean forcelink;		// model changed
+    qboolean forcelink;		/* model changed */
 
     int update_type;
 
-    entity_state_t baseline;	// to fill in defaults in updates
+    entity_state_t baseline;	/* to fill in defaults in updates */
 
-    double msgtime;		// time of last update
-    vec3_t msg_origins[2];	// last two updates (0 is newest)
-    vec3_t msg_angles[2];	// last two updates (0 is newest)
+    double msgtime;		/* time of last update */
+    vec3_t msg_origins[2];	/* last two updates (0 is newest) */
+    vec3_t msg_angles[2];	/* last two updates (0 is newest) */
 #endif
 #ifdef QW_HACK
-    int keynum;			// for matching entities in different frames
+    int keynum;			/* for matching entities in different frames */
 #endif
     vec3_t origin;
     vec3_t angles;
-    struct model_s *model;	// NULL = no model
+    struct model_s *model;	/* NULL = no model */
     int frame;
     byte *colormap;
-    int skinnum;		// for Alias models
+    int skinnum;		/* for Alias models */
 #ifdef QW_HACK
-    struct player_info_s *scoreboard;	// identify player
+    struct player_info_s *scoreboard;	/* identify player */
 #endif
-    float syncbase;		// for client-side animations
+    float syncbase;		/* for client-side animations */
 
-    struct efrag_s *efrag;	// linked list of efrags (FIXME)
-    int visframe;		// last frame this entity was
-    // found in an active leaf
+    struct efrag_s *efrag;	/* linked list of efrags (FIXME) */
+    int visframe;		/* last frame this entity was */
+    /* found in an active leaf */
 
 #ifdef NQ_HACK
-    int effects;		// light, particals, etc
+    int effects;		/* light, particals, etc */
 #endif
-    int dlightframe;		// dynamic lighting
+    int dlightframe;		/* dynamic lighting */
     /* qbism - not used here... */
 
-    // FIXME: could turn these into a union
+    /* FIXME: could turn these into a union */
     int trivial_accept;
-    struct mnode_s *topnode;	// for bmodels, first world node
-				//  that splits bmodel, or NULL if
-				//  not split
+    struct mnode_s *topnode;	/* for bmodels, first world node */
+				/*  that splits bmodel, or NULL if */
+				/*  not split */
 
     /* Alias model lerping */
     short previouspose;
@@ -110,27 +110,27 @@ typedef struct entity_s {
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 typedef struct {
-    vrect_t vrect;		// subwindow in video for refresh
-    // FIXME: not need vrect next field here?
-    vrect_t aliasvrect;		// scaled Alias version
-    int vrectright, vrectbottom;	// right & bottom screen coords
-    int aliasvrectright, aliasvrectbottom;	// scaled Alias versions
-    float vrectrightedge;	// rightmost right edge we care about,
-    //  for use in edge list
-    float fvrectx, fvrecty;	// for floating-point compares
-    float fvrectx_adj, fvrecty_adj;	// left and top edges, for clamping
-    int vrect_x_adj_shift20;	// (vrect.x + 0.5 - epsilon) << 20
-    int vrectright_adj_shift20;	// (vrectright + 0.5 - epsilon) << 20
+    vrect_t vrect;		/* subwindow in video for refresh */
+    /* FIXME: not need vrect next field here? */
+    vrect_t aliasvrect;		/* scaled Alias version */
+    int vrectright, vrectbottom;	/* right & bottom screen coords */
+    int aliasvrectright, aliasvrectbottom;	/* scaled Alias versions */
+    float vrectrightedge;	/* rightmost right edge we care about, */
+    /*  for use in edge list */
+    float fvrectx, fvrecty;	/* for floating-point compares */
+    float fvrectx_adj, fvrecty_adj;	/* left and top edges, for clamping */
+    int vrect_x_adj_shift20;	/* (vrect.x + 0.5 - epsilon) << 20 */
+    int vrectright_adj_shift20;	/* (vrectright + 0.5 - epsilon) << 20 */
     float fvrectright_adj, fvrectbottom_adj;
-    // right and bottom edges, for clamping
-    float fvrectright;		// rightmost edge, for Alias clamping
-    float fvrectbottom;		// bottommost edge, for Alias clamping
-    float horizontalFieldOfView;	// at Z = 1.0, this many X is visible
-    // 2.0 = 90 degrees
-    float xOrigin;		// should probably allways be 0.5
-    float yOrigin;		// between be around 0.3 to 0.5
+    /* right and bottom edges, for clamping */
+    float fvrectright;		/* rightmost edge, for Alias clamping */
+    float fvrectbottom;		/* bottommost edge, for Alias clamping */
+    float horizontalFieldOfView;	/* at Z = 1.0, this many X is visible */
+    /* 2.0 = 90 degrees */
+    float xOrigin;		/* should probably allways be 0.5 */
+    float yOrigin;		/* between be around 0.3 to 0.5 */
 
     vec3_t vieworg;
     vec3_t viewangles;
@@ -141,9 +141,9 @@ typedef struct {
 } refdef_t;
 
 
-//
-// refresh
-//
+/**/
+/* refresh */
+/**/
 
 extern refdef_t r_refdef;
 extern vec3_t r_origin, vpn, vright, vup;
@@ -155,11 +155,11 @@ extern entity_t r_worldentity;
 void R_Init(void);
 void R_InitTextures(void);
 void R_InitEfrags(void);
-void R_RenderView(void);	// must set r_refdef first
+void R_RenderView(void);	/* must set r_refdef first */
 void R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect);
-				// called whenever r_refdef or vid change
+				/* called whenever r_refdef or vid change */
 
-void R_InitSky(struct texture_s *mt);	// called at level load
+void R_InitSky(struct texture_s *mt);	/* called at level load */
 
 void R_AddEfrags(entity_t *ent);
 void R_RemoveEfrags(entity_t *ent);
@@ -188,9 +188,9 @@ void R_DrawParticles(void);
  */
 const model_loader_t *R_ModelLoader(void);
 
-//
-// surface cache related
-//
+/**/
+/* surface cache related */
+/**/
 int D_SurfaceCacheForRes(int width, int height);
 void D_FlushCaches(void);
 void D_DeleteSurfaceCache(void);

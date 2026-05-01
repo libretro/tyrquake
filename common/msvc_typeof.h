@@ -1,6 +1,6 @@
-// This piece of magic brought to you by:
-//     http://www.nedproductions.biz/blog/
-//     implementing-typeof-in-microsofts-c-compiler 
+/* This piece of magic brought to you by: */
+/*     http://www.nedproductions.biz/blog/ */
+/*     implementing-typeof-in-microsofts-c-compiler */ 
 
 #ifndef MSVC_TYPEOF_H
 #define MSVC_TYPEOF_H
@@ -46,7 +46,7 @@ namespace msvc_typeof_impl {
 
 	template<int ID, typename T> struct msvc_extract_type : msvc_extract_type<ID, msvc_extract_type_default_param> 
 	{ 
-		template<> struct id2type_impl<true> //VC8.0 specific bugfeature 
+		template<> struct id2type_impl<true> /* VC8.0 specific bugfeature */ 
 		{ 
 			typedef T type; 
 		}; 
@@ -58,7 +58,7 @@ namespace msvc_typeof_impl {
 
 	template<int N> class CCounter;
 
-	// TUnused is required to force compiler to recompile CCountOf class
+	/* TUnused is required to force compiler to recompile CCountOf class */
 	template<typename TUnused, int NTested = 0> struct CCountOf
 	{
 		enum
@@ -70,7 +70,7 @@ namespace msvc_typeof_impl {
 
 	template<class TTypeReg, class TUnused, int NValue> struct CProvideCounterValue { enum { value = NValue }; };
 
-	// type_id
+	/* type_id */
 	#define unique_type_id(type) \
 		(CProvideCounterValue< \
 			/*register TYPE--ID*/ typename msvc_extract_type<CCountOf<type >::count, type>::id2type, \
@@ -78,10 +78,10 @@ namespace msvc_typeof_impl {
 			/*pass value of Counter*/CCountOf<type >::count \
 		 >::value)
 
-	// Lets type_id() be > than 0
+	/* Lets type_id() be > than 0 */
 	class __Increment_type_id { enum { value = unique_type_id(__Increment_type_id) }; };
 
-	// vartypeID() returns a type with sizeof(type_id)
+	/* vartypeID() returns a type with sizeof(type_id) */
 	template<int NSize>	class sized { char m_pad[NSize]; };
 	template<typename T> typename sized<unique_type_id(T)> vartypeID(T&);
 	template<typename T> typename sized<unique_type_id(const T)> vartypeID(const T&);

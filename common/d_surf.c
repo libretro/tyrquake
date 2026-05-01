@@ -17,9 +17,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// d_surf.c: rasterization driver surface heap manager
+/* d_surf.c: rasterization driver surface heap manager */
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "console.h"
 #include "d_local.h"
@@ -130,20 +131,20 @@ D_SCAlloc(int width, int size)
    if ((size <= 0) || (size > 0x10000))
       Sys_Error("%s: bad cache size %d", __func__, size);
 
-   size = (uintptr_t)&((surfcache_t *)0)->data[size];
+   size = offsetof(surfcache_t, data) + size;
    size = (size + 3) & ~3;
    if (size > sc_size)
       Sys_Error("%s: %i > cache size", __func__, size);
 
    if (!sc_rover || (byte *)sc_rover - (byte *)sc_base > sc_size - size)
       sc_rover = sc_base;
-   // colect and free surfcache_t blocks until the rover block is large enough
+   /* colect and free surfcache_t blocks until the rover block is large enough */
    new_surf = sc_rover;
    if (sc_rover->owner)
       *sc_rover->owner = NULL;
 
    while (new_surf->size < size) {
-      // free another
+      /* free another */
       sc_rover = sc_rover->next;
       if (!sc_rover)
          Sys_Error("%s: hit the end of memory", __func__);
@@ -154,7 +155,7 @@ D_SCAlloc(int width, int size)
       new_surf->next = sc_rover->next;
    }
 
-   // create a fragment out of any leftovers
+   /* create a fragment out of any leftovers */
    if (new_surf->size - size > 256) {
       sc_rover = (surfcache_t *)((byte *)new_surf + size);
       sc_rover->size = new_surf->size - size;
@@ -170,12 +171,12 @@ D_SCAlloc(int width, int size)
    if (width > 0)
       new_surf->height = (size - sizeof(*new_surf) + sizeof(new_surf->data)) / width;
 
-   new_surf->owner = NULL;		// should be set properly after return
+   new_surf->owner = NULL;		/* should be set properly after return */
 
    return new_surf;
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ================

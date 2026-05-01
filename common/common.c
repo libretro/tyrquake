@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// common.c -- misc functions used in client and server
+/* common.c -- misc functions used in client and server */
 #include <ctype.h>
 #include <retro_dirent.h>
 #include <stdarg.h>
@@ -83,14 +83,14 @@ cvar_t registered = { "registered", "0" };
 static cvar_t cmdline = { "cmdline", "0", false, true };
 #endif
 
-static qboolean com_modified;		// set true if using non-id files
-static int static_registered = 1;	// only for startup check, then set
+static qboolean com_modified;		/* set true if using non-id files */
+static int static_registered = 1;	/* only for startup check, then set */
 
 static void COM_InitFilesystem(void);
 static void COM_Path_f(void);
 static void *SZ_GetSpace(sizebuf_t *buf, int length);
 
-// if a packfile directory differs from this, it is assumed to be hacked
+/* if a packfile directory differs from this, it is assumed to be hacked */
 #define PAK0_COUNT		339
 #define NQ_PAK0_CRC		32981
 #define QW_PAK0_CRC		52883
@@ -126,10 +126,10 @@ over areas they shouldn't.
 
 */
 
-//============================================================================
+/* ============================================================================ */
 
 
-// ClearLink is used for new headnodes
+/* ClearLink is used for new headnodes */
 void ClearLink(link_t *l)
 {
    l->prev = l->next = l;
@@ -166,8 +166,9 @@ void InsertLinkBefore(link_t *l, link_t *before)
 static char *COM_GetStrBuf(void)
 {
    static char buffers[4][COM_STRBUF_LEN];
-   static int index;
-   return buffers[3 & ++index];
+   static unsigned int idx;
+   idx = (idx + 1) & 3;
+   return buffers[idx];
 }
 
 int Q_atoi(const char *str)
@@ -185,7 +186,7 @@ int Q_atoi(const char *str)
 
    val = 0;
 
-   // check for hex
+   /* check for hex */
    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
    {
       str += 2;
@@ -203,11 +204,11 @@ int Q_atoi(const char *str)
       }
    }
 
-   // check for character
+   /* check for character */
    if (str[0] == '\'')
       return sign * str[1];
 
-   // assume decimal
+   /* assume decimal */
    while (1)
    {
       c = *str++;
@@ -237,7 +238,7 @@ float Q_atof(const char *str)
 
    val = 0;
 
-   // check for hex
+   /* check for hex */
    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
    {
       str += 2;
@@ -255,11 +256,11 @@ float Q_atof(const char *str)
       }
    }
 
-   // check for character
+   /* check for character */
    if (str[0] == '\'')
       return sign * str[1];
 
-   // assume decimal
+   /* assume decimal */
    decimal = -1;
    total = 0;
    while (1)
@@ -298,10 +299,10 @@ Handles byte ordering and avoids alignment errors
 */
 
 #ifdef QW_HACK
-usercmd_t nullcmd;		// guarenteed to be zero
+usercmd_t nullcmd;		/* guarenteed to be zero */
 #endif
 
-// writing functions
+/* writing functions */
 
 void MSG_WriteChar(sizebuf_t *sb, int c)
 {
@@ -402,7 +403,7 @@ void MSG_WriteAngle16(sizebuf_t *sb, float f)
 void MSG_WriteDeltaUsercmd(sizebuf_t *buf, const usercmd_t *from,
       const usercmd_t *cmd)
 {
-   // send the movement message
+   /* send the movement message */
    int bits = 0;
    if (cmd->angles[0] != from->angles[0])
       bits |= CM_ANGLE1;
@@ -461,7 +462,7 @@ void MSG_WriteControlHeader(sizebuf_t *sb)
 }
 #endif
 
-// reading functions
+/* reading functions */
 int msg_readcount;
 qboolean msg_badread;
 
@@ -478,7 +479,7 @@ int MSG_GetReadCount(void)
 }
 #endif
 
-// returns -1 and sets msg_badread if no more characters are available
+/* returns -1 and sets msg_badread if no more characters are available */
 int MSG_ReadChar(void)
 {
    int c;
@@ -641,7 +642,7 @@ void MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
 
    bits = MSG_ReadByte();
 
-   // read current angles
+   /* read current angles */
    if (bits & CM_ANGLE1)
       move->angles[0] = MSG_ReadAngle16();
    if (bits & CM_ANGLE2)
@@ -649,7 +650,7 @@ void MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
    if (bits & CM_ANGLE3)
       move->angles[2] = MSG_ReadAngle16();
 
-   // read movement
+   /* read movement */
    if (bits & CM_FORWARD)
       move->forwardmove = MSG_ReadShort();
    if (bits & CM_SIDE)
@@ -657,14 +658,14 @@ void MSG_ReadDeltaUsercmd(const usercmd_t *from, usercmd_t *move)
    if (bits & CM_UP)
       move->upmove = MSG_ReadShort();
 
-   // read buttons
+   /* read buttons */
    if (bits & CM_BUTTONS)
       move->buttons = MSG_ReadByte();
 
    if (bits & CM_IMPULSE)
       move->impulse = MSG_ReadByte();
 
-   // read time to run command
+   /* read time to run command */
    move->msec = MSG_ReadByte();
 }
 #endif /* QW_HACK */
@@ -695,7 +696,7 @@ int MSG_ReadControlHeader(void)
 }
 #endif
 
-//===========================================================================
+/* =========================================================================== */
 
 #ifdef NQ_HACK
 void SZ_Alloc(sizebuf_t *buf, int startsize)
@@ -709,9 +710,9 @@ void SZ_Alloc(sizebuf_t *buf, int startsize)
 
 void SZ_Free(sizebuf_t *buf)
 {
-   //      Z_Free (buf->data);
-   //      buf->data = NULL;
-   //      buf->maxsize = 0;
+   /*      Z_Free (buf->data); */
+   /*      buf->data = NULL; */
+   /*      buf->maxsize = 0; */
    buf->cursize = 0;
 }
 #endif
@@ -762,7 +763,7 @@ void SZ_Print(sizebuf_t *buf, const char *data)
 }
 
 
-//============================================================================
+/* ============================================================================ */
 
 
 /*
@@ -828,13 +829,13 @@ COM_DefaultExtension
 */
 void COM_DefaultExtension(char *path, const char *extension)
 {
-   // if path doesn't have a .EXT, append extension
-   // (extension should include the .)
+   /* if path doesn't have a .EXT, append extension */
+   /* (extension should include the .) */
    const char *src = path + strlen(path) - 1;
    while (*src != '/' && src != path)
    {
       if (*src == '.')
-         return;		// it has an extension
+         return;		/* it has an extension */
       src--;
    }
    strcat(path, extension);
@@ -855,7 +856,7 @@ int COM_CheckExtension(const char *path, const char *extn)
    return ret;
 }
 
-//============================================================================
+/* ============================================================================ */
 
 char com_token[1024];
 unsigned com_argc;
@@ -880,21 +881,21 @@ static const char *COM_Parse_(const char *data, qboolean split_single_chars)
    if (!data)
       return NULL;
 
-   // skip whitespace
+   /* skip whitespace */
 skipwhite:
    while ((c = *data) <= ' ') {
       if (c == 0)
-         return NULL;	// end of file;
+         return NULL;	/* end of file; */
       data++;
    }
 
-   // skip // comments
+   /* skip // comments */
    if (c == '/' && data[1] == '/') {
       while (*data && *data != '\n')
          data++;
       goto skipwhite;
    }
-   // handle quoted strings specially
+   /* handle quoted strings specially */
    if (c == '\"') {
       data++;
       while (1) {
@@ -907,14 +908,14 @@ skipwhite:
          len++;
       }
    }
-   // parse single characters
+   /* parse single characters */
    if (split_single_chars && strchr(single_chars, c)) {
       com_token[len] = c;
       len++;
       com_token[len] = 0;
       return data + 1;
    }
-   // parse a regular word
+   /* parse a regular word */
    do {
       com_token[len] = c;
       data++;
@@ -953,7 +954,7 @@ unsigned COM_CheckParm(const char *parm)
 
    for (i = 1; i < com_argc; i++) {
       if (!com_argv[i])
-         continue;		// NEXTSTEP sometimes clears appkit vars.
+         continue;		/* NEXTSTEP sometimes clears appkit vars. */
       if (!strcmp(parm, com_argv[i]))
          return i;
    }
@@ -1002,7 +1003,7 @@ void COM_InitArgv(int argc, const char **argv)
    int i;
 #ifdef NQ_HACK
    int j, n = 0;
-   // reconstitute the command line for the cmdline externally visible cvar
+   /* reconstitute the command line for the cmdline externally visible cvar */
    for (j = 0; (j < MAX_NUM_ARGVS) && (j < argc); j++)
    {
       i = 0;
@@ -1027,8 +1028,8 @@ void COM_InitArgv(int argc, const char **argv)
    }
 
    if (safe) {
-      // force all the safe-mode switches. Note that we reserved extra space in
-      // case we need to add these, so we don't need an overflow check
+      /* force all the safe-mode switches. Note that we reserved extra space in */
+      /* case we need to add these, so we don't need an overflow check */
       for (i = 0; i < NUM_SAFE_ARGVS; i++) {
          largv[com_argc] = safeargvs[i];
          com_argc++;
@@ -1119,7 +1120,7 @@ QUAKE FILESYSTEM
 
 int com_filesize;
 
-// in memory
+/* in memory */
 
 typedef struct {
     char name[MAX_QPATH];
@@ -1133,7 +1134,7 @@ typedef struct pack_s
     packfile_t *files;
 } pack_t;
 
-// on disk
+/* on disk */
 #define MAX_PACKPATH 56
 typedef struct
 {
@@ -1154,13 +1155,13 @@ char com_savedir[MAX_OSPATH];
 
 typedef struct searchpath_s {
     char filename[MAX_OSPATH];
-    pack_t *pack;		// only one of filename / pack will be used
+    pack_t *pack;		/* only one of filename / pack will be used */
     struct searchpath_s *next;
 } searchpath_t;
 
 static searchpath_t *com_searchpaths;
 #ifdef QW_HACK
-static searchpath_t *com_base_searchpaths;	// without gamedirs
+static searchpath_t *com_base_searchpaths;	/* without gamedirs */
 #endif
 
 /*
@@ -1266,7 +1267,7 @@ void COM_CreatePath(const char *path)
    for (ofs = part + 1; *ofs; ofs++)
    {
       if (*ofs == '/')
-      {	// create the directory
+      {	/* create the directory */
          *ofs = 0;
          path_mkdir(part);
          *ofs = '/';
@@ -1284,7 +1285,7 @@ If the requested file is inside a packfile, a new FILE * will be opened
 into the file.
 ===========
 */
-int file_from_pak; // global indicating file came from pack file
+int file_from_pak; /* global indicating file came from pack file */
 
 int COM_FOpenFile(const char *filename, RFILE **file)
 {
@@ -1295,18 +1296,18 @@ int COM_FOpenFile(const char *filename, RFILE **file)
 
    file_from_pak = 0;
 
-   // search through the path, one element at a time
+   /* search through the path, one element at a time */
    for (search = com_searchpaths; search; search = search->next)
    {
-      // is the element a pak file?
+      /* is the element a pak file? */
       if (search->pack)
       {
-         // look through all the pak file elements
+         /* look through all the pak file elements */
          pak = search->pack;
          for (i = 0; i < pak->numfiles; i++)
             if (!strcmp(pak->files[i].name, filename))
-            {	// found it!
-               // open a new file on the pakfile
+            {	/* found it! */
+               /* open a new file on the pakfile */
                *file = rfopen(pak->filename, "rb");
                if (!*file)
                   Sys_Error("Couldn't reopen %s", pak->filename);
@@ -1316,10 +1317,10 @@ int COM_FOpenFile(const char *filename, RFILE **file)
                return com_filesize;
             }
       } else {
-         // check a file in the directory tree
+         /* check a file in the directory tree */
          if (!static_registered)
          {
-            // if not a registered version, don't ever go beyond base
+            /* if not a registered version, don't ever go beyond base */
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
@@ -1355,26 +1356,26 @@ qboolean COM_FileExists (const char *filename)
 
    file_from_pak = 0;
 
-   // search through the path, one element at a time
+   /* search through the path, one element at a time */
    for (search = com_searchpaths; search; search = search->next)
    {
-      // is the element a pak file?
+      /* is the element a pak file? */
       if (search->pack)
       {
-         // look through all the pak file elements
+         /* look through all the pak file elements */
          pak = search->pack;
          for (i = 0; i < pak->numfiles; i++)
             if (!strcmp(pak->files[i].name, filename))
-            {	// found it!
+            {	/* found it! */
                com_filesize = pak->files[i].filelen;
                file_from_pak = 1;
                return true;
             }
       } else {
-         // check a file in the directory tree
+         /* check a file in the directory tree */
          if (!static_registered)
          {
-            // if not a registered version, don't ever go beyond base
+            /* if not a registered version, don't ever go beyond base */
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
@@ -1519,8 +1520,8 @@ static int loadsize;
 static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
 {
    RFILE *f;
-   byte *buf = NULL;			// quiet compiler warning
-   int len = com_filesize = COM_FOpenFile(path, &f);  // look for it in the filesystem or pack files
+   byte *buf = NULL;			/* quiet compiler warning */
+   int len = com_filesize = COM_FOpenFile(path, &f);  /* look for it in the filesystem or pack files */
    if (!f)
       return NULL;
 
@@ -1577,8 +1578,8 @@ void COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
    COM_LoadFile(path, 3, NULL);
 }
 
-// uses temp hunk if larger than bufsize
-// length is size of loaded file in bytes
+/* uses temp hunk if larger than bufsize */
+/* length is size of loaded file in bytes */
 void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
       unsigned long *length)
 {
@@ -1628,7 +1629,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    numfiles = header.dirlen / sizeof(dpackfile_t);
 
    if (numfiles != PAK0_COUNT)
-      com_modified = true;	// not the original file
+      com_modified = true;	/* not the original file */
 
 #ifdef NQ_HACK
    mfiles = (packfile_t*)Hunk_Alloc(numfiles * sizeof(*mfiles));
@@ -1644,7 +1645,7 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    rfread(dfiles, 1, header.dirlen, packhandle);
 
 #if defined(NQ_HACK) || defined(QW_HACK)
-   // crc the directory to check for modifications
+   /* crc the directory to check for modifications */
    crc = CRC_Block(((byte *)dfiles), header.dirlen);
 #ifdef NQ_HACK
    if (crc != NQ_PAK0_CRC)
@@ -1735,24 +1736,24 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
    }
 #endif
 
-   // add the directory to the search path
+   /* add the directory to the search path */
    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
    strcpy(search->filename, com_gamedir);
    search->next = com_searchpaths;
    com_searchpaths = search;
 
-   // add any pak files in the format pak0.pak pak1.pak, ...
+   /* add any pak files in the format pak0.pak pak1.pak, ... */
    for (i = 0;; i++)
    {
       snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
       pak = COM_LoadPackFile(pakfile);
       if (!pak)
       {
-         //try uppercase
+         /* try uppercase */
          snprintf(pakfile, sizeof(pakfile), "%s%cPAK%i.PAK", com_gamedir, slash, i);
          pak = COM_LoadPackFile(pakfile);
 
-         if (!pak) // that doesn't work either? then break
+         if (!pak) /* that doesn't work either? then break */
             break;
       }
       search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
@@ -1792,10 +1793,10 @@ void COM_Gamedir(const char *dir)
    }
 
    if (!strcmp(gamedirfile, dir))
-      return;			// still the same
+      return;			/* still the same */
    strcpy(gamedirfile, dir);
 
-   // free up any current game dir info
+   /* free up any current game dir info */
    while (com_searchpaths != com_base_searchpaths)
    {
       if (com_searchpaths->pack)
@@ -1808,7 +1809,7 @@ void COM_Gamedir(const char *dir)
       com_searchpaths = next;
    }
 
-   // flush all data, so it will be forced to reload
+   /* flush all data, so it will be forced to reload */
    Cache_Flush();
 
    if (!strcmp(dir, "id1") || !strcmp(dir, "qw"))
@@ -1816,13 +1817,13 @@ void COM_Gamedir(const char *dir)
 
    snprintf(com_gamedir, sizeof(com_gamedir), "%s%c%s", com_basedir, slash, dir);
 
-   // add the directory to the search path
+   /* add the directory to the search path */
    search = Z_Malloc(sizeof(searchpath_t));
    strcpy(search->filename, com_gamedir);
    search->next = com_searchpaths;
    com_searchpaths = search;
 
-   // add any pak files in the format pak0.pak pak1.pak, ...
+   /* add any pak files in the format pak0.pak pak1.pak, ... */
    for (i = 0;; i++)
    {
       snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
@@ -1850,15 +1851,15 @@ static void COM_InitFilesystem(void)
    searchpath_t *search;
 #endif
 
-   // Set save directory
+   /* Set save directory */
    strcpy(com_savedir, host_parms.savedir);
    
-   // -basedir <path>
-   // Overrides the system supplied base directory (under id1)
+   /* -basedir <path> */
+   /* Overrides the system supplied base directory (under id1) */
    i = COM_CheckParm("-basedir");
    strcpy(com_basedir, host_parms.basedir);
 
-   // start up with id1 by default
+   /* start up with id1 by default */
    COM_AddGameDirectory(com_basedir, "id1");
 
 #ifdef NQ_HACK
@@ -1869,8 +1870,8 @@ static void COM_InitFilesystem(void)
    if (COM_CheckParm("-quoth"))
       COM_AddGameDirectory(com_basedir, "quoth");
 
-   // -game <gamedir>
-   // Adds basedir/gamedir as an override game
+   /* -game <gamedir> */
+   /* Adds basedir/gamedir as an override game */
    i = COM_CheckParm("-game");
    if (i && i < com_argc - 1)
    {
@@ -1882,20 +1883,20 @@ static void COM_InitFilesystem(void)
    COM_AddGameDirectory(com_basedir, "qw");
 #endif
    
-   // Hack: Add save directory to search path, otherwise 'exec config.cfg' will fail
-   // (NB: 'host_parms.use_exernal_savedir' is a bit of a kludge, but since basedir
-   //  changes depending upon the game being loaded and various flags modify the
-   //  final 'rom' directory, it's the cleanest way to prevent the same directory
-   //  being added to the search list twice...)
+   /* Hack: Add save directory to search path, otherwise 'exec config.cfg' will fail */
+   /* (NB: 'host_parms.use_exernal_savedir' is a bit of a kludge, but since basedir */
+   /*  changes depending upon the game being loaded and various flags modify the */
+   /*  final 'rom' directory, it's the cleanest way to prevent the same directory */
+   /*  being added to the search list twice...) */
    if (host_parms.use_exernal_savedir != 0)
    {
 		COM_AddGameDirectory(com_savedir, "");
 	}
    
-   //
-   // -path <dir or packfile> [<dir or packfile>] ...
-   // Fully specifies the exact search path, overriding the generated one
-   //
+   /**/
+   /* -path <dir or packfile> [<dir or packfile>] ... */
+   /* Fully specifies the exact search path, overriding the generated one */
+   /**/
 #ifdef NQ_HACK
    i = COM_CheckParm("-path");
    if (i) {
@@ -1919,12 +1920,12 @@ static void COM_InitFilesystem(void)
    }
 #endif
 #ifdef QW_HACK
-   // any set gamedirs will be freed up to here
+   /* any set gamedirs will be freed up to here */
    com_base_searchpaths = com_searchpaths;
 #endif
 }
 
-// FIXME - everything below is QW only... move it?
+/* FIXME - everything below is QW only... move it? */
 #ifdef QW_HACK
 /*
 =====================================================================
@@ -2238,7 +2239,7 @@ static byte chktbl[1024 + 4] = {
     0xac, 0x60, 0x09, 0xc0, 0x40, 0xee, 0xb9, 0xeb, 0x13, 0x5b, 0xe8, 0x2b, 0xb1, 0x20, 0xf0, 0xce,
     0x4c, 0xbd, 0xc6, 0x04, 0x86, 0x70, 0xc6, 0x33, 0xc3, 0x15, 0x0f, 0x65, 0x19, 0xfd, 0xc2, 0xd3,
 
-// map checksum goes here
+/* map checksum goes here */
     0x00, 0x00, 0x00, 0x00
 };
 
@@ -2273,7 +2274,7 @@ byte COM_BlockSequenceCRCByte(const byte *base, int length, int sequence)
    return crc;
 }
 
-// char *date = "Oct 24 1996";
+/* char *date = "Oct 24 1996"; */
 static const char *date = __DATE__;
 static const char *mon[12] =
     { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
@@ -2281,7 +2282,7 @@ static const char *mon[12] =
 };
 static char mond[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
-// returns days since Oct 24 1996
+/* returns days since Oct 24 1996 */
 int build_number(void)
 {
    int m = 0;
@@ -2308,7 +2309,7 @@ int build_number(void)
    if (((y % 4) == 0) && m > 1)
       b += 1;
 
-   b -= 35778;			// Dec 16 1998
+   b -= 35778;			/* Dec 16 1998 */
 
    return b;
 }

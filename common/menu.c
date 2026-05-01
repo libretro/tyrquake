@@ -107,8 +107,8 @@ static void M_Search_Key(int key);
 static void M_ServerList_Key(int key);
 
 static qboolean m_recursiveDraw;
-static qboolean m_entersound;	// play after drawing a frame, so caching
-				// won't disrupt the sound
+static qboolean m_entersound;	/* play after drawing a frame, so caching */
+				/* won't disrupt the sound */
 
 qboolean m_return_onerror;
 char m_return_reason[32];
@@ -191,7 +191,7 @@ M_BuildTranslationTable(int top, int bottom)
     source = identityTable;
     memcpy(dest, source, 256);
 
-    if (top < 128)		// the artists made some backwards ranges.  sigh.
+    if (top < 128)		/* the artists made some backwards ranges.  sigh. */
 	memcpy(dest + TOP_RANGE, source + top, 16);
     else
 	for (j = 0; j < 16; j++)
@@ -220,7 +220,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
     int cx, cy;
     int n;
 
-    // draw left side
+    /* draw left side */
     cx = x;
     cy = y;
     p = Draw_CachePic("gfx/box_tl.lmp");
@@ -233,7 +233,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
     p = Draw_CachePic("gfx/box_bl.lmp");
     M_DrawTransPic(cx, cy + 8, p);
 
-    // draw middle
+    /* draw middle */
     cx += 8;
     while (width > 0) {
 	cy = y;
@@ -252,7 +252,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
 	cx += 16;
     }
 
-    // draw right side
+    /* draw right side */
     cy = y;
     p = Draw_CachePic("gfx/box_tr.lmp");
     M_DrawTransPic(cx, cy, p);
@@ -265,7 +265,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
     M_DrawTransPic(cx, cy + 8, p);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 static int m_save_demonum;
 
@@ -296,7 +296,7 @@ M_ToggleMenu_f(void)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* MAIN MENU */
 
 static int m_main_cursor;
@@ -391,7 +391,7 @@ M_Main_Key(int key)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* SINGLE PLAYER MENU */
 
 int m_singleplayer_cursor;
@@ -481,14 +481,14 @@ M_SinglePlayer_Key(int key)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* LOAD/SAVE MENU */
 
 #define	MAX_SAVEGAMES 12
 
 static char m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
 static int loadable[MAX_SAVEGAMES];
-static int load_cursor;		// 0 < load_cursor < MAX_SAVEGAMES
+static int load_cursor;		/* 0 < load_cursor < MAX_SAVEGAMES */
 
 static void M_ScanSaves(void)
 {
@@ -596,11 +596,11 @@ static void M_Load_Key(int k)
          m_state = m_none;
          key_dest = key_game;
 
-         // Host_Loadgame_f can't bring up the loading plaque because too much
-         // stack space has been used, so do it now
+         /* Host_Loadgame_f can't bring up the loading plaque because too much */
+         /* stack space has been used, so do it now */
          SCR_BeginLoadingPlaque();
 
-         // issue the load command
+         /* issue the load command */
          Cbuf_AddText("load s%i\n", load_cursor);
          return;
 
@@ -665,7 +665,7 @@ static void M_Save_Key(int k)
    }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* MULTIPLAYER MENU */
 
 #define	MULTIPLAYER_ITEMS 3
@@ -745,7 +745,7 @@ static void M_MultiPlayer_Key(int key)
    }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* SETUP MENU */
 
 static int setup_cursor = 4;
@@ -873,7 +873,7 @@ M_Setup_Key(int k)
 	if (setup_cursor == 2 || setup_cursor == 3)
 	    goto forward;
 
-	// setup_cursor == 4 (OK)
+	/* setup_cursor == 4 (OK) */
 	if (strcmp(cl_name.string, setup_myname) != 0)
 	    Cbuf_AddText("name \"%s\"\n", setup_myname);
 	if (strcmp(hostname.string, setup_hostname) != 0)
@@ -927,7 +927,7 @@ M_Setup_Key(int k)
 	setup_bottom = 13;
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* OPTIONS SLIDER */
 
 #define	SLIDER_RANGE	10
@@ -958,7 +958,7 @@ M_DrawCheckbox(int x, int y, int on)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* INPUT OPTIONS MENU */
 
 #define	OPTIONSINPUT_ITEMS 5
@@ -979,7 +979,7 @@ M_OptionsInput_AdjustSliders(int dir)
     S_LocalSound("misc/menu3.wav");
 
     switch (optionsinput_cursor) {
-    case 3:			// mouse speed
+    case 3:			/* mouse speed */
 	sensitivity.value += dir * 0.5;
 	if (sensitivity.value < 1)
 	    sensitivity.value = 1;
@@ -987,7 +987,7 @@ M_OptionsInput_AdjustSliders(int dir)
 	    sensitivity.value = 11;
 	Cvar_SetValue("sensitivity", sensitivity.value);
 	break;
-    case 4:			// invert mouse
+    case 4:			/* invert mouse */
 	Cvar_SetValue("m_pitch", -m_pitch.value);
 	break;
     }
@@ -1013,7 +1013,7 @@ M_OptionsInput_Draw(void)
     M_Print(16, 64, "          Invert Mouse");
     M_DrawCheckbox(220, 64, m_pitch.value < 0);
 
-// cursor
+/* cursor */
     M_DrawCharacter(200, 32 + optionsinput_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -1077,7 +1077,7 @@ M_OptionsInput_Key(int k)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
 #define	OPTIONSVIDEO_ITEMS 9
@@ -1101,7 +1101,7 @@ M_OptionsVideo_AdjustSliders(int dir)
     S_LocalSound("misc/menu3.wav");
 
     switch (optionsvideo_cursor) {
-       case 0:			// screen size
+       case 0:			/* screen size */
           scr_viewsize.value += dir * 10;
           if (scr_viewsize.value < 30)
              scr_viewsize.value = 30;
@@ -1109,7 +1109,7 @@ M_OptionsVideo_AdjustSliders(int dir)
              scr_viewsize.value = 120;
           Cvar_SetValue("viewsize", scr_viewsize.value);
           break;
-       case 1:			// gamma
+       case 1:			/* gamma */
           v_gamma.value -= dir * 0.05;
           if (v_gamma.value < 0.5)
              v_gamma.value = 0.5;
@@ -1118,7 +1118,7 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("gamma", v_gamma.value);
           break;
 
-       case 3:			// _windowed_mouse
+       case 3:			/* _windowed_mouse */
           Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
           break;
        case 4:
@@ -1185,7 +1185,7 @@ M_OptionsVideo_Draw(void)
     M_Print(16, 88, "      Smooth Movement");
     M_DrawCheckbox(220, 88, cvar->value);
 
-// cursor
+/* cursor */
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -1258,7 +1258,7 @@ M_OptionsVideo_Key(int k)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* AUDIO OPTIONS MENU */
 
 #define	OPTIONSAUDIO_ITEMS	2
@@ -1281,7 +1281,7 @@ M_OptionsAudio_AdjustSliders(int dir)
     S_LocalSound("misc/menu3.wav");
 
     switch (optionsaudio_cursor) {
-    case 0:			// music volume
+    case 0:			/* music volume */
 #ifdef _WIN32
 	bgmvolume.value += dir * 1.0;
 #else
@@ -1293,7 +1293,7 @@ M_OptionsAudio_AdjustSliders(int dir)
 	    bgmvolume.value = 1;
 	Cvar_SetValue("bgmvolume", bgmvolume.value);
 	break;
-    case 1:			// sfx volume
+    case 1:			/* sfx volume */
 	sfxvolume.value += dir * 0.1;
 	if (sfxvolume.value < 0)
 	    sfxvolume.value = 0;
@@ -1323,7 +1323,7 @@ M_OptionsAudio_Draw(void)
     r = sfxvolume.value;
     M_DrawSlider(220, 40, r);
 
-// cursor
+/* cursor */
     M_DrawCharacter(200, 32 + optionsaudio_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -1377,7 +1377,7 @@ M_OptionsAudio_Key(int k)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* GAME OPTIONS MENU */
 
 #define	OPTIONSGAME_ITEMS	6
@@ -1399,7 +1399,7 @@ M_OptionsGame_AdjustSliders(int dir)
     S_LocalSound("misc/menu3.wav");
 
     switch (optionsgame_cursor) {
-    case 0:			// allways run
+    case 0:			/* allways run */
 	if (cl_forwardspeed.value > 200) {
 	    Cvar_SetValue("cl_forwardspeed", 200);
 	    Cvar_SetValue("cl_backspeed", 200);
@@ -1408,11 +1408,11 @@ M_OptionsGame_AdjustSliders(int dir)
 	    Cvar_SetValue("cl_backspeed", 400);
 	}
 	break;
-    case 1:			// lookspring
+    case 1:			/* lookspring */
 	Cvar_SetValue("lookspring", !lookspring.value);
 	break;
 
-    case 2:			// lookstrafe
+    case 2:			/* lookstrafe */
 	Cvar_SetValue("lookstrafe", !lookstrafe.value);
 	break;
    case 3:
@@ -1467,7 +1467,7 @@ M_OptionsGame_Draw(void)
     M_DrawCheckbox(220, 72, cvar->value ? 0 : 1);
 
 
-// cursor
+/* cursor */
     M_DrawCharacter(200, 32 + optionsgame_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -1522,7 +1522,7 @@ M_OptionsGame_Key(int k)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* OPTIONS MENU */
 
 #define	OPTIONS_ITEMS	4
@@ -1552,7 +1552,7 @@ M_Options_Draw(void)
     M_Print(16, 48, "                 Audio");
     M_Print(16, 56, "                  Game");
 
-// cursor
+/* cursor */
     M_DrawCharacter(200, 32 + options_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -1605,7 +1605,7 @@ M_Options_Key(int k)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* KEYS MENU */
 
 static const char *const bindnames[][2] = {
@@ -1705,7 +1705,7 @@ M_Keys_Draw(void)
     else
 	M_Print(18, 32, "Enter to change, backspace to clear");
 
-// search for known bindings
+/* search for known bindings */
     for (i = 0; i < NUMCOMMANDS; i++) {
 	y = 48 + 8 * i;
 
@@ -1739,7 +1739,7 @@ M_Keys_Key(int k)
     char cmd[80];
     int keys[2];
 
-    if (bind_grab) {		// defining a key
+    if (bind_grab) {		/* defining a key */
 	S_LocalSound("misc/menu1.wav");
 	if (k == K_ESCAPE) {
 	    bind_grab = false;
@@ -1781,7 +1781,7 @@ M_Keys_Key(int k)
 	break;
 
     case K_JOY_A:
-    case K_ENTER:		// go into bind mode
+    case K_ENTER:		/* go into bind mode */
 	M_FindKeysForCommand(bindnames[keys_cursor][0], keys);
 	S_LocalSound("misc/menu2.wav");
 	if (keys[1] != -1)
@@ -1791,15 +1791,15 @@ M_Keys_Key(int k)
 
     case K_JOY_X:
     case K_JOY_Y:
-    case K_BACKSPACE:		// delete bindings
-    case K_DEL:			// delete bindings
+    case K_BACKSPACE:		/* delete bindings */
+    case K_DEL:			/* delete bindings */
 	S_LocalSound("misc/menu2.wav");
 	M_UnbindCommand(bindnames[keys_cursor][0]);
 	break;
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* VIDEO MENU */
 
 static void
@@ -1824,7 +1824,7 @@ M_Video_Key(int key)
     (*vid_menukeyfn) (key);
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* HELP MENU */
 
 #define NUM_HELP_PAGES 6
@@ -1878,7 +1878,7 @@ M_Help_Key(int key)
 
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* QUIT MENU */
 
 static int msgNumber;
@@ -1995,7 +1995,7 @@ M_Quit_Draw(void)
     M_Print(64, 108, quitMessage[msgNumber * 4 + 3]);
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* LAN CONFIG MENU */
 
 static int lanConfig_cursor = -1;
@@ -2191,7 +2191,7 @@ M_LanConfig_Key(int key)
     sprintf(lanConfig_portname, "%u", lanConfig_port);
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* GAME OPTIONS MENU */
 
 typedef struct {
@@ -2199,11 +2199,11 @@ typedef struct {
     const char *const description;
 } level_t;
 
-// FIXME - make this dynamic? get strings from bsps, scanning map dirs?
+/* FIXME - make this dynamic? get strings from bsps, scanning map dirs? */
 static const level_t levels[] = {
-    {"start", "Entrance"},	// 0
+    {"start", "Entrance"},	/* 0 */
 
-    {"e1m1", "Slipgate Complex"},	// 1
+    {"e1m1", "Slipgate Complex"},	/* 1 */
     {"e1m2", "Castle of the Damned"},
     {"e1m3", "The Necropolis"},
     {"e1m4", "The Grisly Grotto"},
@@ -2212,7 +2212,7 @@ static const level_t levels[] = {
     {"e1m7", "The House of Chthon"},
     {"e1m8", "Ziggurat Vertigo"},
 
-    {"e2m1", "The Installation"},	// 9
+    {"e2m1", "The Installation"},	/* 9 */
     {"e2m2", "Ogre Citadel"},
     {"e2m3", "Crypt of Decay"},
     {"e2m4", "The Ebon Fortress"},
@@ -2220,7 +2220,7 @@ static const level_t levels[] = {
     {"e2m6", "The Dismal Oubliette"},
     {"e2m7", "Underearth"},
 
-    {"e3m1", "Termination Central"},	// 16
+    {"e3m1", "Termination Central"},	/* 16 */
     {"e3m2", "The Vaults of Zin"},
     {"e3m3", "The Tomb of Terror"},
     {"e3m4", "Satan's Dark Delight"},
@@ -2228,7 +2228,7 @@ static const level_t levels[] = {
     {"e3m6", "Chambers of Torment"},
     {"e3m7", "The Haunted Halls"},
 
-    {"e4m1", "The Sewage System"},	// 23
+    {"e4m1", "The Sewage System"},	/* 23 */
     {"e4m2", "The Tower of Despair"},
     {"e4m3", "The Elder God Shrine"},
     {"e4m4", "The Palace of Hate"},
@@ -2237,9 +2237,9 @@ static const level_t levels[] = {
     {"e4m7", "Azure Agony"},
     {"e4m8", "The Nameless City"},
 
-    {"end", "Shub-Niggurath's Pit"},	// 31
+    {"end", "Shub-Niggurath's Pit"},	/* 31 */
 
-    {"dm1", "Place of Two Deaths"},	// 32
+    {"dm1", "Place of Two Deaths"},	/* 32 */
     {"dm2", "Claustrophobopolis"},
     {"dm3", "The Abandoned Base"},
     {"dm4", "The Bad Place"},
@@ -2247,35 +2247,35 @@ static const level_t levels[] = {
     {"dm6", "The Dark Zone"}
 };
 
-//MED 01/06/97 added hipnotic levels
+/* MED 01/06/97 added hipnotic levels */
 static const level_t hipnoticlevels[] = {
-    {"start", "Command HQ"},	// 0
+    {"start", "Command HQ"},	/* 0 */
 
-    {"hip1m1", "The Pumping Station"},	// 1
+    {"hip1m1", "The Pumping Station"},	/* 1 */
     {"hip1m2", "Storage Facility"},
     {"hip1m3", "The Lost Mine"},
     {"hip1m4", "Research Facility"},
     {"hip1m5", "Military Complex"},
 
-    {"hip2m1", "Ancient Realms"},	// 6
+    {"hip2m1", "Ancient Realms"},	/* 6 */
     {"hip2m2", "The Black Cathedral"},
     {"hip2m3", "The Catacombs"},
     {"hip2m4", "The Crypt"},
     {"hip2m5", "Mortum's Keep"},
     {"hip2m6", "The Gremlin's Domain"},
 
-    {"hip3m1", "Tur Torment"},	// 12
+    {"hip3m1", "Tur Torment"},	/* 12 */
     {"hip3m2", "Pandemonium"},
     {"hip3m3", "Limbo"},
     {"hip3m4", "The Gauntlet"},
 
-    {"hipend", "Armagon's Lair"},	// 16
+    {"hipend", "Armagon's Lair"},	/* 16 */
 
-    {"hipdm1", "The Edge of Oblivion"}	// 17
+    {"hipdm1", "The Edge of Oblivion"}	/* 17 */
 };
 
-//PGM 01/07/97 added rogue levels
-//PGM 03/02/97 added dmatch level
+/* PGM 01/07/97 added rogue levels */
+/* PGM 03/02/97 added dmatch level */
 static const level_t roguelevels[] = {
     {"start", "Split Decision"},
     {"r1m1", "Deviant's Domain"},
@@ -2312,7 +2312,7 @@ static const episode_t episodes[] = {
     {"Deathmatch Arena", 32, 6}
 };
 
-//MED 01/06/97  added hipnotic episodes
+/* MED 01/06/97  added hipnotic episodes */
 static const episode_t hipnoticepisodes[] = {
     {"Scourge of Armagon", 0, 1},
     {"Fortress of the Dead", 1, 5},
@@ -2322,8 +2322,8 @@ static const episode_t hipnoticepisodes[] = {
     {"Deathmatch Arena", 17, 1}
 };
 
-//PGM 01/07/97 added rogue episodes
-//PGM 03/02/97 added dmatch episode
+/* PGM 01/07/97 added rogue episodes */
+/* PGM 03/02/97 added dmatch episode */
 static const episode_t rogueepisodes[] = {
     {"Introduction", 0, 1},
     {"Hell's Fortress", 1, 7},
@@ -2445,17 +2445,17 @@ M_GameOptions_Draw(void)
 	M_Print(160, 96, va("%i minutes", (int)timelimit.value));
 
     M_Print(0, 112, "         Episode");
-    //MED 01/06/97 added hipnotic episodes
+    /* MED 01/06/97 added hipnotic episodes */
     if (hipnotic)
 	M_Print(160, 112, hipnoticepisodes[startepisode].description);
-    //PGM 01/07/97 added rogue episodes
+    /* PGM 01/07/97 added rogue episodes */
     else if (rogue)
 	M_Print(160, 112, rogueepisodes[startepisode].description);
     else
 	M_Print(160, 112, episodes[startepisode].description);
 
     M_Print(0, 120, "           Level");
-    //MED 01/06/97 added hipnotic episodes
+    /* MED 01/06/97 added hipnotic episodes */
     if (hipnotic) {
 	M_Print(160, 120,
 		hipnoticlevels[hipnoticepisodes[startepisode].firstLevel +
@@ -2464,7 +2464,7 @@ M_GameOptions_Draw(void)
 		hipnoticlevels[hipnoticepisodes[startepisode].firstLevel +
 			       startlevel].name);
     }
-    //PGM 01/07/97 added rogue episodes
+    /* PGM 01/07/97 added rogue episodes */
     else if (rogue) {
 	M_Print(160, 120,
 		roguelevels[rogueepisodes[startepisode].firstLevel +
@@ -2480,7 +2480,7 @@ M_GameOptions_Draw(void)
 		levels[episodes[startepisode].firstLevel + startlevel].name);
     }
 
-// line cursor
+/* line cursor */
     M_DrawCharacter(144, gameoptions_cursor_table[gameoptions_cursor],
 		    12 + ((int)(realtime * 4) & 1));
 
@@ -2560,11 +2560,11 @@ M_NetStart_Change(int dir)
 
     case 7:
 	startepisode += dir;
-	//MED 01/06/97 added hipnotic count
+	/* MED 01/06/97 added hipnotic count */
 	if (hipnotic)
 	    count = 6;
-	//PGM 01/07/97 added rogue count
-	//PGM 03/02/97 added 1 for dmatch episode
+	/* PGM 01/07/97 added rogue count */
+	/* PGM 03/02/97 added 1 for dmatch episode */
 	else if (rogue)
 	    count = 4;
 	else if (registered.value)
@@ -2583,10 +2583,10 @@ M_NetStart_Change(int dir)
 
     case 8:
 	startlevel += dir;
-	//MED 01/06/97 added hipnotic episodes
+	/* MED 01/06/97 added hipnotic episodes */
 	if (hipnotic)
 	    count = hipnoticepisodes[startepisode].levels;
-	//PGM 01/06/97 added hipnotic episodes
+	/* PGM 01/06/97 added hipnotic episodes */
 	else if (rogue)
 	    count = rogueepisodes[startepisode].levels;
 	else
@@ -2605,7 +2605,7 @@ void M_Game_StartNewGame(void)
 {
    if (sv.active)
       Cbuf_AddText("disconnect\n");
-   Cbuf_AddText("listen 0\n");	// so host_netport will be re-examined
+   Cbuf_AddText("listen 0\n");	/* so host_netport will be re-examined */
    Cbuf_AddText("maxplayers %u\n", maxplayers);
    SCR_BeginLoadingPlaque();
 
@@ -2680,7 +2680,7 @@ M_GameOptions_Key(int key)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* SEARCH MENU */
 
 static qboolean searchComplete = false;
@@ -2739,7 +2739,7 @@ M_Search_Key(int key)
 {
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* SLIST MENU */
 
 static int slist_cursor;
@@ -2854,7 +2854,7 @@ M_ServerList_Key(int k)
 
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* Menu Subsystem */
 
 

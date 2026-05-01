@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// console.c
+/* console.c */
 
 #include <string.h>
 
@@ -39,15 +39,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CON_TEXTSIZE 16384
 #define	NUM_CON_TIMES 4
 
-console_t *con;			// point to current console
+console_t *con;			/* point to current console */
 static console_t con_main;
 
 int con_ormask = 0;
 qboolean con_forcedup;
-int con_totallines;		// total lines in console scrollback
-int con_notifylines;		// scan lines to clear for notify lines
+int con_totallines;		/* total lines in console scrollback */
+int con_notifylines;		/* scan lines to clear for notify lines */
 
-static int con_linewidth;	// characters across screen
+static int con_linewidth;	/* characters across screen */
 static int con_vislines;
 
 int
@@ -57,10 +57,10 @@ Con_GetWidth(void)
 }
 
 static float con_cursorspeed = 4;
-static cvar_t con_notifytime = { "con_notifytime", "3" };	//seconds
+static cvar_t con_notifytime = { "con_notifytime", "3" };	/* seconds */
 
-static float con_times[NUM_CON_TIMES];	// realtime time the line was generated
-					// for transparent notify lines
+static float con_times[NUM_CON_TIMES];	/* realtime time the line was generated */
+					/* for transparent notify lines */
 
 qboolean con_initialized;
 
@@ -152,7 +152,7 @@ static void Con_Resize(console_t * c)
    if (width == con_linewidth)
       return;
 
-   if (width < 1)		// video hasn't been initialized yet
+   if (width < 1)		/* video hasn't been initialized yet */
    {
       width = 38;
       con_linewidth = width;
@@ -243,22 +243,22 @@ Con_Print(const char *txt)
     int mask;
 
     if (txt[0] == 1 || txt[0] == 2) {
-	mask = 128;		// go to colored text
+	mask = 128;		/* go to colored text */
 	txt++;
 #ifdef NQ_HACK
 	if (txt[0] == 1)
-	    S_LocalSound("misc/talk.wav");	// play talk wav
+	    S_LocalSound("misc/talk.wav");	/* play talk wav */
 #endif
     } else
 	mask = 0;
 
     while ((c = *txt)) {
-	// count word length
+	/* count word length */
 	for (l = 0; l < con_linewidth; l++)
 	    if (txt[l] <= ' ')
 		break;
 
-	// word wrap
+	/* word wrap */
 	if (l != con_linewidth && (con->x + l > con_linewidth))
 	    con->x = 0;
 
@@ -272,7 +272,7 @@ Con_Print(const char *txt)
 
 	if (!con->x) {
 	    Con_Linefeed();
-	    // mark time for transparent overlay
+	    /* mark time for transparent overlay */
 	    if (con->current >= 0)
 		con_times[con->current % NUM_CON_TIMES] = realtime;
 	}
@@ -287,7 +287,7 @@ Con_Print(const char *txt)
 	    cr = 1;
 	    break;
 
-	default:		// display character and advance
+	default:		/* display character and advance */
 	    y = con->current % con_totallines;
 	    con->text[y * con_linewidth + con->x] = c | mask | con_ormask;
 	    con->x++;
@@ -316,14 +316,14 @@ void Con_Printf(const char *fmt, ...)
    va_end(argptr);
 
    /* also echo to debugging console */
-   Sys_Printf("%s", msg);	// also echo to debugging console
+   Sys_Printf("%s", msg);	/* also echo to debugging console */
 
    if (!con_initialized)
       return;
 
 #ifdef NQ_HACK
    if (cls.state == ca_dedicated)
-      return;			// no graphics mode
+      return;			/* no graphics mode */
 #endif
 
    /* write it to the scrollable buffer */
@@ -337,7 +337,7 @@ void Con_Printf(const char *fmt, ...)
    if (!strchr(msg, '\n'))
       return;
 
-   // update the screen immediately if the console is displayed
+   /* update the screen immediately if the console is displayed */
 #ifdef NQ_HACK
    if (cls.state != ca_active && !scr_disabled_for_loading)
 #else
@@ -345,8 +345,8 @@ void Con_Printf(const char *fmt, ...)
 #endif
       {
          static qboolean inupdate;
-         // protect against infinite loop if something in SCR_UpdateScreen calls
-         // Con_Printd
+         /* protect against infinite loop if something in SCR_UpdateScreen calls */
+         /* Con_Printd */
          if (!inupdate)
          {
             inupdate = true;
@@ -404,27 +404,27 @@ Con_DrawInput(void)
     char *text;
 
     if (key_dest != key_console && !con_forcedup)
-	return;			// don't draw anything
+	return;			/* don't draw anything */
 
     text = key_lines[edit_line];
 
-// add the cursor frame
+/* add the cursor frame */
     text[key_linepos] = 10 + ((int)(realtime * con_cursorspeed) & 1);
 
-// fill out remainder with spaces
+/* fill out remainder with spaces */
     for (i = key_linepos + 1; i < con_linewidth; i++)
 	text[i] = ' ';
 
-//      prestep if horizontally scrolling
+/*      prestep if horizontally scrolling */
     if (key_linepos >= con_linewidth)
 	text += 1 + key_linepos - con_linewidth;
 
-// draw it
+/* draw it */
     y = con_vislines - 22;
     for (i = 0; i < con_linewidth; i++)
 	Draw_Character((i + 1) << 3, y, text[i]);
 
-// remove cursor
+/* remove cursor */
     key_lines[edit_line][key_linepos] = 0;
 }
 
@@ -485,7 +485,7 @@ void Con_DrawNotify(void)
       }
 
       s = chat_buffer;
-      // FIXME = Truncating? should be while, not if?
+      /* FIXME = Truncating? should be while, not if? */
       if (chat_bufferlen > (vid.width >> 3) - (skip + 1))
          s += chat_bufferlen - ((vid.width >> 3) - (skip + 1));
 
@@ -578,17 +578,17 @@ void Con_DrawConsole(int lines)
    if (lines <= 0)
       return;
 
-   // draw the background
+   /* draw the background */
    Draw_ConsoleBackground(lines);
 
-   // draw the text
+   /* draw the text */
    con_vislines = lines;
-   rows = (lines - 22) >> 3;	// rows of text to draw
+   rows = (lines - 22) >> 3;	/* rows of text to draw */
    y = lines - 30;
 
-   // draw from the bottom up
+   /* draw from the bottom up */
    if (con->display != con->current) {
-      // draw arrows to show the buffer is backscrolled
+      /* draw arrows to show the buffer is backscrolled */
       for (x = 0; x < con_linewidth; x += 4)
          Draw_Character((x + 1) << 3, y, '^');
       y -= 8;
@@ -600,17 +600,17 @@ void Con_DrawConsole(int lines)
       if (row < 0)
          break;
       if (con->current - row >= con_totallines)
-         break;		// past scrollback wrap point
+         break;		/* past scrollback wrap point */
 
       text = con->text + (row % con_totallines) * con_linewidth;
       for (x = 0; x < con_linewidth; x++)
          Draw_Character((x + 1) << 3, y, text[x]);
    }
 
-   // draw the download bar, if needed
+   /* draw the download bar, if needed */
    Con_DrawDLBar();
 
-   // draw the input prompt, user text, and cursor if desired
+   /* draw the input prompt, user text, and cursor if desired */
    Con_DrawInput();
 }
 
@@ -625,7 +625,7 @@ Con_NotifyBox(char *text)
 {
     double t1, t2;
 
-// during startup for sound / cd warnings
+/* during startup for sound / cd warnings */
     Con_Printf
 	("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
 
@@ -635,7 +635,7 @@ Con_NotifyBox(char *text)
     Con_Printf
 	("\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
 
-    key_count = -2;		// wait for a key down and up
+    key_count = -2;		/* wait for a key down and up */
     key_dest = key_console;
 
     do
@@ -644,12 +644,12 @@ Con_NotifyBox(char *text)
        SCR_UpdateScreen();
        Sys_SendKeyEvents();
        t2 = Sys_DoubleTime();
-       realtime += t2 - t1;	// make the cursor blink
+       realtime += t2 - t1;	/* make the cursor blink */
     } while (key_count < 0);
 
     Con_Printf("\n");
     key_dest = key_game;
-    realtime = 0;		// put the cursor back to invisible
+    realtime = 0;		/* put the cursor back to invisible */
 }
 
 
@@ -753,7 +753,7 @@ Con_Maplist_f()
     st_root.entries = 0;
     st_root.maxlen = 0;
     st_root.minlen = -1;
-    //st_root.root = NULL;
+    /* st_root.root = NULL; */
     st_root.stack = NULL;
 
     if (Cmd_Argc() == 2)

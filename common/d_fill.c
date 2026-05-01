@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// d_clear: clears a specified rectangle to the specified color
+/* d_clear: clears a specified rectangle to the specified color */
 
 #include <stdint.h>
 
@@ -51,21 +51,21 @@ void D_FillRect(vrect_t *rect, int color)
    if (rx + rwidth > vid.width)
       rwidth = vid.width - rx;
    if (ry + rheight > vid.height)
-      rheight = vid.height - rx;
+      rheight = vid.height - ry;
 
    if (rwidth < 1 || rheight < 1)
       return;
 
    dest = ((byte *)vid.buffer + ry * vid.rowbytes + rx);
 
-   if (((rwidth & 0x03) == 0) && (((int32_t)dest & 0x03) == 0))
+   if (((rwidth & 0x03) == 0) && (((uintptr_t)dest & 0x03) == 0))
    {
-      // faster aligned dword clear
+      /* faster aligned dword clear */
       uint32_t *ldest = (uint32_t *)dest;
-      color += color << 16;
+      color = (color & 0xff) | ((color & 0xff) << 8);
+      color = (color & 0xffff) | ((color & 0xffff) << 16);
 
       rwidth >>= 2;
-      color += color << 8;
 
       for (ry = 0; ry < rheight; ry++)
       {
@@ -76,7 +76,7 @@ void D_FillRect(vrect_t *rect, int color)
    }
    else
    {
-      // slower byte-by-byte clear for unaligned cases
+      /* slower byte-by-byte clear for unaligned cases */
       for (ry = 0; ry < rheight; ry++)
       {
          for (rx = 0; rx < rwidth; rx++)

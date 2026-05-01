@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SERVER_QWSVDEF_H
 #define SERVER_QWSVDEF_H
 
-// quakedef.h -- primary header for server
+/* quakedef.h -- primary header for server */
 
 #include <math.h>
 #include <string.h>
@@ -33,11 +33,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "cvar.h"
 
-//=============================================================================
+/* ============================================================================= */
 
-// the host system specifies the base of the directory tree, the
-// command line parms passed to the program, and the amount of memory
-// available for the program to use
+/* the host system specifies the base of the directory tree, the */
+/* command line parms passed to the program, and the amount of memory */
+/* available for the program to use */
 
 typedef struct {
     const char *basedir;
@@ -48,20 +48,20 @@ typedef struct {
 } quakeparms_t;
 
 
-//=============================================================================
+/* ============================================================================= */
 
-//
-// host
-//
+/**/
+/* host */
+/**/
 extern quakeparms_t host_parms;
 
 extern cvar_t developer;
 
-extern qboolean host_initialized;	// true if into command execution
+extern qboolean host_initialized;	/* true if into command execution */
 extern double host_frametime;
-extern double realtime;		// not bounded in any way, changed at
+extern double realtime;		/* not bounded in any way, changed at */
 
-										// start of every frame, never reset
+										/* start of every frame, never reset */
 
 void SV_Error(const char *fmt, ...)
     __attribute__((noreturn, format(printf,1,2)));

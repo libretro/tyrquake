@@ -21,30 +21,30 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef SPRITEGN_H
 #define SPRITEGN_H
 
-//
-// spritegn.h: header file for sprite generation program
-//
+/**/
+/* spritegn.h: header file for sprite generation program */
+/**/
 
-// **********************************************************
-// * This file must be identical in the spritegen directory *
-// * and in the Quake directory, because it's used to       *
-// * pass data from one to the other via .spr files.        *
-// **********************************************************
+/* ********************************************************** */
+/* * This file must be identical in the spritegen directory * */
+/* * and in the Quake directory, because it's used to       * */
+/* * pass data from one to the other via .spr files.        * */
+/* ********************************************************** */
 
-//-------------------------------------------------------
-// This program generates .spr sprite package files.
-// The format of the files is as follows:
-//
-// dsprite_t file header structure
-// <repeat dsprite_t.numframes times>
-//   <if spritegroup, repeat dspritegroup_t.numframes times>
-//     dspriteframe_t frame header structure
-//     sprite bitmap
-//   <else (single sprite frame)>
-//     dspriteframe_t frame header structure
-//     sprite bitmap
-// <endrepeat>
-//-------------------------------------------------------
+/* ------------------------------------------------------- */
+/* This program generates .spr sprite package files. */
+/* The format of the files is as follows: */
+/**/
+/* dsprite_t file header structure */
+/* <repeat dsprite_t.numframes times> */
+/*   <if spritegroup, repeat dspritegroup_t.numframes times> */
+/*     dspriteframe_t frame header structure */
+/*     sprite bitmap */
+/*   <else (single sprite frame)> */
+/*     dspriteframe_t frame header structure */
+/*     sprite bitmap */
+/* <endrepeat> */
+/* ------------------------------------------------------- */
 
 #ifdef INCLUDELIBS
 
@@ -63,13 +63,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define SPRITE_VERSION	1
 
-// must match definition in modelgen.h
+/* must match definition in modelgen.h */
 #ifndef SYNCTYPE_T
 #define SYNCTYPE_T
 typedef enum { ST_SYNC = 0, ST_RAND, ENSURE_INT_SYNCTYPE = 0x70000000 } synctype_t;
 #endif
 
-// TODO: shorten these?
+/* TODO: shorten these? */
 typedef struct {
     int ident;
     int version;
@@ -109,6 +109,6 @@ typedef struct {
 } dspriteframetype_t;
 
 #define IDSPRITEHEADER	(('P'<<24)+('S'<<16)+('D'<<8)+'I')
-														// little-endian "IDSP"
+														/* little-endian "IDSP" */
 
 #endif /* SPRITEGN_H */

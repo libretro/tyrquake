@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_efrag.c
+/* r_efrag.c */
 
 #include "console.h"
 #include "model.h"
@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 mnode_t *r_pefragtopnode;
 
 
-//===========================================================================
+/* =========================================================================== */
 
 /*
 ===============================================================================
@@ -64,7 +64,7 @@ R_RemoveEfrags(entity_t *ent)
 	    walk = *prev;
 	    if (!walk)
 		break;
-	    if (walk == ef) {	// remove this fragment
+	    if (walk == ef) {	/* remove this fragment */
 		*prev = ef->leafnext;
 		break;
 	    } else
@@ -74,7 +74,7 @@ R_RemoveEfrags(entity_t *ent)
 	old = ef;
 	ef = ef->entnext;
 
-	// put it on the free list
+	/* put it on the free list */
 	old->entnext = cl.free_efrags;
 	cl.free_efrags = old;
     }
@@ -98,7 +98,7 @@ R_SplitEntityOnNode(mnode_t *node)
     if (node->contents == CONTENTS_SOLID) {
 	return;
     }
-// add an efrag if the node is a leaf
+/* add an efrag if the node is a leaf */
 
     if (node->contents < 0) {
 	if (!r_pefragtopnode)
@@ -106,40 +106,40 @@ R_SplitEntityOnNode(mnode_t *node)
 
 	leaf = (mleaf_t *)node;
 
-// grab an efrag off the free list
+/* grab an efrag off the free list */
 	ef = cl.free_efrags;
 	if (!ef) {
 	    Con_Printf("Too many efrags!\n");
-	    return;		// no free fragments...
+	    return;		/* no free fragments... */
 	}
 	cl.free_efrags = cl.free_efrags->entnext;
 
 	ef->entity = r_addent;
 
-// add the entity link
+/* add the entity link */
 	*lastlink = ef;
 	lastlink = &ef->entnext;
 	ef->entnext = NULL;
 
-// set the leaf links
+/* set the leaf links */
 	ef->leaf = leaf;
 	ef->leafnext = leaf->efrags;
 	leaf->efrags = ef;
 
 	return;
     }
-// NODE_MIXED
+/* NODE_MIXED */
 
     splitplane = node->plane;
     sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
 
     if (sides == PSIDE_BOTH) {
-	// split on this plane
-	// if this is the first splitter of this bmodel, remember it
+	/* split on this plane */
+	/* if this is the first splitter of this bmodel, remember it */
 	if (!r_pefragtopnode)
 	    r_pefragtopnode = node;
     }
-// recurse down the contacted sides
+/* recurse down the contacted sides */
     if (sides & PSIDE_FRONT)
 	R_SplitEntityOnNode(node->children[0]);
 
@@ -166,8 +166,8 @@ R_SplitEntityOnNode2(mnode_t *node)
     if (node->contents < 0) {
 	if (node->contents != CONTENTS_SOLID)
 	    r_pefragtopnode = node;
-	// we've reached a non-solid leaf, so it's
-	//  visible and not BSP clipped
+	/* we've reached a non-solid leaf, so it's */
+	/*  visible and not BSP clipped */
 	return;
     }
 
@@ -175,11 +175,11 @@ R_SplitEntityOnNode2(mnode_t *node)
     sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
 
     if (sides == PSIDE_BOTH) {
-	// remember first splitter
+	/* remember first splitter */
 	r_pefragtopnode = node;
 	return;
     }
-// not split yet; recurse down the contacted side
+/* not split yet; recurse down the contacted side */
     if (sides & PSIDE_FRONT)
 	R_SplitEntityOnNode2(node->children[0]);
     else

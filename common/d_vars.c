@@ -17,21 +17,21 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_vars.c: global refresh variables
+/* r_vars.c: global refresh variables */
 
 #include "mathlib.h"
 #include "quakedef.h"
 #include "vid.h"
 
-// all global and static refresh variables are collected in a contiguous block
-// to avoid cache conflicts.
+/* all global and static refresh variables are collected in a contiguous block */
+/* to avoid cache conflicts. */
 
-//-------------------------------------------------------
-// global refresh variables
-//-------------------------------------------------------
+/* ------------------------------------------------------- */
+/* global refresh variables */
+/* ------------------------------------------------------- */
 
-// FIXME: make into one big structure, like cl or sv
-// FIXME: do separately for refresh engine and driver
+/* FIXME: make into one big structure, like cl or sv */
+/* FIXME: do separately for refresh engine and driver */
 
 float d_sdivzstepu, d_tdivzstepu, d_zistepu;
 float d_sdivzstepv, d_tdivzstepv, d_zistepv;

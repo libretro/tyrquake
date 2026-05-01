@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl_tent.c -- client side temporary entities
+/* cl_tent.c -- client side temporary entities */
 
 #include "client.h"
 #include "console.h"
@@ -141,7 +141,7 @@ CL_ParseTEnt(void)
    type = MSG_ReadByte();
    switch (type)
    {
-      case TE_WIZSPIKE:		// spike hitting wall
+      case TE_WIZSPIKE:		/* spike hitting wall */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
@@ -149,7 +149,7 @@ CL_ParseTEnt(void)
          S_StartSound(-1, 0, cl_sfx_wizhit, pos, 1, 1);
          break;
 
-      case TE_KNIGHTSPIKE:	// spike hitting wall
+      case TE_KNIGHTSPIKE:	/* spike hitting wall */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
@@ -157,7 +157,7 @@ CL_ParseTEnt(void)
          S_StartSound(-1, 0, cl_sfx_knighthit, pos, 1, 1);
          break;
 
-      case TE_SPIKE:		// spike hitting wall
+      case TE_SPIKE:		/* spike hitting wall */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
@@ -176,7 +176,7 @@ CL_ParseTEnt(void)
                S_StartSound(-1, 0, cl_sfx_ric3, pos, 1, 1);
          }
          break;
-      case TE_SUPERSPIKE:	// super spike hitting wall
+      case TE_SUPERSPIKE:	/* super spike hitting wall */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
@@ -195,14 +195,14 @@ CL_ParseTEnt(void)
          }
          break;
 
-      case TE_GUNSHOT:		// bullet hitting wall
+      case TE_GUNSHOT:		/* bullet hitting wall */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
          R_RunParticleEffect(pos, vec3_origin, 0, 20);
          break;
 
-      case TE_EXPLOSION:		// rocket explosion
+      case TE_EXPLOSION:		/* rocket explosion */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
@@ -215,7 +215,7 @@ CL_ParseTEnt(void)
          S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
          break;
 
-      case TE_TAREXPLOSION:	// tarbaby explosion
+      case TE_TAREXPLOSION:	/* tarbaby explosion */
          pos[0] = MSG_ReadCoord();
          pos[1] = MSG_ReadCoord();
          pos[2] = MSG_ReadCoord();
@@ -224,23 +224,23 @@ CL_ParseTEnt(void)
          S_StartSound(-1, 0, cl_sfx_r_exp3, pos, 1, 1);
          break;
 
-      case TE_LIGHTNING1:	// lightning bolts
+      case TE_LIGHTNING1:	/* lightning bolts */
          CL_ParseBeam(Mod_ForName("progs/bolt.mdl", true));
          break;
 
-      case TE_LIGHTNING2:	// lightning bolts
+      case TE_LIGHTNING2:	/* lightning bolts */
          CL_ParseBeam(Mod_ForName("progs/bolt2.mdl", true));
          break;
 
-      case TE_LIGHTNING3:	// lightning bolts
+      case TE_LIGHTNING3:	/* lightning bolts */
          CL_ParseBeam(Mod_ForName("progs/bolt3.mdl", true));
          break;
 
-         // PGM 01/21/97
-      case TE_BEAM:		// grappling hook beam
+         /* PGM 01/21/97 */
+      case TE_BEAM:		/* grappling hook beam */
          CL_ParseBeam(Mod_ForName("progs/beam.mdl", true));
          break;
-         // PGM 01/21/97
+         /* PGM 01/21/97 */
 
       case TE_LAVASPLASH:
          pos[0] = MSG_ReadCoord();

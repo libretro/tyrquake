@@ -17,8 +17,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// Quake is a trademark of Id Software, Inc., (c) 1996 Id Software, Inc. All
-// rights reserved.
+/* Quake is a trademark of Id Software, Inc., (c) 1996 Id Software, Inc. All */
+/* rights reserved. */
 
 #include <string.h>
 #include <time.h>
@@ -168,7 +168,7 @@ CDAudio_Update(void)
 	return;
 
     if (playing && lastchk < time(NULL)) {
-	lastchk = time(NULL) + 2;	//two seconds between chks
+	lastchk = time(NULL) + 2;	/* two seconds between chks */
 	if (!CDDrv_IsPlaying(playTrack)) {
 	    playing = false;
 	    if (playLooping)
@@ -277,7 +277,7 @@ CDAudio_Init(void)
     int i, err;
 
 #ifdef NQ_HACK
-    // FIXME - not a valid client state in QW?
+    /* FIXME - not a valid client state in QW? */
     if (cls.state == ca_dedicated)
 	return -1;
 #endif

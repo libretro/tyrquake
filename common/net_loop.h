@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "net.h"
 
-// net_loop.h
+/* net_loop.h */
 
 int Loop_Init(void);
 void Loop_Listen(qboolean state);

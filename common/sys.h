@@ -24,20 +24,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <boolean.h>
 #include "qtypes.h"
 
-// FIXME - QW/server doesn't want this much stuff...
+/* FIXME - QW/server doesn't want this much stuff... */
 
-// memory protection
+/* memory protection */
 void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
 
-// system IO
+/* system IO */
 
 #define MAX_PRINTMSG 4096
 
 void Sys_Printf(const char *fmt, ...);
 bool Sys_Error(const char *error, ...);
 
-// send text to the console
-// an error will cause the entire program to exit
+/* send text to the console */
+/* an error will cause the entire program to exit */
 
 void Sys_Quit(void);
 
@@ -45,12 +45,12 @@ double Sys_DoubleTime(void);
 
 char *Sys_ConsoleInput(void);
 
-// called to yield for a little bit so as
-// not to hog cpu when paused or debugging
+/* called to yield for a little bit so as */
+/* not to hog cpu when paused or debugging */
 
 void Sys_SendKeyEvents(void);
 
-// Perform Key_Event () callbacks until the input que is empty
+/* Perform Key_Event () callbacks until the input que is empty */
 
 void Sys_LowFPPrecision(void);
 void Sys_HighFPPrecision(void);

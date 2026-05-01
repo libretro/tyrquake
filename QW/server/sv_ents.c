@@ -24,8 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "sys.h"
 
-// because there can be a lot of nails, there is a special
-// network protocol for them
+/* because there can be a lot of nails, there is a special */
+/* network protocol for them */
 #define	MAX_NAILS	32
 edict_t *nails[MAX_NAILS];
 int numnails;
@@ -46,7 +46,7 @@ SV_AddNailUpdate(edict_t *ent)
 void
 SV_EmitNailUpdate(sizebuf_t *msg)
 {
-    byte bits[6];		// [48 bits] xyzpy 12 12 12 4 8
+    byte bits[6];		/* [48 bits] xyzpy 12 12 12 4 8 */
     int n, i;
     edict_t *ent;
     int x, y, z, p, yaw;
@@ -77,7 +77,7 @@ SV_EmitNailUpdate(sizebuf_t *msg)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 
 /*
@@ -96,7 +96,7 @@ SV_WriteDelta(entity_state_t *from, entity_state_t *to, sizebuf_t *msg,
     int i;
     float miss;
 
-// send an update
+/* send an update */
     bits = 0;
 
     for (i = 0; i < 3; i++) {
@@ -135,16 +135,16 @@ SV_WriteDelta(entity_state_t *from, entity_state_t *to, sizebuf_t *msg,
     if (to->flags & U_SOLID)
 	bits |= U_SOLID;
 
-    //
-    // write the message
-    //
+    /**/
+    /* write the message */
+    /**/
     if (!to->number)
 	SV_Error("Unset entity number");
     if (to->number >= 512)
 	SV_Error("Entity number >= 512");
 
     if (!bits && !force)
-	return;			// nothing to send!
+	return;			/* nothing to send! */
     i = to->number | (bits & ~511);
     if (i & U_REMOVE)
 	Sys_Error("%s: U_REMOVE", __func__);
@@ -195,7 +195,7 @@ SV_EmitPacketEntities(client_t *client, packet_entities_t * to,
     int oldnum, newnum;
     int oldmax;
 
-    // this is the frame that we are going to delta update from
+    /* this is the frame that we are going to delta update from */
     if (client->delta_sequence != -1) {
 	fromframe = &client->frames[client->delta_sequence & UPDATE_MASK];
 	from = &fromframe->entities;
@@ -204,7 +204,7 @@ SV_EmitPacketEntities(client_t *client, packet_entities_t * to,
 	MSG_WriteByte(msg, svc_deltapacketentities);
 	MSG_WriteByte(msg, client->delta_sequence);
     } else {
-	oldmax = 0;		// no delta update
+	oldmax = 0;		/* no delta update */
 	from = NULL;
 
 	MSG_WriteByte(msg, svc_packetentities);
@@ -212,16 +212,16 @@ SV_EmitPacketEntities(client_t *client, packet_entities_t * to,
 
     newindex = 0;
     oldindex = 0;
-//Con_Printf ("---%i to %i ----\n", client->delta_sequence & UPDATE_MASK
-//                      , client->netchan.outgoing_sequence & UPDATE_MASK);
+/* Con_Printf ("---%i to %i ----\n", client->delta_sequence & UPDATE_MASK */
+/*                      , client->netchan.outgoing_sequence & UPDATE_MASK); */
     while (newindex < to->num_entities || oldindex < oldmax) {
 	newnum =
 	    newindex >=
 	    to->num_entities ? 9999 : to->entities[newindex].number;
 	oldnum = oldindex >= oldmax ? 9999 : from->entities[oldindex].number;
 
-	if (newnum == oldnum) {	// delta update from old position
-//Con_Printf ("delta %i\n", newnum);
+	if (newnum == oldnum) {	/* delta update from old position */
+/* Con_Printf ("delta %i\n", newnum); */
 	    SV_WriteDelta(&from->entities[oldindex], &to->entities[newindex],
 			  msg, false);
 	    oldindex++;
@@ -229,23 +229,23 @@ SV_EmitPacketEntities(client_t *client, packet_entities_t * to,
 	    continue;
 	}
 
-	if (newnum < oldnum) {	// this is a new entity, send it from the baseline
+	if (newnum < oldnum) {	/* this is a new entity, send it from the baseline */
 	    ent = EDICT_NUM(newnum);
-//Con_Printf ("baseline %i\n", newnum);
+/* Con_Printf ("baseline %i\n", newnum); */
 	    SV_WriteDelta(&ent->baseline, &to->entities[newindex], msg, true);
 	    newindex++;
 	    continue;
 	}
 
-	if (newnum > oldnum) {	// the old entity isn't present in the new message
-//Con_Printf ("remove %i\n", oldnum);
+	if (newnum > oldnum) {	/* the old entity isn't present in the new message */
+/* Con_Printf ("remove %i\n", oldnum); */
 	    MSG_WriteShort(msg, oldnum | U_REMOVE);
 	    oldindex++;
 	    continue;
 	}
     }
 
-    MSG_WriteShort(msg, 0);	// end of packetentities
+    MSG_WriteShort(msg, 0);	/* end of packetentities */
 }
 
 /*
@@ -271,18 +271,18 @@ SV_WritePlayersToClient(client_t *client, edict_t *clent,
 
 	ent = cl->edict;
 
-	// ZOID visibility tracking
+	/* ZOID visibility tracking */
 	if (ent != clent &&
 	    !(client->spec_track && client->spec_track - 1 == j)) {
 	    if (cl->spectator)
 		continue;
 
-	    // ignore if not touching a PV leaf
+	    /* ignore if not touching a PV leaf */
 	    for (i = 0; i < ent->num_leafs; i++)
 		if (Mod_TestLeafBit(pvs, ent->leafnums[i]))
 		    break;
 	    if (i == ent->num_leafs)
-		continue;	// not visible
+		continue;	/* not visible */
 	}
 
 	pflags = PF_MSEC | PF_COMMAND;
@@ -301,9 +301,9 @@ SV_WritePlayersToClient(client_t *client, edict_t *clent,
 	if (ent->v.mins[2] != -24)
 	    pflags |= PF_GIB;
 
-	if (cl->spectator) {	// only sent origin and velocity to spectators
+	if (cl->spectator) {	/* only sent origin and velocity to spectators */
 	    pflags &= PF_VELOCITY1 | PF_VELOCITY2 | PF_VELOCITY3;
-	} else if (ent == clent) {	// don't send a lot of data on personal entity
+	} else if (ent == clent) {	/* don't send a lot of data on personal entity */
 	    pflags &= ~(PF_MSEC | PF_COMMAND);
 	    if (ent->v.weaponframe)
 		pflags |= PF_WEAPONFRAME;
@@ -332,14 +332,14 @@ SV_WritePlayersToClient(client_t *client, edict_t *clent,
 	if (pflags & PF_COMMAND) {
 	    cmd = cl->lastcmd;
 
-	    if (ent->v.health <= 0) {	// don't show the corpse looking around...
+	    if (ent->v.health <= 0) {	/* don't show the corpse looking around... */
 		cmd.angles[0] = 0;
 		cmd.angles[1] = ent->v.angles[1];
 		cmd.angles[0] = 0;
 	    }
 
-	    cmd.buttons = 0;	// never send buttons
-	    cmd.impulse = 0;	// never send impulses
+	    cmd.buttons = 0;	/* never send buttons */
+	    cmd.impulse = 0;	/* never send impulses */
 
 	    MSG_WriteDeltaUsercmd(msg, &nullcmd, &cmd);
 	}
@@ -385,18 +385,18 @@ SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
     client_frame_t *frame;
     entity_state_t *state;
 
-    // this is the frame we are creating
+    /* this is the frame we are creating */
     frame = &client->frames[client->netchan.incoming_sequence & UPDATE_MASK];
 
-    // find the client's PVS
+    /* find the client's PVS */
     clent = client->edict;
     VectorAdd(clent->v.origin, clent->v.view_ofs, org);
     pvs = Mod_FatPVS(sv.worldmodel, org);
 
-    // send over the players in the PVS
+    /* send over the players in the PVS */
     SV_WritePlayersToClient(client, clent, pvs, msg);
 
-    // put other visible entities into either a packet_entities or a nails message
+    /* put other visible entities into either a packet_entities or a nails message */
     pack = &frame->entities;
     pack->num_entities = 0;
 
@@ -404,24 +404,24 @@ SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
 
     for (e = MAX_CLIENTS + 1, ent = EDICT_NUM(e); e < sv.num_edicts;
 	 e++, ent = NEXT_EDICT(ent)) {
-	// ignore ents without visible models
+	/* ignore ents without visible models */
 	if (!ent->v.modelindex || !*PR_GetString(ent->v.model))
 	    continue;
 
-	// ignore if not touching a PV leaf
+	/* ignore if not touching a PV leaf */
 	for (i = 0; i < ent->num_leafs; i++)
 	    if (Mod_TestLeafBit(pvs, ent->leafnums[i]))
 		break;
 
 	if (i == ent->num_leafs)
-	    continue;		// not visible
+	    continue;		/* not visible */
 
 	if (SV_AddNailUpdate(ent))
-	    continue;		// added to the special update list
+	    continue;		/* added to the special update list */
 
-	// add to the packetentities
+	/* add to the packetentities */
 	if (pack->num_entities == MAX_PACKET_ENTITIES)
-	    continue;		// all full
+	    continue;		/* all full */
 
 	state = &pack->entities[pack->num_entities];
 	pack->num_entities++;
@@ -437,11 +437,11 @@ SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
 	state->effects = ent->v.effects;
     }
 
-    // encode the packet entities as a delta from the
-    // last packetentities acknowledged by the client
+    /* encode the packet entities as a delta from the */
+    /* last packetentities acknowledged by the client */
 
     SV_EmitPacketEntities(client, pack, msg);
 
-    // now add the specialized nail update
+    /* now add the specialized nail update */
     SV_EmitNailUpdate(msg);
 }

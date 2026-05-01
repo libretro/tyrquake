@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_aclip.c: clip routines for drawing Alias models directly to the screen
+/* r_aclip.c: clip routines for drawing Alias models directly to the screen */
 
 #include "quakedef.h"
 #include "r_local.h"
@@ -209,7 +209,7 @@ R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *paux
    mtriangle_t mtri;
    unsigned clipflags;
 
-   // copy vertexes and fix seam texture coordinates
+   /* copy vertexes and fix seam texture coordinates */
    if (ptri->facesfront) {
       fv[0][0] = pfinalverts[ptri->vertindex[0]];
       fv[0][1] = pfinalverts[ptri->vertindex[1]];
@@ -223,7 +223,7 @@ R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *paux
       }
    }
 
-   // clip
+   /* clip */
    clipflags = fv[0][0].flags | fv[0][1].flags | fv[0][2].flags;
 
    if (clipflags & ALIAS_Z_CLIP) {
@@ -291,12 +291,12 @@ R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *paux
       fv[pingpong][i].flags = 0;
    }
 
-   // draw triangles
+   /* draw triangles */
    mtri.facesfront = ptri->facesfront;
    r_affinetridesc.ptriangles = &mtri;
    r_affinetridesc.pfinalverts = fv[pingpong];
 
-   // FIXME: do all at once as trifan?
+   /* FIXME: do all at once as trifan? */
    mtri.vertindex[0] = 0;
    for (i = 1; i < k - 1; i++) {
       mtri.vertindex[1] = i;

@@ -18,8 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-// draw.c -- this is the only file outside the refresh that touches the
-// vid buffer
+/* draw.c -- this is the only file outside the refresh that touches the */
+/* vid buffer */
 
 #include "common.h"
 #include "console.h"
@@ -49,14 +49,14 @@ typedef struct {
 
 static rectdesc_t r_rectdesc;
 
-byte *draw_chars;		// 8*8 graphic characters
+byte *draw_chars;		/* 8*8 graphic characters */
 const qpic_t *draw_disc;
 extern byte *host_basepal;
 static const qpic_t *draw_backtile;
 
 extern int coloredlights;
 
-//=============================================================================
+/* ============================================================================= */
 /* Support Routines */
 
 typedef struct cachepic_s {
@@ -102,9 +102,9 @@ Draw_CachePic(const char *path)
     if (dat)
 	return dat;
 
-//
-// load the pic from disk
-//
+/**/
+/* load the pic from disk */
+/**/
     COM_LoadCacheFile(path, &pic->cache);
 
     dat = (qpic_t *)pic->cache.data;
@@ -127,7 +127,7 @@ Draw_Init
 
 extern void VID_SetPalette2(unsigned char *palette);
 
-// Colored Lighting lookup tables
+/* Colored Lighting lookup tables */
 byte palmap2[64][64][64];	
 
 /*
@@ -138,7 +138,7 @@ BestColor
 static byte BestColor(int r, int g, int b, int start, int stop)
 {
 	int	i;
-	// let any color go to 0 as a last resort
+	/* let any color go to 0 as a last resort */
 	int bestdistortion = 256*256*4;
 	int bestcolor      = 0;
 	byte *pal          = host_basepal + start*3;
@@ -154,7 +154,7 @@ static byte BestColor(int r, int g, int b, int start, int stop)
 		if (distortion < bestdistortion)
 		{
 			if (!distortion)
-				return i; // perfect match
+				return i; /* perfect match */
 
 			bestdistortion = distortion;
 			bestcolor      = i;
@@ -168,7 +168,7 @@ static void Draw_Generate18BPPTable (void)
 {
 	int		r, g, b;
 
-	// Make the 18-bit lookup table here
+	/* Make the 18-bit lookup table here */
 	for (r=0 ; r<256 ; r+=4)
 	{
 		for (g=0 ; g<256 ; g+=4)
@@ -230,7 +230,7 @@ void Draw_Character(int x, int y, int num)
     col = num & 15;
     source = draw_chars + (row << 10) + (col << 3);
 
-    if (y < 0) {		// clipped
+    if (y < 0) {		/* clipped */
 	drawline = 8 + y;
 	source -= 128 * y;
 	y = 0;
@@ -405,7 +405,7 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
    {
       dest = vid.buffer + y * vid.rowbytes + x;
 
-      if (pic->width & 7) {	// general
+      if (pic->width & 7) {	/* general */
          for (v = 0; v < pic->height; v++) {
             for (u = 0; u < pic->width; u++)
                if ((tbyte = source[u]) != TRANSPARENT_COLOR)
@@ -414,7 +414,7 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
             dest += vid.rowbytes;
             source += pic->width;
          }
-      } else {		// unwound
+      } else {		/* unwound */
          for (v = 0; v < pic->height; v++) {
             for (u = 0; u < pic->width; u += 8) {
                if ((tbyte = source[u]) != TRANSPARENT_COLOR)
@@ -462,7 +462,7 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
    {
       dest = vid.buffer + y * vid.rowbytes + x;
 
-      if (pic->width & 7) {	// general
+      if (pic->width & 7) {	/* general */
          for (v = 0; v < pic->height; v++) {
             for (u = 0; u < pic->width; u++)
                if ((tbyte = source[u]) != TRANSPARENT_COLOR)
@@ -471,7 +471,7 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
             dest += vid.rowbytes;
             source += pic->width;
          }
-      } else {		// unwound
+      } else {		/* unwound */
          for (v = 0; v < pic->height; v++) {
             for (u = 0; u < pic->width; u += 8) {
                if ((tbyte = source[u]) != TRANSPARENT_COLOR)
@@ -695,12 +695,12 @@ Draw_TileClear(int x, int y, int w, int h)
 
 	    vr.x += vr.width;
 	    width -= vr.width;
-	    tileoffsetx = 0;	// only the left tile can be left-clipped
+	    tileoffsetx = 0;	/* only the left tile can be left-clipped */
 	}
 
 	vr.y += vr.height;
 	height -= vr.height;
-	tileoffsety = 0;	// only the top tile can be top-clipped
+	tileoffsety = 0;	/* only the top tile can be top-clipped */
     }
 }
 
@@ -731,7 +731,7 @@ void Draw_Fill(int x, int y, int w, int h, int c)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ================
@@ -755,7 +755,7 @@ void Draw_FadeScreen(void)
    }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ================

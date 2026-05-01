@@ -37,6 +37,7 @@
 #define	RB_TREE_H
 
 #include <stddef.h>
+#include <retro_inline.h>
 
 struct rb_node {
     struct rb_node *rb_parent;
@@ -50,8 +51,6 @@ struct rb_node {
 struct rb_root {
     struct rb_node *rb_node;
 };
-
-#define QRB_ROOT	(struct rb_root) { NULL, }
 
 /*
  *

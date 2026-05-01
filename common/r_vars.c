@@ -17,18 +17,18 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_vars.c: global refresh variables
+/* r_vars.c: global refresh variables */
 
 #include	"quakedef.h"
 
-// all global and static refresh variables are collected in a contiguous block
-// to avoid cache conflicts.
+/* all global and static refresh variables are collected in a contiguous block */
+/* to avoid cache conflicts. */
 
-//-------------------------------------------------------
-// global refresh variables
-//-------------------------------------------------------
+/* ------------------------------------------------------- */
+/* global refresh variables */
+/* ------------------------------------------------------- */
 
-// FIXME: make into one big structure, like cl or sv
-// FIXME: do separately for refresh engine and driver
+/* FIXME: make into one big structure, like cl or sv */
+/* FIXME: do separately for refresh engine and driver */
 
 int r_bmodelactive;

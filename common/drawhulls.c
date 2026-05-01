@@ -160,7 +160,7 @@ winding_for_plane(const mplane_t *p)
     vec3_t org, vright, vup;
     winding_t *w;
 
-    // find the major axis
+    /* find the major axis */
     max = -BOGUS_RANGE;
     axis = -1;
     for (i = 0; i < 3; i++) {
@@ -190,7 +190,7 @@ winding_for_plane(const mplane_t *p)
     VectorScale(vup, 8192, vup);
     VectorScale(vright, 8192, vright);
 
-    // project a really big axis aligned box onto the plane
+    /* project a really big axis aligned box onto the plane */
     w = winding_alloc(4);
     memset(w->points, 0, 4 * sizeof(vec3_t));
 
@@ -336,13 +336,13 @@ winding_clip(winding_t *in, const mplane_t *split,
 	if (sides[i + 1] == SIDE_ON || sides[i + 1] == sides[i])
 	    continue;
 
-	// generate a split point
+	/* generate a split point */
 	p2 = in->points[(i + 1) % in->numpoints];
 	mid = neww->points[neww->numpoints++];
 
 	dot = dists[i] / (dists[i] - dists[i + 1]);
 	for (j = 0; j < 3; j++) {
-	    // avoid round off error when possible
+	    /* avoid round off error when possible */
 	    if (in->plane->normal[j] == 1.0)
 		mid[j] = in->plane->dist;
 	    else if (in->plane->normal[j] == -1.0)
@@ -358,10 +358,10 @@ winding_clip(winding_t *in, const mplane_t *split,
 	    PushToPlaneAxis(mid, in->plane);
     }
 
-    // free the original winding
+    /* free the original winding */
     free(in);
 
-    // Shrink the winding back to just what it needs...
+    /* Shrink the winding back to just what it needs... */
     neww = winding_shrink(neww);
 
   out_free:
@@ -443,13 +443,13 @@ winding_split(winding_t *in, const mplane_t *split,
 	if (sides[i + 1] == SIDE_ON || sides[i + 1] == sides[i])
 	    continue;
 
-	// generate a split point
+	/* generate a split point */
 	p2 = in->points[(i + 1) % in->numpoints];
 	mid = front->points[front->numpoints++];
 
 	dot = dists[i] / (dists[i] - dists[i + 1]);
 	for (j = 0; j < 3; j++) {
-	    // avoid round off error when possible
+	    /* avoid round off error when possible */
 	    if (in->plane->normal[j] == 1.0)
 		mid[j] = in->plane->dist;
 	    if (in->plane->normal[j] == -1.0)
@@ -692,7 +692,7 @@ static void _gl_drawhull_callback(cvar_t *var)
          break;
       case 1:
       case 2:
-         //dump_nodes_stderr(&cl.worldmodel->hulls[val]);
+         /* dump_nodes_stderr(&cl.worldmodel->hulls[val]); */
          Con_Printf("Generating polygons for hull %u...\n", val);
          free_hull_polys();
          make_hull_windings(&cl.worldmodel->hulls[val]);

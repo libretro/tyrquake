@@ -60,13 +60,13 @@ int history_line = 0;
 
 keydest_t key_dest;
 
-int key_count;			// incremented every key event
+int key_count;			/* incremented every key event */
 
 const char *keybindings[K_LAST];
-qboolean consolekeys[K_LAST];	// if true, can't be rebound while in console
-qboolean menubound[K_LAST];	// if true, can't be rebound while in menu
-int keyshift[K_LAST];		// key to map to if shift held down in console
-int key_repeats[K_LAST];		// if > 1, it is autorepeating
+qboolean consolekeys[K_LAST];	/* if true, can't be rebound while in console */
+qboolean menubound[K_LAST];	/* if true, can't be rebound while in menu */
+int keyshift[K_LAST];		/* key to map to if shift held down in console */
+int key_repeats[K_LAST];		/* if > 1, it is autorepeating */
 qboolean keydown[K_LAST];
 
 typedef struct {
@@ -181,7 +181,7 @@ keyname_t keynames[] = {
     {"MWHEELUP", K_MWHEELUP},
     {"MWHEELDOWN", K_MWHEELDOWN},
 
-    {"SEMICOLON", ';'},		// because a raw semicolon seperates commands
+    {"SEMICOLON", ';'},		/* because a raw semicolon seperates commands */
 
     {NULL, 0}
 };
@@ -219,7 +219,7 @@ static qboolean CheckForCommand(void)
 {
     int i;
     char cmd[128];
-    char *s = key_lines[edit_line] + 1;	// skip the ]
+    char *s = key_lines[edit_line] + 1;	/* skip the ] */
 
     for (i = 0; i < sizeof(cmd) - 1; i++)
 	if (s[i] <= ' ')
@@ -295,7 +295,7 @@ ShowCompletions(void)
     root = Cmd_CommandCompletions(s);
     if (root && root->entries) {
 	Con_Printf("%s\n", key_lines[edit_line]);
-	//Con_Printf("%u possible completions:\n", root->entries);
+	/* Con_Printf("%u possible completions:\n", root->entries); */
 	Con_ShowTree(root);
 	Z_Free(root);
     } else {
@@ -387,7 +387,7 @@ Key_Console(int key)
 	return;
     }
 
-    if (key == K_TAB) {		// command completion
+    if (key == K_TAB) {		/* command completion */
 	if (tab_once) {
 	    /* double tab */
 	    ShowCompletions();
@@ -457,7 +457,7 @@ Key_Console(int key)
     }
 
     if (key < 32 || key > 127)
-	return;			// non printable
+	return;			/* non printable */
 
     if (key_linepos < MAXCMDLINE - 1) {
 	key_lines[edit_line][key_linepos] = key;
@@ -466,7 +466,7 @@ Key_Console(int key)
     }
 }
 
-//============================================================================
+/* ============================================================================ */
 
 qboolean chat_team;
 char chat_buffer[MAXCMDLINE];
@@ -495,7 +495,7 @@ Key_Message(int key)
     }
 
     if (key < 32 || key > 127)
-	return;			// non printable
+	return;			/* non printable */
 
     if (key == K_BACKSPACE) {
 	if (chat_bufferlen) {
@@ -506,13 +506,13 @@ Key_Message(int key)
     }
 
     if (chat_bufferlen == sizeof(chat_buffer) - 1)
-	return;			// all full
+	return;			/* all full */
 
     chat_buffer[chat_bufferlen++] = key;
     chat_buffer[chat_bufferlen] = 0;
 }
 
-//============================================================================
+/* ============================================================================ */
 
 
 /*
@@ -558,7 +558,7 @@ Key_KeynumToString(int keynum)
 
     if (keynum == -1)
 	return "<KEY NOT FOUND>";
-    if (keynum > 32 && keynum < 127) {	// printable ascii
+    if (keynum > 32 && keynum < 127) {	/* printable ascii */
 	tinystr[0] = keynum;
 	tinystr[1] = 0;
 	return tinystr;
@@ -645,7 +645,7 @@ Key_Bind_f(void)
     int i, argc, keynum, len;
     char cmd[1024];
 
-    // FIXME - allow arguments bound with the commands?
+    /* FIXME - allow arguments bound with the commands? */
     argc = Cmd_Argc();
     if (argc != 2 && argc != 3) {
 	Con_Printf("bind <key> [command] : attach a command to a key\n");
@@ -718,9 +718,9 @@ Key_Init(void)
     }
     key_linepos = 1;
 
-//
-// init ascii characters in console mode
-//
+/**/
+/* init ascii characters in console mode */
+/**/
     for (i = 32; i < 128; i++)
 	consolekeys[i] = true;
     consolekeys[K_ENTER] = true;
@@ -770,9 +770,9 @@ Key_Init(void)
     for (i = K_F1; i <= K_F15; i++)
 	menubound[i] = true;
 
-//
-// register our functions
-//
+/**/
+/* register our functions */
+/**/
     Cmd_AddCommand("bind", Key_Bind_f);
     Cmd_AddCommand("unbind", Key_Unbind_f);
     Cmd_AddCommand("unbindall", Key_Unbindall_f);
@@ -799,15 +799,15 @@ Key_Event(knum_t key, qboolean down)
     key_lastpress = key;
     key_count++;
     if (key_count <= 0) {
-	return;			// just catching keys for Con_NotifyBox
+	return;			/* just catching keys for Con_NotifyBox */
     }
-// update auto-repeat status
+/* update auto-repeat status */
     if (down) {
 	key_repeats[key]++;
 	if (key != K_BACKSPACE
 	    && key != K_PAUSE
 	    && key != K_PGUP && key != K_PGDN && key_repeats[key] > 1)
-	    return;		// ignore most autorepeats
+	    return;		/* ignore most autorepeats */
 
 	if (key >= K_MOUSE1 && !keybindings[key])
 	    Con_Printf("%s is unbound, hit F4 to set.\n",
@@ -819,9 +819,9 @@ Key_Event(knum_t key, qboolean down)
     if (key == K_RSHIFT)
 	rshift_down = down;
 
-//
-// handle escape specialy, so the user can never unbind it
-//
+/**/
+/* handle escape specialy, so the user can never unbind it */
+/**/
     if (key == K_ESCAPE) {
 	if (!down)
 	    return;
@@ -841,13 +841,13 @@ Key_Event(knum_t key, qboolean down)
 	}
 	return;
     }
-//
-// key up events only generate commands if the game key binding is
-// a button command (leading + sign).  These will occur even in console mode,
-// to keep the character from continuing an action started before a console
-// switch.  Button commands include the kenum as a parameter, so multiple
-// downs can be matched with ups
-//
+/**/
+/* key up events only generate commands if the game key binding is */
+/* a button command (leading + sign).  These will occur even in console mode, */
+/* to keep the character from continuing an action started before a console */
+/* switch.  Button commands include the kenum as a parameter, so multiple */
+/* downs can be matched with ups */
+/**/
     if (!down) {
 	kb = keybindings[key];
 	if (kb && kb[0] == '+')
@@ -859,9 +859,9 @@ Key_Event(knum_t key, qboolean down)
 	}
 	return;
     }
-//
-// during demo playback, most keys bring up the main menu
-//
+/**/
+/* during demo playback, most keys bring up the main menu */
+/**/
     if (cls.demoplayback && consolekeys[key] && key_dest == key_game) {
 	/* Don't override the console key */
 	if (!keybindings[key] || strcmp(keybindings[key], "toggleconsole")) {
@@ -869,9 +869,9 @@ Key_Event(knum_t key, qboolean down)
 	    return;
 	}
     }
-//
-// if not a consolekey, send to the interpreter no matter what mode is
-//
+/**/
+/* if not a consolekey, send to the interpreter no matter what mode is */
+/**/
     if ((key_dest == key_menu && menubound[key])
 	|| (key_dest == key_console && !consolekeys[key])
 	|| (key_dest == key_game
@@ -892,7 +892,7 @@ Key_Event(knum_t key, qboolean down)
     }
 
     if (!down)
-	return;			// other systems only care about key down events
+	return;			/* other systems only care about key down events */
 
     if (lshift_down || rshift_down)
 	key = (knum_t)keyshift[key];

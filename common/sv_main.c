@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_main.c -- server main program
+/* sv_main.c -- server main program */
 
 #include "bspfile.h"
 #include "cmd.h"
@@ -38,9 +38,9 @@ server_t sv;
 server_static_t svs;
 
 #define MODSTRLEN (sizeof("*" stringify(MAX_MODELS)) / sizeof(char))
-char localmodels[MAX_MODELS][MODSTRLEN]; // inline model names for precache
+char localmodels[MAX_MODELS][MODSTRLEN]; /* inline model names for precache */
 
-//============================================================================
+/* ============================================================================ */
 
 typedef struct {
     int version;
@@ -125,7 +125,7 @@ static struct stree_root *SV_Protocol_Arg_f(const char *arg)
       root->entries = 0;
       root->maxlen = 0;
       root->minlen = -1;
-      //root->root = {NULL};
+      /* root->root = {NULL}; */
       root->stack = NULL;
 
       STree_AllocInit();
@@ -276,7 +276,7 @@ void SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
    if (sv.datagram.cursize > MAX_DATAGRAM - 14)
       return;
 
-   // find precache number for sound
+   /* find precache number for sound */
    for (sound_num = 1; sound_num < MAX_SOUNDS
          && sv.sound_precache[sound_num]; sound_num++)
       if (!strcmp(sample, sv.sound_precache[sound_num]))
@@ -306,7 +306,7 @@ void SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
       field_mask |= SND_FITZ_LARGESOUND;
    }
 
-   // directed messages go only to the entity the are targeted on
+   /* directed messages go only to the entity the are targeted on */
    MSG_WriteByte(&sv.datagram, svc_sound);
    MSG_WriteByte(&sv.datagram, field_mask);
    if (field_mask & SND_VOLUME)
@@ -371,12 +371,12 @@ void SV_SendServerinfo(client_t *client)
       MSG_WriteString(&client->message, *s);
    MSG_WriteByte(&client->message, 0);
 
-   // send music
+   /* send music */
    MSG_WriteByte(&client->message, svc_cdtrack);
    MSG_WriteByte(&client->message, sv.edicts->v.sounds);
    MSG_WriteByte(&client->message, sv.edicts->v.sounds);
 
-   // set view
+   /* set view */
    MSG_WriteByte(&client->message, svc_setview);
    MSG_WriteShort(&client->message, NUM_FOR_EDICT(client->edict));
 
@@ -384,7 +384,7 @@ void SV_SendServerinfo(client_t *client)
    MSG_WriteByte(&client->message, 1);
 
    client->sendsignon = true;
-   client->spawned = false;	// need prespawn, spawn, etc
+   client->spawned = false;	/* need prespawn, spawn, etc */
 }
 
 /*
@@ -410,7 +410,7 @@ void SV_ConnectClient(int clientnum)
 
    ent = EDICT_NUM(edictnum);
 
-   // set up the client_t
+   /* set up the client_t */
    netconnection = client->netconnection;
 
    if (sv.loadgame)
@@ -424,12 +424,12 @@ void SV_ConnectClient(int clientnum)
    client->edict = ent;
    client->message.data = client->msgbuf;
    client->message.maxsize = sizeof(client->msgbuf);
-   client->message.allowoverflow = true;	// we can catch it
+   client->message.allowoverflow = true;	/* we can catch it */
 
    if (sv.loadgame) {
       memcpy(client->spawn_parms, spawn_parms, sizeof(spawn_parms));
    } else {
-      // call the progs to get default spawn parms for the new client
+      /* call the progs to get default spawn parms for the new client */
       PR_ExecuteProgram(pr_global_struct->SetNewParms);
       for (i = 0; i < NUM_SPAWN_PARMS; i++)
          client->spawn_parms[i] = (&pr_global_struct->parm1)[i];
@@ -450,14 +450,14 @@ void SV_CheckForNewClients(void)
    struct qsocket_s *sock;
    int i;
 
-   // check for new connections
+   /* check for new connections */
    while (1)
    {
       sock = NET_CheckNewConnections();
       if (!sock)
          break;
 
-      // init a new client structure
+      /* init a new client structure */
       for (i = 0; i < svs.maxclients; i++)
          if (!svs.clients[i].active)
             break;
@@ -532,35 +532,35 @@ void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
    float miss;
    edict_t *ent;
 
-   // find the client's PVS
+   /* find the client's PVS */
    VectorAdd(clent->v.origin, clent->v.view_ofs, org);
    pvs = Mod_FatPVS(sv.worldmodel, org);
 
-   // send over all entities (excpet the client) that touch the pvs
+   /* send over all entities (excpet the client) that touch the pvs */
    ent = NEXT_EDICT(sv.edicts);
    for (e = 1; e < sv.num_edicts; e++, ent = NEXT_EDICT(ent)) {
 
-      // clent is ALWAYS sent
+      /* clent is ALWAYS sent */
       if (ent != clent) {
 
-         // ignore ents without visible models
+         /* ignore ents without visible models */
          if (!ent->v.modelindex || !*PR_GetString(ent->v.model))
             continue;
 
-         // ignore if not touching a PV leaf
+         /* ignore if not touching a PV leaf */
          for (i = 0; i < ent->num_leafs; i++)
             if (Mod_TestLeafBit(pvs, ent->leafnums[i]))
                break;
 
          if (i == ent->num_leafs)
-            continue;	// not visible
+            continue;	/* not visible */
       }
 
       if (msg->maxsize - msg->cursize < 16) {
          Con_Printf("packet overflow\n");
          return;
       }
-      // send an update
+      /* send an update */
       bits = 0;
 
       for (i = 0; i < 3; i++) {
@@ -579,7 +579,7 @@ void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
          bits |= U_ANGLE3;
 
       if (ent->v.movetype == MOVETYPE_STEP)
-         bits |= U_NOLERP;	// don't mess up the step animation
+         bits |= U_NOLERP;	/* don't mess up the step animation */
 
       if (ent->baseline.colormap != ent->v.colormap)
          bits |= U_COLORMAP;
@@ -616,9 +616,9 @@ void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
       if (bits >= 256)
          bits |= U_MOREBITS;
 
-      //
-      // write the message
-      //
+      /**/
+      /* write the message */
+      /**/
       MSG_WriteByte(msg, bits | U_SIGNAL);
 
       if (bits & U_MOREBITS)
@@ -691,7 +691,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
    eval_t *items2;
    float coord;
 
-   // send a damage message
+   /* send a damage message */
    if (ent->v.dmg_take || ent->v.dmg_save)
    {
       other = PROG_TO_EDICT(ent->v.dmg_inflictor);
@@ -706,12 +706,12 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
       ent->v.dmg_take = 0;
       ent->v.dmg_save = 0;
    }
-   //
-   // send the current viewpos offset from the view entity
-   //
-   SV_SetIdealPitch();		// how much to look up / down ideally
+   /**/
+   /* send the current viewpos offset from the view entity */
+   /**/
+   SV_SetIdealPitch();		/* how much to look up / down ideally */
 
-   // a fixangle might get lost in a dropped packet.  Oh well.
+   /* a fixangle might get lost in a dropped packet.  Oh well. */
    if (ent->v.fixangle) {
       MSG_WriteByte(msg, svc_setangle);
       for (i = 0; i < 3; i++)
@@ -727,8 +727,8 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
    if (ent->v.idealpitch)
       bits |= SU_IDEALPITCH;
 
-   // stuff the sigil bits into the high bits of items for sbar, or else
-   // mix in items2
+   /* stuff the sigil bits into the high bits of items for sbar, or else */
+   /* mix in items2 */
    items = ent->v.items;
    items2 = GetEdictFieldValue(ent, "items2");
    if (items2)
@@ -757,7 +757,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
    if (ent->v.armorvalue)
       bits |= SU_ARMOR;
 
-   //if (ent->v.weapon)
+   /* if (ent->v.weapon) */
    bits |= SU_WEAPON;
 
    if (sv.protocol == PROTOCOL_VERSION_FITZ) {
@@ -785,7 +785,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
          bits |= SU_FITZ_EXTEND2;
    }
 
-   // send the data
+   /* send the data */
 
    MSG_WriteByte(msg, svc_clientdata);
    MSG_WriteShort(msg, bits);
@@ -807,7 +807,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
          MSG_WriteChar(msg, ent->v.velocity[i] / 16);
    }
 
-   // [always sent]        if (bits & SU_ITEMS)
+   /* [always sent]        if (bits & SU_ITEMS) */
    MSG_WriteLong(msg, items);
 
    if (bits & SU_WEAPONFRAME)
@@ -872,15 +872,15 @@ qboolean SV_SendClientDatagram(client_t *client)
    MSG_WriteByte(&msg, svc_time);
    MSG_WriteFloat(&msg, sv.time);
 
-   // add the client specific data to the datagram
+   /* add the client specific data to the datagram */
    SV_WriteClientdataToMessage(client->edict, &msg);
    SV_WriteEntitiesToClient(client->edict, &msg);
 
-   // copy the server datagram if there is space
+   /* copy the server datagram if there is space */
    if (msg.cursize + sv.datagram.cursize < msg.maxsize)
       SZ_Write(&msg, sv.datagram.data, sv.datagram.cursize);
 
-   // send the datagram
+   /* send the datagram */
    err = NET_SendUnreliableMessage(client->netconnection, &msg);
    /* if the message couldn't send, kick the client off */
    if (err == -1) {
@@ -901,7 +901,7 @@ void SV_UpdateToReliableMessages(void)
    int i, j;
    client_t *client;
 
-   // check for changes to be sent over the reliable streams
+   /* check for changes to be sent over the reliable streams */
    for (i = 0, host_client = svs.clients; i < svs.maxclients;
          i++, host_client++) {
       if (host_client->old_frags != host_client->edict->v.frags) {
@@ -964,10 +964,10 @@ void SV_SendClientMessages(void)
 {
    int i, err;
 
-   // update frags, names, etc
+   /* update frags, names, etc */
    SV_UpdateToReliableMessages();
 
-   // build individual updates
+   /* build individual updates */
    for (i = 0, host_client = svs.clients; i < svs.maxclients;
          i++, host_client++) {
       if (!host_client->active)
@@ -977,21 +977,21 @@ void SV_SendClientMessages(void)
          if (!SV_SendClientDatagram(host_client))
             continue;
       } else {
-         // the player isn't totally in the game yet
-         // send small keepalive messages if too much time has passed
-         // send a full message when the next signon stage has been requested
-         // some other message data (name changes, etc) may accumulate
-         // between signon stages
+         /* the player isn't totally in the game yet */
+         /* send small keepalive messages if too much time has passed */
+         /* send a full message when the next signon stage has been requested */
+         /* some other message data (name changes, etc) may accumulate */
+         /* between signon stages */
          if (!host_client->sendsignon) {
             if (realtime - host_client->last_message > 5)
                SV_SendNop(host_client);
-            continue;	// don't send out non-signon messages
+            continue;	/* don't send out non-signon messages */
          }
       }
 
-      // check for an overflowed message.  Should only happen
-      // on a very fucked up connection that backs up a lot, then
-      // changes level
+      /* check for an overflowed message.  Should only happen */
+      /* on a very fucked up connection that backs up a lot, then */
+      /* changes level */
       if (host_client->message.overflowed) {
          SV_DropClient(true);
          host_client->message.overflowed = false;
@@ -1003,7 +1003,7 @@ void SV_SendClientMessages(void)
             continue;
 
          if (host_client->dropasap) {
-            SV_DropClient(false);	// went to another level
+            SV_DropClient(false);	/* went to another level */
          } else {
             err = NET_SendMessage(host_client->netconnection,
                   &host_client->message);
@@ -1018,7 +1018,7 @@ void SV_SendClientMessages(void)
       }
    }
 
-   // clear muzzle flashes
+   /* clear muzzle flashes */
    SV_CleanupEnts();
 }
 
@@ -1066,16 +1066,16 @@ void SV_CreateBaseline(void)
    unsigned int bits;
 
    for (entnum = 0; entnum < sv.num_edicts; entnum++) {
-      // get the current server version
+      /* get the current server version */
       svent = EDICT_NUM(entnum);
       if (svent->free)
          continue;
       if (entnum > svs.maxclients && !svent->v.modelindex)
          continue;
 
-      //
-      // create entity baseline
-      //
+      /**/
+      /* create entity baseline */
+      /**/
       VectorCopy(svent->v.origin, svent->baseline.origin);
       VectorCopy(svent->v.angles, svent->baseline.angles);
       svent->baseline.frame = svent->v.frame;
@@ -1097,9 +1097,9 @@ void SV_CreateBaseline(void)
             bits |= B_FITZ_LARGEFRAME;
       }
 
-      //
-      // add to the message
-      //
+      /**/
+      /* add to the message */
+      /**/
       if (bits) {
          MSG_WriteByte(&sv.signon, svc_fitz_spawnbaseline2);
          MSG_WriteShort(&sv.signon, entnum);
@@ -1168,7 +1168,7 @@ void SV_SaveSpawnparms(void)
       if (!host_client->active)
          continue;
 
-      // call the progs to get default spawn parms for the new client
+      /* call the progs to get default spawn parms for the new client */
       pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
       PR_ExecuteProgram(pr_global_struct->SetChangeParms);
       for (j = 0; j < NUM_SPAWN_PARMS; j++)
@@ -1189,23 +1189,23 @@ void SV_SpawnServer(char *server)
    edict_t *ent;
    int i;
 
-   // let's not have any servers with no name
+   /* let's not have any servers with no name */
    if (hostname.string[0] == 0)
       Cvar_Set("hostname", "UNNAMED");
    scr_centertime_off = 0;
 
    Con_DPrintf("SpawnServer: %s\n", server);
-   svs.changelevel_issued = false;	// now safe to issue another
+   svs.changelevel_issued = false;	/* now safe to issue another */
 
-   //
-   // tell all connected clients that we are going to a new level
-   //
+   /**/
+   /* tell all connected clients that we are going to a new level */
+   /**/
    if (sv.active) {
       SV_SendReconnect();
    }
-   //
-   // make cvars consistant
-   //
+   /**/
+   /* make cvars consistant */
+   /**/
    if (coop.value)
       Cvar_SetValue("deathmatch", 0);
    current_skill = (int)(skill.value + 0.5);
@@ -1216,9 +1216,9 @@ void SV_SpawnServer(char *server)
 
    Cvar_SetValue("skill", (float)current_skill);
 
-   //
-   // set up the new server
-   //
+   /**/
+   /* set up the new server */
+   /**/
    Host_ClearMemory();
 
    memset(&sv, 0, sizeof(sv));
@@ -1227,10 +1227,10 @@ void SV_SpawnServer(char *server)
 
    sv.protocol = sv_protocol;
 
-   // load progs to get entity field count
+   /* load progs to get entity field count */
    PR_LoadProgs();
 
-   // allocate server memory
+   /* allocate server memory */
    sv.max_edicts = MAX_EDICTS;
    sv.edicts = (edict_t*)Hunk_Alloc(sv.max_edicts * pr_edict_size);
 
@@ -1246,7 +1246,7 @@ void SV_SpawnServer(char *server)
    sv.signon.cursize = 0;
    sv.signon.data = sv.signon_buf;
 
-   // leave slots at start for clients only
+   /* leave slots at start for clients only */
    sv.num_edicts = svs.maxclients + 1;
    for (i = 0; i < svs.maxclients; i++) {
       ent = EDICT_NUM(i + 1);
@@ -1268,9 +1268,9 @@ void SV_SpawnServer(char *server)
    }
    sv.models[1] = sv.worldmodel;
 
-   //
-   // clear world interaction links
-   //
+   /**/
+   /* clear world interaction links */
+   /**/
    SV_ClearWorld();
 
    sv.sound_precache[0] = pr_strings;
@@ -1282,14 +1282,14 @@ void SV_SpawnServer(char *server)
       sv.models[i + 1] = Mod_ForName(localmodels[i], false);
    }
 
-   //
-   // load the rest of the entities
-   //
+   /**/
+   /* load the rest of the entities */
+   /**/
    ent = EDICT_NUM(0);
    memset(&ent->v, 0, progs->entityfields * 4);
    ent->free = false;
    ent->v.model = PR_SetString(sv.worldmodel->name);
-   ent->v.modelindex = 1;	// world model
+   ent->v.modelindex = 1;	/* world model */
    ent->v.solid = SOLID_BSP;
    ent->v.movetype = MOVETYPE_PUSH;
 
@@ -1300,26 +1300,26 @@ void SV_SpawnServer(char *server)
 
    pr_global_struct->mapname = PR_SetString(sv.name);
 
-   // serverflags are for cross level information (sigils)
+   /* serverflags are for cross level information (sigils) */
    pr_global_struct->serverflags = svs.serverflags;
 
    ED_LoadFromFile(sv.worldmodel->entities);
 
    sv.active = true;
 
-   // all setup is completed, any further precache statements are errors
+   /* all setup is completed, any further precache statements are errors */
    sv.state = ss_active;
 
-   // run two frames to allow everything to settle
+   /* run two frames to allow everything to settle */
    /* FIXME - don't do this when loading a saved game */
    host_frametime = 0.1;
    SV_Physics();
    SV_Physics();
 
-   // create a baseline for more efficient communications
+   /* create a baseline for more efficient communications */
    SV_CreateBaseline();
 
-   // send serverinfo to all connected clients
+   /* send serverinfo to all connected clients */
    for (i = 0, host_client = svs.clients; i < svs.maxclients;
          i++, host_client++)
       if (host_client->active)

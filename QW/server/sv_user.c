@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_user.c -- server code for moving users
+/* sv_user.c -- server code for moving users */
 
 #include "cmd.h"
 #include "console.h"
@@ -66,23 +66,23 @@ SV_New_f(void)
     host_client->state = cs_connected;
     host_client->connection_started = realtime;
 
-    // send the info about the new client to all connected clients
-//      SV_FullClientUpdate (host_client, &sv.reliable_datagram);
-//      host_client->sendinfo = true;
+    /* send the info about the new client to all connected clients */
+/*      SV_FullClientUpdate (host_client, &sv.reliable_datagram); */
+/*      host_client->sendinfo = true; */
 
     gamedir = Info_ValueForKey(svs.info, "*gamedir");
     if (!gamedir[0])
 	gamedir = "qw";
 
-//NOTE:  This doesn't go through ClientReliableWrite since it's before the user
-//spawns.  These functions are written to not overflow
+/* NOTE:  This doesn't go through ClientReliableWrite since it's before the user */
+/* spawns.  These functions are written to not overflow */
     if (host_client->num_backbuf) {
 	Con_Printf("WARNING %s: [SV_New] Back buffered (%d0, clearing",
 		   host_client->name, host_client->netchan.message.cursize);
 	host_client->num_backbuf = 0;
 	SZ_Clear(&host_client->netchan.message);
     }
-    // send the serverdata
+    /* send the serverdata */
     MSG_WriteByte(&host_client->netchan.message, svc_serverdata);
     MSG_WriteLong(&host_client->netchan.message, PROTOCOL_VERSION);
     MSG_WriteLong(&host_client->netchan.message, svs.spawncount);
@@ -93,11 +93,11 @@ SV_New_f(void)
 	playernum |= 128;
     MSG_WriteByte(&host_client->netchan.message, playernum);
 
-    // send full levelname
+    /* send full levelname */
     MSG_WriteString(&host_client->netchan.message,
 		    PR_GetString(sv.edicts->v.message));
 
-    // send the movevars
+    /* send the movevars */
     MSG_WriteFloat(&host_client->netchan.message, movevars.gravity);
     MSG_WriteFloat(&host_client->netchan.message, movevars.stopspeed);
     MSG_WriteFloat(&host_client->netchan.message, movevars.maxspeed);
@@ -109,11 +109,11 @@ SV_New_f(void)
     MSG_WriteFloat(&host_client->netchan.message, movevars.waterfriction);
     MSG_WriteFloat(&host_client->netchan.message, movevars.entgravity);
 
-    // send music
+    /* send music */
     MSG_WriteByte(&host_client->netchan.message, svc_cdtrack);
     MSG_WriteByte(&host_client->netchan.message, sv.edicts->v.sounds);
 
-    // send server info string
+    /* send server info string */
     MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
     MSG_WriteStringf(&host_client->netchan.message,
 		     "fullserverinfo \"%s\"\n", svs.info);
@@ -134,7 +134,7 @@ SV_Soundlist_f(void)
 	Con_Printf("soundlist not valid -- allready spawned\n");
 	return;
     }
-    // handle the case of a level changing while a client was connecting
+    /* handle the case of a level changing while a client was connecting */
     if (atoi(Cmd_Argv(1)) != svs.spawncount) {
 	Con_Printf("SV_Soundlist_f from different level\n");
 	SV_New_f();
@@ -143,8 +143,8 @@ SV_Soundlist_f(void)
 
     n = atoi(Cmd_Argv(2));
 
-//NOTE:  This doesn't go through ClientReliableWrite since it's before the user
-//spawns.  These functions are written to not overflow
+/* NOTE:  This doesn't go through ClientReliableWrite since it's before the user */
+/* spawns.  These functions are written to not overflow */
     if (host_client->num_backbuf) {
 	Con_Printf("WARNING %s: [SV_Soundlist] Back buffered (%d0, clearing",
 		   host_client->name, host_client->netchan.message.cursize);
@@ -161,7 +161,7 @@ SV_Soundlist_f(void)
 
     MSG_WriteByte(&host_client->netchan.message, 0);
 
-    // next msg
+    /* next msg */
     if (*s)
 	MSG_WriteByte(&host_client->netchan.message, n);
     else
@@ -183,7 +183,7 @@ SV_Modellist_f(void)
 	Con_Printf("modellist not valid -- allready spawned\n");
 	return;
     }
-    // handle the case of a level changing while a client was connecting
+    /* handle the case of a level changing while a client was connecting */
     if (atoi(Cmd_Argv(1)) != svs.spawncount) {
 	Con_Printf("SV_Modellist_f from different level\n");
 	SV_New_f();
@@ -192,8 +192,8 @@ SV_Modellist_f(void)
 
     n = atoi(Cmd_Argv(2));
 
-//NOTE:  This doesn't go through ClientReliableWrite since it's before the user
-//spawns.  These functions are written to not overflow
+/* NOTE:  This doesn't go through ClientReliableWrite since it's before the user */
+/* spawns.  These functions are written to not overflow */
     if (host_client->num_backbuf) {
 	Con_Printf("WARNING %s: [SV_Modellist] Back buffered (%d0, clearing",
 		   host_client->name, host_client->netchan.message.cursize);
@@ -209,7 +209,7 @@ SV_Modellist_f(void)
 	MSG_WriteString(&host_client->netchan.message, *s);
     MSG_WriteByte(&host_client->netchan.message, 0);
 
-    // next msg
+    /* next msg */
     if (*s)
 	MSG_WriteByte(&host_client->netchan.message, n);
     else
@@ -231,7 +231,7 @@ SV_PreSpawn_f(void)
 	Con_Printf("prespawn not valid -- allready spawned\n");
 	return;
     }
-    // handle the case of a level changing while a client was connecting
+    /* handle the case of a level changing while a client was connecting */
     if (atoi(Cmd_Argv(1)) != svs.spawncount) {
 	Con_Printf("SV_PreSpawn_f from different level\n");
 	SV_New_f();
@@ -243,10 +243,10 @@ SV_PreSpawn_f(void)
 	buf = 0;
 
     if (!buf) {
-	// should be three numbers following containing checksums
+	/* should be three numbers following containing checksums */
 	check = atoi(Cmd_Argv(3));
 
-//              Con_DPrintf("Client check = %d\n", check);
+/*              Con_DPrintf("Client check = %d\n", check); */
 
 	if (sv_mapcheck.value && check != sv.worldmodel->checksum &&
 	    check != sv.worldmodel->checksum2) {
@@ -260,8 +260,8 @@ SV_PreSpawn_f(void)
 	}
 	host_client->checksum = check;
     }
-//NOTE:  This doesn't go through ClientReliableWrite since it's before the user
-//spawns.  These functions are written to not overflow
+/* NOTE:  This doesn't go through ClientReliableWrite since it's before the user */
+/* spawns.  These functions are written to not overflow */
     if (host_client->num_backbuf) {
 	Con_Printf("WARNING %s: [SV_PreSpawn] Back buffered (%d0, clearing",
 		   host_client->name, host_client->netchan.message.cursize);
@@ -273,11 +273,11 @@ SV_PreSpawn_f(void)
 	     sv.signon_buffers[buf], sv.signon_buffer_size[buf]);
 
     buf++;
-    if (buf == sv.num_signon_buffers) {	// all done prespawning
+    if (buf == sv.num_signon_buffers) {	/* all done prespawning */
 	MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
 	MSG_WriteStringf(&host_client->netchan.message, "cmd spawn %i 0\n",
 			 svs.spawncount);
-    } else {			// need to prespawn more
+    } else {			/* need to prespawn more */
 	MSG_WriteByte(&host_client->netchan.message, svc_stufftext);
 	MSG_WriteStringf(&host_client->netchan.message, "cmd prespawn %i %i\n",
 			 svs.spawncount, buf);
@@ -302,7 +302,7 @@ SV_Spawn_f(void)
 	Con_Printf("Spawn not valid -- allready spawned\n");
 	return;
     }
-// handle the case of a level changing while a client was connecting
+/* handle the case of a level changing while a client was connecting */
     if (atoi(Cmd_Argv(1)) != svs.spawncount) {
 	Con_Printf("SV_Spawn_f from different level\n");
 	SV_New_f();
@@ -311,23 +311,23 @@ SV_Spawn_f(void)
 
     n = atoi(Cmd_Argv(2));
 
-    // make sure n is valid
+    /* make sure n is valid */
     if (n < 0 || n > MAX_CLIENTS) {
 	Con_Printf("SV_Spawn_f invalid client start\n");
 	SV_New_f();
 	return;
     }
-// send all current names, colors, and frag counts
-    // FIXME: is this a good thing?
+/* send all current names, colors, and frag counts */
+    /* FIXME: is this a good thing? */
     SZ_Clear(&host_client->netchan.message);
 
-// send current status of all other players
+/* send current status of all other players */
 
-    // normally this could overflow, but no need to check due to backbuf
+    /* normally this could overflow, but no need to check due to backbuf */
     for (i = n, client = svs.clients + n; i < MAX_CLIENTS; i++, client++)
 	SV_FullClientUpdateToClient(client, host_client);
 
-// send all current light styles
+/* send all current light styles */
     for (i = 0; i < MAX_LIGHTSTYLES; i++) {
 	ClientReliableWrite_Begin(host_client, svc_lightstyle,
 				  3 +
@@ -339,12 +339,12 @@ SV_Spawn_f(void)
 	ClientReliableWrite_String(host_client, sv.lightstyles[i]);
     }
 
-    // set up the edict
+    /* set up the edict */
     ent = host_client->edict;
 
     memset(&ent->v, 0, progs->entityfields * 4);
     ent->v.colormap = NUM_FOR_EDICT(ent);
-    ent->v.team = 0;		// FIXME
+    ent->v.team = 0;		/* FIXME */
     ent->v.netname = PR_SetString(host_client->name);
 
     host_client->entgravity = 1.0;
@@ -356,9 +356,9 @@ SV_Spawn_f(void)
     if (val)
 	val->_float = sv_maxspeed.value;
 
-//
-// force stats to be updated
-//
+/**/
+/* force stats to be updated */
+/**/
     memset(host_client->stats, 0, sizeof(host_client->stats));
 
     ClientReliableWrite_Begin(host_client, svc_updatestatlong, 6);
@@ -377,8 +377,8 @@ SV_Spawn_f(void)
     ClientReliableWrite_Byte(host_client, STAT_MONSTERS);
     ClientReliableWrite_Long(host_client, pr_global_struct->killed_monsters);
 
-    // get the client to check and download skins
-    // when that is completed, a begin command will be issued
+    /* get the client to check and download skins */
+    /* when that is completed, a begin command will be issued */
     ClientReliableWrite_Begin(host_client, svc_stufftext, 8);
     ClientReliableWrite_String(host_client, "skins\n");
 
@@ -399,7 +399,7 @@ SV_SpawnSpectator(void)
     VectorCopy(vec3_origin, sv_player->v.view_ofs);
     sv_player->v.view_ofs[2] = 22;
 
-    // search for an info_playerstart to spawn the spectator at
+    /* search for an info_playerstart to spawn the spectator at */
     for (i = MAX_CLIENTS - 1; i < sv.num_edicts; i++) {
 	e = EDICT_NUM(i);
 	if (!strcmp(PR_GetString(e->v.classname), "info_player_start")) {
@@ -422,11 +422,11 @@ SV_Begin_f(void)
     int i;
 
     if (host_client->state == cs_spawned)
-	return;			// don't begin again
+	return;			/* don't begin again */
 
     host_client->state = cs_spawned;
 
-    // handle the case of a level changing while a client was connecting
+    /* handle the case of a level changing while a client was connecting */
     if (atoi(Cmd_Argv(1)) != svs.spawncount) {
 	Con_Printf("SV_Begin_f from different level\n");
 	SV_New_f();
@@ -437,38 +437,38 @@ SV_Begin_f(void)
 	SV_SpawnSpectator();
 
 	if (SpectatorConnect) {
-	    // copy spawn parms out of the client_t
+	    /* copy spawn parms out of the client_t */
 	    for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		(&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
 
-	    // call the spawn function
+	    /* call the spawn function */
 	    pr_global_struct->time = sv.time;
 	    pr_global_struct->self = EDICT_TO_PROG(sv_player);
 	    PR_ExecuteProgram(SpectatorConnect);
 	}
     } else {
-	// copy spawn parms out of the client_t
+	/* copy spawn parms out of the client_t */
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 	    (&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
 
-	// call the spawn function
+	/* call the spawn function */
 	pr_global_struct->time = sv.time;
 	pr_global_struct->self = EDICT_TO_PROG(sv_player);
 	PR_ExecuteProgram(pr_global_struct->ClientConnect);
 
-	// actually spawn the player
+	/* actually spawn the player */
 	pr_global_struct->time = sv.time;
 	pr_global_struct->self = EDICT_TO_PROG(sv_player);
 	PR_ExecuteProgram(pr_global_struct->PutClientInServer);
     }
 
-    // clear the net statistics, because connecting gives a bogus picture
+    /* clear the net statistics, because connecting gives a bogus picture */
     host_client->netchan.frame_latency = 0;
     host_client->netchan.frame_rate = 0;
     host_client->netchan.drop_count = 0;
     host_client->netchan.good_count = 0;
 
-    //check he's not cheating
+    /* check he's not cheating */
 
     pmodel = atoi(Info_ValueForKey(host_client->userinfo, "pmodel"));
     emodel = atoi(Info_ValueForKey(host_client->userinfo, "emodel"));
@@ -477,7 +477,7 @@ SV_Begin_f(void)
 	SV_BroadcastPrintf(PRINT_HIGH, "%s WARNING: non standard player/eyes "
 			   "model detected\n", host_client->name);
 
-    // if we are paused, tell the client
+    /* if we are paused, tell the client */
     if (sv.paused) {
 	ClientReliableWrite_Begin(host_client, svc_setpause, 2);
 	ClientReliableWrite_Byte(host_client, sv.paused);
@@ -485,7 +485,7 @@ SV_Begin_f(void)
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================
@@ -560,7 +560,7 @@ SV_NextUpload(void)
 	ClientReliableWrite_Begin(host_client, svc_stufftext, 8);
 	ClientReliableWrite_String(host_client, "stopul");
 
-	// suck out rest of packet
+	/* suck out rest of packet */
 	size = MSG_ReadShort();
 	MSG_ReadByte();
 	msg_readcount += size;
@@ -631,22 +631,22 @@ SV_BeginDownload_f(void)
     for (p = name; *p; p++)
 	*p = tolower(*p);
 
-    // first off, no .. or global allow check
+    /* first off, no .. or global allow check */
     if (strstr(name, "..") || !allow_download.value
-	// leading dot is no good
+	/* leading dot is no good */
 	|| *name == '.'
-	// leading slash bad as well, must be in subdir
+	/* leading slash bad as well, must be in subdir */
 	|| *name == '/'
-	// next up, skin check
+	/* next up, skin check */
 	|| (strncmp(name, "skins/", 6) == 0 && !allow_download_skins.value)
-	// now models
+	/* now models */
 	|| (strncmp(name, "progs/", 6) == 0 && !allow_download_models.value)
-	// now sounds
+	/* now sounds */
 	|| (strncmp(name, "sound/", 6) == 0 && !allow_download_sounds.value)
-	// now maps (note special case for maps, must not be in pak)
+	/* now maps (note special case for maps, must not be in pak) */
 	|| (strncmp(name, "maps/", 6) == 0 && !allow_download_maps.value)
-	// MUST be in a subdirectory
-	|| !strstr(name, "/")) {	// don't allow anything with .. path
+	/* MUST be in a subdirectory */
+	|| !strstr(name, "/")) {	/* don't allow anything with .. path */
 	ClientReliableWrite_Begin(host_client, svc_download, 4);
 	ClientReliableWrite_Short(host_client, -1);
 	ClientReliableWrite_Byte(host_client, 0);
@@ -662,8 +662,8 @@ SV_BeginDownload_f(void)
     host_client->downloadcount = 0;
 
     if (!host_client->download
-	// special check for maps, if it came from a pak file, don't allow
-	// download  ZOID
+	/* special check for maps, if it came from a pak file, don't allow */
+	/* download  ZOID */
 	|| (strncmp(name, "maps/", 5) == 0 && file_from_pak)) {
 	if (host_client->download) {
 	    fclose(host_client->download);
@@ -681,7 +681,7 @@ SV_BeginDownload_f(void)
     Sys_Printf("Uploading %s to %s\n", name, host_client->name);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 ==================
@@ -743,7 +743,7 @@ SV_Say(qboolean team)
     }
 
     len = strlen(text);
-    space = sizeof(text) - len - 2; // -2 for \n and null terminator
+    space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
     p = Cmd_Args();
     if (*p == '"') {
 	/* remove quotes */
@@ -765,14 +765,14 @@ SV_Say(qboolean team)
 		continue;
 
 	if (team) {
-	    // the spectator team
+	    /* the spectator team */
 	    if (host_client->spectator) {
 		if (!client->spectator)
 		    continue;
 	    } else {
 		t2 = Info_ValueForKey(client->userinfo, "team");
 		if (strcmp(t1, t2) || client->spectator)
-		    continue;	// on different teams
+		    continue;	/* on different teams */
 	    }
 	}
 	SV_ClientPrintf(client, PRINT_CHAT, "%s", text);
@@ -804,7 +804,7 @@ SV_Say_Team_f(void)
 
 
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 =================
@@ -870,7 +870,7 @@ SV_TogglePause(const char *msg)
     if (msg)
 	SV_BroadcastPrintf(PRINT_HIGH, "%s", msg);
 
-    // send notification to all clients
+    /* send notification to all clients */
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (!cl->state)
 	    continue;
@@ -943,7 +943,7 @@ SV_PTrack_f(void)
 	return;
 
     if (Cmd_Argc() != 2) {
-	// turn off tracking
+	/* turn off tracking */
 	host_client->spec_track = 0;
 	ent = EDICT_NUM(host_client - svs.clients + 1);
 	tent = EDICT_NUM(0);
@@ -961,7 +961,7 @@ SV_PTrack_f(void)
 	ent->v.goalentity = EDICT_TO_PROG(tent);
 	return;
     }
-    host_client->spec_track = i + 1;	// now tracking
+    host_client->spec_track = i + 1;	/* now tracking */
 
     ent = EDICT_NUM(host_client - svs.clients + 1);
     tent = EDICT_NUM(i + 1);
@@ -1046,22 +1046,22 @@ SV_SetInfo_f(void)
     }
 
     if (Cmd_Argv(1)[0] == '*')
-	return;			// don't set priveledged values
+	return;			/* don't set priveledged values */
 
     strcpy(oldval, Info_ValueForKey(host_client->userinfo, Cmd_Argv(1)));
 
     Info_SetValueForKey(host_client->userinfo, Cmd_Argv(1), Cmd_Argv(2),
 			MAX_INFO_STRING);
-// name is extracted below in ExtractFromUserInfo
-//      strncpy (host_client->name, Info_ValueForKey (host_client->userinfo, "name")
-//              , sizeof(host_client->name)-1);
-//      SV_FullClientUpdate (host_client, &sv.reliable_datagram);
-//      host_client->sendinfo = true;
+/* name is extracted below in ExtractFromUserInfo */
+/*      strncpy (host_client->name, Info_ValueForKey (host_client->userinfo, "name") */
+/*              , sizeof(host_client->name)-1); */
+/*      SV_FullClientUpdate (host_client, &sv.reliable_datagram); */
+/*      host_client->sendinfo = true; */
 
     if (!strcmp(Info_ValueForKey(host_client->userinfo, Cmd_Argv(1)), oldval))
-	return;			// key hasn't changed
+	return;			/* key hasn't changed */
 
-    // process any changed values
+    /* process any changed values */
     SV_ExtractFromUserinfo(host_client);
 
     i = host_client - svs.clients;
@@ -1111,7 +1111,7 @@ ucmd_t ucmds[] = {
     { "drop", SV_Drop_f },
     { "pings", SV_Pings_f },
 
-// issued by hand at client consoles
+/* issued by hand at client consoles */
     { "rate", SV_Rate_f },
     { "kill", SV_Kill_f },
     { "pause", SV_Pause_f },
@@ -1127,7 +1127,7 @@ ucmd_t ucmds[] = {
     { "download", SV_BeginDownload_f },
     { "nextdl", SV_NextDownload_f },
 
-    { "ptrack", SV_PTrack_f },	//ZOID - used with autocam
+    { "ptrack", SV_PTrack_f },	/* ZOID - used with autocam */
 
     { "snap", SV_NoSnap_f },
 
@@ -1203,7 +1203,7 @@ V_CalcRoll(vec3_t angles, vec3_t velocity)
 
 
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ================
@@ -1287,7 +1287,7 @@ SV_RunCmd(usercmd_t *ucmd)
 
     cmd = *ucmd;
 
-    // chop up very long commands
+    /* chop up very long commands */
     if (cmd.msec > 50) {
 	oldmsec = ucmd->msec;
 	cmd.msec = oldmsec / 2;
@@ -1306,9 +1306,9 @@ SV_RunCmd(usercmd_t *ucmd)
     if (ucmd->impulse)
 	sv_player->v.impulse = ucmd->impulse;
 
-//
-// angles
-// show 1/3 the pitch angle and all the roll angle
+/**/
+/* angles */
+/* show 1/3 the pitch angle and all the roll angle */
     if (sv_player->v.health > 0) {
 	if (!sv_player->v.fixangle) {
 	    sv_player->v.angles[PITCH] = -sv_player->v.v_angle[PITCH] / 3;
@@ -1375,10 +1375,10 @@ SV_RunCmd(usercmd_t *ucmd)
     VectorCopy(pmove.angles, sv_player->v.v_angle);
 
     if (!host_client->spectator) {
-	// link into place and touch triggers
+	/* link into place and touch triggers */
 	SV_LinkEdict(sv_player, true);
 
-	// touch other objects
+	/* touch other objects */
 	for (i = 0; i < pmove.numtouch; i++) {
 	    n = pmove.physents[pmove.touchindex[i]].info;
 	    ent = EDICT_NUM(n);
@@ -1401,7 +1401,7 @@ Done after running a player command.
 void
 SV_PostRunCmd(void)
 {
-    // run post-think
+    /* run post-think */
 
     if (!host_client->spectator) {
 	pr_global_struct->time = sv.time;
@@ -1430,23 +1430,23 @@ SV_ExecuteClientMessage(client_t *cl)
     usercmd_t oldest, oldcmd, newcmd;
     client_frame_t *frame;
     vec3_t o;
-    qboolean move_issued = false;	//only allow one move command
+    qboolean move_issued = false;	/* only allow one move command */
     int checksumIndex;
     byte checksum, calculatedChecksum;
     int seq_hash;
 
-    // calc ping time
+    /* calc ping time */
     frame = &cl->frames[cl->netchan.incoming_acknowledged & UPDATE_MASK];
     frame->ping_time = realtime - frame->senttime;
 
-    // make sure the reply sequence number matches the incoming
-    // sequence number
+    /* make sure the reply sequence number matches the incoming */
+    /* sequence number */
     if (cl->netchan.incoming_sequence >= cl->netchan.outgoing_sequence)
 	cl->netchan.outgoing_sequence = cl->netchan.incoming_sequence;
     else
-	cl->send_message = false;	// don't reply, sequences have slipped
+	cl->send_message = false;	/* don't reply, sequences have slipped */
 
-    // save time for ping calculations
+    /* save time for ping calculations */
     cl->frames[cl->netchan.outgoing_sequence & UPDATE_MASK].senttime =
 	realtime;
     cl->frames[cl->netchan.outgoing_sequence & UPDATE_MASK].ping_time = -1;
@@ -1456,10 +1456,10 @@ SV_ExecuteClientMessage(client_t *cl)
 
     seq_hash = cl->netchan.incoming_sequence;
 
-    // mark time so clients will know how much to predict
-    // other players
+    /* mark time so clients will know how much to predict */
+    /* other players */
     cl->localtime = sv.time;
-    cl->delta_sequence = -1;	// no delta unless requested
+    cl->delta_sequence = -1;	/* no delta unless requested */
     while (1) {
 	if (msg_badread) {
 	    Con_Printf("SV_ReadClientMessage: badread\n");
@@ -1486,14 +1486,14 @@ SV_ExecuteClientMessage(client_t *cl)
 
 	case clc_move:
 	    if (move_issued)
-		return;		// someone is trying to cheat...
+		return;		/* someone is trying to cheat... */
 
 	    move_issued = true;
 
 	    checksumIndex = MSG_GetReadCount();
 	    checksum = (byte)MSG_ReadByte();
 
-	    // read loss percentage
+	    /* read loss percentage */
 	    cl->lossage = MSG_ReadByte();
 
 	    MSG_ReadDeltaUsercmd(&nullcmd, &oldest);
@@ -1503,7 +1503,7 @@ SV_ExecuteClientMessage(client_t *cl)
 	    if (cl->state != cs_spawned)
 		break;
 
-	    // if the checksum fails, ignore the rest of the packet
+	    /* if the checksum fails, ignore the rest of the packet */
 	    calculatedChecksum =
 		COM_BlockSequenceCRCByte(net_message.data + checksumIndex +
 					 1,
@@ -1537,7 +1537,7 @@ SV_ExecuteClientMessage(client_t *cl)
 	    }
 
 	    cl->lastcmd = newcmd;
-	    cl->lastcmd.buttons = 0;	// avoid multiple fires on lag
+	    cl->lastcmd.buttons = 0;	/* avoid multiple fires on lag */
 	    break;
 
 
@@ -1549,7 +1549,7 @@ SV_ExecuteClientMessage(client_t *cl)
 	    o[0] = MSG_ReadCoord();
 	    o[1] = MSG_ReadCoord();
 	    o[2] = MSG_ReadCoord();
-	    // only allowed by spectators
+	    /* only allowed by spectators */
 	    if (host_client->spectator) {
 		VectorCopy(o, sv_player->v.origin);
 		SV_LinkEdict(sv_player, false);

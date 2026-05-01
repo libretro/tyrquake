@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// d_edge.c
+/* d_edge.c */
 
 #include "d_local.h"
 #include "quakedef.h"
@@ -64,7 +64,7 @@ D_DrawSolidSurface
 ==============
 */
 
-// FIXME: clean this up
+/* FIXME: clean this up */
 
 static void D_DrawSolidSurface(surf_t *surf, int color)
 {
@@ -233,15 +233,15 @@ void D_DrawSurfaces(void)
       {
          if (s->insubmodel)
          {
-            // FIXME: we don't want to do all this for every polygon!
-            // TODO: store once at start of frame
-            e = s->entity;	//FIXME: make this passed in to
-            // R_RotateBmodel ()
+            /* FIXME: we don't want to do all this for every polygon! */
+            /* TODO: store once at start of frame */
+            e = s->entity;	/* FIXME: make this passed in to */
+            /* R_RotateBmodel () */
             VectorSubtract(r_origin, e->origin, local_modelorg);
             TransformVector(local_modelorg, transformed_modelorg);
 
-            R_RotateBmodel(e);	// FIXME: don't mess with the frustum,
-            // make entity passed in
+            R_RotateBmodel(e);	/* FIXME: don't mess with the frustum, */
+            /* make entity passed in */
          }
 
          pface = (msurface_t*)s->data;
@@ -260,9 +260,9 @@ void D_DrawSurfaces(void)
 
          if (s->insubmodel)
          {
-            // restore the old drawing state
-            // FIXME: we don't want to do this every time!
-            // TODO: speed up
+            /* restore the old drawing state */
+            /* FIXME: we don't want to do this every time! */
+            /* TODO: speed up */
             e = &r_worldentity;
             VectorCopy(world_transformed_modelorg,
                   transformed_modelorg);

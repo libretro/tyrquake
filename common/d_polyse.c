@@ -17,8 +17,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// d_polyset.c: routines for drawing sets of polygons sharing the same
-// texture (used for Alias models)
+/* d_polyset.c: routines for drawing sets of polygons sharing the same */
+/* texture (used for Alias models) */
 
 #include <stdint.h>
 
@@ -26,12 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 #include "d_local.h"
 
-// TODO: put in span spilling to shrink list size
-// !!! if this is changed, it must be changed in d_polysa.s too !!!
+/* TODO: put in span spilling to shrink list size */
+/* !!! if this is changed, it must be changed in d_polysa.s too !!! */
 #define DPS_MAXSPANS MAXHEIGHT+1
-			// 1 extra for spanpackage that marks end
+			/* 1 extra for spanpackage that marks end */
 
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 typedef struct {
     void *pdest;
     short *pz;
@@ -318,12 +318,12 @@ static void D_DrawNonSubdiv(void)
          continue;
       }
 
-      r_p0[0] = index0->v[0];	// u
-      r_p0[1] = index0->v[1];	// v
-      r_p0[2] = index0->v[2];	// s
-      r_p0[3] = index0->v[3];	// t
-      r_p0[4] = index0->v[4];	// light
-      r_p0[5] = index0->v[5];	// iz
+      r_p0[0] = index0->v[0];	/* u */
+      r_p0[1] = index0->v[1];	/* v */
+      r_p0[2] = index0->v[2];	/* s */
+      r_p0[3] = index0->v[3];	/* t */
+      r_p0[4] = index0->v[4];	/* light */
+      r_p0[5] = index0->v[5];	/* iz */
 
       r_p1[0] = index1->v[0];
       r_p1[1] = index1->v[1];
@@ -396,7 +396,7 @@ split3:
       goto split;
    }
 
-   return;			// entire tri is filled
+   return;			/* entire tri is filled */
 
 split2:
    temp = lp1;
@@ -405,14 +405,14 @@ split2:
    lp3 = temp;
 
 split:
-   // split this edge
+   /* split this edge */
    newobj[0] = (lp1[0] + lp2[0]) >> 1;
    newobj[1] = (lp1[1] + lp2[1]) >> 1;
    newobj[2] = (lp1[2] + lp2[2]) >> 1;
    newobj[3] = (lp1[3] + lp2[3]) >> 1;
    newobj[5] = (lp1[5] + lp2[5]) >> 1;
 
-   // draw the point if splitting a leading edge
+   /* draw the point if splitting a leading edge */
    if (lp2[1] > lp1[1])
       goto nodraw;
    if ((lp2[1] == lp1[1]) && (lp2[0] < lp1[0]))
@@ -430,7 +430,7 @@ split:
    }
 
 nodraw:
-   // recursively continue
+   /* recursively continue */
    D_PolysetRecursiveTriangle(lp3, lp1, newobj);
    D_PolysetRecursiveTriangle(lp3, newobj, lp2);
 }
@@ -568,7 +568,7 @@ void D_PolysetCalcGradients(int skinwidth)
    xstepdenominv = 1.0 / (float)d_xdenom;
    ystepdenominv = -xstepdenominv;
 
-   // mankrip - optimization
+   /* mankrip - optimization */
    p00_minus_p20 = (r_p0[0] - r_p2[0]) * ystepdenominv;
    p01_minus_p21 = (r_p0[1] - r_p2[1]) * xstepdenominv;
    p10_minus_p20 = (r_p1[0] - r_p2[0]) * ystepdenominv;
@@ -584,9 +584,9 @@ void D_PolysetCalcGradients(int skinwidth)
    r_tstepx  = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
    r_tstepy  = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
-   // ceil () for light so positive steps are exaggerated, negative steps diminished,
-   // pushing us away from underflow toward overflow.
-   // Underflow is very visible, overflow is very unlikely, because of ambient lighting
+   /* ceil () for light so positive steps are exaggerated, negative steps diminished, */
+   /* pushing us away from underflow toward overflow. */
+   /* Underflow is very visible, overflow is very unlikely, because of ambient lighting */
    t0 = r_p0[4] - r_p2[4];
    t1 = r_p1[4] - r_p2[4];
    r_lstepx  = (int) ceil (t1 * p01_minus_p21 - t0 * p11_minus_p21);
@@ -669,9 +669,9 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
    } while (pspanpackage->count != -999999);
 }
 
-// leilei - quickly hacked colored lighting on models
-extern vec3_t lightcolor; // for colored lighting
-extern	int			host_fullbrights;   // for preserving fullbrights in color operations
+/* leilei - quickly hacked colored lighting on models */
+extern vec3_t lightcolor; /* for colored lighting */
+extern	int			host_fullbrights;   /* for preserving fullbrights in color operations */
 
 void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 {
@@ -680,13 +680,13 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
    byte ah;
    vec3_t lc;
    unsigned trans[3];
-   unsigned char *pix24;	// leilei - colored lighting
+   unsigned char *pix24;	/* leilei - colored lighting */
    int lsfrac, ltfrac;
    int llight;
    int lzi;
    short *lpz;
-   // normalize
-   //VectorNormalize(lightcolor);
+   /* normalize */
+   /* VectorNormalize(lightcolor); */
 
    do
    {
@@ -714,33 +714,33 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
          do
          {
             if ((lzi >> 16) >= *lpz) {
-				// leilei - gross simple hack. it goes like this
-				// lpdest = the skin......
-				//	TIMES
-				// Colored lighting color
-				//      AND THEN
-				// colormap is blended on it
+				/* leilei - gross simple hack. it goes like this */
+				/* lpdest = the skin...... */
+				/* 	TIMES */
+				/* Colored lighting color */
+				/*      AND THEN */
+				/* colormap is blended on it */
 		if (*lptex < host_fullbrights)
 		{
 			int seven;
 			ah = ((byte *)acolormap)[*lptex + (0 & 0xFF00)];
 			pix24 = (unsigned char *)&d_8to24table[ah];
 
-			//lc[0] *= 1; 
-			//lc[1] *= 1;
-			//lc[2] -= (llight & 0x0000);
+			/* lc[0] *= 1; */ 
+			/* lc[1] *= 1; */
+			/* lc[2] -= (llight & 0x0000); */
 			for (seven=0;seven<3;seven++)
-			//lc[seven] =  (llight  & 0xFF00) / 255;
+			/* lc[seven] =  (llight  & 0xFF00) / 255; */
 
 			lc[seven] =  (lightcolor[seven] / 1024);
 
-			//	lc[seven] = (16384 - (llight & 0xFF00)) * (lightcolor[seven]);
+			/* 	lc[seven] = (16384 - (llight & 0xFF00)) * (lightcolor[seven]); */
 
-			//lc[seven] = (16384 - llight & 0xFF00) * lightcolor[seven];
+			/* lc[seven] = (16384 - llight & 0xFF00) * lightcolor[seven]; */
 
-	//		trans[0] = (pix24[0] * (lc[0]<<6 )) >> 15;
-	//		trans[1] = (pix24[1] * (lc[1]<<6 )) >> 15;
-	//		trans[2] = (pix24[2] * (lc[2]<<6 )) >> 15;
+	/* 		trans[0] = (pix24[0] * (lc[0]<<6 )) >> 15; */
+	/* 		trans[1] = (pix24[1] * (lc[1]<<6 )) >> 15; */
+	/* 		trans[2] = (pix24[2] * (lc[2]<<6 )) >> 15; */
 
 
 			trans[0] = (pix24[0] * lc[0]);
@@ -748,20 +748,20 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 			trans[2] = (pix24[2] * lc[2]);
 			
 
-			//if (trans[0] & ~63) trans[0] = 63; if (trans[1] & ~63) trans[1] = 63; if (trans[2] & ~63) trans[2] = 63;
+			/* if (trans[0] & ~63) trans[0] = 63; if (trans[1] & ~63) trans[1] = 63; if (trans[2] & ~63) trans[2] = 63; */
 
-			//ah = palmap2 [(int)trans[0]] [(int)trans[1]] [(int)trans[2]];
-	        //        *lpdest = ((byte *)acolormap)[ah + (llight & 0xFF00)];
-		         //*lpdest = ((byte *)acolormap)[ah];
+			/* ah = palmap2 [(int)trans[0]] [(int)trans[1]] [(int)trans[2]]; */
+	        /*        *lpdest = ((byte *)acolormap)[ah + (llight & 0xFF00)]; */
+		         /* *lpdest = ((byte *)acolormap)[ah]; */
 		
 			*lpdest = palmap2 [trans[0]] [trans[1]] [trans[2]];
 
-		        // *lpdest = palmap2 [trans[0] >> 17] [trans[1] >> 17] [trans[2] >> 17];
+		        /* *lpdest = palmap2 [trans[0] >> 17] [trans[1] >> 17] [trans[2] >> 17]; */
 
 		}
 		else
 		{
-		*lpdest = *lptex; // go directly to the color
+		*lpdest = *lptex; /* go directly to the color */
 		}
                *lpz = lzi >> 16;
             }
@@ -806,9 +806,9 @@ void D_RasterizeAliasPolySmooth(void)
    int initialleftheight = pleftbottom[1] - plefttop[1];
    int initialrightheight = prightbottom[1] - prighttop[1];
 
-   //
-   // set the s, t, and light gradients, which are consistent across the triangle
-   // because being a triangle, things are affine
+   /**/
+   /* set the s, t, and light gradients, which are consistent across the triangle */
+   /* because being a triangle, things are affine */
 #ifdef HEXEN2
    if ((currententity->model->flags & EF_SPECIAL_TRANS))
       D_PolysetCalcGradients (r_affinetridesc.skinwidth);
@@ -822,13 +822,13 @@ void D_RasterizeAliasPolySmooth(void)
 #endif
       D_PolysetCalcGradients(r_affinetridesc.skinwidth);
 
-   //
-   // rasterize the polygon
-   //
+   /**/
+   /* rasterize the polygon */
+   /**/
 
-   //
-   // scan out the top (and possibly only) part of the left edge
-   //
+   /**/
+   /* scan out the top (and possibly only) part of the left edge */
+   /**/
    D_PolysetSetUpForLineScan(plefttop[0], plefttop[1],
          pleftbottom[0], pleftbottom[1]);
 
@@ -881,9 +881,9 @@ void D_RasterizeAliasPolySmooth(void)
 
    D_PolysetScanLeftEdge(initialleftheight);
 
-   //
-   // scan out the bottom part of the left edge, if it exists
-   //
+   /**/
+   /* scan out the bottom part of the left edge, if it exists */
+   /**/
    if (pedgetable->numleftedges == 2) {
       int height;
 
@@ -895,7 +895,7 @@ void D_RasterizeAliasPolySmooth(void)
 
       height = pleftbottom[1] - plefttop[1];
 
-      // TODO: make this a function; modularize this function in general
+      /* TODO: make this a function; modularize this function in general */
 
       ystart = plefttop[1];
       d_aspancount = plefttop[0] - prighttop[0];
@@ -937,8 +937,8 @@ void D_RasterizeAliasPolySmooth(void)
 
       D_PolysetScanLeftEdge(height);
    }
-   // scan out the top (and possibly only) part of the right edge, updating the
-   // count field
+   /* scan out the top (and possibly only) part of the right edge, updating the */
+   /* count field */
    d_pedgespanpackage = a_spans;
 
    D_PolysetSetUpForLineScan(prighttop[0], prighttop[1],
@@ -946,7 +946,7 @@ void D_RasterizeAliasPolySmooth(void)
    d_aspancount = 0;
    d_countextrastep = ubasestep + 1;
    originalcount = a_spans[initialrightheight].count;
-   a_spans[initialrightheight].count = -999999;	// mark end of the spanpackages
+   a_spans[initialrightheight].count = -999999;	/* mark end of the spanpackages */
 
    if (coloredlights)
       D_PolysetDrawSpansRGB(a_spans);
@@ -954,7 +954,7 @@ void D_RasterizeAliasPolySmooth(void)
       D_PolysetDrawSpans8(a_spans);
 
 
-   // scan out the bottom part of the right edge, if it exists
+   /* scan out the bottom part of the right edge, if it exists */
    if (pedgetable->numrightedges == 2) {
       int height;
       spanpackage_t *pstart;
@@ -974,7 +974,7 @@ void D_RasterizeAliasPolySmooth(void)
 
       d_countextrastep = ubasestep + 1;
       a_spans[initialrightheight + height].count = -999999;
-      // mark end of the spanpackages
+      /* mark end of the spanpackages */
 
       if (coloredlights)
          D_PolysetDrawSpansRGB(pstart);
@@ -991,11 +991,11 @@ D_PolysetSetEdgeTable
 */
 void D_PolysetSetEdgeTable(void)
 {
-   int edgetableindex = 0;		// assume the vertices are already in
-   //  top to bottom order
+   int edgetableindex = 0;		/* assume the vertices are already in */
+   /*  top to bottom order */
 
-   // determine which edges are right & left, and the order in which
-   // to rasterize them
+   /* determine which edges are right & left, and the order in which */
+   /* to rasterize them */
    if (r_p0[1] >= r_p1[1]) {
       if (r_p0[1] == r_p1[1]) {
          if (r_p0[1] < r_p2[1])

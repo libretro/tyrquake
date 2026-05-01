@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl_main.c  -- client main loop
+/* cl_main.c  -- client main loop */
 
 #include <ctype.h>
 
@@ -58,15 +58,15 @@ int rfprintf(RFILE * stream, const char * format, ...);
 /* Argument completion function for the skin cvar */
 static struct stree_root * CL_Skin_Arg_f(const char *arg);
 
-// FIXME - header hacks
+/* FIXME - header hacks */
 extern cvar_t cl_hightrack;
 extern cvar_t baseskin;
 extern cvar_t noskins;
 
-// we need to declare some mouse variables here, because the menu system
-// references them even when on a unix system.
+/* we need to declare some mouse variables here, because the menu system */
+/* references them even when on a unix system. */
 
-qboolean noclip_anglehack;	// remnant from old quake
+qboolean noclip_anglehack;	/* remnant from old quake */
 
 
 cvar_t rcon_password = { "rcon_password", "", false };
@@ -75,7 +75,7 @@ cvar_t rcon_address = { "rcon_address", "" };
 
 cvar_t cl_timeout = { "cl_timeout", "60" };
 
-cvar_t cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
+cvar_t cl_shownet = { "cl_shownet", "0" };	/* can be 0, 1, or 2 */
 
 cvar_t cl_sbar = { "cl_sbar", "0", true };
 cvar_t cl_hudswap = { "cl_hudswap", "0", true };
@@ -99,9 +99,9 @@ cvar_t localid = { "localid", "" };
 
 static qboolean allowremotecmd = true;
 
-//
-// info mirrors
-//
+/**/
+/* info mirrors */
+/**/
 cvar_t password = { "password", "", false, true };
 cvar_t spectator = { "spectator", "", false, true };
 cvar_t name = { "name", "unnamed", true, true };
@@ -130,15 +130,15 @@ entity_t cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t cl_dlights[MAX_DLIGHTS];
 
-double connect_time = -1;	// for connection retransmits
+double connect_time = -1;	/* for connection retransmits */
 
 quakeparms_t host_parms;
 
-qboolean host_initialized;	// true if into command execution
+qboolean host_initialized;	/* true if into command execution */
 
 double host_frametime;
-double realtime;		// without any filtering or bounding
-static double oldrealtime;	// last frame run
+double realtime;		/* without any filtering or bounding */
+static double oldrealtime;	/* last frame run */
 int host_framecount;
 
 int host_hunklevel;
@@ -148,13 +148,13 @@ int minimum_memory;
 byte *host_basepal;
 byte *host_colormap;
 
-netadr_t master_adr;		// address of the master server
+netadr_t master_adr;		/* address of the master server */
 
-cvar_t host_speeds = { "host_speeds", "0" };	// set for running times
+cvar_t host_speeds = { "host_speeds", "0" };	/* set for running times */
 cvar_t developer = { "developer", "0" };
 
 static jmp_buf host_abort;
-static float server_version = 0;// version of server we connected to
+static float server_version = 0;/* version of server we connected to */
 
 /*
 ==================
@@ -199,9 +199,9 @@ CL_SendConnectPacket(void)
     char data[2048];
     double t1, t2;
 
-// JACK: Fixed bug where DNS lookups would cause two connects real fast
-//       Now, adds lookup time to the connect time.
-//               Should I add it to realtime instead?!?!
+/* JACK: Fixed bug where DNS lookups would cause two connects real fast */
+/*       Now, adds lookup time to the connect time. */
+/*               Should I add it to realtime instead?!?! */
 
     if (cls.state != ca_disconnected)
 	return;
@@ -218,14 +218,14 @@ CL_SendConnectPacket(void)
 	adr.port = BigShort(27500);
     t2 = Sys_DoubleTime();
 
-    connect_time = realtime + t2 - t1;	// for retransmit requests
+    connect_time = realtime + t2 - t1;	/* for retransmit requests */
 
     cls.qport = Cvar_VariableValue("qport");
 
     Info_SetValueForStarKey(cls.userinfo, "*ip", NET_AdrToString(adr),
 			    MAX_INFO_STRING);
 
-//      Con_Printf ("Connecting to %s...\n", cls.servername);
+/*      Con_Printf ("Connecting to %s...\n", cls.servername); */
     sprintf(data, "%c%c%c%cconnect %i %i %i \"%s\"\n",
 	    255, 255, 255, 255, PROTOCOL_VERSION, cls.qport, cls.challenge,
 	    cls.userinfo);
@@ -265,7 +265,7 @@ CL_CheckForResend(void)
 	adr.port = BigShort(27500);
     t2 = Sys_DoubleTime();
 
-    connect_time = realtime + t2 - t1;	// for retransmit requests
+    connect_time = realtime + t2 - t1;	/* for retransmit requests */
 
     Con_Printf("Connecting to %s...\n", cls.servername);
     sprintf(data, "%c%c%c%cgetchallenge\n", 255, 255, 255, 255);
@@ -373,24 +373,24 @@ CL_ClearState(void)
     Con_DPrintf("Clearing memory\n");
     D_FlushCaches();
     Mod_ClearAll();
-    if (host_hunklevel)		// FIXME: check this...
+    if (host_hunklevel)		/* FIXME: check this... */
 	Hunk_FreeToLowMark(host_hunklevel);
 
     CL_ClearTEnts();
 
-// wipe the entire cl structure
+/* wipe the entire cl structure */
     memset(&cl, 0, sizeof(cl));
 
     SZ_Clear(&cls.netchan.message);
 
-// clear other arrays
+/* clear other arrays */
     memset(cl_efrags, 0, sizeof(cl_efrags));
     memset(cl_dlights, 0, sizeof(cl_dlights));
     memset(cl_lightstyle, 0, sizeof(cl_lightstyle));
 
-//
-// allocate the efrags and chain together into a free list
-//
+/**/
+/* allocate the efrags and chain together into a free list */
+/**/
     cl.free_efrags = cl_efrags;
     for (i = 0; i < MAX_EFRAGS - 1; i++)
 	cl.free_efrags[i].entnext = &cl.free_efrags[i + 1];
@@ -416,10 +416,10 @@ CL_Disconnect(void)
     SetWindowText(mainwindow, "QuakeWorld: disconnected");
 #endif
 
-// stop sounds (especially looping!)
+/* stop sounds (especially looping!) */
     S_StopAllSounds(true);
 
-// if running a local server, shut it down
+/* if running a local server, shut it down */
     if (cls.demoplayback)
 	CL_StopPlayback();
     else if (cls.state != ca_disconnected) {
@@ -514,7 +514,7 @@ CL_Users_f(void)
 void
 CL_Color_f(void)
 {
-    // just for quake compatability...
+    /* just for quake compatability... */
     int top, bottom;
     char num[16];
 
@@ -713,12 +713,12 @@ CL_NextDemo(void)
     char str[1024];
 
     if (cls.demonum == -1)
-	return;			// don't play demos
+	return;			/* don't play demos */
 
     if (!cls.demos[cls.demonum][0] || cls.demonum == MAX_DEMOS) {
 	cls.demonum = 0;
 	if (!cls.demos[cls.demonum][0]) {
-//                      Con_Printf ("No demos listed with startdemos\n");
+/*                      Con_Printf ("No demos listed with startdemos\n"); */
 	    cls.demonum = -1;
 	    return;
 	}
@@ -741,12 +741,12 @@ drop to full console
 void
 CL_Changing_f(void)
 {
-    if (cls.download)		// don't change when downloading
+    if (cls.download)		/* don't change when downloading */
 	return;
 
     S_StopAllSounds(true);
     cl.intermission = 0;
-    cls.state = ca_connected;	// not active anymore, but not disconnected
+    cls.state = ca_connected;	/* not active anymore, but not disconnected */
     Con_Printf("\nChanging map...\n");
 }
 
@@ -761,7 +761,7 @@ The server is changing levels
 void
 CL_Reconnect_f(void)
 {
-    if (cls.download)		// don't change when downloading
+    if (cls.download)		/* don't change when downloading */
 	return;
 
     S_StopAllSounds(true);
@@ -796,12 +796,12 @@ CL_ConnectionlessPacket(void)
     int c;
 
     MSG_BeginReading();
-    MSG_ReadLong();		// skip the -1
+    MSG_ReadLong();		/* skip the -1 */
 
     c = MSG_ReadByte();
     if (!cls.demoplayback)
 	Con_Printf("%s: ", NET_AdrToString(net_from));
-//      Con_DPrintf ("%s", net_message.data + 5);
+/*      Con_DPrintf ("%s", net_message.data + 5); */
     if (c == S2C_CONNECTION) {
 	Con_Printf("connection\n");
 	if (cls.state >= ca_connected) {
@@ -814,10 +814,10 @@ CL_ConnectionlessPacket(void)
 	MSG_WriteString(&cls.netchan.message, "new");
 	cls.state = ca_connected;
 	Con_Printf("Connected.\n");
-	allowremotecmd = false;	// localid required now for remote cmds
+	allowremotecmd = false;	/* localid required now for remote cmds */
 	return;
     }
-    // remote command from gui front end
+    /* remote command from gui front end */
     if (c == A2C_CLIENT_COMMAND) {
 	Con_Printf("client command\n");
 
@@ -864,13 +864,13 @@ CL_ConnectionlessPacket(void)
 	allowremotecmd = false;
 	return;
     }
-    // print command from somewhere
+    /* print command from somewhere */
     if (c == A2C_PRINT) {
 	Con_Printf("print\n");
 	Con_Print(MSG_ReadString());
 	return;
     }
-    // ping from somewhere
+    /* ping from somewhere */
     if (c == A2A_PING) {
 	char data[6];
 
@@ -907,9 +907,9 @@ void
 CL_ReadPackets(void)
 {
     while (CL_GetMessage()) {
-	//
-	// remote command packet
-	//
+	/**/
+	/* remote command packet */
+	/**/
 	if (*(int *)net_message.data == -1) {
 	    CL_ConnectionlessPacket();
 	    continue;
@@ -919,9 +919,9 @@ CL_ReadPackets(void)
 	    Con_Printf("%s: Runt packet\n", NET_AdrToString(net_from));
 	    continue;
 	}
-	//
-	// packet from server
-	//
+	/**/
+	/* packet from server */
+	/**/
 	if (!cls.demoplayback &&
 	    !NET_CompareAdr(net_from, cls.netchan.remote_address)) {
 	    Con_DPrintf("%s:sequenced packet without connection\n",
@@ -929,16 +929,16 @@ CL_ReadPackets(void)
 	    continue;
 	}
 	if (!Netchan_Process(&cls.netchan))
-	    continue;		// wasn't accepted for some reason
+	    continue;		/* wasn't accepted for some reason */
 	CL_ParseServerMessage();
 
-//              if (cls.demoplayback && cls.state >= ca_active && !CL_DemoBehind())
-//                      return;
+/*              if (cls.demoplayback && cls.state >= ca_active && !CL_DemoBehind()) */
+/*                      return; */
     }
 
-    //
-    // check timeout
-    //
+    /**/
+    /* check timeout */
+    /**/
     if (cls.state >= ca_connected
 	&& realtime - cls.netchan.last_received > cl_timeout.value) {
 	Con_Printf("\nServer connection timed out.\n");
@@ -948,7 +948,7 @@ CL_ReadPackets(void)
 
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 =====================
@@ -1048,9 +1048,9 @@ CL_Init(void)
     CL_InitCam();
     Pmove_Init();
 
-//
-// register our commands
-//
+/**/
+/* register our commands */
+/**/
     Cvar_RegisterVariable(&host_speeds);
     Cvar_RegisterVariable(&cl_warncmd);
     Cvar_RegisterVariable(&cl_upspeed);
@@ -1088,9 +1088,9 @@ CL_Init(void)
     Cvar_RegisterVariable(&baseskin);
     Cvar_RegisterVariable(&noskins);
 
-    //
-    // info mirrors
-    //
+    /**/
+    /* info mirrors */
+    /**/
     Cvar_RegisterVariable(&name);
     Cvar_RegisterVariable(&password);
     Cvar_RegisterVariable(&spectator);
@@ -1140,9 +1140,9 @@ CL_Init(void)
 
     Cmd_AddCommand("mcache", Mod_Print);
 
-//
-// forward to server commands
-//
+/**/
+/* forward to server commands */
+/**/
     Cmd_AddCommand("kill", NULL);
     Cmd_AddCommand("pause", NULL);
     Cmd_AddCommand("say", NULL);
@@ -1150,9 +1150,9 @@ CL_Init(void)
     Cmd_AddCommand("serverinfo", NULL);
 
 /* FIXME - more hacks... */
-//
-//  Windows commands
-//
+/**/
+/*  Windows commands */
+/**/
 #ifdef _WIN32
     Cmd_AddCommand("windows", CL_Windows_f);
 #endif
@@ -1212,7 +1212,7 @@ Host_Error(const char *error, ...)
 
     inerror = false;
 
-// FIXME
+/* FIXME */
     Sys_Error("Host_Error: %s", string);
 }
 
@@ -1248,7 +1248,7 @@ Host_WriteConfiguration(void)
 }
 
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ==================
@@ -1268,7 +1268,7 @@ Host_Frame(float time)
     if (setjmp(host_abort))
 	return;
 
-    // decide the simulation time
+    /* decide the simulation time */
     realtime += time;
 
     if (cl_maxfps.value)
@@ -1277,14 +1277,14 @@ Host_Frame(float time)
 	fps = qmax(30.0f, qmin(rate.value / 80.0f, 72.0f));
 
     if (!cls.timedemo && realtime - oldrealtime < 1.0 / fps)
-	return;		// framerate is too high
+	return;		/* framerate is too high */
 
     host_frametime = realtime - oldrealtime;
     oldrealtime    = realtime;
     if (host_frametime > 0.2)
 	host_frametime = 0.2;
 
-    // get new key events
+    /* get new key events */
     Sys_SendKeyEvents();
 
     /* allow mice or other external controllers to add commands */
@@ -1293,29 +1293,29 @@ Host_Frame(float time)
     /* process console commands */
     Cbuf_Execute();
 
-    // fetch results from server
+    /* fetch results from server */
     CL_ReadPackets();
 
-    // send intentions now
-    // resend a connection request if necessary
+    /* send intentions now */
+    /* resend a connection request if necessary */
     if (cls.state == ca_disconnected) {
 	CL_CheckForResend();
     } else
 	CL_SendCmd();
 
-    // Set up prediction for other players
+    /* Set up prediction for other players */
     CL_SetUpPlayerPrediction(false);
 
-    // do client side motion prediction
+    /* do client side motion prediction */
     CL_PredictMove();
 
-    // Set up prediction for other players
+    /* Set up prediction for other players */
     CL_SetUpPlayerPrediction(true);
 
-    // build a refresh entity list
+    /* build a refresh entity list */
     CL_EmitEntities();
 
-    // update video
+    /* update video */
     if (host_speeds.value)
 	time1 = Sys_DoubleTime();
 
@@ -1348,7 +1348,7 @@ Host_Frame(float time)
     host_framecount++;
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 ====================
@@ -1390,7 +1390,7 @@ Host_Init(quakeparms_t *parms)
     M_Init();
     Mod_Init(R_ModelLoader());
 
-//      Con_Printf ("Exe: "__TIME__" "__DATE__"\n");
+/*      Con_Printf ("Exe: "__TIME__" "__DATE__"\n"); */
     Con_Printf("%4.1f megs RAM used.\n", parms->memsize / (1024 * 1024.0));
 
     R_InitTextures();

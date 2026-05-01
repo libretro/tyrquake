@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qtypes.h"
 
-// mathlib.h
+/* mathlib.h */
 
 typedef float vec_t;
 typedef vec_t vec3_t[3];
@@ -45,7 +45,7 @@ typedef int fixed16_t;
 #define qclamp(var,min,max) qmax(qmin(var,max),min)
 
 #ifndef M_PI
-#define M_PI 3.14159265358979323846	// matches value in gcc v2 math.h
+#define M_PI 3.14159265358979323846	/* matches value in gcc v2 math.h */
 #endif
 
 extern vec3_t vec3_origin;
@@ -73,7 +73,7 @@ void _VectorCopy(vec3_t in, vec3_t out);
 int VectorCompare(vec3_t v1, vec3_t v2);
 vec_t Length(vec3_t v);
 void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross);
-float VectorNormalize(vec3_t v);	// returns vector length
+float VectorNormalize(vec3_t v);	/* returns vector length */
 void VectorInverse(vec3_t v);
 void VectorScale(const vec3_t in, const vec_t scale, vec3_t out);
 int Q_log2(int val);
@@ -88,13 +88,13 @@ int GreatestCommonDivisor(int i1, int i2);
 void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
 float anglemod(float a);
 
-// plane_t structure
-// !!! if this is changed, it must be changed in asm_i386.h too !!!
+/* plane_t structure */
+/* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct mplane_s {
     vec3_t normal;
     float dist;
-    byte type;		// for texture axis selection and fast side tests
-    byte signbits;	// signx + signy<<1 + signz<<1
+    byte type;		/* for texture axis selection and fast side tests */
+    byte signbits;	/* signx + signy<<1 + signz<<1 */
     byte pad[2];
 } mplane_t;
 

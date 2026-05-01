@@ -27,12 +27,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "vid.h"
 
-// d_iface.h: interface header file for rasterization driver modules
+/* d_iface.h: interface header file for rasterization driver modules */
 
 #define WARP_WIDTH		320
 #define WARP_HEIGHT		200
 
-// FIXME - was NQ=480, QW=200 - does it matter?
+/* FIXME - was NQ=480, QW=200 - does it matter? */
 #define MAX_LBM_HEIGHT	480
 
 typedef struct {
@@ -47,12 +47,12 @@ typedef enum {
     ENSURE_INT_PTYPE = 0x70000000
 } ptype_t;
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
 typedef struct particle_s {
-// driver-usable fields
+/* driver-usable fields */
     vec3_t org;
     float color;
-// drivers never touch the following fields
+/* drivers never touch the following fields */
     struct particle_s *next;
     vec3_t vel;
     float ramp;
@@ -62,14 +62,14 @@ typedef struct particle_s {
 
 #define PARTICLE_Z_CLIP	8.0
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
 typedef struct finalvert_s {
-    int v[6];			// u, v, s, t, l, 1/z
+    int v[6];			/* u, v, s, t, l, 1/z */
     int flags;
     float reserved;
 } finalvert_t;
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
 typedef struct {
     void *pskin;
     int skinwidth;
@@ -81,7 +81,7 @@ typedef struct {
     int seamfixupX16;
 } affinetridesc_t;
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
 typedef struct {
     float u, v, zi, color;
 } screenpart_t;
@@ -89,26 +89,26 @@ typedef struct {
 typedef struct {
     int nump;
     emitpoint_t *pverts;
-    // there's room for an extra element at [nump],
-    //  if the driver wants to duplicate element [0] at
-    //  element [nump] to avoid dealing with wrapping
+    /* there's room for an extra element at [nump], */
+    /*  if the driver wants to duplicate element [0] at */
+    /*  element [nump] to avoid dealing with wrapping */
     mspriteframe_t *pspriteframe;
-    vec3_t vup, vright, vpn;	// in worldspace
+    vec3_t vup, vright, vpn;	/* in worldspace */
     float nearzi;
 } spritedesc_t;
 
-extern int r_framecount;	// sequence # of current frame since Quake started
-extern qboolean r_recursiveaffinetriangles;	// true if a driver wants to use
+extern int r_framecount;	/* sequence # of current frame since Quake started */
+extern qboolean r_recursiveaffinetriangles;	/* true if a driver wants to use */
 
-					    //  recursive triangular subdivison
-					    //  and vertex drawing via
-					    //  D_PolysetDrawFinalVerts() past
-					    //  a certain distance (normally
-					    //  only used by the software
-					    //  driver)
-extern float r_aliasuvscale;	// scale-up factor for screen u and v
+					    /*  recursive triangular subdivison */
+					    /*  and vertex drawing via */
+					    /*  D_PolysetDrawFinalVerts() past */
+					    /*  a certain distance (normally */
+					    /*  only used by the software */
+					    /*  driver) */
+extern float r_aliasuvscale;	/* scale-up factor for screen u and v */
 
-				//  on Alias vertices passed to driver
+				/*  on Alias vertices passed to driver */
 extern qboolean r_dowarp;
 
 extern affinetridesc_t r_affinetridesc;
@@ -137,39 +137,39 @@ void D_FillRect(vrect_t *vrect, int color);
 void D_DrawRect(void);
 void D_UpdateRects(vrect_t *prect);
 
-// currently for internal use only, and should be a do-nothing function in
-// hardware drivers
-// FIXME: this should go away
+/* currently for internal use only, and should be a do-nothing function in */
+/* hardware drivers */
+/* FIXME: this should go away */
 void D_PolysetUpdateTables(void);
 
-// these are currently for internal use only, and should not be used by drivers
+/* these are currently for internal use only, and should not be used by drivers */
 extern int r_skydirect;
-extern byte   *skyunderlay, *skyoverlay; // Manoel Kasimier - smooth sky
+extern byte   *skyunderlay, *skyoverlay; /* Manoel Kasimier - smooth sky */
 
-// transparency types for D_DrawRect ()
+/* transparency types for D_DrawRect () */
 #define DR_SOLID		0
 #define DR_TRANSPARENT	1
 
-// !!! must be kept the same as in quakeasm.h !!!
+/* !!! must be kept the same as in quakeasm.h !!! */
 #define TRANSPARENT_COLOR	0xFF
 
-extern void *acolormap;		// FIXME: should go away
+extern void *acolormap;		/* FIXME: should go away */
 
-//=======================================================================//
+/* =======================================================================// */
 
-// callbacks to Quake
+/* callbacks to Quake */
 
 typedef struct {
-    pixel_t *surfdat;		// destination for generated surface
-    int rowbytes;		// destination logical width in bytes
-    msurface_t *surf;		// description for surface to generate
+    pixel_t *surfdat;		/* destination for generated surface */
+    int rowbytes;		/* destination logical width in bytes */
+    msurface_t *surf;		/* description for surface to generate */
     fixed8_t lightadj[MAXLIGHTMAPS];
 
-    // adjust for lightmap levels for dynamic lighting
-    texture_t *texture;		// corrected for animating textures
-    int surfmip;		// mipmapped ratio surface texels/world pixels
-    int surfwidth;		// in mipmapped texels
-    int surfheight;		// in mipmapped texels
+    /* adjust for lightmap levels for dynamic lighting */
+    texture_t *texture;		/* corrected for animating textures */
+    int surfmip;		/* mipmapped ratio surface texels/world pixels */
+    int surfwidth;		/* in mipmapped texels */
+    int surfheight;		/* in mipmapped texels */
 } drawsurf_t;
 
 extern drawsurf_t r_drawsurf;
@@ -177,13 +177,13 @@ extern drawsurf_t r_drawsurf;
 void R_DrawSurface(void);
 
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
-#define TURB_TEX_SIZE	64	// base turbulent texture size
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
+#define TURB_TEX_SIZE	64	/* base turbulent texture size */
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
-#define	TURB_CYCLE	128	// turbulent cycle size
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
+#define	TURB_CYCLE	128	/* turbulent cycle size */
 
-#define TILE_SIZE	128	// R_GenTurbTile{16}, R_GenSkyTile16
+#define TILE_SIZE	128	/* R_GenTurbTile{16}, R_GenSkyTile16 */
 
 #define SKYSHIFT	7
 #define	SKYSIZE		(1 << SKYSHIFT)

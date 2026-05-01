@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// view.c -- player eye positioning
+/* view.c -- player eye positioning */
 
 #include "bspfile.h"
 #include "client.h"
@@ -105,8 +105,8 @@ float V_CalcRoll(vec3_t angles, vec3_t velocity)
    side = fabs(side);
 
    value = cl_rollangle.value;
-   //      if (cl.inwater)
-   //              value *= 6;
+   /*      if (cl.inwater) */
+   /*              value *= 6; */
 
    if (side < cl_rollspeed.value)
       side = side * value / cl_rollspeed.value;
@@ -141,13 +141,13 @@ float V_CalcBob(void)
       cycle =
          M_PI + M_PI * (cycle - cl_bobup.value) / (1.0 - cl_bobup.value);
 
-   // bob is proportional to velocity in the xy plane
-   // (don't count Z, or jumping messes it up)
+   /* bob is proportional to velocity in the xy plane */
+   /* (don't count Z, or jumping messes it up) */
 
    bob =
       sqrt(cl.velocity[0] * cl.velocity[0] +
             cl.velocity[1] * cl.velocity[1]) * cl_bob.value;
-   //Con_Printf ("speed: %5.1f\n", Length(cl.velocity));
+   /* Con_Printf ("speed: %5.1f\n", Length(cl.velocity)); */
    bob = bob * 0.3 + bob * 0.7 * sin(cycle);
    if (bob > 4)
       bob = 4;
@@ -166,7 +166,7 @@ float V_CalcBob(void)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 
 
 cvar_t v_centermove = { "v_centermove", "0.15", false };
@@ -176,7 +176,7 @@ cvar_t v_centerspeed = { "v_centerspeed", "500" };
 void V_StartPitchDrift(void)
 {
    if (cl.laststop == cl.time)
-      return;			// something else is keeping it from drifting
+      return;			/* something else is keeping it from drifting */
    if (cl.nodrift || !cl.pitchvel)
    {
       cl.pitchvel = v_centerspeed.value;
@@ -214,7 +214,7 @@ void V_DriftPitch(void)
       cl.pitchvel = 0;
       return;
    }
-   // don't count small mouse motion
+   /* don't count small mouse motion */
    if (cl.nodrift) {
       if (fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
          cl.driftmove = 0;
@@ -273,7 +273,7 @@ cshift_t cshift_lava = { {255, 80, 0}, 150 };
 
 cvar_t v_gamma = { "gamma", "0.95", true };
 
-byte gammatable[256];		// palette is sent through this
+byte gammatable[256];		/* palette is sent through this */
 
 void BuildGammaTable(float g)
 {
@@ -311,7 +311,7 @@ qboolean V_CheckGamma(void)
    oldgammavalue = v_gamma.value;
 
    BuildGammaTable(v_gamma.value);
-   vid.recalc_refdef = 1;	// force a surface cache flush
+   vid.recalc_refdef = 1;	/* force a surface cache flush */
 
    return true;
 }
@@ -341,7 +341,7 @@ void V_ParseDamage(void)
    if (count < 10)
       count = 10;
 
-   cl.faceanimtime = cl.time + 0.2;	// but sbar face into pain frame
+   cl.faceanimtime = cl.time + 0.2;	/* but sbar face into pain frame */
 
    cl.cshifts[CSHIFT_DAMAGE].percent += 3 * count;
    if (cl.cshifts[CSHIFT_DAMAGE].percent < 0)
@@ -524,7 +524,7 @@ void V_UpdatePalette(void)
          }
    }
 
-   // drop the damage and bonus values
+   /* drop the damage and bonus values */
    V_DropCShift (&cl.cshifts[CSHIFT_DAMAGE], 150);
    V_DropCShift (&cl.cshifts[CSHIFT_BONUS], 100);
 
@@ -647,8 +647,8 @@ void V_BoundOffsets(void)
 {
    const entity_t *ent = &cl_entities[cl.viewentity];
 
-   // absolutely bound refresh reletive to entity clipping hull
-   // so the view can never be inside a solid wall
+   /* absolutely bound refresh reletive to entity clipping hull */
+   /* so the view can never be inside a solid wall */
 
    if (r_refdef.vieworg[0] < ent->origin[0] - 14)
       r_refdef.vieworg[0] = ent->origin[0] - 14;
@@ -714,7 +714,7 @@ void V_CalcViewRoll(void)
       retro_set_rumble_damage(0);
 
    if (cl.stats[STAT_HEALTH] <= 0) {
-      r_refdef.viewangles[ROLL] = 80;	// dead view angle
+      r_refdef.viewangles[ROLL] = 80;	/* dead view angle */
       return;
    }
 
@@ -733,14 +733,14 @@ void V_CalcIntermissionRefdef(void)
 
    /* ent is the player model (visible when out of body) */
    entity_t *ent = &cl_entities[cl.viewentity];
-   // view is the weapon model (only visible from inside body)
+   /* view is the weapon model (only visible from inside body) */
    entity_t *view = &cl.viewent;
 
    VectorCopy(ent->origin, r_refdef.vieworg);
    VectorCopy(ent->angles, r_refdef.viewangles);
    view->model = NULL;
 
-   // allways idle in intermission
+   /* allways idle in intermission */
    old = v_idlescale.value;
    v_idlescale.value = 1;
    V_AddIdle();
@@ -763,27 +763,27 @@ void V_CalcRefdef(void)
 
    V_DriftPitch();
 
-   // ent is the player model (visible when out of body)
+   /* ent is the player model (visible when out of body) */
    ent = &cl_entities[cl.viewentity];
-   // view is the weapon model (only visible from inside body)
+   /* view is the weapon model (only visible from inside body) */
    view = &cl.viewent;
 
-   // transform the view offset by the model's matrix to get the offset from
-   // model origin for the view
-   ent->angles[YAW] = cl.viewangles[YAW];	// the model should face
-   // the view dir
-   ent->angles[PITCH] = -cl.viewangles[PITCH];	// the model should face
-   // the view dir
+   /* transform the view offset by the model's matrix to get the offset from */
+   /* model origin for the view */
+   ent->angles[YAW] = cl.viewangles[YAW];	/* the model should face */
+   /* the view dir */
+   ent->angles[PITCH] = -cl.viewangles[PITCH];	/* the model should face */
+   /* the view dir */
 
    bob = V_CalcBob();
 
-   // refresh position
+   /* refresh position */
    VectorCopy(ent->origin, r_refdef.vieworg);
    r_refdef.vieworg[2] += cl.viewheight + bob;
 
-   // never let it sit exactly on a node line, because a water plane can
-   // dissapear when viewed with the eye exactly on it.
-   // the server protocol only specifies to 1/16 pixel, so add 1/32 in each axis
+   /* never let it sit exactly on a node line, because a water plane can */
+   /* dissapear when viewed with the eye exactly on it. */
+   /* the server protocol only specifies to 1/16 pixel, so add 1/32 in each axis */
    r_refdef.vieworg[0] += 1.0 / 32;
    r_refdef.vieworg[1] += 1.0 / 32;
    r_refdef.vieworg[2] += 1.0 / 32;
@@ -792,9 +792,9 @@ void V_CalcRefdef(void)
    V_CalcViewRoll();
    V_AddIdle();
 
-   // offsets
-   angles[PITCH] = -ent->angles[PITCH];	// because entity pitches are
-   //  actually backward
+   /* offsets */
+   angles[PITCH] = -ent->angles[PITCH];	/* because entity pitches are */
+   /*  actually backward */
    angles[YAW] = ent->angles[YAW];
    angles[ROLL] = ent->angles[ROLL];
 
@@ -809,7 +809,7 @@ void V_CalcRefdef(void)
 
    V_BoundOffsets();
 
-   // set up gun position
+   /* set up gun position */
    VectorCopy(cl.viewangles, view->angles);
 
    CalcGunAngle();
@@ -819,13 +819,13 @@ void V_CalcRefdef(void)
 
    for (i = 0; i < 3; i++) {
       view->origin[i] += forward[i] * bob * 0.4;
-      //              view->origin[i] += right[i]*bob*0.4;
-      //              view->origin[i] += up[i]*bob*0.8;
+      /*              view->origin[i] += right[i]*bob*0.4; */
+      /*              view->origin[i] += up[i]*bob*0.8; */
    }
    view->origin[2] += bob;
 
-   // fudge position around to keep amount of weapon visible
-   // roughly equal with different FOV
+   /* fudge position around to keep amount of weapon visible */
+   /* roughly equal with different FOV */
    if (scr_viewsize.value == 110)
       view->origin[2] += 1;
    else if (scr_viewsize.value == 100)
@@ -839,13 +839,13 @@ void V_CalcRefdef(void)
    view->frame = cl.stats[STAT_WEAPONFRAME];
    view->colormap = vid.colormap;
 
-   // set up the refresh position
+   /* set up the refresh position */
    VectorAdd(r_refdef.viewangles, cl.punchangle, r_refdef.viewangles);
 
-   // smooth out stair step ups
+   /* smooth out stair step ups */
    if (cl.onground && ent->origin[2] - v_stepz > 0)
    {
-      v_stepz = v_oldz + (cl.time - v_steptime) * 80; // BJP Quake used 160 here
+      v_stepz = v_oldz + (cl.time - v_steptime) * 80; /* BJP Quake used 160 here */
 
       if (v_stepz > ent->origin[2])
       {
@@ -885,7 +885,7 @@ void V_RenderView(void)
    if (con_forcedup)
       return;
 
-   // don't allow cheats in multiplayer
+   /* don't allow cheats in multiplayer */
    if (cl.maxclients > 1)
    {
       Cvar_Set("scr_ofsx", "0");
@@ -893,7 +893,7 @@ void V_RenderView(void)
       Cvar_Set("scr_ofsz", "0");
    }
 
-   if (cl.intermission) // intermission / finale rendering
+   if (cl.intermission) /* intermission / finale rendering */
       V_CalcIntermissionRefdef();
    else
    {
@@ -907,7 +907,7 @@ void V_RenderView(void)
       Draw_Crosshair();
 }
 
-//============================================================================
+/* ============================================================================ */
 
 /*
 =============
@@ -949,6 +949,6 @@ void V_Init(void)
    Cvar_RegisterVariable(&v_kickroll);
    Cvar_RegisterVariable(&v_kickpitch);
 
-   BuildGammaTable(1.0);	// no gamma yet
+   BuildGammaTable(1.0);	/* no gamma yet */
    Cvar_RegisterVariable(&v_gamma);
 }

@@ -40,15 +40,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * > Nearest power of 2 to 8820 is 16384 */
 #define AUDIO_BUFFER_SIZE 8192
 
-// sound.h -- client sound i/o functions
+/* sound.h -- client sound i/o functions */
 
-// FIXME - QW defines these in protocol.h, which is better?
+/* FIXME - QW defines these in protocol.h, which is better? */
 #ifdef NQ_HACK
 #define DEFAULT_SOUND_PACKET_VOLUME 255
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0
 #endif
 
-// !!! if this is changed, it much be changed in asm_i386.h too !!!
+/* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {
     int left;
     int right;
@@ -59,36 +59,36 @@ typedef struct sfx_s {
     cache_user_t cache;
 } sfx_t;
 
-// !!! if this is changed, it much be changed in asm_i386.h too !!!
+/* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {
     int length;
     int loopstart;
     int speed;
     int width;
     int stereo;
-    byte data[1];		// variable sized
+    byte data[1];		/* variable sized */
 } sfxcache_t;
 
 typedef struct {
-    int submission_chunk;	// don't mix less than this #
-    int samplepos;		// in mono samples
+    int submission_chunk;	/* don't mix less than this # */
+    int samplepos;		/* in mono samples */
     int speed;
     unsigned char *buffer;
 } dma_t;
 
-// !!! if this is changed, it much be changed in asm_i386.h too !!!
+/* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {
-    sfx_t *sfx;			// sfx number
-    int leftvol;		// 0-255 volume
-    int rightvol;		// 0-255 volume
-    int end;			// end time in global paintsamples
-    int pos;			// sample position in sfx
-    int looping;		// where to loop, -1 = no looping
-    int entnum;			// to allow overriding a specific sound
-    int entchannel;		//
-    vec3_t origin;		// origin of sound effect
-    vec_t dist_mult;		// distance multiplier (attenuation/clipK)
-    int master_vol;		// 0-255 master volume
+    sfx_t *sfx;			/* sfx number */
+    int leftvol;		/* 0-255 volume */
+    int rightvol;		/* 0-255 volume */
+    int end;			/* end time in global paintsamples */
+    int pos;			/* sample position in sfx */
+    int looping;		/* where to loop, -1 = no looping */
+    int entnum;			/* to allow overriding a specific sound */
+    int entchannel;		/**/
+    vec3_t origin;		/* origin of sound effect */
+    vec_t dist_mult;		/* distance multiplier (attenuation/clipK) */
+    int master_vol;		/* 0-255 master volume */
 } channel_t;
 
 #define WAV_FORMAT_PCM	1
@@ -126,24 +126,24 @@ void S_InitPaintChannels(void);
 void S_RawSamples(int samples, int rate, int width, int channels, byte * data, float volume);
 				/* Expects data in signed 16 bit, or unsigned 8 bit format. */
 
-// initializes cycling through a DMA buffer and returns information on it
+/* initializes cycling through a DMA buffer and returns information on it */
 qboolean SNDDMA_Init(dma_t *dma);
 
-// gets the current DMA position
+/* gets the current DMA position */
 int SNDDMA_GetDMAPos(void);
 
-// ====================================================================
-// User-setable variables
-// ====================================================================
+/* ==================================================================== */
+/* User-setable variables */
+/* ==================================================================== */
 
 #define	MAX_CHANNELS		512
 #define	MAX_DYNAMIC_CHANNELS	128
 
 extern channel_t channels[MAX_CHANNELS];
 
-// 0 to MAX_DYNAMIC_CHANNELS-1  = normal entity sounds
-// MAX_DYNAMIC_CHANNELS to MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS -1 = water, etc
-// MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS to total_channels = static sounds
+/* 0 to MAX_DYNAMIC_CHANNELS-1  = normal entity sounds */
+/* MAX_DYNAMIC_CHANNELS to MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS -1 = water, etc */
+/* MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS to total_channels = static sounds */
 
 extern int total_channels;
 

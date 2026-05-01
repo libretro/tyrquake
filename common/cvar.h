@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "shell.h"
 #include "qtypes.h"
 
-// cvar.h
+/* cvar.h */
 
 /*
 
@@ -84,14 +84,14 @@ typedef struct stree_root *(*cvar_arg_f)(const char *);
 typedef struct cvar_s {
     const char *name;
     const char *string;
-    qboolean archive;	// set to true to cause it to be saved to vars.rc
+    qboolean archive;	/* set to true to cause it to be saved to vars.rc */
 
-    // FIXME - obviously...
+    /* FIXME - obviously... */
 #ifdef NQ_HACK
-    qboolean server;	// NQ: notifies players when changed
+    qboolean server;	/* NQ: notifies players when changed */
 #endif
 #ifdef QW_HACK
-    qboolean info;	// QW: added to serverinfo or userinfo when changed
+    qboolean info;	/* QW: added to serverinfo or userinfo when changed */
 #endif
 
     float value;

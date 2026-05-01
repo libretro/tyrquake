@@ -519,8 +519,8 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 				break;
 			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
 			s_rawend++;
-		//	s_rawsamples [dst].left = ((signed char *) data)[src * 2] * intVolume;
-		//	s_rawsamples [dst].right = ((signed char *) data)[src * 2 + 1] * intVolume;
+		/* 	s_rawsamples [dst].left = ((signed char *) data)[src * 2] * intVolume; */
+		/* 	s_rawsamples [dst].right = ((signed char *) data)[src * 2 + 1] * intVolume; */
 			s_rawsamples [dst].left = (((byte *) data)[src * 2] - 128) * intVolume;
 			s_rawsamples [dst].right = (((byte *) data)[src * 2 + 1] - 128) * intVolume;
 		}
@@ -536,8 +536,8 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 				break;
 			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
 			s_rawend++;
-		//	s_rawsamples [dst].left = ((signed char *) data)[src] * intVolume;
-		//	s_rawsamples [dst].right = ((signed char *) data)[src] * intVolume;
+		/* 	s_rawsamples [dst].left = ((signed char *) data)[src] * intVolume; */
+		/* 	s_rawsamples [dst].right = ((signed char *) data)[src] * intVolume; */
 			s_rawsamples [dst].left = (((byte *) data)[src] - 128) * intVolume;
 			s_rawsamples [dst].right = (((byte *) data)[src] - 128) * intVolume;
 		}
@@ -683,7 +683,7 @@ static void S_Update_(void)
    /* check to make sure that we haven't overshot */
    if (paintedtime < soundtime) {
       /* FIXME - handle init & wrap properly and report actual overflow */
-      //Con_DPrintf("%s: overflow\n", __func__);
+      /* Con_DPrintf("%s: overflow\n", __func__); */
       paintedtime = soundtime;
    }
    /* mix ahead of current position */

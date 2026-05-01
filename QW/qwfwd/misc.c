@@ -18,7 +18,7 @@ COM_CheckParm(char *parm)
 
     for (i = 1; i < com_argc; i++) {
 	if (!com_argv[i])
-	    continue;		// NEXTSTEP sometimes clears appkit vars.
+	    continue;		/* NEXTSTEP sometimes clears appkit vars. */
 	if (!strcmp(parm, com_argv[i]))
 	    return i;
     }
@@ -132,21 +132,21 @@ COM_Parse(char *data)
     if (!data)
 	return NULL;
 
-// skip whitespace
+/* skip whitespace */
   skipwhite:
     while ((c = *data) <= ' ') {
 	if (c == 0)
-	    return NULL;	// end of file;
+	    return NULL;	/* end of file; */
 	data++;
     }
 
-// skip // comments
+/* skip // comments */
     if (c == '/' && data[1] == '/') {
 	while (*data && *data != '\n')
 	    data++;
 	goto skipwhite;
     }
-// handle quoted strings specially
+/* handle quoted strings specially */
     if (c == '\"') {
 	data++;
 	while (1) {
@@ -159,7 +159,7 @@ COM_Parse(char *data)
 	    len++;
 	}
     }
-// parse a regular word
+/* parse a regular word */
     do {
 	com_token[len] = c;
 	data++;
@@ -208,7 +208,7 @@ Cmd_TokenizeString(char *text)
     cmd_argc = 0;
 
     while (1) {
-// skip whitespace up to a /n
+/* skip whitespace up to a /n */
 	while (*text && *text <= ' ') {
 	    text++;
 	}
@@ -315,7 +315,7 @@ Info_RemoveKey(char *s, char *key)
 	*o = 0;
 
 	if (!strcmp(key, pkey)) {
-	    strcpy(start, s);	// remove this part
+	    strcpy(start, s);	/* remove this part */
 	    return;
 	}
 

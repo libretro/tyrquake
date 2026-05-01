@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "winquake.h"
 #endif
 
-// FIXME - header hacks
+/* FIXME - header hacks */
 extern frame_t *view_frame;
 
 cvar_t cl_nopred = { "cl_nopred", "0" };
@@ -78,7 +78,7 @@ void
 CL_PredictUsercmd(player_state_t *from, player_state_t *to, usercmd_t *u,
 		  qboolean spectator)
 {
-    // split up very long moves
+    /* split up very long moves */
     if (u->msec > 50) {
 	player_state_t temp;
 	usercmd_t split;
@@ -92,7 +92,7 @@ CL_PredictUsercmd(player_state_t *from, player_state_t *to, usercmd_t *u,
     }
 
     VectorCopy(from->origin, pmove.origin);
-//      VectorCopy (from->viewangles, pmove.angles);
+/*      VectorCopy (from->viewangles, pmove.angles); */
     VectorCopy(u->angles, pmove.angles);
     VectorCopy(from->velocity, pmove.velocity);
 
@@ -104,8 +104,8 @@ CL_PredictUsercmd(player_state_t *from, player_state_t *to, usercmd_t *u,
     pmove.cmd = *u;
 
     PlayerMove();
-//for (i=0 ; i<3 ; i++)
-//pmove.origin[i] = ((int)(pmove.origin[i]*8))*0.125;
+/* for (i=0 ; i<3 ; i++) */
+/* pmove.origin[i] = ((int)(pmove.origin[i]*8))*0.125; */
     to->waterjumptime = pmove.waterjumptime;
     to->oldbuttons = pmove.cmd.buttons;
     VectorCopy(pmove.origin, to->origin);
@@ -153,11 +153,11 @@ CL_PredictMove(void)
 
     VectorCopy(cl.viewangles, cl.simangles);
 
-    // this is the last frame received from the server
+    /* this is the last frame received from the server */
     from = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
 
-    // we can now render a frame
-    if (cls.state == ca_onserver) {	// first update is the final signon stage
+    /* we can now render a frame */
+    if (cls.state == ca_onserver) {	/* first update is the final signon stage */
 	char text[1024];
 
 	cls.state = ca_active;
@@ -172,11 +172,11 @@ CL_PredictMove(void)
 	VectorCopy(from->playerstate[cl.playernum].origin, cl.simorg);
 	return;
     }
-    // predict forward until cl.time <= to->senttime
+    /* predict forward until cl.time <= to->senttime */
     oldphysent = pmove.numphysent;
     CL_SetSolidPlayers(cl.playernum);
 
-//      to = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK];
+/*      to = &cl.frames[cls.netchan.incoming_sequence & UPDATE_MASK]; */
 
     for (i = 1; i < UPDATE_BACKUP - 1 && cls.netchan.incoming_sequence + i <
 	 cls.netchan.outgoing_sequence; i++) {
@@ -192,9 +192,9 @@ CL_PredictMove(void)
     pmove.numphysent = oldphysent;
 
     if (i == UPDATE_BACKUP - 1 || !to)
-	return;			// net hasn't deliver packets in a long time...
+	return;			/* net hasn't deliver packets in a long time... */
 
-    // now interpolate some fraction of the final frame
+    /* now interpolate some fraction of the final frame */
     if (to->senttime == from->senttime)
 	f = 0;
     else {
@@ -207,7 +207,7 @@ CL_PredictMove(void)
     }
 
     for (i = 0; i < 3; i++)
-	if (fabs(from->playerstate[cl.playernum].origin[i] - to->playerstate[cl.playernum].origin[i]) > 128) {	// teleported, so don't lerp
+	if (fabs(from->playerstate[cl.playernum].origin[i] - to->playerstate[cl.playernum].origin[i]) > 128) {	/* teleported, so don't lerp */
 	    VectorCopy(to->playerstate[cl.playernum].velocity, cl.simvel);
 	    VectorCopy(to->playerstate[cl.playernum].origin, cl.simorg);
 	    return;

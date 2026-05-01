@@ -96,29 +96,29 @@ CL_GetMessage(void)
    {
       int i;
 
-      // decide if it is time to grab the next message
-      // allways grab until fully connected
+      /* decide if it is time to grab the next message */
+      /* allways grab until fully connected */
       if (cls.state == ca_active)
       {
          if (cls.timedemo)
          {
             if (host_framecount == cls.td_lastframe)
-               return 0;	// allready read this frame's message
+               return 0;	/* allready read this frame's message */
 
             cls.td_lastframe = host_framecount;
 
-            // if this is the second frame, grab the real td_starttime
-            // so the bogus time on the first frame doesn't count
+            /* if this is the second frame, grab the real td_starttime */
+            /* so the bogus time on the first frame doesn't count */
             if (host_framecount == cls.td_startframe + 1)
                cls.td_starttime = realtime;
          }
          else if (cl.time <= cl.mtime[0])
          {
-            // don't need another message yet
+            /* don't need another message yet */
             return 0;
          }
       }
-      // get the next message
+      /* get the next message */
       rfread(&net_message.cursize, 4, 1, cls.demofile);
       VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
 
@@ -152,7 +152,7 @@ CL_GetMessage(void)
       if (r != 1 && r != 2)
          return r;
 
-      // discard nop keepalive message
+      /* discard nop keepalive message */
       if (net_message.cursize == 1 && net_message.data[0] == svc_nop)
          Con_Printf("<-- server to client keepalive\n");
       else
@@ -183,14 +183,14 @@ CL_PlayDemo_f(void)
 	Con_Printf("play <demoname> : plays a demo\n");
 	return;
     }
-//
-// disconnect from server
-//
+/**/
+/* disconnect from server */
+/**/
     CL_Disconnect();
 
-//
-// open the demo file
-//
+/**/
+/* open the demo file */
+/**/
     strcpy(name, Cmd_Argv(1));
     COM_DefaultExtension(name, ".dem");
 
@@ -198,7 +198,7 @@ CL_PlayDemo_f(void)
     COM_FOpenFile(name, &cls.demofile);
     if (!cls.demofile) {
 	Con_Printf("ERROR: couldn't open.\n");
-	cls.demonum = -1;	// stop demo loop
+	cls.demonum = -1;	/* stop demo loop */
 	return;
     }
 
@@ -227,7 +227,7 @@ CL_Demo_Arg_f(const char *arg)
     root->entries = 0;
     root->maxlen = 0;
     root->minlen = -1;
-    //root->root = NULL;
+    /* root->root = NULL; */
     root->stack = NULL;
 	STree_AllocInit();
 	COM_ScanDir(root, "", arg, ".dem", true);
@@ -249,7 +249,7 @@ static void CL_FinishTimeDemo(void)
 
     cls.timedemo = false;
 
-// the first frame didn't count
+/* the first frame didn't count */
     frames = (host_framecount - cls.td_startframe) - 1;
     time = realtime - cls.td_starttime;
     if (!time)
@@ -278,10 +278,10 @@ CL_TimeDemo_f(void)
 
     CL_PlayDemo_f();
 
-// cls.td_starttime will be grabbed at the second frame of the demo, so
-// all the loading time doesn't get counted
+/* cls.td_starttime will be grabbed at the second frame of the demo, so */
+/* all the loading time doesn't get counted */
 
     cls.timedemo = true;
     cls.td_startframe = host_framecount;
-    cls.td_lastframe = -1;	// get a new message this frame
+    cls.td_lastframe = -1;	/* get a new message this frame */
 }

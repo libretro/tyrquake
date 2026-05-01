@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "d_iface.h"
 
-// FIXME - header hacks
+/* FIXME - header hacks */
 extern vec3_t player_mins;
 extern vec3_t player_maxs;
 
@@ -157,7 +157,7 @@ LINE TESTING IN HULLS
 ===============================================================================
 */
 
-// 1/32 epsilon to keep floating point happy
+/* 1/32 epsilon to keep floating point happy */
 #define	DIST_EPSILON	(0.03125)
 
 /*
@@ -179,7 +179,7 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
     int side;
     float midf;
 
-// check for empty
+/* check for empty */
     if (num < 0) {
 	if (num != CONTENTS_SOLID) {
 	    trace->allsolid = false;
@@ -189,15 +189,15 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 		trace->inwater = true;
 	} else
 	    trace->startsolid = true;
-	return true;		// empty
+	return true;		/* empty */
     }
 
     if (num < hull->firstclipnode || num > hull->lastclipnode)
 	Sys_Error("PM_RecursiveHullCheck: bad node number");
 
-//
-// find the point distances
-//
+/**/
+/* find the point distances */
+/**/
     node = hull->clipnodes + num;
     plane = hull->planes + node->planenum;
 
@@ -218,7 +218,7 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 	return PM_RecursiveHullCheck(hull, child, p1f, p2f, p1, p2, trace);
     }
 
-// put the crosspoint DIST_EPSILON pixels on the near side
+/* put the crosspoint DIST_EPSILON pixels on the near side */
     if (t1 < 0)
 	frac = (t1 + DIST_EPSILON) / (t1 - t2);
     else
@@ -234,7 +234,7 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 
     side = (t1 < 0);
 
-// move up to the node
+/* move up to the node */
     child = node->children[side];
     if (!PM_RecursiveHullCheck(hull, child, p1f, midf, p1, mid, trace))
 	return false;
@@ -245,11 +245,11 @@ PM_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
 	return PM_RecursiveHullCheck(hull, child, midf, p2f, mid, p2, trace);
 
     if (trace->allsolid)
-	return false;		// never got out of the solid area
+	return false;		/* never got out of the solid area */
 
-//==================
-// the other side of the node is solid, this is the impact point
-//==================
+/* ================== */
+/* the other side of the node is solid, this is the impact point */
+/* ================== */
     if (!side) {
 	VectorCopy(plane->normal, trace->plane.normal);
 	trace->plane.dist = plane->dist;
@@ -296,7 +296,7 @@ PM_TestPlayerPosition(vec3_t pos)
 
     for (i = 0; i < pmove.numphysent; i++) {
 	pe = &pmove.physents[i];
-	// get the clipping hull
+	/* get the clipping hull */
 	if (pe->model)
 	    hull = &pmove.physents[i].model->hulls[1];
 	else {
@@ -331,7 +331,7 @@ PM_PlayerMove(vec3_t start, vec3_t end)
     physent_t *pe;
     vec3_t mins, maxs;
 
-// fill in a default trace
+/* fill in a default trace */
     memset(&total, 0, sizeof(pmtrace_t));
     total.fraction = 1;
     total.ent = -1;
@@ -339,7 +339,7 @@ PM_PlayerMove(vec3_t start, vec3_t end)
 
     for (i = 0; i < pmove.numphysent; i++) {
 	pe = &pmove.physents[i];
-	// get the clipping hull
+	/* get the clipping hull */
 	if (pe->model)
 	    hull = &pmove.physents[i].model->hulls[1];
 	else {
@@ -348,20 +348,20 @@ PM_PlayerMove(vec3_t start, vec3_t end)
 	    hull = PM_HullForBox(mins, maxs);
 	}
 
-	// PM_HullForEntity (ent, mins, maxs, offset);
+	/* PM_HullForEntity (ent, mins, maxs, offset); */
 	VectorCopy(pe->origin, offset);
 
 	VectorSubtract(start, offset, start_l);
 	VectorSubtract(end, offset, end_l);
 
-	// fill in a default trace
+	/* fill in a default trace */
 	memset(&trace, 0, sizeof(pmtrace_t));
 	trace.fraction = 1;
 	trace.allsolid = true;
-//              trace.startsolid = true;
+/*              trace.startsolid = true; */
 	VectorCopy(end, trace.endpos);
 
-	// trace a line through the apropriate clipping hull
+	/* trace a line through the apropriate clipping hull */
 	PM_RecursiveHullCheck(hull, hull->firstclipnode, 0, 1, start_l,
 			      end_l, &trace);
 
@@ -370,9 +370,9 @@ PM_PlayerMove(vec3_t start, vec3_t end)
 	if (trace.startsolid)
 	    trace.fraction = 0;
 
-	// did we clip the move?
+	/* did we clip the move? */
 	if (trace.fraction < total.fraction) {
-	    // fix trace up by the offset
+	    /* fix trace up by the offset */
 	    VectorAdd(trace.endpos, offset, trace.endpos);
 	    total = trace;
 	    total.ent = i;

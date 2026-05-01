@@ -25,12 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "world.h"
 
-server_static_t svs;		// persistant server info
-server_t sv;			// local server
+server_static_t svs;		/* persistant server info */
+server_t sv;			/* local server */
 
-char localmodels[MAX_MODELS][5];	// inline model names for precache
+char localmodels[MAX_MODELS][5];	/* inline model names for precache */
 
-char localinfo[MAX_LOCALINFO_STRING + 1];	// local game info
+char localinfo[MAX_LOCALINFO_STRING + 1];	/* local game info */
 
 /*
 ================
@@ -96,14 +96,14 @@ SV_CreateBaseline(void)
 	svent = EDICT_NUM(entnum);
 	if (svent->free)
 	    continue;
-	// create baselines for all player slots,
-	// and any other edict that has a visible model
+	/* create baselines for all player slots, */
+	/* and any other edict that has a visible model */
 	if (entnum > MAX_CLIENTS && !svent->v.modelindex)
 	    continue;
 
-	//
-	// create entity baseline
-	//
+	/**/
+	/* create entity baseline */
+	/**/
 	VectorCopy(svent->v.origin, svent->baseline.origin);
 	VectorCopy(svent->v.angles, svent->baseline.angles);
 	svent->baseline.frame = svent->v.frame;
@@ -117,15 +117,15 @@ SV_CreateBaseline(void)
 		SV_ModelIndex(PR_GetString(svent->v.model));
 	}
 
-	//
-	// flush the signon message out to a seperate buffer if
-	// nearly full
-	//
+	/**/
+	/* flush the signon message out to a seperate buffer if */
+	/* nearly full */
+	/**/
 	SV_FlushSignon();
 
-	//
-	// add to the message
-	//
+	/**/
+	/* add to the message */
+	/**/
 	MSG_WriteByte(&sv.signon, svc_spawnbaseline);
 	MSG_WriteShort(&sv.signon, entnum);
 
@@ -156,9 +156,9 @@ SV_SaveSpawnparms(void)
     int i, j;
 
     if (!sv.state)
-	return;			// no progs loaded yet
+	return;			/* no progs loaded yet */
 
-    // serverflags is the only game related thing maintained
+    /* serverflags is the only game related thing maintained */
     svs.serverflags = pr_global_struct->serverflags;
 
     for (i = 0, host_client = svs.clients; i < MAX_CLIENTS;
@@ -166,10 +166,10 @@ SV_SaveSpawnparms(void)
 	if (host_client->state != cs_spawned)
 	    continue;
 
-	// needs to reconnect
+	/* needs to reconnect */
 	host_client->state = cs_connected;
 
-	// call the progs to get default spawn parms for the new client
+	/* call the progs to get default spawn parms for the new client */
 	pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
 	PR_ExecuteProgram(pr_global_struct->SetChangeParms);
 	for (j = 0; j < NUM_SPAWN_PARMS; j++)
@@ -250,7 +250,7 @@ SV_CalcPHS(void)
 static unsigned
 SV_CheckModel(const char *mdl)
 {
-    byte stackbuf[1024];	// avoid dirtying the cache heap
+    byte stackbuf[1024];	/* avoid dirtying the cache heap */
     const byte *buf;
     unsigned short crc;
 
@@ -280,15 +280,15 @@ SV_SpawnServer(const char *server)
 
     SV_SaveSpawnparms();
 
-    svs.spawncount++;		// any partially connected client will be
-    // restarted
+    svs.spawncount++;		/* any partially connected client will be */
+    /* restarted */
 
     sv.state = ss_dead;
 
     Mod_ClearAll();
     Hunk_FreeToLowMark(host_hunklevel);
 
-    // wipe the entire per-level structure
+    /* wipe the entire per-level structure */
     memset(&sv, 0, sizeof(sv));
 
     sv.datagram.maxsize = sizeof(sv.datagram_buf);
@@ -310,19 +310,19 @@ SV_SpawnServer(const char *server)
 
     strcpy(sv.name, server);
 
-    // load progs to get entity field count
-    // which determines how big each edict is
+    /* load progs to get entity field count */
+    /* which determines how big each edict is */
     PR_LoadProgs();
 
-    // allocate edicts
+    /* allocate edicts */
     sv.edicts = Hunk_Alloc(MAX_EDICTS * pr_edict_size);
 
-    // leave slots at start for clients only
+    /* leave slots at start for clients only */
     sv.num_edicts = MAX_CLIENTS + 1;
     for (i = 0; i < MAX_CLIENTS; i++) {
 	ent = EDICT_NUM(i + 1);
 	svs.clients[i].edict = ent;
-//ZOID - make sure we update frags right
+/* ZOID - make sure we update frags right */
 	svs.clients[i].old_frags = 0;
     }
 
@@ -333,9 +333,9 @@ SV_SpawnServer(const char *server)
     sv.worldmodel = Mod_ForName(sv.modelname, true);
     SV_CalcPHS();
 
-    //
-    // clear physics interaction links
-    //
+    /**/
+    /* clear physics interaction links */
+    /**/
     SV_ClearWorld();
 
     sv.sound_precache[0] = pr_strings;
@@ -348,51 +348,51 @@ SV_SpawnServer(const char *server)
 	sv.models[i + 1] = Mod_ForName(localmodels[i], false);
     }
 
-    //check player/eyes models for hacks
+    /* check player/eyes models for hacks */
     sv.model_player_checksum = SV_CheckModel("progs/player.mdl");
     sv.eyes_player_checksum = SV_CheckModel("progs/eyes.mdl");
 
-    //
-    // spawn the rest of the entities on the map
-    //
+    /**/
+    /* spawn the rest of the entities on the map */
+    /**/
 
-    // precache and static commands can be issued during
-    // map initialization
+    /* precache and static commands can be issued during */
+    /* map initialization */
     sv.state = ss_loading;
 
     ent = EDICT_NUM(0);
     ent->free = false;
     ent->v.model = PR_SetString(sv.worldmodel->name);
-    ent->v.modelindex = 1;	// world model
+    ent->v.modelindex = 1;	/* world model */
     ent->v.solid = SOLID_BSP;
     ent->v.movetype = MOVETYPE_PUSH;
 
     pr_global_struct->mapname = PR_SetString(sv.name);
-    // serverflags are for cross level information (sigils)
+    /* serverflags are for cross level information (sigils) */
     pr_global_struct->serverflags = svs.serverflags;
 
-    // run the frame start qc function to let progs check cvars
+    /* run the frame start qc function to let progs check cvars */
     SV_ProgStartFrame();
 
-    // load and spawn all other entities
+    /* load and spawn all other entities */
     ED_LoadFromFile(sv.worldmodel->entities);
 
-    // look up some model indexes for specialized message compression
+    /* look up some model indexes for specialized message compression */
     SV_FindModelNumbers();
 
-    // all spawning is completed, any further precache statements
-    // or prog writes to the signon message are errors
+    /* all spawning is completed, any further precache statements */
+    /* or prog writes to the signon message are errors */
     sv.state = ss_active;
 
-    // run two frames to allow everything to settle
+    /* run two frames to allow everything to settle */
     host_frametime = 0.1;
     SV_Physics();
     SV_Physics();
 
-    // save movement vars
+    /* save movement vars */
     SV_SetMoveVars();
 
-    // create a baseline for more efficient communications
+    /* create a baseline for more efficient communications */
     SV_CreateBaseline();
     sv.signon_buffer_size[sv.num_signon_buffers - 1] = sv.signon.cursize;
 

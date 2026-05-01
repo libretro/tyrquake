@@ -24,21 +24,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "shell.h"
 
-//
-// console
-//
+/**/
+/* console */
+/**/
 typedef struct {
-    char *text;			// Text buffer
-    int current;		// line where next message will be printed
-    int x;			// offset in current line for next print
-    int display;		// bottom of console displays this line
+    char *text;			/* Text buffer */
+    int current;		/* line where next message will be printed */
+    int x;			/* offset in current line for next print */
+    int display;		/* bottom of console displays this line */
 } console_t;
 
 extern console_t *con;
 
 extern int con_ormask;
 extern int con_totallines;
-extern int con_notifylines;	// scan lines to clear for notify lines
+extern int con_notifylines;	/* scan lines to clear for notify lines */
 
 extern qboolean con_forcedup;
 extern qboolean con_initialized;
@@ -58,7 +58,7 @@ void Con_ToggleConsole_f(void);
 void Con_ShowList(const char **list, int cnt, int maxlen);
 void Con_ShowTree(struct stree_root *root);
 
-// during startup for sound / cd warnings
+/* during startup for sound / cd warnings */
 void Con_NotifyBox(char *text);
 
 int Con_GetWidth(void); /* return the printing width in chars*/

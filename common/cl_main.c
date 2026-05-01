@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl_main.c  -- client main loop
+/* cl_main.c  -- client main loop */
 
 #include "client.h"
 #include "cmd.h"
@@ -45,7 +45,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 cvar_t cl_name = { "_cl_name", "player", true };
 cvar_t cl_color = { "_cl_color", "0", true };
 
-cvar_t cl_shownet = { "cl_shownet", "0" };	// can be 0, 1, or 2
+cvar_t cl_shownet = { "cl_shownet", "0" };	/* can be 0, 1, or 2 */
 cvar_t cl_nolerp = { "cl_nolerp", "0" };
 
 cvar_t lookspring = { "lookspring", "0", true };
@@ -212,9 +212,9 @@ void CL_EstablishConnection(const char *host)
 
    Con_DPrintf("CL_EstablishConnection: connected to %s\n", host);
 
-   cls.demonum = -1;		// not in the demo loop now
+   cls.demonum = -1;		/* not in the demo loop now */
    cls.state = ca_connected;
-   cls.signon = 0;		// need all the signon messages before playing
+   cls.signon = 0;		/* need all the signon messages before playing */
 }
 
 /*
@@ -251,16 +251,16 @@ void CL_SignonReply(void)
       case 3:
          MSG_WriteByte(&cls.message, clc_stringcmd);
          MSG_WriteString(&cls.message, "begin");
-         Cache_Report();		// print remaining memory
+         Cache_Report();		/* print remaining memory */
 
-         // FIXME - this the right place for it?
+         /* FIXME - this the right place for it? */
          cls.state = ca_firstupdate;
          break;
 
       case 4:
-         SCR_EndLoadingPlaque();	// allow normal screen updates
+         SCR_EndLoadingPlaque();	/* allow normal screen updates */
 
-         // FIXME - this the right place for it?
+         /* FIXME - this the right place for it? */
          cls.state = ca_active;
          break;
    }
@@ -278,7 +278,7 @@ void CL_NextDemo(void)
    char str[1024];
 
    if (cls.demonum == -1)
-      return;			// don't play demos
+      return;			/* don't play demos */
 
    SCR_BeginLoadingPlaque();
 
@@ -707,10 +707,10 @@ void CL_SendCmd(void)
       /* get basic movement from keyboard */
       CL_BaseMove(&cmd);
 
-      // allow mice or other external controllers to add to the move
+      /* allow mice or other external controllers to add to the move */
       IN_Move(&cmd);
 
-      // send the unreliable message
+      /* send the unreliable message */
       CL_SendMove(&cmd);
    }
 

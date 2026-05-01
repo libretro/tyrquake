@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_user.c -- server code for moving users
+/* sv_user.c -- server code for moving users */
 
 #include "client.h"
 #include "cmd.h"
@@ -88,10 +88,10 @@ void SV_SetIdealPitch(void)
 
       tr = SV_Move(top, vec3_origin, vec3_origin, bottom, 1, sv_player);
       if (tr.allsolid)
-         return;		// looking at a wall, leave ideal the way is was
+         return;		/* looking at a wall, leave ideal the way is was */
 
       if (tr.fraction == 1)
-         return;		// near a dropoff
+         return;		/* near a dropoff */
 
       z[i] = top[2] + tr.fraction * (bottom[2] - top[2]);
    }
@@ -105,7 +105,7 @@ void SV_SetIdealPitch(void)
          continue;
 
       if (dir && (step - dir > ON_EPSILON || step - dir < -ON_EPSILON))
-         return;		// mixed changes
+         return;		/* mixed changes */
 
       steps++;
       dir = step;
@@ -305,7 +305,7 @@ void SV_WaterMove(void)
       wishvel[i] = forward[i] * cmd.forwardmove + right[i] * cmd.sidemove;
 
    if (!cmd.forwardmove && !cmd.sidemove && !cmd.upmove)
-      wishvel[2] -= 60;	// drift towards bottom
+      wishvel[2] -= 60;	/* drift towards bottom */
    else
       wishvel[2] += cmd.upmove;
 
@@ -317,9 +317,9 @@ void SV_WaterMove(void)
    }
 
 #ifdef HEXEN2
-   if (sv_player->v.playerclass==CLASS_DEMON)   // Paladin Special Ability #1 - unrestricted movement in water
+   if (sv_player->v.playerclass==CLASS_DEMON)   /* Paladin Special Ability #1 - unrestricted movement in water */
       wishspeed *= 0.5;
-   else if (sv_player->v.playerclass!=CLASS_PALADIN)   // Paladin Special Ability #1 - unrestricted movement in water
+   else if (sv_player->v.playerclass!=CLASS_PALADIN)   /* Paladin Special Ability #1 - unrestricted movement in water */
       wishspeed *= 0.7;
    else if (sv_player->v.level == 1)
       wishspeed *= 0.75;
@@ -337,7 +337,7 @@ void SV_WaterMove(void)
    wishspeed *= 0.7;
 #endif
 
-   // water friction
+   /* water friction */
    speed = Length(velocity);
    if (speed)
    {
@@ -348,7 +348,7 @@ void SV_WaterMove(void)
    } else
       newspeed = 0;
 
-   // water acceleration
+   /* water acceleration */
    if (!wishspeed)
       return;
 
@@ -416,14 +416,14 @@ void SV_AirMove(void)
 
    if (sv_player->v.movetype == MOVETYPE_NOCLIP)
    {
-      // noclip
+      /* noclip */
       VectorCopy(wishvel, velocity);
    }
    else if (onground)
    {
       SV_UserFriction();
       SV_Accelerate();
-   } else {			// not on ground, so little effect on velocity
+   } else {			/* not on ground, so little effect on velocity */
       SV_AirAccelerate(wishvel);
    }
 }
@@ -527,7 +527,7 @@ void SV_ReadClientMove(usercmd_t *move)
    host_client->edict->v.button2 = (bits & 2) >> 1;
 
 #ifdef HEXEN2
-   if (bits & 4) // crouched?
+   if (bits & 4) /* crouched? */
       host_client->edict->v.flags2 = ((int)host_client->edict->v.flags2) | FL2_CROUCHED;
    else
       host_client->edict->v.flags2 = ((int)host_client->edict->v.flags2) & (~FL2_CROUCHED);
@@ -568,7 +568,7 @@ nextmsg:
       while (1)
       {
          if (!host_client->active)
-            return false;	// a command caused an error
+            return false;	/* a command caused an error */
 
          if (msg_badread) {
             Sys_Printf("%s: badread\n", __func__);
@@ -579,14 +579,14 @@ nextmsg:
 
          switch (cmd) {
             case -1:
-               goto nextmsg;	// end of message
+               goto nextmsg;	/* end of message */
 
             default:
                Sys_Printf("%s: unknown command char\n", __func__);
                return false;
 
             case clc_nop:
-               //Sys_Printf ("clc_nop\n");
+               /* Sys_Printf ("clc_nop\n"); */
                break;
 
             case clc_stringcmd:
@@ -654,7 +654,7 @@ nextmsg:
                break;
 
             case clc_disconnect:
-               //Sys_Printf ("%s: client disconnected\n", __func__);
+               /* Sys_Printf ("%s: client disconnected\n", __func__); */
                return false;
 
             case clc_move:

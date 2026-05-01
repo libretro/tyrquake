@@ -34,15 +34,15 @@ static aliashdr_t *pheader;
 static stvert_t stverts[MAXALIASVERTS];
 static mtriangle_t triangles[MAXALIASTRIS];
 
-// a pose is a single set of vertexes.  a frame may be
-// an animating sequence of poses
+/* a pose is a single set of vertexes.  a frame may be */
+/* an animating sequence of poses */
 static const trivertx_t *poseverts[MAXALIASFRAMES];
 static float poseintervals[MAXALIASFRAMES];
 static int posenum;
 
 #define MAXALIASSKINS 256
 
-// a skin may be an animating set 1 or more textures
+/* a skin may be an animating set 1 or more textures */
 static float skinintervals[MAXALIASSKINS];
 static byte *skindata[MAXALIASSKINS];
 static uintptr_t skinnum;
@@ -61,8 +61,8 @@ Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
     frame->numposes = 1;
 
     for (i = 0; i < 3; i++) {
-	// these are byte values, so we don't have to worry about
-	// endianness
+	/* these are byte values, so we don't have to worry about */
+	/* endianness */
 	frame->bboxmin.v[i] = in->bboxmin.v[i];
 	frame->bboxmax.v[i] = in->bboxmax.v[i];
     }
@@ -95,7 +95,7 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
    frame->numposes = numframes;
 
    for (i = 0; i < 3; i++) {
-      // these are byte values, so we don't have to worry about endianness
+      /* these are byte values, so we don't have to worry about endianness */
       frame->bboxmin.v[i] = in->bboxmin.v[i];
       frame->bboxmax.v[i] = in->bboxmax.v[i];
    }
@@ -278,8 +278,8 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
       Sys_Error("%s has wrong version number (%i should be %i)",
             mod->name, version, ALIAS_VERSION);
 
-   // allocate space for a working header, plus all the data except the frames,
-   // skin and group info
+   /* allocate space for a working header, plus all the data except the frames, */
+   /* skin and group info */
    pad = loader->Aliashdr_Padding();
 #ifdef MSB_FIRST
    size = pad + sizeof(aliashdr_t) +
@@ -295,7 +295,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 #ifdef MSB_FIRST
    mod->flags = LittleLong(pinmodel->flags);
 
-   // endian-adjust and copy the data, starting with the alias model header
+   /* endian-adjust and copy the data, starting with the alias model header */
    pheader->numskins = LittleLong(pinmodel->numskins);
    pheader->skinwidth = LittleLong(pinmodel->skinwidth);
    pheader->skinheight = LittleLong(pinmodel->skinheight);
@@ -354,12 +354,12 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 #endif
    }
 
-   // load the skins
+   /* load the skins */
    pskintype = (daliasskintype_t *)&pinmodel[1];
    pskintype = (daliasskintype_t *)Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
          pskintype);
 
-   // set base s and t vertices
+   /* set base s and t vertices */
    pinstverts = (stvert_t *)pskintype;
    for (i = 0; i < pheader->numverts; i++) {
 #ifdef MSB_FIRST
@@ -373,7 +373,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 #endif
    }
 
-   // set up the triangles
+   /* set up the triangles */
    pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
    for (i = 0; i < pheader->numtris; i++)
    {
@@ -424,7 +424,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    pheader->numposes = posenum;
    mod->type = mod_alias;
 
-   // FIXME: do this right
+   /* FIXME: do this right */
    mod->mins[0] = mod->mins[1] = mod->mins[2] = -16;
    mod->maxs[0] = mod->maxs[1] = mod->maxs[2] = 16;
 
@@ -437,7 +437,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    /* Save the mesh data (verts, stverts, triangles) */
    loader->LoadMeshData(loadmodel, pheader, triangles, stverts, poseverts);
 
-   // move the complete, relocatable alias model to the cache
+   /* move the complete, relocatable alias model to the cache */
    end = Hunk_LowMark();
    total = end - start;
 

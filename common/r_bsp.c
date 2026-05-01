@@ -17,22 +17,22 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// r_bsp.c
+/* r_bsp.c */
 
 #include "quakedef.h"
 #include "r_local.h"
 #include "console.h"
 
-//
-// current entity info
-//
+/**/
+/* current entity info */
+/**/
 qboolean insubmodel;
 
-// modelorg is the viewpoint reletive to
-// the currently rendering entity
+/* modelorg is the viewpoint reletive to */
+/* the currently rendering entity */
 vec3_t modelorg, base_modelorg;
 
-vec3_t r_entorigin;	// the currently rendering entity in world coordinates
+vec3_t r_entorigin;	/* the currently rendering entity in world coordinates */
 
 static float entity_rotation[3][3];
 
@@ -40,8 +40,8 @@ int r_currentbkey;
 
 typedef enum { touchessolid, drawnode, nodrawnode, ENSURE_INT_SOLID_STATE = 0x70000000 } solidstate_t;
 
-#define MAX_BMODEL_VERTS	500	// 6K
-#define MAX_BMODEL_EDGES	1000	// 12K
+#define MAX_BMODEL_VERTS	500	/* 6K */
+#define MAX_BMODEL_EDGES	1000	/* 12K */
 
 static mvertex_t *pbverts;
 static bedge_t *pbedges;
@@ -51,7 +51,7 @@ static mvertex_t *pfrontenter, *pfrontexit;
 
 static qboolean makeclippededge;
 
-//===========================================================================
+/* =========================================================================== */
 
 /*
 ================
@@ -78,12 +78,12 @@ void R_RotateBmodel(const entity_t *e)
 {
    float temp1[3][3], temp2[3][3], temp3[3][3];
 
-   // TODO: should use a look-up table
-   // TODO: should really be stored with the entity instead of being reconstructed
-   // TODO: could cache lazily, stored in the entity
-   // TODO: share work with R_SetUpAliasTransform
+   /* TODO: should use a look-up table */
+   /* TODO: should really be stored with the entity instead of being reconstructed */
+   /* TODO: could cache lazily, stored in the entity */
+   /* TODO: share work with R_SetUpAliasTransform */
 
-   // yaw
+   /* yaw */
    float angle = e->angles[YAW] * M_PI * 2 / 360;
    float s = sin(angle);
    float c = cos(angle);
@@ -98,7 +98,7 @@ void R_RotateBmodel(const entity_t *e)
    temp1[2][1] = 0;
    temp1[2][2] = 1;
 
-   // pitch
+   /* pitch */
    angle = e->angles[PITCH];
    angle = angle * M_PI * 2 / 360;
    s = sin(angle);
@@ -116,7 +116,7 @@ void R_RotateBmodel(const entity_t *e)
 
    R_ConcatRotations(temp2, temp1, temp3);
 
-   // roll
+   /* roll */
    angle = e->angles[ROLL];
    angle = angle * M_PI * 2 / 360;
    s = sin(angle);
@@ -134,9 +134,9 @@ void R_RotateBmodel(const entity_t *e)
 
    R_ConcatRotations(temp1, temp3, entity_rotation);
 
-   //
-   // rotate modelorg and the transformation matrix
-   //
+   /**/
+   /* rotate modelorg and the transformation matrix */
+   /**/
    R_EntityRotate(modelorg);
    R_EntityRotate(vpn);
    R_EntityRotate(vright);
@@ -165,8 +165,8 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
 
    makeclippededge = false;
 
-   // transform the BSP plane into model space
-   // FIXME: cache these?
+   /* transform the BSP plane into model space */
+   /* FIXME: cache these? */
    splitplane = pnode->plane;
    tplane.dist = splitplane->dist -
       DotProduct(r_entorigin, splitplane->normal);
@@ -174,12 +174,12 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
    tplane.normal[1] = DotProduct(entity_rotation[1], splitplane->normal);
    tplane.normal[2] = DotProduct(entity_rotation[2], splitplane->normal);
 
-   // clip edges to BSP plane
+   /* clip edges to BSP plane */
    for (; pedges; pedges = pnextedge) {
       pnextedge = pedges->pnext;
 
-      // set the status for the last point as the previous point
-      // FIXME: cache this stuff somehow?
+      /* set the status for the last point as the previous point */
+      /* FIXME: cache this stuff somehow? */
       plastvert = pedges->v[0];
       lastdist = DotProduct(plastvert->position, tplane.normal) -
          tplane.dist;
@@ -199,11 +199,11 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
          side = 1;
 
       if (side != lastside) {
-         // clipped
+         /* clipped */
          if (numbverts >= MAX_BMODEL_VERTS)
             return;
 
-         // generate the clipped vertex
+         /* generate the clipped vertex */
          frac = lastdist / (lastdist - dist);
          ptvert = &pbverts[numbverts++];
          ptvert->position[0] = plastvert->position[0] +
@@ -213,9 +213,9 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
          ptvert->position[2] = plastvert->position[2] +
             frac * (pvert->position[2] - plastvert->position[2]);
 
-         // split into two edges, one on each side, and remember entering
-         // and exiting points
-         // FIXME: share the clip edge by having a winding direction flag?
+         /* split into two edges, one on each side, and remember entering */
+         /* and exiting points */
+         /* FIXME: share the clip edge by having a winding direction flag? */
          if (numbedges > MAX_BMODEL_EDGES - 2) {
             Con_Printf("Out of edges for bmodel\n");
             return;
@@ -236,7 +236,7 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
          numbedges += 2;
 
          if (side == 0) {
-            // entering for front, exiting for back
+            /* entering for front, exiting for back */
             pfrontenter = ptvert;
             makeclippededge = true;
          } else {
@@ -244,14 +244,14 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
             makeclippededge = true;
          }
       } else {
-         // add the edge to the appropriate side
+         /* add the edge to the appropriate side */
          pedges->pnext = psideedges[side];
          psideedges[side] = pedges;
       }
    }
 
-   // if anything was clipped, reconstitute and add the edges along the clip
-   // plane to both sides (but in opposite directions)
+   /* if anything was clipped, reconstitute and add the edges along the clip */
+   /* plane to both sides (but in opposite directions) */
    if (makeclippededge) {
       if (numbedges > MAX_BMODEL_EDGES - 2) {
          Con_Printf("Out of edges for bmodel\n");
@@ -282,7 +282,7 @@ static void R_RecursiveClipBPoly(const entity_t *e, bedge_t *pedges, mnode_t *pn
           */
          pn = pnode->children[i];
 
-         // we're done with this branch if the node or leaf isn't in the PVS
+         /* we're done with this branch if the node or leaf isn't in the PVS */
          if (pn->visframe == r_visframecount) {
             if (pn->contents < 0) {
                if (pn->contents != CONTENTS_SOLID) {
@@ -319,9 +319,9 @@ void R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel)
       if (psurf->clipflags == BMODEL_FULLY_CLIPPED)
          continue;
 
-      // draw the polygon
-      // copy the edges to bedges, flipping if necessary so always
-      // clockwise winding
+      /* draw the polygon */
+      /* copy the edges to bedges, flipping if necessary so always */
+      /* clockwise winding */
 
       /*
        * FIXME: if edges and vertices get caches, these assignments must
@@ -349,7 +349,7 @@ void R_DrawSolidClippedSubmodelPolygons(const entity_t *e, model_t *pmodel)
          }
          pbedge[j].pnext = &pbedge[j + 1];
       }
-      pbedge[j - 1].pnext = NULL;	// mark end of edges
+      pbedge[j - 1].pnext = NULL;	/* mark end of edges */
 
       R_RecursiveClipBPoly(e, pbedge, e->topnode, psurf);
    }
@@ -365,7 +365,7 @@ void R_DrawSubmodelPolygons(const entity_t *e, model_t *pmodel, int clipflags)
 {
    int i;
 
-   // FIXME: use bounding-box-based frustum clipping info?
+   /* FIXME: use bounding-box-based frustum clipping info? */
 
    msurface_t *psurf = &pmodel->surfaces[pmodel->firstmodelsurface];
    int numsurfaces   = pmodel->nummodelsurfaces;
@@ -404,7 +404,7 @@ static void R_RecursiveWorldNode(const entity_t *e, mnode_t *node)
    if (node->contents < 0) {
       pleaf = (mleaf_t *)node;
       pleaf->key = r_currentkey;
-      r_currentkey++;		// all bmodels in a leaf share the same key
+      r_currentkey++;		/* all bmodels in a leaf share the same key */
 
       return;
    }

@@ -21,22 +21,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef R_LOCAL_H
 #define R_LOCAL_H
 
-// r_local.h -- private refresh defs
+/* r_local.h -- private refresh defs */
 
 #include "client.h"
 #include "model.h"
 #include "r_shared.h"
 
 #define ALIAS_BASE_SIZE_RATIO	(1.0 / 11.0)
-				// normalizing factor so player model works out
-				// to about 1 pixel per triangle
+				/* normalizing factor so player model works out */
+				/* to about 1 pixel per triangle */
 
 #define BMODEL_FULLY_CLIPPED	(0x10)
-				// value returned by R_BmodelCheckBBox ()
-				// if bbox is trivially rejected
+				/* value returned by R_BmodelCheckBBox () */
+				/* if bbox is trivially rejected */
 
-//===========================================================================
-// viewmodel lighting
+/* =========================================================================== */
+/* viewmodel lighting */
 
 typedef struct {
     int ambientlight;
@@ -44,8 +44,8 @@ typedef struct {
     float *plightvec;
 } alight_t;
 
-//===========================================================================
-// clipped bmodel edges
+/* =========================================================================== */
+/* clipped bmodel edges */
 
 typedef struct bedge_s {
     mvertex_t *v[2];
@@ -53,10 +53,10 @@ typedef struct bedge_s {
 } bedge_t;
 
 typedef struct {
-    float fv[3];		// viewspace x, y
+    float fv[3];		/* viewspace x, y */
 } auxvert_t;
 
-//===========================================================================
+/* =========================================================================== */
 
 extern cvar_t r_draworder;
 extern cvar_t r_speeds;
@@ -76,11 +76,11 @@ extern cvar_t r_numedges;
 
 #define BACKFACE_EPSILON	0.01
 
-//===========================================================================
+/* =========================================================================== */
 
 #define	DIST_NOT_SET	98765
 
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 typedef struct clipplane_s {
     mplane_t plane;
     struct clipplane_s *next;
@@ -91,22 +91,22 @@ typedef struct clipplane_s {
 
 extern clipplane_t view_clipplanes[4];
 
-//=============================================================================
+/* ============================================================================= */
 
 void R_RenderWorld(void);
 
-//=============================================================================
+/* ============================================================================= */
 
 extern mplane_t screenedge[4];
 extern vec3_t r_origin;
 extern vec3_t r_entorigin;
 extern int r_visframecount;
 
-//=============================================================================
+/* ============================================================================= */
 
-//
-// current entity info
-//
+/**/
+/* current entity info */
+/**/
 extern qboolean insubmodel;
 
 void R_DrawSprite(const entity_t *e);
@@ -141,7 +141,7 @@ extern void R_EdgeCodeEnd(void);
 
 extern void R_RotateBmodel(const entity_t *e);
 
-// !!! if this is changed, it must be changed in asm_draw.h too !!!
+/* !!! if this is changed, it must be changed in asm_draw.h too !!! */
 #define	NEAR_CLIP	0.01
 
 extern int ubasestep, errorterm, erroradjustup, erroradjustdown;
@@ -149,8 +149,8 @@ extern int ubasestep, errorterm, erroradjustup, erroradjustdown;
 extern fixed16_t sadjust, tadjust;
 extern fixed16_t bbextents, bbextentt;
 
-#define MAXBVERTINDEXES	1000	// new clipped vertices when clipping bmodels
-				// to the world BSP
+#define MAXBVERTINDEXES	1000	/* new clipped vertices when clipping bmodels */
+				/* to the world BSP */
 extern mvertex_t *r_ptverts, *r_ptvertsmax;
 
 extern vec3_t sbaseaxis[3], tbaseaxis[3];
@@ -158,11 +158,11 @@ extern vec3_t sbaseaxis[3], tbaseaxis[3];
 extern int r_currentkey;
 extern int r_currentbkey;
 
-//=========================================================
-// Alias models
-//=========================================================
+/* ========================================================= */
+/* Alias models */
+/* ========================================================= */
 
-#define MAXALIASVERTS		2048	// TODO: tune this
+#define MAXALIASVERTS		2048	/* TODO: tune this */
 #define ALIAS_Z_CLIP_PLANE	5
 
 extern int numverts;
@@ -174,21 +174,21 @@ extern float r_avertexnormals[][3];
 
 qboolean R_AliasCheckBBox(entity_t *e);
 
-//=========================================================
-// turbulence stuff
+/* ========================================================= */
+/* turbulence stuff */
 
 #define	TURB_SURF_AMP	8*0x10000
 #define	TURB_SCREEN_AMP	3
 #define	TURB_SPEED	20
 
-//=========================================================
-// particle stuff
+/* ========================================================= */
+/* particle stuff */
 
 void R_DrawParticles(void);
 void R_InitParticles(void);
 void R_ClearParticles(void);
 
-void R_PushDlights (struct mnode_s *headnode); //qbism - moved from render.h
+void R_PushDlights (struct mnode_s *headnode); /* qbism - moved from render.h */
 
 extern int r_amodels_drawn;
 extern edge_t *auxedges;
@@ -200,7 +200,7 @@ extern edge_t *removeedges[MAXHEIGHT];
 
 extern int screenwidth;
 
-// FIXME: make stack vars when debugging done
+/* FIXME: make stack vars when debugging done */
 extern edge_t edge_head;
 extern edge_t edge_tail;
 extern edge_t edge_aftertail;

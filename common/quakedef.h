@@ -17,8 +17,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// quakedef.h -- primary header for client
-//            -- FIXME - needs splitting up into components...
+/* quakedef.h -- primary header for client */
+/*            -- FIXME - needs splitting up into components... */
 
 #ifndef QUAKEDEF_H
 #define QUAKEDEF_H
@@ -43,37 +43,37 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <retro_miscellaneous.h>
 
-// !!! if this is changed, it must be changed in d_ifacea.h too !!!
-#define CACHE_SIZE	32	// used to align key data structures
+/* !!! if this is changed, it must be changed in d_ifacea.h too !!! */
+#define CACHE_SIZE	32	/* used to align key data structures */
 #define CACHE_PAD_ARRAY(elements, type)	\
     ((elements) + ((CACHE_SIZE - 1) / sizeof(type)) + 1)
 
 #define	MINIMUM_MEMORY		0x550000
 #define	MINIMUM_MEMORY_LEVELPAK	(MINIMUM_MEMORY + 0x100000)
 
-// up / down
+/* up / down */
 #define	PITCH	0
 
-// left / right
+/* left / right */
 #define	YAW	1
 
-// fall over
+/* fall over */
 #define	ROLL	2
 
 
-#define	MAX_QPATH	PATH_MAX_LENGTH	// max length of a quake game pathname
-#define	MAX_OSPATH	PATH_MAX_LENGTH	// max length of a filesystem pathname
+#define	MAX_QPATH	PATH_MAX_LENGTH	/* max length of a quake game pathname */
+#define	MAX_OSPATH	PATH_MAX_LENGTH	/* max length of a filesystem pathname */
 
-#define	ON_EPSILON	0.1	// point on plane side epsilon
+#define	ON_EPSILON	0.1	/* point on plane side epsilon */
 
-#define	MAX_MSGLEN	32768	// max length of a reliable message
-#define	MAX_DATAGRAM	32768	// max length of unreliable message
-				// (driver MTU may be lower)
+#define	MAX_MSGLEN	32768	/* max length of a reliable message */
+#define	MAX_DATAGRAM	32768	/* max length of unreliable message */
+				/* (driver MTU may be lower) */
 
-//
-// per-level limits
-//
-#define	MAX_EDICTS	8192	// FIXME: Arbitrary increase, make dynamic?
+/**/
+/* per-level limits */
+/**/
+#define	MAX_EDICTS	8192	/* FIXME: Arbitrary increase, make dynamic? */
 #define	MAX_LIGHTSTYLES	64
 /*
  * Model and sound limits depend on the net protocol version being used
@@ -87,9 +87,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	MAX_STYLESTRING	64
 
-//
-// stats are integers communicated to the client by the server
-//
+/**/
+/* stats are integers communicated to the client by the server */
+/**/
 #define MAX_CL_STATS            32
 #define STAT_HEALTH             0
 #define STAT_FRAGS              1
@@ -108,7 +108,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STAT_MONSTERS           14 /* bumped by svc_killedmonster */
 #define STAT_ITEMS              15
 
-// stock defines
+/* stock defines */
 
 #define IT_SHOTGUN              (1 << 0)
 #define IT_SUPER_SHOTGUN        (1 << 1)
@@ -139,8 +139,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define IT_SIGIL3               (1 << 30)
 #define IT_SIGIL4               (1 << 31)
 
-//===========================================
-//rogue changed and added defines
+/* =========================================== */
+/* rogue changed and added defines */
 
 #define RIT_SHELLS              (1 << 7)
 #define RIT_NAILS               (1 << 8)
@@ -163,9 +163,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define RIT_ANTIGRAV            (1 << 30)
 #define RIT_SUPERHEALTH         (1 << 31)
 
-//MED 01/04/97 added hipnotic defines
-//===========================================
-//hipnotic added defines
+/* MED 01/04/97 added hipnotic defines */
+/* =========================================== */
+/* hipnotic added defines */
 #define HIT_MJOLNIR_BIT         7
 #define HIT_PROXIMITY_GUN_BIT   16
 #define HIT_LASER_CANNON_BIT    23
@@ -177,7 +177,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define HIT_WETSUIT             (1 << HIT_WETSUIT_BIT)
 #define HIT_EMPATHY_SHIELDS     (1 << HIT_EMPATHY_SHIELDS_BIT)
 
-//===========================================
+/* =========================================== */
 
 #define	MAX_SCOREBOARD		16
 
@@ -194,36 +194,36 @@ typedef struct {
 } entity_state_t;
 
 
-//=============================================================================
+/* ============================================================================= */
 
-// the host system specifies the base of the directory tree, the
-// command line parms passed to the program, and the amount of memory
-// available for the program to use
+/* the host system specifies the base of the directory tree, the */
+/* command line parms passed to the program, and the amount of memory */
+/* available for the program to use */
 
 typedef struct {
     const char *basedir;
     const char *savedir;
-    unsigned short use_exernal_savedir; // should be a bool, but don't want to mess with the headers...
+    unsigned short use_exernal_savedir; /* should be a bool, but don't want to mess with the headers... */
     int argc;
     const char **argv;
     void *membase;
     int memsize;
 } quakeparms_t;
 
-//=============================================================================
+/* ============================================================================= */
 
 extern qboolean noclip_anglehack;
 
-//
-// chase
-//
+/**/
+/* chase */
+/**/
 extern cvar_t chase_active;
 
 void Chase_Init(void);
 void Chase_Reset(void);
 void Chase_Update(void);
 
-extern cvar_t r_lockfrustum;	// FIXME - with rendering stuff please...
-extern cvar_t r_lockpvs;	// FIXME - with rendering stuff please...
+extern cvar_t r_lockfrustum;	/* FIXME - with rendering stuff please... */
+extern cvar_t r_lockpvs;	/* FIXME - with rendering stuff please... */
 
 #endif /* QUAKEDEF_H */

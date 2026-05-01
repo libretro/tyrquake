@@ -21,7 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef VIEW_H
 #define VIEW_H
 
-// view.h
+/* view.h */
 
 extern cvar_t v_gamma;
 extern cvar_t cl_crossx;

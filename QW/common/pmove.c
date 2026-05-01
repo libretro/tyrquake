@@ -41,15 +41,15 @@ vec3_t forward, right, up;
 vec3_t player_mins = { -16, -16, -24 };
 vec3_t player_maxs = { 16, 16, 32 };
 
-// #define      PM_GRAVITY                      800
-// #define      PM_STOPSPEED            100
-// #define      PM_MAXSPEED                     320
-// #define      PM_SPECTATORMAXSPEED    500
-// #define      PM_ACCELERATE           10
-// #define      PM_AIRACCELERATE        0.7
-// #define      PM_WATERACCELERATE      10
-// #define      PM_FRICTION                     6
-// #define      PM_WATERFRICTION        1
+/* #define      PM_GRAVITY                      800 */
+/* #define      PM_STOPSPEED            100 */
+/* #define      PM_MAXSPEED                     320 */
+/* #define      PM_SPECTATORMAXSPEED    500 */
+/* #define      PM_ACCELERATE           10 */
+/* #define      PM_AIRACCELERATE        0.7 */
+/* #define      PM_WATERACCELERATE      10 */
+/* #define      PM_FRICTION                     6 */
+/* #define      PM_WATERFRICTION        1 */
 
 void PM_InitBoxHull(void);
 
@@ -84,9 +84,9 @@ PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 
     blocked = 0;
     if (normal[2] > 0)
-	blocked |= 1;		// floor
+	blocked |= 1;		/* floor */
     if (!normal[2])
-	blocked |= 2;		// step
+	blocked |= 2;		/* step */
 
     backoff = DotProduct(in, normal) * overbounce;
 
@@ -140,34 +140,34 @@ PM_FlyMove(void)
 
 	trace = PM_PlayerMove(pmove.origin, end);
 
-	if (trace.startsolid || trace.allsolid) {	// entity is trapped in another solid
+	if (trace.startsolid || trace.allsolid) {	/* entity is trapped in another solid */
 	    VectorCopy(vec3_origin, pmove.velocity);
 	    return 3;
 	}
 
-	if (trace.fraction > 0) {	// actually covered some distance
+	if (trace.fraction > 0) {	/* actually covered some distance */
 	    VectorCopy(trace.endpos, pmove.origin);
 	    numplanes = 0;
 	}
 
 	if (trace.fraction == 1)
-	    break;		// moved the entire distance
+	    break;		/* moved the entire distance */
 
-	// save entity for contact
+	/* save entity for contact */
 	pmove.touchindex[pmove.numtouch] = trace.ent;
 	pmove.numtouch++;
 
 	if (trace.plane.normal[2] > 0.7) {
-	    blocked |= 1;	// floor
+	    blocked |= 1;	/* floor */
 	}
 	if (!trace.plane.normal[2]) {
-	    blocked |= 2;	// step
+	    blocked |= 2;	/* step */
 	}
 
 	time_left -= time_left * trace.fraction;
 
-	// cliped to another plane
-	if (numplanes >= MAX_CLIP_PLANES) {	// this shouldn't really happen
+	/* cliped to another plane */
+	if (numplanes >= MAX_CLIP_PLANES) {	/* this shouldn't really happen */
 	    VectorCopy(vec3_origin, pmove.velocity);
 	    break;
 	}
@@ -175,24 +175,24 @@ PM_FlyMove(void)
 	VectorCopy(trace.plane.normal, planes[numplanes]);
 	numplanes++;
 
-//
-// modify original_velocity so it parallels all of the clip planes
-//
+/**/
+/* modify original_velocity so it parallels all of the clip planes */
+/**/
 	for (i = 0; i < numplanes; i++) {
 	    PM_ClipVelocity(original_velocity, planes[i], pmove.velocity, 1);
 	    for (j = 0; j < numplanes; j++)
 		if (j != i) {
 		    if (DotProduct(pmove.velocity, planes[j]) < 0)
-			break;	// not ok
+			break;	/* not ok */
 		}
 	    if (j == numplanes)
 		break;
 	}
 
-	if (i != numplanes) {	// go along this plane
-	} else {		// go along the crease
+	if (i != numplanes) {	/* go along this plane */
+	} else {		/* go along the crease */
 	    if (numplanes != 2) {
-//                              Con_Printf ("clip velocity, numplanes == %i\n",numplanes);
+/*                              Con_Printf ("clip velocity, numplanes == %i\n",numplanes); */
 		VectorCopy(vec3_origin, pmove.velocity);
 		break;
 	    }
@@ -201,10 +201,10 @@ PM_FlyMove(void)
 	    VectorScale(dir, d, pmove.velocity);
 	}
 
-//
-// if original velocity is against the original velocity, stop dead
-// to avoid tiny occilations in sloping corners
-//
+/**/
+/* if original velocity is against the original velocity, stop dead */
+/* to avoid tiny occilations in sloping corners */
+/**/
 	if (DotProduct(pmove.velocity, primal_velocity) <= 0) {
 	    VectorCopy(vec3_origin, pmove.velocity);
 	    break;
@@ -236,23 +236,23 @@ PM_GroundMove(void)
     if (!pmove.velocity[0] && !pmove.velocity[1] && !pmove.velocity[2])
 	return;
 
-    // first try just moving to the destination
+    /* first try just moving to the destination */
     dest[0] = pmove.origin[0] + pmove.velocity[0] * frametime;
     dest[1] = pmove.origin[1] + pmove.velocity[1] * frametime;
     dest[2] = pmove.origin[2];
 
-    // first try moving directly to the next spot
+    /* first try moving directly to the next spot */
     trace = PM_PlayerMove(pmove.origin, dest);
     if (trace.fraction == 1) {
 	VectorCopy(trace.endpos, pmove.origin);
 	return;
     }
-    // try sliding forward both on ground and up 16 pixels
-    // take the move that goes farthest
+    /* try sliding forward both on ground and up 16 pixels */
+    /* take the move that goes farthest */
     VectorCopy(pmove.origin, original);
     VectorCopy(pmove.velocity, originalvel);
 
-    // slide move
+    /* slide move */
     PM_FlyMove();
 
     VectorCopy(pmove.origin, down);
@@ -261,17 +261,17 @@ PM_GroundMove(void)
     VectorCopy(original, pmove.origin);
     VectorCopy(originalvel, pmove.velocity);
 
-// move up a stair height
+/* move up a stair height */
     VectorCopy(pmove.origin, dest);
     dest[2] += STEPSIZE;
     trace = PM_PlayerMove(pmove.origin, dest);
     if (!trace.startsolid && !trace.allsolid) {
 	VectorCopy(trace.endpos, pmove.origin);
     }
-// slide move
+/* slide move */
     PM_FlyMove();
 
-// press down the stepheight
+/* press down the stepheight */
     VectorCopy(pmove.origin, dest);
     dest[2] -= STEPSIZE;
     trace = PM_PlayerMove(pmove.origin, dest);
@@ -282,7 +282,7 @@ PM_GroundMove(void)
     }
     VectorCopy(pmove.origin, up);
 
-    // decide which one went farther
+    /* decide which one went farther */
     downdist = (down[0] - original[0]) * (down[0] - original[0])
 	+ (down[1] - original[1]) * (down[1] - original[1]);
     updist = (up[0] - original[0]) * (up[0] - original[0])
@@ -292,10 +292,10 @@ PM_GroundMove(void)
       usedown:
 	VectorCopy(down, pmove.origin);
 	VectorCopy(downvel, pmove.velocity);
-    } else			// copy z value from slide move
+    } else			/* copy z value from slide move */
 	pmove.velocity[2] = downvel[2];
 
-// if at a dead stop, retry the move with nudges to get around lips
+/* if at a dead stop, retry the move with nudges to get around lips */
 
 }
 
@@ -332,7 +332,7 @@ PM_Friction(void)
 
     friction = movevars.friction;
 
-// if the leading edge is over a dropoff, increase friction
+/* if the leading edge is over a dropoff, increase friction */
     if (onground != -1) {
 	start[0] = stop[0] = pmove.origin[0] + vel[0] / speed * 16;
 	start[1] = stop[1] = pmove.origin[1] + vel[1] / speed * 16;
@@ -348,14 +348,14 @@ PM_Friction(void)
 
     drop = 0;
 
-    if (waterlevel >= 2)	// apply water friction
+    if (waterlevel >= 2)	/* apply water friction */
 	drop += speed * movevars.waterfriction * waterlevel * frametime;
-    else if (onground != -1)	// apply ground friction
+    else if (onground != -1)	/* apply ground friction */
     {
 	control = speed < movevars.stopspeed ? movevars.stopspeed : speed;
 	drop += control * friction * frametime;
     }
-// scale the velocity
+/* scale the velocity */
     newspeed = speed - drop;
     if (newspeed < 0)
 	newspeed = 0;
@@ -438,16 +438,16 @@ PM_WaterMove(void)
     vec3_t start, dest;
     pmtrace_t trace;
 
-//
-// user intentions
-//
+/**/
+/* user intentions */
+/**/
     for (i = 0; i < 3; i++)
 	wishvel[i] =
 	    forward[i] * pmove.cmd.forwardmove +
 	    right[i] * pmove.cmd.sidemove;
 
     if (!pmove.cmd.forwardmove && !pmove.cmd.sidemove && !pmove.cmd.upmove)
-	wishvel[2] -= 60;	// drift towards bottom
+	wishvel[2] -= 60;	/* drift towards bottom */
     else
 	wishvel[2] += pmove.cmd.upmove;
 
@@ -460,27 +460,27 @@ PM_WaterMove(void)
     }
     wishspeed *= 0.7;
 
-//
-// water acceleration
-//
-//      if (pmove.waterjumptime)
-//              Con_Printf ("wm->%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]);
+/**/
+/* water acceleration */
+/**/
+/*      if (pmove.waterjumptime) */
+/*              Con_Printf ("wm->%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]); */
     PM_Accelerate(wishdir, wishspeed, movevars.wateraccelerate);
 
-// assume it is a stair or a slope, so press down from stepheight above
+/* assume it is a stair or a slope, so press down from stepheight above */
     VectorMA(pmove.origin, frametime, pmove.velocity, dest);
     VectorCopy(dest, start);
     start[2] += STEPSIZE + 1;
     trace = PM_PlayerMove(start, dest);
-    if (!trace.startsolid && !trace.allsolid)	// FIXME: check steep slope?
-    {				// walked up the step
+    if (!trace.startsolid && !trace.allsolid)	/* FIXME: check steep slope? */
+    {				/* walked up the step */
 	VectorCopy(trace.endpos, pmove.origin);
 	return;
     }
 
     PM_FlyMove();
-//      if (pmove.waterjumptime)
-//              Con_Printf ("<-wm%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]);
+/*      if (pmove.waterjumptime) */
+/*              Con_Printf ("<-wm%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]); */
 }
 
 
@@ -514,15 +514,15 @@ PM_AirMove(void)
     VectorCopy(wishvel, wishdir);
     wishspeed = VectorNormalize(wishdir);
 
-//
-// clamp to server defined max speed
-//
+/**/
+/* clamp to server defined max speed */
+/**/
     if (wishspeed > movevars.maxspeed) {
 	VectorScale(wishvel, movevars.maxspeed / wishspeed, wishvel);
 	wishspeed = movevars.maxspeed;
     }
-//      if (pmove.waterjumptime)
-//              Con_Printf ("am->%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]);
+/*      if (pmove.waterjumptime) */
+/*              Con_Printf ("am->%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]); */
 
     if (onground != -1) {
 	pmove.velocity[2] = 0;
@@ -530,10 +530,10 @@ PM_AirMove(void)
 	pmove.velocity[2] -=
 	    movevars.entgravity * movevars.gravity * frametime;
 	PM_GroundMove();
-    } else {			// not on ground, so little effect on velocity
+    } else {			/* not on ground, so little effect on velocity */
 	PM_AirAccelerate(wishdir, wishspeed, movevars.accelerate);
 
-	// add gravity
+	/* add gravity */
 	pmove.velocity[2] -=
 	    movevars.entgravity * movevars.gravity * frametime;
 
@@ -541,14 +541,14 @@ PM_AirMove(void)
 
     }
 
-//Con_Printf("airmove:vec: %4.2f %4.2f %4.2f\n",
-//                      pmove.velocity[0],
-//                      pmove.velocity[1],
-//                      pmove.velocity[2]);
-//
+/* Con_Printf("airmove:vec: %4.2f %4.2f %4.2f\n", */
+/*                      pmove.velocity[0], */
+/*                      pmove.velocity[1], */
+/*                      pmove.velocity[2]); */
+/**/
 
-//      if (pmove.waterjumptime)
-//              Con_Printf ("<-am%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]);
+/*      if (pmove.waterjumptime) */
+/*              Con_Printf ("<-am%f, %f, %f\n", pmove.velocity[0], pmove.velocity[1], pmove.velocity[2]); */
 }
 
 
@@ -565,10 +565,10 @@ PM_CatagorizePosition(void)
     int cont;
     pmtrace_t tr;
 
-// if the player hull point one unit down is solid, the player
-// is on ground
+/* if the player hull point one unit down is solid, the player */
+/* is on ground */
 
-// see if standing on something solid
+/* see if standing on something solid */
     point[0] = pmove.origin[0];
     point[1] = pmove.origin[1];
     point[2] = pmove.origin[2] - 1;
@@ -577,7 +577,7 @@ PM_CatagorizePosition(void)
     } else {
 	tr = PM_PlayerMove(pmove.origin, point);
 	if (tr.plane.normal[2] < 0.7)
-	    onground = -1;	// too steep
+	    onground = -1;	/* too steep */
 	else
 	    onground = tr.ent;
 	if (onground != -1) {
@@ -585,16 +585,16 @@ PM_CatagorizePosition(void)
 	    if (!tr.startsolid && !tr.allsolid)
 		VectorCopy(tr.endpos, pmove.origin);
 	}
-	// standing on an entity other than the world
+	/* standing on an entity other than the world */
 	if (tr.ent > 0) {
 	    pmove.touchindex[pmove.numtouch] = tr.ent;
 	    pmove.numtouch++;
 	}
     }
 
-//
-// get waterlevel
-//
+/**/
+/* get waterlevel */
+/**/
     waterlevel = 0;
     watertype = CONTENTS_EMPTY;
 
@@ -626,7 +626,7 @@ void
 JumpButton(void)
 {
     if (pmove.dead) {
-	pmove.oldbuttons |= BUTTON_JUMP;	// don't jump again until released
+	pmove.oldbuttons |= BUTTON_JUMP;	/* don't jump again until released */
 	return;
     }
 
@@ -637,7 +637,7 @@ JumpButton(void)
 	return;
     }
 
-    if (waterlevel >= 2) {	// swimming, not jumping
+    if (waterlevel >= 2) {	/* swimming, not jumping */
 	onground = -1;
 
 	if (watertype == CONTENTS_WATER)
@@ -650,15 +650,15 @@ JumpButton(void)
     }
 
     if (onground == -1)
-	return;			// in air, so no effect
+	return;			/* in air, so no effect */
 
     if (pmove.oldbuttons & BUTTON_JUMP)
-	return;			// don't pogo stick
+	return;			/* don't pogo stick */
 
     onground = -1;
     pmove.velocity[2] += 270;
 
-    pmove.oldbuttons |= BUTTON_JUMP;	// don't jump again until released
+    pmove.oldbuttons |= BUTTON_JUMP;	/* don't jump again until released */
 }
 
 /*
@@ -676,11 +676,11 @@ CheckWaterJump(void)
     if (pmove.waterjumptime)
 	return;
 
-    // ZOID, don't hop out if we just jumped in
+    /* ZOID, don't hop out if we just jumped in */
     if (pmove.velocity[2] < -180)
-	return;			// only hop out if we are moving up
+	return;			/* only hop out if we are moving up */
 
-    // see if near an edge
+    /* see if near an edge */
     flatforward[0] = forward[0];
     flatforward[1] = forward[1];
     flatforward[2] = 0;
@@ -695,11 +695,11 @@ CheckWaterJump(void)
     cont = PM_PointContents(spot);
     if (cont != CONTENTS_EMPTY)
 	return;
-    // jump out of water
+    /* jump out of water */
     VectorScale(flatforward, 50, pmove.velocity);
     pmove.velocity[2] = 310;
-    pmove.waterjumptime = 2;	// safety net
-    pmove.oldbuttons |= BUTTON_JUMP;	// don't jump again until released
+    pmove.waterjumptime = 2;	/* safety net */
+    pmove.oldbuttons |= BUTTON_JUMP;	/* don't jump again until released */
 }
 
 /*
@@ -723,12 +723,12 @@ NudgePosition(void)
 
     for (i = 0; i < 3; i++)
 	pmove.origin[i] = ((int)(pmove.origin[i] * 8)) * 0.125;
-//      pmove.origin[2] += 0.124;
+/*      pmove.origin[2] += 0.124; */
 
-//      if (pmove.dead)
-//              return;         // might be a squished point, so don'y bother
-//      if (PM_TestPlayerPosition (pmove.origin) )
-//              return;
+/*      if (pmove.dead) */
+/*              return;         // might be a squished point, so don'y bother */
+/*      if (PM_TestPlayerPosition (pmove.origin) ) */
+/*              return; */
 
     for (z = 0; z <= 2; z++) {
 	for (x = 0; x <= 2; x++) {
@@ -742,7 +742,7 @@ NudgePosition(void)
 	}
     }
     VectorCopy(base, pmove.origin);
-//      Con_DPrintf ("NudgePosition: stuck\n");
+/*      Con_DPrintf ("NudgePosition: stuck\n"); */
 }
 
 /*
@@ -761,18 +761,18 @@ SpectatorMove(void)
     vec3_t wishdir;
     float wishspeed;
 
-    // friction
+    /* friction */
     speed = Length(pmove.velocity);
     if (speed < 1) {
 	VectorCopy(vec3_origin, pmove.velocity);
     } else {
 	drop = 0;
 
-	friction = movevars.friction * 1.5;	// extra friction
+	friction = movevars.friction * 1.5;	/* extra friction */
 	control = speed < movevars.stopspeed ? movevars.stopspeed : speed;
 	drop += control * friction * frametime;
 
-	// scale the velocity
+	/* scale the velocity */
 	newspeed = speed - drop;
 	if (newspeed < 0)
 	    newspeed = 0;
@@ -781,7 +781,7 @@ SpectatorMove(void)
 	VectorScale(pmove.velocity, newspeed, pmove.velocity);
     }
 
-    // accelerate
+    /* accelerate */
     fmove = pmove.cmd.forwardmove;
     smove = pmove.cmd.sidemove;
 
@@ -795,9 +795,9 @@ SpectatorMove(void)
     VectorCopy(wishvel, wishdir);
     wishspeed = VectorNormalize(wishdir);
 
-    //
-    // clamp to server defined max speed
-    //
+    /**/
+    /* clamp to server defined max speed */
+    /**/
     if (wishspeed > movevars.spectatormaxspeed) {
 	VectorScale(wishvel, movevars.spectatormaxspeed / wishspeed, wishvel);
 	wishspeed = movevars.spectatormaxspeed;
@@ -815,7 +815,7 @@ SpectatorMove(void)
 	pmove.velocity[i] += accelspeed * wishdir[i];
 
 
-    // move
+    /* move */
     VectorMA(pmove.origin, frametime, pmove.velocity, pmove.origin);
 }
 
@@ -844,10 +844,10 @@ PlayerMove(void)
 
     NudgePosition();
 
-    // take angles directly from command
+    /* take angles directly from command */
     VectorCopy(pmove.cmd.angles, pmove.angles);
 
-    // set onground, watertype, and waterlevel
+    /* set onground, watertype, and waterlevel */
     PM_CatagorizePosition();
 
     if (waterlevel == 2)
@@ -868,6 +868,6 @@ PlayerMove(void)
     else
 	PM_AirMove();
 
-    // set onground, watertype, and waterlevel for final spot
+    /* set onground, watertype, and waterlevel for final spot */
     PM_CatagorizePosition();
 }

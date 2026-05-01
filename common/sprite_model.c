@@ -180,9 +180,9 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    mod->mins[2] = -psprite->maxheight / 2;
    mod->maxs[2] = psprite->maxheight / 2;
 
-   //
-   // load the frames
-   //
+   /**/
+   /* load the frames */
+   /**/
    if (numframes < 1)
       Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
 
@@ -241,8 +241,8 @@ mspriteframe_t *Mod_GetSpriteFrame(const entity_t *e, msprite_t *psprite, float 
       int numframes                = pspritegroup->numframes;
       float fullinterval           = pintervals[numframes - 1];
 
-      // when loading in Mod_LoadSpriteGroup, we guaranteed all interval
-      // values are positive, so we don't have to worry about division by 0
+      /* when loading in Mod_LoadSpriteGroup, we guaranteed all interval */
+      /* values are positive, so we don't have to worry about division by 0 */
       float targettime             = time - ((int)(time / fullinterval)) * fullinterval;
 
       for (i = 0; i < (numframes - 1); i++)

@@ -20,7 +20,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// snd_mix.c -- portable code to mix sounds for snd_dma.c
+/* snd_mix.c -- portable code to mix sounds for snd_dma.c */
 
 #include "common.h"
 #include "console.h"
@@ -73,7 +73,7 @@ static void S_TransferStereo16 (int endtime)
 
 	while (lpaintedtime < endtime)
 	{
-		// handle recirculating buffer issues
+		/* handle recirculating buffer issues */
 		int lpos = lpaintedtime & ((AUDIO_BUFFER_SIZE >> 1) - 1);
 
 		snd_out = (short *)shm->buffer + (lpos << 1);
@@ -84,7 +84,7 @@ static void S_TransferStereo16 (int endtime)
 
 		snd_linear_count <<= 1;
 
-		// write a linear blast of samples
+		/* write a linear blast of samples */
 		Snd_WriteLinearBlastStereo16();
 
 		snd_p        += snd_linear_count;
@@ -114,15 +114,15 @@ void S_PaintChannels (int endtime)
 
 	while (paintedtime < endtime)
 	{
-		// if paintbuffer is smaller than DMA buffer
+		/* if paintbuffer is smaller than DMA buffer */
 		end = endtime;
 		if (endtime - paintedtime > PAINTBUFFER_SIZE)
 			end = paintedtime + PAINTBUFFER_SIZE;
 
-		// clear the paint buffer
+		/* clear the paint buffer */
 		memset(paintbuffer, 0, (end - paintedtime) * sizeof(portable_samplepair_t));
 
-		// paint in the channels.
+		/* paint in the channels. */
 		ch = channels;
 		for (i = 0; i < total_channels; i++, ch++)
 		{
@@ -137,7 +137,7 @@ void S_PaintChannels (int endtime)
 			ltime = paintedtime;
 
 			while (ltime < end)
-			{	// paint up to end
+			{	/* paint up to end */
 				if (ch->end < end)
 					count = ch->end - ltime;
 				else
@@ -145,8 +145,8 @@ void S_PaintChannels (int endtime)
 
 				if (count > 0)
 				{
-					// the last param to SND_PaintChannelFrom is the index
-					// to start painting to in the paintbuffer, usually 0.
+					/* the last param to SND_PaintChannelFrom is the index */
+					/* to start painting to in the paintbuffer, usually 0. */
 					if (sc->width == 1)
 						SND_PaintChannelFrom8(ch, sc, count, ltime - paintedtime);
 					else
@@ -155,7 +155,7 @@ void S_PaintChannels (int endtime)
 					ltime += count;
 				}
 
-				// if at end of loop, restart
+				/* if at end of loop, restart */
 				if (ltime >= ch->end)
 				{
 					if (sc->loopstart >= 0)
@@ -164,7 +164,7 @@ void S_PaintChannels (int endtime)
 						ch->end = ltime + sc->length - ch->pos;
 					}
 					else
-					{	// channel just stopped
+					{	/* channel just stopped */
 						ch->sfx = NULL;
 						break;
 					}
@@ -172,31 +172,31 @@ void S_PaintChannels (int endtime)
 			}
 		}
 
-		// clip each sample to 0dB, then reduce by 6dB (to leave some headroom for
-		// the lowpass filter and the music). the lowpass will smooth out the
-		// clipping
+		/* clip each sample to 0dB, then reduce by 6dB (to leave some headroom for */
+		/* the lowpass filter and the music). the lowpass will smooth out the */
+		/* clipping */
 		for (i=0; i<end-paintedtime; i++)
 		{
 			paintbuffer[i].left = CLAMP(-32768  << 8, paintbuffer[i].left, 32767 << 8);
 			paintbuffer[i].right = CLAMP(-32768 << 8, paintbuffer[i].right, 32767 << 8);
 		}
 
-		// paint in the music
+		/* paint in the music */
 		if (s_rawend >= paintedtime)
 		{
-			// copy from the streaming sound source
+			/* copy from the streaming sound source */
 			int stop = (end < s_rawend) ? end : s_rawend;
 
 			for (i = paintedtime; i < stop; i++)
 			{
 				int s = i & (MAX_RAW_SAMPLES - 1);
-				// lower music by 6db to match sfx
+				/* lower music by 6db to match sfx */
 				paintbuffer[i - paintedtime].left += s_rawsamples[s].left;
 				paintbuffer[i - paintedtime].right += s_rawsamples[s].right;
 			}
 		}
 
-		// transfer out according to DMA format
+		/* transfer out according to DMA format */
 		S_TransferStereo16(end);
 		paintedtime = end;
 	}

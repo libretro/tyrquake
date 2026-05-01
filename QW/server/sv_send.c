@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// sv_send.c
+/* sv_send.c */
 
 #include "model.h"
 #include "qwsvdef.h"
@@ -67,7 +67,7 @@ SV_FlushRedirect(void)
 	ClientReliableWrite_Byte(host_client, PRINT_HIGH);
 	ClientReliableWrite_String(host_client, outputbuf);
     }
-    // clear it
+    /* clear it */
     outputbuf[0] = 0;
 }
 
@@ -112,7 +112,7 @@ Con_Printf(const char *fmt, ...)
     vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
 
-    // add to redirected message
+    /* add to redirected message */
     if (sv_redirected) {
 	if (strlen(msg) + strlen(outputbuf) > sizeof(outputbuf) - 1)
 	    SV_FlushRedirect();
@@ -120,7 +120,7 @@ Con_Printf(const char *fmt, ...)
 	return;
     }
 
-    Sys_Printf("%s", msg);	// also echo to debugging console
+    Sys_Printf("%s", msg);	/* also echo to debugging console */
     if (sv_logfile)
 	fprintf(sv_logfile, "%s", msg);
 }
@@ -207,7 +207,7 @@ SV_BroadcastPrintf(int level, const char *fmt, ...)
     vsnprintf(string, sizeof(string), fmt, argptr);
     va_end(argptr);
 
-    Sys_Printf("%s", string);	// print to the console
+    Sys_Printf("%s", string);	/* print to the console */
 
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
 	if (level < cl->messagelevel)
@@ -275,19 +275,19 @@ SV_Multicast(vec3_t origin, int to)
 
     switch (to) {
     case MULTICAST_ALL_R:
-	reliable = true;	// intentional fallthrough
+	reliable = true;	/* intentional fallthrough */
     case MULTICAST_ALL:
-	mask = sv.pvs[0];	// leaf 0 is everything;
+	mask = sv.pvs[0];	/* leaf 0 is everything; */
 	break;
 
     case MULTICAST_PHS_R:
-	reliable = true;	// intentional fallthrough
+	reliable = true;	/* intentional fallthrough */
     case MULTICAST_PHS:
 	mask = sv.phs[leafnum];
 	break;
 
     case MULTICAST_PVS_R:
-	reliable = true;	// intentional fallthrough
+	reliable = true;	/* intentional fallthrough */
     case MULTICAST_PVS:
 	mask = sv.pvs[leafnum];
 	break;
@@ -297,7 +297,7 @@ SV_Multicast(vec3_t origin, int to)
 	SV_Error("SV_Multicast: bad to:%i", to);
     }
 
-    // send the data to all relevent clients
+    /* send the data to all relevent clients */
     for (j = 0, client = svs.clients; j < MAX_CLIENTS; j++, client++) {
 	if (client->state != cs_spawned)
 	    continue;
@@ -312,10 +312,10 @@ SV_Multicast(vec3_t origin, int to)
 
 	leaf = Mod_PointInLeaf(sv.worldmodel, client->edict->v.origin);
 	if (leaf) {
-	    // -1 is because pvs rows are 1 based, not 0 based like leafs
+	    /* -1 is because pvs rows are 1 based, not 0 based like leafs */
 	    leafnum = leaf - sv.worldmodel->leafs - 1;
 	    if (!Mod_TestLeafBit(mask, leafnum)) {
-//		Con_Printf ("supressed multicast\n");
+/* 		Con_Printf ("supressed multicast\n"); */
 		continue;
 	    }
 	}
@@ -369,7 +369,7 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
     if (channel < 0 || channel > 15)
 	SV_Error("SV_StartSound: channel = %i", channel);
 
-// find precache number for sound
+/* find precache number for sound */
     for (sound_num = 1; sound_num < MAX_SOUNDS
 	 && sv.sound_precache[sound_num]; sound_num++)
 	if (!strcmp(sample, sv.sound_precache[sound_num]))
@@ -382,17 +382,17 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
 
     ent = NUM_FOR_EDICT(entity);
 
-    if ((channel & 8) || !sv_phs.value)	// no PHS flag
+    if ((channel & 8) || !sv_phs.value)	/* no PHS flag */
     {
 	if (channel & 8)
-	    reliable = true;	// sounds that break the phs are reliable
+	    reliable = true;	/* sounds that break the phs are reliable */
 	use_phs = false;
 	channel &= 7;
     } else
 	use_phs = true;
 
-//      if (channel == CHAN_BODY || channel == CHAN_VOICE)
-//              reliable = true;
+/*      if (channel == CHAN_BODY || channel == CHAN_VOICE) */
+/*              reliable = true; */
 
     channel = (ent << 3) | channel;
 
@@ -401,7 +401,7 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
     if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
 	channel |= SND_ATTENUATION;
 
-    // use the entity origin unless it is a bmodel
+    /* use the entity origin unless it is a bmodel */
     if (entity->v.solid == SOLID_BSP) {
 	for (i = 0; i < 3; i++)
 	    origin[i] =
@@ -475,13 +475,13 @@ SV_WriteClientdataToMessage(client_t *client, sizebuf_t *msg)
 
     ent = client->edict;
 
-    // send the chokecount for r_netgraph
+    /* send the chokecount for r_netgraph */
     if (client->chokecount) {
 	MSG_WriteByte(msg, svc_chokecount);
 	MSG_WriteByte(msg, client->chokecount);
 	client->chokecount = 0;
     }
-    // send a damage message if the player got hit this frame
+    /* send a damage message if the player got hit this frame */
     if (ent->v.dmg_take || ent->v.dmg_save) {
 	other = PROG_TO_EDICT(ent->v.dmg_inflictor);
 	MSG_WriteByte(msg, svc_damage);
@@ -495,7 +495,7 @@ SV_WriteClientdataToMessage(client_t *client, sizebuf_t *msg)
 	ent->v.dmg_take = 0;
 	ent->v.dmg_save = 0;
     }
-    // a fixangle might get lost in a dropped packet.  Oh well.
+    /* a fixangle might get lost in a dropped packet.  Oh well. */
     if (ent->v.fixangle) {
 	MSG_WriteByte(msg, svc_setangle);
 	for (i = 0; i < 3; i++)
@@ -522,8 +522,8 @@ SV_UpdateClientStats(client_t *client)
     ent = client->edict;
     memset(stats, 0, sizeof(stats));
 
-    // if we are a spectator and we are tracking a player, we get his stats
-    // so our status bar reflects his
+    /* if we are a spectator and we are tracking a player, we get his stats */
+    /* so our status bar reflects his */
     if (client->spectator && client->spec_track > 0)
 	ent = svs.clients[client->spec_track - 1].edict;
 
@@ -537,7 +537,7 @@ SV_UpdateClientStats(client_t *client)
     stats[STAT_CELLS] = ent->v.ammo_cells;
     if (!client->spectator)
 	stats[STAT_ACTIVEWEAPON] = ent->v.weapon;
-    // stuff the sigil bits into the high bits of items for sbar
+    /* stuff the sigil bits into the high bits of items for sbar */
     stats[STAT_ITEMS] =
 	(int)ent->v.items | ((int)pr_global_struct->serverflags << 28);
 
@@ -573,23 +573,23 @@ SV_SendClientDatagram(client_t *client)
     msg.allowoverflow = true;
     msg.overflowed = false;
 
-    // add the client specific data to the datagram
+    /* add the client specific data to the datagram */
     SV_WriteClientdataToMessage(client, &msg);
 
-    // send over all the objects that are in the PVS
-    // this will include clients, a packetentities, and
-    // possibly a nails update
+    /* send over all the objects that are in the PVS */
+    /* this will include clients, a packetentities, and */
+    /* possibly a nails update */
     SV_WriteEntitiesToClient(client, &msg);
 
-    // copy the accumulated multicast datagram
-    // for this client out to the message
+    /* copy the accumulated multicast datagram */
+    /* for this client out to the message */
     if (client->datagram.overflowed)
 	Con_Printf("WARNING: datagram overflowed for %s\n", client->name);
     else
 	SZ_Write(&msg, client->datagram.data, client->datagram.cursize);
     SZ_Clear(&client->datagram);
 
-    // send deltas over reliable stream
+    /* send deltas over reliable stream */
     if (Netchan_CanReliable(&client->netchan))
 	SV_UpdateClientStats(client);
 
@@ -597,7 +597,7 @@ SV_SendClientDatagram(client_t *client)
 	Con_Printf("WARNING: msg overflowed for %s\n", client->name);
 	SZ_Clear(&msg);
     }
-    // send the datagram
+    /* send the datagram */
     Netchan_Transmit(&client->netchan, msg.cursize, buf);
 
     return true;
@@ -616,7 +616,7 @@ SV_UpdateToReliableMessages(void)
     eval_t *val;
     edict_t *ent;
 
-// check for changes to be sent over the reliable streams to all clients
+/* check for changes to be sent over the reliable streams to all clients */
     for (i = 0, host_client = svs.clients; i < MAX_CLIENTS;
 	 i++, host_client++) {
 	if (host_client->state != cs_spawned)
@@ -637,7 +637,7 @@ SV_UpdateToReliableMessages(void)
 
 	    host_client->old_frags = host_client->edict->v.frags;
 	}
-	// maxspeed/entgravity changes
+	/* maxspeed/entgravity changes */
 	ent = host_client->edict;
 
 	val = GetEdictFieldValue(ent, "gravity");
@@ -658,17 +658,17 @@ SV_UpdateToReliableMessages(void)
     if (sv.datagram.overflowed)
 	SZ_Clear(&sv.datagram);
 
-    // append the broadcast messages to each client messages
+    /* append the broadcast messages to each client messages */
     for (j = 0, client = svs.clients; j < MAX_CLIENTS; j++, client++) {
 	if (client->state < cs_connected)
-	    continue;		// reliables go to all connected or spawned
+	    continue;		/* reliables go to all connected or spawned */
 
 	ClientReliableCheckBlock(client, sv.reliable_datagram.cursize);
 	ClientReliableWrite_SZ(client, sv.reliable_datagram.data,
 			       sv.reliable_datagram.cursize);
 
 	if (client->state != cs_spawned)
-	    continue;		// datagrams only go to spawned
+	    continue;		/* datagrams only go to spawned */
 	SZ_Write(&client->datagram, sv.datagram.data, sv.datagram.cursize);
     }
 
@@ -688,10 +688,10 @@ SV_SendClientMessages(void)
     int i, j;
     client_t *c;
 
-// update frags, names, etc
+/* update frags, names, etc */
     SV_UpdateToReliableMessages();
 
-// build individual updates
+/* build individual updates */
     for (i = 0, c = svs.clients; i < MAX_CLIENTS; i++, c++) {
 	if (!c->state)
 	    continue;
@@ -701,20 +701,20 @@ SV_SendClientMessages(void)
 	    c->drop = false;
 	    continue;
 	}
-	// check to see if we have a backbuf to stick in the reliable
+	/* check to see if we have a backbuf to stick in the reliable */
 	if (c->num_backbuf) {
-	    // will it fit?
+	    /* will it fit? */
 	    if (c->netchan.message.cursize + c->backbuf_size[0] <
 		c->netchan.message.maxsize) {
 
 		Con_DPrintf("%s: backbuf %d bytes\n",
 			    c->name, c->backbuf_size[0]);
 
-		// it'll fit
+		/* it'll fit */
 		SZ_Write(&c->netchan.message, c->backbuf_data[0],
 			 c->backbuf_size[0]);
 
-		//move along, move along
+		/* move along, move along */
 		for (j = 1; j < c->num_backbuf; j++) {
 		    memcpy(c->backbuf_data[j - 1], c->backbuf_data[j],
 			   c->backbuf_size[j]);
@@ -731,8 +731,8 @@ SV_SendClientMessages(void)
 		}
 	    }
 	}
-	// if the reliable message overflowed,
-	// drop the client
+	/* if the reliable message overflowed, */
+	/* drop the client */
 	if (c->netchan.message.overflowed) {
 	    SZ_Clear(&c->netchan.message);
 	    SZ_Clear(&c->datagram);
@@ -740,22 +740,22 @@ SV_SendClientMessages(void)
 	    Con_Printf("WARNING: reliable overflow for %s\n", c->name);
 	    SV_DropClient(c);
 	    c->send_message = true;
-	    c->netchan.cleartime = 0;	// don't choke this message
+	    c->netchan.cleartime = 0;	/* don't choke this message */
 	}
-	// only send messages if the client has sent one
-	// and the bandwidth is not choked
+	/* only send messages if the client has sent one */
+	/* and the bandwidth is not choked */
 	if (!c->send_message)
 	    continue;
-	c->send_message = false;	// try putting this after choke?
+	c->send_message = false;	/* try putting this after choke? */
 	if (!sv.paused && !Netchan_CanPacket(&c->netchan)) {
 	    c->chokecount++;
-	    continue;		// bandwidth choke
+	    continue;		/* bandwidth choke */
 	}
 
 	if (c->state == cs_spawned)
 	    SV_SendClientDatagram(c);
 	else
-	    Netchan_Transmit(&c->netchan, 0, NULL);	// just update reliable
+	    Netchan_Transmit(&c->netchan, 0, NULL);	/* just update reliable */
 
     }
 }
@@ -775,7 +775,7 @@ SV_SendMessagesToAll(void)
     client_t *c;
 
     for (i = 0, c = svs.clients; i < MAX_CLIENTS; i++, c++)
-	if (c->state)		// FIXME: should this only send to active?
+	if (c->state)		/* FIXME: should this only send to active? */
 	    c->send_message = true;
 
     SV_SendClientMessages();

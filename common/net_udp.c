@@ -47,7 +47,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #if defined(VITA)
 #ifndef in_addr
 struct in_addr {
-    unsigned long s_addr;  // load with inet_aton()
+    unsigned long s_addr;  /* load with inet_aton() */
 };
 #endif
 #endif

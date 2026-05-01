@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// cl.input.c  -- builds an intended movement command to send to the server
+/* cl.input.c  -- builds an intended movement command to send to the server */
 
 #include "client.h"
 #include "cmd.h"
@@ -70,10 +70,10 @@ KeyDown(kbutton_t *b)
     if (c[0])
 	k = atoi(c);
     else
-	k = -1;			// typed manually at the console for continuous down
+	k = -1;			/* typed manually at the console for continuous down */
 
     if (k == b->down[0] || k == b->down[1])
-	return;			// repeating key
+	return;			/* repeating key */
 
     if (!b->down[0])
 	b->down[0] = k;
@@ -85,8 +85,8 @@ KeyDown(kbutton_t *b)
     }
 
     if (b->state & 1)
-	return;			// still down
-    b->state |= 1 + 2;		// down + impulse down
+	return;			/* still down */
+    b->state |= 1 + 2;		/* down + impulse down */
 }
 
 static void
@@ -98,9 +98,9 @@ KeyUp(kbutton_t *b)
     c = Cmd_Argv(1);
     if (c[0])
 	k = atoi(c);
-    else {			// typed manually at the console, assume for unsticking, so clear all
+    else {			/* typed manually at the console, assume for unsticking, so clear all */
 	b->down[0] = b->down[1] = 0;
-	b->state = 4;		// impulse up
+	b->state = 4;		/* impulse up */
 	return;
     }
 
@@ -109,14 +109,14 @@ KeyUp(kbutton_t *b)
     else if (b->down[1] == k)
 	b->down[1] = 0;
     else
-	return;			// key up without coresponding down (menu pass through)
+	return;			/* key up without coresponding down (menu pass through) */
     if (b->down[0] || b->down[1])
-	return;			// some other key is still holding it down
+	return;			/* some other key is still holding it down */
 
     if (!(b->state & 1))
-	return;			// still up (this should not happen)
-    b->state &= ~1;		// now up
-    b->state |= 4;		// impulse up
+	return;			/* still up (this should not happen) */
+    b->state &= ~1;		/* now up */
+    b->state |= 4;		/* impulse up */
 }
 
 static void
@@ -354,30 +354,30 @@ CL_KeyState(kbutton_t *key)
 
     if (impulsedown && !impulseup) {
 	if (down)
-	    val = 0.5;		// pressed and held this frame
+	    val = 0.5;		/* pressed and held this frame */
 	else
-	    val = 0;		//      I_Error ();
+	    val = 0;		/*      I_Error (); */
     }
     if (impulseup && !impulsedown) {
 	if (down)
-	    val = 0;		//      I_Error ();
+	    val = 0;		/*      I_Error (); */
 	else
-	    val = 0;		// released this frame
+	    val = 0;		/* released this frame */
     }
     if (!impulsedown && !impulseup) {
 	if (down)
-	    val = 1.0;		// held the entire frame
+	    val = 1.0;		/* held the entire frame */
 	else
-	    val = 0;		// up the entire frame
+	    val = 0;		/* up the entire frame */
     }
     if (impulsedown && impulseup) {
 	if (down)
-	    val = 0.75;		// released and re-pressed this frame
+	    val = 0.75;		/* released and re-pressed this frame */
 	else
-	    val = 0.25;		// pressed and released this frame
+	    val = 0.25;		/* pressed and released this frame */
     }
 
-    key->state &= 1;		// clear impulses
+    key->state &= 1;		/* clear impulses */
 
     return val;
 }
@@ -385,7 +385,7 @@ CL_KeyState(kbutton_t *key)
 
 
 
-//==========================================================================
+/* ========================================================================== */
 
 cvar_t cl_upspeed = { "cl_upspeed", "200" };
 cvar_t cl_forwardspeed = { "cl_forwardspeed", "200", true };
@@ -484,9 +484,9 @@ CL_BaseMove(usercmd_t *cmd)
 	cmd->forwardmove += cl_forwardspeed.value * CL_KeyState(&in_forward);
 	cmd->forwardmove -= cl_backspeed.value * CL_KeyState(&in_back);
     }
-//
-// adjust for speed key
-//
+/**/
+/* adjust for speed key */
+/**/
     if (in_speed.state & 1) {
 	cmd->forwardmove *= cl_movespeedkey.value;
 	cmd->sidemove *= cl_movespeedkey.value;
@@ -516,15 +516,15 @@ CL_FinishMove(usercmd_t *cmd)
     int i;
     int ms;
 
-//
-// allways dump the first two message, because it may contain leftover inputs
-// from the last level
-//
+/**/
+/* allways dump the first two message, because it may contain leftover inputs */
+/* from the last level */
+/**/
     if (++cl.movemessages <= 2)
 	return;
-//
-// figure button bits
-//
+/**/
+/* figure button bits */
+/**/
     if (in_attack.state & 3)
 	cmd->buttons |= 1;
     in_attack.state &= ~2;
@@ -533,10 +533,10 @@ CL_FinishMove(usercmd_t *cmd)
 	cmd->buttons |= 2;
     in_jump.state &= ~2;
 
-    // send milliseconds of time to apply the move
+    /* send milliseconds of time to apply the move */
     ms = host_frametime * 1000;
     if (ms > 250)
-	ms = 100;		// time was unreasonable
+	ms = 100;		/* time was unreasonable */
     cmd->msec = ms;
 
     VectorCopy(cl.viewangles, cmd->angles);
@@ -545,9 +545,9 @@ CL_FinishMove(usercmd_t *cmd)
     in_impulse = 0;
 
 
-//
-// chop down so no extra bits are kept that the server wouldn't get
-//
+/**/
+/* chop down so no extra bits are kept that the server wouldn't get */
+/**/
     cmd->forwardmove = MakeChar(cmd->forwardmove);
     cmd->sidemove = MakeChar(cmd->sidemove);
     cmd->upmove = MakeChar(cmd->upmove);
@@ -575,24 +575,24 @@ CL_SendCmd(void)
     int seq_hash;
 
     if (cls.demoplayback)
-	return;			// sendcmds come from the demo
+	return;			/* sendcmds come from the demo */
 
-    // save this command off for prediction
+    /* save this command off for prediction */
     i = cls.netchan.outgoing_sequence & UPDATE_MASK;
     cmd = &cl.frames[i].cmd;
     cl.frames[i].senttime = realtime;
-    cl.frames[i].receivedtime = -1;	// we haven't gotten a reply yet
+    cl.frames[i].receivedtime = -1;	/* we haven't gotten a reply yet */
 
-//      seq_hash = (cls.netchan.outgoing_sequence & 0xffff) ; // ^ QW_CHECK_HASH;
+/*      seq_hash = (cls.netchan.outgoing_sequence & 0xffff) ; // ^ QW_CHECK_HASH; */
     seq_hash = cls.netchan.outgoing_sequence;
 
-    // get basic movement from keyboard
+    /* get basic movement from keyboard */
     CL_BaseMove(cmd);
 
-    // allow mice or other external controllers to add to the move
+    /* allow mice or other external controllers to add to the move */
     IN_Move(cmd);
 
-    // if we are spectator, try autocam
+    /* if we are spectator, try autocam */
     if (cl.spectator)
 	Cam_Track(cmd);
 
@@ -600,19 +600,19 @@ CL_SendCmd(void)
 
     Cam_FinishMove(cmd);
 
-// send this and the previous cmds in the message, so
-// if the last packet was dropped, it can be recovered
+/* send this and the previous cmds in the message, so */
+/* if the last packet was dropped, it can be recovered */
     buf.maxsize = 128;
     buf.cursize = 0;
     buf.data = data;
 
     MSG_WriteByte(&buf, clc_move);
 
-    // save the position for a checksum byte
+    /* save the position for a checksum byte */
     checksumIndex = buf.cursize;
     MSG_WriteByte(&buf, 0);
 
-    // write our lossage percentage
+    /* write our lossage percentage */
     lost = CL_CalcNet();
     MSG_WriteByte(&buf, (byte)lost);
 
@@ -630,12 +630,12 @@ CL_SendCmd(void)
     cmd = &cl.frames[i].cmd;
     MSG_WriteDeltaUsercmd(&buf, oldcmd, cmd);
 
-    // calculate a checksum over the move commands
+    /* calculate a checksum over the move commands */
     buf.data[checksumIndex] =
 	COM_BlockSequenceCRCByte(buf.data + checksumIndex + 1,
 				 buf.cursize - checksumIndex - 1, seq_hash);
 
-    // request delta compression of entities
+    /* request delta compression of entities */
     if (cls.netchan.outgoing_sequence - cl.validsequence >= UPDATE_BACKUP - 1)
 	cl.validsequence = 0;
 
@@ -648,7 +648,7 @@ CL_SendCmd(void)
 	cl.frames[cls.netchan.outgoing_sequence & UPDATE_MASK].
 	    delta_sequence = -1;
 
-    // deliver the message
+    /* deliver the message */
     Netchan_Transmit(&cls.netchan, buf.cursize, buf.data);
 }
 

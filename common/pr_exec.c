@@ -143,7 +143,7 @@ char *PR_GlobalString(int ofs);
 char *PR_GlobalStringNoContents(int ofs);
 
 
-//=============================================================================
+/* ============================================================================= */
 
 /*
 =================
@@ -222,7 +222,7 @@ PR_Profile_f(void)
     int num;
     int i;
 
-    // FIXME - progs get unloaded? if so, check that progs gets zero'd
+    /* FIXME - progs get unloaded? if so, check that progs gets zero'd */
     if (!progs)
 	return;
 
@@ -306,7 +306,7 @@ PR_EnterFunction(dfunction_t *f)
     if (pr_depth >= MAX_STACK_DEPTH)
 	PR_RunError("stack overflow");
 
-// save off any locals that the new function steps on
+/* save off any locals that the new function steps on */
     c = f->locals;
     if (localstack_used + c > LOCALSTACK_SIZE)
 	PR_RunError("PR_ExecuteProgram: locals stack overflow\n");
@@ -316,7 +316,7 @@ PR_EnterFunction(dfunction_t *f)
 	    ((int *)pr_globals)[f->parm_start + i];
     localstack_used += c;
 
-// copy parameters
+/* copy parameters */
     o = f->parm_start;
     for (i = 0; i < f->numparms; i++) {
 	for (j = 0; j < f->parm_size[i]; j++) {
@@ -327,7 +327,7 @@ PR_EnterFunction(dfunction_t *f)
     }
 
     pr_xfunction = f;
-    return f->first_statement - 1;	// offset the s++
+    return f->first_statement - 1;	/* offset the s++ */
 }
 
 /*
@@ -348,7 +348,7 @@ PR_LeaveFunction(void)
 	SV_Error("prog stack underflow");
 #endif
 
-// restore locals from the stack
+/* restore locals from the stack */
     c = pr_xfunction->locals;
     localstack_used -= c;
     if (localstack_used < 0)
@@ -358,7 +358,7 @@ PR_LeaveFunction(void)
 	((int *)pr_globals)[pr_xfunction->parm_start + i] =
 	    localstack[localstack_used + i];
 
-// up stack
+/* up stack */
     pr_depth--;
     pr_xfunction = pr_stack[pr_depth].f;
     return pr_stack[pr_depth].s;
@@ -399,13 +399,13 @@ PR_ExecuteProgram(func_t fnum)
     runaway = 1000000;
     pr_trace = false;
 
-// make a stack frame
+/* make a stack frame */
     exitdepth = pr_depth;
 
     s = PR_EnterFunction(f);
 
     while (1) {
-	s++;			// next statement
+	s++;			/* next statement */
 
 	st = &pr_statements[s];
 	a = (eval_t *)&pr_globals[st->a];
@@ -548,12 +548,12 @@ PR_ExecuteProgram(func_t fnum)
 	    c->_float = a->function != b->function;
 	    break;
 
-//==================
+/* ================== */
 	case OP_STORE_F:
 	case OP_STORE_ENT:
-	case OP_STORE_FLD:	// integers
+	case OP_STORE_FLD:	/* integers */
 	case OP_STORE_S:
-	case OP_STORE_FNC:	// pointers
+	case OP_STORE_FNC:	/* pointers */
 	    b->_int = a->_int;
 	    break;
 	case OP_STORE_V:
@@ -564,9 +564,9 @@ PR_ExecuteProgram(func_t fnum)
 
 	case OP_STOREP_F:
 	case OP_STOREP_ENT:
-	case OP_STOREP_FLD:	// integers
+	case OP_STOREP_FLD:	/* integers */
 	case OP_STOREP_S:
-	case OP_STOREP_FNC:	// pointers
+	case OP_STOREP_FNC:	/* pointers */
 	    ptr = (eval_t *)((byte *)sv.edicts + b->_int);
 	    ptr->_int = a->_int;
 	    break;
@@ -602,20 +602,20 @@ PR_ExecuteProgram(func_t fnum)
 	    c->vector[2] = a->vector[2];
 	    break;
 
-//==================
+/* ================== */
 
 	case OP_IFNOT:
 	    if (!a->_int)
-		s += st->b - 1;	// offset the s++
+		s += st->b - 1;	/* offset the s++ */
 	    break;
 
 	case OP_IF:
 	    if (a->_int)
-		s += st->b - 1;	// offset the s++
+		s += st->b - 1;	/* offset the s++ */
 	    break;
 
 	case OP_GOTO:
-	    s += st->a - 1;	// offset the s++
+	    s += st->a - 1;	/* offset the s++ */
 	    break;
 
 	case OP_CALL0:
@@ -653,7 +653,7 @@ PR_ExecuteProgram(func_t fnum)
 
 	    s = PR_LeaveFunction();
 	    if (pr_depth == exitdepth)
-		return;		// all done
+		return;		/* all done */
 	    break;
 
 	case OP_STATE:

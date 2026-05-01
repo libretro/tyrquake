@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/time.h>
 #include <errno.h>
 
-// FIXME - header hacks
+/* FIXME - header hacks */
 extern int net_socket;
 
 static cvar_t sys_extrasleep = { "sys_extrasleep", "0" };
@@ -110,7 +110,7 @@ Sys_Quit
 void
 Sys_Quit(void)
 {
-    exit(0);			// appkit isn't running
+    exit(0);			/* appkit isn't running */
 }
 
 static int do_stdin = 1;
@@ -130,18 +130,18 @@ Sys_ConsoleInput(void)
     int len;
 
     if (!stdin_ready || !do_stdin)
-	return NULL;		// the select didn't say it was ready
+	return NULL;		/* the select didn't say it was ready */
     stdin_ready = false;
 
     len = read(0, text, sizeof(text));
     if (len == 0) {
-	// end of file
+	/* end of file */
 	do_stdin = 0;
 	return NULL;
     }
     if (len < 1)
 	return NULL;
-    text[len - 1] = 0;		// rip off the /n and terminate
+    text[len - 1] = 0;		/* rip off the /n and terminate */
 
     return text;
 }
@@ -192,16 +192,16 @@ main(int argc, const char *argv[])
 
     SV_Init(&parms);
 
-    // run one frame immediately for first heartbeat
+    /* run one frame immediately for first heartbeat */
     SV_Frame(0.1);
 
-    // main loop
+    /* main loop */
     oldtime = Sys_DoubleTime() - 0.1;
     while (1) {
-	// select on the net socket and stdin
-	// the only reason we have a timeout at all is so that if the last
-	// connected client times out, the message would not otherwise
-	// be printed until the next event.
+	/* select on the net socket and stdin */
+	/* the only reason we have a timeout at all is so that if the last */
+	/* connected client times out, the message would not otherwise */
+	/* be printed until the next event. */
 	FD_ZERO(&fdset);
 	if (do_stdin)
 	    FD_SET(0, &fdset);
@@ -212,14 +212,14 @@ main(int argc, const char *argv[])
 	    continue;
 	stdin_ready = FD_ISSET(0, &fdset);
 
-	// find time passed since last cycle
+	/* find time passed since last cycle */
 	newtime = Sys_DoubleTime();
 	time = newtime - oldtime;
 	oldtime = newtime;
 
 	SV_Frame(time);
 
-	// extrasleep is just a way to generate a fucked up connection on purpose
+	/* extrasleep is just a way to generate a fucked up connection on purpose */
 	if (sys_extrasleep.value)
 	    usleep(sys_extrasleep.value);
     }

@@ -17,10 +17,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// models.c -- model loading and caching
+/* models.c -- model loading and caching */
 
-// models are the only shared resource between a client and server running
-// on the same machine.
+/* models are the only shared resource between a client and server running */
+/* on the same machine. */
 
 #include <float.h>
 #include <stdint.h>
@@ -58,9 +58,9 @@ static const model_loader_t *mod_loader;
 
 static void PVSCache_f(void);
 
-// leilei HACK
+/* leilei HACK */
 
-int coloredlights = 0; // to debug the colored lights as we have no menu option yet. 
+int coloredlights = 0; /* to debug the colored lights as we have no menu option yet. */ 
 
 
 /*
@@ -103,7 +103,7 @@ mleaf_t * Mod_PointInLeaf(const model_t *model, const vec3_t point)
          node = node->children[1];
    }
 
-   return NULL;		// never reached
+   return NULL;		/* never reached */
 }
 
 void
@@ -301,7 +301,7 @@ static void Mod_AddToFatPVS(const model_t *model, const vec3_t point, const mnod
       else if (d < -8)
          node = node->children[1];
       else
-      {			// go down both
+      {			/* go down both */
          Mod_AddToFatPVS(model, point, node->children[0]);
          node = node->children[1];
       }
@@ -375,9 +375,9 @@ Mod_FindName(const char *name)
     if (!name[0])
 	SV_Error("%s: NULL name", __func__);
 
-//
-// search the currently loaded models
-//
+/**/
+/* search the currently loaded models */
+/**/
     for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	if (!strcmp(mod->name, name))
 	    break;
@@ -405,7 +405,7 @@ static model_t *
 Mod_LoadModel(model_t *mod, qboolean crash)
 {
     unsigned *buf;
-    byte stackbuf[1024];	// avoid dirtying the cache heap
+    byte stackbuf[1024];	/* avoid dirtying the cache heap */
     unsigned long size;
 
     if (!mod->needload) {
@@ -413,10 +413,10 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 	    if (Cache_Check(&mod->cache))
 		return mod;
 	} else
-	    return mod;		// not cached at all
+	    return mod;		/* not cached at all */
     }
 
-    // load the file
+    /* load the file */
     buf = (unsigned int*)COM_LoadStackFile(mod->name, stackbuf, sizeof(stackbuf), &size);
     if (!buf) {
 	if (crash)
@@ -424,14 +424,14 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 	return NULL;
     }
 
-    // allocate a new model
+    /* allocate a new model */
     loadmodel = mod;
 
-//
-// fill it in
-//
+/**/
+/* fill it in */
+/**/
 
-// call the apropriate loader
+/* call the apropriate loader */
     mod->needload = false;
 
     switch (LittleLong(*(unsigned *)buf))
@@ -537,7 +537,7 @@ Mod_LoadTextures(lump_t *l)
       for (j = 0; j < MIPLEVELS; j++)
          tx->offsets[j] =
             mt->offsets[j] + sizeof(texture_t) - sizeof(miptex_t);
-      // the pixels immediately follow the structures
+      /* the pixels immediately follow the structures */
       memcpy(tx + 1, mt + 1, pixels);
 
 #ifndef SERVERONLY
@@ -546,17 +546,17 @@ Mod_LoadTextures(lump_t *l)
 #endif
    }
 
-   //
-   // sequence the animations
-   //
+   /**/
+   /* sequence the animations */
+   /**/
    for (i = 0; i < m->nummiptex; i++) {
       tx = loadmodel->textures[i];
       if (!tx || tx->name[0] != '+')
          continue;
       if (tx->anim_next)
-         continue;		// allready sequenced
+         continue;		/* allready sequenced */
 
-      // find the number of frames in the animation
+      /* find the number of frames in the animation */
       memset(anims, 0, sizeof(anims));
       memset(altanims, 0, sizeof(altanims));
 
@@ -601,7 +601,7 @@ Mod_LoadTextures(lump_t *l)
       }
 
 #define	ANIM_CYCLE	2
-      // link them all together
+      /* link them all together */
       for (j = 0; j < max; j++) {
          tx2 = anims[j];
          if (!tx2)
@@ -647,7 +647,7 @@ Mod_LoadLighting(lump_t *l)
 		return;
 	}
 
-	if (coloredlights)	// if colored lights are enabled, look for a lit file to load
+	if (coloredlights)	/* if colored lights are enabled, look for a lit file to load */
 	{
 		strcpy(litname, loadmodel->name);
 		COM_StripExtension(litname);
@@ -673,7 +673,7 @@ Mod_LoadLighting(lump_t *l)
 		}
 		else
 		{
-		//expand the mono lighting to 24 bit
+		/* expand the mono lighting to 24 bit */
 			int i;
 			byte *dest, *src = mod_base + l->fileofs;
 			loadmodel->lightdata = Hunk_Alloc( l->filelen*3);
@@ -692,7 +692,7 @@ Mod_LoadLighting(lump_t *l)
 	
 		}
 	}
-	else		// mono lights
+	else		/* mono lights */
 	{
 	    loadmodel->lightdata = (byte*)Hunk_Alloc(l->filelen);
 	    memcpy(loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
@@ -793,7 +793,7 @@ Mod_LoadSubmodels(lump_t *l)
    for (i = 0; i < count; i++, in++, out++)
    {
       for (j = 0; j < 3; j++)
-      {	// spread the mins / maxs by a pixel
+      {	/* spread the mins / maxs by a pixel */
 #ifdef MSB_FIRST
          out->mins[j]   = LittleFloat(in->mins[j]) - 1;
          out->maxs[j]   = LittleFloat(in->maxs[j]) + 1;
@@ -941,9 +941,9 @@ static void Mod_LoadTexinfo(lump_t *l)
 
       if (!loadmodel->textures) {
 #ifndef SERVERONLY
-         out->texture = r_notexture_mip;	// checkerboard texture
+         out->texture = r_notexture_mip;	/* checkerboard texture */
 #else
-         out->texture = &r_notexture_mip_qwsv;	// checkerboard texture
+         out->texture = &r_notexture_mip_qwsv;	/* checkerboard texture */
 #endif
          out->flags = 0;
       } else {
@@ -952,9 +952,9 @@ static void Mod_LoadTexinfo(lump_t *l)
          out->texture = loadmodel->textures[miptex];
          if (!out->texture) {
 #ifndef SERVERONLY
-            out->texture = r_notexture_mip;	// texture not found
+            out->texture = r_notexture_mip;	/* texture not found */
 #else
-            out->texture = &r_notexture_mip_qwsv;	// texture not found
+            out->texture = &r_notexture_mip_qwsv;	/* texture not found */
 #endif
             out->flags = 0;
          }
@@ -1117,7 +1117,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
       CalcSurfaceExtents(out);
       CalcSurfaceBounds(out);
 
-      // lighting info
+      /* lighting info */
 
       for (i = 0; i < MAXLIGHTMAPS; i++)
          out->styles[i] = in->styles[i];
@@ -1200,7 +1200,7 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
       CalcSurfaceExtents(out);
       CalcSurfaceBounds(out);
 
-      // lighting info
+      /* lighting info */
 
       for (i = 0; i < MAXLIGHTMAPS; i++)
          out->styles[i] = in->styles[i];
@@ -1306,7 +1306,7 @@ Mod_LoadNodes_BSP29(lump_t *l)
       }
    }
 
-   Mod_SetParent(loadmodel->nodes, NULL);	// sets nodes and leafs
+   Mod_SetParent(loadmodel->nodes, NULL);	/* sets nodes and leafs */
 }
 
 static void Mod_LoadNodes_BSP2(lump_t *l)
@@ -1368,7 +1368,7 @@ static void Mod_LoadNodes_BSP2(lump_t *l)
       }
    }
 
-   Mod_SetParent(loadmodel->nodes, NULL);	// sets nodes and leafs
+   Mod_SetParent(loadmodel->nodes, NULL);	/* sets nodes and leafs */
 }
 
 /*
@@ -1876,7 +1876,7 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
    mod->checksum = 0;
    mod->checksum2 = 0;
 
-   // checksum all of the map, except for entities
+   /* checksum all of the map, except for entities */
    for (i = 0; i < HEADER_LUMPS; i++) {
       const lump_t *l = &header->lumps[i];
       unsigned int checksum;
@@ -1928,7 +1928,7 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 
    Mod_MakeHull0();
 
-   mod->numframes = 2;		// regular and alternate animation
+   mod->numframes = 2;		/* regular and alternate animation */
    mod->flags = 0;
 
    /*
@@ -1943,9 +1943,9 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
             Mod_InitPVSCache(mod->numleafs);
          }
 
-         //
-         // set up the submodels (FIXME: this is confusing)
-         //
+         /**/
+         /* set up the submodels (FIXME: this is confusing) */
+         /**/
          for (i = 0; i < mod->numsubmodels; i++) {
             bm = &mod->submodels[i];
 

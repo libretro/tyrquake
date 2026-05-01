@@ -28,10 +28,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_iface.h"
 #include "r_local.h"
 
-#define MAX_PARTICLES		2048	// default max # of particles at one
-					//  time
-#define ABSOLUTE_MIN_PARTICLES	512	// no fewer than this no matter what's
-					//  on the command line
+#define MAX_PARTICLES		2048	/* default max # of particles at one */
+					/*  time */
+#define ABSOLUTE_MIN_PARTICLES	512	/* no fewer than this no matter what's */
+					/*  on the command line */
 
 int ramp1[8] = { 0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61 };
 int ramp2[8] = { 0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66 };
@@ -321,7 +321,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
       active_particles = p;
 
 #ifdef NQ_HACK
-      if (count == 1024) {	// rocket explosion
+      if (count == 1024) {	/* rocket explosion */
          p->die = cl.time + 5;
          p->color = ramp1[0];
          p->ramp = rand() & 3;
@@ -344,7 +344,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
          p->type = pt_slowgrav;
          for (j = 0; j < 3; j++) {
             p->org[j] = org[j] + ((rand() & 15) - 8);
-            p->vel[j] = dir[j] * 15;	// + (rand()%300)-150;
+            p->vel[j] = dir[j] * 15;	/* + (rand()%300)-150; */
          }
       }
 #endif
@@ -354,7 +354,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
       p->type = pt_grav;
       for (j = 0; j < 3; j++) {
          p->org[j] = org[j] + scale * ((rand() & 15) - 8);
-         p->vel[j] = dir[j] * 15;	// + (rand()%300)-150;
+         p->vel[j] = dir[j] * 15;	/* + (rand()%300)-150; */
       }
 #endif
    }
@@ -485,7 +485,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
       p->die = cl.time + 2;
 
       switch (type) {
-         case 0:		// rocket trail
+         case 0:		/* rocket trail */
             p->ramp = (rand() & 3);
             p->color = ramp3[(int)p->ramp];
             p->type = pt_fire;
@@ -493,7 +493,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
                p->org[j] = start[j] + ((rand() % 6) - 3);
             break;
 
-         case 1:		// smoke smoke
+         case 1:		/* smoke smoke */
             p->ramp = (rand() & 3) + 2;
             p->color = ramp3[(int)p->ramp];
             p->type = pt_fire;
@@ -501,7 +501,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
                p->org[j] = start[j] + ((rand() % 6) - 3);
             break;
 
-         case 2:		// blood
+         case 2:		/* blood */
             p->type = pt_grav;
             p->color = 67 + (rand() & 3);
             for (j = 0; j < 3; j++)
@@ -509,7 +509,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             break;
 
          case 3:
-         case 5:		// tracer
+         case 5:		/* tracer */
             p->die = cl.time + 0.5;
             p->type = pt_static;
             if (type == 3)
@@ -528,7 +528,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             }
             break;
 
-         case 4:		// slight blood
+         case 4:		/* slight blood */
             p->type = pt_grav;
             p->color = 67 + (rand() & 3);
             for (j = 0; j < 3; j++)
@@ -536,7 +536,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
             len -= 3;
             break;
 
-         case 6:		// voor trail
+         case 6:		/* voor trail */
             p->color = 9 * 16 + 8 + (rand() & 3);
             p->type = pt_static;
             p->die = cl.time + 0.3;
@@ -567,7 +567,7 @@ void CL_RunParticles(void)
    float grav      = frametime * 800 * 0.05;
 #endif
    float time3     = frametime * 15;
-   float time2     = frametime * 10;	// 15;
+   float time2     = frametime * 10;	/* 15; */
    float time1     = frametime * 5;
    float dvel      = frametime * 4;
 

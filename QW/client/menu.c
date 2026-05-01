@@ -59,10 +59,10 @@ static void M_Video_Key(int key);
 static void M_Quit_Key(int key);
 
 static qboolean m_recursiveDraw;
-static qboolean m_entersound;	// play after drawing a frame, so caching
-				// won't disrupt the sound
+static qboolean m_entersound;	/* play after drawing a frame, so caching */
+				/* won't disrupt the sound */
 
-//=============================================================================
+/* ============================================================================= */
 /* Support Routines */
 
 /*
@@ -117,7 +117,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
     int cx, cy;
     int n;
 
-    // draw left side
+    /* draw left side */
     cx = x;
     cy = y;
     p = Draw_CachePic("gfx/box_tl.lmp");
@@ -130,7 +130,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
     p = Draw_CachePic("gfx/box_bl.lmp");
     M_DrawTransPic(cx, cy + 8, p);
 
-    // draw middle
+    /* draw middle */
     cx += 8;
     while (width > 0) {
 	cy = y;
@@ -149,7 +149,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
 	cx += 16;
     }
 
-    // draw right side
+    /* draw right side */
     cy = y;
     p = Draw_CachePic("gfx/box_tr.lmp");
     M_DrawTransPic(cx, cy, p);
@@ -162,7 +162,7 @@ M_DrawTextBox(int x, int y, int width, int lines)
     M_DrawTransPic(cx, cy + 8, p);
 }
 
-//=============================================================================
+/* ============================================================================= */
 
 static int m_save_demonum;
 
@@ -193,7 +193,7 @@ M_ToggleMenu_f(void)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* MAIN MENU */
 
 static int m_main_cursor;
@@ -266,7 +266,7 @@ M_Main_Key(int key)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* OPTIONS MENU */
 
 #define	OPTIONS_ITEMS	16
@@ -289,7 +289,7 @@ M_AdjustSliders(int dir)
     S_LocalSound("misc/menu3.wav");
 
     switch (options_cursor) {
-    case 3:			// screen size
+    case 3:			/* screen size */
 	scr_viewsize.value += dir * 10;
 	if (scr_viewsize.value < 30)
 	    scr_viewsize.value = 30;
@@ -297,7 +297,7 @@ M_AdjustSliders(int dir)
 	    scr_viewsize.value = 120;
 	Cvar_SetValue("viewsize", scr_viewsize.value);
 	break;
-    case 4:			// gamma
+    case 4:			/* gamma */
 	v_gamma.value -= dir * 0.05;
 	if (v_gamma.value < 0.5)
 	    v_gamma.value = 0.5;
@@ -305,7 +305,7 @@ M_AdjustSliders(int dir)
 	    v_gamma.value = 1;
 	Cvar_SetValue("gamma", v_gamma.value);
 	break;
-    case 5:			// mouse speed
+    case 5:			/* mouse speed */
 	sensitivity.value += dir * 0.5;
 	if (sensitivity.value < 1)
 	    sensitivity.value = 1;
@@ -313,7 +313,7 @@ M_AdjustSliders(int dir)
 	    sensitivity.value = 11;
 	Cvar_SetValue("sensitivity", sensitivity.value);
 	break;
-    case 6:			// music volume
+    case 6:			/* music volume */
 #ifdef _WIN32
 	bgmvolume.value += dir * 1.0;
 #else
@@ -325,7 +325,7 @@ M_AdjustSliders(int dir)
 	    bgmvolume.value = 1;
 	Cvar_SetValue("bgmvolume", bgmvolume.value);
 	break;
-    case 7:			// sfx volume
+    case 7:			/* sfx volume */
 	volume.value += dir * 0.1;
 	if (volume.value < 0)
 	    volume.value = 0;
@@ -334,7 +334,7 @@ M_AdjustSliders(int dir)
 	Cvar_SetValue("volume", volume.value);
 	break;
 
-    case 8:			// allways run
+    case 8:			/* allways run */
 	if (cl_forwardspeed.value > 200) {
 	    Cvar_SetValue("cl_forwardspeed", 200);
 	    Cvar_SetValue("cl_backspeed", 200);
@@ -344,15 +344,15 @@ M_AdjustSliders(int dir)
 	}
 	break;
 
-    case 9:			// invert mouse
+    case 9:			/* invert mouse */
 	Cvar_SetValue("m_pitch", -m_pitch.value);
 	break;
 
-    case 10:			// lookspring
+    case 10:			/* lookspring */
 	Cvar_SetValue("lookspring", !lookspring.value);
 	break;
 
-    case 11:			// lookstrafe
+    case 11:			/* lookstrafe */
 	Cvar_SetValue("lookstrafe", !lookstrafe.value);
 	break;
 
@@ -363,7 +363,7 @@ M_AdjustSliders(int dir)
     case 13:
 	Cvar_SetValue("cl_hudswap", !cl_hudswap.value);
 
-    case 15:			// _windowed_mouse
+    case 15:			/* _windowed_mouse */
 	Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
 	break;
     }
@@ -455,7 +455,7 @@ M_Options_Draw(void)
 	M_DrawCheckbox(220, 152, _windowed_mouse.value);
     }
 
-// cursor
+/* cursor */
     M_DrawCharacter(200, 32 + options_cursor * 8,
 		    12 + ((int)(realtime * 4) & 1));
 }
@@ -535,7 +535,7 @@ M_Options_Key(int k)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* KEYS MENU */
 
 static const char *const bindnames[][2] = {
@@ -635,7 +635,7 @@ M_Keys_Draw(void)
     else
 	M_Print(18, 32, "Enter to change, backspace to clear");
 
-// search for known bindings
+/* search for known bindings */
     for (i = 0; i < NUMCOMMANDS; i++) {
 	y = 48 + 8 * i;
 
@@ -669,7 +669,7 @@ M_Keys_Key(int k)
     char cmd[80];
     int keys[2];
 
-    if (bind_grab) {		// defining a key
+    if (bind_grab) {		/* defining a key */
 	S_LocalSound("misc/menu1.wav");
 	if (k == K_ESCAPE) {
 	    bind_grab = false;
@@ -704,7 +704,7 @@ M_Keys_Key(int k)
 	    keys_cursor = 0;
 	break;
 
-    case K_ENTER:		// go into bind mode
+    case K_ENTER:		/* go into bind mode */
 	M_FindKeysForCommand(bindnames[keys_cursor][0], keys);
 	S_LocalSound("misc/menu2.wav");
 	if (keys[1] != -1)
@@ -712,15 +712,15 @@ M_Keys_Key(int k)
 	bind_grab = true;
 	break;
 
-    case K_BACKSPACE:		// delete bindings
-    case K_DEL:			// delete bindings
+    case K_BACKSPACE:		/* delete bindings */
+    case K_DEL:			/* delete bindings */
 	S_LocalSound("misc/menu2.wav");
 	M_UnbindCommand(bindnames[keys_cursor][0]);
 	break;
     }
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* VIDEO MENU */
 
 static void
@@ -745,7 +745,7 @@ M_Video_Key(int key)
     (*vid_menukeyfn) (key);
 }
 
-//=============================================================================
+/* ============================================================================= */
 /* QUIT MENU */
 
 static int msgNumber;
@@ -857,7 +857,7 @@ M_Quit_Draw(void)
 }
 
 
-//=============================================================================
+/* ============================================================================= */
 /* Menu Subsystem */
 
 

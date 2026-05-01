@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "qtypes.h"
 
-// this file is shared by quake and qcc
+/* this file is shared by quake and qcc */
 
 typedef int32_t func_t;
 typedef int32_t string_t;
@@ -51,7 +51,7 @@ typedef enum {
 
 #define	OFS_NULL	0
 #define	OFS_RETURN	1
-#define	OFS_PARM0	4	// leave 3 ofs for each parm to hold vectors
+#define	OFS_PARM0	4	/* leave 3 ofs for each parm to hold vectors */
 #define	OFS_PARM1	7
 #define	OFS_PARM2	10
 #define	OFS_PARM3	13

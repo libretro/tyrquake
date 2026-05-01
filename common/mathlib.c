@@ -17,7 +17,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// mathlib.c -- math primitives
+/* mathlib.c -- math primitives */
 
 #include <math.h>
 
@@ -352,24 +352,24 @@ void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
 {
 #if defined(__ARM_NEON__) && !defined(__APPLE__)
    asm volatile (
-         "flds s3, [%0] \n\t" //d1[1]={x0}
-         "add %0, %0, #4 \n\t" //
-         "vld1.32 {d0}, [%0] \n\t" //d0={y0,z0}
-         "vmov.f32 s2, s1 \n\t" //d1[0]={z0}
+         "flds s3, [%0] \n\t" /* d1[1]={x0} */
+         "add %0, %0, #4 \n\t" /**/
+         "vld1.32 {d0}, [%0] \n\t" /* d0={y0,z0} */
+         "vmov.f32 s2, s1 \n\t" /* d1[0]={z0} */
 
-         "flds s5, [%1] \n\t" //d2[1]={x1}
-         "add %1, %1, #4 \n\t" //
-         "vld1.32 {d3}, [%1] \n\t" //d3={y1,z1}
-         "vmov.f32 s4, s7 \n\t" //d2[0]=d3[1]
+         "flds s5, [%1] \n\t" /* d2[1]={x1} */
+         "add %1, %1, #4 \n\t" /**/
+         "vld1.32 {d3}, [%1] \n\t" /* d3={y1,z1} */
+         "vmov.f32 s4, s7 \n\t" /* d2[0]=d3[1] */
 
-         "vmul.f32 d4, d0, d2 \n\t" //d4=d0*d2
-         "vmls.f32 d4, d1, d3 \n\t" //d4-=d1*d3
+         "vmul.f32 d4, d0, d2 \n\t" /* d4=d0*d2 */
+         "vmls.f32 d4, d1, d3 \n\t" /* d4-=d1*d3 */
 
-         "vmul.f32 d5, d3, d1[1]                 \n\t" //d5=d3*d1[1]
-         "vmls.f32 d5, d0, d2[1]                          \n\t" //d5-=d0*d2[1]
+         "vmul.f32 d5, d3, d1[1]                 \n\t" /* d5=d3*d1[1] */
+         "vmls.f32 d5, d0, d2[1]                          \n\t" /* d5-=d0*d2[1] */
 
-         "vst1.32 d4, [%2] \n\t" //
-         "fsts s10, [%2, #8] \n\t" //
+         "vst1.32 d4, [%2] \n\t" /**/
+         "fsts s10, [%2, #8] \n\t" /**/
 
          : "+&r"(v1), "+&r"(v2), "+&r"(cross):
             : "d0", "d1", "d2", "d3", "d4", "d5", "memory"
@@ -381,17 +381,14 @@ void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross)
 #endif
 }
 
-double sqrt(double x);
-
 vec_t Length(vec3_t v)
 {
-   int i;
    float length;
 
-   length = 0;
-   for (i = 0; i < 3; i++)
-      length += v[i] * v[i];
-   length = sqrt(length);	// FIXME
+   length  = v[0] * v[0];
+   length += v[1] * v[1];
+   length += v[2] * v[2];
+   length  = sqrtf(length);
 
    return length;
 }
@@ -399,11 +396,11 @@ vec_t Length(vec3_t v)
 float VectorNormalize(vec3_t v)
 {
    float length = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-   length = sqrt(length);	// FIXME
+   length = sqrtf(length);
 
    if (length)
    {
-      float ilength = 1 / length;
+      float ilength = 1.0f / length;
       v[0] *= ilength;
       v[1] *= ilength;
       v[2] *= ilength;

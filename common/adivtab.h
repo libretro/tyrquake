@@ -14,11 +14,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-// table of quotients and remainders for [-15...16] / [-15...16]
+/* table of quotients and remainders for [-15...16] / [-15...16] */
 
 /* *INDENT-OFF* */
 
-// numerator = -15
+/* numerator = -15 */
 {   1,   0 },
 {   1,  -1 },
 {   1,  -2 },
@@ -52,7 +52,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   0 },
 {  -1,   1 },
 
-// numerator = -14
+/* numerator = -14 */
 {   0, -14 },
 {   1,   0 },
 {   1,  -1 },
@@ -86,7 +86,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   1 },
 {  -1,   2 },
 
-// numerator = -13
+/* numerator = -13 */
 {   0, -13 },
 {   0, -13 },
 {   1,   0 },
@@ -120,7 +120,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   2 },
 {  -1,   3 },
 
-// numerator = -12
+/* numerator = -12 */
 {   0, -12 },
 {   0, -12 },
 {   0, -12 },
@@ -154,7 +154,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   3 },
 {  -1,   4 },
 
-// numerator = -11
+/* numerator = -11 */
 {   0, -11 },
 {   0, -11 },
 {   0, -11 },
@@ -188,7 +188,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   4 },
 {  -1,   5 },
 
-// numerator = -10
+/* numerator = -10 */
 {   0, -10 },
 {   0, -10 },
 {   0, -10 },
@@ -222,7 +222,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   5 },
 {  -1,   6 },
 
-// numerator = -9
+/* numerator = -9 */
 {   0,  -9 },
 {   0,  -9 },
 {   0,  -9 },
@@ -256,7 +256,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   6 },
 {  -1,   7 },
 
-// numerator = -8
+/* numerator = -8 */
 {   0,  -8 },
 {   0,  -8 },
 {   0,  -8 },
@@ -290,7 +290,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   7 },
 {  -1,   8 },
 
-// numerator = -7
+/* numerator = -7 */
 {   0,  -7 },
 {   0,  -7 },
 {   0,  -7 },
@@ -325,7 +325,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   9 },
 
 
-// numerator = -6
+/* numerator = -6 */
 {   0,  -6 },
 {   0,  -6 },
 {   0,  -6 },
@@ -359,7 +359,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,   9 },
 {  -1,  10 },
 
-// numerator = -5
+/* numerator = -5 */
 {   0,  -5 },
 {   0,  -5 },
 {   0,  -5 },
@@ -393,7 +393,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,  10 },
 {  -1,  11 },
 
-// numerator = -4
+/* numerator = -4 */
 {   0,  -4 },
 {   0,  -4 },
 {   0,  -4 },
@@ -427,7 +427,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,  11 },
 {  -1,  12 },
 
-// numerator = -3
+/* numerator = -3 */
 {   0,  -3 },
 {   0,  -3 },
 {   0,  -3 },
@@ -461,7 +461,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,  12 },
 {  -1,  13 },
 
-// numerator = -2
+/* numerator = -2 */
 {   0,  -2 },
 {   0,  -2 },
 {   0,  -2 },
@@ -495,7 +495,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,  13 },
 {  -1,  14 },
 
-// numerator = -1
+/* numerator = -1 */
 {   0,  -1 },
 {   0,  -1 },
 {   0,  -1 },
@@ -529,7 +529,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {  -1,  14 },
 {  -1,  15 },
 
-// numerator = 0
+/* numerator = 0 */
 {   0,   0 },
 {   0,   0 },
 {   0,   0 },
@@ -563,7 +563,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   0 },
 {   0,   0 },
 
-// numerator = 1
+/* numerator = 1 */
 {  -1, -14 },
 {  -1, -13 },
 {  -1, -12 },
@@ -597,7 +597,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   1 },
 {   0,   1 },
 
-// numerator = 2
+/* numerator = 2 */
 {  -1, -13 },
 {  -1, -12 },
 {  -1, -11 },
@@ -631,7 +631,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   2 },
 {   0,   2 },
 
-// numerator = 3
+/* numerator = 3 */
 {  -1, -12 },
 {  -1, -11 },
 {  -1, -10 },
@@ -665,7 +665,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   3 },
 {   0,   3 },
 
-// numerator = 4
+/* numerator = 4 */
 {  -1, -11 },
 {  -1, -10 },
 {  -1,  -9 },
@@ -699,7 +699,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   4 },
 {   0,   4 },
 
-// numerator = 5
+/* numerator = 5 */
 {  -1, -10 },
 {  -1,  -9 },
 {  -1,  -8 },
@@ -733,7 +733,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   5 },
 {   0,   5 },
 
-// numerator = 6
+/* numerator = 6 */
 {  -1,  -9 },
 {  -1,  -8 },
 {  -1,  -7 },
@@ -767,7 +767,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   6 },
 {   0,   6 },
 
-// numerator = 7
+/* numerator = 7 */
 {  -1,  -8 },
 {  -1,  -7 },
 {  -1,  -6 },
@@ -801,7 +801,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   7 },
 {   0,   7 },
 
-// numerator = 8
+/* numerator = 8 */
 {  -1,  -7 },
 {  -1,  -6 },
 {  -1,  -5 },
@@ -835,7 +835,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   8 },
 {   0,   8 },
 
-// numerator = 9
+/* numerator = 9 */
 {  -1,  -6 },
 {  -1,  -5 },
 {  -1,  -4 },
@@ -869,7 +869,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,   9 },
 {   0,   9 },
 
-// numerator = 10
+/* numerator = 10 */
 {  -1,  -5 },
 {  -1,  -4 },
 {  -1,  -3 },
@@ -903,7 +903,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,  10 },
 {   0,  10 },
 
-// numerator = 11
+/* numerator = 11 */
 {  -1,  -4 },
 {  -1,  -3 },
 {  -1,  -2 },
@@ -937,7 +937,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,  11 },
 {   0,  11 },
 
-// numerator = 12
+/* numerator = 12 */
 {  -1,  -3 },
 {  -1,  -2 },
 {  -1,  -1 },
@@ -971,7 +971,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,  12 },
 {   0,  12 },
 
-// numerator = 13
+/* numerator = 13 */
 {  -1,  -2 },
 {  -1,  -1 },
 {  -1,   0 },
@@ -1005,7 +1005,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,  13 },
 {   0,  13 },
 
-// numerator = 14
+/* numerator = 14 */
 {  -1,  -1 },
 {  -1,   0 },
 {  -2, -12 },
@@ -1039,7 +1039,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   0,  14 },
 {   0,  14 },
 
-// numerator = 15
+/* numerator = 15 */
 {  -1,   0 },
 {  -2, -13 },
 {  -2, -11 },
@@ -1073,7 +1073,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 {   1,   0 },
 {   0,  15 },
 
-// numerator = 16
+/* numerator = 16 */
 {  -2, -14},
 {  -2, -12},
 {  -2, -10},
