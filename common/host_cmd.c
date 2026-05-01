@@ -464,7 +464,10 @@ Host_Savegame_f
 */
 void Host_Savegame_f(void)
 {
-   char name[256];
+   /* MAX_OSPATH (was 256). com_savedir alone is sized MAX_OSPATH,
+    * so a 256-byte buffer here truncates silently when the user has
+    * a long save path. Match Host_Loadgame_f. */
+   char name[MAX_OSPATH];
    RFILE *f;
    int i;
    char comment[SAVEGAME_COMMENT_LENGTH + 1];

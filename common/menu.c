@@ -509,13 +509,21 @@ static void M_ScanSaves(void)
 
       strcpy(m_filenames[i], "--- UNUSED SLOT ---");
       loadable[i] = false;
-      sprintf(name, "%s%cs%i.sav", com_savedir, slash, i);
+      /* snprintf, not sprintf: com_savedir is up to MAX_OSPATH bytes,
+       * which can exceed the destination size after the format adds
+       * its own bytes. Truncation is preferable to a stack overflow
+       * — a truncated path will simply fail to open below. */
+      snprintf(name, sizeof(name), "%s%cs%i.sav", com_savedir, slash, i);
       f = rfopen(name, "r");
       if (!f)
          continue;
       rfscanf(f, "%i\n", &version);
       rfscanf(f, "%79s\n", name);
+      /* strncpy does not NUL-terminate when the source is at least as
+       * long as the count. Force termination of the destination
+       * explicitly. */
       strncpy(m_filenames[i], name, sizeof(m_filenames[i]) - 1);
+      m_filenames[i][sizeof(m_filenames[i]) - 1] = '\0';
 
       /* change _ back to space */
       for (j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
