@@ -745,7 +745,7 @@ Con_ShowTree(struct stree_root *root)
 
 
 void
-Con_Maplist_f()
+Con_Maplist_f(void)
 {
     struct stree_root st_root;
     const char *pfx = NULL;

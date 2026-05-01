@@ -42,6 +42,8 @@ RFILE* rfopen(const char *path, const char *mode);
 int rfscanf(RFILE * stream, const char * format, ...);
 int rfclose(RFILE* stream);
 
+extern void D_SetupFrame(void);
+
 void (*vid_menudrawfn) (void);
 void (*vid_menukeyfn) (int key);
 
@@ -1092,7 +1094,6 @@ M_Menu_OptionsVideo_f(void)
     m_entersound = true;
 }
 
-extern void D_SetupFrame();
 
 static void
 M_OptionsVideo_AdjustSliders(int dir)
@@ -1273,7 +1274,6 @@ M_Menu_OptionsAudio_f(void)
     m_entersound = true;
 }
 
-extern void D_SetupFrame();
 
 static void
 M_OptionsAudio_AdjustSliders(int dir)
