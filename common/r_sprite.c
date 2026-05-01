@@ -149,15 +149,19 @@ static void R_SetupAndDrawSprite(void)
    float scale, *pv;
    vec5_t *pverts;
    vec3_t left, up, right, down, transformed, local;
-   emitpoint_t	*outverts = NULL;
    emitpoint_t *pout;
    float dot = DotProduct(r_spritedesc.vpn, modelorg);
+   /* Per-sprite scratch. The original code did a per-call
+    *   malloc(sizeof(emitpoint_t)*MAXWORKINGVERTS + 1)
+    * which had a precedence bug (the +1 added a single byte, not an
+    * extra element) and churned the heap for every visible sprite.
+    * Use a static buffer; size is small (~420 bytes) and not on the
+    * hot stack. */
+   static emitpoint_t outverts[MAXWORKINGVERTS + 1];
 
    /* backface cull */
    if (dot >= 0)
       return;
-
-   outverts = malloc(sizeof(emitpoint_t)*MAXWORKINGVERTS+1);
 
    /* build the sprite poster in worldspace */
    VectorScale(r_spritedesc.vright, r_spritedesc.pspriteframe->right, right);
@@ -198,10 +202,7 @@ static void R_SetupAndDrawSprite(void)
    for (i = 0; i < 4; i++) {
       nump = R_ClipSpriteFace(nump, &view_clipplanes[i]);
       if (nump < 3)
-      {
-         free(outverts);
          return;
-      }
       if (nump >= MAXWORKINGVERTS)
          Sys_Error("%s: too many points", __func__);
    }
@@ -238,7 +239,6 @@ static void R_SetupAndDrawSprite(void)
    r_spritedesc.nump = nump;
    r_spritedesc.pverts = outverts;
    D_DrawSprite();
-   free(outverts);
 }
 
 /*

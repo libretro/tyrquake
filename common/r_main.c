@@ -983,8 +983,16 @@ R_EdgeDrawing
 */
 static void R_EdgeDrawing(void)
 {
-   edge_t * ledges = malloc(sizeof(edge_t)*CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t));
-   surf_t * lsurfs = malloc(sizeof(surf_t)*CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t));
+   /* These two buffers are sized purely from the build-time
+    * NUMSTACKEDGES / NUMSTACKSURFACES constants and don't change at
+    * runtime, so allocate once on first call. Removes two malloc/free
+    * pairs per rendered frame. Same shape as the R_ScanEdges fix. */
+   static edge_t *ledges;
+   static surf_t *lsurfs;
+   if (!ledges)
+      ledges = malloc(sizeof(edge_t)*CACHE_PAD_ARRAY(NUMSTACKEDGES, edge_t));
+   if (!lsurfs)
+      lsurfs = malloc(sizeof(surf_t)*CACHE_PAD_ARRAY(NUMSTACKSURFACES, surf_t));
 
    if (auxedges) {
       r_edges = auxedges;
@@ -1011,10 +1019,6 @@ static void R_EdgeDrawing(void)
    R_DrawBEntitiesOnList();
 
    R_ScanEdges();
-
-   free(lsurfs);
-   free(ledges);
-
 }
 
 

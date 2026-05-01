@@ -245,7 +245,10 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
    float time_left;
    int numbumps    = 4;
    int blocked     = 0;
-   vec3_t	*planes = malloc(sizeof(vec3_t)*MAX_CLIP_PLANES);
+   /* Stack array. MAX_CLIP_PLANES is 5 — 60 bytes — and the previous
+    * malloc/free per call was wasteful (SV_FlyMove runs every physics
+    * tick for every moving entity). */
+   vec3_t planes[MAX_CLIP_PLANES];
 
    VectorCopy(ent->v.velocity, original_velocity);
    VectorCopy(ent->v.velocity, primal_velocity);
@@ -268,7 +271,6 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
       {
          /* entity is trapped in another solid */
          VectorCopy(vec3_origin, ent->v.velocity);
-         free(planes);
          return 3;
       }
 
@@ -315,7 +317,6 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
       {
          /* this shouldn't really happen */
          VectorCopy(vec3_origin, ent->v.velocity);
-         free(planes);
          return 3;
       }
 
@@ -346,7 +347,6 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
          {
             /*                              Con_Printf ("clip velocity, numplanes == %i\n",numplanes); */
             VectorCopy(vec3_origin, ent->v.velocity);
-            free(planes);
             return 7;
          }
          CrossProduct(planes[0], planes[1], dir);
@@ -359,12 +359,10 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
       if (DotProduct(ent->v.velocity, primal_velocity) <= 0)
       {
          VectorCopy(vec3_origin, ent->v.velocity);
-         free(planes);
          return blocked;
       }
    }
 
-   free(planes);
    return blocked;
 }
 

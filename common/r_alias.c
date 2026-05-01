@@ -855,12 +855,20 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 {
    aliashdr_t *pahdr;
    finalvert_t *pfinalverts;
-   finalvert_t *finalverts;
    auxvert_t *pauxverts;
-   auxvert_t *auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
 
-   finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
-   
+   /* These working buffers are sized only from MAXALIASVERTS, so cache
+    * them across all alias entities for the lifetime of the process.
+    * R_AliasDrawModel is called once per visible alias entity per
+    * frame; removing the malloc/free pair eliminates a noticeable
+    * amount of heap traffic on busy scenes. */
+   static auxvert_t *auxverts;
+   static finalvert_t *finalverts;
+   if (!auxverts)
+      auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
+   if (!finalverts)
+      finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
+
    r_amodels_drawn++;
 
    /* cache align */
@@ -895,7 +903,4 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
       R_AliasPrepareUnclippedPoints(pahdr, pfinalverts);
    else
       R_AliasPreparePoints(pahdr, pfinalverts, pauxverts);
-
-   free(auxverts);
-   free(finalverts);
 }
