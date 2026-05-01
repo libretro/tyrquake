@@ -33,7 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	PAINTBUFFER_SIZE	16384
 static portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
-static int snd_scaletable[32][256];
 static int *snd_p, snd_linear_count;
 short *snd_out;
 
@@ -100,7 +99,6 @@ CHANNEL MIXING
 ===============================================================================
 */
 
-static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
 
 void S_PaintChannels (int endtime)
@@ -147,10 +145,7 @@ void S_PaintChannels (int endtime)
 				{
 					/* the last param to SND_PaintChannelFrom is the index */
 					/* to start painting to in the paintbuffer, usually 0. */
-					if (sc->width == 1)
-						SND_PaintChannelFrom8(ch, sc, count, ltime - paintedtime);
-					else
-						SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
+					SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
 
 					ltime += count;
 				}
@@ -200,44 +195,6 @@ void S_PaintChannels (int endtime)
 		S_TransferStereo16(end);
 		paintedtime = end;
 	}
-}
-
-void SND_InitScaletable (void)
-{
-	int		i, j;
-
-	for (i = 0; i < 32; i++)
-	{
-		int scale = i * 8 * 256 * sfxvolume.value;
-		for (j = 0; j < 256; j++)
-			snd_scaletable[i][j] = ((j < 128) ?  j : j - 256) * scale;
-	}
-}
-
-
-static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
-{
-	int		*lscale, *rscale;
-	unsigned char	*sfx;
-	int		i;
-
-	if (ch->leftvol > 255)
-		ch->leftvol = 255;
-	if (ch->rightvol > 255)
-		ch->rightvol = 255;
-
-	lscale = snd_scaletable[ch->leftvol >> 3];
-	rscale = snd_scaletable[ch->rightvol >> 3];
-	sfx = (unsigned char *)sc->data + ch->pos;
-
-	for (i = 0; i < count; i++)
-	{
-		int data = sfx[i];
-		paintbuffer[paintbufferstart + i].left  += lscale[data];
-		paintbuffer[paintbufferstart + i].right += rscale[data];
-	}
-
-	ch->pos += count;
 }
 
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)

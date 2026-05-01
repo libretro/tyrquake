@@ -90,11 +90,6 @@ static cvar_t ambient_fade = { "ambient_fade", "100" };
 static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
 static cvar_t _snd_mixahead = { "_snd_mixahead", "0.1", true };
 
-static void SND_Callback_sfxvolume (cvar_t *var)
-{
-	SND_InitScaletable ();
-}
-
 /*
  * ================
  * S_Startup
@@ -141,10 +136,6 @@ S_Init(void)
     snd_initialized = true;
 
     S_Startup();
-
-	Cvar_SetCallback(&sfxvolume, SND_Callback_sfxvolume);
-
-    SND_InitScaletable();
 
     known_sfx = (sfx_t*)Hunk_Alloc(MAX_SFX * sizeof(sfx_t));
     num_sfx = 0;

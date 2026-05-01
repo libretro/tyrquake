@@ -30,6 +30,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ResampleSfx
 ================
 */
+/*
+ * Decode/resample WAV data into the cache. Output is always 16-bit
+ * signed mono, matching the libretro frontend's S16 stereo output
+ * stage (the second channel is duplicated from the first at mix time).
+ *
+ * Input is 8-bit unsigned PCM (the Quake-original format) or 16-bit
+ * signed PCM (mods, replacement packs). 8-bit samples are widened by
+ * subtracting the bias and shifting left 8, giving the equivalent
+ * signed-16 representation without changing the perceived volume.
+ */
 static void
 ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
 {
@@ -49,51 +59,39 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
       sc->loopstart = sc->loopstart / stepscale;
 
    sc->speed  = shm->speed;
-   sc->width  = inwidth;
-   sc->stereo = 1;
+   sc->width  = 2;	/* cache is always 16-bit signed mono now */
+   sc->stereo = 0;
 
-   /* resample / decimate to the current source rate */
-
-   if (stepscale == 1/* && inwidth == 1*/ && sc->width == 1)
+   if (stepscale == 1)
    {
-      /* fast special case */
-      for (i = 0; i < outcount; i++)
-         ((signed char *)sc->data)[i]
-         = (int)((unsigned char)(data[i]) - 128);
-   }
-   else if (stepscale == 1/* && inwidth == 2*/ && sc->width == 2) /* LordHavoc: quick case for 16bit */
-	{
-		if (sc->stereo) /* LordHavoc: stereo sound support */
-			for (i=0 ; i<outcount*2 ;i++)
-				((short *)sc->data)[i] = LittleShort (((short *)data)[i]);
-		else
-			for (i=0 ; i<outcount ;i++)
-				((short *)sc->data)[i] = LittleShort (((short *)data)[i]);
-	}
-   else
-   {
-      /* general case */
-      samplefrac = 0;
-      fracstep = stepscale * 256;
-      for (i = 0; i < outcount; i++)
+      /* fast no-resample case */
+      if (inwidth == 1)
       {
-         srcsample = samplefrac >> 8;
-         samplefrac += fracstep;
-         if (inwidth == 2)
-         {
-#ifdef MSB_FIRST
-            sample = LittleShort(((const short *)data)[srcsample]);
-#else
-            sample = (((const short *)data)[srcsample]);
-#endif
-         }
-         else
-            sample = (int)((unsigned char)(data[srcsample]) - 128) << 8;
-         if (sc->width == 2)
-            ((short *)sc->data)[i] = sample;
-         else
-            ((signed char *)sc->data)[i] = sample >> 8;
+         for (i = 0; i < outcount; i++)
+            ((short *)sc->data)[i] =
+               ((int)((unsigned char)data[i]) - 128) << 8;
       }
+      else
+      {
+         for (i = 0; i < outcount; i++)
+            ((short *)sc->data)[i] =
+               LittleShort(((const short *)data)[i]);
+      }
+      return;
+   }
+
+   /* general resampling case */
+   samplefrac = 0;
+   fracstep   = stepscale * 256;
+   for (i = 0; i < outcount; i++)
+   {
+      srcsample = samplefrac >> 8;
+      samplefrac += fracstep;
+      if (inwidth == 2)
+         sample = LittleShort(((const short *)data)[srcsample]);
+      else
+         sample = ((int)((unsigned char)data[srcsample]) - 128) << 8;
+      ((short *)sc->data)[i] = sample;
    }
 }
 
@@ -138,7 +136,9 @@ S_LoadSound(sfx_t *s)
     stepscale = (float)info->rate / shm->speed;
     len = info->samples / stepscale;
 
-    len = len * info->width * info->channels;
+    /* cache is always allocated as 16-bit signed mono regardless of
+     * input width — see ResampleSfx. */
+    len = len * 2;
 
     sc = (sfxcache_t*)Cache_Alloc(&s->cache, len + sizeof(sfxcache_t));
     if (!sc)
@@ -146,11 +146,10 @@ S_LoadSound(sfx_t *s)
 
     sc->length = info->samples;
     sc->loopstart = info->loopstart;
-    sc->speed = info->rate;
-    sc->width = info->width;
-    sc->stereo = info->channels;
+    /* sc->speed/width/stereo are written by ResampleSfx using the
+     * output (cache) format, not the input format. */
 
-    ResampleSfx(s, sc->speed, sc->width, data + info->dataofs);
+    ResampleSfx(s, info->rate, info->width, data + info->dataofs);
 
     return sc;
 }

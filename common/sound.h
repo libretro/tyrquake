@@ -141,9 +141,11 @@ int SNDDMA_GetDMAPos(void);
 
 extern channel_t channels[MAX_CHANNELS];
 
-/* 0 to MAX_DYNAMIC_CHANNELS-1  = normal entity sounds */
-/* MAX_DYNAMIC_CHANNELS to MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS -1 = water, etc */
-/* MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS to total_channels = static sounds */
+/* Channel layout (matches snd_dma.c):
+ *   0 to NUM_AMBIENTS-1                                  = ambients (water, sky, slime, lava)
+ *   NUM_AMBIENTS to NUM_AMBIENTS+MAX_DYNAMIC_CHANNELS-1  = dynamic entity sounds
+ *   NUM_AMBIENTS+MAX_DYNAMIC_CHANNELS to total_channels  = static sounds
+ */
 
 extern int total_channels;
 
@@ -162,7 +164,6 @@ extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 void S_LocalSound(const char *s);
 sfxcache_t *S_LoadSound(sfx_t *s);
 
-void SND_InitScaletable(void);
 wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength);
 
 void S_AmbientOff(void);
