@@ -69,7 +69,10 @@ D_DrawSolidSurface
 static void D_DrawSolidSurface(surf_t *surf, int color)
 {
    espan_t *span;
-   int pix = (color << 24) | (color << 16) | (color << 8) | color;
+   /* Shift in unsigned to avoid UB when color has bit 7 set
+    * ((color << 24) is 0x80000000 which doesn't fit in int32_t). */
+   unsigned int upix = (unsigned int)(color & 0xff);
+   int pix = (int)((upix << 24) | (upix << 16) | (upix << 8) | upix);
 
    for (span = surf->spans; span; span = span->pnext)
    {

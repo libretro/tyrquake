@@ -844,9 +844,15 @@ void Host_Tell_f(void)
    space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
    p = Cmd_Args();
    if (*p == '"') {
-      /* remove quotes */
-      strncat(text, p + 1, qmin((int)strlen(p) - 2, space));
-      text[len + qmin((int)strlen(p) - 2, space)] = 0;
+      /* remove quotes. Be defensive: a client could legitimately send
+       * a single '"' as the entire argument. strlen(p) - 2 underflows
+       * to a huge size_t in that case, so clamp the inner length to
+       * zero before passing it through. */
+      int inner = (int)strlen(p) - 2;
+      if (inner < 0)
+         inner = 0;
+      strncat(text, p + 1, qmin(inner, space));
+      text[len + qmin(inner, space)] = 0;
    } else {
       strncat(text, p, space);
       text[len + qmin((int)strlen(p), space)] = 0;
