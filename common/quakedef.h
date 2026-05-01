@@ -37,16 +37,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <compat/msvc.h>
 #endif
 
-/* __func__ is C99. GCC, Clang and recent MSVC accept it natively as an
- * extension regardless of the chosen C standard. Only define a fallback
- * for the rare strict-C89 toolchain that supports neither __func__ nor
- * __FUNCTION__; in that case, give up gracefully rather than break the
- * build. */
+/* __func__ is C99. GCC, Clang and MSVC 2015+ (_MSC_VER >= 1900)
+ * accept it natively as an extension regardless of the chosen C
+ * standard. Older MSVC (including 2005, _MSC_VER == 1400) only has
+ * __FUNCTION__ and rejects __func__ as undeclared. Provide a fallback
+ * for that case and for any other strict-C89 toolchain that supports
+ * neither __func__ nor __FUNCTION__. */
 #if !defined(__GNUC__) && !defined(__clang__) && !defined(__ICC) \
-    && !defined(_MSC_VER) \
+    && (!defined(_MSC_VER) || _MSC_VER < 1900) \
     && (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L)
 #  ifndef __func__
-#    if defined(__FUNCTION__)
+#    if defined(_MSC_VER) || defined(__FUNCTION__)
 #      define __func__ __FUNCTION__
 #    else
 #      define __func__ "?"
