@@ -381,7 +381,11 @@ D_DrawSprite(void)
    int i, nump;
    float ymin, ymax;
    emitpoint_t *pverts;
-   sspan_t		*spans = NULL;
+   /* Static buffer reused across all sprite draws. The previous code
+    * called malloc(sizeof(sspan_t)*MAXHEIGHT+1) per sprite per frame,
+    * which also had a precedence bug — the +1 was outside the
+    * multiplication and only added one byte instead of one element. */
+   static sspan_t spans[MAXHEIGHT + 1];
 
    /* find the top and bottom vertices, and make sure there's at least one scan to */
    /* draw */
@@ -409,8 +413,6 @@ D_DrawSprite(void)
    if (ymin >= ymax)
       return;			/* doesn't cross any scans at all */
 
-   spans = malloc(sizeof(sspan_t)*MAXHEIGHT+1);
-
    cachewidth = r_spritedesc.pspriteframe->width;
    sprite_height = r_spritedesc.pspriteframe->height;
    cacheblock = (byte *)&r_spritedesc.pspriteframe->rdata[0];
@@ -425,5 +427,4 @@ D_DrawSprite(void)
    D_SpriteScanLeftEdge(spans);
    D_SpriteScanRightEdge(spans);
    D_SpriteDrawSpans(spans);
-   free(spans);
 }

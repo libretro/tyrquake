@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* common.c -- misc functions used in client and server */
 #include <ctype.h>
+#include <limits.h>
 #include <retro_dirent.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -173,7 +174,11 @@ static char *COM_GetStrBuf(void)
 
 int Q_atoi(const char *str)
 {
-   int val;
+   /* Use unsigned for accumulation so the left-shift in the hex path
+    * and the * 10 in the decimal path do not invoke undefined behavior
+    * on signed overflow. The final cast back to int wraps modulo 2^32
+    * which is the historical behavior callers expect. */
+   unsigned int val;
    int sign;
    int c;
 
@@ -194,13 +199,13 @@ int Q_atoi(const char *str)
       {
          c = *str++;
          if (c >= '0' && c <= '9')
-            val = (val << 4) + c - '0';
+            val = (val << 4) + (unsigned)(c - '0');
          else if (c >= 'a' && c <= 'f')
-            val = (val << 4) + c - 'a' + 10;
+            val = (val << 4) + (unsigned)(c - 'a' + 10);
          else if (c >= 'A' && c <= 'F')
-            val = (val << 4) + c - 'A' + 10;
+            val = (val << 4) + (unsigned)(c - 'A' + 10);
          else
-            return val * sign;
+            return (int)val * sign;
       }
    }
 
@@ -213,8 +218,8 @@ int Q_atoi(const char *str)
    {
       c = *str++;
       if (c < '0' || c > '9')
-         return val * sign;
-      val = val * 10 + c - '0';
+         return (int)val * sign;
+      val = val * 10u + (unsigned)(c - '0');
    }
 
    return 0;
@@ -1171,14 +1176,23 @@ COM_filelength
 */
 static int COM_filelength(RFILE *f)
 {
-   int end;
-   int pos = rftell(f);
+   /* rftell returns int64_t. Use the wide type for the seek/tell
+    * roundtrip; the result is narrowed to int at the return because
+    * com_filesize and most callers are int. Files larger than INT_MAX
+    * (~2 GiB) are not supported by the rest of the engine; clamp
+    * defensively rather than overflow silently. */
+   int64_t end;
+   int64_t pos = rftell(f);
 
    rfseek(f, 0, SEEK_END);
    end = rftell(f);
    rfseek(f, pos, SEEK_SET);
 
-   return end;
+   if (end > (int64_t)INT_MAX)
+      return INT_MAX;
+   if (end < 0)
+      return -1;
+   return (int)end;
 }
 
 static int COM_FileOpenRead(const char *path, RFILE **hndl)

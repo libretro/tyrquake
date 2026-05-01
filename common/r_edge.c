@@ -551,11 +551,16 @@ Each surface has a linked list of its visible spans
 void R_ScanEdges(void)
 {
    int iv, bottom; 
-   espan_t *basespans;
    espan_t *basespan_p;
    surf_t *s;
 
-   basespans = malloc(sizeof(espan_t)*CACHE_PAD_ARRAY(MAXSPANS, espan_t));
+   /* basespans is a per-frame scratch buffer that depends only on
+    * MAXSPANS and CACHE_SIZE, not on the scene. Allocate it once and
+    * keep it for the lifetime of the process; saves a malloc/free
+    * pair on every frame. */
+   static espan_t *basespans;
+   if (!basespans)
+      basespans = malloc(sizeof(espan_t)*CACHE_PAD_ARRAY(MAXSPANS, espan_t));
    basespan_p = (espan_t *)
 			((uintptr_t)(basespans + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
    max_span_p = &basespan_p[MAXSPANS - r_refdef.vrect.width];
@@ -644,8 +649,4 @@ void R_ScanEdges(void)
 
    /* draw whatever's left in the span list */
    D_DrawSurfaces();
-   
-   if(basespans)
-      free(basespans);
-
 }

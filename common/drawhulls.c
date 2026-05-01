@@ -289,6 +289,12 @@ static winding_t *
 winding_clip(winding_t *in, const mplane_t *split,
 	     qboolean keepon, int side, vec_t epsilon /* = ON_EPSILON */ )
 {
+    /* Most windings are small (< ~64 points). Use a stack buffer for
+     * the common case to avoid two malloc/free pairs per call; fall
+     * back to malloc only for unusually large inputs. */
+#define WINDING_STACK_PTS 128
+    vec_t stack_dists[WINDING_STACK_PTS + 1];
+    int   stack_sides[WINDING_STACK_PTS + 1];
     vec_t *dists;
     int *sides;
     int counts[3];
@@ -297,10 +303,16 @@ winding_clip(winding_t *in, const mplane_t *split,
     winding_t *neww;
     vec_t *p1, *p2, *mid;
     int maxpts;
-    int insize = in->numpoints; /* save for dists/sides free */
+    int insize = in->numpoints;
+    qboolean heap = (insize >= WINDING_STACK_PTS);
 
-    dists = (vec_t*)malloc((insize + 1) * sizeof(vec_t));
-    sides = (int*)malloc((insize + 1) * sizeof(int));
+    if (heap) {
+        dists = (vec_t*)malloc((insize + 1) * sizeof(vec_t));
+        sides = (int*)malloc((insize + 1) * sizeof(int));
+    } else {
+        dists = stack_dists;
+        sides = stack_sides;
+    }
 
     CalcSides(in, split, sides, dists, counts, epsilon);
 
@@ -365,8 +377,10 @@ winding_clip(winding_t *in, const mplane_t *split,
     neww = winding_shrink(neww);
 
   out_free:
-    free(dists);
-    free(sides);
+    if (heap) {
+        free(dists);
+        free(sides);
+    }
 
     return neww;
 }
@@ -385,6 +399,9 @@ static void
 winding_split(winding_t *in, const mplane_t *split,
 	      winding_t **pfront, winding_t **pback)
 {
+    /* Same stack-buffer fast path as winding_clip. */
+    vec_t stack_dists[WINDING_STACK_PTS + 1];
+    int   stack_sides[WINDING_STACK_PTS + 1];
     vec_t *dists;
     int *sides;
     int counts[3];
@@ -393,9 +410,15 @@ winding_split(winding_t *in, const mplane_t *split,
     winding_t *front, *back;
     vec_t *p1, *p2, *mid;
     int maxpts;
+    qboolean heap = (in->numpoints >= WINDING_STACK_PTS);
 
-    dists = (vec_t*)malloc((in->numpoints + 1) * sizeof(vec_t));
-    sides = (int*)malloc((in->numpoints + 1) * sizeof(int));
+    if (heap) {
+        dists = (vec_t*)malloc((in->numpoints + 1) * sizeof(vec_t));
+        sides = (int*)malloc((in->numpoints + 1) * sizeof(int));
+    } else {
+        dists = stack_dists;
+        sides = stack_sides;
+    }
 
     CalcSides(in, split, sides, dists, counts, 0.0001 /* ON_EPSILON */);
 
@@ -470,8 +493,10 @@ winding_split(winding_t *in, const mplane_t *split,
     *pback = winding_shrink(back);
 
   out_free:
-    free(dists);
-    free(sides);
+    if (heap) {
+        free(dists);
+        free(sides);
+    }
 }
 
 

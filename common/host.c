@@ -576,8 +576,11 @@ _Host_ServerFrame(void)
 void
 Host_ServerFrame(void)
 {
-    float save_host_frametime;
-    float temp_host_frametime;
+    /* host_frametime is a double globally — match that here so the
+     * subdivision loop below preserves the precision of the global
+     * instead of narrowing twice per iteration. */
+    double save_host_frametime;
+    double temp_host_frametime;
 
 /* run the world state */
     pr_global_struct->frametime = host_frametime;
