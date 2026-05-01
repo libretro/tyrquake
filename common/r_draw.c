@@ -492,7 +492,15 @@ void R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf)
    mplane_t *pplane;
    float distinv;
    vec3_t p_normal;
-   medge_t tedge;
+   /* tedge is used only as a unique address for the r_pedge cookie
+    * comparison in R_EmitCachedEdge — its content is never read
+    * outside this function. Making it static gives it a stable
+    * address that doesn't dangle once the function returns and
+    * eliminates the GCC 15 -Wdangling-pointer warning. It also
+    * prevents two different bmodel-face calls from ever sharing a
+    * stack address by accident, which would have falsely matched
+    * the owner-cookie compare. */
+   static medge_t tedge;
    clipplane_t *pclip;
 
    /* skip out if no more surfs */

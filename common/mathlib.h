@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MATHLIB_H
 
 #include <limits.h>
+#include <math.h>
 #include <stdint.h>
 
 #include "qtypes.h"
@@ -49,13 +50,21 @@ typedef int fixed16_t;
 #endif
 
 extern vec3_t vec3_origin;
-extern int32_t nanmask;
 
-#ifdef _MSC_VER
-#define  IS_NAN(x) _isnan(x)
+/* IS_NAN — true if x is NaN or Infinity. The original implementation
+ * type-punned a float through an int pointer and ANDed against
+ * nanmask (the IEEE-754 single-precision exponent bits 0x7f800000),
+ * which evaluates true for both NaN and Infinity. That cast violates
+ * strict aliasing and trips -Wstrict-aliasing on modern GCC. Use
+ * !isfinite() from <math.h> — same NaN-or-Inf semantics, C99
+ * standard, no worse codegen. MSVC <2013 (_MSC_VER < 1800) doesn't
+ * have isfinite; fall back to !_finite() there. */
+#if defined(_MSC_VER) && _MSC_VER < 1800
+#define	IS_NAN(x) (!_finite(x))
 #else
-#define	IS_NAN(x) (((*(int32_t *)&x)&nanmask)==nanmask)
+#define	IS_NAN(x) (!isfinite(x))
 #endif
+extern int32_t nanmask;
 
 #define DotProduct(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
 #define VectorSubtract(a,b,c) do {c[0]=a[0]-b[0];c[1]=a[1]-b[1];c[2]=a[2]-b[2];} while (0)

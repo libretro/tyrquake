@@ -649,6 +649,11 @@ void CL_RunParticles(void)
          case pt_grav:
             p->vel[2] -= grav;
             break;
+         /* ENSURE_INT_PTYPE is a sentinel that forces the enum to int
+          * size; it is never a real particle type. The default arm
+          * keeps -Wswitch quiet without affecting behavior. */
+         default:
+            break;
       }
    }
 }

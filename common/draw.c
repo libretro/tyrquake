@@ -499,15 +499,15 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 }
 
 
-#define CHAR_WIDTH	8
-#define CHAR_HEIGHT	8
+#define CONBACK_CHAR_W	8
+#define CONBACK_CHAR_H	8
 
 static void
 Draw_ScaledCharToConback(const qpic_t *conback, int num, byte *dest)
 {
     int y;
-    int drawlines = conback->height * CHAR_HEIGHT / 200;
-    int drawwidth = conback->width * CHAR_WIDTH / 320;
+    int drawlines = conback->height * CONBACK_CHAR_H / 200;
+    int drawwidth = conback->width * CONBACK_CHAR_W / 320;
     int row       = num >> 4;
     int col       = num & 15;
     byte *source  = draw_chars + (row << 10) + (col << 3);
@@ -517,7 +517,7 @@ Draw_ScaledCharToConback(const qpic_t *conback, int num, byte *dest)
     {
 	int x;
 	int f = 0;
-	byte *src = source + (y * CHAR_HEIGHT / drawlines) * 128;
+	byte *src = source + (y * CONBACK_CHAR_H / drawlines) * 128;
 	for (x = 0; x < drawwidth; x++, f += fstep)
 	{
 	    if (src[f >> 16])
@@ -539,11 +539,11 @@ static void Draw_ConbackString(qpic_t *cb, const char *str)
 {
     int x;
     size_t len = strlen(str);
-    int row    = cb->height - ((CHAR_HEIGHT + 6) * cb->height / 200);
-    int col    = cb->width - ((11 + CHAR_WIDTH * len) * cb->width / 320);
+    int row    = cb->height - ((CONBACK_CHAR_H + 6) * cb->height / 200);
+    int col    = cb->width - ((11 + CONBACK_CHAR_W * len) * cb->width / 320);
     byte *dest = cb->data + cb->width * row + col;
     for (x = 0; x < len; x++)
-	Draw_ScaledCharToConback(cb, str[x], dest + (x * CHAR_WIDTH *
+	Draw_ScaledCharToConback(cb, str[x], dest + (x * CONBACK_CHAR_W *
 						     cb->width / 320));
 }
 

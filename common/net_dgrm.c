@@ -73,8 +73,10 @@ StrAddr(netadr_t *addr)
 }
 #endif
 
-static netadr_t banAddr = { INADDR_ANY, 0, 0 };
-static netadr_t banMask = { INADDR_NONE, 0, 0 };
+/* The outer struct has a union as its first member; explicit braces
+ * around the union initializer keep GCC 15's -Wmissing-braces quiet. */
+static netadr_t banAddr = { { INADDR_ANY  }, 0, 0 };
+static netadr_t banMask = { { INADDR_NONE }, 0, 0 };
 
 static void
 NET_Ban_f(void)
