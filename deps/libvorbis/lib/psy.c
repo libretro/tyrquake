@@ -702,6 +702,13 @@ void _vp_noisemask(vorbis_look_psy *p,
   int i,n=p->n;
   float *work=alloca(n*sizeof(*work));
 
+  /* libretro: GCC -Wmaybe-uninitialized cannot prove the loop below
+   * runs at least once (it would not, if n == 0). Zero-init the whole
+   * buffer so the second bark_noise_hybridmp call has well-defined
+   * input even in that edge case. memset of n*sizeof bytes is a no-op
+   * when n == 0. */
+  memset(work, 0, n*sizeof(*work));
+
   bark_noise_hybridmp(n,p->bark,logmdct,logmask,
                       140.,-1);
 

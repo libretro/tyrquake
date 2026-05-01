@@ -65,6 +65,13 @@ float vorbis_lpc_from_data(float *data,float *lpci,int n,int m){
   double epsilon;
   int i,j;
 
+  /* libretro: GCC -Wmaybe-uninitialized cannot prove the loop below
+   * executes at least once (it would not, if a caller passed m == -1).
+   * Seed aut[0] so the read at "error=aut[0]..." is well-defined even
+   * in that pathological case. The loop overwrites aut[0] for any
+   * m >= 0, which is the only way this is actually called. */
+  aut[0] = 0;
+
   /* autocorrelation, p+1 lag coefficients */
   j=m+1;
   while(j--){
