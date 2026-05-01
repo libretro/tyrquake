@@ -1966,7 +1966,8 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
 
             /* duplicate the basic information */
             if (i < mod->numsubmodels - 1) {
-               char name[10];
+               /* "*" + INT_MAX (10 digits) + NUL = 12; round to 16. */
+               char name[16];
 
                snprintf(name, sizeof(name), "*%i", i + 1);
                loadmodel = Mod_FindName(name);

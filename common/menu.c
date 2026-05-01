@@ -504,26 +504,35 @@ static void M_ScanSaves(void)
    for (i = 0; i < MAX_SAVEGAMES; i++)
    {
       int j, version;
+      size_t cmt_len;
+      char slot[24]; /* "s" + INT_MAX (10) + ".sav" + NUL = 16, round up */
       char name[MAX_OSPATH];
+      char comment[MAX_OSPATH];
       RFILE *f;
 
       strcpy(m_filenames[i], "--- UNUSED SLOT ---");
       loadable[i] = false;
-      /* snprintf, not sprintf: com_savedir is up to MAX_OSPATH bytes,
-       * which can exceed the destination size after the format adds
-       * its own bytes. Truncation is preferable to a stack overflow
-       * — a truncated path will simply fail to open below. */
-      snprintf(name, sizeof(name), "%s%cs%i.sav", com_savedir, slash, i);
+      /* Build the slot suffix into a small bounded local first, then
+       * use COM_JoinPath which performs an explicit overflow check —
+       * GCC otherwise cannot see com_savedir is bounded enough to fit
+       * and -Wformat-truncation= fires on a direct snprintf. */
+      snprintf(slot, sizeof(slot), "s%i.sav", i);
+      if (COM_JoinPath(name, sizeof(name), com_savedir, slash, slot) < 0)
+         continue;
       f = rfopen(name, "r");
       if (!f)
          continue;
       rfscanf(f, "%i\n", &version);
-      rfscanf(f, "%79s\n", name);
-      /* strncpy does not NUL-terminate when the source is at least as
-       * long as the count. Force termination of the destination
-       * explicitly. */
-      strncpy(m_filenames[i], name, sizeof(m_filenames[i]) - 1);
-      m_filenames[i][sizeof(m_filenames[i]) - 1] = '\0';
+      rfscanf(f, "%79s\n", comment);
+      /* memcpy with explicit length avoids both -Wstringop-truncation
+       * (which fires on strncpy(..., sizeof(dst)-1) as a known-truncate
+       * idiom) and the missing-NUL footgun strncpy has when the source
+       * is at least as long as the count. */
+      cmt_len = strlen(comment);
+      if (cmt_len >= sizeof(m_filenames[i]))
+         cmt_len = sizeof(m_filenames[i]) - 1;
+      memcpy(m_filenames[i], comment, cmt_len);
+      m_filenames[i][cmt_len] = '\0';
 
       /* change _ back to space */
       for (j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)

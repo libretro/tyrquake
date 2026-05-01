@@ -254,6 +254,14 @@ int COM_FOpenFile(const char *filename, RFILE **file);
 void COM_ScanDir(struct stree_root *root, const char *path,
 		 const char *pfx, const char *ext, qboolean stripext);
 
+/* Compose dst = a + sep + b with bounds checking. Returns the byte
+ * count written (excluding NUL) on success, or -1 on overflow (in
+ * which case dst is set to the empty string). Used in place of
+ * snprintf("%s/%s", ...) where GCC -Wformat-truncation= cannot prove
+ * the inputs fit. */
+int COM_JoinPath(char *dst, size_t dst_size,
+                 const char *a, char sep, const char *b);
+
 void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 			unsigned long *length);
 void *COM_LoadTempFile(const char *path);

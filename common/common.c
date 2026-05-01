@@ -172,6 +172,33 @@ static char *COM_GetStrBuf(void)
    return buffers[idx];
 }
 
+/*
+ * Compose dst = a + sep + b, returning the number of bytes that would
+ * have been written (excluding the NUL) on success, or -1 on overflow.
+ * GCC -Wformat-truncation cannot see that the inputs to the various
+ * snprintf("%s/%s", ...) call sites are length-bounded; routing those
+ * sites through this helper performs the bound check explicitly,
+ * silences the warning, and gives callers a real overflow signal.
+ */
+int COM_JoinPath(char *dst, size_t dst_size,
+                 const char *a, char sep, const char *b)
+{
+   size_t la = strlen(a);
+   size_t lb = strlen(b);
+   /* la + 1 (sep) + lb + 1 (NUL) must fit */
+   if (la + lb + 2 > dst_size)
+   {
+      if (dst_size > 0)
+         dst[0] = '\0';
+      return -1;
+   }
+   memcpy(dst, a, la);
+   dst[la] = sep;
+   memcpy(dst + la + 1, b, lb);
+   dst[la + 1 + lb] = '\0';
+   return (int)(la + 1 + lb);
+}
+
 int Q_atoi(const char *str)
 {
    /* Use unsigned for accumulation so the left-shift in the hex path
@@ -1247,7 +1274,8 @@ void COM_WriteFile(const char *filename, const void *data, int len)
    RFILE *f;
    char name[MAX_OSPATH];
 
-   snprintf(name, sizeof(name), "%s/%s", com_gamedir, filename);
+   if (COM_JoinPath(name, sizeof(name), com_gamedir, '/', filename) < 0)
+      Sys_Error("Error opening %s: path too long", filename);
 
    f = rfopen(name, "wb");
    if (!f)
@@ -1338,7 +1366,8 @@ int COM_FOpenFile(const char *filename, RFILE **file)
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
-         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
+         if (COM_JoinPath(path, sizeof(path), search->filename, '/', filename) < 0)
+            continue;
          if (!path_is_valid(path))
             continue;
 
@@ -1393,7 +1422,8 @@ qboolean COM_FileExists (const char *filename)
             if (strchr(filename, '/') || strchr(filename, '\\'))
                continue;
          }
-         snprintf(path, sizeof(path), "%s/%s", search->filename, filename);
+         if (COM_JoinPath(path, sizeof(path), search->filename, '/', filename) < 0)
+            continue;
          if (!path_is_valid(path))
             continue;
 
@@ -1505,8 +1535,8 @@ void COM_ScanDir(struct stree_root *root, const char *path, const char *pfx,
          COM_ScanDirPak(root, search->pack, path, pfx, ext, stripext);
       else
       {
-         snprintf(fullpath, MAX_OSPATH, "%s/%s", search->filename, path);
-         fullpath[MAX_OSPATH - 1] = '\0';
+         if (COM_JoinPath(fullpath, MAX_OSPATH, search->filename, '/', path) < 0)
+            continue;
          dir = retro_opendir(fullpath);
 
          if (dir)
@@ -1757,6 +1787,12 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
    com_searchpaths = search;
 
    /* add any pak files in the format pak0.pak pak1.pak, ... */
+   {
+      /* "pak2147483647.pak" + slash + NUL is at most 19 bytes. */
+      size_t gamedir_len = strlen(com_gamedir);
+      if (gamedir_len + 19 > sizeof(pakfile))
+         return; /* path too long; no PAKs can fit */
+   }
    for (i = 0;; i++)
    {
       snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);
@@ -1838,6 +1874,11 @@ void COM_Gamedir(const char *dir)
    com_searchpaths = search;
 
    /* add any pak files in the format pak0.pak pak1.pak, ... */
+   {
+      size_t gamedir_len = strlen(com_gamedir);
+      if (gamedir_len + 19 > sizeof(pakfile))
+         return; /* path too long */
+   }
    for (i = 0;; i++)
    {
       snprintf(pakfile, sizeof(pakfile), "%s%cpak%i.pak", com_gamedir, slash, i);

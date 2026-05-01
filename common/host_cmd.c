@@ -512,7 +512,10 @@ void Host_Savegame_f(void)
       }
    }
 
-   snprintf(name, sizeof(name), "%s%c%s", com_savedir, slash, Cmd_Argv(1));
+   if (COM_JoinPath(name, sizeof(name), com_savedir, slash, Cmd_Argv(1)) < 0) {
+      Con_Printf("ERROR: save name too long.\n");
+      return;
+   }
    COM_DefaultExtension(name, ".sav");
 
    Con_Printf("Saving game to %s...\n", name);
@@ -586,7 +589,10 @@ void Host_Loadgame_f(void)
 
    cls.demonum = -1;		/* stop demo loop in case this fails */
 
-   snprintf(name, sizeof(name), "%s%c%s", com_savedir, slash, Cmd_Argv(1));
+   if (COM_JoinPath(name, sizeof(name), com_savedir, slash, Cmd_Argv(1)) < 0) {
+      Con_Printf("ERROR: load name too long.\n");
+      return;
+   }
    COM_DefaultExtension(name, ".sav");
 
    /* we can't call SCR_BeginLoadingPlaque, because too much stack space has */

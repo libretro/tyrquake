@@ -411,8 +411,16 @@ Key_Console(int key)
 	} while (history_line != edit_line && !key_lines[history_line][1]);
 	if (history_line == edit_line)
 	    history_line = (edit_line + 1) & 31;
-	strcpy(key_lines[edit_line], key_lines[history_line]);
-	key_linepos = strlen(key_lines[edit_line]);
+	/* memmove + explicit NUL: history_line != edit_line is guaranteed
+	 * by the check above, but GCC -Wrestrict cannot prove it from the
+	 * & 31 indexing. memmove is well-defined regardless. */
+	{
+	    size_t n = strlen(key_lines[history_line]);
+	    if (n >= MAXCMDLINE) n = MAXCMDLINE - 1;
+	    memmove(key_lines[edit_line], key_lines[history_line], n);
+	    key_lines[edit_line][n] = '\0';
+	    key_linepos = (int)n;
+	}
 	return;
     }
 
@@ -427,8 +435,13 @@ Key_Console(int key)
 	    key_lines[edit_line][0] = ']';
 	    key_linepos = 1;
 	} else {
-	    strcpy(key_lines[edit_line], key_lines[history_line]);
-	    key_linepos = strlen(key_lines[edit_line]);
+	    /* See K_UPARROW: memmove silences -Wrestrict that GCC cannot
+	     * disprove from the & 31 array indexing. */
+	    size_t n = strlen(key_lines[history_line]);
+	    if (n >= MAXCMDLINE) n = MAXCMDLINE - 1;
+	    memmove(key_lines[edit_line], key_lines[history_line], n);
+	    key_lines[edit_line][n] = '\0';
+	    key_linepos = (int)n;
 	}
 	return;
     }
