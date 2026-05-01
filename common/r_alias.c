@@ -650,7 +650,7 @@ R_AliasSetupSkin
 */
 static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 {
-   uintptr_t frame;
+   int frame;
    int numframes, skinbytes;
    maliasskindesc_t *pskindesc;
    byte *pdata;

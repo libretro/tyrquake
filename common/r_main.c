@@ -173,9 +173,9 @@ R_InitTurb(void)
 
     for (i = 0; i < TURB_TABLE_SIZE; ++i) {
 	sintable[i] = TURB_SURF_AMP
-	    + sin(i * 3.14159 * 2 / TURB_CYCLE) * TURB_SURF_AMP;
+	    + sinf((float)i * 3.14159f * 2.0f / TURB_CYCLE) * TURB_SURF_AMP;
 	intsintable[i] = TURB_SCREEN_AMP
-	    + sin(i * 3.14159 * 2 / TURB_CYCLE) * TURB_SCREEN_AMP;
+	    + sinf((float)i * 3.14159f * 2.0f / TURB_CYCLE) * TURB_SCREEN_AMP;
     }
 }
 
@@ -371,7 +371,7 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
 
     R_SetVrect(pvrect, &r_refdef.vrect, lineadj);
 
-    r_refdef.horizontalFieldOfView = 2.0 * tan(r_refdef.fov_x / 360 * M_PI);
+    r_refdef.horizontalFieldOfView = 2.0f * tanf(r_refdef.fov_x / 360.0f * (float)M_PI);
     r_refdef.fvrectx = (float)r_refdef.vrect.x;
     r_refdef.fvrectx_adj = (float)r_refdef.vrect.x - 0.5;
     r_refdef.vrect_x_adj_shift20 = (r_refdef.vrect.x << 20) + (1 << 19) - 1;

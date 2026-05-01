@@ -69,9 +69,9 @@ PerpendicularVector(vec3_t dst, const vec3_t src)
     ** find the smallest magnitude axially aligned vector
     */
    for (pos = 0, i = 0; i < 3; i++) {
-      if (fabs(src[i]) < minelem) {
+      if (fabsf(src[i]) < minelem) {
          pos = i;
-         minelem = fabs(src[i]);
+         minelem = fabsf(src[i]);
       }
    }
    tempvec[0] = tempvec[1] = tempvec[2] = 0.0F;
@@ -132,10 +132,10 @@ RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point,
    memset(zrot, 0, sizeof(zrot));
    zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
 
-   zrot[0][0] = cos(DEG2RAD(degrees));
-   zrot[0][1] = sin(DEG2RAD(degrees));
-   zrot[1][0] = -sin(DEG2RAD(degrees));
-   zrot[1][1] = cos(DEG2RAD(degrees));
+   zrot[0][0] = cosf(DEG2RAD(degrees));
+   zrot[0][1] = sinf(DEG2RAD(degrees));
+   zrot[1][0] = -sinf(DEG2RAD(degrees));
+   zrot[1][1] = cosf(DEG2RAD(degrees));
 
    R_ConcatRotations(m, zrot, tmpmat);
    R_ConcatRotations(tmpmat, im, rot);
@@ -281,15 +281,15 @@ AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 {
    float sr, sp, cr, cp;
 
-   float angle = angles[YAW] * (M_PI * 2 / 360);
-   float sy = sin(angle);
-   float cy = cos(angle);
-   angle = angles[PITCH] * (M_PI * 2 / 360);
-   sp = sin(angle);
-   cp = cos(angle);
-   angle = angles[ROLL] * (M_PI * 2 / 360);
-   sr = sin(angle);
-   cr = cos(angle);
+   float angle = angles[YAW] * (float)(M_PI * 2 / 360);
+   float sy = sinf(angle);
+   float cy = cosf(angle);
+   angle = angles[PITCH] * (float)(M_PI * 2 / 360);
+   sp = sinf(angle);
+   cp = cosf(angle);
+   angle = angles[ROLL] * (float)(M_PI * 2 / 360);
+   sr = sinf(angle);
+   cr = cosf(angle);
 
    forward[0] = cp * cy;
    forward[1] = cp * sy;

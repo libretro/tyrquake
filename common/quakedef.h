@@ -37,8 +37,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <compat/msvc.h>
 #endif
 
-#ifdef _WIN32
-#define __func__ __FUNCTION__
+/* __func__ is C99. GCC, Clang and recent MSVC accept it natively as an
+ * extension regardless of the chosen C standard. Only define a fallback
+ * for the rare strict-C89 toolchain that supports neither __func__ nor
+ * __FUNCTION__; in that case, give up gracefully rather than break the
+ * build. */
+#if !defined(__GNUC__) && !defined(__clang__) && !defined(__ICC) \
+    && !defined(_MSC_VER) \
+    && (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L)
+#  ifndef __func__
+#    if defined(__FUNCTION__)
+#      define __func__ __FUNCTION__
+#    else
+#      define __func__ "?"
+#    endif
+#  endif
 #endif
 
 #include <retro_miscellaneous.h>

@@ -296,7 +296,7 @@ typedef struct {
 } maliasframedesc_t;
 
 typedef struct {
-    uintptr_t firstframe;
+    int firstframe;
     int numframes;
 } maliasskindesc_t;
 

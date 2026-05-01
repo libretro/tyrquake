@@ -25,37 +25,42 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+/* Field order must match net_driver_t / net_landriver_t in net.h.
+ * Designated initializers are C99; we keep these positional with
+ * trailing comments so the layout is self-documenting under C89. */
 net_driver_t net_drivers[] = {
     {
-	.name				= "Loopback",
-	.initialized			= false,
-	.Init				= Loop_Init,
-	.Listen				= Loop_Listen,
-	.SearchForHosts			= Loop_SearchForHosts,
-	.Connect			= Loop_Connect,
-	.CheckNewConnections		= Loop_CheckNewConnections,
-	.QGetMessage			= Loop_GetMessage,
-	.QSendMessage			= Loop_SendMessage,
-	.SendUnreliableMessage		= Loop_SendUnreliableMessage,
-	.CanSendMessage			= Loop_CanSendMessage,
-	.CanSendUnreliableMessage	= Loop_CanSendUnreliableMessage,
-	.Close				= Loop_Close,
-	.Shutdown			= Loop_Shutdown
+	"Loopback",			/* name                       */
+	false,				/* initialized                */
+	Loop_Init,			/* Init                       */
+	Loop_Listen,			/* Listen                     */
+	Loop_SearchForHosts,		/* SearchForHosts             */
+	Loop_Connect,			/* Connect                    */
+	Loop_CheckNewConnections,	/* CheckNewConnections        */
+	Loop_GetMessage,		/* QGetMessage                */
+	Loop_SendMessage,		/* QSendMessage               */
+	Loop_SendUnreliableMessage,	/* SendUnreliableMessage      */
+	Loop_CanSendMessage,		/* CanSendMessage             */
+	Loop_CanSendUnreliableMessage,	/* CanSendUnreliableMessage   */
+	Loop_Close,			/* Close                      */
+	Loop_Shutdown,			/* Shutdown                   */
+	0				/* controlSock                */
     }, {
-	.name				= "Datagram",
-	.initialized			= false,
-	.Init				= Datagram_Init,
-	.Listen				= Datagram_Listen,
-	.SearchForHosts			= Datagram_SearchForHosts,
-	.Connect			= Datagram_Connect,
-	.CheckNewConnections		= Datagram_CheckNewConnections,
-	.QGetMessage			= Datagram_GetMessage,
-	.QSendMessage			= Datagram_SendMessage,
-	.SendUnreliableMessage		= Datagram_SendUnreliableMessage,
-	.CanSendMessage			= Datagram_CanSendMessage,
-	.CanSendUnreliableMessage	= Datagram_CanSendUnreliableMessage,
-	.Close				= Datagram_Close,
-	.Shutdown			= Datagram_Shutdown
+	"Datagram",			/* name                       */
+	false,				/* initialized                */
+	Datagram_Init,			/* Init                       */
+	Datagram_Listen,		/* Listen                     */
+	Datagram_SearchForHosts,	/* SearchForHosts             */
+	Datagram_Connect,		/* Connect                    */
+	Datagram_CheckNewConnections,	/* CheckNewConnections        */
+	Datagram_GetMessage,		/* QGetMessage                */
+	Datagram_SendMessage,		/* QSendMessage               */
+	Datagram_SendUnreliableMessage,	/* SendUnreliableMessage      */
+	Datagram_CanSendMessage,	/* CanSendMessage             */
+	Datagram_CanSendUnreliableMessage,/* CanSendUnreliableMessage */
+	Datagram_Close,			/* Close                      */
+	Datagram_Shutdown,		/* Shutdown                   */
+	0				/* controlSock                */
     }
 };
 
@@ -63,22 +68,22 @@ int net_numdrivers = 2;
 
 net_landriver_t net_landrivers[] = {
     {
-	.name			= "Winsock TCPIP",
-	.initialized		= false,
-	.controlSock		= 0,
-	.Init			= WINS_Init,
-	.Shutdown		= WINS_Shutdown,
-	.Listen			= WINS_Listen,
-	.OpenSocket		= WINS_OpenSocket,
-	.CloseSocket		= WINS_CloseSocket,
-	.CheckNewConnections	= WINS_CheckNewConnections,
-	.Read			= WINS_Read,
-	.Write			= WINS_Write,
-	.Broadcast		= WINS_Broadcast,
-	.GetSocketAddr		= WINS_GetSocketAddr,
-	.GetNameFromAddr	= WINS_GetNameFromAddr,
-	.GetAddrFromName	= WINS_GetAddrFromName,
-	.GetDefaultMTU		= WINS_GetDefaultMTU
+	"Winsock TCPIP",		/* name                       */
+	false,				/* initialized                */
+	0,				/* controlSock                */
+	WINS_Init,			/* Init                       */
+	WINS_Shutdown,			/* Shutdown                   */
+	WINS_Listen,			/* Listen                     */
+	WINS_OpenSocket,		/* OpenSocket                 */
+	WINS_CloseSocket,		/* CloseSocket                */
+	WINS_CheckNewConnections,	/* CheckNewConnections        */
+	WINS_Read,			/* Read                       */
+	WINS_Write,			/* Write                      */
+	WINS_Broadcast,			/* Broadcast                  */
+	WINS_GetSocketAddr,		/* GetSocketAddr              */
+	WINS_GetNameFromAddr,		/* GetNameFromAddr            */
+	WINS_GetAddrFromName,		/* GetAddrFromName            */
+	WINS_GetDefaultMTU		/* GetDefaultMTU              */
     }
 };
 

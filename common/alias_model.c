@@ -45,7 +45,7 @@ static int posenum;
 /* a skin may be an animating set 1 or more textures */
 static float skinintervals[MAXALIASSKINS];
 static byte *skindata[MAXALIASSKINS];
-static uintptr_t skinnum;
+static int skinnum;
 
 /*
 =================
@@ -132,7 +132,7 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
 
    daliasskingroup_t *pinskingroup  = (daliasskingroup_t*)pin;
 
-   pskindesc->firstframe = (uintptr_t)((daliasskingroup_t*)skinnum);
+   pskindesc->firstframe = skinnum;
 #ifdef MSB_FIRST
    pskindesc->numframes = LittleLong(pinskingroup->numskins);
 #else

@@ -189,10 +189,10 @@ SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 
 	a = angles[1] / 180 * M_PI;
 
-	xvector[0] = cos(a);
-	xvector[1] = sin(a);
-	yvector[0] = -sin(a);
-	yvector[1] = cos(a);
+	xvector[0] = cosf(a);
+	xvector[1] = sinf(a);
+	yvector[0] = -sinf(a);
+	yvector[1] = cosf(a);
 
 	VectorCopy(min, bounds[0]);
 	VectorCopy(max, bounds[1]);
@@ -429,7 +429,7 @@ PF_normalize(void)
     float *value1 = G_VECTOR(OFS_PARM0);
     float newval  =
 	value1[0] * value1[0] + value1[1] * value1[1] + value1[2] * value1[2];
-    newval = sqrt(newval);
+    newval = sqrtf(newval);
 
     if (newval == 0)
 	newvalue[0] = newvalue[1] = newvalue[2] = 0;
@@ -456,7 +456,7 @@ PF_vlen(void)
     float *value1 = G_VECTOR(OFS_PARM0);
     float newobj  =
 	value1[0] * value1[0] + value1[1] * value1[1] + value1[2] * value1[2];
-    newobj = sqrt(newobj);
+    newobj = sqrtf(newobj);
 
     G_FLOAT(OFS_RETURN) = newobj;
 }
@@ -478,7 +478,7 @@ PF_vectoyaw(void)
 	yaw = 0;
     else
     {
-	yaw = (int)(atan2(value1[1], value1[0]) * 180 / M_PI);
+	yaw = (int)(atan2f(value1[1], value1[0]) * 180 / M_PI);
 	if (yaw < 0)
 	    yaw += 360;
     }
@@ -508,12 +508,12 @@ PF_vectoangles(void)
 	else
 	    pitch = 270;
     } else {
-	yaw = (int)(atan2(value1[1], value1[0]) * 180 / M_PI);
+	yaw = (int)(atan2f(value1[1], value1[0]) * 180 / M_PI);
 	if (yaw < 0)
 	    yaw += 360;
 
-	forward = sqrt(value1[0] * value1[0] + value1[1] * value1[1]);
-	pitch = (int)(atan2(value1[2], forward) * 180 / M_PI);
+	forward = sqrtf(value1[0] * value1[0] + value1[1] * value1[1]);
+	pitch = (int)(atan2f(value1[2], forward) * 180 / M_PI);
 	if (pitch < 0)
 	    pitch += 360;
     }
@@ -979,7 +979,7 @@ static void PF_ftos(void)
 static void PF_fabs(void)
 {
     float v = G_FLOAT(OFS_PARM0);
-    G_FLOAT(OFS_RETURN) = fabs(v);
+    G_FLOAT(OFS_RETURN) = fabsf(v);
 }
 
 static void
@@ -1172,8 +1172,8 @@ PF_walkmove(void)
 
     yaw = yaw * M_PI * 2 / 360;
 
-    move[0] = cos(yaw) * dist;
-    move[1] = sin(yaw) * dist;
+    move[0] = cosf(yaw) * dist;
+    move[1] = sinf(yaw) * dist;
     move[2] = 0;
 
 /* save program state, because SV_movestep may call other progs */
@@ -1279,13 +1279,13 @@ PF_rint(void)
 static void
 PF_floor(void)
 {
-    G_FLOAT(OFS_RETURN) = floor(G_FLOAT(OFS_PARM0));
+    G_FLOAT(OFS_RETURN) = floorf(G_FLOAT(OFS_PARM0));
 }
 
 static void
 PF_ceil(void)
 {
-    G_FLOAT(OFS_RETURN) = ceil(G_FLOAT(OFS_PARM0));
+    G_FLOAT(OFS_RETURN) = ceilf(G_FLOAT(OFS_PARM0));
 }
 
 

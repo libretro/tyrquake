@@ -278,10 +278,14 @@ void *Z_Realloc(const void *ptr, int size)
 #define HUNK_NAMELEN	8
 #endif
 
+/* sizeof(hunk_t) must be a multiple of 16 so that the pointer returned
+ * to callers (h + 1) preserves the 16-byte alignment promised in zone.h
+ * and required by SIMD code paths. */
 typedef struct
 {
    int sentinal;
    int size;		/* including sizeof(hunk_t), -1 = not allocated */
+   int pad[2];
 } hunk_t;
 
 static byte *hunk_base;

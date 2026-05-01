@@ -450,7 +450,7 @@ Test_Poll(void *vstate)
     while (1) {
 	len = state->driver->Read(state->socket, net_message.data,
 				  net_message.maxsize, &clientaddr);
-	if (len < sizeof(int))
+	if (len < (int)sizeof(int))
 	    break;
 
 	net_message.cursize = len;
@@ -582,7 +582,7 @@ Test2_Poll(void *vstate)
 
     len = state->driver->Read(state->socket, net_message.data,
 			      net_message.maxsize, &clientaddr);
-    if (len < sizeof(int))
+    if (len < (int)sizeof(int))
 	goto Reschedule;
 
     net_message.cursize = len;
@@ -792,7 +792,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
 
     len = driver->Read(acceptsock, net_message.data, net_message.maxsize,
 		       &clientaddr);
-    if (len < sizeof(int))
+    if (len < (int)sizeof(int))
 	return NULL;
     net_message.cursize = len;
 
@@ -1046,7 +1046,7 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 
     while ((ret = driver->Read(driver->controlSock, net_message.data,
 			       net_message.maxsize, &readaddr)) > 0) {
-	if (ret < sizeof(int))
+	if (ret < (int)sizeof(int))
 	    continue;
 	net_message.cursize = ret;
 
@@ -1205,7 +1205,7 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
 		    continue;
 		}
 
-		if (ret < sizeof(int)) {
+		if (ret < (int)sizeof(int)) {
 		    ret = 0;
 		    continue;
 		}

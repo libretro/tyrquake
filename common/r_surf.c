@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* r_surf.c: surface-related refresh code */
 
 #include <stdint.h>
+#include <compat/intrinsics.h>
 
 #include "quakedef.h"
 #include "r_local.h"
@@ -109,49 +110,58 @@ static void R_AddDynamicLights(void)
    int i;
    int smax, tmax;
    mtexinfo_t *tex;
+   unsigned int bits;
+   int word, num_words;
 
    surf = r_drawsurf.surf;
    smax = (surf->extents[0] >> 4) + 1;
    tmax = (surf->extents[1] >> 4) + 1;
    tex = surf->texinfo;
 
-   for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
-      if (!(surf->dlightbits[lnum >> 5] & (1 << (lnum & 31)))) continue;  /* qbism from MH */
+   /* Iterate only set bits in dlightbits — skip empty slots without
+    * a per-slot test. Outer loop handles MAX_DLIGHTS > 32 if it ever grows. */
+   num_words = (int)(sizeof(surf->dlightbits) / sizeof(surf->dlightbits[0]));
+   for (word = 0; word < num_words; word++) {
+      bits = surf->dlightbits[word];
+      while (bits) {
+         lnum = (word << 5) + compat_ctz(bits);
+         bits &= bits - 1;
 
-      rad = cl_dlights[lnum].radius;
-      dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -
-         surf->plane->dist;
-      rad -= fabs(dist);
-      minlight = cl_dlights[lnum].minlight;
-      if (rad < minlight)
-         continue;
-      minlight = rad - minlight;
+         rad = cl_dlights[lnum].radius;
+         dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -
+            surf->plane->dist;
+         rad -= fabsf(dist);
+         minlight = cl_dlights[lnum].minlight;
+         if (rad < minlight)
+            continue;
+         minlight = rad - minlight;
 
-      for (i = 0; i < 3; i++) {
-         impact[i] = cl_dlights[lnum].origin[i] -
-            surf->plane->normal[i] * dist;
-      }
+         for (i = 0; i < 3; i++) {
+            impact[i] = cl_dlights[lnum].origin[i] -
+               surf->plane->normal[i] * dist;
+         }
 
-      local[0] = DotProduct(impact, tex->vecs[0]) + tex->vecs[0][3];
-      local[1] = DotProduct(impact, tex->vecs[1]) + tex->vecs[1][3];
+         local[0] = DotProduct(impact, tex->vecs[0]) + tex->vecs[0][3];
+         local[1] = DotProduct(impact, tex->vecs[1]) + tex->vecs[1][3];
 
-      local[0] -= surf->texturemins[0];
-      local[1] -= surf->texturemins[1];
+         local[0] -= surf->texturemins[0];
+         local[1] -= surf->texturemins[1];
 
-      for (t = 0; t < tmax; t++) {
-         td = local[1] - t * 16;
-         if (td < 0)
-            td = -td;
-         for (s = 0; s < smax; s++) {
-            sd = local[0] - s * 16;
-            if (sd < 0)
-               sd = -sd;
-            if (sd > td)
-               dist = sd + (td >> 1);
-            else
-               dist = td + (sd >> 1);
-            if (dist < minlight)
-               blocklights[t * smax + s] += (rad - dist) * 256;
+         for (t = 0; t < tmax; t++) {
+            td = local[1] - t * 16;
+            if (td < 0)
+               td = -td;
+            for (s = 0; s < smax; s++) {
+               sd = local[0] - s * 16;
+               if (sd < 0)
+                  sd = -sd;
+               if (sd > td)
+                  dist = sd + (td >> 1);
+               else
+                  dist = td + (sd >> 1);
+               if (dist < minlight)
+                  blocklights[t * smax + s] += (rad - dist) * 256;
+            }
          }
       }
    }
@@ -170,66 +180,73 @@ static void R_AddDynamicLightsRGB(void)
    mtexinfo_t *tex;
    float		cred, cgreen, cblue, brightness;
    int *bl;
+   unsigned int bits;
+   int word, num_words;
 
    surf = r_drawsurf.surf;
    smax = (surf->extents[0] >> 4) + 1;
    tmax = (surf->extents[1] >> 4) + 1;
    tex = surf->texinfo;
 
-   for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
-      if (!(surf->dlightbits[lnum >> 5] & (1 << (lnum & 31)))) continue;  /* qbism from MH */
+   num_words = (int)(sizeof(surf->dlightbits) / sizeof(surf->dlightbits[0]));
+   for (word = 0; word < num_words; word++) {
+      bits = surf->dlightbits[word];
+      while (bits) {
+         lnum = (word << 5) + compat_ctz(bits);
+         bits &= bits - 1;
 
-      rad = cl_dlights[lnum].radius;
-      dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -
-         surf->plane->dist;
-      rad -= fabs(dist);
-      minlight = cl_dlights[lnum].minlight;
-      if (rad < minlight)
-         continue;
-      minlight = rad - minlight;
+         rad = cl_dlights[lnum].radius;
+         dist = DotProduct(cl_dlights[lnum].origin, surf->plane->normal) -
+            surf->plane->dist;
+         rad -= fabsf(dist);
+         minlight = cl_dlights[lnum].minlight;
+         if (rad < minlight)
+            continue;
+         minlight = rad - minlight;
 
-      for (i = 0; i < 3; i++) {
-         impact[i] = cl_dlights[lnum].origin[i] -
-            surf->plane->normal[i] * dist;
+         for (i = 0; i < 3; i++) {
+            impact[i] = cl_dlights[lnum].origin[i] -
+               surf->plane->normal[i] * dist;
+         }
+
+         local[0] = DotProduct(impact, tex->vecs[0]) + tex->vecs[0][3];
+         local[1] = DotProduct(impact, tex->vecs[1]) + tex->vecs[1][3];
+
+         local[0] -= surf->texturemins[0];
+         local[1] -= surf->texturemins[1];
+
+         cred = cl_dlights[lnum].color[0] * 256.0f * 2;
+         cgreen = cl_dlights[lnum].color[1] * 256.0f* 2;
+         cblue = cl_dlights[lnum].color[2] * 256.0f* 2;
+
+         bl = blocklights;
+
+         for (t = 0 ; t<tmax ; t++)
+         {
+            td = local[1] - t*16;
+            if (td < 0)
+               td = -td;
+            for (s=0 ; s<smax ; s++)
+            {
+               sd = local[0] - s*16;
+               if (sd < 0)
+                  sd = -sd;
+               if (sd > td)
+                  dist = sd + (td>>1);
+               else
+                  dist = td + (sd>>1);
+               if (dist < minlight)
+               {
+                  brightness = rad - dist;
+                  bl[0] += (int) (brightness * cred);
+                  bl[1] += (int) (brightness * cgreen);
+                  bl[2] += (int) (brightness * cblue);
+               }
+               bl += 3;
+            }
+         }
       }
-
-      local[0] = DotProduct(impact, tex->vecs[0]) + tex->vecs[0][3];
-      local[1] = DotProduct(impact, tex->vecs[1]) + tex->vecs[1][3];
-
-      local[0] -= surf->texturemins[0];
-      local[1] -= surf->texturemins[1];
-
-      cred = cl_dlights[lnum].color[0] * 256.0f * 2;
-      cgreen = cl_dlights[lnum].color[1] * 256.0f* 2;
-      cblue = cl_dlights[lnum].color[2] * 256.0f* 2;
-
-      bl = blocklights;
-
-		for (t = 0 ; t<tmax ; t++)
-		{
-			td = local[1] - t*16;
-			if (td < 0)
-				td = -td;
-			for (s=0 ; s<smax ; s++)
-			{
-				sd = local[0] - s*16;
-				if (sd < 0)
-					sd = -sd;
-				if (sd > td)
-					dist = sd + (td>>1);
-				else
-					dist = td + (sd>>1);
-				if (dist < minlight)
-				{
-					brightness = rad - dist;
-					bl[0] += (int) (brightness * cred);
-					bl[1] += (int) (brightness * cgreen);
-					bl[2] += (int) (brightness * cblue);
-				}
-				bl += 3;
-			}
-		}
- 	}  
+   }
 }
 
 

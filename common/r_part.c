@@ -99,11 +99,11 @@ void R_EntityParticles(const entity_t *ent)
 
    for (i = 0; i < NUMVERTEXNORMALS; i++) {
       angle = cl.time * avelocities[i][0];
-      sy = sin(angle);
-      cy = cos(angle);
+      sy = sinf(angle);
+      cy = cosf(angle);
       angle = cl.time * avelocities[i][1];
-      sp = sin(angle);
-      cp = cos(angle);
+      sp = sinf(angle);
+      cp = cosf(angle);
 
       forward[0] = cp * cy;
       forward[1] = cp * sy;

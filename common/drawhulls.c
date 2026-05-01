@@ -164,7 +164,7 @@ winding_for_plane(const mplane_t *p)
     max = -BOGUS_RANGE;
     axis = -1;
     for (i = 0; i < 3; i++) {
-	v = fabs(p->normal[i]);
+	v = fabsf(p->normal[i]);
 	if (v > max) {
 	    axis = i;
 	    max = v;
@@ -704,11 +704,23 @@ static void _gl_drawhull_callback(cvar_t *var)
 }
 
 
+/* Field order must match cvar_t in cvar.h. The struct contains a
+ * conditionally compiled qboolean (server vs info) so we initialize
+ * positionally with explicit padding. */
 cvar_t _gl_drawhull = {
-    .name = "_gl_drawhull",
-    .string = "0",
-    .callback = _gl_drawhull_callback,
-    .flags = CVAR_DEVELOPER
+    "_gl_drawhull",		/* name                 */
+    "0",			/* string               */
+    false,			/* archive              */
+#ifdef NQ_HACK
+    false,			/* server               */
+#endif
+#ifdef QW_HACK
+    false,			/* info                 */
+#endif
+    0.0f,			/* value                */
+    _gl_drawhull_callback,	/* callback             */
+    CVAR_DEVELOPER		/* flags                */
+    /* stree, completion: zero-initialized */
 };
 
 

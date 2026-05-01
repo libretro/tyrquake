@@ -200,13 +200,13 @@ D_SpriteScanLeftEdge(sspan_t * pspan)
    if (lmaxindex == 0)
       lmaxindex = r_spritedesc.nump;
 
-   vtop = ceil(r_spritedesc.pverts[i].v);
+   vtop = ceilf(r_spritedesc.pverts[i].v);
 
    do
    {
       emitpoint_t *pvert = &r_spritedesc.pverts[i];
       emitpoint_t *pnext = pvert - 1;
-      float vbottom = ceil(pnext->v);
+      float vbottom = ceilf(pnext->v);
 
       if (vtop < vbottom)
       {
@@ -257,7 +257,7 @@ D_SpriteScanRightEdge(sspan_t * pspan)
    if (vvert > r_refdef.fvrectbottom_adj)
       vvert = r_refdef.fvrectbottom_adj;
 
-   vtop = ceil(vvert);
+   vtop = ceilf(vvert);
 
    do
    {
@@ -271,7 +271,7 @@ D_SpriteScanRightEdge(sspan_t * pspan)
       if (vnext > r_refdef.fvrectbottom_adj)
          vnext = r_refdef.fvrectbottom_adj;
 
-      vbottom = ceil(vnext);
+      vbottom = ceilf(vnext);
 
       if (vtop < vbottom)
       {
@@ -403,8 +403,8 @@ D_DrawSprite(void)
       pverts++;
    }
 
-   ymin = ceil(ymin);
-   ymax = ceil(ymax);
+   ymin = ceilf(ymin);
+   ymax = ceilf(ymax);
 
    if (ymin >= ymax)
       return;			/* doesn't cross any scans at all */

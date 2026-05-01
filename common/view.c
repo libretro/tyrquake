@@ -102,7 +102,7 @@ float V_CalcRoll(vec3_t angles, vec3_t velocity)
    AngleVectors(angles, forward, right, up);
    side = DotProduct(velocity, right);
    sign = side < 0 ? -1 : 1;
-   side = fabs(side);
+   side = fabsf(side);
 
    value = cl_rollangle.value;
    /*      if (cl.inwater) */
@@ -216,7 +216,7 @@ void V_DriftPitch(void)
    }
    /* don't count small mouse motion */
    if (cl.nodrift) {
-      if (fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
+      if (fabsf(cl.cmd.forwardmove) < cl_forwardspeed.value)
          cl.driftmove = 0;
       else
          cl.driftmove += host_frametime;
