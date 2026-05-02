@@ -326,7 +326,7 @@ void V_ParseDamage(void)
 {
    vec3_t from;
    int i;
-   vec3_t forward, right, up;
+   vec3_t local_forward, local_right, local_up;
    const entity_t *ent;
    float side;
    float count;
@@ -368,12 +368,12 @@ void V_ParseDamage(void)
    VectorSubtract(from, ent->origin, from);
    VectorNormalize(from);
 
-   AngleVectors(ent->angles, forward, right, up);
+   AngleVectors(ent->angles, local_forward, local_right, local_up);
 
-   side = DotProduct(from, right);
+   side = DotProduct(from, local_right);
    v_dmg_roll = count * side * v_kickroll.value;
 
-   side = DotProduct(from, forward);
+   side = DotProduct(from, local_forward);
    v_dmg_pitch = count * side * v_kickpitch.value;
 
    v_dmg_time = v_kicktime.value;
@@ -756,7 +756,7 @@ static void V_CalcRefdef(void)
 {
    entity_t *ent, *view;
    int i;
-   vec3_t forward, right, up;
+   vec3_t local_forward, local_right, local_up;
    vec3_t angles;
    float bob;
 
@@ -797,13 +797,13 @@ static void V_CalcRefdef(void)
    angles[YAW] = ent->angles[YAW];
    angles[ROLL] = ent->angles[ROLL];
 
-   AngleVectors(angles, forward, right, up);
+   AngleVectors(angles, local_forward, local_right, local_up);
 
    for (i = 0; i < 3; i++)
    {
-      r_refdef.vieworg[i] += scr_ofsx.value * forward[i]
-      + scr_ofsy.value * right[i]
-      + scr_ofsz.value * up[i];
+      r_refdef.vieworg[i] += scr_ofsx.value * local_forward[i]
+      + scr_ofsy.value * local_right[i]
+      + scr_ofsz.value * local_up[i];
    }
 
    V_BoundOffsets();
@@ -817,7 +817,7 @@ static void V_CalcRefdef(void)
    view->origin[2] += cl.viewheight;
 
    for (i = 0; i < 3; i++) {
-      view->origin[i] += forward[i] * bob * 0.4;
+      view->origin[i] += local_forward[i] * bob * 0.4;
       /*              view->origin[i] += right[i]*bob*0.4; */
       /*              view->origin[i] += up[i]*bob*0.8; */
    }

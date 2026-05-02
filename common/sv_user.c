@@ -240,7 +240,7 @@ static void SV_WaterMove(void)
 {
    int i;
    vec3_t wishvel;
-   float speed, newspeed, wishspeed, addspeed, accelspeed;
+   float speed, newspeed, wspeed, addspeed, accelspeed;
 
    /* user intentions */
    AngleVectors(sv_player->v.v_angle, forward, right, up);
@@ -253,32 +253,31 @@ static void SV_WaterMove(void)
    else
       wishvel[2] += cmd.upmove;
 
-   wishspeed = Length(wishvel);
-   if (wishspeed > sv_maxspeed.value)
+   wspeed = Length(wishvel);
+   if (wspeed > sv_maxspeed.value)
    {
-      VectorScale(wishvel, sv_maxspeed.value / wishspeed, wishvel);
-      wishspeed = sv_maxspeed.value;
+      VectorScale(wishvel, sv_maxspeed.value / wspeed, wishvel);
+      wspeed = sv_maxspeed.value;
    }
 
 #ifdef HEXEN2
    if (sv_player->v.playerclass==CLASS_DEMON)   /* Paladin Special Ability #1 - unrestricted movement in water */
-      wishspeed *= 0.5;
+      wspeed *= 0.5;
    else if (sv_player->v.playerclass!=CLASS_PALADIN)   /* Paladin Special Ability #1 - unrestricted movement in water */
-      wishspeed *= 0.7;
+      wspeed *= 0.7;
    else if (sv_player->v.level == 1)
-      wishspeed *= 0.75;
+      wspeed *= 0.75;
    else if (sv_player->v.level == 2)
-      wishspeed *= 0.80;
+      wspeed *= 0.80;
    else if ((sv_player->v.level == 3) || (sv_player->v.level == 4))
-      wishspeed *= 0.85;
+      wspeed *= 0.85;
    else if ((sv_player->v.level == 5) || (sv_player->v.level == 6))
-      wishspeed *= 0.90;
+      wspeed *= 0.90;
    else if ((sv_player->v.level == 7) || (sv_player->v.level == 8))
-      wishspeed *= 0.95;
-   else
-      wishspeed = wishspeed;
+      wspeed *= 0.95;
+   /* else: leave wspeed unchanged */
 #else
-   wishspeed *= 0.7;
+   wspeed *= 0.7;
 #endif
 
    /* water friction */
@@ -293,15 +292,15 @@ static void SV_WaterMove(void)
       newspeed = 0;
 
    /* water acceleration */
-   if (!wishspeed)
+   if (!wspeed)
       return;
 
-   addspeed = wishspeed - newspeed;
+   addspeed = wspeed - newspeed;
    if (addspeed <= 0)
       return;
 
    VectorNormalize(wishvel);
-   accelspeed = sv_accelerate.value * wishspeed * host_frametime;
+   accelspeed = sv_accelerate.value * wspeed * host_frametime;
    if (accelspeed > addspeed)
       accelspeed = addspeed;
 
@@ -492,7 +491,7 @@ Returns false if the client should be killed
 static qboolean SV_ReadClientMessage(void)
 {
    int ret;
-   int cmd;
+   int opcode;
    char *s;
 
    do
@@ -519,9 +518,9 @@ nextmsg:
             return false;
          }
 
-         cmd = MSG_ReadChar();
+         opcode = MSG_ReadChar();
 
-         switch (cmd) {
+         switch (opcode) {
             case -1:
                goto nextmsg;	/* end of message */
 

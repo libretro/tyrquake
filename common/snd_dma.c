@@ -460,7 +460,7 @@ Expects data in signed 16 bit, or unsigned
 8 bit format.
 ===================
 */
-void S_RawSamples (int samples, int rate, int width, int channels, byte *data, float volume)
+void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, float volume)
 {
 	int i;
 	int src, dst;
@@ -473,7 +473,7 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 	scale = (float) rate / shm->speed;
 	intVolume = (int) (256 * volume);
 
-	if (channels == 2 && width == 2)
+	if (nchannels == 2 && width == 2)
 	{
 		for (i = 0; ; i++)
 		{
@@ -486,7 +486,7 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 			s_rawsamples [dst].right = ((short *) data)[src * 2 + 1] * intVolume;
 		}
 	}
-	else if (channels == 1 && width == 2)
+	else if (nchannels == 1 && width == 2)
 	{
 		for (i = 0; ; i++)
 		{
@@ -499,7 +499,7 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 			s_rawsamples [dst].right = ((short *) data)[src] * intVolume;
 		}
 	}
-	else if (channels == 2 && width == 1)
+	else if (nchannels == 2 && width == 1)
 	{
 		intVolume *= 256;
 
@@ -516,7 +516,7 @@ void S_RawSamples (int samples, int rate, int width, int channels, byte *data, f
 			s_rawsamples [dst].right = (((byte *) data)[src * 2 + 1] - 128) * intVolume;
 		}
 	}
-	else if (channels == 1 && width == 1)
+	else if (nchannels == 1 && width == 1)
 	{
 		intVolume *= 256;
 

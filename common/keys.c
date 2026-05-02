@@ -307,8 +307,6 @@ ShowCompletions(void)
 	    cmd[len] = 0;
 
 	    if (Cmd_Exists(cmd)) {
-		struct stree_root *root;
-
 		s += len;
 		while (*s == ' ')
 		    s++;
@@ -319,8 +317,6 @@ ShowCompletions(void)
 		    Z_Free(root);
 		}
 	    } else if (Cvar_FindVar(cmd)) {
-		struct stree_root *root;
-
 		s += len;
 		while (*s == ' ')
 		    s++;

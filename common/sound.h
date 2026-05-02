@@ -123,7 +123,7 @@ void S_PaintChannels(int endtime);
 void S_InitPaintChannels(void);
 
 /* music stream support */
-void S_RawSamples(int samples, int rate, int width, int channels, byte * data, float volume);
+void S_RawSamples(int samples, int rate, int width, int nchannels, byte * data, float volume);
 				/* Expects data in signed 16 bit, or unsigned 8 bit format. */
 
 /* initializes cycling through a DMA buffer and returns information on it */

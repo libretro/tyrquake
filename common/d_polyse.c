@@ -203,12 +203,12 @@ TODO/FIXME - Needs updates/specialization for Hexen 2
 ================
 */
 void
-D_PolysetDrawFinalVerts(finalvert_t *fv, int numverts)
+D_PolysetDrawFinalVerts(finalvert_t *fv, int nverts)
 {
    int i, z;
    int16_t *zbuf;
 
-   for (i = 0; i < numverts; i++, fv++)
+   for (i = 0; i < nverts; i++, fv++)
    {
       /* valid triangle coordinates for filling can include the bottom and
        * right clip edges, due to the fill rule; these shouldn't be drawn */
@@ -552,7 +552,7 @@ static void D_PolysetSetUpForLineScan(fixed8_t startvertu, fixed8_t startvertv,
 D_PolysetCalcGradients
 ================
 */
-void D_PolysetCalcGradients(int skinwidth)
+void D_PolysetCalcGradients(int swidth)
 {
    static float
       xstepdenominv
@@ -600,7 +600,7 @@ void D_PolysetCalcGradients(int skinwidth)
    a_sstepxfrac = r_sstepx & 0xFFFF;
    a_tstepxfrac = r_tstepx & 0xFFFF;
 
-   a_ststepxwhole = skinwidth * (r_tstepx >> 16) + (r_sstepx >> 16);
+   a_ststepxwhole = swidth * (r_tstepx >> 16) + (r_sstepx >> 16);
 }
 
 

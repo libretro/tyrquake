@@ -1399,12 +1399,14 @@ void VID_UnlockBuffer(void)
 {
 }
 
-void D_BeginDirectRect(int x, int y, const byte *pbitmap, int width, int height)
+void D_BeginDirectRect(int x, int y, const byte *pbitmap, int w, int h)
 {
+   (void)x; (void)y; (void)pbitmap; (void)w; (void)h;
 }
 
-void D_EndDirectRect(int x, int y, int width, int height)
+void D_EndDirectRect(int x, int y, int w, int h)
 {
+   (void)x; (void)y; (void)w; (void)h;
 }
 
 /*

@@ -29,13 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 drawsurf_t r_drawsurf;
 
 int lightleft, sourcesstep, blocksize, sourcetstep;
-int lightdelta, lightdeltastep;
 int lightright, lightleftstep, lightrightstep, blockdivshift;
 
 int				lightlefta[3];
-int				sourcesstep, blocksize, sourcetstep;
 int				lightrighta[3];
-int				lightleftstepa[3], lightrightstepa[3], blockdivshift;
+int				lightleftstepa[3], lightrightstepa[3];
 
 unsigned blockdivmask;
 void *prowdestbase;
