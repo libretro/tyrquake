@@ -199,6 +199,44 @@ R_SetupFrame(void)
     r_dowarpold = r_dowarp;
     r_dowarp = r_waterwarp.value && (r_viewleaf->contents <= CONTENTS_WATER);
 
+    /* If we're entering water, recompute the per-frame warp render-rect
+     * cap from the active resolution and r_waterwarp_scale. The runtime
+     * cap drives the clamp logic below; the underlying buffer has a
+     * compile-time ceiling of WARP_WIDTH x WARP_HEIGHT (960x600).
+     *
+     * Behavior:
+     *  - Active resolution <= 640x400: warp at full active resolution
+     *    (no downscale; below this point software warp cost is small
+     *    enough that downsampling only loses fidelity).
+     *  - Above 640x400: warp at active * scale, clamped to a floor of
+     *    320x200 (matches the original behavior when scale is small)
+     *    and a ceiling of WARP_WIDTH x WARP_HEIGHT (the buffer cap).
+     *  - Scale itself is clamped to [0.125, 1.0]; 1.0 = full-resolution
+     *    warp, 0.5 = half (default), 0.125 = aggressive downscale.
+     */
+    if (r_dowarp && !r_dowarpold) {
+	float scale = r_waterwarp_scale.value;
+	int   mw, mh;
+
+	if (scale < 0.125f) scale = 0.125f;
+	if (scale > 1.0f)   scale = 1.0f;
+
+	if (vid.width <= 640 && vid.height <= 400) {
+	    mw = vid.width;
+	    mh = vid.height;
+	} else {
+	    mw = (int)(vid.width  * scale);
+	    mh = (int)(vid.height * scale);
+	    if (mw < 320) mw = 320;
+	    if (mh < 200) mh = 200;
+	}
+	if (mw > WARP_WIDTH)  mw = WARP_WIDTH;
+	if (mh > WARP_HEIGHT) mh = WARP_HEIGHT;
+
+	vid.maxwarpwidth  = mw;
+	vid.maxwarpheight = mh;
+    }
+
     if ((r_dowarp != r_dowarpold) || r_viewchanged) {
 	if (r_dowarp) {
 	    if ((vid.width <= vid.maxwarpwidth) &&

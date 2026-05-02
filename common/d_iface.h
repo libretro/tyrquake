@@ -29,8 +29,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 /* d_iface.h: interface header file for rasterization driver modules */
 
-#define WARP_WIDTH		320
-#define WARP_HEIGHT		200
+/*
+ * Maximum dimensions of the underwater-warp render buffer. Sized to
+ * MAXWIDTH/2 x MAXHEIGHT/2 (currently 960x600) so the runtime warp
+ * scale (controlled by r_waterwarp_scale) can render at up to half
+ * of MAXWIDTH x MAXHEIGHT before having to clamp. The actual render
+ * size is set in vid.maxwarpwidth/maxwarpheight at vid init and may
+ * be smaller depending on the active resolution and scale cvar.
+ */
+#define WARP_WIDTH		960
+#define WARP_HEIGHT		600
 
 /* FIXME - was NQ=480, QW=200 - does it matter? */
 #define MAX_LBM_HEIGHT	480

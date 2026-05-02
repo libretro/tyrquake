@@ -51,6 +51,13 @@ static int r_cnumsurfs;
 static qboolean r_surfsonstack;
 
 byte *r_warpbuffer;
+/* Warp buffer is sized to the compile-time maximum
+ * WARP_WIDTH x WARP_HEIGHT (currently 960x600 = ~562 KB);
+ * the stack-allocated previous form was viable only because
+ * those constants were 320x200 = 64 KB. Move it to BSS now
+ * that the upper bound is bigger than is reasonable on the
+ * stack. */
+static byte r_warpbuffer_storage[WARP_WIDTH * WARP_HEIGHT];
 
 static byte *r_stack_start;
 
@@ -103,6 +110,7 @@ cvar_t r_speeds = { "r_speeds", "0" };
 cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
+cvar_t r_waterwarp_scale = { "r_waterwarp_scale", "0.5" };
 cvar_t r_drawentities = { "r_drawentities", "1" };
 cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
 cvar_t r_ambient = { "r_ambient", "0" };
@@ -200,6 +208,7 @@ R_Init(void)
     Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
+    Cvar_RegisterVariable(&r_waterwarp_scale);
     Cvar_RegisterVariable(&r_drawentities);
     Cvar_RegisterVariable(&r_drawviewmodel);
     Cvar_RegisterVariable(&r_ambient);
@@ -1032,9 +1041,7 @@ r_refdef must be set before the first call
 static void
 R_RenderView_(void)
 {
-    byte warpbuffer[WARP_WIDTH * WARP_HEIGHT];
-
-    r_warpbuffer = warpbuffer;
+    r_warpbuffer = r_warpbuffer_storage;
 
     R_SetupFrame();
     R_PushDlights (cl.worldmodel->nodes);  /* qbism - moved here from view.c */
