@@ -113,6 +113,7 @@ cvar_t r_waterwarp = { "r_waterwarp", "1" };
 cvar_t r_waterwarp_scale = { "r_waterwarp_scale", "0.5" };
 cvar_t r_phongshading = { "r_phongshading", "0", true };
 cvar_t r_coloredlight = { "r_coloredlight", "0", true };
+cvar_t r_lightdither  = { "r_lightdither",  "0", true };
 cvar_t r_drawentities = { "r_drawentities", "1" };
 cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
 cvar_t r_ambient = { "r_ambient", "0" };
@@ -213,6 +214,7 @@ R_Init(void)
     Cvar_RegisterVariable(&r_waterwarp_scale);
     Cvar_RegisterVariable(&r_phongshading);
     Cvar_RegisterVariable(&r_coloredlight);
+    Cvar_RegisterVariable(&r_lightdither);
     Cvar_RegisterVariable(&r_drawentities);
     Cvar_RegisterVariable(&r_drawviewmodel);
     Cvar_RegisterVariable(&r_ambient);

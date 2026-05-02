@@ -82,6 +82,30 @@ extern float  r_shadelight;
 extern vec3_t lightcolor;
 extern int    host_fullbrights;
 
+/* 4x4 ordered (Bayer) dither matrix.  Values are pre-scaled additive
+ * offsets in light-units, where one colormap-row jump is 256.  Adding
+ * the table value to a Gouraud- or Phong-interpolated `light` before
+ * the `& 0xFF00` row-select truncation breaks the visible 64-row
+ * banding into a stippled threshold without changing the average
+ * brightness.
+ *
+ * Construction: standard 4x4 Bayer matrix B = {0,8,2,10; 12,4,14,6;
+ * 3,11,1,9; 15,7,13,5}, then offset = (B * 16) - 120, giving values
+ * in the range [-120, +120] symmetrically around zero.  Used only
+ * when r_lightdither.value is non-zero; the rasterizer pulls a
+ * pointer to either dither_bayer4 (enabled) or dither_zero4
+ * (disabled, all zero) once per call so the inner loop has a single
+ * unconditional table lookup. */
+static const int dither_bayer4[4][4] = {
+    { -120,    8,  -88,   40 },
+    {   72,  -56,  104,  -24 },
+    {  -72,   56, -104,   24 },
+    {  120,   -8,   88,  -40 }
+};
+static const int dither_zero4[4][4] = {
+    { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }
+};
+
 
 byte *d_pcolormap;
 
@@ -706,6 +730,7 @@ void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
    const float Lz = r_plightvec[2];
    const int   ambient = r_ambientlight;
    const float shade   = r_shadelight;
+   const int (*dtab)[4] = (r_lightdither.value != 0.0f) ? dither_bayer4 : dither_zero4;
 
    do
    {
@@ -722,6 +747,11 @@ void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
 
       if (lcount > 0)
       {
+         const int span_offset = (int)((byte*)pspanpackage->pdest - (byte*)d_viewbuffer);
+         const int span_y      = span_offset / screenwidth;
+         int       span_x      = span_offset - span_y * screenwidth;
+         const int *drow       = dtab[span_y & 3];
+
          lpdest = (byte*)pspanpackage->pdest;
          lptex  = pspanpackage->ptex;
          lpz    = pspanpackage->pz;
@@ -745,10 +775,12 @@ void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
                      if (light < 0) light = 0;
                   }
                }
+               light += drow[span_x & 3];
                *lpdest = ((byte *)acolormap)[*lptex + (light & 0xFF00)];
                *lpz = lzi >> 16;
             }
             lpdest++;
+            span_x++;
             lzi += r_zistepx;
             lpz++;
             lnx += r_nxstepx;
@@ -805,6 +837,7 @@ void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
    byte ah;
    unsigned trans[3];
    unsigned char *pix24;
+   const int (*dtab)[4] = (r_lightdither.value != 0.0f) ? dither_bayer4 : dither_zero4;
 
    do
    {
@@ -821,6 +854,11 @@ void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
 
       if (lcount > 0)
       {
+         const int span_offset = (int)((byte*)pspanpackage->pdest - (byte*)d_viewbuffer);
+         const int span_y      = span_offset / screenwidth;
+         int       span_x      = span_offset - span_y * screenwidth;
+         const int *drow       = dtab[span_y & 3];
+
          lpdest = (byte*)pspanpackage->pdest;
          lptex  = pspanpackage->ptex;
          lpz    = pspanpackage->pz;
@@ -848,6 +886,8 @@ void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
                         if (light < 0) light = 0;
                      }
                   }
+
+                  light += drow[span_x & 3];
 
                   /* Same shade-factor conversion as D_PolysetDrawSpansRGB:
                    * map colormap-row-space light into a 0..255 brightness
@@ -878,6 +918,7 @@ void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
                *lpz = lzi >> 16;
             }
             lpdest++;
+            span_x++;
             lzi += r_zistepx;
             lpz++;
             lnx += r_nxstepx;
@@ -916,6 +957,11 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
    int lzi;
    int16_t *lpz;
 
+   /* Pull the dither table once per draw call.  When r_lightdither
+    * is off, dtab points at the all-zero matrix and the per-pixel
+    * lookup folds out to a no-op addition. */
+   const int (*dtab)[4] = (r_lightdither.value != 0.0f) ? dither_bayer4 : dither_zero4;
+
    do
    {
       int lcount = d_aspancount - pspanpackage->count;
@@ -931,6 +977,16 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 
       if (lcount > 0)
       {
+         /* Compute the span's screen-space (x, y) once, then walk
+          * x along with lpdest in the inner loop.  The framebuffer
+          * is a flat byte array of size screenwidth * screenheight,
+          * so y = offset / screenwidth and the span's starting x
+          * is the remainder. */
+         const int span_offset = (int)((byte*)pspanpackage->pdest - (byte*)d_viewbuffer);
+         const int span_y      = span_offset / screenwidth;
+         int       span_x      = span_offset - span_y * screenwidth;
+         const int *drow       = dtab[span_y & 3];
+
          lpdest = (byte*)pspanpackage->pdest;
          lptex = pspanpackage->ptex;
          lpz = pspanpackage->pz;
@@ -942,10 +998,12 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
          do
          {
             if ((lzi >> 16) >= *lpz) {
-               *lpdest = ((byte *)acolormap)[*lptex + (llight & 0xFF00)];
+               int dlight = llight + drow[span_x & 3];
+               *lpdest = ((byte *)acolormap)[*lptex + (dlight & 0xFF00)];
                *lpz = lzi >> 16;
             }
             lpdest++;
+            span_x++;
             lzi += r_zistepx;
             lpz++;
             llight += r_lstepx;
@@ -977,8 +1035,7 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
    int llight;
    int lzi;
    short *lpz;
-   /* normalize */
-   /* VectorNormalize(lightcolor); */
+   const int (*dtab)[4] = (r_lightdither.value != 0.0f) ? dither_bayer4 : dither_zero4;
 
    do
    {
@@ -995,6 +1052,11 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 
       if (lcount > 0)
       {
+         const int span_offset = (int)((byte*)pspanpackage->pdest - (byte*)d_viewbuffer);
+         const int span_y      = span_offset / screenwidth;
+         int       span_x      = span_offset - span_y * screenwidth;
+         const int *drow       = dtab[span_y & 3];
+
          lpdest = (byte*)pspanpackage->pdest;
          lptex = pspanpackage->ptex;
          lpz = pspanpackage->pz;
@@ -1015,6 +1077,7 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 		if (*lptex < host_fullbrights)
 		{
 			int shade;
+			int dlight = llight + drow[span_x & 3];
 
 			/* Pull texel through the bright colormap row to get its base
 			 * palette index, then look up the 24-bit RGB. */
@@ -1026,7 +1089,7 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 			 * is brightest and 63 (== 63<<8 = 16128) is darkest.  Convert
 			 * to a 0..255 brightness factor where 255 = brightest.  Without
 			 * this the model gets a flat tint regardless of normal direction. */
-			shade = 255 - ((llight & 0xFF00) >> 8);
+			shade = 255 - ((dlight & 0xFF00) >> 8);
 			if (shade < 0) shade = 0;
 
 			/* Modulate texel by light color and Lambertian shade.
@@ -1053,6 +1116,7 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
                *lpz = lzi >> 16;
             }
             lpdest++;
+            span_x++;
             lzi += r_zistepx;
             lpz++;
             llight += r_lstepx;
