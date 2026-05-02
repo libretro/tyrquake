@@ -554,9 +554,6 @@ S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 	return;
     }
 
-    ss = &channels[total_channels];
-    total_channels++;
-
     sc = S_LoadSound(sfx);
     if (!sc)
 	return;
@@ -565,6 +562,9 @@ S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 	Con_Printf("Sound %s not looped\n", sfx->name);
 	return;
     }
+
+    ss = &channels[total_channels];
+    total_channels++;
 
     ss->sfx = sfx;
     VectorCopy(origin, ss->origin);
