@@ -795,7 +795,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
 
    if (sv.protocol == PROTOCOL_VERSION_FITZ) {
       if ((bits & SU_WEAPON) &&
-            (SV_ModelIndex(pr_strings + ent->v.weaponmodel) & 0xff00))
+            (SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) & 0xff00))
          bits |= SU_FITZ_WEAPON2;
       if ((int)ent->v.armorvalue & 0xff00)
          bits |= SU_FITZ_ARMOR2;
@@ -870,7 +870,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
 
    /* FITZ protocol stuff */
    if (bits & SU_FITZ_WEAPON2)
-      MSG_WriteByte(msg, SV_ModelIndex(pr_strings + ent->v.weaponmodel) >> 8);
+      MSG_WriteByte(msg, SV_ModelIndex(PR_GetString(ent->v.weaponmodel)) >> 8);
    if (bits & SU_FITZ_ARMOR2)
       MSG_WriteByte(msg, (int)ent->v.armorvalue >> 8);
    if (bits & SU_FITZ_AMMO2)
