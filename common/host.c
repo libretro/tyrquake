@@ -850,6 +850,11 @@ to run quit through here before the final handoff to the sys code.
 void
 Host_Shutdown(void)
 {
+    /* Recursion guard: Sys_Error during shutdown re-enters Sys_Quit.
+     * Reset to false at the end so a subsequent libretro deinit/init
+     * cycle (statically-linked targets) actually runs the shutdown
+     * chain again, rather than no-oping and leaking audio/video/
+     * network resources from the previous session. */
     static qboolean isdown = false;
 
     if (isdown)
@@ -869,4 +874,9 @@ Host_Shutdown(void)
 
     if (cls.state != ca_dedicated)
 	VID_Shutdown();
+
+    Cmd_Shutdown();
+    Cvar_Shutdown();
+
+    isdown = false;
 }

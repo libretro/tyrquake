@@ -243,6 +243,7 @@ static float framerate      = 60.0f;
 static float frametime_usec = 1000.0f / 60.0f;
 
 static bool initial_resolution_set = false;
+static bool has_set_username       = false;
 static int invert_y_axis = 1;
 
 unsigned char *heap;
@@ -443,6 +444,16 @@ void retro_deinit(void)
    rumble_damage_strength = 0;
    rumble_touch_strength  = 0;
    rumble_touch_counter   = -1;
+
+   /* Reset the file-static "set once" flags so a subsequent retro_init
+    * on a statically-linked target re-reads frontend options instead
+    * of carrying values over from the previous session. */
+   initial_resolution_set = false;
+   has_set_username       = false;
+   audio_buffer_ptr       = 0;
+   width                  = 320;
+   height                 = 200;
+   shutdown_core          = false;
 }
 
 unsigned retro_api_version(void)
@@ -890,7 +901,6 @@ static bool did_flip;
 
 void retro_run(void)
 {
-   static bool has_set_username = false;
    bool updated = false;
 
    did_flip = false;

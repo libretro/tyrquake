@@ -114,6 +114,7 @@ void Cmd_ExecuteString(const char *text);
 
 void Cmd_Init(void);
 
+void Cmd_Shutdown(void);
 void Cmd_AddCommand(const char *cmd_name, xcommand_t function);
 void Cmd_SetCompletion(const char *cmd_name, cmd_arg_f completion);
 const char *Cmd_ArgComplete(const char *name, const char *buf);

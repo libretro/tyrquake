@@ -486,6 +486,36 @@ Cmd_Init(void)
 
 /*
 ============
+Cmd_Shutdown
+
+Reset cmd_tree and cmdalias_tree to their empty state.
+
+Both trees hold nodes that live inside dynamically-allocated structs:
+cmd_function_t is Hunk_Alloc'd by Cmd_AddCommand; cmdalias_t is
+Z_Malloc'd by Cmd_Alias_f.  When the libretro frontend frees the
+backing heap between deinit and the next load_game, those structs
+disappear -- but the tree's internal pointers still reference them,
+and the very first STree_Find on the next session would dereference
+freed memory.
+
+Resetting the trees to STREE_ROOT throws away the stale links.  The
+freed memory is reclaimed by the heap free; we don't need to (and
+cannot) Hunk_Free or Z_Free the individual structs.
+============
+*/
+void
+Cmd_Shutdown(void)
+{
+    /* Reset both trees to the same empty layout that
+     * DECLARE_STREE_ROOT produces at file scope. */
+    memset(&cmd_tree,      0, sizeof(cmd_tree));
+    memset(&cmdalias_tree, 0, sizeof(cmdalias_tree));
+    cmd_tree.minlen      = (unsigned int)-1;
+    cmdalias_tree.minlen = (unsigned int)-1;
+}
+
+/*
+============
 Cmd_Argc
 ============
 */

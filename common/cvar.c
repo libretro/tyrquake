@@ -303,8 +303,15 @@ void Cvar_RegisterVariable(cvar_t *variable)
    variable->stree.string = variable->name;
    STree_Insert(&cvar_tree, &variable->stree);
 
+   /* Capture the compile-time default string the first time we see this
+    * cvar.  Cvar_Shutdown will reset variable->string back to this, so
+    * a subsequent Host_Init / re-registration sees a valid pointer
+    * here instead of a dangle into a freed zone. */
+   if (!variable->default_string)
+       variable->default_string = variable->string;
+
    /* copy the value off, because future sets will Z_Free it */
-   strncpy(value, variable->string, 511);
+   strncpy(value, variable->string ? variable->string : variable->default_string, 511);
    value[511] = '\0';
    variable->string = (const char*)Z_Malloc(1);
 
@@ -335,6 +342,45 @@ void Cvar_SetCallback (cvar_t *var, cvar_callback func)
 	if (func)
 		var->flags |= CVAR_CALLBACK;
 	else	var->flags &= ~CVAR_CALLBACK;
+}
+
+/*
+============
+Cvar_Shutdown
+
+Detach all cvars from the cvar_tree and reset their string fields back
+to the compile-time default captured at first registration.  Call this
+before tearing down the zone heap (e.g. from Host_Shutdown), otherwise
+each cvar->string left over from the previous session points into the
+freed zone -- and any subsequent Cvar_Set in the next session would
+Z_Free that dangling pointer and corrupt the new mainzone.
+
+The cvar_t structs themselves are file-scope statics in r_main.c,
+host.c, etc., so we never free them; we just clear the tree links and
+restore variable->string to a pointer that will still be valid after
+the zone is wiped.
+============
+*/
+void Cvar_Shutdown(void)
+{
+	struct stree_node *n;
+	cvar_t *var;
+
+	/* First pass: collect cvars and reset their string pointers.  We
+	 * can't free the strings -- they're in the zone that's about to be
+	 * (or has just been) wiped wholesale -- but we must overwrite the
+	 * dangling pointer so the next Cvar_Set doesn't Z_Free it. */
+	STree_ForEach_After_NullStr(&cvar_tree, n) {
+		var = cvar_entry(n);
+		var->string = var->default_string;
+	}
+
+	/* Reset the tree to the same empty layout that DECLARE_STREE_ROOT
+	 * produces at file scope.  All node links inside cvar_t structs
+	 * are stale; the next round of Cvar_RegisterVariable calls will
+	 * re-insert them fresh. */
+	memset(&cvar_tree, 0, sizeof(cvar_tree));
+	cvar_tree.minlen = (unsigned int)-1;
 }
 
 /*

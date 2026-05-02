@@ -99,6 +99,7 @@ typedef struct cvar_s {
     unsigned flags;
     struct stree_node stree; /* string tree for cvar names */
     cvar_arg_f completion;
+    const char *default_string; /* captured compile-time default; survives Cvar_Shutdown */
 } cvar_t;
 
 #define CVAR_DEVELOPER (1U << 0) /* can't set during normal play */
@@ -110,6 +111,7 @@ typedef struct cvar_s {
  * archive elements set.
  */
 void Cvar_RegisterVariable(cvar_t *variable);
+void Cvar_Shutdown(void);
 
 void Cvar_SetCallback(cvar_t *var, cvar_callback func);
 
