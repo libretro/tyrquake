@@ -842,6 +842,15 @@ NET_Shutdown(void)
 	    net_driver->initialized = false;
 	}
     }
+
+    /* Reset socket-list heads.  Both lists are made of qsocket_t structs
+     * Hunk_Alloc'd by NET_Init, which disappear when the libretro frontend
+     * frees the heap between deinit and the next load_game.  Without this
+     * reset, the old pointers persist into the next session and the first
+     * NET_NewQSocket / iteration over net_activeSockets after reinit would
+     * dereference freed memory. */
+    net_freeSockets   = NULL;
+    net_activeSockets = NULL;
 }
 
 

@@ -86,6 +86,38 @@ Mod_Init(const model_loader_t *loader)
 
 /*
 ===============
+Mod_Shutdown
+
+Clear the loaded-model registry.  Each entry in mod_known has fields
+that point into the hunk -- nodes, lightdata, surfaces, texture data,
+the alias-model cache_user_t, and so on -- all of which are
+invalidated when the libretro frontend frees the backing heap between
+deinit and the next load_game.
+
+Without this reset, on the next session Mod_FindName() would find
+matching entries by name (mod_numknown is non-zero), and Mod_LoadModel
+would either:
+  - return the cached model directly for brush/sprite types (line
+    "return mod" for non-alias not-needing-load), so the caller
+    dereferences dangling Hunk pointers, or
+  - call Cache_Check() for alias models, which reads mod->cache.data
+    -- still non-NULL from the previous session -- and dereferences
+    it as a cache_system_t.
+
+Both are use-after-free.  Zeroing mod_known is enough; the memory it
+points at is reclaimed wholesale by the heap free, so we don't need
+to (and can't) free individual fields.
+===============
+*/
+void
+Mod_Shutdown(void)
+{
+    memset(mod_known, 0, sizeof(mod_known));
+    mod_numknown = 0;
+}
+
+/*
+===============
 Mod_PointInLeaf
 ===============
 */

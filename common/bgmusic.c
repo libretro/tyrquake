@@ -185,6 +185,12 @@ void BGM_Shutdown (void)
 /* sever our connections to
  * midi_drv and snd_codec */
 	music_handlers = NULL;
+
+	/* Reset -noextmusic latch so a fresh argv parse on the next
+	 * BGM_Init takes effect.  Without this, removing -noextmusic
+	 * between sessions on a statically-linked target leaves
+	 * external music silently disabled. */
+	no_extmusic = false;
 }
 
 static void BGM_Play_noext (const char *filename, unsigned int allowed_types)

@@ -875,6 +875,7 @@ Host_Shutdown(void)
     if (cls.state != ca_dedicated)
 	VID_Shutdown();
 
+    Mod_Shutdown();
     Cmd_Shutdown();
     Cvar_Shutdown();
 
