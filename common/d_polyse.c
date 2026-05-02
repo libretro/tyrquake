@@ -38,6 +38,7 @@ typedef struct {
     int count;
     byte *ptex;
     int sfrac, tfrac, light, zi;
+    float nx, ny, nz;       /* Phong: vertex normal at the start of this row */
 } spanpackage_t;
 
 typedef struct {
@@ -53,6 +54,26 @@ typedef struct {
 } edgetable;
 
 int r_p0[6], r_p1[6], r_p2[6];
+
+/* Phong shading state. All of this is set up only when r_phongshading.value
+ * is non-zero. When the cvar is off, none of these are touched and the
+ * existing Gouraud (per-vertex) light interpolant via r_p0[4]/r_p1[4]/r_p2[4]
+ * carries the rasterizer as before. */
+static float r_n0[3], r_n1[3], r_n2[3];                      /* per-triangle vertex normals */
+static float r_nxstepx, r_nxstepy;                           /* nx gradient (per pixel x, per row y) */
+static float r_nystepx, r_nystepy;                           /* ny gradient */
+static float r_nzstepx, r_nzstepy;                           /* nz gradient */
+static float d_nx, d_nxbasestep, d_nxextrastep;              /* nx state along left edge */
+static float d_ny, d_nybasestep, d_nyextrastep;              /* ny state */
+static float d_nz, d_nzbasestep, d_nzextrastep;              /* nz state */
+
+/* Light setup data shared with r_alias.c. r_plightvec holds the
+ * model-space light direction set up in R_AliasSetupLighting; the
+ * Phong inner loop computes per-pixel dot(N, L) using it. */
+extern vec3_t r_plightvec;
+extern int    r_ambientlight;
+extern float  r_shadelight;
+
 
 byte *d_pcolormap;
 
@@ -107,6 +128,7 @@ static int skinwidth;
 static byte *skinstart;
 
 void D_PolysetDrawSpans8(spanpackage_t *pspanpackage);
+void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage);
 void D_PolysetCalcGradients(int skinwidth);
 void D_PolysetSetEdgeTable(void);
 void D_RasterizeAliasPolySmooth(void);
@@ -339,6 +361,12 @@ static void D_DrawNonSubdiv(void)
       r_p2[4] = index2->v[4];
       r_p2[5] = index2->v[5];
 
+      if (r_phongshading.value) {
+         r_n0[0] = index0->n[0]; r_n0[1] = index0->n[1]; r_n0[2] = index0->n[2];
+         r_n1[0] = index1->n[0]; r_n1[1] = index1->n[1]; r_n1[2] = index1->n[2];
+         r_n2[0] = index2->n[0]; r_n2[1] = index2->n[1]; r_n2[2] = index2->n[2];
+      }
+
       if (!ptri->facesfront) {
          if (index0->flags & ALIAS_ONSEAM)
             r_p0[2] += r_affinetridesc.seamfixupX16;
@@ -477,6 +505,12 @@ void D_PolysetScanLeftEdge(int height)
       d_pedgespanpackage->light = d_light;
       d_pedgespanpackage->zi    = d_zi;
 
+      if (r_phongshading.value) {
+         d_pedgespanpackage->nx = d_nx;
+         d_pedgespanpackage->ny = d_ny;
+         d_pedgespanpackage->nz = d_nz;
+      }
+
       d_pedgespanpackage++;
 
       errorterm += erroradjustup;
@@ -496,6 +530,11 @@ void D_PolysetScanLeftEdge(int height)
          }
          d_light += d_lightextrastep;
          d_zi += d_ziextrastep;
+         if (r_phongshading.value) {
+            d_nx += d_nxextrastep;
+            d_ny += d_nyextrastep;
+            d_nz += d_nzextrastep;
+         }
          errorterm -= erroradjustdown;
       } else {
          d_pdest += d_pdestbasestep;
@@ -512,6 +551,11 @@ void D_PolysetScanLeftEdge(int height)
          }
          d_light += d_lightbasestep;
          d_zi += d_zibasestep;
+         if (r_phongshading.value) {
+            d_nx += d_nxbasestep;
+            d_ny += d_nybasestep;
+            d_nz += d_nzbasestep;
+         }
       }
    } while (--height);
 }
@@ -597,10 +641,124 @@ void D_PolysetCalcGradients(int swidth)
    r_zistepx = (int)      (t1 * p01_minus_p21 - t0 * p11_minus_p21);
    r_zistepy = (int)      (t1 * p00_minus_p20 - t0 * p10_minus_p20);
 
+   if (r_phongshading.value) {
+      /* normal gradients (Phong shading): 3 axes x 2 directions each.
+       * These are float because normals are unit-length floats and we
+       * want the per-pixel interpolated normal to be representable. */
+      float ft0, ft1;
+      ft0 = r_n0[0] - r_n2[0];
+      ft1 = r_n1[0] - r_n2[0];
+      r_nxstepx = ft1 * p01_minus_p21 - ft0 * p11_minus_p21;
+      r_nxstepy = ft1 * p00_minus_p20 - ft0 * p10_minus_p20;
+
+      ft0 = r_n0[1] - r_n2[1];
+      ft1 = r_n1[1] - r_n2[1];
+      r_nystepx = ft1 * p01_minus_p21 - ft0 * p11_minus_p21;
+      r_nystepy = ft1 * p00_minus_p20 - ft0 * p10_minus_p20;
+
+      ft0 = r_n0[2] - r_n2[2];
+      ft1 = r_n1[2] - r_n2[2];
+      r_nzstepx = ft1 * p01_minus_p21 - ft0 * p11_minus_p21;
+      r_nzstepy = ft1 * p00_minus_p20 - ft0 * p10_minus_p20;
+   }
+
    a_sstepxfrac = r_sstepx & 0xFFFF;
    a_tstepxfrac = r_tstepx & 0xFFFF;
 
    a_ststepxwhole = swidth * (r_tstepx >> 16) + (r_sstepx >> 16);
+}
+
+
+/*
+================
+D_PolysetDrawSpansPhong8
+
+Phong-shaded variant of D_PolysetDrawSpans8.  Per-pixel:
+  - interpolate the vertex normal (nx, ny, nz)
+  - renormalize via 1/sqrt(|N|^2)
+  - recompute dot(N, L) and turn it into a colormap row index using
+    the same pre-scaled r_ambientlight / r_shadelight as the Gouraud
+    per-vertex setup.
+
+Cost vs Gouraud: ~6x rasterizer ops per alias-model pixel.  Acceptable
+on x86-64 / ARM64; punishing on 32-bit ARM.  Default off behind cvar.
+================
+*/
+void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
+{
+   byte *lpdest;
+   byte *lptex;
+   int lsfrac, ltfrac;
+   int lzi;
+   int16_t *lpz;
+   float lnx, lny, lnz;
+   const float Lx = r_plightvec[0];
+   const float Ly = r_plightvec[1];
+   const float Lz = r_plightvec[2];
+   const int   ambient = r_ambientlight;
+   const float shade   = r_shadelight;
+
+   do
+   {
+      int lcount = d_aspancount - pspanpackage->count;
+
+      errorterm += erroradjustup;
+      if (errorterm >= 0)
+      {
+         d_aspancount += d_countextrastep;
+         errorterm -= erroradjustdown;
+      }
+      else
+         d_aspancount += ubasestep;
+
+      if (lcount > 0)
+      {
+         lpdest = (byte*)pspanpackage->pdest;
+         lptex  = pspanpackage->ptex;
+         lpz    = pspanpackage->pz;
+         lsfrac = pspanpackage->sfrac;
+         ltfrac = pspanpackage->tfrac;
+         lzi    = pspanpackage->zi;
+         lnx    = pspanpackage->nx;
+         lny    = pspanpackage->ny;
+         lnz    = pspanpackage->nz;
+
+         do
+         {
+            if ((lzi >> 16) >= *lpz) {
+               float nlen2 = lnx*lnx + lny*lny + lnz*lnz;
+               int   light = ambient;
+               if (nlen2 > 0.0f) {
+                  float inv = 1.0f / sqrtf(nlen2);
+                  float dot = (lnx*Lx + lny*Ly + lnz*Lz) * inv;
+                  if (dot < 0.0f) {
+                     light += (int)(shade * dot);
+                     if (light < 0) light = 0;
+                  }
+               }
+               *lpdest = ((byte *)acolormap)[*lptex + (light & 0xFF00)];
+               *lpz = lzi >> 16;
+            }
+            lpdest++;
+            lzi += r_zistepx;
+            lpz++;
+            lnx += r_nxstepx;
+            lny += r_nystepx;
+            lnz += r_nzstepx;
+            lptex += a_ststepxwhole;
+            lsfrac += a_sstepxfrac;
+            lptex += lsfrac >> 16;
+            lsfrac &= 0xFFFF;
+            ltfrac += a_tstepxfrac;
+            if (ltfrac & 0x10000) {
+               lptex += r_affinetridesc.skinwidth;
+               ltfrac &= 0xFFFF;
+            }
+         } while (--lcount);
+      }
+
+      pspanpackage++;
+   } while (pspanpackage->count != -999999);
 }
 
 
@@ -879,6 +1037,27 @@ void D_RasterizeAliasPolySmooth(void)
    d_lightextrastep = d_lightbasestep + working_lstepx;
    d_ziextrastep = d_zibasestep + r_zistepx;
 
+   if (r_phongshading.value) {
+      /* Seed the normal interpolant at the start of the left edge.
+       * plefttop is one of r_p0/p1/p2 depending on edgetable; the
+       * companion normal is whichever of r_n0/n1/n2 matches the same
+       * vertex.  Pick by pointer identity. No integer-rounding bias
+       * (unlike the integer light's working_lstepx). */
+      const float *seed_n = (plefttop == r_p0) ? r_n0
+                          : (plefttop == r_p1) ? r_n1 : r_n2;
+      d_nx = seed_n[0];
+      d_ny = seed_n[1];
+      d_nz = seed_n[2];
+
+      d_nxbasestep = r_nxstepy + r_nxstepx * ubasestep;
+      d_nybasestep = r_nystepy + r_nystepx * ubasestep;
+      d_nzbasestep = r_nzstepy + r_nzstepx * ubasestep;
+
+      d_nxextrastep = d_nxbasestep + r_nxstepx;
+      d_nyextrastep = d_nybasestep + r_nystepx;
+      d_nzextrastep = d_nzbasestep + r_nzstepx;
+   }
+
    D_PolysetScanLeftEdge(initialleftheight);
 
    /**/
@@ -935,6 +1114,24 @@ void D_RasterizeAliasPolySmooth(void)
       d_lightextrastep = d_lightbasestep + working_lstepx;
       d_ziextrastep = d_zibasestep + r_zistepx;
 
+      if (r_phongshading.value) {
+         /* Reseed the normal at the apex of the bottom-edge segment.
+          * Same pointer-identity trick as the top edge. */
+         const float *seed_n = (plefttop == r_p0) ? r_n0
+                             : (plefttop == r_p1) ? r_n1 : r_n2;
+         d_nx = seed_n[0];
+         d_ny = seed_n[1];
+         d_nz = seed_n[2];
+
+         d_nxbasestep = r_nxstepy + r_nxstepx * ubasestep;
+         d_nybasestep = r_nystepy + r_nystepx * ubasestep;
+         d_nzbasestep = r_nzstepy + r_nzstepx * ubasestep;
+
+         d_nxextrastep = d_nxbasestep + r_nxstepx;
+         d_nyextrastep = d_nybasestep + r_nystepx;
+         d_nzextrastep = d_nzbasestep + r_nzstepx;
+      }
+
       D_PolysetScanLeftEdge(height);
    }
    /* scan out the top (and possibly only) part of the right edge, updating the */
@@ -948,7 +1145,9 @@ void D_RasterizeAliasPolySmooth(void)
    originalcount = a_spans[initialrightheight].count;
    a_spans[initialrightheight].count = -999999;	/* mark end of the spanpackages */
 
-   if (coloredlights)
+   if (r_phongshading.value)
+      D_PolysetDrawSpansPhong8(a_spans);
+   else if (coloredlights)
       D_PolysetDrawSpansRGB(a_spans);
    else
       D_PolysetDrawSpans8(a_spans);
@@ -976,7 +1175,9 @@ void D_RasterizeAliasPolySmooth(void)
       a_spans[initialrightheight + height].count = -999999;
       /* mark end of the spanpackages */
 
-      if (coloredlights)
+      if (r_phongshading.value)
+         D_PolysetDrawSpansPhong8(pstart);
+      else if (coloredlights)
          D_PolysetDrawSpansRGB(pstart);
       else
          D_PolysetDrawSpans8(pstart);

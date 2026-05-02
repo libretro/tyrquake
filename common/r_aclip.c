@@ -24,6 +24,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_local.h"
 
 static finalvert_t fv[2][8];
+
+/* Linearly interpolate the vertex normal (Phong shading) when the cvar
+ * is enabled. Called from each clip-plane intersection function below
+ * so the new clipped vertex carries a meaningful normal into the
+ * rasterizer; without this, interpolated normals would be stale data
+ * left in the static fv[2][8] arrays from previous use. */
+#define INTERP_NORMAL(out, from, to, scale)                          \
+   do {                                                              \
+      if (r_phongshading.value) {                                    \
+         (out)->n[0] = (from)->n[0] + ((to)->n[0] - (from)->n[0]) * (scale); \
+         (out)->n[1] = (from)->n[1] + ((to)->n[1] - (from)->n[1]) * (scale); \
+         (out)->n[2] = (from)->n[2] + ((to)->n[2] - (from)->n[2]) * (scale); \
+      }                                                              \
+   } while (0)
+
 static auxvert_t av[8];
 
 /*
@@ -53,6 +68,7 @@ R_Alias_clip_z(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
       out->v[2] = pfv0->v[2] + (pfv1->v[2] - pfv0->v[2]) * scale;
       out->v[3] = pfv0->v[3] + (pfv1->v[3] - pfv0->v[3]) * scale;
       out->v[4] = pfv0->v[4] + (pfv1->v[4] - pfv0->v[4]) * scale;
+      INTERP_NORMAL(out, pfv0, pfv1, scale);
    } else {
       scale = (ALIAS_Z_CLIP_PLANE - pav1->fv[2]) /
          (pav0->fv[2] - pav1->fv[2]);
@@ -64,6 +80,7 @@ R_Alias_clip_z(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
       out->v[2] = pfv1->v[2] + (pfv0->v[2] - pfv1->v[2]) * scale;
       out->v[3] = pfv1->v[3] + (pfv0->v[3] - pfv1->v[3]) * scale;
       out->v[4] = pfv1->v[4] + (pfv0->v[4] - pfv1->v[4]) * scale;
+      INTERP_NORMAL(out, pfv1, pfv0, scale);
    }
 
    R_AliasProjectFinalVert(out, &avout);
@@ -88,11 +105,13 @@ void R_Alias_clip_left(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
          (pfv1->v[0] - pfv0->v[0]);
       for (i = 0; i < 6; i++)
          out->v[i] = pfv0->v[i] + (pfv1->v[i] - pfv0->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv0, pfv1, scale);
    } else {
       scale = (float)(r_refdef.aliasvrect.x - pfv1->v[0]) /
          (pfv0->v[0] - pfv1->v[0]);
       for (i = 0; i < 6; i++)
          out->v[i] = pfv1->v[i] + (pfv0->v[i] - pfv1->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv1, pfv0, scale);
    }
 }
 
@@ -107,11 +126,13 @@ void R_Alias_clip_right(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
          (pfv1->v[0] - pfv0->v[0]);
       for (i = 0; i < 6; i++)
          out->v[i] = pfv0->v[i] + (pfv1->v[i] - pfv0->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv0, pfv1, scale);
    } else {
       scale = (float)(r_refdef.aliasvrectright - pfv1->v[0]) /
          (pfv0->v[0] - pfv1->v[0]);
       for (i = 0; i < 6; i++)
          out->v[i] = pfv1->v[i] + (pfv0->v[i] - pfv1->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv1, pfv0, scale);
    }
 }
 
@@ -127,11 +148,13 @@ R_Alias_clip_top(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
          (pfv1->v[1] - pfv0->v[1]);
       for (i = 0; i < 6; i++)
          out->v[i] = pfv0->v[i] + (pfv1->v[i] - pfv0->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv0, pfv1, scale);
    } else {
       scale = (float)(r_refdef.aliasvrect.y - pfv1->v[1]) /
          (pfv0->v[1] - pfv1->v[1]);
       for (i = 0; i < 6; i++)
          out->v[i] = pfv1->v[i] + (pfv0->v[i] - pfv1->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv1, pfv0, scale);
    }
 }
 
@@ -147,12 +170,14 @@ void R_Alias_clip_bottom(finalvert_t *pfv0, finalvert_t *pfv1, finalvert_t *out)
 
       for (i = 0; i < 6; i++)
          out->v[i] = pfv0->v[i] + (pfv1->v[i] - pfv0->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv0, pfv1, scale);
    } else {
       scale = (float)(r_refdef.aliasvrectbottom - pfv1->v[1]) /
          (pfv0->v[1] - pfv1->v[1]);
 
       for (i = 0; i < 6; i++)
          out->v[i] = pfv1->v[i] + (pfv0->v[i] - pfv1->v[i]) * scale + 0.5;
+      INTERP_NORMAL(out, pfv1, pfv0, scale);
    }
 }
 
