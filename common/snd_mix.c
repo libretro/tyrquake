@@ -200,9 +200,29 @@ void S_PaintChannels (int endtime)
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
 {
 	int i;
-	int leftvol       = (ch->leftvol  * snd_vol) >> 8;
-	int rightvol      = (ch->rightvol * snd_vol) >> 8;
-	signed short *sfx = (signed short *)sc->data + ch->pos;
+	int leftvol;
+	int rightvol;
+	signed short *sfx;
+
+	/* SND_Spatialize can produce per-channel volumes up to
+	 * roughly 2 * master_vol — its (1 - dist) * rscale factor
+	 * tops out near 2.0 for a sound right beside the listener
+	 * with master_vol=255 — i.e. ~510. The retired
+	 * SND_PaintChannelFrom8 path capped these at 255 explicitly
+	 * (snd_scaletable was sized [32][256], so anything above
+	 * 255 indexed past the end). The 16-bit path never had
+	 * that cap, so once round-12 unified all painting through
+	 * here, close full-volume sounds got multiplied by ~2x the
+	 * intended scale and saturated the per-sample CLAMP in
+	 * S_PaintChannels, audibly clipping. Apply the same cap
+	 * here. (Matches QuakeSpasm patch #23,
+	 * https://sourceforge.net/p/quakespasm/patches/23/.) */
+	if (ch->leftvol  > 255) ch->leftvol  = 255;
+	if (ch->rightvol > 255) ch->rightvol = 255;
+
+	leftvol  = (ch->leftvol  * snd_vol) >> 8;
+	rightvol = (ch->rightvol * snd_vol) >> 8;
+	sfx      = (signed short *)sc->data + ch->pos;
 
 	for (i = 0; i < count; i++)
 	{
