@@ -58,9 +58,18 @@ static const model_loader_t *mod_loader;
 
 static void PVSCache_f(void);
 
-/* leilei HACK */
+/* coloredlights tracks the current map's lightdata format (1 if .lit
+ * file was loaded with RGB lightmap data, 0 if the BSP's grayscale
+ * lightdata is in use).  It is the runtime mirror of the user's
+ * r_coloredlight cvar, but only resyncs at map load time -- the
+ * lightdata stride is baked into the loaded map and cannot change
+ * mid-level without re-reading the file.  Toggling r_coloredlight
+ * mid-game persists the preference; the new value takes effect on
+ * the next Mod_LoadLighting. */
 
-int coloredlights = 0; /* to debug the colored lights as we have no menu option yet. */ 
+extern cvar_t r_coloredlight;
+
+int coloredlights = 0;
 
 
 /*
@@ -642,12 +651,18 @@ Mod_LoadLighting(lump_t *l)
 	char	litname[1024];
 	byte 	*lightmapfile;
 
+	/* Sync coloredlights to the user's cvar choice at map-load time.
+	 * The lightdata format (grayscale vs RGB) is determined here for
+	 * the lifetime of this map, so all hot-path consumers can keep
+	 * reading the int directly without a per-pixel cvar lookup. */
+	coloredlights = (r_coloredlight.value != 0.0f) ? 1 : 0;
+
 	if (!l->filelen) {
 		loadmodel->lightdata = NULL;
 		return;
 	}
 
-	if (coloredlights)	/* if colored lights are enabled, look for a lit file to load */
+	if (coloredlights)	/* look for a .lit file to load */
 	{
 		strcpy(litname, loadmodel->name);
 		COM_StripExtension(litname);

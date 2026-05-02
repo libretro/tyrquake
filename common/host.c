@@ -745,7 +745,6 @@ Host_Init
 ====================
 */
 
-extern int coloredlights;
 extern int host_fullbrights;
 
 bool
@@ -800,8 +799,13 @@ Host_Init(quakeparms_t *parms)
 	    return Sys_Error("Couldn't load gfx/colormap.lmp");
 
 
-   if (coloredlights)
-      host_fullbrights = 256-host_colormap[16384]; /* leilei - variable our fullbright counts if available */
+   /* Always derive host_fullbrights from the colormap.  This is the
+    * fullbright-pixel cutoff used by both the grayscale rasterizer
+    * (via colormap row indexing) and the RGB rasterizers (via the
+    * `if (*lptex < host_fullbrights)` check).  Setting it
+    * unconditionally lets r_coloredlight be toggled at runtime
+    * without leaving the rasterizers with a bogus value of 0. */
+   host_fullbrights = 256 - host_colormap[16384];
 
 	VID_Init(host_basepal);
 

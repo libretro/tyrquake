@@ -143,17 +143,6 @@ struct retro_core_option_definition option_defs_us[] = {
 #endif
    },
    {
-      "tyrquake_colored_lighting",
-      "Colored lighting (restart)",
-      "Enables colored lightning when the loaded content supports it. Requires a restart.",
-      {
-         { "disabled",              "Disabled"},
-         { "enabled",               "Enabled"},
-         { NULL, NULL },
-      },
-      "disabled"
-   },
-   {
       "tyrquake_rumble",
       "Rumble",
       "Enables joypad rumble.",

@@ -1108,7 +1108,7 @@ M_OptionsInput_Key(int k)
 /* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 9
+#define	OPTIONSVIDEO_ITEMS 10
 
 static int optionsvideo_cursor;
 
@@ -1169,6 +1169,10 @@ M_OptionsVideo_AdjustSliders(int dir)
           cvar = Cvar_FindVar("r_phongshading");
           Cvar_SetValue("r_phongshading", cvar->value ? 0.0f : 1.0f);
           break;
+       case 9:
+          cvar = Cvar_FindVar("r_coloredlight");
+          Cvar_SetValue("r_coloredlight", cvar->value ? 0.0f : 1.0f);
+          break;
     }
 }
 
@@ -1219,6 +1223,10 @@ M_OptionsVideo_Draw(void)
     cvar = Cvar_FindVar("r_phongshading");
     M_Print(16, 96, "        Phong Shading");
     M_DrawCheckbox(220, 96, cvar->value);
+
+    cvar = Cvar_FindVar("r_coloredlight");
+    M_Print(16, 104, "    Colored Lighting");
+    M_DrawCheckbox(220, 104, cvar->value);
 
 /* cursor */
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,

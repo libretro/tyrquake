@@ -707,8 +707,6 @@ static void keyboard_cb(bool down, unsigned keycode,
 const char *argv[MAX_NUM_ARGVS];
 static const char *empty_string = "";
 
-extern int coloredlights;
-
 static const float supported_framerates[] = {
    10.0f,
    15.0f,
@@ -805,19 +803,6 @@ static void update_variables(bool startup)
          audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
    }
 
-   var.key = "tyrquake_colored_lighting";
-   var.value = NULL;
-
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && startup)
-   {
-      if (!strcmp(var.value, "enabled"))
-         coloredlights = 1;
-      else
-         coloredlights = 0;
-   }
-   else
-      coloredlights = 0;
-   
    var.key = "tyrquake_resolution";
    var.value = NULL;
 

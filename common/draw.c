@@ -55,7 +55,6 @@ const qpic_t *draw_disc;
 extern byte *host_basepal;
 static const qpic_t *draw_backtile;
 
-extern int coloredlights;
 
 /* ============================================================================= */
 /* Support Routines */
@@ -194,11 +193,13 @@ void Draw_Init(void)
     r_rectdesc.ptexbytes = draw_backtile->data;
     r_rectdesc.rowbytes = draw_backtile->width;
 
-    if (coloredlights)
-    {
-       VID_SetPalette2 (host_basepal);
-       Draw_Generate18BPPTable();
-    }
+    /* Always build the 18bpp palette LUT and 64x64x64 palmap2.
+     * These are needed by D_PolysetDrawSpansRGB (and the Phong-RGB
+     * variant) whenever r_coloredlight is enabled at runtime, and
+     * having them built unconditionally lets the user toggle the
+     * cvar without a restart.  Cost is one-time at startup. */
+    VID_SetPalette2(host_basepal);
+    Draw_Generate18BPPTable();
 }
 
 /*
