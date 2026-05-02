@@ -72,7 +72,7 @@ struct in_addr {
 
 /* socket for fielding new connections */
 static int net_acceptsocket = -1;
-static int net_controlsocket;
+static int net_controlsocket = -1;
 static int net_broadcastsocket = 0;
 static netadr_t broadcastaddr;
 
@@ -214,6 +214,17 @@ UDP_Shutdown(void)
 {
     UDP_Listen(false);
     UDP_CloseSocket(net_controlsocket);
+
+    /* Reset the file-static fd values so a subsequent UDP_Init
+     * after a deinit/reinit cycle (statically-linked target)
+     * starts from a known-clean state.  Without this, the stale
+     * fd values may be re-read by UDP_Listen(true) before
+     * UDP_Init re-opens them, with various ill effects depending
+     * on what file the host process has reassigned that fd to. */
+    net_controlsocket   = -1;
+    net_acceptsocket    = -1;
+    net_broadcastsocket = 0;
+    tcpipAvailable      = false;
 }
 
 

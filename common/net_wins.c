@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 /* socket for fielding new connections */
 static int net_acceptsocket = -1;
-static int net_controlsocket;
+static int net_controlsocket = -1;
 static int net_broadcastsocket = 0;
 static netadr_t broadcastaddr;
 
@@ -197,6 +197,12 @@ WINS_Shutdown(void)
     WINS_CloseSocket(net_controlsocket);
     if (--winsock_initialized == 0)
 	WSACleanup();
+
+    /* Reset file-static fd values; same rationale as UDP_Shutdown. */
+    net_controlsocket   = -1;
+    net_acceptsocket    = -1;
+    net_broadcastsocket = 0;
+    tcpipAvailable      = false;
 }
 
 

@@ -1072,6 +1072,17 @@ void COM_InitArgv(int argc, const char **argv)
    com_argv = largv;
 
 #ifdef NQ_HACK
+   /* Reset the mission-pack latches before re-checking argv, so
+    * a subsequent retro_load_game on a statically-linked target
+    * doesn't carry rogue/hipnotic mode over from the previous
+    * session.  These globals are read in dozens of places to
+    * alter game behavior; without this reset, switching from a
+    * mission pack back to base Quake leaves the game running in
+    * the previous pack's mode. */
+   rogue          = false;
+   hipnotic       = false;
+   standard_quake = true;
+
    if (COM_CheckParm("-rogue")) {
       rogue = true;
       standard_quake = false;
