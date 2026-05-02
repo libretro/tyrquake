@@ -74,6 +74,14 @@ extern vec3_t r_plightvec;
 extern int    r_ambientlight;
 extern float  r_shadelight;
 
+/* Colored-lighting state, consumed by the RGB-output rasterizers
+ * (D_PolysetDrawSpansRGB and D_PolysetDrawSpansPhongRGB).
+ * lightcolor is set per-frame per-model by R_LightPoint;
+ * host_fullbrights is the count of self-illuminated palette entries
+ * (set in host.c at startup). */
+extern vec3_t lightcolor;
+extern int    host_fullbrights;
+
 
 byte *d_pcolormap;
 
@@ -129,6 +137,7 @@ static byte *skinstart;
 
 void D_PolysetDrawSpans8(spanpackage_t *pspanpackage);
 void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage);
+void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage);
 void D_PolysetCalcGradients(int skinwidth);
 void D_PolysetSetEdgeTable(void);
 void D_RasterizeAliasPolySmooth(void);
@@ -764,6 +773,135 @@ void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
 
 /*
 ================
+D_PolysetDrawSpansPhongRGB
+
+Combined Phong shading + colored lighting.  Active when both
+r_phongshading.value and coloredlights are true.
+
+Same per-pixel Phong dot product as D_PolysetDrawSpansPhong8 (so
+silhouettes get smooth lighting instead of Gouraud-banded), then
+the resulting shade factor is applied to the texel-RGB times
+lightcolor[] modulation from D_PolysetDrawSpansRGB (so the model
+also gets the local BSP lightmap tint).
+
+Cost: ~6x rasterizer arithmetic vs Gouraud (Phong path) plus the
+small extra work of integer RGB modulation.  Default off behind
+both cvars.
+================
+*/
+void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
+{
+   byte *lpdest;
+   byte *lptex;
+   int lsfrac, ltfrac;
+   int lzi;
+   int16_t *lpz;
+   float lnx, lny, lnz;
+   const float Lx = r_plightvec[0];
+   const float Ly = r_plightvec[1];
+   const float Lz = r_plightvec[2];
+   const int   ambient = r_ambientlight;
+   const float shadelt = r_shadelight;
+   byte ah;
+   unsigned trans[3];
+   unsigned char *pix24;
+
+   do
+   {
+      int lcount = d_aspancount - pspanpackage->count;
+
+      errorterm += erroradjustup;
+      if (errorterm >= 0)
+      {
+         d_aspancount += d_countextrastep;
+         errorterm -= erroradjustdown;
+      }
+      else
+         d_aspancount += ubasestep;
+
+      if (lcount > 0)
+      {
+         lpdest = (byte*)pspanpackage->pdest;
+         lptex  = pspanpackage->ptex;
+         lpz    = pspanpackage->pz;
+         lsfrac = pspanpackage->sfrac;
+         ltfrac = pspanpackage->tfrac;
+         lzi    = pspanpackage->zi;
+         lnx    = pspanpackage->nx;
+         lny    = pspanpackage->ny;
+         lnz    = pspanpackage->nz;
+
+         do
+         {
+            if ((lzi >> 16) >= *lpz) {
+               if (*lptex < host_fullbrights) {
+                  /* Per-pixel Phong: renormalize the interpolated normal
+                   * and recompute dot(N, L). */
+                  float nlen2 = lnx*lnx + lny*lny + lnz*lnz;
+                  int   light = ambient;
+                  int   shade;
+                  if (nlen2 > 0.0f) {
+                     float inv = 1.0f / sqrtf(nlen2);
+                     float dot = (lnx*Lx + lny*Ly + lnz*Lz) * inv;
+                     if (dot < 0.0f) {
+                        light += (int)(shadelt * dot);
+                        if (light < 0) light = 0;
+                     }
+                  }
+
+                  /* Same shade-factor conversion as D_PolysetDrawSpansRGB:
+                   * map colormap-row-space light into a 0..255 brightness
+                   * scalar where 255 = brightest. */
+                  shade = 255 - ((light & 0xFF00) >> 8);
+                  if (shade < 0) shade = 0;
+
+                  /* Texel through bright colormap row -> 24-bit RGB. */
+                  ah = ((byte *)acolormap)[*lptex];
+                  pix24 = (unsigned char *)&d_8to24table[ah];
+
+                  /* Modulate texel by light color and Phong shade.
+                   * Same scaling as the Gouraud RGB path: 255^3 -> >>18 -> 0..63. */
+                  trans[0] = (pix24[0] * (int)lightcolor[0] * shade) >> 18;
+                  trans[1] = (pix24[1] * (int)lightcolor[1] * shade) >> 18;
+                  trans[2] = (pix24[2] * (int)lightcolor[2] * shade) >> 18;
+
+                  if (trans[0] > 63) trans[0] = 63;
+                  if (trans[1] > 63) trans[1] = 63;
+                  if (trans[2] > 63) trans[2] = 63;
+
+                  *lpdest = palmap2[trans[0]][trans[1]][trans[2]];
+               }
+               else {
+                  /* Fullbright: skin pixel passes through unmodulated. */
+                  *lpdest = *lptex;
+               }
+               *lpz = lzi >> 16;
+            }
+            lpdest++;
+            lzi += r_zistepx;
+            lpz++;
+            lnx += r_nxstepx;
+            lny += r_nystepx;
+            lnz += r_nzstepx;
+            lptex += a_ststepxwhole;
+            lsfrac += a_sstepxfrac;
+            lptex += lsfrac >> 16;
+            lsfrac &= 0xFFFF;
+            ltfrac += a_tstepxfrac;
+            if (ltfrac & 0x10000) {
+               lptex += r_affinetridesc.skinwidth;
+               ltfrac &= 0xFFFF;
+            }
+         } while (--lcount);
+      }
+
+      pspanpackage++;
+   } while (pspanpackage->count != -999999);
+}
+
+
+/*
+================
 D_PolysetDrawSpans8
 ================
 */
@@ -828,9 +966,6 @@ void D_PolysetDrawSpans8(spanpackage_t *pspanpackage)
 }
 
 /* leilei - quickly hacked colored lighting on models */
-extern vec3_t lightcolor; /* for colored lighting */
-extern	int			host_fullbrights;   /* for preserving fullbrights in color operations */
-
 void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 {
    byte *lpdest;
@@ -1139,7 +1274,9 @@ void D_RasterizeAliasPolySmooth(void)
    originalcount = a_spans[initialrightheight].count;
    a_spans[initialrightheight].count = -999999;	/* mark end of the spanpackages */
 
-   if (r_phongshading.value)
+   if (r_phongshading.value && coloredlights)
+      D_PolysetDrawSpansPhongRGB(a_spans);
+   else if (r_phongshading.value)
       D_PolysetDrawSpansPhong8(a_spans);
    else if (coloredlights)
       D_PolysetDrawSpansRGB(a_spans);
@@ -1169,7 +1306,9 @@ void D_RasterizeAliasPolySmooth(void)
       a_spans[initialrightheight + height].count = -999999;
       /* mark end of the spanpackages */
 
-      if (r_phongshading.value)
+      if (r_phongshading.value && coloredlights)
+         D_PolysetDrawSpansPhongRGB(pstart);
+      else if (r_phongshading.value)
          D_PolysetDrawSpansPhong8(pstart);
       else if (coloredlights)
          D_PolysetDrawSpansRGB(pstart);
