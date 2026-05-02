@@ -32,6 +32,41 @@ fixed16_t r_turb_s, r_turb_t, r_turb_sstep, r_turb_tstep;
 int *r_turb_turb;
 int r_turb_spancount;
 
+/* Liquid blending state, set per-surface by the caller before
+ * Turbulent8() runs.  r_turb_alpha is the desired opacity 0..255
+ * (255 = fully opaque, 0 = fully invisible).  r_turb_blendmode
+ * selects the rendering style: 0 = off (always opaque,
+ * vanilla-equivalent), 1 = stipple (4x4 Bayer threshold vs
+ * alpha), reserved values (2+) for future colormap-blend modes
+ * which fall back to opaque until implemented.
+ * r_turb_screen_x/y track the screen position of r_turb_pdest so
+ * the stipple pattern indexes by screen-pixel rather than
+ * texture-pixel coordinates. */
+int r_turb_alpha     = 255;
+int r_turb_blendmode = 0;
+int r_turb_screen_x;
+int r_turb_screen_y;
+
+/* Z-test state for pass-2 (translucent liquid) rasterization.
+ * In single-pass mode this is unused -- the edge rasterizer's
+ * BSP ordering already handles occlusion.  But pass 2's edge
+ * list contains ONLY liquid surfaces, so it has no opaque
+ * occluders to clip behind walls/floors that block the view of
+ * the liquid.  Without an explicit z-test, lava in a closed
+ * room would smear across the player's foreground floor.
+ *
+ * r_turb_izi:     starting izi (1/z * 0x80000000) for the span,
+ *                 in the same fixed-point format the z-buffer
+ *                 stores after the >>16 reduction.
+ * r_turb_izistep: per-pixel step in u, same units.
+ * r_turb_ztest:   set to 1 by D_DrawSurfaces when in pass 2;
+ *                 D_DrawTurbulent8Span gates its z-comparison
+ *                 on this so the opaque single-pass path stays
+ *                 byte-identical to vanilla. */
+int r_turb_izi;
+int r_turb_izistep;
+int r_turb_ztest = 0;
+
 void D_DrawTurbulent8Span(void);
 
 /*
@@ -122,22 +157,123 @@ D_WarpScreen(void)
 /*
 =============
 D_DrawTurbulent8Span
+
+Inner-loop rasterizer for liquid (water/lava/slime/teleport)
+surfaces.  Sets each pixel to a sintable-warped sample of the
+surface texture.
+
+When r_turb_alpha < 255, applies stipple-pattern transparency
+keyed off a 4x4 ordered Bayer matrix indexed by screen position:
+each pixel is written only if its dither threshold is below the
+desired alpha, leaving the existing framebuffer pixel visible
+otherwise.  This is what users see as "translucent water" -- a
+checker/dither mix of liquid texels and whatever was drawn
+beneath the liquid surface (background world geometry).
+
+When r_turb_alpha >= 255 the loop falls through to a write on
+every pixel, identical to the original opaque path.
 =============
 */
 void
 D_DrawTurbulent8Span(void)
 {
-   do
-   {
-      int tturb;
-      int sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
-      sturb = (sturb >> 16) & (TURB_TEX_SIZE - 1);
-      tturb = r_turb_t + r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)];
-      tturb = (tturb >> 16) & (TURB_TEX_SIZE - 1);
-      *r_turb_pdest++ = *(r_turb_pbase + (tturb * TURB_TEX_SIZE) + sturb);
-      r_turb_s += r_turb_sstep;
-      r_turb_t += r_turb_tstep;
-   } while (--r_turb_spancount > 0);
+   /* 4x4 Bayer dither matrix scaled to 0..255.  A pixel at screen
+    * cell (cx, cy) is drawn iff bayer[cy & 3][cx & 3] < alpha,
+    * giving 16 evenly-spaced dither thresholds per 4x4 block. */
+   static const int bayer4[4][4] = {
+      {   0, 128,  32, 160 },
+      { 192,  64, 224,  96 },
+      {  48, 176,  16, 144 },
+      { 240, 112, 208,  80 }
+   };
+   const int alpha = r_turb_alpha;
+
+   if (alpha >= 255 || r_turb_blendmode != 1) {
+      if (!r_turb_ztest) {
+         /* Vanilla opaque fast path: byte-for-byte identical to
+          * the original tyrquake inner loop.  No z-test, no
+          * stipple, no per-pixel z-buffer walk -- just the texel
+          * write.  This is the path taken in single-pass mode
+          * (r_liquidblend = 0 or all liquid alpha = 1.0), which
+          * is the default and the common case. */
+         do
+         {
+            int tturb;
+            int sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
+            sturb = (sturb >> 16) & (TURB_TEX_SIZE - 1);
+            tturb = r_turb_t + r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)];
+            tturb = (tturb >> 16) & (TURB_TEX_SIZE - 1);
+            *r_turb_pdest++ = *(r_turb_pbase + (tturb * TURB_TEX_SIZE) + sturb);
+            r_turb_s += r_turb_sstep;
+            r_turb_t += r_turb_tstep;
+         } while (--r_turb_spancount > 0);
+      } else {
+         /* Pass-2 opaque-with-z-test path: liquid at alpha 1.0
+          * but still rendered in the second pass (because some
+          * OTHER liquid type has alpha < 1.0 -- the master gate
+          * R_LiquidsAreTransparent enables two-pass mode whenever
+          * ANY liquid is translucent).  The z-test here keeps
+          * fully-opaque liquid from smearing across foreground
+          * walls in pass 2 where the edge list lacks opaque
+          * occluders. */
+         short    *pzbuf   = d_pzbuffer + (d_zwidth * r_turb_screen_y) + r_turb_screen_x;
+         int       izi     = r_turb_izi;
+         const int izistep = r_turb_izistep;
+         do
+         {
+            int tturb;
+            int sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
+            sturb = (sturb >> 16) & (TURB_TEX_SIZE - 1);
+            tturb = r_turb_t + r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)];
+            tturb = (tturb >> 16) & (TURB_TEX_SIZE - 1);
+            if ((short)(izi >> 16) >= *pzbuf)
+               *r_turb_pdest = *(r_turb_pbase + (tturb * TURB_TEX_SIZE) + sturb);
+            r_turb_pdest++;
+            pzbuf++;
+            izi += izistep;
+            r_turb_s += r_turb_sstep;
+            r_turb_t += r_turb_tstep;
+         } while (--r_turb_spancount > 0);
+      }
+   } else {
+      /* Stipple path: read texel as before but write only when
+       * the dither threshold permits, advancing the screen-X
+       * cursor regardless.  Pass 2 also gates on z so liquid
+       * surfaces behind opaque walls/floors don't bleed through.
+       * The z compare uses (izi >> 16) >= *pzbuf because the
+       * z-buffer holds 1/z (larger = closer) and D_DrawZSpans
+       * wrote it with the same shift; we want to draw iff the
+       * liquid is at or in front of the existing surface.
+       *
+       * Stipple is only ever taken when blend mode is 1 AND
+       * alpha < 255 -- both imply r_liquidblend != 0 AND a
+       * liquid alpha < 1.0, so r_turb_ztest is guaranteed to be
+       * 1 (we're in pass 2).  Vanilla fall-through is via the
+       * fast path above when alpha >= 255. */
+      int        cx      = r_turb_screen_x;
+      const int  cy      = r_turb_screen_y & 3;
+      const int *drow    = bayer4[cy];
+      short     *pzbuf   = d_pzbuffer + (d_zwidth * r_turb_screen_y) + cx;
+      int        izi     = r_turb_izi;
+      const int  izistep = r_turb_izistep;
+      do
+      {
+         int tturb;
+         int sturb = r_turb_s + r_turb_turb[(r_turb_t >> 16) & (TURB_CYCLE - 1)];
+         sturb = (sturb >> 16) & (TURB_TEX_SIZE - 1);
+         tturb = r_turb_t + r_turb_turb[(r_turb_s >> 16) & (TURB_CYCLE - 1)];
+         tturb = (tturb >> 16) & (TURB_TEX_SIZE - 1);
+         if (drow[cx & 3] < alpha && (short)(izi >> 16) >= *pzbuf)
+            *r_turb_pdest = *(r_turb_pbase + (tturb * TURB_TEX_SIZE) + sturb);
+         r_turb_pdest++;
+         pzbuf++;
+         izi += izistep;
+         cx++;
+         r_turb_s += r_turb_sstep;
+         r_turb_t += r_turb_tstep;
+      } while (--r_turb_spancount > 0);
+      r_turb_screen_x = cx;
+   }
 }
 
 /*
@@ -175,6 +311,8 @@ Turbulent8(espan_t *pspan)
 
       r_turb_pdest = (unsigned char *)((byte *)d_viewbuffer +
             (screenwidth * pspan->v) + pspan->u);
+      r_turb_screen_x = pspan->u;
+      r_turb_screen_y = pspan->v;
       r_turb_s     = (int)(sdivz * z) + sadjust;
 
       if (r_turb_s > bbextents)
@@ -190,6 +328,51 @@ Turbulent8(espan_t *pspan)
 
       do
       {
+         /* Publish the per-pixel z-interpolation state for the
+          * stipple/z-test path in D_DrawTurbulent8Span before we
+          * mutate zi for the next chunk.  r_turb_izi must match
+          * the fixed-point format D_DrawZSpans uses so we can
+          * compare against z-buffer values directly: izi after
+          * the >>16 in the inner loop has the same scale as the
+          * 16-bit z-buffer entries written by D_DrawZSpans.
+          *
+          * Only computed when r_turb_ztest is active (pass 2 of
+          * the translucent-liquid pipeline).  Skipping the two
+          * float-to-int conversions in single-pass mode keeps the
+          * vanilla path's per-chunk overhead unchanged.
+          *
+          * Clamp zi before casting.  The expression
+          * (int)(zi * 0x8000 * 0x10000) is (int)(zi * 2^31).  A
+          * float value >= 2^31 cast to signed int is undefined
+          * behaviour in C; on MSVC this can also raise the
+          * _invalid_parameter handler ("Invalid parameter passed
+          * to C runtime function") and on some FPU
+          * configurations causes a hard crash.  Underwater play
+          * regularly produces zi near or above 1.0 because the
+          * camera intersects or grazes liquid surfaces (z very
+          * small, zi = 1/z very large) -- this is the source of
+          * the underwater crashes.
+          *
+          * Clamp to slightly below 1.0 so zi * 2^31 stays just
+          * inside INT_MAX.  D_DrawZSpans has the same theoretical
+          * vulnerability but happens not to be hit in practice
+          * because vanilla gameplay rarely produces close-enough
+          * geometry.  The pass-2 stipple path is more exposed
+          * because liquid surfaces that the camera is right at
+          * are exactly the geometry being rendered. */
+         if (r_turb_ztest) {
+            float zi_safe = zi;
+            float zistepu_safe = d_zistepu;
+            if (zi_safe >  0.999f) zi_safe =  0.999f;
+            if (zi_safe < -0.999f) zi_safe = -0.999f;
+            /* d_zistepu is per-pixel 1/z step; on legitimate
+             * geometry this is tiny (~1e-6) but be defensive. */
+            if (zistepu_safe >  0.001f) zistepu_safe =  0.001f;
+            if (zistepu_safe < -0.001f) zistepu_safe = -0.001f;
+            r_turb_izi     = (int)(zi_safe * (float)0x8000 * (float)0x10000);
+            r_turb_izistep = (int)(zistepu_safe * (float)0x8000 * (float)0x10000);
+         }
+
          /* calculate s and t at the far end of the span */
          if (count >= 16)
             r_turb_spancount = 16;

@@ -181,6 +181,15 @@ void D_DrawSurfaces(void)
       }
       else if (s->flags & SURF_DRAWBACKGROUND)
       {
+         /* In pass 2 (translucent liquid pass), the "background"
+          * surface owns every screen pixel that isn't covered by a
+          * liquid surface -- but those pixels already hold pass 1's
+          * world rendering, which we want to keep visible behind
+          * the stippled liquid.  Drawing the background here would
+          * paint solid r_clearcolor over the whole opaque world. */
+         if (r_renderpass == 2)
+            continue;
+
          /* Set up a gradient for the background surface that places it
           * effectively at infinity distance from the viewpoint */
          d_zistepu = 0;
@@ -192,12 +201,92 @@ void D_DrawSurfaces(void)
       }
       else if (s->flags & SURF_DRAWTURB)
       {
+         float alpha;
+         qboolean liquids_translucent;
          pface = (msurface_t*)s->data;
          miplevel = 0;
          cacheblock = (pixel_t *)
             ((byte *)pface->texinfo->texture +
              pface->texinfo->texture->offsets[0]);
          cachewidth = 64;
+
+         /* Pick the per-liquid-type alpha (water/lava/slime/tele)
+          * from the surface texture name, then translate the user's
+          * 0..1 cvar value into the 0..255 threshold the rasterizer
+          * expects.  Also publish the active blend mode for the
+          * rasterizer to consult.
+          *
+          * Two snap-to-safe clamps tied to the 4x4 Bayer matrix
+          * actually used in D_DrawTurbulent8Span (max threshold
+          * 240, min 0):
+          *   - alpha >= 0.95 -> opaque path.  The Bayer matrix's
+          *     max threshold is 240, so any cvar value above
+          *     240/255 = 0.941 produces zero stipple holes -- the
+          *     stipple branch ends up writing every pixel,
+          *     visually identical to opaque rendering AND with
+          *     extra per-pixel z-test cost.  Snapping anything
+          *     >= 0.95 (the next 0.05 step above 0.941) to the
+          *     vanilla fast path eliminates a dead zone where the
+          *     slider appears to do nothing.
+          *   - alpha <= 0.05 -> opaque too.  At zero alpha the
+          *     liquid surface is invisible, exposing the
+          *     non-rendering of stipple-hole framebuffer pixels.
+          *     Below the smallest useful stipple threshold we
+          *     just render normal opaque liquid; the user can
+          *     set r_liquidblend = 0 to disable across the board.
+          *
+          * Always reset r_turb_alpha/r_turb_blendmode/r_turb_ztest
+          * to vanilla defaults BEFORE deciding on stipple values.
+          * These are file-scope state in d_scan.c and would
+          * otherwise carry stale stipple values across frames -- in
+          * particular if the user toggles Liquid Blend off after
+          * having had it on, or if any liquid alpha cvar was set
+          * from a config at startup but blend is currently off.
+          * Without this reset, D_DrawTurbulent8Span would keep
+          * taking the stipple path with no z-write, causing
+          * ghosting/corruption of liquid surfaces in Off mode. */
+         r_turb_alpha     = 255;
+         r_turb_blendmode = 0;
+         r_turb_ztest     = 0;
+
+         liquids_translucent = R_LiquidsAreTransparent();
+         if (liquids_translucent) {
+            alpha = R_LiquidAlphaForTexture(pface->texinfo->texture);
+            if (alpha < 0.0f) alpha = 0.0f;
+            if (alpha > 1.0f) alpha = 1.0f;
+            if (alpha >= 0.95f || alpha <= 0.05f) {
+               /* Out of the useful stipple range -- this particular
+                * liquid type is at full opacity even though OTHER
+                * liquid types are translucent (so two-pass mode is
+                * active globally, gated by R_LiquidsAreTransparent).
+                *
+                * In pass 2 this surface still needs the per-pixel
+                * z-test, otherwise it smears over walls/floors
+                * drawn in pass 1: pass 2's edge list contains
+                * liquid surfaces only, no opaque occluders, so
+                * without z-test there's nothing to stop a liquid
+                * pixel from winning every screen position the
+                * surface covers.  This is what causes "sticky
+                * teleporter through walls" ghosting -- a
+                * teleporter at r_telealpha=1.0 in a map where
+                * r_wateralpha<1.0 paints itself through walls.
+                *
+                * In pass 1 (or single-pass mode), take the
+                * vanilla non-ztest fast path. */
+               r_turb_alpha     = 255;
+               r_turb_blendmode = 0;
+               r_turb_ztest     = (r_renderpass == 2) ? 1 : 0;
+               liquids_translucent = false; /* take vanilla z-write below */
+            } else {
+               r_turb_alpha     = (int)(alpha * 255.0f + 0.5f);
+               r_turb_blendmode = (int)r_liquidblend.value;
+               /* Pass-2 z-test: the edge list contains only liquid
+                * surfaces in pass 2, so without per-pixel z-test
+                * liquid would smear over foreground walls/floors
+                * drawn into the z-buffer in pass 1. */
+               r_turb_ztest = 1;
+            }
+         }
 
          if (s->insubmodel)
          {
@@ -213,7 +302,22 @@ void D_DrawSurfaces(void)
 
          D_CalcGradients(pface);
          Turbulent8(s->spans);
-         D_DrawZSpans(s->spans);
+         /* Z-write semantics:
+          *   - Single-pass mode (pass 0): write z so alias models
+          *     behind opaque liquid are occluded normally.
+          *   - Pass 1 of two-pass: SURF_DRAWTURB is filtered out
+          *     before reaching here, so this case can't happen.
+          *   - Pass 2 of two-pass: NEVER write z.  Pass 1 already
+          *     wrote the opaque world's z-buffer; we want to
+          *     preserve those depths so alias models drawn between
+          *     passes (R_DrawEntitiesOnList runs after pass 1's
+          *     R_EdgeDrawing) z-test correctly against opaque
+          *     world.  Writing liquid z over wall z would corrupt
+          *     the buffer at pixels where liquid lost the z-test
+          *     (D_DrawZSpans writes every pixel in the span
+          *     regardless of compare result). */
+         if (!liquids_translucent && r_renderpass != 2)
+            D_DrawZSpans(s->spans);
 
          if (s->insubmodel)
          {

@@ -369,6 +369,10 @@ SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
     if (channel < 0 || channel > 15)
 	SV_Error("SV_StartSound: channel = %i", channel);
 
+    /* See common/sv_main.c SV_StartSound for rationale. */
+    if (!sample || !sample[0])
+	return;
+
 /* find precache number for sound */
     for (sound_num = 1; sound_num < MAX_SOUNDS
 	 && sv.sound_precache[sound_num]; sound_num++)

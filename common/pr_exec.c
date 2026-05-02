@@ -696,8 +696,20 @@ PR_GetString(int num)
 
     if (num >= 0 && num < pr_strings_size - 1)
 	s = pr_strings + num;
-    else if (num < 0 && num >= -num_prstr)
+    else if (num < 0 && num >= -num_prstr) {
 	s = pr_strtbl[-num - 1];
+	/* Defensive: if a registered out-of-block string slot was
+	 * NULLed (e.g. memory it pointed to was freed and the
+	 * caller never updated the table), return the empty
+	 * string rather than NULL.  Several call sites pass our
+	 * return value directly to strcmp() without their own
+	 * null check (e.g. SV_StartSound, OP_EQ_S/OP_NE_S in the
+	 * QuakeC interpreter), and crashing on such a slot would
+	 * be much worse than silently returning a string that
+	 * compares unequal to anything meaningful. */
+	if (!s)
+	    s = "";
+    }
     else
 #ifdef NQ_HACK
 	Host_Error("%s: invalid string offset %d (%d to %d valid)\n",

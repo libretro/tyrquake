@@ -324,6 +324,14 @@ static qboolean R_EmitCachedEdge(void)
 {
    edge_t *edge;
 
+   /* In pass 2 (translucent liquid pass) the edge cache from pass 1
+    * is invalid: pass 1 emitted edges into r_edges, then
+    * R_BeginEdgeFrame reset edge_p back to r_edges so pass 2 can
+    * refill the buffer.  Any cachededgeoffset stamped during pass 1
+    * now points at a stale slot that pass 2 would misread. */
+   if (r_renderpass == 2)
+      return false;
+
    /* If fully clipped, no action necessary */
    if (r_pedge->cachededgeoffset & FULLY_CLIPPED_CACHED)
       return (r_pedge->cachededgeoffset & FRAMECOUNT_MASK) == r_framecount;
@@ -363,6 +371,17 @@ void R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
    vec3_t p_normal;
    medge_t *pedges, tedge;
    clipplane_t *pclip;
+
+   /* Two-pass filter: pass 1 skips liquid surfaces, pass 2 skips
+    * non-liquid surfaces.  In single-pass mode (r_renderpass == 0,
+    * the common case with no liquid translucency) both branches
+    * fall through to draw everything as before. */
+   if (r_renderpass == 1 && (fa->flags & SURF_DRAWTURB)) {
+      r_renderpass_seen_liquid = 1;
+      return;
+   }
+   if (r_renderpass == 2 && !(fa->flags & SURF_DRAWTURB))
+      return;
 
    /* skip out if no more surfs */
    if ((surface_p) >= surf_max)
@@ -406,7 +425,12 @@ void R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
          r_leftclipped = r_rightclipped = false;
          R_ClipEdge(&r_pcurrentvertbase[r_pedge->v[0]],
                &r_pcurrentvertbase[r_pedge->v[1]], pclip);
-         r_pedge->cachededgeoffset = cacheoffset;
+         /* Only update the cache in pass 0 (single-pass) and pass 1
+          * (opaque pre-pass).  Pass 2's edges live in a different
+          * r_edges layout (post-R_BeginEdgeFrame reset), so caching
+          * them would corrupt the next frame's pass 1 cache. */
+         if (r_renderpass != 2)
+            r_pedge->cachededgeoffset = cacheoffset;
 
          if (r_leftclipped)
             makeleftedge = true;
@@ -427,7 +451,8 @@ void R_RenderFace(const entity_t *e, msurface_t *fa, int clipflags)
          r_leftclipped = r_rightclipped = false;
          R_ClipEdge(&r_pcurrentvertbase[r_pedge->v[1]],
                &r_pcurrentvertbase[r_pedge->v[0]], pclip);
-         r_pedge->cachededgeoffset = cacheoffset;
+         if (r_renderpass != 2)
+            r_pedge->cachededgeoffset = cacheoffset;
 
          if (r_leftclipped)
             makeleftedge = true;
@@ -502,6 +527,14 @@ void R_RenderBmodelFace(const entity_t *e, bedge_t *pedges, msurface_t *psurf)
     * the owner-cookie compare. */
    static medge_t tedge;
    clipplane_t *pclip;
+
+   /* See R_RenderFace for the pass filter rationale. */
+   if (r_renderpass == 1 && (psurf->flags & SURF_DRAWTURB)) {
+      r_renderpass_seen_liquid = 1;
+      return;
+   }
+   if (r_renderpass == 2 && !(psurf->flags & SURF_DRAWTURB))
+      return;
 
    /* skip out if no more surfs */
    if (surface_p >= surf_max)

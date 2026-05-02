@@ -81,6 +81,17 @@ void D_DrawZSpans(espan_t *pspans);
 void Turbulent8(espan_t *pspan);
 void D_SpriteDrawSpans(sspan_t * pspan);
 
+/* Liquid (water/lava/slime/teleport) blend state.  The d_edge
+ * dispatcher sets these before each call to Turbulent8 based on
+ * the surface texture's liquid type and the user-controlled
+ * r_*alpha and r_liquidblend cvars.  See d_scan.c for the
+ * meaning of the values. */
+extern int r_turb_alpha;
+extern int r_turb_blendmode;
+extern int r_turb_izi;
+extern int r_turb_izistep;
+extern int r_turb_ztest;
+
 void D_DrawSkyScans8(espan_t *pspan);
 void D_DrawSkyScans16(espan_t *pspan);
 

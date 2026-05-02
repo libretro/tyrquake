@@ -373,6 +373,98 @@ Mod_FatPVS(const model_t *model, const vec3_t point)
 }
 
 /*
+=============
+Mod_FatPVSThroughLiquid
+
+Like Mod_FatPVS, but additionally extends the visible set across
+liquid surfaces so entities on the other side of translucent
+water/lava/slime/teleporter surfaces are sent to the client.
+
+Vanilla Quake's PVS treats liquid surfaces as opaque -- a leaf
+above water has no PVS overlap with the leaf below it.  When the
+client renders translucent liquids and the player is on one side,
+SV_WriteEntitiesToClient with plain Mod_FatPVS would silently drop
+every entity on the other side (doors, pickups, monsters).  No
+amount of client-side rendering can recover entities the server
+never sent.
+
+This variant probes vertically from the source point, sampling
+leaves at ±64, ±128, ±192, and ±256 units along Z.  Every probe
+that lands in a non-solid leaf with a different content type than
+the source has its containing leaf's PVS folded in via the
+standard Mod_AddToFatPVS path.  Probes into solid or same-content
+leaves are skipped.
+
+Coverage: vertical-only is sufficient because Quake water surfaces
+are nearly always horizontal (the engine's water/swimming/contents
+logic assumes this).  ±256 covers the typical vertical extent of a
+water/air pair in stock and community maps.
+
+Cost: the per-probe early-out via Mod_PointInLeaf (log-n BSP
+descent, no PVS work) makes the typical case very cheap -- only
+probes that actually cross a content boundary trigger the
+recursive Mod_AddToFatPVS.  When the player is far from any
+liquid, every probe lands in the same content type and the work
+collapses to one extra Mod_PointInLeaf per probe (~8 of them,
+each O(log n)).
+
+Use Mod_FatPVS when liquid translucency is off; Mod_FatPVSThroughLiquid
+adds latency to entity-update generation that isn't worth paying
+when the result would be byte-identical.
+=============
+*/
+const leafbits_t *
+Mod_FatPVSThroughLiquid(const model_t *model, const vec3_t point)
+{
+    static const float probe_offsets[] = {
+	 64.0f,  128.0f,  192.0f,  256.0f,
+	-64.0f, -128.0f, -192.0f, -256.0f,
+    };
+    const int num_probes = (int)(sizeof(probe_offsets) / sizeof(probe_offsets[0]));
+    int starting_contents;
+    int i;
+
+    /* Build the base FatPVS first. */
+    fatpvs->numleafs = model->numleafs;
+    memset(fatpvs->bits, 0, pvscache_bytes);
+    Mod_AddToFatPVS(model, point, model->nodes);
+
+    /* Identify the source point's medium so probes can detect
+     * boundary crossings.  Bail if the source lookup fails (should
+     * not happen on a loaded map, but being defensive keeps the
+     * function pure-additive). */
+    {
+	const mleaf_t *src_leaf = Mod_PointInLeaf(model, point);
+	if (!src_leaf)
+	    return fatpvs;
+	starting_contents = src_leaf->contents;
+    }
+
+    /* Probe vertically.  Only different-medium hits OR in their
+     * leaf's PVS; same-medium probes were already covered by the
+     * base FatPVS above. */
+    for (i = 0; i < num_probes; i++) {
+	vec3_t probe;
+	const mleaf_t *probe_leaf;
+
+	VectorCopy(point, probe);
+	probe[2] += probe_offsets[i];
+
+	probe_leaf = Mod_PointInLeaf(model, probe);
+	if (!probe_leaf)
+	    continue;
+	if (probe_leaf->contents == CONTENTS_SOLID)
+	    continue;
+	if (probe_leaf->contents == starting_contents)
+	    continue;
+
+	Mod_AddToFatPVS(model, probe, model->nodes);
+    }
+
+    return fatpvs;
+}
+
+/*
 ===================
 Mod_ClearAll
 ===================

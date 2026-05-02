@@ -270,6 +270,20 @@ void SV_StartSound(edict_t *entity, int channel, const char *sample, int volume,
       Sys_Error("%s: channel = %i", __func__, channel);
 
    /*
+    * Defensive: bail out if sample is NULL or empty.  PF_sound's
+    * G_STRING(OFS_PARM2) -> PR_GetString chain can in principle
+    * return NULL via the pr_strtbl[] indirection if a registered
+    * string pointer was invalidated (e.g. an entity holding a
+    * runtime-assigned sound name was freed during physics).
+    * Without this guard, the strcmp() below dereferences NULL
+    * and crashes.  Reproduces in vanilla tyrquake too; observed
+    * during underwater play where bubble-entity churn is high
+    * and biosuit-extended underwater time amplifies exposure.
+    */
+   if (!sample || !sample[0])
+      return;
+
+   /*
     * Drop silently if there is no room
     * FIXME - does not take into account MTU...
     */
@@ -534,7 +548,26 @@ static void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 
    /* find the client's PVS */
    VectorAdd(clent->v.origin, clent->v.view_ofs, org);
-   pvs = Mod_FatPVS(sv.worldmodel, org);
+
+   /* When liquid translucency is enabled client-side, the server
+    * must extend its FatPVS across liquid surfaces.  Vanilla PVS
+    * treats water/lava/slime as opaque, so without this extension
+    * an underwater player never has the air leaf above included
+    * in their PVS, every entity in that air leaf fails the
+    * leafbit test below, and nothing on the other side of the
+    * liquid surface is ever transmitted to the client.  No
+    * amount of client-side rendering can recover entities the
+    * server never sent.
+    *
+    * Cvar lookup happens once per client per server tick.  The
+    * cvar lives client-side but in single-player it's resolvable
+    * via Cvar_VariableValue from server code -- when running as a
+    * dedicated server with no local client this returns 0 and we
+    * fall through to the vanilla path. */
+   if (Cvar_VariableValue("r_liquidblend") != 0.0f)
+      pvs = Mod_FatPVSThroughLiquid(sv.worldmodel, org);
+   else
+      pvs = Mod_FatPVS(sv.worldmodel, org);
 
    /* send over all entities (excpet the client) that touch the pvs */
    ent = NEXT_EDICT(sv.edicts);

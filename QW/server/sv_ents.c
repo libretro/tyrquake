@@ -391,7 +391,15 @@ SV_WriteEntitiesToClient(client_t *client, sizebuf_t *msg)
     /* find the client's PVS */
     clent = client->edict;
     VectorAdd(clent->v.origin, clent->v.view_ofs, org);
-    pvs = Mod_FatPVS(sv.worldmodel, org);
+
+    /* See SV_WriteEntitiesToClient in common/sv_main.c for the
+     * full rationale.  Same liquid-translucency PVS extension
+     * applies to QuakeWorld -- without it, doors and pickups on
+     * the far side of translucent liquids are never sent. */
+    if (Cvar_VariableValue("r_liquidblend") != 0.0f)
+	pvs = Mod_FatPVSThroughLiquid(sv.worldmodel, org);
+    else
+	pvs = Mod_FatPVS(sv.worldmodel, org);
 
     /* send over the players in the PVS */
     SV_WritePlayersToClient(client, clent, pvs, msg);

@@ -97,6 +97,33 @@ int r_framecount = 1;		/* so frame counts initialized to 0 don't match */
 int r_visframecount;
 int r_drawnpolycount;
 
+/* Two-pass rendering for translucent liquids.
+ *   r_renderpass = 0: single pass, vanilla rendering.  Used when
+ *                     liquid blend is off or all alphas = 1.0.
+ *   r_renderpass = 1: pass 1 of two-pass mode, opaque world only
+ *                     (R_RenderFace skips SURF_DRAWTURB).
+ *   r_renderpass = 2: pass 2 of two-pass mode, liquids only
+ *                     (R_RenderFace skips non-SURF_DRAWTURB).
+ * Set by R_EdgeDrawing, consulted by R_RenderFace, R_RenderBmodelFace,
+ * R_EmitCachedEdge, D_DrawSurfaces, and D_DrawTurbulent8Span. */
+int r_renderpass;
+
+/* Set by R_RenderFace/R_RenderBmodelFace whenever a SURF_DRAWTURB
+ * face is filtered out in pass 1.  R_EdgeDrawing checks this after
+ * pass 1 and skips pass 2 entirely if no liquid was ever in view --
+ * which is the common case for most rooms in most maps.  Saves the
+ * full BSP walk + edge emit + scan that pass 2 would otherwise
+ * perform. */
+int r_renderpass_seen_liquid;
+
+/* Set by R_MarkSurfaces during its PVS walk: true iff liquids are
+ * configured translucent AND the camera's PVS contains a liquid
+ * surface.  When false, R_MarkSurfaces skips the no-cull marking
+ * (and the second efrag pass), and R_EdgeDrawing skips two-pass
+ * rendering -- vanilla performance is restored even with liquid
+ * blend on, as long as no liquid is in view. */
+int r_nocull_active;
+
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
 texture_t *r_notexture_mip;
@@ -111,6 +138,11 @@ cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
 cvar_t r_waterwarp_scale = { "r_waterwarp_scale", "0.5" };
+cvar_t r_wateralpha   = { "r_wateralpha",   "1", true };
+cvar_t r_lavaalpha    = { "r_lavaalpha",    "1", true };
+cvar_t r_slimealpha   = { "r_slimealpha",   "1", true };
+cvar_t r_telealpha    = { "r_telealpha",    "1", true };
+cvar_t r_liquidblend  = { "r_liquidblend",  "0", true };
 cvar_t r_phongshading = { "r_phongshading", "0", true };
 cvar_t r_coloredlight = { "r_coloredlight", "0", true };
 cvar_t r_lightdither  = { "r_lightdither",  "0", true };
@@ -214,6 +246,11 @@ R_Init(void)
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
     Cvar_RegisterVariable(&r_waterwarp_scale);
+    Cvar_RegisterVariable(&r_wateralpha);
+    Cvar_RegisterVariable(&r_lavaalpha);
+    Cvar_RegisterVariable(&r_slimealpha);
+    Cvar_RegisterVariable(&r_telealpha);
+    Cvar_RegisterVariable(&r_liquidblend);
     Cvar_RegisterVariable(&r_phongshading);
     Cvar_RegisterVariable(&r_coloredlight);
     Cvar_RegisterVariable(&r_lightdither);
@@ -264,6 +301,37 @@ R_Init(void)
     D_Init();
 }
 
+/*
+===============
+R_LiquidAlphaForTexture
+
+Returns the alpha value (0..1) for a liquid surface, picked based
+on the texture name prefix.  Stock Quake liquid texture naming
+is "*water*" for water, "*lava*" for lava, "*slime*" for slime,
+"*tele*" for teleporter portals; everything else with a leading
+'*' is treated as water by convention.
+
+Returns 1.0 (fully opaque) for non-liquid textures or when the
+relevant alpha cvar is at its default of 1.0 -- both cases
+produce the original behaviour and let the caller skip any
+transparency-related code paths.
+===============
+*/
+float
+R_LiquidAlphaForTexture(const texture_t *tex)
+{
+    const char *name;
+
+    if (!tex || !tex->name[0] || tex->name[0] != '*')
+	return 1.0f;
+    name = tex->name + 1;     /* skip leading '*' */
+
+    if (!strncmp(name, "lava",  4))  return r_lavaalpha.value;
+    if (!strncmp(name, "slime", 5))  return r_slimealpha.value;
+    if (!strncmp(name, "tele",  4))  return r_telealpha.value;
+    return r_wateralpha.value;
+}
+
 extern void V_NewMap (void);
 
 /*
@@ -287,7 +355,38 @@ R_NewMap(void)
     r_viewleaf = NULL;
     R_ClearParticles();
 
-    r_cnumsurfs = qclamp((int)r_maxsurfs.value, MINSURFACES, MAXSURFACES);
+    /*
+     * Translucent-liquid no-cull rendering walks every non-solid leaf
+     * in the frustum, not just the camera's PVS, which puts a much
+     * larger surface and edge count into the buffers.  Bump the
+     * runtime caps so bmodels (doors, pickups, platforms) don't get
+     * silently dropped at the surface_p >= surf_max guard in
+     * R_RenderFace/R_RenderBmodelFace when the buffers fill up
+     * during pass 1.
+     *
+     * 8x because underwater views looking up into open air leaves
+     * can emit very large numbers of surfaces -- the air leaf
+     * geometry plus connected leaves through every door/window
+     * within the frustum.  4x wasn't enough on some maps.
+     *
+     * Cost of the bigger allocation: ~1.3 MB extra hunk on map load
+     * when liquid blend is on, zero when off.  Per-frame cost is
+     * unchanged (the buffers aren't memset; they're populated from
+     * surface 0 and we only iterate up to surface_p).
+     *
+     * The bump only takes effect on the next map load after the user
+     * toggles the cvar -- mid-map toggling uses whatever was
+     * allocated when the map loaded.  Acceptable since toggling is
+     * a settings change, not a hot-path action.
+     */
+    {
+	int requested_surfs = (int)r_maxsurfs.value;
+	if ((int)r_liquidblend.value != 0) {
+	    if (requested_surfs < NUMSTACKSURFACES * 8)
+		requested_surfs = NUMSTACKSURFACES * 8;
+	}
+	r_cnumsurfs = qclamp(requested_surfs, MINSURFACES, MAXSURFACES);
+    }
     if (r_cnumsurfs > NUMSTACKSURFACES) {
 	surfaces = (surf_t*)Hunk_Alloc(r_cnumsurfs * sizeof(surf_t));
 	surface_p = surfaces;
@@ -303,7 +402,14 @@ R_NewMap(void)
     r_maxedgesseen = 0;
     r_maxsurfsseen = 0;
 
-    r_numallocatededges = qclamp((int)r_maxedges.value, MINEDGES, MAXEDGES);
+    {
+	int requested_edges = (int)r_maxedges.value;
+	if ((int)r_liquidblend.value != 0) {
+	    if (requested_edges < NUMSTACKEDGES * 8)
+		requested_edges = NUMSTACKEDGES * 8;
+	}
+	r_numallocatededges = qclamp(requested_edges, MINEDGES, MAXEDGES);
+    }
     if (r_numallocatededges <= NUMSTACKEDGES)
 	auxedges = NULL;
     else
@@ -491,6 +597,64 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
 
 /*
 ===============
+R_LiquidsAreTransparent
+
+Returns true iff at least one liquid type is currently rendered
+non-opaque -- i.e. r_liquidblend selects an actual blend mode AND
+at least one of the per-liquid alpha cvars is below 1.0.  Used to
+gate the PVS-through-liquid extension below: when nothing is
+transparent there's nothing to see through, so the extension's
+extra leaf-marking work isn't worth the cost.
+===============
+*/
+qboolean
+R_LiquidsAreTransparent(void)
+{
+    if ((int)r_liquidblend.value == 0)
+	return false;
+    if (r_wateralpha.value < 1.0f) return true;
+    if (r_lavaalpha.value  < 1.0f) return true;
+    if (r_slimealpha.value < 1.0f) return true;
+    if (r_telealpha.value  < 1.0f) return true;
+    return false;
+}
+
+/*
+===============
+R_MarkLeaf
+
+Mark a leaf and walk parent nodes setting visframe up to the
+first node that's already current.  Idempotent when called
+multiple times for the same leaf in the same frame.
+===============
+*/
+static void
+R_MarkLeaf(mleaf_t *leaf)
+{
+    msurface_t **mark;
+    mnode_t *node;
+    int i;
+
+    /* Mark all surfaces referenced from this leaf. */
+    mark = leaf->firstmarksurface;
+    for (i = 0; i < leaf->nummarksurfaces; i++) {
+	(*mark)->visframe = r_visframecount;
+	mark++;
+    }
+    /* Mark the leaf itself plus its parent chain. */
+    node = (mnode_t *)leaf;
+    do {
+	if (node->visframe == r_visframecount)
+	    break;
+	node->visframe = r_visframecount;
+	node = node->parent;
+    } while (node);
+}
+
+
+
+/*
+===============
 R_MarkSurfaces
 ===============
 */
@@ -516,28 +680,128 @@ R_MarkSurfaces(void)
     }
 
     pvs = Mod_LeafPVS(cl.worldmodel, r_viewleaf);
-    foreach_leafbit(pvs, leafnum, check) {
-	leaf = &cl.worldmodel->leafs[leafnum + 1];
-	if (leaf->efrags)
-	    R_StoreEfrags(&leaf->efrags);
-	if (!pvs_changed)
-	    continue;
+    {
+	qboolean pvs_has_liquid = false;
+	qboolean want_nocull = R_LiquidsAreTransparent();
 
-	/* Mark the surfaces */
-	mark = leaf->firstmarksurface;
-	for (i = 0; i < leaf->nummarksurfaces; i++) {
-	    (*mark)->visframe = r_visframecount;
-	    mark++;
+	foreach_leafbit(pvs, leafnum, check) {
+	    leaf = &cl.worldmodel->leafs[leafnum + 1];
+	    if (leaf->efrags)
+		R_StoreEfrags(&leaf->efrags);
+
+	    /* Detect liquid surfaces in the camera's PVS so we can
+	     * skip the expensive no-cull marking + two-pass rendering
+	     * when no liquid is visible from here.  Cheap inline scan
+	     * during the PVS walk we'd be doing anyway. */
+	    if (want_nocull && !pvs_has_liquid) {
+		mark = leaf->firstmarksurface;
+		for (i = 0; i < leaf->nummarksurfaces; i++) {
+		    if ((*mark)->flags & SURF_DRAWTURB) {
+			pvs_has_liquid = true;
+			break;
+		    }
+		    mark++;
+		}
+	    }
+
+	    if (!pvs_changed)
+		continue;
+
+	    /* Mark the surfaces */
+	    mark = leaf->firstmarksurface;
+	    for (i = 0; i < leaf->nummarksurfaces; i++) {
+		(*mark)->visframe = r_visframecount;
+		mark++;
+	    }
+
+	    /* Mark the leaf and all parent nodes */
+	    node = (mnode_t *)leaf;
+	    do {
+		if (node->visframe == r_visframecount)
+		    break;
+		node->visframe = r_visframecount;
+		node = node->parent;
+	    } while (node);
 	}
 
-	/* Mark the leaf and all parent nodes */
-	node = (mnode_t *)leaf;
-	do {
-	    if (node->visframe == r_visframecount)
-		break;
-	    node->visframe = r_visframecount;
-	    node = node->parent;
-	} while (node);
+	/* Cache the decision for R_EdgeDrawing -- the no-cull marks
+	 * (below) and pass 2 only run when liquid is in the PVS. */
+	r_nocull_active = (want_nocull && pvs_has_liquid);
+    }
+
+    /*
+     * Translucent-liquid no-cull pass.  When any liquid alpha < 1.0
+     * AND there's a liquid surface in the camera's PVS, we extend
+     * visibility to every non-solid leaf so geometry behind the
+     * translucent water/lava/slime is rendered.  PVS-based culling
+     * would normally treat liquids as opaque and stop visibility
+     * there; rather than trying to selectively patch the PVS (which
+     * causes severe BSP-edge-sort artefacts -- earlier iterations
+     * of this code spent many rounds trying), we mark every
+     * non-solid leaf visible and let frustum culling reject what's
+     * outside the view.
+     *
+     * Per-pixel z-test in D_DrawTurbulent8Span gates the liquid
+     * surface so it doesn't smear over foreground walls.
+     *
+     * No-op when liquid blend is off, OR when no liquid is in the
+     * camera's PVS -- in which case vanilla single-pass rendering
+     * runs normally.
+     */
+    if (r_nocull_active && pvs_changed) {
+	mleaf_t *leaf_base = cl.worldmodel->leafs + 1;
+	int numleafs = cl.worldmodel->numleafs;
+	for (i = 0; i < numleafs; i++) {
+	    leaf = leaf_base + i;
+	    if (leaf->contents == CONTENTS_SOLID)
+		continue;
+
+	    /* Mark the surfaces */
+	    mark = leaf->firstmarksurface;
+	    {
+		int j;
+		for (j = 0; j < leaf->nummarksurfaces; j++) {
+		    (*mark)->visframe = r_visframecount;
+		    mark++;
+		}
+	    }
+
+	    /* Mark the leaf and all parent nodes (walk stops as soon
+	     * as we hit a node already marked this frame, so this is
+	     * cheap on average). */
+	    node = (mnode_t *)leaf;
+	    do {
+		if (node->visframe == r_visframecount)
+		    break;
+		node->visframe = r_visframecount;
+		node = node->parent;
+	    } while (node);
+	}
+    }
+
+    /*
+     * R_StoreEfrags also runs for every non-PVS leaf when no-cull
+     * is active so static entities (monsters, ammo, health) in
+     * leaves outside the camera's PVS but visible through the
+     * translucent water enter cl_visedicts.  Without this, an air
+     * leaf above the camera (when underwater) would render its
+     * world surfaces but its statics would silently vanish.
+     *
+     * Gated on r_nocull_active so we skip the per-leaf scan when
+     * there's no liquid in view (vanilla performance preserved).
+     */
+    if (r_nocull_active) {
+	mleaf_t *leaf_base = cl.worldmodel->leafs + 1;
+	int numleafs = cl.worldmodel->numleafs;
+	for (i = 0; i < numleafs; i++) {
+	    leaf = leaf_base + i;
+	    if (leaf->contents == CONTENTS_SOLID)
+		continue;
+	    if (Mod_TestLeafBit(pvs, i))
+		continue; /* already R_StoreEfrags'd in main pass */
+	    if (leaf->efrags)
+		R_StoreEfrags(&leaf->efrags);
+	}
     }
 }
 
@@ -1038,6 +1302,34 @@ static void R_EdgeDrawing(void)
       surfaces--;
    }
 
+   /* Two-pass rendering when liquids are translucent:
+    *   pass 1: opaque world only (skip SURF_DRAWTURB).  Because
+    *           R_MarkSurfaces marked every non-solid leaf visible
+    *           when liquids translucent, the edge list contains the
+    *           full frustum-bounded set of opaque surfaces -- not
+    *           just those in the camera's PVS -- so geometry behind
+    *           translucent liquid is properly rendered.
+    *   pass 2: liquids only.  Edge rasterizer rebuilds the edge list
+    *           with only liquid surfaces and Turbulent8's stipple
+    *           path paints them with per-pixel z-test on top of the
+    *           pass 1 framebuffer; the dither holes leave the
+    *           underwater geometry visible.
+    *
+    * Single-pass mode (r_renderpass = 0, the common case with no
+    * liquid translucency) does not run pass 2 at all, R_RenderFace
+    * doesn't filter, and rendering matches stock tyrquake. */
+   /* Two-pass mode is gated by r_nocull_active, set by
+    * R_MarkSurfaces.  When no liquid is in the camera's PVS, we
+    * fall through to single-pass vanilla rendering even with
+    * liquid blend on -- saves the second BSP walk for the common
+    * case of being in a pure-land room. */
+   if (r_nocull_active) {
+      r_renderpass = 1;
+      r_renderpass_seen_liquid = 0;
+   } else {
+      r_renderpass = 0;
+   }
+
    R_BeginEdgeFrame();
 
    R_RenderWorld();
@@ -1049,6 +1341,20 @@ static void R_EdgeDrawing(void)
    R_DrawBEntitiesOnList();
 
    R_ScanEdges();
+
+   /* Pass 2 only runs if pass 1 saw a liquid surface.  Most rooms
+    * in most maps don't have liquid in view, so this skips the
+    * second BSP walk + edge emit + scan when there's nothing to
+    * stipple.  Big perf win on land-only sections of e1m1, e1m4,
+    * e2m2, etc. */
+   if (r_renderpass == 1 && r_renderpass_seen_liquid) {
+      r_renderpass = 2;
+      R_BeginEdgeFrame();
+      R_RenderWorld();
+      R_DrawBEntitiesOnList();
+      R_ScanEdges();
+   }
+   r_renderpass = 0;
 }
 
 

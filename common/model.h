@@ -463,6 +463,7 @@ typedef struct {
 mleaf_t *Mod_PointInLeaf(const model_t *model, const vec3_t point);
 const leafbits_t *Mod_LeafPVS(const model_t *model, const mleaf_t *leaf);
 const leafbits_t *Mod_FatPVS(const model_t *model, const vec3_t point);
+const leafbits_t *Mod_FatPVSThroughLiquid(const model_t *model, const vec3_t point);
 
 #ifdef _WIN32
 static INLINE int __ERRORLONGSIZE(void)

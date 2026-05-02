@@ -1108,7 +1108,7 @@ M_OptionsInput_Key(int k)
 /* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 12
+#define	OPTIONSVIDEO_ITEMS 16
 
 static int optionsvideo_cursor;
 
@@ -1189,6 +1189,60 @@ M_OptionsVideo_AdjustSliders(int dir)
           cvar = Cvar_FindVar("r_shadows");
           Cvar_SetValue("r_shadows", cvar->value ? 0.0f : 1.0f);
           break;
+       case 12: {
+          /* Cycle r_liquidblend through 0 = Off, 1 = Stipple.
+           * Future modes (colormap-blend etc) would extend the
+           * upper bound; for now wrap at 1. */
+          int v;
+          cvar = Cvar_FindVar("r_liquidblend");
+          v = (int)cvar->value + dir;
+          if (v < 0) v = 1;
+          if (v > 1) v = 0;
+          Cvar_SetValue("r_liquidblend", (float)v);
+          break;
+       }
+       case 13: {
+          /* Slide r_wateralpha in 0.05 increments.
+           * Range [0.10, 0.90]:
+           *   - Below 0.10 the dither is so sparse the liquid
+           *     surface effectively disappears.
+           *   - Above 0.90 the 4x4 Bayer matrix (max threshold
+           *     240) produces zero stipple holes -- the result is
+           *     visually identical to fully opaque rendering, so
+           *     the slider would appear to do nothing.  Worse, in
+           *     the two-pass pipeline the per-pixel z-test still
+           *     gates writes, producing inconsistencies between
+           *     "slider near max" and "fully opaque vanilla
+           *     path".  Capping at 0.90 keeps every step
+           *     meaningful.
+           * Fully opaque is reachable via Liquid Blend = Off, or
+           * by setting a per-liquid cvar to 1.0 from console. */
+          float v;
+          cvar = Cvar_FindVar("r_wateralpha");
+          v = cvar->value + dir * 0.05f;
+          if (v < 0.10f) v = 0.10f;
+          if (v > 0.90f) v = 0.90f;
+          Cvar_SetValue("r_wateralpha", v);
+          break;
+       }
+       case 14: {
+          float v;
+          cvar = Cvar_FindVar("r_lavaalpha");
+          v = cvar->value + dir * 0.05f;
+          if (v < 0.10f) v = 0.10f;
+          if (v > 0.90f) v = 0.90f;
+          Cvar_SetValue("r_lavaalpha", v);
+          break;
+       }
+       case 15: {
+          float v;
+          cvar = Cvar_FindVar("r_slimealpha");
+          v = cvar->value + dir * 0.05f;
+          if (v < 0.10f) v = 0.10f;
+          if (v > 0.90f) v = 0.90f;
+          Cvar_SetValue("r_slimealpha", v);
+          break;
+       }
     }
 }
 
@@ -1264,6 +1318,50 @@ M_OptionsVideo_Draw(void)
     cvar = Cvar_FindVar("r_shadows");
     M_Print(16, 120, "             Shadows");
     M_DrawCheckbox(220, 120, cvar->value);
+
+    /* Liquid blend mode is a cycling text widget (currently
+     * 0 = Off, 1 = Stipple).  Reserved values 2+ for future
+     * blend modes will be added without disrupting saved cvars. */
+    {
+	static const char *blend_state_names[2] = { "Off", "Stipple" };
+	int blend_v;
+	cvar = Cvar_FindVar("r_liquidblend");
+	blend_v = (int)cvar->value;
+	if (blend_v < 0) blend_v = 0;
+	if (blend_v > 1) blend_v = 1;
+	M_Print(16, 128, "         Liquid Blend");
+	M_Print(220, 128, blend_state_names[blend_v]);
+    }
+
+    /* Per-liquid alpha sliders.  The cvar's stipple-useful range
+     * is [0.10, 0.90]; map that to the slider's [0, 1] visual
+     * range so the indicator sweeps end-to-end as the user steps
+     * through legal values.
+     *
+     * The cvar default is 1.0 (fully opaque, vanilla rendering).
+     * Values >= 0.90 collapse onto "slider far right" visually
+     * since M_DrawSlider clamps; the user's first click left from
+     * the default snaps the cvar to 0.90 and the indicator
+     * immediately moves visibly. */
+    {
+	const float lo = 0.10f, hi = 0.90f;
+	float v;
+
+	cvar = Cvar_FindVar("r_wateralpha");
+	v = (cvar->value - lo) / (hi - lo);
+	M_Print(16, 136, "         Water Alpha");
+	M_DrawSlider(220, 136, v);
+
+	cvar = Cvar_FindVar("r_lavaalpha");
+	v = (cvar->value - lo) / (hi - lo);
+	M_Print(16, 144, "          Lava Alpha");
+	M_DrawSlider(220, 144, v);
+
+	cvar = Cvar_FindVar("r_slimealpha");
+	v = (cvar->value - lo) / (hi - lo);
+	M_Print(16, 152, "         Slime Alpha");
+	M_DrawSlider(220, 152, v);
+    }
 
 /* cursor */
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,

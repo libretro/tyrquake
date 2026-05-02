@@ -64,6 +64,17 @@ extern cvar_t r_graphheight;
 extern cvar_t r_clearcolor;
 extern cvar_t r_waterwarp;
 extern cvar_t r_waterwarp_scale;
+extern cvar_t r_wateralpha;
+extern cvar_t r_lavaalpha;
+extern cvar_t r_slimealpha;
+extern cvar_t r_telealpha;
+extern cvar_t r_liquidblend;
+
+float R_LiquidAlphaForTexture(const struct texture_s *tex);
+qboolean R_LiquidsAreTransparent(void);
+extern int r_renderpass;
+extern int r_renderpass_seen_liquid;
+extern int r_nocull_active;
 extern cvar_t r_phongshading;
 extern cvar_t r_coloredlight;
 extern cvar_t r_lightdither;
@@ -107,6 +118,7 @@ extern mplane_t screenedge[4];
 extern vec3_t r_origin;
 extern vec3_t r_entorigin;
 extern int r_visframecount;
+
 
 /* ============================================================================= */
 
