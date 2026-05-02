@@ -629,6 +629,14 @@ SV_HullPointContents(hull_t *hull, int num, vec3_t p)
 {
    float d;
 
+   /* Defensive: bail out gracefully if the hull is wholly bogus.
+    * Treat unrecognisable input as empty space so the physics
+    * tick can complete without crashing.  Observed during map
+    * transitions where a stale hull pointer survives into a
+    * physics call (sv.worldmodel reload, server frame race). */
+   if (!hull || !hull->clipnodes || !hull->planes)
+      return CONTENTS_EMPTY;
+
    while (num >= 0)
    {
       mclipnode_t *node;
@@ -663,7 +671,15 @@ SV_PointContents(vec3_t p)
 {
 #ifdef QUAKE2RJ
    int cont;
+#endif
 
+   /* Defensive: physics callers (SV_CheckWater etc.) can fire
+    * during a brief window between map unload and reload when
+    * sv.worldmodel is being torn down.  Treat that as empty
+    * space rather than dereferencing a stale or NULL pointer. */
+   if (!sv.worldmodel)
+      return CONTENTS_EMPTY;
+#ifdef QUAKE2RJ
    cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
    if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
       cont = CONTENTS_WATER;
