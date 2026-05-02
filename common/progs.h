@@ -135,6 +135,9 @@ extern func_t SpectatorDisconnect;
 
 void PR_RunError(const char *error, ...);
 
+char *PR_GlobalString(int ofs);
+char *PR_GlobalStringNoContents(int ofs);
+
 void ED_PrintNum(int ent);
 
 eval_t *GetEdictFieldValue(edict_t *ed, const char *field);

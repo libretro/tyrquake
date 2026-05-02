@@ -47,16 +47,14 @@ void IN_Commands(void);
 void IN_Move(usercmd_t *cmd);
 /* add additional movement on top of the keyboard move cmd */
 
-void IN_ModeChanged(void);
-/* called whenever screen dimensions change */
-
 void IN_ClearStates(void);
 /* restores all button and position states to defaults */
 
-void IN_Accumulate(void);
-/* save accumulated mouse movement (used in S_ExtraUpdate(), _WIN32 only) */
-
 /* FIXME - hack to allow SDL input to pass back key events... */
 void IN_ProcessEvents(void);
+
+/* libretro frontend rumble feedback */
+void retro_set_rumble_damage(int damage);
+void retro_set_rumble_touch(unsigned intensity, float duration);
 
 #endif /* INPUT_H */

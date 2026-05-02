@@ -59,32 +59,6 @@ void SV_Physics_Toss(edict_t *ent);
 
 /*
 ================
-SV_CheckAllEnts
-================
-*/
-static void
-SV_CheckAllEnts(void)
-{
-    int e;
-    /* see if any solid entities are inside the final position */
-    edict_t *check = NEXT_EDICT(sv.edicts);
-
-    for (e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
-    {
-       if (check->free)
-          continue;
-       if (check->v.movetype == MOVETYPE_PUSH
-             || check->v.movetype == MOVETYPE_NONE
-             || check->v.movetype == MOVETYPE_NOCLIP)
-          continue;
-
-       if (SV_TestEntityPosition(check))
-          Con_Printf("entity in invalid position\n");
-    }
-}
-
-/*
-================
 SV_CheckVelocity
 ================
 */

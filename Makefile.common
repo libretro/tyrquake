@@ -29,7 +29,6 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/console.c \
 	$(CORE_DIR)/common/cvar.c \
 	$(CORE_DIR)/common/d_edge.c \
-	$(CORE_DIR)/common/d_fill.c \
 	$(CORE_DIR)/common/d_init.c \
 	$(CORE_DIR)/common/d_part.c \
 	$(CORE_DIR)/common/d_modech.c \

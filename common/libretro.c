@@ -54,6 +54,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "keys.h"
 #include "cdaudio_driver.h"
+#include "input.h"
 
 #ifdef NQ_HACK
 #include "client.h"
@@ -403,7 +404,6 @@ double Sys_DoubleTime(void)
 /* Sleeps for microseconds */
 /* ======================================================================= */
 
-static void IN_Accumulate(void) { }
 void Sys_HighFPPrecision(void) { }
 void Sys_LowFPPrecision(void) { }
 char * Sys_ConsoleInput(void) { return NULL; }
@@ -1625,12 +1625,3 @@ IN_Move(usercmd_t *cmd)
    }
 }
 
-/*
-===========
-IN_ModeChanged
-===========
-*/
-static void
-IN_ModeChanged(void)
-{
-}

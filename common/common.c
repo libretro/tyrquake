@@ -1291,33 +1291,6 @@ void COM_WriteFile(const char *filename, const void *data, int len)
 
 
 /*
-============
-COM_CreatePath
-============
-*/
-static void COM_CreatePath(const char *path)
-{
-   char part[MAX_OSPATH];
-   char *ofs;
-
-   if (!path || !path[0])
-      return;
-
-   strncpy(part, path, sizeof(part));
-   part[MAX_OSPATH - 1] = 0;
-
-   for (ofs = part + 1; *ofs; ofs++)
-   {
-      if (*ofs == '/')
-      {	/* create the directory */
-         *ofs = 0;
-         path_mkdir(part);
-         *ofs = '/';
-      }
-   }
-}
-
-/*
 ===========
 COM_FOpenFile
 

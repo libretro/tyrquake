@@ -48,6 +48,7 @@ void Host_Error(const char *error, ...);
 void Host_EndGame(const char *message, ...);
 void Host_Frame(float time);
 void Host_Quit_f(void);
+void Host_Loadgame_f(void);
 void Host_ClientCommands(const char *fmt, ...);
 void Host_ShutdownServer(qboolean crash);
 

@@ -268,7 +268,6 @@ void *COM_LoadTempFile(const char *path);
 void *COM_LoadHunkFile(const char *path);
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu);
 #ifdef QW_HACK
-void COM_CreatePath(const char *path);
 void COM_Gamedir(const char *dir);
 #endif
 

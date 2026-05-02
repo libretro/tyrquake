@@ -673,12 +673,6 @@ SV_PointContents(vec3_t p)
 #endif
 }
 
-static int SV_TruePointContents (vec3_t p)
-{
-	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
-}
-
-
 /* =========================================================================== */
 
 /*
@@ -709,14 +703,6 @@ LINE TESTING IN HULLS
 
 /* 1/32 epsilon to keep floating point happy */
 #define	DIST_EPSILON	(0.03125)
-
-static void WackyBugFixer(float *p1f, float *p2f, float *p1, float *p2, float *frac, float *midf, float *mid)
-{
-	int i;
-
-	for (i=0 ; i<3 ; i++)
-		mid[i] = p1[i] + (*frac)*(p2[i] - p1[i]);
-}
 
 /*
 ==================

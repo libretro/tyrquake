@@ -33,6 +33,7 @@ void M_Draw(void);
 void M_ToggleMenu_f(void);
 void M_Menu_Options_f(void);
 void M_Menu_Quit_f(void);
+void M_Game_StartNewGame(void);
 
 void M_DrawPic(int x, int y, const qpic_t *pic);
 void M_DrawCharacter(int cx, int line, int num);

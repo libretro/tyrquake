@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "common.h"
 #include "console.h"
 #include "d_iface.h"
+#include "draw.h"
 #include "quakedef.h"
 #include "sys.h"
 #include "vid.h"
@@ -279,21 +280,6 @@ void Draw_String(int x, int y, char *str)
    }
 }
 
-/*
-================
-Draw_Alt_String
-================
-*/
-static void Draw_Alt_String(int x, int y, char *str)
-{
-   while (*str)
-   {
-      Draw_Character(x, y, (*str) | 0x80);
-      str++;
-      x += 8;
-   }
-}
-
 static void Draw_Pixel(int x, int y, byte color)
 {
       uint8_t *dest = vid.conbuffer + y * vid.conrowbytes + x;
@@ -351,36 +337,6 @@ void Draw_Pic(int x, int y, const qpic_t *pic)
       memcpy(dest, source, pic->width);
       dest   += vid.rowbytes;
       source += pic->width;
-   }
-}
-
-
-/*
-=============
-Draw_SubPic
-=============
-*/
-static void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
-	    int height)
-{
-   const byte *source;
-   int v;
-
-   if (x < 0 || x + width > vid.width ||
-         y < 0 || y + height > vid.height)
-      Sys_Error("%s: bad coordinates", __func__);
-
-   source = pic->data + srcy * pic->width + srcx;
-
-   {
-      uint8_t *dest = vid.buffer + y * vid.rowbytes + x;
-
-      for (v = 0; v < height; v++)
-      {
-         memcpy(dest, source, width);
-         dest += vid.rowbytes;
-         source += pic->width;
-      }
    }
 }
 

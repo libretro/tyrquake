@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* to touch the vid buffer */
 
 extern const qpic_t *draw_disc;	/* also used on sbar */
-extern const byte *draw_chars;
+extern byte *draw_chars;
 
 void Draw_Init(void);
 void Draw_Character(int x, int y, int num);
@@ -45,9 +45,6 @@ void Draw_String(int x, int y, char *str);
 void *Draw_PicFromWad(const char *name);
 qpic_t *Draw_CachePic(const char *path);
 
-void Draw_Alt_String(int x, int y, const char *str);
 void Draw_Crosshair(void);
-void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy,
-		 int width, int height);
 
 #endif /* DRAW_H */

@@ -232,62 +232,6 @@ static void DropPunchAngle(void)
 
 /*
 ===================
-SV_FlightMove: this is just the same as SV_WaterMove but with a few changes to make it flight
-===================
-*/
-static void SV_FlightMove (void)
-{
-	int		i;
-	vec3_t	wishvel;
-	float	speed, newspeed, wishspeed, addspeed, accelspeed;
-
-	cl.nodrift = false;
-	cl.driftmove = 0;
-
-   /* user intentions */
-	AngleVectors (sv_player->v.v_angle, forward, right, up);
-
-	for (i=0 ; i<3 ; i++)
-		wishvel[i] = forward[i]*cmd.forwardmove + right[i]*cmd.sidemove + up[i]* cmd.upmove;
-
-	wishspeed = Length(wishvel);
-	if (wishspeed > sv_maxspeed.value)
-	{
-		VectorScale (wishvel, sv_maxspeed.value/wishspeed, wishvel);
-		wishspeed = sv_maxspeed.value;
-	}
-
-   /* water friction */
-	speed = Length (velocity);
-	if (speed)
-	{
-		newspeed = speed - host_frametime * speed * sv_friction.value;
-		if (newspeed < 0)
-			newspeed = 0;	
-		VectorScale (velocity, newspeed/speed, velocity);
-	}
-	else
-		newspeed = 0;
-	
-   /* water acceleration */
-	if (!wishspeed)
-		return;
-
-	addspeed = wishspeed - newspeed;
-	if (addspeed <= 0)
-		return;
-
-	VectorNormalize (wishvel);
-	accelspeed = sv_accelerate.value * wishspeed * host_frametime;
-	if (accelspeed > addspeed)
-		accelspeed = addspeed;
-
-	for (i=0 ; i<3 ; i++)
-		velocity[i] += accelspeed * wishvel[i];
-}
-
-/*
-===================
 SV_WaterMove
 
 ===================

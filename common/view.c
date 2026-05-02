@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cvar.h"
 #include "draw.h"
 #include "host.h"
+#include "input.h"
 #include "quakedef.h"
 #include "screen.h"
 #include "view.h"
@@ -75,8 +76,6 @@ float   v_steptime;
 
 static int old_health = 100;
 static float old_velocity_z = 0.0;
-extern void retro_set_rumble_damage(int damage);
-extern void retro_set_rumble_touch(unsigned intensity, float duration);
 
 /*
 ===============
