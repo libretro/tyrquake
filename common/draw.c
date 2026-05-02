@@ -455,6 +455,225 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
 }
 
 
+/* =============================================================================
+ *
+ *   Scaled (pixel-doubled) draw entry points
+ *
+ *   The original Draw_* functions blit native-resolution UI assets at
+ *   1:1 pixel size. At modern render resolutions (e.g. 1920x1200) the
+ *   menu and status bar end up as a tiny strip in the middle of the
+ *   screen because the assets themselves are 320x200-native and the
+ *   draw routines don't scale.
+ *
+ *   The Scaled variants take an integer scale factor (typically the
+ *   value returned by SCR_GetUIScale()) and pixel-double the source
+ *   asset by 'scale' in both dimensions on the way out. The (x, y)
+ *   destination coordinates are in *physical screen pixels*, not
+ *   logical 320x200-space pixels, so callers are responsible for
+ *   multiplying their own logical coordinates by 'scale' before
+ *   passing them in (and for adjusting any 320-based centering math
+ *   to use 320*scale).
+ *
+ *   Bounds-clipping uses the destination extents (pic->width*scale,
+ *   pic->height*scale) and silently clips off-screen rather than
+ *   Sys_Error()ing; off-by-one centering arithmetic shouldn't be
+ *   fatal.
+ * ============================================================================= */
+
+void
+Draw_PicScaled(int x, int y, const qpic_t *pic, int scale)
+{
+    byte *dest;
+    const byte *source;
+    int v, u, sx, sy;
+    int dw, dh;
+
+    if (scale < 1)
+	scale = 1;
+
+    if (scale == 1) {
+	Draw_Pic(x, y, pic);
+	return;
+    }
+
+    dw = pic->width  * scale;
+    dh = pic->height * scale;
+
+    if (x < 0 || y < 0 || x + dw > (int)vid.width || y + dh > (int)vid.height)
+	return;
+
+    source = pic->data;
+    dest = vid.buffer + y * vid.rowbytes + x;
+
+    for (v = 0; v < pic->height; v++) {
+	for (sy = 0; sy < scale; sy++) {
+	    byte *d = dest + sy * vid.rowbytes;
+	    for (u = 0; u < pic->width; u++) {
+		byte b = source[u];
+		for (sx = 0; sx < scale; sx++)
+		    d[u * scale + sx] = b;
+	    }
+	}
+	dest   += scale * vid.rowbytes;
+	source += pic->width;
+    }
+}
+
+void
+Draw_TransPicScaled(int x, int y, const qpic_t *pic, int scale)
+{
+    byte *dest;
+    const byte *source;
+    int v, u, sx, sy;
+    int dw, dh;
+
+    if (scale < 1)
+	scale = 1;
+
+    if (scale == 1) {
+	Draw_TransPic(x, y, pic);
+	return;
+    }
+
+    dw = pic->width  * scale;
+    dh = pic->height * scale;
+
+    if (x < 0 || y < 0 || x + dw > (int)vid.width || y + dh > (int)vid.height)
+	return;
+
+    source = pic->data;
+    dest = vid.buffer + y * vid.rowbytes + x;
+
+    for (v = 0; v < pic->height; v++) {
+	for (sy = 0; sy < scale; sy++) {
+	    byte *d = dest + sy * vid.rowbytes;
+	    for (u = 0; u < pic->width; u++) {
+		byte b = source[u];
+		if (b != TRANSPARENT_COLOR) {
+		    for (sx = 0; sx < scale; sx++)
+			d[u * scale + sx] = b;
+		}
+	    }
+	}
+	dest   += scale * vid.rowbytes;
+	source += pic->width;
+    }
+}
+
+void
+Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
+			     byte *translation, int scale)
+{
+    byte *dest;
+    const byte *source;
+    int v, u, sx, sy;
+    int dw, dh;
+
+    if (scale < 1)
+	scale = 1;
+
+    if (scale == 1) {
+	Draw_TransPicTranslate(x, y, pic, translation);
+	return;
+    }
+
+    dw = pic->width  * scale;
+    dh = pic->height * scale;
+
+    if (x < 0 || y < 0 || x + dw > (int)vid.width || y + dh > (int)vid.height)
+	return;
+
+    source = pic->data;
+    dest = vid.buffer + y * vid.rowbytes + x;
+
+    for (v = 0; v < pic->height; v++) {
+	for (sy = 0; sy < scale; sy++) {
+	    byte *d = dest + sy * vid.rowbytes;
+	    for (u = 0; u < pic->width; u++) {
+		byte b = source[u];
+		if (b != TRANSPARENT_COLOR) {
+		    byte t = translation[b];
+		    for (sx = 0; sx < scale; sx++)
+			d[u * scale + sx] = t;
+		}
+	    }
+	}
+	dest   += scale * vid.rowbytes;
+	source += pic->width;
+    }
+}
+
+void
+Draw_CharacterScaled(int x, int y, int num, int scale)
+{
+    byte *dest;
+    byte *source;
+    int drawline;
+    int row, col;
+    int u, sx, sy;
+
+    if (scale < 1)
+	scale = 1;
+
+    if (scale == 1) {
+	Draw_Character(x, y, num);
+	return;
+    }
+
+    num &= 255;
+    if (num < 0 || num > 255)
+	return;
+
+    if (x < 0 || y < 0 ||
+	x + 8 * scale > (int)vid.width ||
+	y + 8 * scale > (int)vid.height)
+	return;
+
+    row = num >> 4;
+    col = num & 15;
+    source = draw_chars + (row << 10) + (col << 3);
+
+    drawline = 8;
+    dest = vid.conbuffer + y * vid.conrowbytes + x;
+
+    while (drawline--) {
+	for (sy = 0; sy < scale; sy++) {
+	    byte *d = dest + sy * vid.conrowbytes;
+	    for (u = 0; u < 8; u++) {
+		byte b = source[u];
+		if (b) {
+		    for (sx = 0; sx < scale; sx++)
+			d[u * scale + sx] = b;
+		}
+	    }
+	}
+	source += 128;
+	dest += scale * vid.conrowbytes;
+    }
+}
+
+void
+Draw_StringScaled(int x, int y, char *str, int scale)
+{
+    if (scale < 1)
+	scale = 1;
+    while (*str) {
+	Draw_CharacterScaled(x, y, *str, scale);
+	str++;
+	x += 8 * scale;
+    }
+}
+
+void
+Draw_FillScaled(int x, int y, int w, int h, int c, int scale)
+{
+    if (scale < 1)
+	scale = 1;
+    /* Callers pass logical (pre-scale) w/h; we multiply through to physical. */
+    Draw_Fill(x, y, w * scale, h * scale, c);
+}
+
+
 #define CONBACK_CHAR_W	8
 #define CONBACK_CHAR_H	8
 

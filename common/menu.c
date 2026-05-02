@@ -137,13 +137,17 @@ static void M_ConfigureNetSubsystem(void);
 ================
 M_DrawCharacter
 
-Draws one solid graphics character
+Draws one solid graphics character. (cx, line) are logical
+320x200-space coordinates; the wrapper applies scr_uiscale and
+horizontal centering against the physical screen width.
 ================
 */
 void
 M_DrawCharacter(int cx, int line, int num)
 {
-    Draw_Character(cx + ((vid.width - 320) >> 1), line, num);
+    int scale = SCR_GetUIScale();
+    Draw_CharacterScaled(cx * scale + ((vid.width - 320 * scale) >> 1),
+			 line * scale, num, scale);
 }
 
 void
@@ -169,13 +173,17 @@ M_PrintWhite(int cx, int cy, const char *str)
 static void
 M_DrawTransPic(int x, int y, const qpic_t *pic)
 {
-    Draw_TransPic(x + ((vid.width - 320) >> 1), y, pic);
+    int scale = SCR_GetUIScale();
+    Draw_TransPicScaled(x * scale + ((vid.width - 320 * scale) >> 1),
+			y * scale, pic, scale);
 }
 
 void
 M_DrawPic(int x, int y, const qpic_t *pic)
 {
-    Draw_Pic(x + ((vid.width - 320) >> 1), y, pic);
+    int scale = SCR_GetUIScale();
+    Draw_PicScaled(x * scale + ((vid.width - 320 * scale) >> 1),
+		   y * scale, pic, scale);
 }
 
 static byte identityTable[256];
@@ -210,8 +218,9 @@ M_BuildTranslationTable(int top, int bottom)
 static void
 M_DrawTransPicTranslate(int x, int y, const qpic_t *pic)
 {
-    Draw_TransPicTranslate(x + ((vid.width - 320) >> 1), y, pic,
-			   translationTable);
+    int scale = SCR_GetUIScale();
+    Draw_TransPicTranslateScaled(x * scale + ((vid.width - 320 * scale) >> 1),
+				 y * scale, pic, translationTable, scale);
 }
 
 

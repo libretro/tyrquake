@@ -107,6 +107,11 @@ static cvar_t scr_printspeed = { "scr_printspeed", "8" };
 cvar_t scr_viewsize = { "viewsize", "100", true };
 cvar_t scr_fov = { "fov", "90" };	/* 10 - 170 */
 static cvar_t scr_conspeed = { "scr_conspeed", "300" };
+/* scr_uiscale: integer multiplier applied to all 320x200-native UI
+ * elements (menu, status bar, console, intermission text). 0 = auto,
+ * which picks min(vid.width/320, vid.height/200) clamped to >= 1.
+ * Manual override values are clamped to 1..MAX_UI_SCALE. */
+cvar_t scr_uiscale = { "scr_uiscale", "0", true };
 static vrect_t *pconupdate;
 qboolean scr_skipupdate;
 
@@ -134,6 +139,35 @@ static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
 
 /*
 ==============
+SCR_GetUIScale
+
+Resolve the scr_uiscale cvar to a usable integer multiplier. The cvar
+value of 0 means auto: pick the largest integer scale that fits both
+dimensions of a 320x200 reference. Manual overrides are clamped to
+1..MAX_UI_SCALE.
+==============
+*/
+int
+SCR_GetUIScale(void)
+{
+    int s = (int)scr_uiscale.value;
+
+    if (s <= 0) {
+	int sx = vid.width  / 320;
+	int sy = vid.height / 200;
+	s = sx < sy ? sx : sy;
+    }
+    if (s < 1)
+	s = 1;
+    if (s > MAX_UI_SCALE)
+	s = MAX_UI_SCALE;
+    return s;
+}
+
+/* ============================================================================= */
+
+/*
+==============
 SCR_DrawNet
 ==============
 */
@@ -153,7 +187,10 @@ SCR_DrawNet(void)
    if (cls.demoplayback)
       return;
 
-   Draw_Pic(scr_vrect.x + 64, scr_vrect.y, scr_net);
+   {
+      int scale = SCR_GetUIScale();
+      Draw_PicScaled(scr_vrect.x + 64 * scale, scr_vrect.y, scr_net, scale);
+   }
 }
 
 /* ============================================================================= */
@@ -267,6 +304,7 @@ static void
 SCR_EraseCenterString(void)
 {
     int y, height;
+    int scale = SCR_GetUIScale();
 
     if (scr_erase_center++ > vid.numpages) {
 	scr_erase_lines = 0;
@@ -276,10 +314,10 @@ SCR_EraseCenterString(void)
     if (scr_center_lines <= 4)
 	y = vid.height * 0.35;
     else
-	y = 48;
+	y = 48 * scale;
 
     /* Make sure we don't draw off the bottom of the screen*/
-    height = qmin(8 * scr_erase_lines, ((int)vid.height) - y - 1);
+    height = qmin(8 * scale * scr_erase_lines, ((int)vid.height) - y - 1);
 
     scr_copytop = 1;
     Draw_TileClear(0, y, vid.width, height);
@@ -293,6 +331,7 @@ SCR_DrawCenterString(void)
     int j;
     int x, y;
     int remaining;
+    int scale = SCR_GetUIScale();
 
     scr_copytop = 1;
     if (scr_center_lines > scr_erase_lines)
@@ -317,21 +356,21 @@ SCR_DrawCenterString(void)
     if (scr_center_lines <= 4)
 	y = vid.height * 0.35;
     else
-	y = 48;
+	y = 48 * scale;
 
     do {
 	/* scan the width of the line */
 	for (l = 0; l < 40; l++)
 	    if (start[l] == '\n' || !start[l])
 		break;
-	x = (vid.width - l * 8) / 2;
-	for (j = 0; j < l; j++, x += 8) {
-	    Draw_Character(x, y, start[j]);
+	x = (vid.width - l * 8 * scale) / 2;
+	for (j = 0; j < l; j++, x += 8 * scale) {
+	    Draw_CharacterScaled(x, y, start[j], scale);
 	    if (!remaining--)
 		return;
 	}
 
-	y += 8;
+	y += 8 * scale;
 
 	while (*start && *start != '\n')
 	    start++;
@@ -354,6 +393,7 @@ SCR_DrawNotifyString(void)
     int l;
     int j;
     int x, y;
+    int scale = SCR_GetUIScale();
 
     start = scr_notifystring;
 
@@ -364,11 +404,11 @@ SCR_DrawNotifyString(void)
 	for (l = 0; l < 40; l++)
 	    if (start[l] == '\n' || !start[l])
 		break;
-	x = (vid.width - l * 8) / 2;
-	for (j = 0; j < l; j++, x += 8)
-	    Draw_Character(x, y, start[j]);
+	x = (vid.width - l * 8 * scale) / 2;
+	for (j = 0; j < l; j++, x += 8 * scale)
+	    Draw_CharacterScaled(x, y, start[j], scale);
 
-	y += 8;
+	y += 8 * scale;
 
 	while (*start && *start != '\n')
 	    start++;
@@ -481,12 +521,20 @@ static void SCR_CalcRefdef(void)
    else
       size = scr_viewsize.value;
 
-   if (size >= 120)
-      sb_lines = 0;		/* no status bar at all */
-   else if (size >= 110)
-      sb_lines = 24;		/* no inventory */
-   else
-      sb_lines = 24 + 16 + 8;
+   /* sb_lines is in physical pixels: scale the logical 0/24/48 by the
+    * UI scale so the 3D viewport leaves the right amount of room for
+    * the (now-scaled) status bar. The Sbar_Draw* paths multiply the
+    * same scale through their drawing logic so the status bar fills
+    * exactly this region. */
+   {
+      int scale = SCR_GetUIScale();
+      if (size >= 120)
+	 sb_lines = 0;				/* no status bar at all */
+      else if (size >= 110)
+	 sb_lines = 24 * scale;			/* no inventory */
+      else
+	 sb_lines = (24 + 16 + 8) * scale;
+   }
 
    /* these calculations mirror those in R_Init() for r_refdef, but take no */
    /* account of water warping */
@@ -576,13 +624,14 @@ SCR_DrawLoading
 static void SCR_DrawLoading(void)
 {
    const qpic_t *pic;
+   int scale = SCR_GetUIScale();
 
    if (!scr_drawloading)
       return;
 
    pic = Draw_CachePic("gfx/loading.lmp");
-   Draw_Pic((vid.width - pic->width) / 2,
-         (vid.height - 48 - pic->height) / 2, pic);
+   Draw_PicScaled((vid.width - pic->width * scale) / 2,
+         (vid.height - 48 * scale - pic->height * scale) / 2, pic, scale);
 }
 
 /*
@@ -765,6 +814,7 @@ SCR_Init(void)
     Cvar_RegisterVariable(&scr_conspeed);
     Cvar_RegisterVariable(&scr_centertime);
     Cvar_RegisterVariable(&scr_printspeed);
+    Cvar_RegisterVariable(&scr_uiscale);
 
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);

@@ -35,6 +35,15 @@ void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 int SCR_ModalMessage(const char *text);
 
+/* Integer multiplier applied to all 320x200-native UI elements (menu,
+ * status bar, console). 0 in the cvar means "auto", which resolves to
+ * min(vid.width/320, vid.height/200) clamped to >= 1. Non-zero values
+ * are clamped to 1..MAX_UI_SCALE. Cheap (a handful of arith ops); safe
+ * to call per draw. */
+#define MAX_UI_SCALE 8
+int SCR_GetUIScale(void);
+extern cvar_t scr_uiscale;
+
 extern float scr_con_current;
 extern float scr_centertime_off;
 extern int scr_fullupdate;	/* set to 0 to force full redraw */

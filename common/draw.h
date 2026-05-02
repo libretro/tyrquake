@@ -47,4 +47,17 @@ qpic_t *Draw_CachePic(const char *path);
 
 void Draw_Crosshair(void);
 
+/* Scaled (pixel-doubled) entry points. The integer 'scale' is typically
+ * SCR_GetUIScale(); pass 1 for unscaled (which falls through to the
+ * non-Scaled functions). Destination (x, y) and Fill widths/heights
+ * are in *physical* screen pixels; pic dimensions and character cells
+ * scale by the factor. See draw.c for the full contract. */
+void Draw_PicScaled(int x, int y, const qpic_t *pic, int scale);
+void Draw_TransPicScaled(int x, int y, const qpic_t *pic, int scale);
+void Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
+				  byte *translation, int scale);
+void Draw_CharacterScaled(int x, int y, int num, int scale);
+void Draw_StringScaled(int x, int y, char *str, int scale);
+void Draw_FillScaled(int x, int y, int w, int h, int c, int scale);
+
 #endif /* DRAW_H */

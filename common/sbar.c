@@ -273,17 +273,23 @@ Sbar_Init(void)
 /*
 =============
 Sbar_DrawPic
+
+(x, y) are logical 320x200-space coordinates, relative to the
+top-left of the status bar (which is anchored to the bottom of
+the screen). The wrapper applies scr_uiscale and centers the
+status bar horizontally on the physical screen.
 =============
 */
 static void
 Sbar_DrawPic(int x, int y, const qpic_t *pic)
 {
+    int scale = SCR_GetUIScale();
+    int yphys = y * scale + (vid.height - SBAR_HEIGHT * scale);
     if (cl.gametype == GAME_DEATHMATCH)
-	Draw_Pic(x /* + ((vid.width - 320)>>1) */ ,
-		 y + (vid.height - SBAR_HEIGHT), pic);
+	Draw_PicScaled(x * scale, yphys, pic, scale);
     else
-	Draw_Pic(x + ((vid.width - 320) >> 1),
-		 y + (vid.height - SBAR_HEIGHT), pic);
+	Draw_PicScaled(x * scale + ((vid.width - 320 * scale) >> 1),
+		       yphys, pic, scale);
 }
 
 /*
@@ -294,30 +300,33 @@ Sbar_DrawTransPic
 static void
 Sbar_DrawTransPic(int x, int y, const qpic_t *pic)
 {
+    int scale = SCR_GetUIScale();
+    int yphys = y * scale + (vid.height - SBAR_HEIGHT * scale);
     if (cl.gametype == GAME_DEATHMATCH)
-	Draw_TransPic(x /*+ ((vid.width - 320)>>1) */ ,
-		      y + (vid.height - SBAR_HEIGHT), pic);
+	Draw_TransPicScaled(x * scale, yphys, pic, scale);
     else
-	Draw_TransPic(x + ((vid.width - 320) >> 1),
-		      y + (vid.height - SBAR_HEIGHT), pic);
+	Draw_TransPicScaled(x * scale + ((vid.width - 320 * scale) >> 1),
+			    yphys, pic, scale);
 }
 
 /*
 ================
 Sbar_DrawCharacter
 
-Draws one solid graphics character
+Draws one solid graphics character. Logical coords; the +4 pixel
+offset is preserved at scale (becomes +4*scale in physical pixels).
 ================
 */
 static void
 Sbar_DrawCharacter(int x, int y, int num)
 {
+    int scale = SCR_GetUIScale();
+    int yphys = y * scale + vid.height - SBAR_HEIGHT * scale;
     if (cl.gametype == GAME_DEATHMATCH)
-	Draw_Character(x /*+ ((vid.width - 320)>>1) */  + 4,
-		       y + vid.height - SBAR_HEIGHT, num);
+	Draw_CharacterScaled(x * scale + 4 * scale, yphys, num, scale);
     else
-	Draw_Character(x + ((vid.width - 320) >> 1) + 4,
-		       y + vid.height - SBAR_HEIGHT, num);
+	Draw_CharacterScaled(x * scale + ((vid.width - 320 * scale) >> 1)
+			     + 4 * scale, yphys, num, scale);
 }
 
 /*
@@ -328,12 +337,13 @@ Sbar_DrawString
 static void
 Sbar_DrawString(int x, int y, const char *str)
 {
+    int scale = SCR_GetUIScale();
+    int yphys = y * scale + vid.height - SBAR_HEIGHT * scale;
     if (cl.gametype == GAME_DEATHMATCH)
-	Draw_String(x /*+ ((vid.width - 320)>>1) */ ,
-		    y + vid.height - SBAR_HEIGHT, (char*)str);
+	Draw_StringScaled(x * scale, yphys, (char *)str, scale);
     else
-	Draw_String(x + ((vid.width - 320) >> 1),
-		    y + vid.height - SBAR_HEIGHT, (char*)str);
+	Draw_StringScaled(x * scale + ((vid.width - 320 * scale) >> 1),
+			  yphys, (char *)str, scale);
 }
 
 /*
@@ -683,6 +693,7 @@ Sbar_DrawFrags(void)
     int xofs;
     char num[12];
     player_info_t *p;
+    int scale = SCR_GetUIScale();
 
     Sbar_SortFrags();
 
@@ -693,8 +704,8 @@ Sbar_DrawFrags(void)
     if (cl.gametype == GAME_DEATHMATCH)
 	xofs = 0;
     else
-	xofs = (vid.width - 320) >> 1;
-    y = vid.height - SBAR_HEIGHT - 23;
+	xofs = (vid.width - 320 * scale) >> 1;
+    y = vid.height - SBAR_HEIGHT * scale - 23 * scale;
 
     for (i = 0; i < l; i++) {
 	k = fragsort[i];
@@ -702,14 +713,16 @@ Sbar_DrawFrags(void)
 	if (!p->name[0])
 	    continue;
 
-	/* draw background */
+	/* draw background (physical coords, scaled width) */
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
-	Draw_Fill(xofs + x * 8 + 10, y, 28, 4, top);
-	Draw_Fill(xofs + x * 8 + 10, y + 4, 28, 3, bottom);
+	Draw_Fill(xofs + (x * 8 + 10) * scale, y,
+		  28 * scale, 4 * scale, top);
+	Draw_Fill(xofs + (x * 8 + 10) * scale, y + 4 * scale,
+		  28 * scale, 3 * scale, bottom);
 
-	/* draw number */
+	/* draw number (logical coords, wrapper handles scale) */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
@@ -747,6 +760,7 @@ Sbar_DrawFace(void)
 	int xofs;
 	char num[12];
 	player_info_t *p;
+	int scale = SCR_GetUIScale();
 
 	p = &cl.players[cl.viewentity - 1];
 	/* draw background */
@@ -754,13 +768,15 @@ Sbar_DrawFace(void)
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
 	if (cl.gametype == GAME_DEATHMATCH)
-	    xofs = 113;
+	    xofs = 113 * scale;
 	else
-	    xofs = ((vid.width - 320) >> 1) + 113;
+	    xofs = ((vid.width - 320 * scale) >> 1) + 113 * scale;
 
 	Sbar_DrawPic(112, 0, rsb_teambord);
-	Draw_Fill(xofs, vid.height - SBAR_HEIGHT + 3, 22, 9, top);
-	Draw_Fill(xofs, vid.height - SBAR_HEIGHT + 12, 22, 9, bottom);
+	Draw_Fill(xofs, vid.height - SBAR_HEIGHT * scale + 3 * scale,
+		  22 * scale, 9 * scale, top);
+	Draw_Fill(xofs, vid.height - SBAR_HEIGHT * scale + 12 * scale,
+		  22 * scale, 9 * scale, bottom);
 
 	/* draw number */
 	f = p->frags;
@@ -822,6 +838,8 @@ Sbar_Draw
 void
 Sbar_Draw(void)
 {
+    int scale = SCR_GetUIScale();
+
     if (scr_con_current == vid.height)
 	return;			/* console is full screen */
 
@@ -832,10 +850,13 @@ Sbar_Draw(void)
 
     sb_updates++;
 
-    if (sb_lines && vid.width > 320)
+    /* Tile-clear residual area outside the (scaled) status bar with
+     * the wood-grain backdrop. The backdrop itself is intentionally
+     * left at native 1:1 to preserve the original look. */
+    if (sb_lines && vid.width > 320 * scale)
 	Draw_TileClear(0, vid.height - sb_lines, vid.width, sb_lines);
 
-    if (sb_lines > 24) {
+    if (sb_lines > 24 * scale) {
 	Sbar_DrawInventory();
 	if (cl.maxclients != 1)
 	    Sbar_DrawFrags();
@@ -940,6 +961,8 @@ Sbar_IntermissionNumber(int x, int y, int num, int digits, int color)
     char str[12];
     char *ptr;
     int l, frame;
+    int scale = SCR_GetUIScale();
+    int xofs = (vid.width - 320 * scale) >> 1;
 
     l = Sbar_itoa(num, str);
     ptr = str;
@@ -954,7 +977,8 @@ Sbar_IntermissionNumber(int x, int y, int num, int digits, int color)
 	else
 	    frame = *ptr - '0';
 
-	Draw_TransPic(x, y, sb_nums[color][frame]);
+	Draw_TransPicScaled(xofs + x * scale, y * scale,
+			    sb_nums[color][frame], scale);
 	x += 24;
 	ptr++;
     }
@@ -975,6 +999,7 @@ Sbar_DeathmatchOverlay(void)
     int x, y, f;
     char num[12];
     player_info_t *p;
+    int scale = SCR_GetUIScale();
 
     scr_copyeverything = 1;
     scr_fullupdate = 0;
@@ -988,8 +1013,8 @@ Sbar_DeathmatchOverlay(void)
 /* draw the text */
     l = scoreboardlines;
 
-    x = 80 + ((vid.width - 320) >> 1);
-    y = 40;
+    x = 80 * scale + ((vid.width - 320 * scale) >> 1);
+    y = 40 * scale;
     for (i = 0; i < l; i++) {
 	k = fragsort[i];
 	p = &cl.players[k];
@@ -1000,25 +1025,25 @@ Sbar_DeathmatchOverlay(void)
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
-	Draw_Fill(x, y, 40, 4, top);
-	Draw_Fill(x, y + 4, 40, 4, bottom);
+	Draw_Fill(x, y, 40 * scale, 4 * scale, top);
+	Draw_Fill(x, y + 4 * scale, 40 * scale, 4 * scale, bottom);
 
 	/* draw number */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
-	Draw_Character(x + 8, y, num[0]);
-	Draw_Character(x + 16, y, num[1]);
-	Draw_Character(x + 24, y, num[2]);
+	Draw_CharacterScaled(x + 8 * scale, y, num[0], scale);
+	Draw_CharacterScaled(x + 16 * scale, y, num[1], scale);
+	Draw_CharacterScaled(x + 24 * scale, y, num[2], scale);
 
 	if (k == cl.viewentity - 1)
-	    Draw_Character(x - 8, y, 12);
+	    Draw_CharacterScaled(x - 8 * scale, y, 12, scale);
 
 
 	/* draw name */
-	Draw_String(x + 64, y, p->name);
+	Draw_StringScaled(x + 64 * scale, y, p->name, scale);
 
-	y += 10;
+	y += 10 * scale;
     }
 }
 
@@ -1037,8 +1062,11 @@ Sbar_MiniDeathmatchOverlay(void)
     char num[12];
     player_info_t *p;
     int numlines;
+    int scale = SCR_GetUIScale();
 
-    if (vid.width < 512 || !sb_lines)
+    /* Mini overlay only fits when the screen has room beyond the
+     * (scaled) status bar plus a useful chunk of side-column space. */
+    if (vid.width < 512 * scale || !sb_lines)
 	return;
 
     scr_copyeverything = 1;
@@ -1049,7 +1077,7 @@ Sbar_MiniDeathmatchOverlay(void)
 
 /* draw the text */
     y = vid.height - sb_lines;
-    numlines = sb_lines / 8;
+    numlines = sb_lines / (8 * scale);
     if (numlines < 3)
 	return;
 
@@ -1068,8 +1096,8 @@ Sbar_MiniDeathmatchOverlay(void)
     if (i < 0)
 	i = 0;
 
-    x = 324;
-    for ( /* */ ; i < scoreboardlines && y < vid.height - 8; i++) {
+    x = 324 * scale;
+    for ( /* */ ; i < scoreboardlines && y < vid.height - 8 * scale; i++) {
 	k = fragsort[i];
 	p = &cl.players[k];
 	if (!p->name[0])
@@ -1079,26 +1107,26 @@ Sbar_MiniDeathmatchOverlay(void)
 	top = Sbar_ColorForMap(p->topcolor);
 	bottom = Sbar_ColorForMap(p->bottomcolor);
 
-	Draw_Fill(x, y + 1, 40, 3, top);
-	Draw_Fill(x, y + 4, 40, 4, bottom);
+	Draw_Fill(x, y + 1 * scale, 40 * scale, 3 * scale, top);
+	Draw_Fill(x, y + 4 * scale, 40 * scale, 4 * scale, bottom);
 
 	/* draw number */
 	f = p->frags;
 	sprintf(num, "%3i", f);
 
-	Draw_Character(x + 8, y, num[0]);
-	Draw_Character(x + 16, y, num[1]);
-	Draw_Character(x + 24, y, num[2]);
+	Draw_CharacterScaled(x + 8 * scale, y, num[0], scale);
+	Draw_CharacterScaled(x + 16 * scale, y, num[1], scale);
+	Draw_CharacterScaled(x + 24 * scale, y, num[2], scale);
 
 	if (k == cl.viewentity - 1) {
-	    Draw_Character(x, y, 16);
-	    Draw_Character(x + 32, y, 17);
+	    Draw_CharacterScaled(x, y, 16, scale);
+	    Draw_CharacterScaled(x + 32 * scale, y, 17, scale);
 	}
 
 	/* draw name */
-	Draw_String(x + 48, y, p->name);
+	Draw_StringScaled(x + 48 * scale, y, p->name, scale);
 
-	y += 8;
+	y += 8 * scale;
     }
 }
 
@@ -1114,6 +1142,8 @@ Sbar_IntermissionOverlay(void)
     const qpic_t *pic;
     int dig;
     int num;
+    int scale = SCR_GetUIScale();
+    int xofs = (vid.width - 320 * scale) >> 1;
 
     scr_copyeverything = 1;
     scr_fullupdate = 0;
@@ -1124,25 +1154,27 @@ Sbar_IntermissionOverlay(void)
     }
 
     pic = Draw_CachePic("gfx/complete.lmp");
-    Draw_Pic(64, 24, pic);
+    Draw_PicScaled(xofs + 64 * scale, 24 * scale, pic, scale);
 
     pic = Draw_CachePic("gfx/inter.lmp");
-    Draw_TransPic(0, 56, pic);
+    Draw_TransPicScaled(xofs + 0, 56 * scale, pic, scale);
 
 /* time */
     dig = cl.completed_time / 60;
     Sbar_IntermissionNumber(160, 64, dig, 3, 0);
     num = cl.completed_time - dig * 60;
-    Draw_TransPic(234, 64, sb_colon);
-    Draw_TransPic(246, 64, sb_nums[0][num / 10]);
-    Draw_TransPic(266, 64, sb_nums[0][num % 10]);
+    Draw_TransPicScaled(xofs + 234 * scale, 64 * scale, sb_colon, scale);
+    Draw_TransPicScaled(xofs + 246 * scale, 64 * scale,
+			sb_nums[0][num / 10], scale);
+    Draw_TransPicScaled(xofs + 266 * scale, 64 * scale,
+			sb_nums[0][num % 10], scale);
 
     Sbar_IntermissionNumber(160, 104, cl.stats[STAT_SECRETS], 3, 0);
-    Draw_TransPic(232, 104, sb_slash);
+    Draw_TransPicScaled(xofs + 232 * scale, 104 * scale, sb_slash, scale);
     Sbar_IntermissionNumber(240, 104, cl.stats[STAT_TOTALSECRETS], 3, 0);
 
     Sbar_IntermissionNumber(160, 144, cl.stats[STAT_MONSTERS], 3, 0);
-    Draw_TransPic(232, 144, sb_slash);
+    Draw_TransPicScaled(xofs + 232 * scale, 144 * scale, sb_slash, scale);
     Sbar_IntermissionNumber(240, 144, cl.stats[STAT_TOTALMONSTERS], 3, 0);
 
 }
@@ -1158,9 +1190,11 @@ void
 Sbar_FinaleOverlay(void)
 {
     const qpic_t *pic;
+    int scale = SCR_GetUIScale();
 
     scr_copyeverything = 1;
 
     pic = Draw_CachePic("gfx/finale.lmp");
-    Draw_TransPic((vid.width - pic->width) / 2, 16, pic);
+    Draw_TransPicScaled((vid.width - pic->width * scale) / 2,
+			16 * scale, pic, scale);
 }

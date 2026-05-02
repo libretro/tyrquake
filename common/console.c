@@ -145,9 +145,13 @@ Con_Resize
 static void Con_Resize(console_t * c)
 {
    int width;
+   int scale = SCR_GetUIScale();
    char tbuf[CON_TEXTSIZE];
 
-   width = (vid.width >> 3) - 2;
+   /* The console grid is in scaled-character cells: each cell is 8*scale
+    * physical pixels wide. We subtract 2 cells of side margin, matching
+    * the original 1996 layout. */
+   width = (vid.width / (8 * scale)) - 2;
 
    if (width == con_linewidth)
       return;
@@ -402,6 +406,7 @@ Con_DrawInput(void)
     int y;
     int i;
     char *text;
+    int scale = SCR_GetUIScale();
 
     if (key_dest != key_console && !con_forcedup)
 	return;			/* don't draw anything */
@@ -420,9 +425,9 @@ Con_DrawInput(void)
 	text += 1 + key_linepos - con_linewidth;
 
 /* draw it */
-    y = con_vislines - 22;
+    y = con_vislines - 22 * scale;
     for (i = 0; i < con_linewidth; i++)
-	Draw_Character((i + 1) << 3, y, text[i]);
+	Draw_CharacterScaled(((i + 1) << 3) * scale, y, text[i], scale);
 
 /* remove cursor */
     key_lines[edit_line][key_linepos] = 0;
@@ -443,6 +448,7 @@ void Con_DrawNotify(void)
    float time;
    char *s;
    int v = 0;
+   int scale = SCR_GetUIScale();
 
    for (i = con->current - NUM_CON_TIMES + 1; i <= con->current; i++)
    {
@@ -460,9 +466,9 @@ void Con_DrawNotify(void)
       scr_copytop = 1;
 
       for (x = 0; x < con_linewidth; x++)
-         Draw_Character((x + 1) << 3, v, text[x]);
+         Draw_CharacterScaled(((x + 1) << 3) * scale, v, text[x], scale);
 
-      v += 8;
+      v += 8 * scale;
    }
 
 
@@ -475,29 +481,29 @@ void Con_DrawNotify(void)
 
       if (chat_team)
       {
-         Draw_String(8, v, "say_team:");
+         Draw_StringScaled(8 * scale, v, "say_team:", scale);
          skip = 11;
       }
       else
       {
-         Draw_String(8, v, "say:");
+         Draw_StringScaled(8 * scale, v, "say:", scale);
          skip = 6;
       }
 
       s = chat_buffer;
       /* FIXME = Truncating? should be while, not if? */
-      if (chat_bufferlen > (vid.width >> 3) - (skip + 1))
-         s += chat_bufferlen - ((vid.width >> 3) - (skip + 1));
+      if (chat_bufferlen > (int)((vid.width / (8 * scale)) - (skip + 1)))
+         s += chat_bufferlen - ((vid.width / (8 * scale)) - (skip + 1));
 
       x = 0;
       while (s[x])
       {
-         Draw_Character((x + skip) << 3, v, s[x]);
+         Draw_CharacterScaled(((x + skip) << 3) * scale, v, s[x], scale);
          x++;
       }
-      Draw_Character((x + skip) << 3, v,
-            10 + ((int)(realtime * con_cursorspeed) & 1));
-      v += 8;
+      Draw_CharacterScaled(((x + skip) << 3) * scale, v,
+            10 + ((int)(realtime * con_cursorspeed) & 1), scale);
+      v += 8 * scale;
    }
 
    if (v > con_notifylines)
@@ -556,7 +562,11 @@ Con_DrawDLBar(void)
     snprintf(buf, 6, " %3d%%", cls.downloadpercent);
 
     /* draw it */
-    Draw_String(8, con_vislines - 22 + 8, dlbar);
+    {
+	int scale = SCR_GetUIScale();
+	Draw_StringScaled(8 * scale, con_vislines - 22 * scale + 8 * scale,
+			  dlbar, scale);
+    }
 #endif
 }
 
@@ -574,6 +584,8 @@ void Con_DrawConsole(int lines)
    int rows;
    char *text;
    int row;
+   int scale = SCR_GetUIScale();
+   int cellh = 8 * scale;	/* physical pixels per character row */
 
    if (lines <= 0)
       return;
@@ -581,22 +593,23 @@ void Con_DrawConsole(int lines)
    /* draw the background */
    Draw_ConsoleBackground(lines);
 
-   /* draw the text */
+   /* draw the text. 'lines' is in physical pixels (it comes from
+    * scr_con_current). The grid is in scale-aware character cells. */
    con_vislines = lines;
-   rows = (lines - 22) >> 3;	/* rows of text to draw */
-   y = lines - 30;
+   rows = (lines - 22 * scale) / cellh;	/* rows of text to draw */
+   y = lines - 30 * scale;
 
    /* draw from the bottom up */
    if (con->display != con->current) {
       /* draw arrows to show the buffer is backscrolled */
       for (x = 0; x < con_linewidth; x += 4)
-         Draw_Character((x + 1) << 3, y, '^');
-      y -= 8;
+         Draw_CharacterScaled(((x + 1) << 3) * scale, y, '^', scale);
+      y -= cellh;
       rows--;
    }
 
    row = con->display;
-   for (i = 0; i < rows; i++, y -= 8, row--) {
+   for (i = 0; i < rows; i++, y -= cellh, row--) {
       if (row < 0)
          break;
       if (con->current - row >= con_totallines)
@@ -604,7 +617,7 @@ void Con_DrawConsole(int lines)
 
       text = con->text + (row % con_totallines) * con_linewidth;
       for (x = 0; x < con_linewidth; x++)
-         Draw_Character((x + 1) << 3, y, text[x]);
+         Draw_CharacterScaled(((x + 1) << 3) * scale, y, text[x], scale);
    }
 
    /* draw the download bar, if needed */
