@@ -250,7 +250,7 @@ CompleteCommand(void)
 	strcpy(s, cmd);
 	key_linepos += strlen(cmd);
 	key_lines[edit_line][key_linepos] = 0;
-	Z_Free(cmd);
+	Z_Free((void *)cmd);
     } else {
 	/* Try argument completion? */
 	cmd = strchr(s, ' ');
@@ -276,7 +276,7 @@ CompleteCommand(void)
 		key_linepos = s - key_lines[edit_line];
 		strcpy(s, completion);
 		key_linepos += strlen(completion);
-		Z_Free(completion);
+		Z_Free((void *)completion);
 	    }
 	    Z_Free(newcmd);
 	}
@@ -596,7 +596,7 @@ Key_SetBinding(knum_t keynum, const char *binding)
 
     /* free old bindings */
     if (keybindings[keynum]) {
-	Z_Free(keybindings[keynum]);
+	Z_Free((void *)keybindings[keynum]);
 	keybindings[keynum] = NULL;
     }
 

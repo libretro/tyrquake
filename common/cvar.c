@@ -232,7 +232,7 @@ Cvar_Set(const char *var_name, const char *value)
 #endif
 #endif
 
-    Z_Free(var->string);	/* free the old value string */
+    Z_Free((void *)var->string);	/* free the old value string */
 
     newstring = (char*)Z_Malloc(strlen(value) + 1);
     strcpy(newstring, value);

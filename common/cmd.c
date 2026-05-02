@@ -400,7 +400,7 @@ Cmd_Alias_f(void)
     /* if the alias already exists, reuse it */
     a = Cmd_Alias_Find(s);
     if (a)
-	Z_Free(a->value);
+	Z_Free((void *)a->value);
 
     if (!a) {
 	a = (cmdalias_t*)Z_Malloc(sizeof(cmdalias_t));
@@ -540,7 +540,7 @@ Cmd_TokenizeString(const char *text)
 
 /* clear the args from the last string */
     for (i = 0; i < cmd_argc; i++)
-	Z_Free(cmd_argv[i]);
+	Z_Free((void *)cmd_argv[i]);
 
     cmd_argc = 0;
     cmd_args = NULL;
