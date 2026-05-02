@@ -543,6 +543,14 @@ R_AliasTransformFinalVert(finalvert_t *fv, auxvert_t *av,
     }
 
     fv->v[4] = temp;
+
+    /* Copy the vertex normal too, for the Phong-shaded path in d_polyse.c.
+     * Normal is in model space; r_plightvec is also in model space (rotated
+     * in R_AliasSetupLighting), so per-pixel dot(N, L) works without any
+     * extra coordinate transform. */
+    fv->n[0] = plightnormal[0];
+    fv->n[1] = plightnormal[1];
+    fv->n[2] = plightnormal[2];
 }
 
 /*
@@ -594,6 +602,12 @@ R_AliasTransformAndProjectFinalVerts(finalvert_t *fv, stvert_t *pstverts)
       }
 
       fv->v[4] = temp;
+
+      /* Copy the vertex normal too, for the Phong-shaded path in d_polyse.c.
+       * See companion note in R_AliasTransformFinalVert above. */
+      fv->n[0] = plightnormal[0];
+      fv->n[1] = plightnormal[1];
+      fv->n[2] = plightnormal[2];
    }
 }
 

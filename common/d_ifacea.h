@@ -42,7 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	TURB_CYCLE	128
 
 /* !!! if this is changed, it must be changed in r_shared.h too !!! */
-#define	MAXHEIGHT	1200
+#define	MAXHEIGHT	1440
 
 /* !!! if this is changed, it must be changed in quakedef.h too !!! */
 #define CACHE_SIZE	32	/* used to align key data structures */
@@ -69,7 +69,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 				/* !!! d_polysa.s must be changed !!! */
 #define fv_flags	24
 #define fv_reserved	28
-#define fv_size		32
+#define fv_n		32	/* vertex normal (3 floats) for Phong shading */
+#define fv_size		44
 #define fv_shift	5
 
 /* stvert_t structure */

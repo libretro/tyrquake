@@ -76,6 +76,7 @@ struct retro_core_option_definition option_defs_us[] = {
 	 { "1864x1050", NULL },
          { "1920x1080", NULL },
          { "1920x1200", NULL },
+         { "2560x1440", NULL },
          { NULL, NULL },
       },
 #if defined(_3DS)

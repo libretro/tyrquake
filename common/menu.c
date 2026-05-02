@@ -1165,6 +1165,10 @@ M_OptionsVideo_AdjustSliders(int dir)
           cvar = Cvar_FindVar("r_lerpmove");
           Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
           break;
+       case 8:
+          cvar = Cvar_FindVar("r_phongshading");
+          Cvar_SetValue("r_phongshading", cvar->value ? 0.0f : 1.0f);
+          break;
     }
 }
 
@@ -1211,6 +1215,10 @@ M_OptionsVideo_Draw(void)
     cvar = Cvar_FindVar("r_lerpmove");
     M_Print(16, 88, "      Smooth Movement");
     M_DrawCheckbox(220, 88, cvar->value);
+
+    cvar = Cvar_FindVar("r_phongshading");
+    M_Print(16, 96, "        Phong Shading");
+    M_DrawCheckbox(220, 96, cvar->value);
 
 /* cursor */
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,
