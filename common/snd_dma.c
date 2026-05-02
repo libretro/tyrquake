@@ -608,6 +608,7 @@ S_UpdateAmbientSounds(void)
          ambient_channel++)
    {
       float vol;
+      float new_vol;
       channel_t *chan = &channels[ambient_channel];
       chan->sfx = ambient_sfx[ambient_channel];
 
@@ -615,16 +616,24 @@ S_UpdateAmbientSounds(void)
       if (vol < 8)
          vol = 0;
 
-      /* don't adjust volume too fast */
-      if (chan->master_vol < vol) {
-         chan->master_vol += host_frametime * ambient_fade.value;
-         if (chan->master_vol > vol)
-            chan->master_vol = vol;
-      } else if (chan->master_vol > vol) {
-         chan->master_vol -= host_frametime * ambient_fade.value;
-         if (chan->master_vol < vol)
-            chan->master_vol = vol;
+      /* Don't adjust volume too fast. Track the ramp in float —
+       * doing it directly on the int master_vol drops the
+       * fractional part each frame, so at frame rates where
+       * host_frametime * ambient_fade < 1.0 (above ~100 fps with
+       * the default ambient_fade=100) the ramp gets truncated to
+       * zero per frame and the leaf-driven ambients (wind/water/
+       * sky/lava/slime) never become audible. */
+      new_vol = (float)chan->master_vol;
+      if (new_vol < vol) {
+         new_vol += host_frametime * ambient_fade.value;
+         if (new_vol > vol)
+            new_vol = vol;
+      } else if (new_vol > vol) {
+         new_vol -= host_frametime * ambient_fade.value;
+         if (new_vol < vol)
+            new_vol = vol;
       }
+      chan->master_vol = (int)new_vol;
 
       chan->leftvol = chan->rightvol = chan->master_vol;
    }
