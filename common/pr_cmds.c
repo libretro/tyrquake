@@ -28,12 +28,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "world.h"
 
 #ifdef NQ_HACK
+#include "client.h"        /* CL_PersistGib for r_persistgibs cvar */
 #include "host.h"
 #include "protocol.h"
 #include "quakedef.h"
 #include "sys.h"
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Host_Error
+
+extern cvar_t r_persistgibs;
+
+/*
+ * Returns true iff the given model name string starts with one of
+ * the known Quake gib model prefixes.  Used to decide whether to
+ * snapshot an entity into the persistent-gib pool just before
+ * PF_Remove frees it.  Lives here next to PF_Remove rather than in
+ * cl_main.c so the model-name check is co-located with its only
+ * caller; the pool itself and the snapshot routine live with the
+ * other client-side state in cl_main.c.
+ */
+static qboolean
+SV_IsGibModelName(const char *name)
+{
+    if (!name)
+	return false;
+    if (!strncmp(name, "progs/gib",     9))  return true;
+    if (!strncmp(name, "progs/h_",      8))  return true;
+    if (!strncmp(name, "progs/zom_gib", 13)) return true;
+    return false;
+}
 #endif
 #ifdef QW_HACK
 #include "qwsvdef.h"
@@ -1005,6 +1028,29 @@ PF_Remove(void)
     edict_t *ed;
 
     ed = G_EDICT(OFS_PARM0);
+
+#ifdef NQ_HACK
+    /* If r_persistgibs is set, intercept the removal of gib edicts
+     * and snapshot them into the persistent-gib pool first.  The
+     * snapshot is purely visual: we copy the entity's final origin,
+     * angles, model, frame, and skin, then let ED_Free proceed
+     * normally so the server-side edict slot is still recovered.
+     *
+     * Detection is by model name; the QC `remove()` builtin is the
+     * standard removal path used by SUB_Remove (the deferred
+     * self-removal scheduled by ThrowGib in combat.qc).  Mid-flight
+     * gibs that get killed early would also be captured at their
+     * mid-flight position, but that's a rare edge case and they
+     * just freeze in place -- still better than disappearing. */
+    if (r_persistgibs.value != 0.0f && !ed->free && ed->v.model) {
+	const char *name = PR_GetString(ed->v.model);
+	if (SV_IsGibModelName(name)) {
+	    CL_PersistGib(ed->v.origin, ed->v.angles, name,
+	                  (int)ed->v.frame, (int)ed->v.skin);
+	}
+    }
+#endif
+
     ED_Free(ed);
 }
 

@@ -1451,7 +1451,7 @@ M_OptionsAudio_Key(int k)
 /* ============================================================================= */
 /* GAME OPTIONS MENU */
 
-#define	OPTIONSGAME_ITEMS	6
+#define	OPTIONSGAME_ITEMS	7
 
 static int optionsgame_cursor;
 
@@ -1498,6 +1498,16 @@ M_OptionsGame_AdjustSliders(int dir)
        cvar = Cvar_FindVar("chase_active");
        Cvar_SetValue("chase_active", (cvar->value) ? 0 : 1);
        break;
+   case 6:
+       cvar = Cvar_FindVar("r_persistgibs");
+       Cvar_SetValue("r_persistgibs", cvar->value ? 0.0f : 1.0f);
+       /* Toggling off clears the existing pool so the user gets
+        * immediate feedback instead of waiting for the next level
+        * change.  The capture path on the new state simply stops
+        * adding more. */
+       if (!cvar->value)
+           CL_ClearPersistGibs();
+       break;
     }
 }
 
@@ -1537,6 +1547,9 @@ M_OptionsGame_Draw(void)
     M_Print(16, 72, "          First Person");
     M_DrawCheckbox(220, 72, cvar->value ? 0 : 1);
 
+    cvar = Cvar_FindVar("r_persistgibs");
+    M_Print(16, 80, "       Persistent Gibs");
+    M_DrawCheckbox(220, 80, cvar->value);
 
 /* cursor */
     M_DrawCharacter(200, 32 + optionsgame_cursor * 8,

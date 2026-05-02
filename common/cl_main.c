@@ -71,6 +71,99 @@ dlight_t cl_dlights[MAX_DLIGHTS];
 int cl_numvisedicts;
 entity_t cl_visedicts[MAX_VISEDICTS];
 
+/* Persistent-gib pool.
+ *
+ * When r_persistgibs is non-zero, the server-side PF_Remove handler
+ * intercepts gib edicts (recognized by model name prefix) just before
+ * they would normally be freed, and snapshots them into this pool so
+ * they remain visible after the QuakeC SUB_Remove timer fires.
+ *
+ * The captured entries are normal entity_t records; once added via
+ * R_AddEfrags they participate in PVS/efrag rendering identically to
+ * the BSP's static entities, so no special render path is needed.
+ *
+ * Pool is bounded; once full, the oldest entry is evicted in FIFO
+ * order (ring-buffer style) to keep both memory and worst-case
+ * render cost predictable.  A cap of 256 is plenty for typical
+ * play -- a Quake monster yields 3 gibs on death, so 256 covers
+ * roughly 85 gibbed monsters lying around at once. */
+#define MAX_PERSIST_GIBS 256
+entity_t cl_persist_gibs[MAX_PERSIST_GIBS];
+int      cl_persist_gib_count;     /* slots currently in use, <= MAX_PERSIST_GIBS */
+int      cl_persist_gib_next;      /* next slot index for ring eviction */
+
+void
+CL_ClearPersistGibs(void)
+{
+    /* Wipes the pool; called from CL_ClearState on level change /
+     * disconnect, and is also safe to call when the cvar is toggled
+     * off mid-play to free the existing gibs immediately rather than
+     * waiting for the next level. */
+    memset(cl_persist_gibs, 0, sizeof(cl_persist_gibs));
+    cl_persist_gib_count = 0;
+    cl_persist_gib_next  = 0;
+}
+
+/*
+ * Snapshot a gib edict into the persistent pool.  Called from the
+ * server-side PF_Remove just before ED_Free would wipe the entity.
+ * Position, angles, model, frame, and skin are copied; physics state
+ * is dropped (the captured gib is purely visual).  After capture the
+ * entity is registered with the BSP via R_AddEfrags so subsequent
+ * frames render it identically to a static entity.
+ *
+ * Caller has already verified r_persistgibs is on and the model name
+ * looks like a gib.  This routine handles model_t lookup and the
+ * pool eviction policy.
+ */
+void
+CL_PersistGib(const vec3_t origin, const vec3_t angles,
+              const char *model_name, int frame, int skin)
+{
+    entity_t *ent;
+    model_t  *mod;
+    int       slot;
+
+    mod = Mod_ForName(model_name, false);
+    if (!mod)
+	return;     /* gib model not loaded, can't render */
+
+    /* Pick a slot.  Below capacity: append; at capacity: overwrite
+     * oldest (ring buffer).  When overwriting we must first detach
+     * the old occupant from the efrag chain, otherwise the leaf
+     * lists end up pointing at a record we are about to clobber. */
+    if (cl_persist_gib_count < MAX_PERSIST_GIBS) {
+	slot = cl_persist_gib_count++;
+    } else {
+	slot = cl_persist_gib_next;
+	cl_persist_gib_next = (cl_persist_gib_next + 1) % MAX_PERSIST_GIBS;
+	R_RemoveEfrags(&cl_persist_gibs[slot]);
+    }
+
+    ent = &cl_persist_gibs[slot];
+    memset(ent, 0, sizeof(*ent));
+    ent->model    = mod;
+    ent->frame    = frame;
+    ent->skinnum  = skin;
+    ent->colormap = vid.colormap;
+    VectorCopy(origin, ent->origin);
+    VectorCopy(angles, ent->angles);
+    /* Model-lerp fields: snap both halves to the same pose so the
+     * renderer never tries to interpolate from a stale frame. */
+    ent->currentframe       = frame;
+    ent->previousframe      = frame;
+    ent->currentframetime   = cl.time;
+    ent->previousframetime  = cl.time;
+    VectorCopy(origin, ent->currentorigin);
+    VectorCopy(origin, ent->previousorigin);
+    VectorCopy(angles, ent->currentangles);
+    VectorCopy(angles, ent->previousangles);
+    ent->currentorigintime  = cl.time;
+    ent->previousorigintime = cl.time;
+
+    R_AddEfrags(ent);
+}
+
 /*
  * FIXME - horribly hackish because we don't have a way to tell if the
  *         entity is a player just by looking at it's properties/pointer.
@@ -124,6 +217,7 @@ void CL_ClearState(void)
    memset(cl_entities, 0, sizeof(cl_entities));
    memset(cl_dlights, 0, sizeof(cl_dlights));
    memset(cl_lightstyle, 0, sizeof(cl_lightstyle));
+   CL_ClearPersistGibs();
 
    /* allocate the efrags and chain together into a free list */
    cl.free_efrags = cl_efrags;

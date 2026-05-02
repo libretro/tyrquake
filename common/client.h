@@ -323,6 +323,9 @@ void CL_ParseTEnt(void);
 void CL_UpdateTEnts(void);
 
 void CL_ClearState(void);
+void CL_ClearPersistGibs(void);
+void CL_PersistGib(const vec3_t origin, const vec3_t angles,
+                   const char *model_name, int frame, int skin);
 
 
 int CL_ReadFromServer(void);
