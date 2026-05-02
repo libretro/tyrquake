@@ -106,15 +106,24 @@ static enum sw_fb_state sw_fb_status = SW_FB_UNKNOWN;
 #define DEFAULT_MEMSIZE_MB 32
 #endif
 
-/* Mix at 44.1 kHz unconditionally; the previous fps-conditional
- * fallback to 22050/48000 was working around the leaf-driven
- * ambient-fade truncation bug fixed in 'snd: do leaf-driven
- * ambient fade ramp in float'. */
+/* Use 44.1 kHz by default (matches CD
+ * audio tracks) */
 #define AUDIO_SAMPLERATE_DEFAULT 44100
+/* SFX resampling fails with certain fps/
+ * sample rate combinations (seems to be an
+ * internal limitation...). When running at
+ * the affected framerates, we must fall back
+ * to lower or higher sample rates to maintain
+ * acceptable audio quality. */
+#define AUDIO_SAMPLERATE_22KHZ 22050
+#define AUDIO_SAMPLERATE_48KHZ 48000
 static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
-static int16_t  audio_buffer[AUDIO_BUFFER_SIZE];
-static int16_t  audio_out_buffer[AUDIO_BUFFER_SIZE];
+static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
+static unsigned audio_buffer_ptr;
+
+static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
+static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr = 0;
 
 static unsigned audio_batch_frames_max = AUDIO_BUFFER_SIZE >> 1;
@@ -788,6 +797,17 @@ static void update_variables(bool startup)
          framerate = 60.0f;
 
       frametime_usec = 1000.0f / framerate;
+
+      /* Certain framerates require specific
+       * sample rates to avoid distorted audio */
+      if ((framerate == 40.0f) ||
+          (framerate == 72.0f) ||
+          (framerate == 119.0f))
+         audio_samplerate = AUDIO_SAMPLERATE_22KHZ;
+      else if (framerate == 120.0f)
+         audio_samplerate = AUDIO_SAMPLERATE_48KHZ;
+      else
+         audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
    }
 
    var.key = "tyrquake_colored_lighting";
