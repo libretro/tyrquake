@@ -1564,6 +1564,26 @@ D_DrawShadowTriangle(const float v0[2], const float v1[2], const float v2[2],
     int   y, y_top, y_mid, y_bot;
     int   y_clamp_top, y_clamp_bot;
 
+    /* Defensive: reject NaN, Inf, or absurd inputs.  Bad floats
+     * here (e.g. from a degenerate projection where t blew up
+     * because L_z went to zero, or from triangles fed garbage
+     * coordinates due to vertex-index corruption upstream) would
+     * cause undefined behaviour on the float->int casts below
+     * and produce out-of-bounds y_top/y_mid/y_bot values that
+     * survive the vid.height clamp.  The chosen bound (1.0e6)
+     * is far past any legitimate screen coordinate or 1/depth.
+     * NaN fails both the < and > tests so it's also caught. */
+    if (!(v0[0] > -1.0e6f && v0[0] < 1.0e6f) ||
+        !(v0[1] > -1.0e6f && v0[1] < 1.0e6f) ||
+        !(v1[0] > -1.0e6f && v1[0] < 1.0e6f) ||
+        !(v1[1] > -1.0e6f && v1[1] < 1.0e6f) ||
+        !(v2[0] > -1.0e6f && v2[0] < 1.0e6f) ||
+        !(v2[1] > -1.0e6f && v2[1] < 1.0e6f) ||
+        !(zi0   > -1.0e6f && zi0   < 1.0e6f) ||
+        !(zi1   > -1.0e6f && zi1   < 1.0e6f) ||
+        !(zi2   > -1.0e6f && zi2   < 1.0e6f))
+        return;
+
     /* Sort verts top-to-bottom by Y, dragging per-vertex z values
      * along with the position pointers. */
     if (p0[1] > p1[1]) { tmp = p0; p0 = p1; p1 = tmp; ztmp = z0; z0 = z1; z1 = ztmp; }

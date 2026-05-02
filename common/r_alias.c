@@ -1139,6 +1139,23 @@ void R_AliasDrawShadow(entity_t *e)
 	int b = ptri->vertindex[1];
 	int c = ptri->vertindex[2];
 
+	/* Defensive: reject triangles whose vertex indices fall
+	 * outside [0, numverts).  Stock alias models have well-
+	 * formed indices, but garbage data (corrupt model file,
+	 * stale model pointer surviving a map change) would let
+	 * us read uninitialised entries of shadow_clipped/
+	 * shadow_screen/shadow_depth -- the static arrays are
+	 * sized to MAXALIASVERTS but only entries [0, numverts)
+	 * are populated by the projection loop above.  Reading
+	 * past numverts hands D_DrawShadowTriangle garbage floats
+	 * (NaN, Inf, or huge values), which then causes UB on
+	 * the float->int casts in the rasterizer and crashes. */
+	if (a < 0 || b < 0 || c < 0 ||
+	    a >= pahdr->numverts ||
+	    b >= pahdr->numverts ||
+	    c >= pahdr->numverts)
+	    continue;
+
 	if (shadow_clipped[a] || shadow_clipped[b] || shadow_clipped[c])
 	    continue;
 
