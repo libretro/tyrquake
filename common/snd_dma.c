@@ -161,8 +161,13 @@ S_Shutdown(void)
    if (!sound_started)
       return;
 
-   shm = 0;
+   /* Clear sound_started first so any reader that observes
+    * the new sound_started==0 won't proceed into the mixer
+    * and try to dereference the just-cleared shm.  The
+    * sound_started check is the gate; pairing this with the
+    * shm null-check in SNDDMA_GetDMAPos closes the window. */
    sound_started = 0;
+   shm = 0;
 }
 
 /*

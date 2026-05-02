@@ -1452,6 +1452,13 @@ qboolean SNDDMA_Init(dma_t *dma)
 
 int SNDDMA_GetDMAPos(void)
 {
+   /* Defensive: shm can be NULL during shutdown windows
+    * (S_Shutdown clears it) or before SNDDMA_Init has run.
+    * Other functions in snd_dma.c (e.g. S_ClearBuffer at
+    * line 447) already pair a sound_started check with an
+    * explicit shm null-check; mirror that here. */
+   if (!shm)
+      return 0;
    return shm->samplepos = audio_buffer_ptr;
 }
 
