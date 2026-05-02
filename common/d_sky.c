@@ -36,7 +36,7 @@ byte *skyoverlay;
 D_Sky_uv_To_st
 =================
 */
-void D_Sky_uv_To_st (int u, int v, fixed16_t *s, fixed16_t *t
+static void D_Sky_uv_To_st (int u, int v, fixed16_t *s, fixed16_t *t
                , fixed16_t *s2, fixed16_t *t2)
 {
    vec3_t   end;
@@ -58,7 +58,7 @@ void D_Sky_uv_To_st (int u, int v, fixed16_t *s, fixed16_t *t
 }
 
 
-unsigned char D_DrawSkyPixelOpaque (unsigned char pixel1, unsigned char pixel2)
+static unsigned char D_DrawSkyPixelOpaque (unsigned char pixel1, unsigned char pixel2)
 {
    return pixel2 ? pixel2 : pixel1;
 }

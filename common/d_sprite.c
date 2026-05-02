@@ -186,7 +186,7 @@ NextSpan:
 D_SpriteScanLeftEdge
 =====================
 */
-void
+static void
 D_SpriteScanLeftEdge(sspan_t * pspan)
 {
    int lmaxindex;
@@ -245,7 +245,7 @@ D_SpriteScanLeftEdge(sspan_t * pspan)
 D_SpriteScanRightEdge
 =====================
 */
-void
+static void
 D_SpriteScanRightEdge(sspan_t * pspan)
 {
    float vtop;
@@ -328,7 +328,7 @@ D_SpriteScanRightEdge(sspan_t * pspan)
 D_SpriteCalculateGradients
 =====================
 */
-void
+static void
 D_SpriteCalculateGradients(void)
 {
    vec3_t p_normal, p_saxis, p_taxis, p_temp1;

@@ -87,7 +87,7 @@ Sbar_ShowScores
 Tab key down
 ===============
 */
-void
+static void
 Sbar_ShowScores(void)
 {
     if (sb_showscores)
@@ -103,7 +103,7 @@ Sbar_DontShowScores
 Tab key up
 ===============
 */
-void
+static void
 Sbar_DontShowScores(void)
 {
     sb_showscores = false;
@@ -275,7 +275,7 @@ Sbar_Init(void)
 Sbar_DrawPic
 =============
 */
-void
+static void
 Sbar_DrawPic(int x, int y, const qpic_t *pic)
 {
     if (cl.gametype == GAME_DEATHMATCH)
@@ -291,7 +291,7 @@ Sbar_DrawPic(int x, int y, const qpic_t *pic)
 Sbar_DrawTransPic
 =============
 */
-void
+static void
 Sbar_DrawTransPic(int x, int y, const qpic_t *pic)
 {
     if (cl.gametype == GAME_DEATHMATCH)
@@ -309,7 +309,7 @@ Sbar_DrawCharacter
 Draws one solid graphics character
 ================
 */
-void
+static void
 Sbar_DrawCharacter(int x, int y, int num)
 {
     if (cl.gametype == GAME_DEATHMATCH)
@@ -341,7 +341,7 @@ Sbar_DrawString(int x, int y, const char *str)
 Sbar_itoa
 =============
 */
-int
+static int
 Sbar_itoa(int num, char *buf)
 {
     char *str;
@@ -375,7 +375,7 @@ Sbar_itoa(int num, char *buf)
 Sbar_DrawNum
 =============
 */
-void
+static void
 Sbar_DrawNum(int x, int y, int num, int digits, int color)
 {
     char str[12];
@@ -416,7 +416,7 @@ int scoreboardlines;
 Sbar_SortFrags
 ===============
 */
-void
+static void
 Sbar_SortFrags(void)
 {
     int i, j, k;
@@ -454,7 +454,7 @@ Sbar_ColorForMap(int m)
 Sbar_UpdateScoreboard
 ===============
 */
-void
+static void
 Sbar_UpdateScoreboard(void)
 {
     int i, k;
@@ -482,7 +482,7 @@ Sbar_UpdateScoreboard(void)
 Sbar_SoloScoreboard
 ===============
 */
-void
+static void
 Sbar_SoloScoreboard(void)
 {
     char str[80];
@@ -515,7 +515,7 @@ Sbar_SoloScoreboard(void)
 Sbar_DrawScoreboard
 ===============
 */
-void
+static void
 Sbar_DrawScoreboard(void)
 {
     Sbar_SoloScoreboard();
@@ -530,7 +530,7 @@ Sbar_DrawScoreboard(void)
 Sbar_DrawInventory
 ===============
 */
-void
+static void
 Sbar_DrawInventory(void)
 {
     int i;
@@ -702,7 +702,7 @@ Sbar_DrawInventory(void)
 Sbar_DrawFrags
 ===============
 */
-void
+static void
 Sbar_DrawFrags(void)
 {
     int i, k, l;
@@ -761,7 +761,7 @@ Sbar_DrawFrags(void)
 Sbar_DrawFace
 ===============
 */
-void
+static void
 Sbar_DrawFace(void)
 {
     int f, anim;
@@ -962,7 +962,7 @@ Sbar_IntermissionNumber
 
 ==================
 */
-void
+static void
 Sbar_IntermissionNumber(int x, int y, int num, int digits, int color)
 {
     char str[12];

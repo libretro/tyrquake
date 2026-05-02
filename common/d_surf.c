@@ -56,7 +56,7 @@ int D_SurfaceCacheForRes(int width, int height)
    return size;
 }
 
-void D_ClearCacheGuard(void)
+static void D_ClearCacheGuard(void)
 {
    byte *s;
    int i;
@@ -120,7 +120,7 @@ D_FlushCaches(void)
 D_SCAlloc
 =================
 */
-surfcache_t *
+static surfcache_t *
 D_SCAlloc(int width, int size)
 {
    surfcache_t *new_surf;

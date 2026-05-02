@@ -232,7 +232,7 @@ static qboolean CheckForCommand(void)
 }
 
 
-void
+static void
 CompleteCommand(void)
 {
     const char *cmd, *completion;
@@ -364,7 +364,7 @@ Key_Console
 Interactive line editing and console scrollback
 ====================
 */
-void
+static void
 Key_Console(int key)
 {
     /* detect double presses of tab key */
@@ -485,7 +485,7 @@ qboolean chat_team;
 char chat_buffer[MAXCMDLINE];
 int chat_bufferlen = 0;
 
-void
+static void
 Key_Message(int key)
 {
     if (key == K_ENTER) {
@@ -617,7 +617,7 @@ Key_SetBinding(knum_t keynum, const char *binding)
 Key_Unbind_f
 ===================
 */
-void
+static void
 Key_Unbind_f(void)
 {
     int b;
@@ -636,7 +636,7 @@ Key_Unbind_f(void)
     Key_SetBinding((knum_t)b, NULL);
 }
 
-void
+static void
 Key_Unbindall_f(void)
 {
     int i;
@@ -652,7 +652,7 @@ Key_Unbindall_f(void)
 Key_Bind_f
 ===================
 */
-void
+static void
 Key_Bind_f(void)
 {
     int i, argc, keynum, len;

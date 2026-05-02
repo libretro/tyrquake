@@ -177,7 +177,7 @@ Host_Error(const char *error, ...)
 Host_FindMaxClients
 ================
 */
-void
+static void
 Host_FindMaxClients(void)
 {
     int i;
@@ -225,7 +225,7 @@ Host_FindMaxClients(void)
 Host_InitLocal
 ======================
 */
-void
+static void
 Host_InitLocal(void)
 {
     Host_InitCommands();
@@ -265,7 +265,7 @@ Host_WriteConfiguration
 Writes key bindings and archived cvars to config.cfg
 ===============
 */
-void
+static void
 Host_WriteConfiguration(void)
 {
     RFILE *f;
@@ -536,7 +536,7 @@ Host_GetConsoleCommands
 Add them exactly as if they had been typed at the console
 ===================
 */
-void
+static void
 Host_GetConsoleCommands(void)
 {
     char *cmd;
@@ -644,7 +644,7 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void _Host_Frame(float time)
+static void _Host_Frame(float time)
 {
    /* something bad happened, or the server disconnected */
    if (setjmp(host_abort))

@@ -343,7 +343,7 @@ Sends the first message from the server to a connected client.
 This will be sent on the initial connection and upon each server load.
 ================
 */
-void SV_SendServerinfo(client_t *client)
+static void SV_SendServerinfo(client_t *client)
 {
    const char **s;
 
@@ -395,7 +395,7 @@ Initializes a client_t for a new net connection.  This will only be called
 once for a player each game, not once for each level change.
 ================
 */
-void SV_ConnectClient(int clientnum)
+static void SV_ConnectClient(int clientnum)
 {
    edict_t *ent;
    int edictnum;
@@ -523,7 +523,7 @@ SV_WriteEntitiesToClient
 
 =============
 */
-void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
+static void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
 {
    int e, i;
    int bits;
@@ -668,7 +668,7 @@ SV_CleanupEnts
 
 =============
 */
-void SV_CleanupEnts(void)
+static void SV_CleanupEnts(void)
 {
    int e;
    edict_t *ent = NEXT_EDICT(sv.edicts);
@@ -859,7 +859,7 @@ void SV_WriteClientdataToMessage(edict_t *ent, sizebuf_t *msg)
 SV_SendClientDatagram
 =======================
 */
-qboolean SV_SendClientDatagram(client_t *client)
+static qboolean SV_SendClientDatagram(client_t *client)
 {
    byte buf[MAX_DATAGRAM];
    sizebuf_t msg;
@@ -896,7 +896,7 @@ qboolean SV_SendClientDatagram(client_t *client)
 SV_UpdateToReliableMessages
 =======================
 */
-void SV_UpdateToReliableMessages(void)
+static void SV_UpdateToReliableMessages(void)
 {
    int i, j;
    client_t *client;
@@ -936,7 +936,7 @@ Send a nop message without trashing or sending the accumulated client
 message buffer
 =======================
 */
-void SV_SendNop(client_t *client)
+static void SV_SendNop(client_t *client)
 {
    sizebuf_t msg;
    byte buf[4];
@@ -1058,7 +1058,7 @@ SV_CreateBaseline
 
 ================
 */
-void SV_CreateBaseline(void)
+static void SV_CreateBaseline(void)
 {
    int i;
    edict_t *svent;
@@ -1131,7 +1131,7 @@ SV_SendReconnect
 Tell all the clients that the server is changing levels
 ================
 */
-void SV_SendReconnect(void)
+static void SV_SendReconnect(void)
 {
    byte data[128];
    sizebuf_t msg;

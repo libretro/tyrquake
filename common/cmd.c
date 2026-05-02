@@ -66,7 +66,7 @@ next frame.  This allows commands like:
 bind g "impulse 5 ; +attack ; wait ; -attack ; impulse 2"
 ============
 */
-void
+static void
 Cmd_Wait_f(void)
 {
     cmd_wait = true;
@@ -243,7 +243,7 @@ quake +prog jctest.qp +cmd amlev1
 quake -nosound +cmd amlev1
 ===============
 */
-void
+static void
 Cmd_StuffCmds_f(void)
 {
     int i, j;
@@ -308,7 +308,7 @@ Cmd_StuffCmds_f(void)
 Cmd_Exec_f
 ===============
 */
-void
+static void
 Cmd_Exec_f(void)
 {
     char *f;
@@ -340,7 +340,7 @@ Cmd_Echo_f
 Just prints the rest of the line to the console
 ===============
 */
-void
+static void
 Cmd_Echo_f(void)
 {
     int i;
@@ -371,7 +371,7 @@ Cmd_Alias_Find(const char *name)
     return ret;
 }
 
-void
+static void
 Cmd_Alias_f(void)
 {
     cmdalias_t *a;

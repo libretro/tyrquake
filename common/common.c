@@ -1004,7 +1004,7 @@ Immediately exits out if an alternate game was attempted to be started without
 being registered.
 ================
 */
-void COM_CheckRegistered(void)
+static void COM_CheckRegistered(void)
 {
    RFILE *f;
 
@@ -1295,7 +1295,7 @@ void COM_WriteFile(const char *filename, const void *data, int len)
 COM_CreatePath
 ============
 */
-void COM_CreatePath(const char *path)
+static void COM_CreatePath(const char *path)
 {
    char part[MAX_OSPATH];
    char *ofs;

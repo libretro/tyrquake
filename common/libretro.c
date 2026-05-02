@@ -403,7 +403,7 @@ double Sys_DoubleTime(void)
 /* Sleeps for microseconds */
 /* ======================================================================= */
 
-void IN_Accumulate(void) { }
+static void IN_Accumulate(void) { }
 void Sys_HighFPPrecision(void) { }
 void Sys_LowFPPrecision(void) { }
 char * Sys_ConsoleInput(void) { return NULL; }
@@ -455,7 +455,7 @@ unsigned retro_api_version(void)
    return RETRO_API_VERSION;
 }
 
-void gp_layout_set_bind(gp_layout_t gp_layout)
+static void gp_layout_set_bind(gp_layout_t gp_layout)
 {
    char buf[100];
    unsigned i;
@@ -1630,7 +1630,7 @@ IN_Move(usercmd_t *cmd)
 IN_ModeChanged
 ===========
 */
-void
+static void
 IN_ModeChanged(void)
 {
 }

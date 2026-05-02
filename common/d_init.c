@@ -70,7 +70,7 @@ console); Quake will then draw into wherever the driver points vid.buffer
 and will call this function before swapping buffers
 ===============
 */
-void
+static void
 D_CopyRects(vrect_t *prects, int transparent) { }
 
 /*

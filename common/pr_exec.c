@@ -150,7 +150,7 @@ char *PR_GlobalStringNoContents(int ofs);
 PR_PrintStatement
 =================
 */
-void
+static void
 PR_PrintStatement(dstatement_t *s)
 {
     int i;
@@ -185,7 +185,7 @@ PR_PrintStatement(dstatement_t *s)
 PR_StackTrace
 ============
 */
-void
+static void
 PR_StackTrace(void)
 {
     dfunction_t *f;
@@ -295,7 +295,7 @@ PR_EnterFunction
 Returns the new program statement counter
 ====================
 */
-int
+static int
 PR_EnterFunction(dfunction_t *f)
 {
     int i, j, c, o;
@@ -335,7 +335,7 @@ PR_EnterFunction(dfunction_t *f)
 PR_LeaveFunction
 ====================
 */
-int
+static int
 PR_LeaveFunction(void)
 {
     int i, c;

@@ -117,7 +117,7 @@ Con_ClearNotify(void)
 Con_MessageMode_f
 ================
 */
-void
+static void
 Con_MessageMode_f(void)
 {
     key_dest = key_message;
@@ -129,7 +129,7 @@ Con_MessageMode_f(void)
 Con_MessageMode2_f
 ================
 */
-void
+static void
 Con_MessageMode2_f(void)
 {
     key_dest = key_message;
@@ -214,7 +214,7 @@ Con_CheckResize(void)
 Con_Linefeed
 ===============
 */
-void
+static void
 Con_Linefeed(void)
 {
     con->x = 0;
@@ -396,7 +396,7 @@ Con_DrawInput
 The input line scrolls horizontally if typing goes beyond the right edge
 ================
 */
-void
+static void
 Con_DrawInput(void)
 {
     int y;
@@ -744,7 +744,7 @@ Con_ShowTree(struct stree_root *root)
 }
 
 
-void
+static void
 Con_Maplist_f(void)
 {
     struct stree_root st_root;

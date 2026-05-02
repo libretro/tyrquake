@@ -386,7 +386,7 @@ PrintStats(qsocket_t *s)
     Con_Printf("\n");
 }
 
-void
+static void
 NET_Stats_f(void)
 {
     qsocket_t *s;

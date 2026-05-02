@@ -706,7 +706,7 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
 R_AliasSetupLighting
 ================
 */
-void
+static void
 R_AliasSetupLighting(alight_t *plighting)
 {
 

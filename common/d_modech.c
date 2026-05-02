@@ -36,7 +36,7 @@ short *zspantable[MAXHEIGHT];
 D_Patch
 ================
 */
-void
+static void
 D_Patch(void)
 {
 }

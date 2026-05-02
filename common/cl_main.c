@@ -303,7 +303,7 @@ void CL_NextDemo(void)
 CL_PrintEntities_f
 ==============
 */
-void CL_PrintEntities_f(void)
+static void CL_PrintEntities_f(void)
 {
    const entity_t *ent;
    int i;
@@ -416,7 +416,7 @@ Determines the fraction between the last two messages that the objects
 should be put at.
 ===============
 */
-float CL_LerpPoint(void)
+static float CL_LerpPoint(void)
 {
    float frac;
    float f = cl.mtime[0] - cl.mtime[1];
@@ -458,7 +458,7 @@ float CL_LerpPoint(void)
 CL_RelinkEntities
 ===============
 */
-void CL_RelinkEntities(void)
+static void CL_RelinkEntities(void)
 {
    entity_t *ent;
    int i, j;

@@ -53,7 +53,7 @@ Chase_Reset(void)
 /*      start position 12 units behind head */
 }
 
-void
+static void
 TraceLine(vec3_t start, vec3_t end, vec3_t impact)
 {
     trace_t trace;

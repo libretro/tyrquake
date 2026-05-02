@@ -284,7 +284,7 @@ void Draw_String(int x, int y, char *str)
 Draw_Alt_String
 ================
 */
-void Draw_Alt_String(int x, int y, char *str)
+static void Draw_Alt_String(int x, int y, char *str)
 {
    while (*str)
    {
@@ -360,7 +360,7 @@ void Draw_Pic(int x, int y, const qpic_t *pic)
 Draw_SubPic
 =============
 */
-void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
+static void Draw_SubPic(int x, int y, const qpic_t *pic, int srcx, int srcy, int width,
 	    int height)
 {
    const byte *source;

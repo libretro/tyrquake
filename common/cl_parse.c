@@ -104,7 +104,7 @@ CL_EntityNum
 This error checks and tracks the total number of entities
 ===============
 */
-entity_t *
+static entity_t *
 CL_EntityNum(int num)
 {
     if (num >= cl.num_entities) {
@@ -148,7 +148,7 @@ static int CL_ReadSoundNum(int field_mask)
 CL_ParseStartSoundPacket
 ==================
 */
-void
+static void
 CL_ParseStartSoundPacket(void)
 {
    vec3_t pos;
@@ -200,7 +200,7 @@ When the client is taking a long time to load stuff, send keepalive messages
 so the server doesn't disconnect.
 ==================
 */
-void
+static void
 CL_KeepaliveMessage(void)
 {
     float time;
@@ -256,7 +256,7 @@ CL_KeepaliveMessage(void)
 CL_ParseServerInfo
 ==================
 */
-void
+static void
 CL_ParseServerInfo(void)
 {
     char *level;
@@ -448,7 +448,7 @@ relinked.  Other attributes can change without relinking.
 ==================
 */
 
-void
+static void
 CL_ParseUpdate(unsigned int bits)
 {
    int i;
@@ -663,7 +663,7 @@ CL_ParseClientdata
 Server information pertaining to this client only
 ==================
 */
-void
+static void
 CL_ParseClientdata(void)
 {
     int i, j;
@@ -794,7 +794,7 @@ CL_ParseClientdata(void)
 CL_NewTranslation
 =====================
 */
-void
+static void
 CL_NewTranslation(int slot)
 {
    int i, j;
@@ -829,7 +829,7 @@ CL_NewTranslation(int slot)
 CL_ParseStatic
 =====================
 */
-void
+static void
 CL_ParseStatic(unsigned int bits)
 {
     entity_t *ent;

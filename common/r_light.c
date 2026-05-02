@@ -138,7 +138,7 @@ LIGHT SAMPLING
 =============================================================================
 */
 
-int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
+static int RecursiveLightPoint(mnode_t *node, vec3_t start, vec3_t end)
 {
    int r;
    float front, back, frac;
@@ -251,7 +251,7 @@ vec3_t			lightspot;
 /* LordHavoc: .lit support begin */
 /* LordHavoc: original code replaced entirely */
 
-int RecursiveLightPointRGB(vec3_t color, mnode_t *node, vec3_t start, vec3_t end)
+static int RecursiveLightPointRGB(vec3_t color, mnode_t *node, vec3_t start, vec3_t end)
 {
 	float		front, back, frac;
 	vec3_t		mid;

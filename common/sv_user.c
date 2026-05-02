@@ -129,7 +129,7 @@ SV_UserFriction
 
 ==================
 */
-void SV_UserFriction(void)
+static void SV_UserFriction(void)
 {
    float newspeed, control;
    vec3_t start, stop;
@@ -178,7 +178,7 @@ cvar_t sv_maxspeed = { "sv_maxspeed", "320", false, true };
 #endif
 cvar_t sv_accelerate = { "sv_accelerate", "10" };
 
-void SV_Accelerate(void)
+static void SV_Accelerate(void)
 {
    int i;
    float accelspeed;
@@ -196,7 +196,7 @@ void SV_Accelerate(void)
       velocity[i] += accelspeed * wishdir[i];
 }
 
-void SV_AirAccelerate(vec3_t wishveloc)
+static void SV_AirAccelerate(vec3_t wishveloc)
 {
    int i;
    float addspeed, accelspeed, currentspeed;
@@ -220,7 +220,7 @@ void SV_AirAccelerate(vec3_t wishveloc)
 }
 
 
-void DropPunchAngle(void)
+static void DropPunchAngle(void)
 {
    float len = VectorNormalize(sv_player->v.punchangle);
 
@@ -235,7 +235,7 @@ void DropPunchAngle(void)
 SV_FlightMove: this is just the same as SV_WaterMove but with a few changes to make it flight
 ===================
 */
-void SV_FlightMove (void)
+static void SV_FlightMove (void)
 {
 	int		i;
 	vec3_t	wishvel;
@@ -292,7 +292,7 @@ SV_WaterMove
 
 ===================
 */
-void SV_WaterMove(void)
+static void SV_WaterMove(void)
 {
    int i;
    vec3_t wishvel;
@@ -365,7 +365,7 @@ void SV_WaterMove(void)
       velocity[i] += accelspeed * wishvel[i];
 }
 
-void SV_WaterJump(void)
+static void SV_WaterJump(void)
 {
    if (sv.time > sv_player->v.teleport_time || !sv_player->v.waterlevel)
    {
@@ -383,7 +383,7 @@ SV_AirMove
 
 ===================
 */
-void SV_AirMove(void)
+static void SV_AirMove(void)
 {
    int i;
    vec3_t wishvel;
@@ -496,7 +496,7 @@ void SV_ClientThink(void)
 SV_ReadClientMove
 ===================
 */
-void SV_ReadClientMove(usercmd_t *move)
+static void SV_ReadClientMove(usercmd_t *move)
 {
    int i;
    vec3_t angle;
@@ -545,7 +545,7 @@ SV_ReadClientMessage
 Returns false if the client should be killed
 ===================
 */
-qboolean SV_ReadClientMessage(void)
+static qboolean SV_ReadClientMessage(void)
 {
    int ret;
    int cmd;

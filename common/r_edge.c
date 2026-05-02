@@ -222,7 +222,7 @@ pushback:
 R_CleanupSpan
 ==============
 */
-void R_CleanupSpan(void)
+static void R_CleanupSpan(void)
 {
    espan_t *span;
 

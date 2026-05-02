@@ -62,7 +62,7 @@ void SV_Physics_Toss(edict_t *ent);
 SV_CheckAllEnts
 ================
 */
-void
+static void
 SV_CheckAllEnts(void)
 {
     int e;
@@ -88,7 +88,7 @@ SV_CheckAllEnts(void)
 SV_CheckVelocity
 ================
 */
-void
+static void
 SV_CheckVelocity(edict_t *ent)
 {
     int i;
@@ -125,7 +125,7 @@ in a frame.  Not used for pushmove objects, because they must be exact.
 Returns false if the entity removed itself.
 =============
 */
-qboolean
+static qboolean
 SV_RunThink(edict_t *ent)
 {
     float thinktime = ent->v.nextthink;
@@ -154,7 +154,7 @@ SV_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void
+static void
 SV_Impact(edict_t *e1, edict_t *e2)
 {
    int old_self  = pr_global_struct->self;
@@ -191,7 +191,7 @@ returns the blocked flags (1 = floor, 2 = step / wall)
 */
 #define	STOP_EPSILON	0.1
 
-int
+static int
 ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 {
    float backoff;
@@ -231,7 +231,7 @@ If steptrace is not NULL, the trace of any vertical wall hit will be stored
 ============
 */
 #define	MAX_CLIP_PLANES	5
-int
+static int
 SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
 {
    int bumpcount;
@@ -408,7 +408,7 @@ SV_AddGravity
 
 ============
 */
-void
+static void
 SV_AddGravity(edict_t *ent)
 {
    float ent_gravity = 1.0;
@@ -438,7 +438,7 @@ Does not change the entities velocity at all
 TODO/FIXME - update with Hexen 2 code
 ============
 */
-trace_t
+static trace_t
 SV_PushEntity(edict_t *ent, vec3_t push)
 {
    trace_t trace;
@@ -477,7 +477,7 @@ SV_PushMove
 TODO/FIXME - update with Hexen 2 code
 ============
 */
-void
+static void
 SV_PushMove(edict_t *pusher, float movetime)
 {
    int i, e;
@@ -603,7 +603,7 @@ SV_Physics_Pusher
 
 ================
 */
-void
+static void
 SV_Physics_Pusher(edict_t *ent)
 {
    float movetime;
@@ -655,7 +655,7 @@ This is a big hack to try and fix the rare case of getting stuck in the world
 clipping hull.
 =============
 */
-void
+static void
 SV_CheckStuck(edict_t *ent)
 {
    int i, j;
@@ -702,7 +702,7 @@ SV_CheckStuck(edict_t *ent)
 SV_CheckWater
 =============
 */
-qboolean
+static qboolean
 SV_CheckWater(edict_t *ent)
 {
    vec3_t point;
@@ -742,7 +742,7 @@ SV_WallFriction
 
 ============
 */
-void
+static void
 SV_WallFriction(edict_t *ent, trace_t *trace)
 {
    vec3_t forward, right, up;
@@ -777,7 +777,7 @@ Try fixing by pushing one pixel in each direction.
 This is a hack, but in the interest of good gameplay...
 ======================
 */
-int
+static int
 SV_TryUnstick(edict_t *ent, vec3_t oldvel)
 {
    int i;
@@ -860,7 +860,7 @@ Only used by players
 ======================
 */
 #define	STEPSIZE	18
-void
+static void
 SV_WalkMove(edict_t *ent)
 {
    vec3_t upmove, downmove;
@@ -960,7 +960,7 @@ SV_Physics_Client
 Player character actions
 ================
 */
-void
+static void
 SV_Physics_Client(edict_t *ent, int num)
 {
    if (!svs.clients[num - 1].active)
@@ -1030,7 +1030,7 @@ SV_Physics_None
 Non moving objects can only think
 =============
 */
-void
+static void
 SV_Physics_None(edict_t *ent)
 {
    /* regular thinking */
@@ -1044,7 +1044,7 @@ SV_Physics_Noclip
 A moving object that doesn't obey physics
 =============
 */
-void
+static void
 SV_Physics_Noclip(edict_t *ent)
 {
    /* regular thinking */
@@ -1071,7 +1071,7 @@ SV_CheckWaterTransition
 
 =============
 */
-void
+static void
 SV_CheckWaterTransition(edict_t *ent)
 {
    int cont = SV_PointContents(ent->v.origin);
@@ -1202,7 +1202,7 @@ This is also used for objects that have become still on the ground, but
 will fall if the floor is pulled out from under them.
 =============
 */
-void
+static void
 SV_Physics_Step(edict_t *ent)
 {
    qboolean hitsound;

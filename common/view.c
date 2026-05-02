@@ -124,7 +124,7 @@ V_CalcBob
 
 ===============
 */
-float V_CalcBob(void)
+static float V_CalcBob(void)
 {
    float bob;
    float cycle;
@@ -205,7 +205,7 @@ Drifting is enabled when the center view key is hit, mlook is released and
 lookspring is non 0, or when
 ===============
 */
-void V_DriftPitch(void)
+static void V_DriftPitch(void)
 {
    float delta, move;
 
@@ -275,7 +275,7 @@ cvar_t v_gamma = { "gamma", "0.95", true };
 
 byte gammatable[256];		/* palette is sent through this */
 
-void BuildGammaTable(float g)
+static void BuildGammaTable(float g)
 {
    int i;
 
@@ -302,7 +302,7 @@ void BuildGammaTable(float g)
 V_CheckGamma
 =================
 */
-qboolean V_CheckGamma(void)
+static qboolean V_CheckGamma(void)
 {
    static float oldgammavalue;
 
@@ -391,7 +391,7 @@ void V_ParseDamage(void)
 V_cshift_f
 ==================
 */
-void V_cshift_f(void)
+static void V_cshift_f(void)
 {
     cshift_empty.destcolor[0] = atoi(Cmd_Argv(1));
     cshift_empty.destcolor[1] = atoi(Cmd_Argv(2));
@@ -407,7 +407,7 @@ V_BonusFlash_f
 When you run over an item, the server sends this command
 ==================
 */
-void V_BonusFlash_f(void)
+static void V_BonusFlash_f(void)
 {
     cl.cshifts[CSHIFT_BONUS].destcolor[0] = 215;
     cl.cshifts[CSHIFT_BONUS].destcolor[1] = 186;
@@ -455,7 +455,7 @@ void V_SetContentsColor(int contents)
 V_CalcPowerupCshift
 =============
 */
-void V_CalcPowerupCshift(void)
+static void V_CalcPowerupCshift(void)
 {
    if (cl.stats[STAT_ITEMS] & IT_QUAD) {
       cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 0;
@@ -481,7 +481,7 @@ void V_CalcPowerupCshift(void)
       cl.cshifts[CSHIFT_POWERUP].percent = 0;
 }
 
-void V_DropCShift (cshift_t *cs, float droprate)
+static void V_DropCShift (cshift_t *cs, float droprate)
 {
    if (cs->time < 0)
       cs->percent = 0;
@@ -569,7 +569,7 @@ void V_UpdatePalette(void)
 ==============================================================================
 */
 
-float angledelta(float a)
+static float angledelta(float a)
 {
    a = anglemod(a);
    if (a > 180)
@@ -582,7 +582,7 @@ float angledelta(float a)
 CalcGunAngle
 ==================
 */
-void CalcGunAngle(void)
+static void CalcGunAngle(void)
 {
    float move;
    static float oldyaw = 0;
@@ -643,7 +643,7 @@ void CalcGunAngle(void)
 V_BoundOffsets
 ==============
 */
-void V_BoundOffsets(void)
+static void V_BoundOffsets(void)
 {
    const entity_t *ent = &cl_entities[cl.viewentity];
 
@@ -671,7 +671,7 @@ V_AddIdle
 Idle swaying
 ==============
 */
-void V_AddIdle(void)
+static void V_AddIdle(void)
 {
    r_refdef.viewangles[ROLL] +=
       v_idlescale.value * sin(cl.time * v_iroll_cycle.value) *
@@ -692,7 +692,7 @@ V_CalcViewRoll
 Roll is induced by movement and damage
 ==============
 */
-void V_CalcViewRoll(void)
+static void V_CalcViewRoll(void)
 {
    float side = V_CalcRoll(cl_entities[cl.viewentity].angles, cl.velocity);
 
@@ -727,7 +727,7 @@ V_CalcIntermissionRefdef
 
 ==================
 */
-void V_CalcIntermissionRefdef(void)
+static void V_CalcIntermissionRefdef(void)
 {
    float old;
 
@@ -753,7 +753,7 @@ V_CalcRefdef
 
 ==================
 */
-void V_CalcRefdef(void)
+static void V_CalcRefdef(void)
 {
    entity_t *ent, *view;
    int i;

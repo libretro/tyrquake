@@ -307,7 +307,7 @@ static void R_BuildLightMap(void)
 }
 
 
-void R_BuildLightMapRGB (void)
+static void R_BuildLightMapRGB (void)
 {
 	int			smax, tmax;
 	int			i, size;

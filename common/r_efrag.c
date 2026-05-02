@@ -87,7 +87,7 @@ R_RemoveEfrags(entity_t *ent)
 R_SplitEntityOnNode
 ===================
 */
-void
+static void
 R_SplitEntityOnNode(mnode_t *node)
 {
     efrag_t *ef;
