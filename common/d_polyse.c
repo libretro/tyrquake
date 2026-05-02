@@ -836,7 +836,6 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
    byte *lpdest;
    byte *lptex;
    byte ah;
-   vec3_t lc;
    unsigned trans[3];
    unsigned char *pix24;	/* leilei - colored lighting */
    int lsfrac, ltfrac;
@@ -880,46 +879,41 @@ void D_PolysetDrawSpansRGB(spanpackage_t *pspanpackage)
 				/* colormap is blended on it */
 		if (*lptex < host_fullbrights)
 		{
-			int seven;
-			ah = ((byte *)acolormap)[*lptex + (0 & 0xFF00)];
+			int shade;
+
+			/* Pull texel through the bright colormap row to get its base
+			 * palette index, then look up the 24-bit RGB. */
+			ah = ((byte *)acolormap)[*lptex];
 			pix24 = (unsigned char *)&d_8to24table[ah];
 
-			/* lc[0] *= 1; */ 
-			/* lc[1] *= 1; */
-			/* lc[2] -= (llight & 0x0000); */
-			for (seven=0;seven<3;seven++)
-			/* lc[seven] =  (llight  & 0xFF00) / 255; */
+			/* Lambertian shading factor.  llight is the Gouraud-interpolated
+			 * light in colormap-row space: high byte = row index, where 0
+			 * is brightest and 63 (== 63<<8 = 16128) is darkest.  Convert
+			 * to a 0..255 brightness factor where 255 = brightest.  Without
+			 * this the model gets a flat tint regardless of normal direction. */
+			shade = 255 - ((llight & 0xFF00) >> 8);
+			if (shade < 0) shade = 0;
 
-			lc[seven] =  (lightcolor[seven] / 1024);
+			/* Modulate texel by light color and Lambertian shade.
+			 *   pix24[i]      0..255   (8 bits, texel RGB channel)
+			 *   lightcolor[i] 0..255   (8 bits, BSP-sampled tint at model origin)
+			 *   shade         0..255   (8 bits, Lambertian factor)
+			 * Product max = 255^3 = ~16.6M.  palmap2 wants 0..63 per channel
+			 * (it's a 64x64x64 LUT), so divide by 2^18 and clamp. */
+			trans[0] = (pix24[0] * (int)lightcolor[0] * shade) >> 18;
+			trans[1] = (pix24[1] * (int)lightcolor[1] * shade) >> 18;
+			trans[2] = (pix24[2] * (int)lightcolor[2] * shade) >> 18;
 
-			/* 	lc[seven] = (16384 - (llight & 0xFF00)) * (lightcolor[seven]); */
+			if (trans[0] > 63) trans[0] = 63;
+			if (trans[1] > 63) trans[1] = 63;
+			if (trans[2] > 63) trans[2] = 63;
 
-			/* lc[seven] = (16384 - llight & 0xFF00) * lightcolor[seven]; */
-
-	/* 		trans[0] = (pix24[0] * (lc[0]<<6 )) >> 15; */
-	/* 		trans[1] = (pix24[1] * (lc[1]<<6 )) >> 15; */
-	/* 		trans[2] = (pix24[2] * (lc[2]<<6 )) >> 15; */
-
-
-			trans[0] = (pix24[0] * lc[0]);
-			trans[1] = (pix24[1] * lc[1]);
-			trans[2] = (pix24[2] * lc[2]);
-			
-
-			/* if (trans[0] & ~63) trans[0] = 63; if (trans[1] & ~63) trans[1] = 63; if (trans[2] & ~63) trans[2] = 63; */
-
-			/* ah = palmap2 [(int)trans[0]] [(int)trans[1]] [(int)trans[2]]; */
-	        /*        *lpdest = ((byte *)acolormap)[ah + (llight & 0xFF00)]; */
-		         /* *lpdest = ((byte *)acolormap)[ah]; */
-		
-			*lpdest = palmap2 [trans[0]] [trans[1]] [trans[2]];
-
-		        /* *lpdest = palmap2 [trans[0] >> 17] [trans[1] >> 17] [trans[2] >> 17]; */
-
+			*lpdest = palmap2[trans[0]][trans[1]][trans[2]];
 		}
 		else
 		{
-		*lpdest = *lptex; /* go directly to the color */
+			/* Fullbright: skin pixel passes through unmodulated. */
+			*lpdest = *lptex;
 		}
                *lpz = lzi >> 16;
             }
