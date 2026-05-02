@@ -41,6 +41,7 @@ void *acolormap;		/* FIXME: should go away */
 
 /* TODO: these probably will go away with optimized rasterization */
 vec3_t r_plightvec;
+vec3_t r_phalfvec;     /* model-space halfway vector L+V for specular */
 int r_ambientlight;
 float r_shadelight;
 static float ziscale;
@@ -721,8 +722,10 @@ R_AliasSetupLighting
 ================
 */
 static void
-R_AliasSetupLighting(alight_t *plighting)
+R_AliasSetupLighting(alight_t *plighting, const vec3_t entity_origin)
 {
+    vec3_t  v_world, h_world;
+    vec_t   h_len;
 
 /* guarantee that no vertex will ever be lit below LIGHT_MIN, so we don't have */
 /* to clamp off the bottom */
@@ -747,6 +750,34 @@ R_AliasSetupLighting(alight_t *plighting)
     r_plightvec[0] = DotProduct(plighting->plightvec, alias_forward);
     r_plightvec[1] = -DotProduct(plighting->plightvec, alias_right);
     r_plightvec[2] = DotProduct(plighting->plightvec, alias_up);
+
+    /* Compute halfway vector H = normalize(L + V) in model space, used
+     * by the Blinn-Phong specular term in the rasterizer.  The light
+     * direction L is plightvec (already in world space, pointing away
+     * from the surface toward the light); V is approximated as the
+     * unit vector from the entity's origin to the camera (constant
+     * across the model, same approximation already used for L).
+     * After summing L + V in world space we rotate into model space
+     * via the same alias_forward/right/up basis used for plightvec.
+     *
+     * Skip normalization if H length is zero (the light and view are
+     * exactly opposite, an edge case).  In that case set H to L; the
+     * specular term will be near-zero everywhere it matters. */
+    VectorSubtract(r_origin, entity_origin, v_world);
+    VectorNormalize(v_world);
+    VectorAdd(plighting->plightvec, v_world, h_world);
+    h_len = sqrt(h_world[0]*h_world[0] + h_world[1]*h_world[1]
+              + h_world[2]*h_world[2]);
+    if (h_len > 0.0001f) {
+	h_world[0] /= h_len;
+	h_world[1] /= h_len;
+	h_world[2] /= h_len;
+    } else {
+	VectorCopy(plighting->plightvec, h_world);
+    }
+    r_phalfvec[0] =  DotProduct(h_world, alias_forward);
+    r_phalfvec[1] = -DotProduct(h_world, alias_right);
+    r_phalfvec[2] =  DotProduct(h_world, alias_up);
 }
 
 #ifdef NQ_HACK
@@ -894,7 +925,7 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
 
    R_AliasSetupSkin(e, pahdr);
    R_AliasSetUpTransform(e, pahdr, e->trivial_accept);
-   R_AliasSetupLighting(plighting);
+   R_AliasSetupLighting(plighting, e->origin);
    R_AliasSetupFrame(e, pahdr);
 
    if (!e->colormap)

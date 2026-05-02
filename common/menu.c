@@ -1165,10 +1165,18 @@ M_OptionsVideo_AdjustSliders(int dir)
           cvar = Cvar_FindVar("r_lerpmove");
           Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
           break;
-       case 8:
+       case 8: {
+          /* Tri-state: 0 = off, 1 = Phong, 2 = Phong + specular.
+           * Arrow keys cycle the value; dir is +1 for right,
+           * -1 for left. */
+          int v;
           cvar = Cvar_FindVar("r_phongshading");
-          Cvar_SetValue("r_phongshading", cvar->value ? 0.0f : 1.0f);
+          v = (int)cvar->value + dir;
+          if (v < 0) v = 2;
+          if (v > 2) v = 0;
+          Cvar_SetValue("r_phongshading", (float)v);
           break;
+       }
        case 9:
           cvar = Cvar_FindVar("r_coloredlight");
           Cvar_SetValue("r_coloredlight", cvar->value ? 0.0f : 1.0f);
@@ -1224,9 +1232,22 @@ M_OptionsVideo_Draw(void)
     M_Print(16, 88, "      Smooth Movement");
     M_DrawCheckbox(220, 88, cvar->value);
 
-    cvar = Cvar_FindVar("r_phongshading");
-    M_Print(16, 96, "        Phong Shading");
-    M_DrawCheckbox(220, 96, cvar->value);
+    /* Phong shading is tri-state: 0 = off, 1 = Phong, 2 = Phong +
+     * specular highlights.  Show the state name instead of a
+     * checkbox; arrow-key adjustment in M_OptionsVideo_AdjustSliders
+     * cycles through the three values. */
+    {
+       static const char *phong_state_names[3] = {
+          "Off", "Phong", "Specular"
+       };
+       int phong_v;
+       cvar = Cvar_FindVar("r_phongshading");
+       phong_v = (int)cvar->value;
+       if (phong_v < 0) phong_v = 0;
+       if (phong_v > 2) phong_v = 2;
+       M_Print(16, 96, "        Phong Shading");
+       M_Print(220, 96, phong_state_names[phong_v]);
+    }
 
     cvar = Cvar_FindVar("r_coloredlight");
     M_Print(16, 104, "    Colored Lighting");

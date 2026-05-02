@@ -69,10 +69,41 @@ static float d_nz, d_nzbasestep, d_nzextrastep;              /* nz state */
 
 /* Light setup data shared with r_alias.c. r_plightvec holds the
  * model-space light direction set up in R_AliasSetupLighting; the
- * Phong inner loop computes per-pixel dot(N, L) using it. */
+ * Phong inner loop computes per-pixel dot(N, L) using it.
+ * r_phalfvec is the Blinn-Phong halfway vector L+V, also in model
+ * space, used by the optional specular term. */
 extern vec3_t r_plightvec;
+extern vec3_t r_phalfvec;
 extern int    r_ambientlight;
 extern float  r_shadelight;
+
+/* Specular LUT.  Indexed by clamp(dot(N, H), 0, 1) * 255 to give a
+ * brightness contribution in light-units.  Built in
+ * D_PolysetUpdateSpecularLUT() whenever the r_phongshading cvar
+ * value indicates a different exponent has been requested.
+ *
+ * SPECULAR_PEAK is the maximum highlight contribution in light-units
+ * (one colormap-row jump is 256, so SPECULAR_PEAK = 5120 = 20 rows
+ * worth, which lifts the brightest specular pixel by ~20 colormap
+ * rows -- visible but not saturating).  PHONG_SPECULAR_EXPONENT is
+ * the power for the Blinn-Phong term; 16 is a reasonable middle
+ * ground for Quake's matte-but-not-flat materials. */
+#define SPECULAR_PEAK            5120
+#define PHONG_SPECULAR_EXPONENT  16.0f
+
+static int   specular_lut[256];
+static float specular_lut_exponent = -1.0f;       /* sentinel: not built */
+
+static void D_BuildSpecularLUT(float exponent)
+{
+    int i;
+    for (i = 0; i < 256; i++) {
+	float dot = (float)i / 255.0f;
+	float spec = (float)pow(dot, exponent);
+	specular_lut[i] = (int)(spec * SPECULAR_PEAK);
+    }
+    specular_lut_exponent = exponent;
+}
 
 /* Colored-lighting state, consumed by the RGB-output rasterizers
  * (D_PolysetDrawSpansRGB and D_PolysetDrawSpansPhongRGB).
@@ -732,6 +763,19 @@ void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
    const float shade   = r_shadelight;
    const int (*dtab)[4] = (r_lightdither.value != 0.0f) ? dither_bayer4 : dither_zero4;
 
+   /* Specular setup.  When r_phongshading >= 2 the rasterizer adds a
+    * Blinn-Phong specular term: the LUT is built lazily on demand
+    * (and only rebuilt if the exponent changes), and the halfway
+    * vector is hoisted to scalar locals for the inner loop.  When
+    * specular is off, do_specular is 0 and the inner-loop branch is
+    * skipped; the LUT and halfway vector aren't touched. */
+   const int do_specular = (r_phongshading.value >= 2.0f) ? 1 : 0;
+   const float Hx = r_phalfvec[0];
+   const float Hy = r_phalfvec[1];
+   const float Hz = r_phalfvec[2];
+   if (do_specular && specular_lut_exponent != PHONG_SPECULAR_EXPONENT)
+      D_BuildSpecularLUT(PHONG_SPECULAR_EXPONENT);
+
    do
    {
       int lcount = d_aspancount - pspanpackage->count;
@@ -773,6 +817,21 @@ void D_PolysetDrawSpansPhong8(spanpackage_t *pspanpackage)
                   if (dot < 0.0f) {
                      light += (int)(shade * dot);
                      if (light < 0) light = 0;
+                  }
+                  /* Specular: dot(N_normalized, H) reuses the same
+                   * 1/|N| inverse computed for the Lambert step.
+                   * Positive ndoth means N points toward the
+                   * halfway vector -- closer to a perfect specular
+                   * reflection toward the camera.  Lower `light`
+                   * = brighter colormap row, so subtract. */
+                  if (do_specular) {
+                     float ndoth = (lnx*Hx + lny*Hy + lnz*Hz) * inv;
+                     if (ndoth > 0.0f) {
+                        int idx = (int)(ndoth * 255.0f);
+                        if (idx > 255) idx = 255;
+                        light -= specular_lut[idx];
+                        if (light < 0) light = 0;
+                     }
                   }
                }
                light += drow[span_x & 3];
@@ -838,6 +897,13 @@ void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
    unsigned trans[3];
    unsigned char *pix24;
    const int (*dtab)[4] = (r_lightdither.value != 0.0f) ? dither_bayer4 : dither_zero4;
+   /* See D_PolysetDrawSpansPhong8 for specular setup rationale. */
+   const int do_specular = (r_phongshading.value >= 2.0f) ? 1 : 0;
+   const float Hx = r_phalfvec[0];
+   const float Hy = r_phalfvec[1];
+   const float Hz = r_phalfvec[2];
+   if (do_specular && specular_lut_exponent != PHONG_SPECULAR_EXPONENT)
+      D_BuildSpecularLUT(PHONG_SPECULAR_EXPONENT);
 
    do
    {
@@ -884,6 +950,18 @@ void D_PolysetDrawSpansPhongRGB(spanpackage_t *pspanpackage)
                      if (dot < 0.0f) {
                         light += (int)(shadelt * dot);
                         if (light < 0) light = 0;
+                     }
+                     /* Specular contribution: same dot-product
+                      * formulation as the grayscale Phong path,
+                      * subtracting from `light` to brighten. */
+                     if (do_specular) {
+                        float ndoth = (lnx*Hx + lny*Hy + lnz*Hz) * inv;
+                        if (ndoth > 0.0f) {
+                           int idx = (int)(ndoth * 255.0f);
+                           if (idx > 255) idx = 255;
+                           light -= specular_lut[idx];
+                           if (light < 0) light = 0;
+                        }
                      }
                   }
 
