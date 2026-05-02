@@ -115,6 +115,7 @@ cvar_t r_phongshading = { "r_phongshading", "0", true };
 cvar_t r_coloredlight = { "r_coloredlight", "0", true };
 cvar_t r_lightdither  = { "r_lightdither",  "0", true };
 cvar_t r_persistgibs  = { "r_persistgibs",  "0", true };
+cvar_t r_shadows      = { "r_shadows",      "0", true };
 cvar_t r_drawentities = { "r_drawentities", "1" };
 cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
 cvar_t r_ambient = { "r_ambient", "0" };
@@ -217,6 +218,7 @@ R_Init(void)
     Cvar_RegisterVariable(&r_coloredlight);
     Cvar_RegisterVariable(&r_lightdither);
     Cvar_RegisterVariable(&r_persistgibs);
+    Cvar_RegisterVariable(&r_shadows);
     Cvar_RegisterVariable(&r_drawentities);
     Cvar_RegisterVariable(&r_drawviewmodel);
     Cvar_RegisterVariable(&r_ambient);
@@ -784,6 +786,17 @@ R_DrawEntitiesOnList(void)
 		    lighting.ambientlight = 128;
 		if (lighting.ambientlight + lighting.shadelight > 192)
 		    lighting.shadelight = 192 - lighting.ambientlight;
+
+		/* Cast a flat shadow on the floor below the entity, glquake
+		 * r_shadows-style.  Drawn BEFORE the model so that the model's
+		 * z-write naturally covers the shadow at any pixels where they
+		 * overlap.  Drawing after-the-model would require z biasing the
+		 * shadow above the floor by enough to clear any model vert that
+		 * touches the floor -- which would also cause the shadow to
+		 * draw OVER those low model verts.  Before-the-model side-steps
+		 * the issue. */
+		if (r_shadows.value != 0.0f)
+		    R_AliasDrawShadow(e);
 
 		R_AliasDrawModel(e, &lighting);
 	    }

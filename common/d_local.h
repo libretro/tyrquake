@@ -70,6 +70,7 @@ extern fixed16_t sadjust, tadjust;
 extern fixed16_t bbextents, bbextentt;
 
 void D_DrawSpans8(espan_t *pspans);
+void D_DrawShadowTriangle(const float v0[2], const float v1[2], const float v2[2], float zi0, float zi1, float zi2);
 void D_DrawSpans16(espan_t *pspans);
 extern void (*D_DrawSpans)(espan_t *pspan);
 

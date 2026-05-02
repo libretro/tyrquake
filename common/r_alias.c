@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "r_local.h"
 #include "sys.h"
+#include "world.h"   /* SV_RecursiveHullCheck for r_shadows ground trace */
 
 /* FIXME: shouldn't be needed (is needed for patch right now, but that should
           move) */
@@ -817,7 +818,7 @@ R_AliasSetupFrame
 set r_apverts
 =================
 */
-static void
+void
 R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
 {
    int pose, numposes;
@@ -948,4 +949,205 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
       R_AliasPrepareUnclippedPoints(pahdr, pfinalverts);
    else
       R_AliasPreparePoints(pahdr, pfinalverts, pauxverts);
+}
+
+
+/*
+================
+R_AliasDrawShadow
+
+Draws a flat black shadow blob on the floor below the entity, used
+when r_shadows is non-zero.  Mirrors the glquake r_shadows behavior
+but adapted to the software rasterizer.
+
+Algorithm:
+  1. Trace straight down from the entity origin to find the floor
+     within a reasonable distance (512 units).  No floor -> no
+     shadow (entity is in mid-air, floating, or off the world).
+  2. For each model vertex of the current frame:
+       a. Apply the entity's yaw rotation in the X/Y plane.  Pitch
+          and roll are deliberately ignored; the shadow lies flat
+          on the floor regardless of how the model is oriented in
+          flight, which matches what the original glquake feature
+          did and avoids weird stretched-out shadows when monsters
+          tilt mid-jump.
+       b. Translate by the entity's X/Y origin.
+       c. Snap world Z to the floor Z (plus a small upward bias so
+          the shadow z-test passes against the floor surface).
+  3. Project each shadow vertex to screen space using the engine's
+     view matrices (vright, vup, vpn, xcenter/ycenter, xscale/yscale).
+     Reject the triangle if any vertex is behind the near plane;
+     conservative, drops the shadow entirely for one frame in the
+     edge case where the camera is partly underneath the floor.
+  4. Walk the model's triangle list, rasterize each via
+     D_DrawShadowTriangle.  No clipping pipeline for shadow tris;
+     the rasterizer's screen-rect clamp handles off-screen, and
+     near-plane rejection is per-triangle as above.
+
+Skipped for the viewmodel (cl.viewent) -- glquake also skipped it,
+and the viewmodel has its own non-physical clip range that would
+make a shadow project to absurd locations.
+================
+*/
+
+#define R_SHADOW_MAX_FLOOR_DIST  512.0f
+#define R_SHADOW_FLOOR_BIAS      1.0f       /* tiny lift to defeat floor z-fight */
+
+/* Fixed "sun" direction for shadow projection.  Points along the
+ * light ray (from sun toward floor).  Picked to give a slightly
+ * oblique shadow rather than a straight-down collapse-to-line --
+ * with pure (0,0,-1), a flat shadow viewed edge-on (camera looking
+ * horizontally at a standing model) collapses to a thin line by
+ * correct perspective.  An oblique direction stretches the shadow
+ * across the floor in world space, so it remains visible from any
+ * camera angle.
+ *
+ * The direction is fixed in world space (same shadow direction
+ * regardless of camera) -- matching the intuition of a real sun.
+ * It does not track the level's actual lighting, just like glquake
+ * r_shadows didn't.  Pre-normalized: raw (0.3, 0.6, -1.0), length
+ * sqrt(0.09 + 0.36 + 1.0) = 1.20416, normalized below. */
+static const float R_SHADOW_LIGHT_X = 0.249136f;
+static const float R_SHADOW_LIGHT_Y = 0.498273f;
+static const float R_SHADOW_LIGHT_Z = -0.830455f;
+
+void R_AliasDrawShadow(entity_t *e)
+{
+    aliashdr_t  *pahdr;
+    sw_aliashdr_t *swhdr;
+    mtriangle_t *ptri;
+    trivertx_t  *pverts;
+    vec3_t       end;
+    trace_t      trace;
+    float        floor_z;
+    float        yaw_rad, yc, ys;
+    int          i;
+    /* Per-vert working buffers, sized to MAXALIASVERTS to cover any
+     * stock alias model.  File-static so they're not on the stack
+     * (MAXALIASVERTS = 2048, totalling ~24KB across the three arrays). */
+    static float shadow_screen[MAXALIASVERTS][2];
+    static float shadow_depth[MAXALIASVERTS];
+    static byte  shadow_clipped[MAXALIASVERTS];
+
+    if (!e->model || e->model->type != mod_alias)
+	return;
+    if (e == &cl.viewent)
+	return;
+    if (!cl.worldmodel)
+	return;
+
+    /* Trace 512 units straight down from origin to find a floor. */
+    VectorCopy(e->origin, end);
+    end[2] -= R_SHADOW_MAX_FLOOR_DIST;
+    memset(&trace, 0, sizeof(trace));
+    trace.fraction = 1.0f;
+    trace.allsolid = true;
+    VectorCopy(end, trace.endpos);
+    SV_RecursiveHullCheck(&cl.worldmodel->hulls[0],
+                          cl.worldmodel->hulls[0].firstclipnode,
+                          0, 1, e->origin, end, &trace);
+    if (trace.fraction == 1.0f)
+	return;             /* no floor within trace range */
+    floor_z = trace.endpos[2] + R_SHADOW_FLOOR_BIAS;
+
+    pahdr = (aliashdr_t *)Mod_Extradata(e->model);
+    swhdr = SW_Aliashdr(pahdr);
+    /* Run R_AliasSetupFrame to set r_apverts to the entity's
+     * current pose verts -- lerped between previous and current
+     * frames if r_lerpmodels is on, snapped to the current frame
+     * otherwise.  R_AliasDrawModel will run R_AliasSetupFrame
+     * again itself shortly afterwards; the redundancy is
+     * negligible (a single ~200-vert blend loop) and the
+     * alternative is duplicating the lerp setup in this function
+     * just so the shadow doesn't pop while the model body
+     * smoothly slides between poses when "Smooth Animation" is
+     * enabled. */
+    R_AliasSetupFrame(e, pahdr);
+    pverts = r_apverts;
+    ptri = (mtriangle_t *)((byte *)pahdr + swhdr->triangles);
+
+    if (pahdr->numverts > MAXALIASVERTS)
+	return;     /* malformed model, defensive */
+
+    /* Yaw rotation precompute (PITCH/ROLL deliberately ignored). */
+    yaw_rad = e->angles[YAW] * (M_PI / 180.0f);
+    yc      = cos(yaw_rad);
+    ys      = sin(yaw_rad);
+
+    /* Project each shadow vertex to screen space.
+     *
+     * Each model vert is first placed in world space (yaw-rotated
+     * model-space + entity origin).  Then it's projected along the
+     * fixed light direction L to find where its ray strikes the
+     * floor plane:
+     *
+     *   t              = (floor_z - world_z) / L_z
+     *   shadow.xy      = world.xy + t * L.xy
+     *
+     * For verts above the floor and a downward-pointing light
+     * (L_z negative), t is positive and the shadow lands offset
+     * in the (-L_xy) direction.  Verts at or below floor_z (rare
+     * -- only if the entity origin trace hit a higher surface
+     * than the model's lowest vert) get t clamped to zero so
+     * they project straight down. */
+    for (i = 0; i < pahdr->numverts; i++) {
+	vec3_t world, shadow_world, view, delta;
+	float  mx, my, mz;
+	float  depth, t;
+
+	/* Decompress trivertx to model-space float. */
+	mx = pverts[i].v[0] * pahdr->scale[0] + pahdr->scale_origin[0];
+	my = pverts[i].v[1] * pahdr->scale[1] + pahdr->scale_origin[1];
+	mz = pverts[i].v[2] * pahdr->scale[2] + pahdr->scale_origin[2];
+
+	/* Yaw rotation places the model in world XY.  Z keeps its
+	 * model-space height for the directional projection step. */
+	world[0] = e->origin[0] + (mx * yc - my * ys);
+	world[1] = e->origin[1] + (mx * ys + my * yc);
+	world[2] = e->origin[2] + mz;
+
+	/* Project along the light ray to the floor plane. */
+	t = (floor_z - world[2]) / R_SHADOW_LIGHT_Z;
+	if (t < 0.0f) t = 0.0f;
+	shadow_world[0] = world[0] + t * R_SHADOW_LIGHT_X;
+	shadow_world[1] = world[1] + t * R_SHADOW_LIGHT_Y;
+	shadow_world[2] = floor_z;
+
+	/* World -> view via the standard camera basis. */
+	VectorSubtract(shadow_world, r_origin, delta);
+	view[0] =  DotProduct(delta, vright);
+	view[1] =  DotProduct(delta, vup);
+	view[2] =  DotProduct(delta, vpn);
+	depth   = view[2];
+
+	if (depth < 4.0f) {
+	    shadow_clipped[i] = 1;
+	    shadow_depth[i]   = 0.0f;
+	    shadow_screen[i][0] = 0.0f;
+	    shadow_screen[i][1] = 0.0f;
+	    continue;
+	}
+	shadow_clipped[i]   = 0;
+	shadow_depth[i]     = 1.0f / depth;
+	shadow_screen[i][0] = aliasxcenter + view[0] * aliasxscale * shadow_depth[i];
+	shadow_screen[i][1] = aliasycenter - view[1] * aliasyscale * shadow_depth[i];
+    }
+
+    /* Walk triangles, rasterize each as a flat black fill. */
+    for (i = 0; i < pahdr->numtris; i++, ptri++) {
+	int a = ptri->vertindex[0];
+	int b = ptri->vertindex[1];
+	int c = ptri->vertindex[2];
+
+	if (shadow_clipped[a] || shadow_clipped[b] || shadow_clipped[c])
+	    continue;
+
+	/* Per-vertex inverse-depth values: the rasterizer will
+	 * interpolate them across the scanlines so the z-test is
+	 * correct for triangles that span varying depth (e.g. parts
+	 * of the shadow polygon falling on a wall in front of or
+	 * behind the floor area). */
+	D_DrawShadowTriangle(shadow_screen[a], shadow_screen[b], shadow_screen[c],
+	                     shadow_depth[a], shadow_depth[b], shadow_depth[c]);
+    }
 }

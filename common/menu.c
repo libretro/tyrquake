@@ -1108,7 +1108,7 @@ M_OptionsInput_Key(int k)
 /* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 11
+#define	OPTIONSVIDEO_ITEMS 12
 
 static int optionsvideo_cursor;
 
@@ -1185,6 +1185,10 @@ M_OptionsVideo_AdjustSliders(int dir)
           cvar = Cvar_FindVar("r_lightdither");
           Cvar_SetValue("r_lightdither", cvar->value ? 0.0f : 1.0f);
           break;
+       case 11:
+          cvar = Cvar_FindVar("r_shadows");
+          Cvar_SetValue("r_shadows", cvar->value ? 0.0f : 1.0f);
+          break;
     }
 }
 
@@ -1256,6 +1260,10 @@ M_OptionsVideo_Draw(void)
     cvar = Cvar_FindVar("r_lightdither");
     M_Print(16, 112, "      Light Dither");
     M_DrawCheckbox(220, 112, cvar->value);
+
+    cvar = Cvar_FindVar("r_shadows");
+    M_Print(16, 120, "             Shadows");
+    M_DrawCheckbox(220, 120, cvar->value);
 
 /* cursor */
     M_DrawCharacter(200, 32 + optionsvideo_cursor * 8,

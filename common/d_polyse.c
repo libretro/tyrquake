@@ -1509,3 +1509,152 @@ void D_PolysetSetEdgeTable(void)
 
    pedgetable = &edgetables[edgetableindex];
 }
+
+
+/*
+================
+D_DrawShadowTriangle
+
+Soft-fill rasterizer for projected alias-model shadows, used by
+R_AliasDrawShadow.  Takes three screen-space vertices (x, y) plus
+a per-vertex inverse-depth `zi`, and darkens each covered pixel
+through the colormap (z-test, no z-write).
+
+The shape is essentially the model's silhouette mashed flat onto
+a floor plane, projected along a fixed light direction so the
+shadow extends across the floor in world space rather than
+collapsing to a line at the entity's feet when viewed edge-on.
+
+Darkening: instead of solid black (palette 0), each shadow pixel
+is read back and looked up through the colormap at a high
+darkness row.  This produces a darkened version of whatever
+texture was already on the floor underneath, so the shadow reads
+as "this part of the floor is in shade" rather than as a black
+silhouette pasted on top.  The cost is one extra byte read and
+one extra colormap lookup per pixel vs. solid fill -- still
+well within the budget of the per-entity rasterizer pass.
+
+Z values are interpolated per-scanline and per-pixel across the
+span, which is needed because a single shadow triangle can span
+both nearby walls and far floor (a corpse near a doorway, etc.):
+a per-triangle constant z would let shadow pixels bleed onto
+walls that are physically in front of the floor area.  Linear
+interpolation in screen space is not perspective-correct, but
+the depth ranges within a single triangle are narrow enough that
+the error is well below the z-buffer's quantization step.
+
+Not writing z avoids polluting the depth buffer for geometry
+drawn later in the frame.
+
+The rasterizer is integer-screen-coord only and clips
+conservatively to [0..screenwidth-1] x [0..vid.height-1].  Caller
+is responsible for back-face culling and near-plane rejection.
+================
+*/
+void
+D_DrawShadowTriangle(const float v0[2], const float v1[2], const float v2[2],
+                     float zi0, float zi1, float zi2)
+{
+    const float *p0 = v0, *p1 = v1, *p2 = v2, *tmp;
+    float z0 = zi0, z1 = zi1, z2 = zi2, ztmp;
+    float yspan02, yspan01, yspan12;
+    float dx_long, dz_long;
+    float dx_short_top, dz_short_top;
+    float dx_short_bot, dz_short_bot;
+    int   y, y_top, y_mid, y_bot;
+    int   y_clamp_top, y_clamp_bot;
+
+    /* Sort verts top-to-bottom by Y, dragging per-vertex z values
+     * along with the position pointers. */
+    if (p0[1] > p1[1]) { tmp = p0; p0 = p1; p1 = tmp; ztmp = z0; z0 = z1; z1 = ztmp; }
+    if (p1[1] > p2[1]) { tmp = p1; p1 = p2; p2 = tmp; ztmp = z1; z1 = z2; z2 = ztmp; }
+    if (p0[1] > p1[1]) { tmp = p0; p0 = p1; p1 = tmp; ztmp = z0; z0 = z1; z1 = ztmp; }
+
+    y_top = (int)p0[1];
+    y_mid = (int)p1[1];
+    y_bot = (int)p2[1];
+
+    if (y_bot < 0 || y_top >= vid.height) return;
+
+    y_clamp_top = y_top;
+    y_clamp_bot = y_bot;
+    if (y_clamp_top < 0)             y_clamp_top = 0;
+    if (y_clamp_bot >= vid.height)   y_clamp_bot = vid.height - 1;
+    if (y_clamp_top > y_clamp_bot)   return;
+
+    yspan02 = p2[1] - p0[1];
+    if (yspan02 < 1.0f) return;
+    dx_long = (p2[0] - p0[0]) / yspan02;
+    dz_long = (z2     - z0   ) / yspan02;
+
+    yspan01 = p1[1] - p0[1];
+    yspan12 = p2[1] - p1[1];
+    if (yspan01 >= 1.0f) {
+	dx_short_top = (p1[0] - p0[0]) / yspan01;
+	dz_short_top = (z1    - z0   ) / yspan01;
+    } else {
+	dx_short_top = 0.0f;
+	dz_short_top = 0.0f;
+    }
+    if (yspan12 >= 1.0f) {
+	dx_short_bot = (p2[0] - p1[0]) / yspan12;
+	dz_short_bot = (z2    - z1   ) / yspan12;
+    } else {
+	dx_short_bot = 0.0f;
+	dz_short_bot = 0.0f;
+    }
+
+    for (y = y_clamp_top; y <= y_clamp_bot; y++) {
+	float fy = (float)y;
+	float x_a, x_b, z_a, z_b;
+	float z_left, dz_dx;
+	int   xl, xr, x;
+	int16_t *zrow = zspantable[y];
+	byte    *prow = (byte *)d_viewbuffer + d_scantable[y];
+
+	/* Long edge X / Z at this scanline. */
+	x_a = p0[0] + (fy - p0[1]) * dx_long;
+	z_a = z0    + (fy - p0[1]) * dz_long;
+
+	/* Short edge: top half uses (p0->p1), bottom half uses (p1->p2). */
+	if (y < y_mid) {
+	    x_b = p0[0] + (fy - p0[1]) * dx_short_top;
+	    z_b = z0    + (fy - p0[1]) * dz_short_top;
+	} else {
+	    x_b = p1[0] + (fy - p1[1]) * dx_short_bot;
+	    z_b = z1    + (fy - p1[1]) * dz_short_bot;
+	}
+
+	/* Order so xl <= xr; pick z_left and the dz/dx step. */
+	if (x_a <= x_b) {
+	    xl = (int)x_a; xr = (int)x_b;
+	    z_left = z_a;
+	    dz_dx  = (x_b - x_a > 1.0f) ? (z_b - z_a) / (x_b - x_a) : 0.0f;
+	} else {
+	    xl = (int)x_b; xr = (int)x_a;
+	    z_left = z_b;
+	    dz_dx  = (x_a - x_b > 1.0f) ? (z_a - z_b) / (x_a - x_b) : 0.0f;
+	}
+
+	if (xl < 0)            { z_left += dz_dx * (float)(0 - xl); xl = 0; }
+	if (xr >= screenwidth) xr = screenwidth - 1;
+	if (xl > xr)           continue;
+
+	{
+	    /* Colormap row 52 (of 64) for shadow darkness.  Floor
+	     * texture darkened to ~20% brightness -- reads as deep
+	     * shadow but the texture pattern is faintly visible,
+	     * keeping the shadow from looking like a black hole.
+	     * One row = 256 entries (one per palette index). */
+	    const byte *cmap = (const byte *)vid.colormap + 52 * 256;
+	    float z_pix = z_left;
+	    for (x = xl; x <= xr; x++) {
+		int16_t z_int = (int16_t)(z_pix * (float)0x8000);
+		if (z_int >= zrow[x]) {
+		    prow[x] = cmap[prow[x]];
+		}
+		z_pix += dz_dx;
+	    }
+	}
+    }
+}
