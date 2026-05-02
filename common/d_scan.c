@@ -278,27 +278,13 @@ FIXME: actually make this subdivide by 16 instead of 8!!!  qb:  OK!!!!
 =============
 */
 
-            /*==============================================
-            //unrolled- mh, MK, qbism
-            //============================================*/
+/*==============================================
+//unrolled- mh, MK, qbism
+//============================================*/
 
-   static int          count, spancount;
-   static byte         *pbase, *pdest;
-   static fixed16_t    s, t, snext, tnext, sstep, tstep;
-   static float        sdivz, tdivz, zi, z, du, dv, spancountminus1;
-   static float        sdivzstepu, tdivzstepu, zistepu;
-
-   int dither_kernel[2][2][2] =
-{
-   {
-      {16384,0},
-      {49152,32768}
-   }
-   ,
-      {
-         {32768,49152},
-         {0,16384}
-      }
+static const int dither_kernel[2][2][2] = {
+   { { 16384,     0 }, { 49152, 32768 } },
+   { { 32768, 49152 }, {     0, 16384 } }
 };
 
 #define SOLID(i) pdest[i] = pbase[(s >> 16) + (t >> 16) * cachewidth]
@@ -322,6 +308,12 @@ extern surfcache_t		*pcurrentcache;
 
 void D_DrawSpans16Qb(espan_t *pspan) /* qb: up it from 8 to 16.  This + unroll = big speed gain! */
 {
+   int count, spancount;
+   byte *pbase, *pdest;
+   fixed16_t s, t, snext, tnext, sstep, tstep;
+   float sdivz, tdivz, zi, z, du, dv, spancountminus1;
+   float sdivzstepu, tdivzstepu, zistepu;
+
    sstep = 0;   /* keep compiler happy */
    tstep = 0;   /* ditto */
 
