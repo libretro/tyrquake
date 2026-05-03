@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* sv_edict.c -- entity dictionary */
 
+#include "compat/strl.h"
+
 #include "cmd.h"
 #include "console.h"
 #include "crc.h"
@@ -641,7 +643,7 @@ ED_ParseGlobals(const char *data)
 	if (!data)
 	    SV_Error("%s: EOF without closing brace", __func__);
 
-	strcpy(keyname, com_token);
+	strlcpy(keyname, com_token, sizeof(keyname));
 
 	/* parse value */
 	data = COM_Parse(data);
@@ -813,7 +815,7 @@ ED_ParseEdict(const char *data, edict_t *ent)
 	if (!strcmp(com_token, "light"))
 	    strcpy(com_token, "light_lev");	/* hack for single light def */
 
-	strcpy(keyname, com_token);
+	strlcpy(keyname, com_token, sizeof(keyname));
 
 	/* another hack to fix keynames with trailing spaces */
 	n = strlen(keyname);

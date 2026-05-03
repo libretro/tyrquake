@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
+
 #include "client.h"
 #include "cmd.h"
 #include "console.h"
@@ -565,7 +567,16 @@ void Host_Loadgame_f(void)
    RFILE *f;
    char mapname[MAX_QPATH];
    float time, tfloat;
-   char str[32768];
+   /* str was previously a 32 KB stack buffer.  Combined with
+    * other locals this made the function consume ~33 KB of
+    * stack, which is fine on Windows (1 MB main thread stack)
+    * but dangerously close to or past the limit on libretro
+    * frontends running with smaller thread stacks.  Move to
+    * heap.  Also: a stack overflow would scribble across saved
+    * registers and adjacent locals; a heap-buffer overflow at
+    * least lands in malloc'd memory that bounds-checking tools
+    * can detect. */
+   char *str = (char *)malloc(32768);
    char *lightstyle;
    const char *start;
    int i, r;
@@ -579,19 +590,22 @@ void Host_Loadgame_f(void)
    char slash = '/';
 #endif
 
-   if (cmd_source != src_command)
+   if (!str)
       return;
+
+   if (cmd_source != src_command)
+      goto done;
 
    if (Cmd_Argc() != 2) {
       Con_Printf("load <savename> : load a game\n");
-      return;
+      goto done;
    }
 
    cls.demonum = -1;		/* stop demo loop in case this fails */
 
    if (COM_JoinPath(name, sizeof(name), com_savedir, slash, Cmd_Argv(1)) < 0) {
       Con_Printf("ERROR: load name too long.\n");
-      return;
+      goto done;
    }
    COM_DefaultExtension(name, ".sav");
 
@@ -603,7 +617,7 @@ void Host_Loadgame_f(void)
    f = rfopen(name, "r");
    if (!f) {
       Con_Printf("ERROR: couldn't open.\n");
-      return;
+      goto done;
    }
 
    rfscanf(f, "%i\n", &version);
@@ -612,9 +626,12 @@ void Host_Loadgame_f(void)
       rfclose(f);
       Con_Printf("Savegame is version %i, not %i\n", version,
             SAVEGAME_VERSION);
-      return;
+      goto done;
    }
-   rfscanf(f, "%s\n", str);
+   /* Bound the %s reads.  Without a width modifier, scanf
+    * reads until whitespace with no limit -- a corrupt or
+    * hostile savegame can overflow the destination buffer. */
+   rfscanf(f, "%32767s\n", str);
    for (i = 0; i < NUM_SPAWN_PARMS; i++)
       rfscanf(f, "%f\n", &spawn_parms[i]);
 
@@ -626,7 +643,7 @@ void Host_Loadgame_f(void)
    current_skill = (int)(tfloat + 0.1);
    Cvar_SetValue("skill", (float)current_skill);
 
-   rfscanf(f, "%s\n", mapname);
+   rfscanf(f, "%63s\n", mapname);
    rfscanf(f, "%f\n", &time);
 
    CL_Disconnect_f();
@@ -636,7 +653,7 @@ void Host_Loadgame_f(void)
    if (!sv.active) {
       Con_Printf("Couldn't load map\n");
       rfclose(f);
-      return;
+      goto done;
    }
    sv.paused = true;		/* pause until all clients connect */
    sv.loadgame = true;
@@ -645,7 +662,7 @@ void Host_Loadgame_f(void)
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++)
    {
-      rfscanf(f, "%s\n", str);
+      rfscanf(f, "%32767s\n", str);
       lightstyle = (char*)Hunk_Alloc(strlen(str) + 1);
       strcpy(lightstyle, str);
       sv.lightstyles[i] = lightstyle;
@@ -654,7 +671,7 @@ void Host_Loadgame_f(void)
    /* load the edicts out of the savegame file */
    entnum = -1;		/* -1 is the globals */
    while (!rfeof(f)) {
-      for (i = 0; i < sizeof(str) - 1; i++) {
+      for (i = 0; i < 32768 - 1; i++) {
          r = rfgetc(f);
          if (r == EOF || !r)
             break;
@@ -664,7 +681,7 @@ void Host_Loadgame_f(void)
             break;
          }
       }
-      if (i == sizeof(str) - 1)
+      if (i == 32768 - 1)
          Sys_Error("Loadgame buffer overflow");
       str[i] = 0;
       start = COM_Parse(str);
@@ -702,6 +719,9 @@ void Host_Loadgame_f(void)
       CL_EstablishConnection("local");
       Host_Reconnect_f();
    }
+
+done:
+   free(str);
 }
 
 /* ============================================================================ */
