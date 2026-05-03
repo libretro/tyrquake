@@ -783,6 +783,7 @@ Mod_LoadLighting(lump_t *l)
 
 	if (!l->filelen) {
 		loadmodel->lightdata = NULL;
+		loadmodel->lightdatasize = 0;
 		return;
 	}
 
@@ -801,6 +802,9 @@ Mod_LoadLighting(lump_t *l)
 				if (i == 1)
 				{
 					loadmodel->lightdata = data + 8;	
+					/* com_filesize was set by COM_LoadHunkFile. The .lit
+					 * payload starts after the 8-byte QLIT header. */
+					loadmodel->lightdatasize = (com_filesize > 8) ? (com_filesize - 8) : 0;
 					return;
 				}
 				else
@@ -815,7 +819,14 @@ Mod_LoadLighting(lump_t *l)
 		/* expand the mono lighting to 24 bit */
 			int i;
 			byte *dest, *src = mod_base + l->fileofs;
+			/* l->filelen is bounded by the BSP loader's input-size
+			 * check, but l->filelen * 3 must still be checked for
+			 * int overflow against INT_MAX before passing to the
+			 * Hunk_Alloc int parameter. */
+			if (l->filelen > 0 && (size_t)l->filelen > (size_t)INT_MAX / 3)
+				SV_Error("%s: lightdata too large in %s", __func__, loadmodel->name);
 			loadmodel->lightdata = Hunk_Alloc( l->filelen*3);
+			loadmodel->lightdatasize = l->filelen * 3;
 			dest = loadmodel->lightdata;
 			for (i = 0; i<l->filelen; i++)
 			{
@@ -834,6 +845,7 @@ Mod_LoadLighting(lump_t *l)
 	else		/* mono lights */
 	{
 	    loadmodel->lightdata = (byte*)Hunk_Alloc(l->filelen);
+	    loadmodel->lightdatasize = l->filelen;
 	    memcpy(loadmodel->lightdata, mod_base + l->fileofs, l->filelen);
 	}
 }
@@ -849,9 +861,11 @@ Mod_LoadVisibility(lump_t *l)
 {
     if (!l->filelen) {
 	loadmodel->visdata = NULL;
+	loadmodel->visdatasize = 0;
 	return;
     }
     loadmodel->visdata = (byte*)Hunk_Alloc(l->filelen);
+    loadmodel->visdatasize = l->filelen;
     memcpy(loadmodel->visdata, mod_base + l->fileofs, l->filelen);
 }
 
@@ -960,6 +974,38 @@ Mod_LoadSubmodels(lump_t *l)
       out->firstface = (in->firstface);
       out->numfaces  = (in->numfaces);
 #endif
+
+      /* headnode[0] is the root mnode_t for hull 0, used by
+       * the renderer's BSP traversal.  headnode[1..] feed
+       * mclipnode_t-based collision hulls.  Mod_LoadBrushModel
+       * later copies these unchecked into mod->hulls[j].
+       * firstclipnode, so any out-of-range value here turns
+       * into a stale pointer the moment the player moves. */
+      if (out->headnode[0] < 0 || out->headnode[0] >= loadmodel->numnodes)
+         SV_Error("%s: bad submodel headnode[0] %i (numnodes=%i) in %s",
+                  __func__, out->headnode[0], loadmodel->numnodes,
+                  loadmodel->name);
+      for (j = 1; j < MAX_MAP_HULLS; j++) {
+         /* Hull 0 is the rendered BSP, hulls 1+ are clipnode
+          * hulls.  An unused hull slot is conventionally 0;
+          * accept that.  Any other negative value, or anything
+          * past numclipnodes, is corrupt. */
+         if (out->headnode[j] < 0 || out->headnode[j] >= loadmodel->numclipnodes)
+            SV_Error("%s: bad submodel headnode[%i] %i (numclipnodes=%i) in %s",
+                     __func__, j, out->headnode[j], loadmodel->numclipnodes,
+                     loadmodel->name);
+      }
+      /* firstface + numfaces feed the surface walk for this
+       * submodel; out-of-range walks past the surfaces hunk
+       * allocation. */
+      if (out->firstface < 0 ||
+          out->firstface > loadmodel->numsurfaces ||
+          out->numfaces < 0 ||
+          out->numfaces > loadmodel->numsurfaces - out->firstface)
+         SV_Error("%s: bad submodel face range (first=%i, num=%i; "
+                  "numsurfaces=%i) in %s",
+                  __func__, out->firstface, out->numfaces,
+                  loadmodel->numsurfaces, loadmodel->name);
    }
 }
 
@@ -994,6 +1040,15 @@ Mod_LoadEdges_BSP29(lump_t *l)
       out->v[0] = (uint16_t)(in->v[0]);
       out->v[1] = (uint16_t)(in->v[1]);
 #endif
+      /* Edge endpoints are indices into loadmodel->vertexes[].
+       * The renderer indexes vertexes[] without rebounds-checking,
+       * so a corrupt or malicious BSP can drive that read off
+       * the end of the hunk-allocated array.  Fail at load time. */
+      if (out->v[0] >= (uint32_t)loadmodel->numvertexes ||
+          out->v[1] >= (uint32_t)loadmodel->numvertexes)
+         SV_Error("%s: bad vertex index (%u, %u; numvertexes=%i) in %s",
+                  __func__, (unsigned)out->v[0], (unsigned)out->v[1],
+                  loadmodel->numvertexes, loadmodel->name);
    }
 }
 
@@ -1021,6 +1076,12 @@ Mod_LoadEdges_BSP2(lump_t *l)
       out->v[0] = (uint32_t)(in->v[0]);
       out->v[1] = (uint32_t)(in->v[1]);
 #endif
+      /* See Mod_LoadEdges_BSP29 above. */
+      if (out->v[0] >= (uint32_t)loadmodel->numvertexes ||
+          out->v[1] >= (uint32_t)loadmodel->numvertexes)
+         SV_Error("%s: bad vertex index (%u, %u; numvertexes=%i) in %s",
+                  __func__, (unsigned)out->v[0], (unsigned)out->v[1],
+                  loadmodel->numvertexes, loadmodel->name);
    }
 }
 
@@ -1231,10 +1292,20 @@ Mod_LoadFaces_BSP29(lump_t *l)
 #endif
       out->flags = 0;
 
-      /* FIXME - Also check numedges doesn't overflow edges */
+      /* firstedge / numedges feed the surface's vertex walk
+       * via loadmodel->surfedges[].  An out-of-range value
+       * here lets renderer code read past the surfedges hunk
+       * allocation. */
       if (out->numedges <= 0)
          SV_Error("%s: bmodel %s has surface with no edges", __func__,
                loadmodel->name);
+      if (out->firstedge < 0 ||
+          out->firstedge > loadmodel->numsurfedges ||
+          out->numedges > loadmodel->numsurfedges - out->firstedge)
+         SV_Error("%s: bad surface edge range (first=%i, num=%i; "
+                  "numsurfedges=%i) in %s",
+                  __func__, out->firstedge, out->numedges,
+                  loadmodel->numsurfedges, loadmodel->name);
 
 #ifdef MSB_FIRST
       planenum = LittleShort(in->planenum);
@@ -1284,18 +1355,33 @@ Mod_LoadFaces_BSP29(lump_t *l)
 #else
       i = (in->lightofs);
 #endif
-      if (coloredlights)
+      /* lightofs is an int byte-offset into loadmodel->lightdata,
+       * or -1 if the surface has no lighting.  Any other
+       * out-of-range value would make out->samples point
+       * outside the lightdata hunk allocation; the rasterizer
+       * would then read uninitialised / unmapped memory.  In
+       * the coloredlights branch the offset is also multiplied
+       * by 3, so guard against integer overflow before the
+       * pointer arithmetic. */
+      if (i == -1)
       {
-         if (i == -1)
-            out->samples = NULL;
+         out->samples = NULL;
+      }
+      else if (coloredlights)
+      {
+         if (i < 0 ||
+             (size_t)i > (size_t)INT_MAX / 3 ||
+             i * 3 >= loadmodel->lightdatasize)
+            SV_Error("%s: bad lightofs %i (lightdatasize=%i) in %s",
+                     __func__, i, loadmodel->lightdatasize, loadmodel->name);
          out->samples = loadmodel->lightdata + i * 3;
       }
       else
       {
-         if (i == -1)
-            out->samples = NULL;
-         else
-            out->samples = loadmodel->lightdata + i;
+         if (i < 0 || i >= loadmodel->lightdatasize)
+            SV_Error("%s: bad lightofs %i (lightdatasize=%i) in %s",
+                     __func__, i, loadmodel->lightdatasize, loadmodel->name);
+         out->samples = loadmodel->lightdata + i;
       }
 
       /* set the surface drawing flags */
@@ -1338,6 +1424,18 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
 #endif
       out->flags     = 0;
 
+      /* See Mod_LoadFaces_BSP29 above. */
+      if (out->numedges <= 0)
+         SV_Error("%s: bmodel %s has surface with no edges", __func__,
+               loadmodel->name);
+      if (out->firstedge < 0 ||
+          out->firstedge > loadmodel->numsurfedges ||
+          out->numedges > loadmodel->numsurfedges - out->firstedge)
+         SV_Error("%s: bad surface edge range (first=%i, num=%i; "
+                  "numsurfedges=%i) in %s",
+                  __func__, out->firstedge, out->numedges,
+                  loadmodel->numsurfedges, loadmodel->name);
+
 #ifdef MSB_FIRST
       planenum       = LittleLong(in->planenum);
       side           = LittleLong(in->side);
@@ -1378,10 +1476,27 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
 #else
       i = (in->lightofs);
 #endif
+      /* See Mod_LoadFaces_BSP29 above. */
       if (i == -1)
+      {
          out->samples = NULL;
+      }
+      else if (coloredlights)
+      {
+         if (i < 0 ||
+             (size_t)i > (size_t)INT_MAX / 3 ||
+             i * 3 >= loadmodel->lightdatasize)
+            SV_Error("%s: bad lightofs %i (lightdatasize=%i) in %s",
+                     __func__, i, loadmodel->lightdatasize, loadmodel->name);
+         out->samples = loadmodel->lightdata + i * 3;
+      }
       else
+      {
+         if (i < 0 || i >= loadmodel->lightdatasize)
+            SV_Error("%s: bad lightofs %i (lightdatasize=%i) in %s",
+                     __func__, i, loadmodel->lightdatasize, loadmodel->name);
          out->samples = loadmodel->lightdata + i;
+      }
 
       /* set the surface drawing flags */
       if (!strncmp(out->texinfo->texture->name, "sky", 3))
@@ -1613,21 +1728,50 @@ Mod_LoadLeafs_BSP29(lump_t *l)
       out->contents = p;
 
 #ifdef MSB_FIRST
-      out->firstmarksurface = loadmodel->marksurfaces +
-         (uint16_t)LittleShort(in->firstmarksurface);
-      out->nummarksurfaces = (uint16_t)LittleShort(in->nummarksurfaces);
+      {
+         uint16_t fms = (uint16_t)LittleShort(in->firstmarksurface);
+         uint16_t nms = (uint16_t)LittleShort(in->nummarksurfaces);
+         /* fms+nms must lie within marksurfaces[]. */
+         if ((int)fms > loadmodel->nummarksurfaces ||
+             (int)nms > loadmodel->nummarksurfaces - (int)fms)
+            SV_Error("%s: bad marksurface range (first=%u, num=%u; "
+                     "nummarksurfaces=%i) in %s",
+                     __func__, fms, nms, loadmodel->nummarksurfaces,
+                     loadmodel->name);
+         out->firstmarksurface = loadmodel->marksurfaces + fms;
+         out->nummarksurfaces = nms;
+      }
 
       p = LittleLong(in->visofs);
 #else
-      out->firstmarksurface = &loadmodel->marksurfaces[in->firstmarksurface];
-      out->nummarksurfaces = (uint16_t)(in->nummarksurfaces);
+      {
+         uint16_t fms = (uint16_t)(in->firstmarksurface);
+         uint16_t nms = (uint16_t)(in->nummarksurfaces);
+         if ((int)fms > loadmodel->nummarksurfaces ||
+             (int)nms > loadmodel->nummarksurfaces - (int)fms)
+            SV_Error("%s: bad marksurface range (first=%u, num=%u; "
+                     "nummarksurfaces=%i) in %s",
+                     __func__, fms, nms, loadmodel->nummarksurfaces,
+                     loadmodel->name);
+         out->firstmarksurface = &loadmodel->marksurfaces[fms];
+         out->nummarksurfaces = nms;
+      }
 
       p = (in->visofs);
 #endif
+      /* visofs is a byte-offset into loadmodel->visdata, or -1
+       * for "no PVS data".  Out-of-range values cause the PVS
+       * decompressor (Mod_DecompressVis) to walk off the end
+       * of the visdata hunk allocation. */
       if (p == -1)
          out->compressed_vis = NULL;
       else
+      {
+         if (p < 0 || p >= loadmodel->visdatasize)
+            SV_Error("%s: bad visofs %i (visdatasize=%i) in %s",
+                     __func__, p, loadmodel->visdatasize, loadmodel->name);
          out->compressed_vis = loadmodel->visdata + p;
+      }
       out->efrags = NULL;
 
       for (j = 0; j < 4; j++)
@@ -1670,14 +1814,34 @@ Mod_LoadLeafs_BSP2(lump_t *l)
       out->contents = p;
 
 #ifdef MSB_FIRST
-      out->firstmarksurface = loadmodel->marksurfaces +
-         (uint32_t)LittleLong(in->firstmarksurface);
-      out->nummarksurfaces = (uint32_t)LittleLong(in->nummarksurfaces);
+      {
+         uint32_t fms = (uint32_t)LittleLong(in->firstmarksurface);
+         uint32_t nms = (uint32_t)LittleLong(in->nummarksurfaces);
+         /* See Mod_LoadLeafs_BSP29 above. */
+         if (fms > (uint32_t)loadmodel->nummarksurfaces ||
+             nms > (uint32_t)loadmodel->nummarksurfaces - fms)
+            SV_Error("%s: bad marksurface range (first=%u, num=%u; "
+                     "nummarksurfaces=%i) in %s",
+                     __func__, fms, nms, loadmodel->nummarksurfaces,
+                     loadmodel->name);
+         out->firstmarksurface = loadmodel->marksurfaces + fms;
+         out->nummarksurfaces = nms;
+      }
 
       p = LittleLong(in->visofs);
 #else
-      out->firstmarksurface = &loadmodel->marksurfaces[in->firstmarksurface];
-      out->nummarksurfaces = (uint32_t)(in->nummarksurfaces);
+      {
+         uint32_t fms = (uint32_t)(in->firstmarksurface);
+         uint32_t nms = (uint32_t)(in->nummarksurfaces);
+         if (fms > (uint32_t)loadmodel->nummarksurfaces ||
+             nms > (uint32_t)loadmodel->nummarksurfaces - fms)
+            SV_Error("%s: bad marksurface range (first=%u, num=%u; "
+                     "nummarksurfaces=%i) in %s",
+                     __func__, fms, nms, loadmodel->nummarksurfaces,
+                     loadmodel->name);
+         out->firstmarksurface = &loadmodel->marksurfaces[fms];
+         out->nummarksurfaces = nms;
+      }
 
       p = (in->visofs);
 #endif
@@ -1685,7 +1849,12 @@ Mod_LoadLeafs_BSP2(lump_t *l)
       if (p == -1)
          out->compressed_vis = NULL;
       else
+      {
+         if (p < 0 || p >= loadmodel->visdatasize)
+            SV_Error("%s: bad visofs %i (visdatasize=%i) in %s",
+                     __func__, p, loadmodel->visdatasize, loadmodel->name);
          out->compressed_vis = loadmodel->visdata + p;
+      }
       out->efrags = NULL;
 
       for (j = 0; j < 4; j++)
@@ -1954,12 +2123,27 @@ Mod_LoadSurfedges(lump_t *l)
    loadmodel->surfedges = out;
    loadmodel->numsurfedges = count;
 
-   for (i = 0; i < count; i++)
+   for (i = 0; i < count; i++) {
 #ifdef MSB_FIRST
       out[i] = LittleLong(in[i]);
 #else
       out[i] = (in[i]);
 #endif
+      /* surfedges are signed indices into edges[]: positive
+       * value means walk edge[i].v[0]->v[1], negative means
+       * walk edge[-i].v[1]->v[0].  Out-of-range values cause
+       * the renderer's R_RecursiveWorldNode / R_RenderFace
+       * lookup of edges[abs(out[i])] to walk off the end of
+       * the edges hunk allocation.  Be defensive: also catch
+       * INT_MIN, whose abs() is undefined. */
+      {
+         int e = out[i];
+         int a = (e < 0) ? -e : e;
+         if (e == INT_MIN || a >= loadmodel->numedges)
+            SV_Error("%s: bad surfedge %i (numedges=%i) in %s",
+                     __func__, e, loadmodel->numedges, loadmodel->name);
+      }
+   }
 }
 
 /*

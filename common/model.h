@@ -419,7 +419,9 @@ typedef struct model_s {
     texture_t **textures;
 
     byte *visdata;
+    int visdatasize;
     byte *lightdata;
+    int lightdatasize;
     char *entities;
 
 #ifdef QW_HACK
