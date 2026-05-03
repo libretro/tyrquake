@@ -822,14 +822,27 @@ static void update_variables(bool startup)
    {
       char *pch;
       char str[100];
+      unsigned long w_in = 0, h_in = 0;
       snprintf(str, sizeof(str), "%s", var.value);
 
       pch = strtok(str, "x");
       if (pch)
-         width = strtoul(pch, NULL, 0);
+         w_in = strtoul(pch, NULL, 0);
       pch = strtok(NULL, "x");
       if (pch)
-         height = strtoul(pch, NULL, 0);
+         h_in = strtoul(pch, NULL, 0);
+
+      /* Clamp to the renderer's compile-time scratch limits.
+       * VID_Init does the final clamp before allocating, but
+       * doing it here keeps the values reasonable in case other
+       * code reads the globals between now and VID_Init. */
+      if (w_in == 0)            w_in = 320;
+      if (h_in == 0)            h_in = 200;
+      if (w_in > MAXWIDTH)      w_in = MAXWIDTH;
+      if (h_in > MAXHEIGHT)     h_in = MAXHEIGHT;
+
+      width  = (unsigned)w_in;
+      height = (unsigned)h_in;
 
       if (log_cb)
          log_cb(RETRO_LOG_INFO, "Got size: %u x %u.\n", width, height);
@@ -1266,10 +1279,53 @@ void VID_ShiftPalette(unsigned char *palette)
 
 void VID_Init(unsigned char *palette)
 {
-   /* TODO */
-   vid_buffer = (byte*)malloc(width * height * sizeof(byte));
-   zbuffer = (short*)malloc(width * height * sizeof(short));
-   finalimage = (short*)malloc(width * height * sizeof(short));
+   size_t fb_pixels;
+
+   /* Clamp to the renderer's compile-time scratch limits.  The
+    * fixed-pipeline rasterizer indexes per-row state from
+    * vid.rowbytes and walks vid.height rows; oversize buffers
+    * past MAXWIDTH x MAXHEIGHT (1920 x 1200) cause out-of-range
+    * writes into static r_main.c arrays (zspantable, scantable,
+    * r_warpbuffer_storage etc., see commit 60dacb5).  Undersize
+    * buffers (zero or near-zero) make every subsequent render
+    * line-write a stomp into whatever malloc returned for a
+    * 0-byte alloc.
+    *
+    * width / height come from the libretro 'tyrquake_resolution'
+    * variable parsed at startup; clamping here is the
+    * defence-of-last-resort in case the frontend hands us
+    * a bad value, and also catches any future code path that
+    * sets width/height from another untrusted source. */
+   if (width  < 320)         width  = 320;
+   if (height < 200)         height = 200;
+   if (width  > MAXWIDTH)    width  = MAXWIDTH;
+   if (height > MAXHEIGHT)   height = MAXHEIGHT;
+
+   /* width and height are now bounded; width * height fits
+    * comfortably in size_t (max 1920*1200 = 2.3M pixels = 4.6M
+    * bytes for short, well under 32-bit).  Compute pixels in
+    * size_t to avoid any chance of the multiply truncating to
+    * a smaller size before the malloc cast. */
+   fb_pixels = (size_t)width * (size_t)height;
+
+   /* Guard against being re-entered (resolution change, soft
+    * reset etc.) by freeing any pre-existing buffers first.
+    * Without this, retro_reset paths leak the old buffers and
+    * the various d_* / vid.* aliases keep dangling pointers
+    * to free()d memory. */
+   if (vid_buffer)  { free(vid_buffer);  vid_buffer  = NULL; }
+   if (zbuffer)     { free(zbuffer);     zbuffer     = NULL; }
+   if (finalimage)  { free(finalimage);  finalimage  = NULL; }
+   if (surfcache)   { free(surfcache);   surfcache   = NULL; }
+
+   vid_buffer = (byte*)malloc(fb_pixels * sizeof(byte));
+   zbuffer    = (short*)malloc(fb_pixels * sizeof(short));
+   finalimage = (short*)malloc(fb_pixels * sizeof(short));
+   surfcache  = (byte*)malloc(SURFCACHE_SIZE);
+
+   if (!vid_buffer || !zbuffer || !finalimage || !surfcache)
+      Sys_Error("VID_Init: failed to allocate framebuffer "
+                "(width=%u height=%u)", width, height);
 
     vid.width = width;
     vid.height = height;
@@ -1286,7 +1342,6 @@ void VID_Init(unsigned char *palette)
     vid.aspect = ((float)vid.height / (float)vid.width) * (320.0 / 240.0);
 
     d_pzbuffer = zbuffer;
-    surfcache = malloc(SURFCACHE_SIZE);
     D_InitCaches(surfcache, SURFCACHE_SIZE);
 }
 

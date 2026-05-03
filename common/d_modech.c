@@ -83,8 +83,17 @@ void D_ViewChanged(void)
 
    {
       int i;
+      int rows = vid.height;
 
-      for (i = 0; i < vid.height; i++) {
+      /* Defence in depth: VID_Init clamps vid.height to MAXHEIGHT
+       * before allocating buffers, but if a future code path
+       * sets vid.height past that without going through VID_Init,
+       * this loop would write past the end of d_scantable[]
+       * and zspantable[] which are sized exactly MAXHEIGHT. */
+      if (rows > MAXHEIGHT)
+         rows = MAXHEIGHT;
+
+      for (i = 0; i < rows; i++) {
          d_scantable[i] = i * rowbytes;
          zspantable[i] = d_pzbuffer + i * d_zwidth;
       }
