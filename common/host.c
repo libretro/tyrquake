@@ -794,9 +794,29 @@ Host_Init(quakeparms_t *parms)
 	host_basepal = (byte*)COM_LoadHunkFile("gfx/palette.lmp");
 	if (!host_basepal)
 	    return Sys_Error("Couldn't load gfx/palette.lmp");
+	/* palette.lmp is exactly 256 RGB triples = 768 bytes.
+	 * Consumers (V_UpdatePalette, the 24bit-table builder
+	 * d_8to24table, every renderer that reads
+	 * host_basepal[i*3+{0,1,2}] for i in [0,256)) walk
+	 * 768 bytes unconditionally; a truncated file lets
+	 * them OOB-read into adjacent hunk memory. */
+	if (com_filesize != 768)
+	    return Sys_Error("gfx/palette.lmp has bad size %d (expected 768)",
+	                     com_filesize);
+
 	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
 	if (!host_colormap)
 	    return Sys_Error("Couldn't load gfx/colormap.lmp");
+	/* colormap.lmp is exactly 64 shade-rows * 256 colors
+	 * + 1 trailing fullbrights byte = 16385 bytes.  The
+	 * fullbrights read at host_colormap[16384] right
+	 * below would OOB on a truncated file; the renderer
+	 * indexes vid.colormap[(light & 0xFF00) + pix] up to
+	 * 64 * 256 - 1 = 16383, also requiring the full
+	 * extent. */
+	if (com_filesize != 16385)
+	    return Sys_Error("gfx/colormap.lmp has bad size %d (expected 16385)",
+	                     com_filesize);
 
 
    /* Always derive host_fullbrights from the colormap.  This is the
