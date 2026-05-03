@@ -634,8 +634,14 @@ CL_ParsePlayerinfo(void)
     int i;
 
     num = MSG_ReadByte();
-    if (num > MAX_CLIENTS)
-	Sys_Error("CL_ParsePlayerinfo: bad num");
+    /* num indexes cl.frames[].playerstate[MAX_CLIENTS]; the
+     * pre-existing check `num > MAX_CLIENTS` was off-by-one
+     * (MAX_CLIENTS itself is OOB) and missed the MSG_ReadByte
+     * == -1 truncated-read case (sets msg_badread which
+     * fires on the next loop iteration, but the OOB write
+     * happens here first). */
+    if (num < 0 || num >= MAX_CLIENTS)
+	Sys_Error("CL_ParsePlayerinfo: bad num %i", num);
 
     state = &cl.frames[parsecountmod].playerstate[num];
     flags = state->flags = MSG_ReadShort();

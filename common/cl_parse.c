@@ -816,8 +816,8 @@ CL_NewTranslation(int slot)
    int top, bottom;
    byte *dest, *source;
 
-   if (slot > cl.maxclients)
-      Sys_Error("%s: slot > cl.maxclients", __func__);
+   if (slot < 0 || slot >= cl.maxclients)
+      Sys_Error("%s: slot %i out of range", __func__, slot);
    dest = cl.players[slot].translations;
    source = vid.colormap;
    memcpy(dest, vid.colormap, sizeof(cl.players[slot].translations));
@@ -1061,6 +1061,16 @@ CL_ParseServerMessage(void)
 
          case svc_setview:
             cl.viewentity = MSG_ReadShort();
+            /* viewentity is later used to index cl_entities
+             * (size MAX_EDICTS) and (with -1) cl.players
+             * (size cl.maxclients).  A signed short is in
+             * [-32768, 32767]; out-of-range values would
+             * walk past either array on every frame
+             * (cl_tent.c:326 VectorCopy from origin field,
+             * r_main.c:1004 pointer compare, sbar.c:765
+             * userinfo deref).  Bound to [0, MAX_EDICTS). */
+            if (cl.viewentity < 0 || cl.viewentity >= MAX_EDICTS)
+               Host_Error("svc_setview: bad viewentity %i", cl.viewentity);
             break;
 
          case svc_lightstyle:

@@ -594,6 +594,13 @@ CL_ParseServerData(void)
 	cl.spectator = true;
 	cl.playernum &= ~128;
     }
+    /* MSG_ReadByte returns int in [-1, 255]; after the
+     * spectator-bit mask, attacker-supplied values can
+     * still place cl.playernum outside [0, MAX_CLIENTS).
+     * It indexes cl.players[] in sbar.c (unbounded), and
+     * server-side identity tracking uses it.  Bound here. */
+    if (cl.playernum < 0 || cl.playernum >= MAX_CLIENTS)
+	Host_EndGame("CL_ParseServerData: bad playernum %i", cl.playernum);
     /* get the full level name */
     str = MSG_ReadString();
     snprintf(cl.levelname, sizeof(cl.levelname), "%s", str);
@@ -787,6 +794,15 @@ CL_ParseStaticSound(void)
     vol = MSG_ReadByte();
     atten = MSG_ReadByte();
 
+    /* sound_num is MSG_ReadByte (range [-1, 255]); negative
+     * means truncated packet.  Without this bound,
+     * cl.sound_precache[sound_num] is an OOB read of a
+     * pointer subsequently passed to S_StaticSound; the
+     * downstream S_ValidSfx rejects bad pointers but the
+     * read itself is the unguarded primitive. */
+    if (sound_num < 0 || sound_num >= MAX_SOUNDS)
+	Host_EndGame("%s: sound_num = %i", __func__, sound_num);
+
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
 
@@ -835,8 +851,21 @@ CL_ParseStartSoundPacket(void)
     ent = (channel >> 3) & 1023;
     channel &= 7;
 
-    if (ent > MAX_EDICTS)
+    /* ent is masked to [0, 1023] above; the original
+     * `if (ent > MAX_EDICTS)` was dead code (1023 < MAX_EDICTS)
+     * and also off-by-one (>= would be the correct form).
+     * Keep the check for documentation. */
+    if (ent < 0 || ent >= MAX_EDICTS)
 	Host_EndGame("%s: ent = %i", __func__, ent);
+
+    /* sound_num is MSG_ReadByte (range [-1, 255]).  Negative
+     * means a truncated packet (msg_badread set, fires next
+     * loop iteration -- but we'd index cl.sound_precache[-1]
+     * before that).  S_ValidSfx in S_StartSound rejects
+     * stale pointers downstream, but sound_num >= MAX_SOUNDS
+     * was already an unhandled OOB read.  Bound here. */
+    if (sound_num < 0 || sound_num >= MAX_SOUNDS)
+	Host_EndGame("%s: sound_num = %i", __func__, sound_num);
 
     S_StartSound(ent, channel, cl.sound_precache[sound_num], pos,
 		 volume / 255.0, attenuation);
@@ -897,8 +926,8 @@ CL_NewTranslation(int slot)
    player_info_t *player;
    char *skin;
 
-   if (slot > MAX_CLIENTS)
-      Sys_Error("%s: slot > MAX_CLIENTS", __func__);
+   if (slot < 0 || slot >= MAX_CLIENTS)
+      Sys_Error("%s: slot %i out of range", __func__, slot);
 
    player = &cl.players[slot];
 
