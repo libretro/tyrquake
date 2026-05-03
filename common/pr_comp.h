@@ -137,7 +137,9 @@ enum {
     OP_OR,
 
     OP_BITAND,
-    OP_BITOR
+    OP_BITOR,
+
+    OP_NUMOPS
 };
 
 

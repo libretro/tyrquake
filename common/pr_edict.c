@@ -1150,6 +1150,122 @@ PR_LoadProgs(void)
       ((int *)pr_globals)[i] = LittleLong(((int *)pr_globals)[i]);
 #endif
 
+   /* Bytecode validation pass.  By this point the lumps are
+    * byte-swapped (on MSB_FIRST) and we know they fit within
+    * com_filesize, but the indices stored inside them have
+    * not been checked.  Without this, the inner interpreter
+    * loop in PR_ExecuteProgram dereferences pr_globals[st->a]
+    * etc. for indices 0..65535 with no bound, lets a corrupt
+    * function jump to first_statement past numstatements,
+    * lets PR_EnterFunction copy parm_size[i]*numparms entries
+    * past numglobals, and lets s_name fields point past
+    * pr_strings.  Catch all of those at load time so the
+    * inner loop can stay hot and bounds-check-free for
+    * st->a/b/c.  Runtime-only checks are added separately
+    * for the values that are still computed at runtime
+    * (OP_STOREP target, OP_CALL function index, dynamic
+    * GOTO/IF jump targets). */
+   {
+      const int ng = progs->numglobals;
+      const int ns = progs->numstatements;
+      const int nf = progs->numfunctions;
+      const int nfd = progs->numfielddefs;
+      const int ngd = progs->numglobaldefs;
+      const int ssz = pr_strings_size;
+
+      /* Statements: a/b/c are int16 indices into pr_globals
+       * for most opcodes.  OP_GOTO uses st->a and OP_IF/IFNOT
+       * use st->b as a signed statement-relative jump offset
+       * (typically negative for backward jumps in loops),
+       * so they must NOT be treated as globals indices.  The
+       * inner interpreter loop still computes pointers from
+       * those operands at the top of each iteration before
+       * the switch, but the resulting pointer is never
+       * dereferenced for those ops, so the (technically UB)
+       * pointer arithmetic causes no harm in practice.  For
+       * jump ops we only verify the resolved statement target.
+       * Vector ops touch [n], [n+1], [n+2] so the upper bound
+       * for a globals index is numglobals - 3. */
+      if (ng < 3)
+         SV_Error("progs.dat: numglobals (%d) too small", ng);
+      for (i = 0; i < ns; i++) {
+         dstatement_t *st = &pr_statements[i];
+         if (st->op >= OP_NUMOPS)
+            SV_Error("progs.dat: bad opcode %u in statement %i",
+                     (unsigned)st->op, i);
+         if (st->op == OP_GOTO) {
+            int target = i + (int)(int16_t)st->a;
+            if (target < 0 || target >= ns)
+               SV_Error("progs.dat: OP_GOTO target out of range "
+                        "(statement %i + %d -> %d; numstatements=%d)",
+                        i, (int)(int16_t)st->a, target, ns);
+         } else if (st->op == OP_IF || st->op == OP_IFNOT) {
+            int target = i + (int)(int16_t)st->b;
+            if (target < 0 || target >= ns)
+               SV_Error("progs.dat: OP_IF/IFNOT target out of range "
+                        "(statement %i + %d -> %d; numstatements=%d)",
+                        i, (int)(int16_t)st->b, target, ns);
+            /* IF/IFNOT evaluates a as a scalar globals index. */
+            if ((unsigned)st->a > (unsigned)(ng - 1))
+               SV_Error("progs.dat: statement %i (OP_IF/IFNOT) has "
+                        "bad globals index a=%u (numglobals=%d)",
+                        i, (unsigned)st->a, ng);
+         } else {
+            /* Non-jump op: a/b/c must be valid globals indices. */
+            if ((unsigned)st->a > (unsigned)(ng - 3) ||
+                (unsigned)st->b > (unsigned)(ng - 3) ||
+                (unsigned)st->c > (unsigned)(ng - 3))
+               SV_Error("progs.dat: statement %i (op %u) has "
+                        "globals index out of range "
+                        "(a=%u b=%u c=%u; numglobals=%d)",
+                        i, (unsigned)st->op,
+                        (unsigned)st->a, (unsigned)st->b,
+                        (unsigned)st->c, ng);
+         }
+      }
+
+      /* Functions: first_statement is signed (negative = builtin),
+       * parm_start, locals, numparms must fit in pr_globals. */
+      for (i = 0; i < nf; i++) {
+         dfunction_t *fp = &pr_functions[i];
+         if (fp->first_statement >= ns)
+            SV_Error("progs.dat: function %i first_statement %d "
+                     "out of range (numstatements=%d)",
+                     i, fp->first_statement, ns);
+         if (fp->parm_start < 0 || fp->locals < 0 ||
+             fp->parm_start > ng - fp->locals)
+            SV_Error("progs.dat: function %i parm_start/locals "
+                     "out of range (parm_start=%d locals=%d "
+                     "numglobals=%d)",
+                     i, fp->parm_start, fp->locals, ng);
+         if (fp->numparms < 0 || fp->numparms > MAX_PARMS)
+            SV_Error("progs.dat: function %i numparms %d out of "
+                     "range (max=%d)", i, fp->numparms, MAX_PARMS);
+         if (fp->s_name < 0 || fp->s_name >= ssz)
+            SV_Error("progs.dat: function %i s_name %d out of "
+                     "range (strings_size=%d)", i, fp->s_name, ssz);
+         if (fp->s_file < 0 || fp->s_file >= ssz)
+            SV_Error("progs.dat: function %i s_file %d out of "
+                     "range (strings_size=%d)", i, fp->s_file, ssz);
+      }
+
+      /* Globaldefs / fielddefs: ofs is the index used by
+       * ED_ParseEpair (already bounded at use, but cheap to
+       * check here too) and s_name must point into strings. */
+      for (i = 0; i < ngd; i++) {
+         if (pr_globaldefs[i].s_name < 0 ||
+             pr_globaldefs[i].s_name >= ssz)
+            SV_Error("progs.dat: globaldef %i s_name out of range",
+                     i);
+      }
+      for (i = 0; i < nfd; i++) {
+         if (pr_fielddefs[i].s_name < 0 ||
+             pr_fielddefs[i].s_name >= ssz)
+            SV_Error("progs.dat: fielddef %i s_name out of range",
+                     i);
+      }
+   }
+
 #if defined(QW_HACK) && defined(SERVERONLY)
    /* Zoid, find the spectator functions */
    SpectatorConnect = SpectatorThink = SpectatorDisconnect = 0;

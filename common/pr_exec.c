@@ -407,6 +407,19 @@ PR_ExecuteProgram(func_t fnum)
     while (1) {
 	s++;			/* next statement */
 
+	/* Defensive: load-time validation in PR_LoadProgs ensures
+	 * that every OP_GOTO / OP_IF / OP_IFNOT / OP_CALL target
+	 * lands within pr_statements[0..numstatements), but a
+	 * function whose body simply runs off the end without a
+	 * terminating OP_DONE / OP_RETURN would walk past the
+	 * array.  Stock progs.dat doesn't do this, but a hostile
+	 * progs.dat could.  Catch it here rather than letting the
+	 * dispatch read random memory. */
+	if (s < 0 || s >= progs->numstatements)
+	    PR_RunError("PR_ExecuteProgram: statement counter out of "
+			"range (s=%i; numstatements=%i)",
+			s, progs->numstatements);
+
 	st = &pr_statements[s];
 	a = (eval_t *)&pr_globals[st->a];
 	b = (eval_t *)&pr_globals[st->b];
@@ -567,10 +580,24 @@ PR_ExecuteProgram(func_t fnum)
 	case OP_STOREP_FLD:	/* integers */
 	case OP_STOREP_S:
 	case OP_STOREP_FNC:	/* pointers */
+	    /* b->_int is a runtime-computed byte offset into the
+	     * edict region (sv.edicts[0 .. max_edicts * pr_edict_size]).
+	     * A corrupt value gives an arbitrary write primitive
+	     * within the host process; bound it before deref. */
+	    if ((unsigned)b->_int >
+		(unsigned)(sv.max_edicts * pr_edict_size - (int)sizeof(int)))
+		PR_RunError("OP_STOREP: bad offset %i (edict region "
+			    "is %i bytes)",
+			    b->_int, sv.max_edicts * pr_edict_size);
 	    ptr = (eval_t *)((byte *)sv.edicts + b->_int);
 	    ptr->_int = a->_int;
 	    break;
 	case OP_STOREP_V:
+	    if ((unsigned)b->_int >
+		(unsigned)(sv.max_edicts * pr_edict_size - 3 * (int)sizeof(int)))
+		PR_RunError("OP_STOREP_V: bad offset %i (edict region "
+			    "is %i bytes)",
+			    b->_int, sv.max_edicts * pr_edict_size);
 	    ptr = (eval_t *)((byte *)sv.edicts + b->_int);
 	    ptr->vector[0] = a->vector[0];
 	    ptr->vector[1] = a->vector[1];
@@ -578,6 +605,18 @@ PR_ExecuteProgram(func_t fnum)
 	    break;
 
 	case OP_ADDRESS:
+	    /* a->edict is byte offset of an edict in sv.edicts;
+	     * b->_int is field offset in int units within that
+	     * edict's v[].  Bound both before computing the pointer
+	     * the result of which can later become an OP_STOREP
+	     * target. */
+	    if ((unsigned)a->edict >=
+		(unsigned)(sv.max_edicts * pr_edict_size))
+		PR_RunError("OP_ADDRESS: bad edict offset %i", a->edict);
+	    if ((unsigned)b->_int >= (unsigned)progs->entityfields)
+		PR_RunError("OP_ADDRESS: bad field offset %i "
+			    "(entityfields=%i)",
+			    b->_int, progs->entityfields);
 	    ed = PROG_TO_EDICT(a->edict);
 	    if (ed == (edict_t *)sv.edicts && sv.state == ss_active)
 		PR_RunError("assignment to world entity");
@@ -589,12 +628,26 @@ PR_ExecuteProgram(func_t fnum)
 	case OP_LOAD_ENT:
 	case OP_LOAD_S:
 	case OP_LOAD_FNC:
+	    if ((unsigned)a->edict >=
+		(unsigned)(sv.max_edicts * pr_edict_size))
+		PR_RunError("OP_LOAD: bad edict offset %i", a->edict);
+	    if ((unsigned)b->_int >= (unsigned)progs->entityfields)
+		PR_RunError("OP_LOAD: bad field offset %i "
+			    "(entityfields=%i)",
+			    b->_int, progs->entityfields);
 	    ed = PROG_TO_EDICT(a->edict);
 	    a = (eval_t *)((int *)&ed->v + b->_int);
 	    c->_int = a->_int;
 	    break;
 
 	case OP_LOAD_V:
+	    if ((unsigned)a->edict >=
+		(unsigned)(sv.max_edicts * pr_edict_size))
+		PR_RunError("OP_LOAD_V: bad edict offset %i", a->edict);
+	    if ((unsigned)b->_int >= (unsigned)(progs->entityfields - 2))
+		PR_RunError("OP_LOAD_V: bad field offset %i "
+			    "(entityfields=%i)",
+			    b->_int, progs->entityfields);
 	    ed = PROG_TO_EDICT(a->edict);
 	    a = (eval_t *)((int *)&ed->v + b->_int);
 	    c->vector[0] = a->vector[0];
@@ -630,6 +683,14 @@ PR_ExecuteProgram(func_t fnum)
 	    pr_argc = st->op - OP_CALL0;
 	    if (!a->function)
 		PR_RunError("NULL function");
+
+	    /* a->function is a runtime-computed function index; load-time
+	     * validation can't catch a corrupt value coming from globals
+	     * written by a malicious mod or by a bug.  Bound against the
+	     * known function count before pr_functions[] is dereferenced. */
+	    if ((unsigned)a->function >= (unsigned)progs->numfunctions)
+		PR_RunError("Bad function call %u (numfunctions=%i)",
+			    (unsigned)a->function, progs->numfunctions);
 
 	    newf = &pr_functions[a->function];
 
