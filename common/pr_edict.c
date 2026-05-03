@@ -1092,6 +1092,15 @@ PR_LoadProgs(void)
       }
       if (progs->entityfields < 0)
 	 SV_Error("progs.dat: bad entityfields (%d)", progs->entityfields);
+      /* entityfields multiplied by 4 produces pr_edict_size,
+       * which is then multiplied by MAX_EDICTS (8192) to size
+       * sv.edicts.  Cap entityfields well below INT_MAX/(4 *
+       * MAX_EDICTS) so the multiplication chain can't overflow.
+       * Stock progs uses ~95; even heavily modded progs rarely
+       * exceeds a few hundred. */
+      if (progs->entityfields > 4096)
+	 SV_Error("progs.dat: too many entityfields (%d, max 4096)",
+		  progs->entityfields);
    }
 
    PR_InitStringTable();

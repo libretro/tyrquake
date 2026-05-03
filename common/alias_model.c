@@ -309,12 +309,27 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    /* skin and group info */
    pad = loader->Aliashdr_Padding();
 #ifdef MSB_FIRST
-   size = pad + sizeof(aliashdr_t) +
-      LittleLong(pinmodel->numframes) * sizeof(pheader->frames[0]);
+   numframes = LittleLong(pinmodel->numframes);
 #else
-   size = pad + sizeof(aliashdr_t) +
-      (pinmodel->numframes) * sizeof(pheader->frames[0]);
+   numframes = (pinmodel->numframes);
 #endif
+
+   /* numframes is also bounded against MAXALIASFRAMES below
+    * after the working header is allocated, but the size
+    * computation
+    *   size = pad + sizeof(aliashdr_t) + numframes * sizeof(...)
+    * happens here first.  Without an early bound, a hostile
+    * .mdl with numframes near INT_MAX makes the multiplication
+    * overflow into a tiny positive (or wrapped-negative on
+    * Hunk_Alloc -- still rejected by d0f7e07's allocator
+    * bounds, but we want to fail with a useful message that
+    * names the model). */
+   if (numframes < 1 || numframes > MAXALIASFRAMES)
+      Sys_Error("model %s has invalid numframes %d (max %d)",
+                mod->name, numframes, MAXALIASFRAMES);
+
+   size = pad + sizeof(aliashdr_t) +
+      numframes * sizeof(pheader->frames[0]);
 
    container = (byte*)Hunk_Alloc(size);
    pheader = (aliashdr_t *)(container + pad);
@@ -384,22 +399,16 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
             mod->name, pheader->numtris, MAXALIASTRIS);
 
 #ifdef MSB_FIRST
-   pheader->numframes = LittleLong(pinmodel->numframes);
    pheader->size = LittleFloat(pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
    mod->synctype = (synctype_t)LittleLong(pinmodel->synctype);
 #else
-   pheader->numframes = (pinmodel->numframes);
    pheader->size = (pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
    mod->synctype = (synctype_t)(pinmodel->synctype);
 #endif
+   /* numframes was already validated and byte-swapped at the
+    * top of this function. */
+   pheader->numframes = numframes;
    mod->numframes = pheader->numframes;
-
-   if (pheader->numframes <= 0)
-      Sys_Error("model %s has invalid numframes %d",
-            mod->name, pheader->numframes);
-   if (pheader->numframes > MAXALIASFRAMES)
-      Sys_Error("model %s has too many frames (%d > %d)",
-            mod->name, pheader->numframes, MAXALIASFRAMES);
 
    for (i = 0; i < 3; i++) {
 #ifdef MSB_FIRST

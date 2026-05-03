@@ -1756,6 +1756,14 @@ Mod_LoadLeafs_BSP29(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   /* numleafs feeds Mod_InitPVSCache which allocates
+    * PVSCACHE_SIZE * Mod_LeafbitsSize(numleafs) bytes; at very
+    * large counts the multiplication can stress the hunk.  The
+    * BSP format reserves negative shorts for content codes, so
+    * MAX_MAP_LEAFS is the natural upper bound. */
+   if (count < 0 || count > MAX_MAP_LEAFS)
+      SV_Error("%s: bad leaf count %i (max %i) in %s", __func__,
+               count, MAX_MAP_LEAFS, loadmodel->name);
    out = (mleaf_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->leafs = out;
@@ -1844,6 +1852,10 @@ Mod_LoadLeafs_BSP2(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   /* See Mod_LoadLeafs_BSP29 above. */
+   if (count < 0 || count > MAX_MAP_LEAFS)
+      SV_Error("%s: bad leaf count %i (max %i) in %s", __func__,
+               count, MAX_MAP_LEAFS, loadmodel->name);
    out = (mleaf_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->leafs = out;
