@@ -836,6 +836,18 @@ Mod_LoadLighting(lump_t *l)
 		lightmapfile = COM_LoadHunkFile(litname);
 		if (lightmapfile)
 		{
+			/* The .lit format: 8-byte header
+			 *   bytes 0..3: ASCII "QLIT"
+			 *   bytes 4..7: int32 version (LittleLong, == 1)
+			 * followed by 3 * (number of bsp lightmap samples)
+			 * bytes of RGB pixel data.  com_filesize is set by
+			 * COM_LoadHunkFile.  Reject any file too short to
+			 * contain even the header so the reads below stay
+			 * inside the allocation. */
+			if (com_filesize < 8) {
+				Con_Printf("Truncated .LIT file (size %i), ignoring\n", com_filesize);
+			} else
+			{
 			data = lightmapfile;	
 			if (data[0] == 'Q' && data[1] == 'L' && data[2] == 'I' && data[3] == 'T')
 			{
@@ -843,9 +855,9 @@ Mod_LoadLighting(lump_t *l)
 				if (i == 1)
 				{
 					loadmodel->lightdata = data + 8;	
-					/* com_filesize was set by COM_LoadHunkFile. The .lit
-					 * payload starts after the 8-byte QLIT header. */
-					loadmodel->lightdatasize = (com_filesize > 8) ? (com_filesize - 8) : 0;
+					/* The .lit payload starts after the 8-byte
+					 * QLIT header. */
+					loadmodel->lightdatasize = com_filesize - 8;
 					return;
 				}
 				else
@@ -853,6 +865,7 @@ Mod_LoadLighting(lump_t *l)
 			}
 			else
 				Con_Printf("Corrupt .LIT file (old version?), ignoring\n");
+			}
 
 		}
 		else

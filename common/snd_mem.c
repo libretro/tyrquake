@@ -139,6 +139,13 @@ S_LoadSound(sfx_t *s)
     }
 
     info = GetWavinfo(s->name, data, com_filesize);
+    /* GetWavinfo sets info->width = 0 to signal a malformed
+     * file (truncated header, bad sample format, OOB data
+     * chunk extent etc.).  Don't try to ResampleSfx in that
+     * case -- info->dataofs / info->samples may be unset or
+     * unsafe. */
+    if (info->width == 0)
+	return NULL;
     if (info->channels != 1) {
 	Con_Printf("%s is a stereo sample\n", s->name);
 	return NULL;
@@ -261,7 +268,12 @@ wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
 
    /* find "RIFF" chunk */
    FindChunk("RIFF", name);
-   if (!(data_p && !strncmp((char *)data_p + 8, "WAVE", 4)))
+   /* RIFF chunk header is 8 bytes (id + length); the form type
+    * "WAVE" occupies the next 4 bytes (offset 8..11 from chunk
+    * start).  Need 12 bytes total before strncmp can safely
+    * read at data_p + 8. */
+   if (!(data_p && data_p + 12 <= iff_end
+         && !strncmp((char *)data_p + 8, "WAVE", 4)))
    {
       Con_Printf("Missing RIFF/WAVE chunks\n");
       return &info;
@@ -273,6 +285,13 @@ wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
    FindChunk("fmt ", name);
    if (!data_p) {
       Con_Printf("Missing fmt chunk\n");
+      return &info;
+   }
+   /* fmt chunk: skip 8 byte chunk header, then need at least
+    * 14 bytes of payload (format + channels + rate + 4 bytes
+    * skipped + 2 bytes for bits-per-sample). */
+   if (data_p + 8 + 14 > iff_end) {
+      Con_Printf("Truncated fmt chunk in %s\n", name);
       return &info;
    }
    data_p += 8;
@@ -287,24 +306,54 @@ wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
    data_p += 4 + 2;
    info.width = GetLittleShort() / 8;
 
+   /* PCM bits-per-sample is conventionally 8 or 16, giving
+    * width 1 or 2.  A 0 width would cause a divide-by-zero
+    * below at samples = data_size / width; a huge width has
+    * no defined meaning and would produce zero samples for
+    * any reasonable data chunk.  Reject either case. */
+   if (info.width != 1 && info.width != 2) {
+      Con_Printf("%s: bad sample width %d (expected 1 or 2)\n",
+                 name, info.width);
+      info.width = 0;	/* mark invalid */
+      return &info;
+   }
+   if (info.channels < 1 || info.channels > 2) {
+      Con_Printf("%s: bad channel count %d\n", name, info.channels);
+      info.width = 0;
+      return &info;
+   }
+   if (info.rate <= 0) {
+      Con_Printf("%s: bad sample rate %d\n", name, info.rate);
+      info.width = 0;
+      return &info;
+   }
+
    /* get cue chunk */
    FindChunk("cue ", name);
    if (data_p)
    {
-      data_p += 32;
-      info.loopstart = GetLittleLong();
+      /* The cue chunk parser below walks 32 bytes ahead and
+       * then optionally another 24+ for the LIST mark.  Bound
+       * check before each step. */
+      if (data_p + 32 + 4 > iff_end) {
+         info.loopstart = -1;
+      } else {
+         data_p += 32;
+         info.loopstart = GetLittleLong();
 
-      /* if the next chunk is a LIST chunk, look for a cue length marker */
-      FindNextChunk("LIST", name);
-      if (data_p)
-      {
-         /* this is not a proper parse, but it works with cooledit... */
-         if (!strncmp((char *)data_p + 28, "mark", 4))
+         /* if the next chunk is a LIST chunk, look for a cue length marker */
+         FindNextChunk("LIST", name);
+         if (data_p)
          {
-            int i;
-            data_p += 24;
-            i = GetLittleLong();	/* samples in loop */
-            info.samples = info.loopstart + i;
+            /* this is not a proper parse, but it works with cooledit... */
+            if (data_p + 32 <= iff_end
+                && !strncmp((char *)data_p + 28, "mark", 4))
+            {
+               int i;
+               data_p += 24;
+               i = GetLittleLong();	/* samples in loop */
+               info.samples = info.loopstart + i;
+            }
          }
       }
    } else
@@ -318,6 +367,12 @@ wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
       return &info;
    }
 
+   /* data chunk: skip 4-byte ID, read 4-byte length. */
+   if (data_p + 8 > iff_end) {
+      Con_Printf("Truncated data chunk in %s\n", name);
+      info.width = 0;
+      return &info;
+   }
    data_p += 4;
    samples = GetLittleLong() / info.width;
 
@@ -328,6 +383,17 @@ wavinfo_t *GetWavinfo (const char *name, byte *wav, int wavlength)
    }
    else
       info.samples = samples;
+
+   /* The data chunk's payload starts at data_p and is
+    * info.samples * info.width bytes.  ResampleSfx and any
+    * looping playback walk that range; require it to lie
+    * fully within the file allocation. */
+   if (info.samples < 0 || info.samples > (iff_end - data_p) / info.width) {
+      Con_Printf("%s: data chunk samples (%d) extend past file end\n",
+                 name, info.samples);
+      info.width = 0;
+      return &info;
+   }
 
    info.dataofs = data_p - wav;
 
