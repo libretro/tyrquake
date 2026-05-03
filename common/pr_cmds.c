@@ -303,13 +303,24 @@ PF_setmodel(void)
     const char **check;
     edict_t *e    = G_EDICT(OFS_PARM0);
     const char *m = G_STRING(OFS_PARM1);
+#ifdef NQ_HACK
+    int max = max_models(sv.protocol);
+#else
+    int max = MAX_MODELS;
+#endif
 
-    /* check to see if model was properly precached */
-    for (i = 0, check = sv.model_precache; *check; i++, check++)
+    /* check to see if model was properly precached.  Defensive
+     * upper bound on the walk: sv.model_precache[] is sized
+     * MAX_MODELS and the precache builtins guarantee a trailing
+     * NULL while there are free slots, but if every slot is
+     * occupied (a path the precache builtins reject with
+     * PR_RunError) the *check sentinel never trips and the
+     * loop walks off the end of the array. */
+    for (i = 0, check = sv.model_precache; i < max && *check; i++, check++)
 	if (!strcmp(*check, m))
 	    break;
 
-    if (!*check)
+    if (i == max || !*check)
 	PR_RunError("no precache: %s\n", m);
 
     e->v.model = PR_SetString(m);
@@ -1070,6 +1081,16 @@ PF_Find(void)
     if (!s)
 	PR_RunError("%s: bad search string", __func__);
 
+    /* f is a field offset (in float-units, i.e. 4-byte slots)
+     * into edict->v.  The valid range is [0, entityfields);
+     * reading past that walks past ed->v into adjacent memory.
+     * Bytecode store ops bound their own offsets but f comes
+     * from a global / parameter and isn't checked at the call
+     * site.  Add the explicit bound here. */
+    if (f < 0 || f >= progs->entityfields)
+	PR_RunError("%s: bad field offset %i (max %i)", __func__,
+	            f, progs->entityfields);
+
     for (e++; e < sv.num_edicts; e++) {
 	ed = EDICT_NUM(e);
 	if (ed->free)
@@ -1283,6 +1304,16 @@ PF_lightstyle(void)
 
     style = G_FLOAT(OFS_PARM0);
     val = G_STRING(OFS_PARM1);
+
+    /* style is a QC-controlled float cast to int; reject
+     * out-of-range values rather than indexing past
+     * sv.lightstyles[MAX_LIGHTSTYLES] and stomping adjacent
+     * server state.  The svc_lightstyle network message also
+     * encodes style as a single byte / char, so values >= 256
+     * would silently truncate when sent. */
+    if (style < 0 || style >= MAX_LIGHTSTYLES)
+        PR_RunError("%s: bad style %d (max %d)", __func__,
+                    style, MAX_LIGHTSTYLES);
 
 /* change the string in sv */
     sv.lightstyles[style] = val;
@@ -1772,11 +1803,11 @@ static void PF_setspawnparms(void)
     int i        = NUM_FOR_EDICT(ent);
 #ifdef NQ_HACK
     if (i < 1 || i > svs.maxclients)
-#endif
-#ifdef QW_HACK
+        PR_RunError("%s: Entity is not a client", __func__);
+#else
     if (i < 1 || i > MAX_CLIENTS)
+        PR_RunError("%s: Entity is not a client", __func__);
 #endif
-	PR_RunError("%s: Entity is not a client", __func__);
 
     /* copy spawn parms out of the client_t */
     client = svs.clients + (i - 1);
@@ -1793,13 +1824,31 @@ PF_changelevel
 static void
 PF_changelevel(void)
 {
+    const char *s = G_STRING(OFS_PARM0);
+    const char *p;
+
+    /* QuakeC string is whatever progs.dat plants there.  Cbuf
+     * interprets ';' and '\n' as command separators, so a
+     * malicious progs that calls
+     *   changelevel("e1m1; quit");
+     *   changelevel("e1m1\nrcon_password foo");
+     * gets arbitrary command execution at the host.  Reject any
+     * separator-class character; map / changelevel arguments
+     * are filenames and never legitimately need them.  Also
+     * reject control characters and quotes which would corrupt
+     * the Cbuf format on parse. */
+    for (p = s; *p; p++) {
+	unsigned char c = (unsigned char)*p;
+	if (c == ';' || c == '\n' || c == '\r' || c == '"' || c == '\\' || c < 0x20)
+	    PR_RunError("%s: bad map name", __func__);
+    }
 #ifdef NQ_HACK
     /* make sure we don't issue two changelevels */
     if (svs.changelevel_issued)
 	return;
     svs.changelevel_issued = true;
 
-    Cbuf_AddText("changelevel %s\n", G_STRING(OFS_PARM0));
+    Cbuf_AddText("changelevel %s\n", s);
 #endif
 #ifdef QW_HACK
     static int last_spawncount;
@@ -1809,7 +1858,7 @@ PF_changelevel(void)
 	return;
     last_spawncount = svs.spawncount;
 
-    Cbuf_AddText("map %s\n", G_STRING(OFS_PARM0));
+    Cbuf_AddText("map %s\n", s);
 #endif
 }
 
