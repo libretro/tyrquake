@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* cvar.c -- dynamic variable tracking */
 
+#include "compat/strl.h"
+
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
@@ -314,8 +316,7 @@ void Cvar_RegisterVariable(cvar_t *variable)
        variable->default_string = variable->string;
 
    /* copy the value off, because future sets will Z_Free it */
-   strncpy(value, variable->string ? variable->string : variable->default_string, 511);
-   value[511] = '\0';
+   strlcpy(value, variable->string ? variable->string : variable->default_string, sizeof(value));
    variable->string = (const char*)Z_Malloc(1);
 
    if (!(variable->flags & CVAR_CALLBACK))

@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
+
 #include <string.h>
 
 #include "client.h"
@@ -285,8 +287,7 @@ for a few moments
 void
 SCR_CenterPrint(const char *str)
 {
-   strncpy(scr_centerstring, str, sizeof(scr_centerstring));
-   scr_centerstring[sizeof(scr_centerstring) - 1] = 0;
+   strlcpy(scr_centerstring, str, sizeof(scr_centerstring));
    scr_centertime_off = scr_centertime.value;
    scr_centertime_start = cl.time;
 

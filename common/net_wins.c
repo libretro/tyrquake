@@ -394,7 +394,7 @@ WINS_GetNameFromAddr(const netadr_t *addr, char *name)
 
     hostentry = gethostbyaddr((char *)&addr->ip.l, sizeof(addr->ip.l), AF_INET);
     if (hostentry) {
-	strncpy(name, (char *)hostentry->h_name, NET_NAMELEN - 1);
+	strlcpy(name, (char *)hostentry->h_name, NET_NAMELEN);
 	return 0;
     }
     /* See UDP_GetNameFromAddr: name is conventionally

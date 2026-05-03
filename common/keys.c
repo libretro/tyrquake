@@ -262,8 +262,7 @@ CompleteCommand(void)
 	if (cmd) {
 	    len = cmd - s;
 	    newcmd = (char*)Z_Malloc(len + 1);
-	    strncpy(newcmd, s, len);
-	    newcmd[len] = 0;
+	    strlcpy(newcmd, s, len + 1);
 
 	    completion = NULL;
 	    if (Cmd_Exists(newcmd)) {
@@ -311,8 +310,7 @@ ShowCompletions(void)
 	if (cmd) {
 	    len = cmd - s;
 	    cmd = (char*)Z_Malloc(len + 1);
-	    strncpy(cmd, s, len);
-	    cmd[len] = 0;
+	    strlcpy(cmd, s, len + 1);
 
 	    if (Cmd_Exists(cmd)) {
 		s += len;

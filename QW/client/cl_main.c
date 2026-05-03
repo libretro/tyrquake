@@ -300,7 +300,7 @@ CL_Connect_f(void)
 
     CL_Disconnect();
 
-    strncpy(cls.servername, server, sizeof(cls.servername) - 1);
+    strlcpy(cls.servername, server, sizeof(cls.servername));
     CL_BeginServerConnect();
 }
 

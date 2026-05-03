@@ -519,8 +519,7 @@ Mod_FindName(const char *name)
     if (i == mod_numknown) {
 	if (mod_numknown == MAX_MOD_KNOWN)
 	    SV_Error("mod_numknown == MAX_MOD_KNOWN");
-	strncpy(mod->name, name, MAX_QPATH - 1);
-	mod->name[MAX_QPATH - 1] = 0;
+	strlcpy(mod->name, name, sizeof(mod->name));
 	mod->needload = true;
 	mod_numknown++;
     }

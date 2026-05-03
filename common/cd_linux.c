@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* Quake is a trademark of Id Software, Inc., (c) 1996 Id Software, Inc. All */
 /* rights reserved. */
 
+#include "compat/strl.h"
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -182,8 +184,7 @@ CDDrv_InitDevice(void)
     int i;
 
     if ((i = COM_CheckParm("-cddev")) != 0 && i < com_argc - 1) {
-	strncpy(cd_dev, com_argv[i + 1], sizeof(cd_dev));
-	cd_dev[sizeof(cd_dev) - 1] = 0;
+	strlcpy(cd_dev, com_argv[i + 1], sizeof(cd_dev));
     }
 
     if ((cdfile = open(cd_dev, O_RDONLY | O_NONBLOCK)) == -1) {

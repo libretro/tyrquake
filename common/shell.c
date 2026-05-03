@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * This whole setup is butt-ugly. Proceed with caution.
  */
 
+#include "compat/strl.h"
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -217,7 +219,7 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
 	match = strlen(sn->string);
 	result = (char*)Z_Malloc(match + 2);
 	if (result) {
-	    strncpy(result, sn->string, match);
+	    memcpy(result, sn->string, match);
 	    result[match] = ' ';
 	    result[match + 1] = 0;
 	}
@@ -225,8 +227,7 @@ STree_MaxMatch(struct stree_root *root, const char *pfx)
 	match = ST_node_match(n, sn->string, min_match, max_match);
 	result = (char*)Z_Malloc(match + 1);
 	if (result) {
-	    strncpy(result, sn->string, match);
-	    result[match] = 0;
+	    strlcpy(result, sn->string, match + 1);
 	}
     }
 

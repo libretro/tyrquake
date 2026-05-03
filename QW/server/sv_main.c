@@ -550,8 +550,7 @@ SVC_DirectConnect(void)
     challenge = atoi(Cmd_Argv(3));
 
     /* note an extra byte is needed to replace spectator key */
-    strncpy(userinfo, Cmd_Argv(4), sizeof(userinfo) - 2);
-    userinfo[sizeof(userinfo) - 2] = 0;
+    strlcpy(userinfo, Cmd_Argv(4), sizeof(userinfo) - 1);
 
     /* see if the challenge is valid */
     for (i = 0; i < MAX_CHALLENGES; i++) {
@@ -618,7 +617,7 @@ SVC_DirectConnect(void)
 	    if (*q > 31 && *q <= 127)
 		*p++ = *q;
     } else
-	strncpy(newcl->userinfo, userinfo, sizeof(newcl->userinfo) - 1);
+	strlcpy(newcl->userinfo, userinfo, sizeof(newcl->userinfo));
 
     /* if there is allready a slot for this ip, drop it */
     for (i = 0, cl = svs.clients; i < MAX_CLIENTS; i++, cl++) {
@@ -1483,8 +1482,7 @@ SV_ExtractFromUserinfo(client_t *cl)
     val = Info_ValueForKey(cl->userinfo, "name");
 
     /* trim user name */
-    strncpy(newname, val, sizeof(newname) - 1);
-    newname[sizeof(newname) - 1] = 0;
+    strlcpy(newname, val, sizeof(newname));
 
     for (p = newname; (*p == ' ' || *p == '\r' || *p == '\n') && *p; p++);
 
@@ -1560,7 +1558,7 @@ SV_ExtractFromUserinfo(client_t *cl)
     }
 
 
-    strncpy(cl->name, val, sizeof(cl->name) - 1);
+    strlcpy(cl->name, val, sizeof(cl->name));
 
     /* rate command */
     val = Info_ValueForKey(cl->userinfo, "rate");

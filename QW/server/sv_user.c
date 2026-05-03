@@ -703,8 +703,7 @@ SV_Say(qboolean team)
 	return;
 
     if (team) {
-	strncpy(t1, Info_ValueForKey(host_client->userinfo, "team"), 31);
-	t1[31] = 0;
+	strlcpy(t1, Info_ValueForKey(host_client->userinfo, "team"), sizeof(t1));
     }
 
     if (host_client->spectator && (!sv_spectalk.value || team))

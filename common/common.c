@@ -1460,8 +1460,7 @@ static void COM_ScanDirDir(struct stree_root *root, struct RDIR *dir, const char
          fname = (char*)Z_Malloc(len + 1);
          if (fname)
          {
-            strncpy(fname, retro_dirent_get_name(dir), len);
-            fname[len] = '\0';
+            strlcpy(fname, retro_dirent_get_name(dir), len + 1);
             STree_InsertAlloc(root, fname, true);
             Z_Free(fname);
          }
@@ -1510,8 +1509,7 @@ static void COM_ScanDirPak(struct stree_root *root, pack_t *pak, const char *pat
 
       if (fname)
       {
-         strncpy(fname, pak_f, len);
-         fname[len] = '\0';
+         strlcpy(fname, pak_f, len + 1);
          STree_InsertAlloc(root, fname, true);
          Z_Free(fname);
       }

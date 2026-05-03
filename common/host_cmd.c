@@ -742,10 +742,9 @@ static void Host_Name_f(void)
       return;
    }
    if (Cmd_Argc() == 2)
-      strncpy(new_name, Cmd_Argv(1), sizeof(new_name));
+      strlcpy(new_name, Cmd_Argv(1), sizeof(new_name));
    else
-      strncpy(new_name, Cmd_Args(), sizeof(new_name));
-   new_name[sizeof(new_name) - 1] = 0;
+      strlcpy(new_name, Cmd_Args(), sizeof(new_name));
 
    if (cmd_source == src_command) {
       if (strcmp(cl_name.string, new_name) == 0)
@@ -1534,7 +1533,7 @@ Host_Startdemos_f(void)
     Con_Printf("%i demo(s) in loop\n", c);
 
     for (i = 1; i < c + 1; i++)
-	strncpy(cls.demos[i - 1], Cmd_Argv(i), sizeof(cls.demos[0]) - 1);
+	strlcpy(cls.demos[i - 1], Cmd_Argv(i), sizeof(cls.demos[0]));
 
     if (!sv.active && cls.demonum != -1 && !cls.demoplayback) {
 	cls.demonum = 0;
