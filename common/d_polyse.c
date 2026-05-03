@@ -1584,6 +1584,26 @@ D_DrawShadowTriangle(const float v0[2], const float v1[2], const float v2[2],
         !(zi2   > -1.0e6f && zi2   < 1.0e6f))
         return;
 
+    /* Defensive: validate the vid pointers we'll dereference per
+     * pixel.  vid.colormap is hunk-allocated (host_colormap, set
+     * once at Host_Init) and so should be stable across map
+     * transitions, but heap reallocations on a content reload
+     * can leave it pointing at freed memory.  d_viewbuffer is
+     * reseated by D_SetupFrame from vid.buffer, which is the
+     * malloc'd framebuffer; if the rasterizer ever runs with a
+     * stale pointer (e.g. one frame that slipped through during
+     * the VID_Shutdown -> VID_Init window of a reload), the
+     * inner-loop write to prow[x] / read from cmap[prow[x]]
+     * lands in unmapped memory and crashes.
+     *
+     * Hunk_PointerInHunk checks colormap; for d_viewbuffer the
+     * test is just non-NULL since malloc'd framebuffers don't
+     * fall in the hunk. */
+    if (!Hunk_PointerInHunk(vid.colormap))
+        return;
+    if (!d_viewbuffer)
+        return;
+
     /* Sort verts top-to-bottom by Y, dragging per-vertex z values
      * along with the position pointers. */
     if (p0[1] > p1[1]) { tmp = p0; p0 = p1; p1 = tmp; ztmp = z0; z0 = z1; z1 = ztmp; }
