@@ -184,8 +184,21 @@ CL_ParseStartSoundPacket(void)
    }
    sound_num = CL_ReadSoundNum(field_mask);
 
-   if (ent > MAX_EDICTS)
+   if (ent >= MAX_EDICTS)
       Host_Error("CL_ParseStartSoundPacket: ent = %i", ent);
+
+   if (sound_num < 0 || sound_num >= MAX_SOUNDS) {
+      /* Server sent an out-of-range sound index.  Without
+       * this check, cl.sound_precache[sound_num] reads up
+       * to ~64 KB past the end of the array (sound_num is
+       * an unsigned short for some protocols), producing a
+       * garbage sfx_t* that S_StartSound dereferences as a
+       * real sound and crashes in S_LoadSound. */
+      Con_DPrintf("%s: bad sound_num %i\n", __func__, sound_num);
+      for (i = 0; i < 3; i++)
+         (void)MSG_ReadCoord();
+      return;
+   }
 
    for (i = 0; i < 3; i++)
       pos[i] = MSG_ReadCoord();
@@ -909,6 +922,11 @@ CL_ParseStaticSound(void)
     vol = MSG_ReadByte();
     atten = MSG_ReadByte();
 
+    if (sound_num < 0 || sound_num >= MAX_SOUNDS) {
+	Con_DPrintf("%s: bad sound_num %i\n", __func__, sound_num);
+	return;
+    }
+
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }
 
@@ -925,6 +943,11 @@ CL_ParseFitzStaticSound2(void)
     sound_num = MSG_ReadShort();
     vol = MSG_ReadByte();
     atten = MSG_ReadByte();
+
+    if (sound_num < 0 || sound_num >= MAX_SOUNDS) {
+	Con_DPrintf("%s: bad sound_num %i\n", __func__, sound_num);
+	return;
+    }
 
     S_StaticSound(cl.sound_precache[sound_num], org, vol, atten);
 }

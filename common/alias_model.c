@@ -312,6 +312,25 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
       Sys_Error("model %s has a skin taller than %d", mod->name,
             MAX_LBM_HEIGHT);
 
+   /* Defensive: skinwidth was previously unchecked, leaving
+    * skinwidth*skinheight in Mod_LoadAllSkins vulnerable to
+    * integer overflow on a hostile or corrupt .mdl file.
+    * MAX_LBM_HEIGHT is also a sane width cap (textures don't
+    * need to be wider than they're tall in this engine). */
+   if (pheader->skinwidth <= 0 || pheader->skinwidth > MAX_LBM_HEIGHT)
+      Sys_Error("model %s has invalid skinwidth %d", mod->name,
+            pheader->skinwidth);
+
+   /* numskins is later passed unbounded to Mod_LoadAllSkins,
+    * which writes into skindata[MAXALIASSKINS] indexed by
+    * file-controlled values.  Cap here to prevent OOB writes
+    * into adjacent globals from a malicious model. */
+   if (pheader->numskins <= 0)
+      Sys_Error("model %s has no skins", mod->name);
+   if (pheader->numskins > MAXALIASSKINS)
+      Sys_Error("model %s has too many skins (%d > %d)",
+            mod->name, pheader->numskins, MAXALIASSKINS);
+
 #ifdef MSB_FIRST
    pheader->numverts = LittleLong(pinmodel->numverts);
 #else
@@ -333,6 +352,10 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    if (pheader->numtris <= 0)
       Sys_Error("model %s has no triangles", mod->name);
 
+   if (pheader->numtris > MAXALIASTRIS)
+      Sys_Error("model %s has too many triangles (%d > %d)",
+            mod->name, pheader->numtris, MAXALIASTRIS);
+
 #ifdef MSB_FIRST
    pheader->numframes = LittleLong(pinmodel->numframes);
    pheader->size = LittleFloat(pinmodel->size) * ALIAS_BASE_SIZE_RATIO;
@@ -343,6 +366,13 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    mod->synctype = (synctype_t)(pinmodel->synctype);
 #endif
    mod->numframes = pheader->numframes;
+
+   if (pheader->numframes <= 0)
+      Sys_Error("model %s has invalid numframes %d",
+            mod->name, pheader->numframes);
+   if (pheader->numframes > MAXALIASFRAMES)
+      Sys_Error("model %s has too many frames (%d > %d)",
+            mod->name, pheader->numframes, MAXALIASFRAMES);
 
    for (i = 0; i < 3; i++) {
 #ifdef MSB_FIRST
