@@ -325,6 +325,13 @@ void Draw_Pic(int x, int y, const qpic_t *pic)
    uint8_t *dest;
    const byte *source;
 
+   /* Defensive: pic pointers can come from long-lived globals
+    * (sb_nums[][], menu_cachepics[], etc) and have been
+    * observed holding stale values across content reloads.
+    * Skip gracefully rather than crashing the renderer. */
+   if (!Hunk_PointerInHunk(pic))
+      return;
+
    if (x < 0 || x + pic->width > vid.width ||
          y < 0 || y + pic->height > vid.height)
       Sys_Error("%s: bad coordinates", __func__);
@@ -352,6 +359,10 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
    byte *dest, tbyte;
    const byte *source;
    int v, u;
+
+   /* Defensive: see Draw_Pic. */
+   if (!Hunk_PointerInHunk(pic))
+      return;
 
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
          y < 0 || (unsigned)(y + pic->height) > vid.height)
@@ -409,6 +420,10 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
    byte *dest, tbyte;
    const byte *source;
    int v, u;
+
+   /* Defensive: see Draw_Pic. */
+   if (!Hunk_PointerInHunk(pic))
+      return;
 
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
          y < 0 || (unsigned)(y + pic->height) > vid.height)
@@ -489,6 +504,10 @@ Draw_PicScaled(int x, int y, const qpic_t *pic, int scale)
     int v, u, sx, sy;
     int dw, dh;
 
+    /* Defensive: see Draw_Pic. */
+    if (!Hunk_PointerInHunk(pic))
+	return;
+
     if (scale < 1)
 	scale = 1;
 
@@ -527,6 +546,10 @@ Draw_TransPicScaled(int x, int y, const qpic_t *pic, int scale)
     const byte *source;
     int v, u, sx, sy;
     int dw, dh;
+
+    /* Defensive: see Draw_Pic. */
+    if (!Hunk_PointerInHunk(pic))
+	return;
 
     if (scale < 1)
 	scale = 1;
@@ -569,6 +592,10 @@ Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
     const byte *source;
     int v, u, sx, sy;
     int dw, dh;
+
+    /* Defensive: see Draw_Pic. */
+    if (!Hunk_PointerInHunk(pic))
+	return;
 
     if (scale < 1)
 	scale = 1;

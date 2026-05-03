@@ -372,6 +372,27 @@ void Hunk_Check(void)
 }
 
 /*
+ * ==============
+ * Hunk_PointerInHunk
+ *
+ * Returns true iff p falls within the malloc'd backing
+ * region of the hunk allocator.  Used as a sanity gate by
+ * subsystems that hold long-lived qpic_t* pointers in
+ * globals (notably sb_nums[][] in sbar.c) where stale or
+ * stomped values have been observed crashing the renderer.
+ * ==============
+ */
+int Hunk_PointerInHunk(const void *p)
+{
+   const byte *q = (const byte *)p;
+   if (!p || !hunk_base)
+      return 0;
+   if (q < hunk_base || q >= hunk_base + hunk_size)
+      return 0;
+   return 1;
+}
+
+/*
  * ===================
  * Hunk_Alloc
  * ===================

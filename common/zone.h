@@ -106,6 +106,18 @@ void *Hunk_TempAllocExtend(int size);
 void Hunk_Check(void);
 
 /*
+ * Hunk_PointerInHunk
+ * - returns true iff p falls within the malloc'd backing
+ *   region of the hunk allocator (i.e. inside [hunk_base,
+ *   hunk_base + hunk_size)).  Useful as a sanity gate before
+ *   dereferencing pointers of uncertain provenance --
+ *   notably qpic_t* values stored in long-lived globals like
+ *   sb_nums[][] which can hold stale pointers across content
+ *   reloads.
+ */
+int Hunk_PointerInHunk(const void *p);
+
+/*
  * Z_CheckHeap
  * - walks the zone block list and verifies every block's id
  *   field, the next/prev pointers, and the trailing
