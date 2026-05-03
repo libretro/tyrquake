@@ -769,6 +769,24 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
       t2 = DotProduct(plane->normal, p2) - plane->dist;
    }
 
+   /* If either distance is NaN/Inf the recursive split below
+    * never makes progress: the (>= 0) and (< 0) comparisons
+    * are both false (NaN compares unequal to everything),
+    * frac = (t1 +/- eps) / (t1 - t2) is NaN, the
+    * (frac < 0) / (frac > 1) clamps don't catch NaN, mid
+    * becomes NaN, and we recurse forever until the C stack
+    * blows up.  SV_Move's input guard catches the most
+    * common entry point (PF_traceline from QC), but
+    * SV_ClipMoveToEntity also feeds here from
+    * SV_ClipToLinks where an entity in the area tree may
+    * have a NaN origin.  Treat non-finite distances as
+    * "wholly inside / outside" by collapsing to the
+    * children[0] path -- a clipnode tree has finite depth
+    * so the loop equivalent in SV_HullPointContents (which
+    * does the same descent) is known to terminate. */
+   if (IS_NAN(t1) || IS_NAN(t2))
+      return SV_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1, p2, trace);
+
    if (t1 >= 0 && t2 >= 0)
       return SV_RecursiveHullCheck(hull, node->children[0], p1f, p2f, p1, p2, trace);
    if (t1 < 0 && t2 < 0)
@@ -1089,6 +1107,41 @@ trace_t SV_Move(vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
    moveclip_t clip;
 
    memset(&clip, 0, sizeof(moveclip_t));
+
+   /* QC-controlled vectors (PF_traceline, PF_aim, etc.) feed
+    * here unchecked.  NaN / Inf in start or end propagates
+    * through SV_RecursiveHullCheck: the t1, t2 distance
+    * computations become NaN, the (t1 >= 0 && t2 >= 0) /
+    * (t1 < 0 && t2 < 0) comparisons are both false (NaN
+    * compares unequal to everything), so the recursive path
+    * always splits the segment.  frac = (t1 +/- eps) /
+    * (t1 - t2) with NaN inputs is NaN; the
+    * (frac < 0) / (frac > 1) clamps don't catch NaN; mid =
+    * p1 + frac*(p2-p1) is NaN; the recursion descends into
+    * SV_RecursiveHullCheck with NaN coordinates forever
+    * until the stack overflows.  Reject before tracing.
+    *
+    * Also reject mins/maxs to guard SV_MoveBounds and the
+    * box-vs-entity intersect tests downstream.  (SV_LinkEdict
+    * doesn't currently validate ent->v.origin either, but
+    * fixing that is upstream of what we're allowed to touch
+    * from a trace path -- callers are responsible.) */
+   {
+      int i;
+      for (i = 0; i < 3; i++) {
+         if (IS_NAN(start[i]) || IS_NAN(end[i])
+             || IS_NAN(mins[i]) || IS_NAN(maxs[i])) {
+            /* Return a "no move possible" trace -- fraction
+             * 1.0, end == start, no impact.  This matches what
+             * the engine sees when a trace starts and ends at
+             * the same point in empty space. */
+            memset(&clip.trace, 0, sizeof(clip.trace));
+            clip.trace.fraction = 1.0;
+            VectorCopy(start, clip.trace.endpos);
+            return clip.trace;
+         }
+      }
+   }
 
    /* clip to world */
    clip.trace = SV_ClipMoveToEntity(sv.edicts, start, mins, maxs, end, passedict);
