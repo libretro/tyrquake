@@ -344,7 +344,6 @@ void MSG_WriteLong(sizebuf_t *sb, int c)
 
 void MSG_WriteFloat(sizebuf_t *sb, float f)
 {
-#ifdef MSB_FIRST
    union {
       float f;
       int l;
@@ -354,9 +353,6 @@ void MSG_WriteFloat(sizebuf_t *sb, float f)
    dat.l = LittleLong(dat.l);
 
    SZ_Write(sb, &dat.l, 4);
-#else
-   SZ_Write (sb, &f, 4);
-#endif
 }
 
 void MSG_WriteString(sizebuf_t *sb, const char *s)
@@ -523,9 +519,7 @@ float MSG_ReadFloat(void)
    union {
       byte b[4];
       float f;
-#ifdef MSB_FIRST
       int l;
-#endif
    } dat;
 
    dat.b[0] = net_message.data[msg_readcount];
@@ -534,9 +528,7 @@ float MSG_ReadFloat(void)
    dat.b[3] = net_message.data[msg_readcount + 3];
    msg_readcount += 4;
 
-#ifdef MSB_FIRST
    dat.l = LittleLong(dat.l);
-#endif
 
    return dat.f;
 }
@@ -1520,10 +1512,8 @@ static pack_t *COM_LoadPackFile(const char *packfile)
          || header.id[2] != 'C' || header.id[3] != 'K')
       Sys_Error("%s is not a packfile", packfile);
 
-#ifdef MSB_FIRST
    header.dirofs = LittleLong(header.dirofs);
    header.dirlen = LittleLong(header.dirlen);
-#endif
 
    /* Defensive: the on-disk dirofs/dirlen are untrusted.
     * Negative or absurd values produce a negative numfiles,
@@ -1558,13 +1548,8 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    for (i = 0; i < numfiles; i++)
    {
       snprintf(mfiles[i].name, sizeof(mfiles[i].name), "%s", dfiles[i].name);
-#ifdef MSB_FIRST
       mfiles[i].filepos = LittleLong(dfiles[i].filepos);
       mfiles[i].filelen = LittleLong(dfiles[i].filelen);
-#else
-      mfiles[i].filepos = (dfiles[i].filepos);
-      mfiles[i].filelen = (dfiles[i].filelen);
-#endif
    }
 
    Hunk_FreeToLowMark(mark);

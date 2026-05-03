@@ -1024,11 +1024,9 @@ PR_LoadProgs(void)
 
    pr_crc = CRC_Block((byte *)progs, com_filesize);
 
-#ifdef MSB_FIRST
    /* byte swap the header */
    for (i = 0; i < sizeof(*progs) / 4; i++)
       ((int *)progs)[i] = LittleLong(((int *)progs)[i]);
-#endif
 
    if (progs->version != PROG_VERSION)
       SV_Error("progs.dat has wrong version number (%i should be %i)",
@@ -1103,7 +1101,6 @@ PR_LoadProgs(void)
    pr_edict_size =
       progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
 
-#ifdef MSB_FIRST
    /* byte swap the lumps */
    for (i = 0; i < progs->numstatements; i++)
    {
@@ -1128,24 +1125,17 @@ PR_LoadProgs(void)
       pr_globaldefs[i].ofs = LittleShort(pr_globaldefs[i].ofs);
       pr_globaldefs[i].s_name = LittleLong(pr_globaldefs[i].s_name);
    }
-#endif
 
    for (i = 0; i < progs->numfielddefs; i++) {
-#ifdef MSB_FIRST
       pr_fielddefs[i].type = LittleShort(pr_fielddefs[i].type);
-#endif
       if (pr_fielddefs[i].type & DEF_SAVEGLOBAL)
          SV_Error("%s: pr_fielddefs[i].type & DEF_SAVEGLOBAL", __func__);
-#ifdef MSB_FIRST
       pr_fielddefs[i].ofs    = LittleShort(pr_fielddefs[i].ofs);
       pr_fielddefs[i].s_name = LittleLong(pr_fielddefs[i].s_name);
-#endif
    }
 
-#ifdef MSB_FIRST
    for (i = 0; i < progs->numglobals; i++)
       ((int *)pr_globals)[i] = LittleLong(((int *)pr_globals)[i]);
-#endif
 
    /* Bytecode validation pass.  By this point the lumps are
     * byte-swapped (on MSB_FIRST) and we know they fit within

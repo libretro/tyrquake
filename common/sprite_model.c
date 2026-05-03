@@ -50,13 +50,8 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
    if ((const byte *)pinframe + sizeof(dspriteframe_t) > bufend)
       Sys_Error("%s: %s: frame header past EOF", __func__, modname);
 
-#ifdef MSB_FIRST
    width = LittleLong(pinframe->width);
    height = LittleLong(pinframe->height);
-#else
-   width = (pinframe->width);
-   height = (pinframe->height);
-#endif
 
    /* Defensive: width/height come from the .spr file directly.
     * Without bounds checking, width*height can overflow the
@@ -85,13 +80,8 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
 
    pspriteframe->width = width;
    pspriteframe->height = height;
-#ifdef MSB_FIRST
    origin[0] = LittleLong(pinframe->origin[0]);
    origin[1] = LittleLong(pinframe->origin[1]);
-#else
-   origin[0] = (pinframe->origin[0]);
-   origin[1] = (pinframe->origin[1]);
-#endif
 
    pspriteframe->up = origin[1];
    pspriteframe->down = origin[1] - height;
@@ -125,11 +115,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    if ((const byte *)pingroup + sizeof(dspritegroup_t) > bufend)
       Sys_Error("%s: %s: group header past EOF", __func__, modname);
 
-#ifdef MSB_FIRST
    numframes = LittleLong(pingroup->numframes);
-#else
-   numframes = (pingroup->numframes);
-#endif
 
    /* Defensive: numframes is file-controlled.  Negative or
     * huge values either underflow Hunk_Alloc or produce a
@@ -151,11 +137,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    pspritegroup->intervals = poutintervals;
 
    for (i = 0; i < numframes; i++) {
-#ifdef MSB_FIRST
       *poutintervals = LittleFloat(pin_intervals->interval);
-#else
-      *poutintervals = (pin_intervals->interval);
-#endif
       if (*poutintervals <= 0.0)
          Sys_Error("%s: interval <= 0", __func__);
 
@@ -204,20 +186,12 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
                 __func__, mod->name, com_filesize, (int)sizeof(dsprite_t));
    bufend = (const byte *)buffer + com_filesize;
 
-#ifdef MSB_FIRST
    version = LittleLong(pin->version);
-#else
-   version = (pin->version);
-#endif
    if (version != SPRITE_VERSION)
       Sys_Error("%s: %s has wrong version number (%i should be %i)",
             __func__, mod->name, version, SPRITE_VERSION);
 
-#ifdef MSB_FIRST
    numframes = LittleLong(pin->numframes);
-#else
-   numframes = (pin->numframes);
-#endif
 
    /* Defensive: bound numframes BEFORE the alloc so the
     * size = sizeof(*psprite) + numframes * sizeof(...)
@@ -231,19 +205,11 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    psprite = (msprite_t*)Hunk_Alloc(size);
    mod->cache.data = psprite;
 
-#ifdef MSB_FIRST
    psprite->type = LittleLong(pin->type);
    psprite->maxwidth = LittleLong(pin->width);
    psprite->maxheight = LittleLong(pin->height);
    psprite->beamlength = LittleFloat(pin->beamlength);
    mod->synctype = (synctype_t)LittleLong(pin->synctype);
-#else
-   psprite->type = (pin->type);
-   psprite->maxwidth = (pin->width);
-   psprite->maxheight = (pin->height);
-   psprite->beamlength = (pin->beamlength);
-   mod->synctype = (synctype_t)(pin->synctype);
-#endif
    psprite->numframes = numframes;
 
    mod->mins[0] = mod->mins[1] = -psprite->maxwidth / 2;
@@ -268,11 +234,7 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
          Sys_Error("%s: %s: frame %d type past EOF",
                    __func__, mod->name, i);
 
-#ifdef MSB_FIRST
       frametype = (spriteframetype_t)LittleLong(pframetype->type);
-#else
-      frametype = (spriteframetype_t)(pframetype->type);
-#endif
       psprite->frames[i].type = frametype;
 
       if (frametype == SPR_SINGLE) {

@@ -610,9 +610,7 @@ Mod_LoadTextures(lump_t *l)
                __func__, l->filelen);
    m = (dmiptexlump_t *)(mod_base + l->fileofs);
 
-#ifdef MSB_FIRST
    m->nummiptex = LittleLong(m->nummiptex);
-#endif
 
    /* nummiptex bounds.  Need (nummiptex >= 0) and the dataofs
     * array of int32_t * nummiptex to fit in the lump after the
@@ -629,9 +627,7 @@ Mod_LoadTextures(lump_t *l)
 
    for (i = 0; i < m->nummiptex; i++)
    {
-#ifdef MSB_FIRST
       m->dataofs[i] = LittleLong(m->dataofs[i]);
-#endif
       if (m->dataofs[i] == -1)
          continue;
       /* dataofs[i] is a byte offset within the texture lump.
@@ -642,12 +638,10 @@ Mod_LoadTextures(lump_t *l)
          SV_Error("%s: bad dataofs[%d] = %d (lump size %d)",
                   __func__, i, m->dataofs[i], l->filelen);
       mt = (miptex_t *)((byte *)m + m->dataofs[i]);
-#ifdef MSB_FIRST
       mt->width = (uint32_t)LittleLong(mt->width);
       mt->height = (uint32_t)LittleLong(mt->height);
       for (j = 0; j < MIPLEVELS; j++)
          mt->offsets[j] = (uint32_t)LittleLong(mt->offsets[j]);
-#endif
 
       if ((mt->width & 15) || (mt->height & 15))
          SV_Error("Texture %s is not 16 aligned", mt->name);
@@ -930,15 +924,9 @@ Mod_LoadVertexes(lump_t *l)
 
    for (i = 0; i < count; i++, in++, out++)
    {
-#ifdef MSB_FIRST
       out->position[0] = LittleFloat(in->point[0]);
       out->position[1] = LittleFloat(in->point[1]);
       out->position[2] = LittleFloat(in->point[2]);
-#else
-      out->position[0] = (in->point[0]);
-      out->position[1] = (in->point[1]);
-      out->position[2] = (in->point[2]);
-#endif
    }
 }
 
@@ -967,33 +955,17 @@ Mod_LoadSubmodels(lump_t *l)
    {
       for (j = 0; j < 3; j++)
       {	/* spread the mins / maxs by a pixel */
-#ifdef MSB_FIRST
          out->mins[j]   = LittleFloat(in->mins[j]) - 1;
          out->maxs[j]   = LittleFloat(in->maxs[j]) + 1;
          out->origin[j] = LittleFloat(in->origin[j]);
-#else
-         out->mins[j]   = (in->mins[j]) - 1;
-         out->maxs[j]   = (in->maxs[j]) + 1;
-         out->origin[j] = (in->origin[j]);
-#endif
       }
       for (j = 0; j < MAX_MAP_HULLS; j++)
       {
-#ifdef MSB_FIRST
          out->headnode[j] = LittleLong(in->headnode[j]);
-#else
-         out->headnode[j] = (in->headnode[j]);
-#endif
       }
-#ifdef MSB_FIRST
       out->visleafs  = LittleLong(in->visleafs);
       out->firstface = LittleLong(in->firstface);
       out->numfaces  = LittleLong(in->numfaces);
-#else
-      out->visleafs  =  (in->visleafs);
-      out->firstface = (in->firstface);
-      out->numfaces  = (in->numfaces);
-#endif
 
       /* headnode[0] is the root mnode_t for hull 0, used by
        * the renderer's BSP traversal.  headnode[1..] feed
@@ -1053,13 +1025,8 @@ Mod_LoadEdges_BSP29(lump_t *l)
 
    for (i = 0; i < count; i++, in++, out++)
    {
-#ifdef MSB_FIRST
       out->v[0] = (uint16_t)LittleShort(in->v[0]);
       out->v[1] = (uint16_t)LittleShort(in->v[1]);
-#else
-      out->v[0] = (uint16_t)(in->v[0]);
-      out->v[1] = (uint16_t)(in->v[1]);
-#endif
       /* Edge endpoints are indices into loadmodel->vertexes[].
        * The renderer indexes vertexes[] without rebounds-checking,
        * so a corrupt or malicious BSP can drive that read off
@@ -1089,13 +1056,8 @@ Mod_LoadEdges_BSP2(lump_t *l)
    loadmodel->numedges = count;
 
    for (i = 0; i < count; i++, in++, out++) {
-#ifdef MSB_FIRST
       out->v[0] = (uint32_t)LittleLong(in->v[0]);
       out->v[1] = (uint32_t)LittleLong(in->v[1]);
-#else
-      out->v[0] = (uint32_t)(in->v[0]);
-      out->v[1] = (uint32_t)(in->v[1]);
-#endif
       /* See Mod_LoadEdges_BSP29 above. */
       if (out->v[0] >= (uint32_t)loadmodel->numvertexes ||
           out->v[1] >= (uint32_t)loadmodel->numvertexes)
@@ -1131,13 +1093,8 @@ static void Mod_LoadTexinfo(lump_t *l)
    {
       for (j = 0; j < 4; j++)
       {
-#ifdef MSB_FIRST
          out->vecs[0][j] = LittleFloat(in->vecs[0][j]);
          out->vecs[1][j] = LittleFloat(in->vecs[1][j]);
-#else
-         out->vecs[0][j] = (in->vecs[0][j]);
-         out->vecs[1][j] = (in->vecs[1][j]);
-#endif
       }
       len1 = Length(out->vecs[0]);
       len2 = Length(out->vecs[1]);
@@ -1151,13 +1108,8 @@ static void Mod_LoadTexinfo(lump_t *l)
       else
          out->mipadjust = 1;
 
-#ifdef MSB_FIRST
       miptex     = LittleLong(in->miptex);
       out->flags = LittleLong(in->flags);
-#else
-      miptex     = (in->miptex);
-      out->flags = (in->flags);
-#endif
 
       if (!loadmodel->textures) {
          out->texture = r_notexture_mip;	/* checkerboard texture */
@@ -1329,13 +1281,8 @@ Mod_LoadFaces_BSP29(lump_t *l)
 
    for (surfnum = 0; surfnum < count; surfnum++, in++, out++)
    {
-#ifdef MSB_FIRST
       out->firstedge = LittleLong(in->firstedge);
       out->numedges  = LittleShort(in->numedges);
-#else
-      out->firstedge = (in->firstedge);
-      out->numedges  = (in->numedges);
-#endif
       out->flags = 0;
 
       /* firstedge / numedges feed the surface's vertex walk
@@ -1353,13 +1300,8 @@ Mod_LoadFaces_BSP29(lump_t *l)
                   __func__, out->firstedge, out->numedges,
                   loadmodel->numsurfedges, loadmodel->name);
 
-#ifdef MSB_FIRST
       planenum = LittleShort(in->planenum);
       side     = LittleShort(in->side);
-#else
-      planenum = (in->planenum);
-      side     = (in->side);
-#endif
       if (side)
          out->flags |= SURF_PLANEBACK;
 
@@ -1377,11 +1319,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
                __func__, planenum, loadmodel->numplanes,
                loadmodel->name);
 
-#ifdef MSB_FIRST
       i = LittleShort(in->texinfo);
-#else
-      i = (in->texinfo);
-#endif
       if (i < 0 || i >= loadmodel->numtexinfo)
          SV_Error("%s: bad texinfo index %i (numtexinfo=%i) in %s",
                __func__, i, loadmodel->numtexinfo, loadmodel->name);
@@ -1396,11 +1334,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
 
       for (i = 0; i < MAXLIGHTMAPS; i++)
          out->styles[i] = in->styles[i];
-#ifdef MSB_FIRST
       i = LittleLong(in->lightofs);
-#else
-      i = (in->lightofs);
-#endif
       /* lightofs is an int byte-offset into loadmodel->lightdata,
        * or -1 if the surface has no lighting.  Any other
        * out-of-range value would make out->samples point
@@ -1461,13 +1395,8 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
 
    for (surfnum = 0; surfnum < count; surfnum++, in++, out++)
    {
-#ifdef MSB_FIRST
       out->firstedge = LittleLong(in->firstedge);
       out->numedges  = LittleLong(in->numedges);
-#else
-      out->firstedge = (in->firstedge);
-      out->numedges  = (in->numedges);
-#endif
       out->flags     = 0;
 
       /* See Mod_LoadFaces_BSP29 above. */
@@ -1482,13 +1411,8 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
                   __func__, out->firstedge, out->numedges,
                   loadmodel->numsurfedges, loadmodel->name);
 
-#ifdef MSB_FIRST
       planenum       = LittleLong(in->planenum);
       side           = LittleLong(in->side);
-#else
-      planenum       = (in->planenum);
-      side           = (in->side);
-#endif
       if (side)
          out->flags |= SURF_PLANEBACK;
 
@@ -1498,11 +1422,7 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
                __func__, planenum, loadmodel->numplanes,
                loadmodel->name);
 
-#ifdef MSB_FIRST
       i = LittleLong(in->texinfo);
-#else
-      i = (in->texinfo);
-#endif
       if (i < 0 || i >= loadmodel->numtexinfo)
          SV_Error("%s: bad texinfo index %i (numtexinfo=%i) in %s",
                __func__, i, loadmodel->numtexinfo, loadmodel->name);
@@ -1517,11 +1437,7 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
 
       for (i = 0; i < MAXLIGHTMAPS; i++)
          out->styles[i] = in->styles[i];
-#ifdef MSB_FIRST
       i = LittleLong(in->lightofs);
-#else
-      i = (in->lightofs);
-#endif
       /* See Mod_LoadFaces_BSP29 above. */
       if (i == -1)
       {
@@ -1598,20 +1514,11 @@ Mod_LoadNodes_BSP29(lump_t *l)
 
    for (i = 0; i < count; i++, in++, out++) {
       for (j = 0; j < 3; j++) {
-#ifdef MSB_FIRST
          out->mins[j] = LittleShort(in->mins[j]);
          out->maxs[j] = LittleShort(in->maxs[j]);
-#else
-         out->mins[j] = (in->mins[j]);
-         out->maxs[j] = (in->maxs[j]);
-#endif
       }
 
-#ifdef MSB_FIRST
       p = LittleLong(in->planenum);
-#else
-      p = (in->planenum);
-#endif
       /* Defensive: planenum and child indices come from the
        * BSP file as raw integers.  Walked at runtime by the
        * BSP collision code; an out-of-range value yields a
@@ -1622,21 +1529,12 @@ Mod_LoadNodes_BSP29(lump_t *l)
                __func__, p, loadmodel->numplanes, loadmodel->name);
       out->plane = loadmodel->planes + p;
 
-#ifdef MSB_FIRST
       out->firstsurface = (uint16_t)LittleShort(in->firstface);
       out->numsurfaces = (uint16_t)LittleShort(in->numfaces);
-#else
-      out->firstsurface = (uint16_t)(in->firstface);
-      out->numsurfaces = (uint16_t)(in->numfaces);
-#endif
 
       for (j = 0; j < 2; j++)
       {
-#ifdef MSB_FIRST
          p = LittleShort(in->children[j]);
-#else
-         p = (in->children[j]);
-#endif
          if (p >= 0) {
             if (p >= loadmodel->numnodes)
                SV_Error("%s: bad node child index %i (numnodes=%i) in %s",
@@ -1677,41 +1575,23 @@ static void Mod_LoadNodes_BSP2(lump_t *l)
 
       for (j = 0; j < 3; j++)
       {
-#ifdef MSB_FIRST
          out->mins[j] = LittleShort(in->mins[j]);
          out->maxs[j] = LittleShort(in->maxs[j]);
-#else
-         out->mins[j] = (in->mins[j]);
-         out->maxs[j] = (in->maxs[j]);
-#endif
       }
 
-#ifdef MSB_FIRST
       p = LittleLong(in->planenum);
-#else
-      p = (in->planenum);
-#endif
       /* Defensive: see Mod_LoadNodes_BSP29 above. */
       if (p < 0 || p >= loadmodel->numplanes)
          SV_Error("%s: bad node planenum %i (numplanes=%i) in %s",
                __func__, p, loadmodel->numplanes, loadmodel->name);
       out->plane = loadmodel->planes + p;
 
-#ifdef MSB_FIRST
       out->firstsurface = (uint32_t)LittleLong(in->firstface);
       out->numsurfaces = (uint32_t)LittleLong(in->numfaces);
-#else
-      out->firstsurface = (uint32_t)(in->firstface);
-      out->numsurfaces = (uint32_t)(in->numfaces);
-#endif
 
       for (j = 0; j < 2; j++)
       {
-#ifdef MSB_FIRST
          p = LittleLong(in->children[j]);
-#else
-         p = (in->children[j]);
-#endif
          if (p >= 0) {
             if (p >= loadmodel->numnodes)
                SV_Error("%s: bad node child index %i (numnodes=%i) in %s",
@@ -1765,23 +1645,13 @@ Mod_LoadLeafs_BSP29(lump_t *l)
    {
       for (j = 0; j < 3; j++)
       {
-#ifdef MSB_FIRST
          out->mins[j] = LittleShort(in->mins[j]);
          out->maxs[j] = LittleShort(in->maxs[j]);
-#else
-         out->mins[j] = (in->mins[j]);
-         out->maxs[j] = (in->maxs[j]);
-#endif
       }
 
-#ifdef MSB_FIRST
       p = LittleLong(in->contents);
-#else
-      p = (in->contents);
-#endif
       out->contents = p;
 
-#ifdef MSB_FIRST
       {
          uint16_t fms = (uint16_t)LittleShort(in->firstmarksurface);
          uint16_t nms = (uint16_t)LittleShort(in->nummarksurfaces);
@@ -1797,22 +1667,6 @@ Mod_LoadLeafs_BSP29(lump_t *l)
       }
 
       p = LittleLong(in->visofs);
-#else
-      {
-         uint16_t fms = (uint16_t)(in->firstmarksurface);
-         uint16_t nms = (uint16_t)(in->nummarksurfaces);
-         if ((int)fms > loadmodel->nummarksurfaces ||
-             (int)nms > loadmodel->nummarksurfaces - (int)fms)
-            SV_Error("%s: bad marksurface range (first=%u, num=%u; "
-                     "nummarksurfaces=%i) in %s",
-                     __func__, fms, nms, loadmodel->nummarksurfaces,
-                     loadmodel->name);
-         out->firstmarksurface = &loadmodel->marksurfaces[fms];
-         out->nummarksurfaces = nms;
-      }
-
-      p = (in->visofs);
-#endif
       /* visofs is a byte-offset into loadmodel->visdata, or -1
        * for "no PVS data".  Out-of-range values cause the PVS
        * decompressor (Mod_DecompressVis) to walk off the end
@@ -1855,23 +1709,13 @@ Mod_LoadLeafs_BSP2(lump_t *l)
 
    for (i = 0; i < count; i++, in++, out++) {
       for (j = 0; j < 3; j++) {
-#ifdef MSB_FIRST
          out->mins[j] = LittleShort(in->mins[j]);
          out->maxs[j] = LittleShort(in->maxs[j]);
-#else
-         out->mins[j] = (in->mins[j]);
-         out->maxs[j] = (in->maxs[j]);
-#endif
       }
 
-#ifdef MSB_FIRST
       p = LittleLong(in->contents);
-#else
-      p = (in->contents);
-#endif
       out->contents = p;
 
-#ifdef MSB_FIRST
       {
          uint32_t fms = (uint32_t)LittleLong(in->firstmarksurface);
          uint32_t nms = (uint32_t)LittleLong(in->nummarksurfaces);
@@ -1887,22 +1731,6 @@ Mod_LoadLeafs_BSP2(lump_t *l)
       }
 
       p = LittleLong(in->visofs);
-#else
-      {
-         uint32_t fms = (uint32_t)(in->firstmarksurface);
-         uint32_t nms = (uint32_t)(in->nummarksurfaces);
-         if (fms > (uint32_t)loadmodel->nummarksurfaces ||
-             nms > (uint32_t)loadmodel->nummarksurfaces - fms)
-            SV_Error("%s: bad marksurface range (first=%u, num=%u; "
-                     "nummarksurfaces=%i) in %s",
-                     __func__, fms, nms, loadmodel->nummarksurfaces,
-                     loadmodel->name);
-         out->firstmarksurface = &loadmodel->marksurfaces[fms];
-         out->nummarksurfaces = nms;
-      }
-
-      p = (in->visofs);
-#endif
 
       if (p == -1)
          out->compressed_vis = NULL;
@@ -1969,11 +1797,7 @@ Mod_LoadClipnodes_BSP29(lump_t *l)
 
    for (i = 0; i < count; i++, out++, in++)
    {
-#ifdef MSB_FIRST
       out->planenum = LittleLong(in->planenum);
-#else
-      out->planenum = (in->planenum);
-#endif
       /* Defensive: planenum dereferenced as
        * hull->planes[node->planenum] in the BSP traversal
        * (SV_HullPointContents).  Same crash class as the
@@ -1983,11 +1807,7 @@ Mod_LoadClipnodes_BSP29(lump_t *l)
                __func__, out->planenum, loadmodel->numplanes,
                loadmodel->name);
       for (j = 0; j < 2; j++) {
-#ifdef MSB_FIRST
          out->children[j] = (uint16_t)LittleShort(in->children[j]);
-#else
-         out->children[j] = (uint16_t)(in->children[j]);
-#endif
          if (out->children[j] > 0xfff0)
             out->children[j] -= 0x10000;
          if (out->children[j] >= count)
@@ -2038,22 +1858,14 @@ Mod_LoadClipnodes_BSP2(lump_t *l)
    hull->clip_maxs[2] = 64;
 
    for (i = 0; i < count; i++, out++, in++) {
-#ifdef MSB_FIRST
       out->planenum = LittleLong(in->planenum);
-#else
-      out->planenum = (in->planenum);
-#endif
       /* Defensive: see Mod_LoadClipnodes_BSP29 above. */
       if (out->planenum < 0 || out->planenum >= loadmodel->numplanes)
          SV_Error("%s: bad planenum %i (numplanes=%i) in %s",
                __func__, out->planenum, loadmodel->numplanes,
                loadmodel->name);
       for (j = 0; j < 2; j++) {
-#ifdef MSB_FIRST
          out->children[j] = LittleLong(in->children[j]);
-#else
-         out->children[j] = (in->children[j]);
-#endif
          if (out->children[j] >= count)
             SV_Error("%s: bad clipnode child number", __func__);
       }
@@ -2122,11 +1934,7 @@ Mod_LoadMarksurfaces_BSP29(lump_t *l)
 
    for (i = 0; i < count; i++)
    {
-#ifdef MSB_FIRST
       j = (uint16_t)LittleShort(in[i]);
-#else
-      j = (uint16_t)(in[i]);
-#endif
       if (j >= loadmodel->numsurfaces)
          SV_Error("%s: bad surface number", __func__);
       out[i] = loadmodel->surfaces + j;
@@ -2150,11 +1958,7 @@ Mod_LoadMarksurfaces_BSP2(lump_t *l)
    loadmodel->nummarksurfaces = count;
 
    for (i = 0; i < count; i++) {
-#ifdef MSB_FIRST
       j = (uint32_t)LittleLong(in[i]);
-#else
-      j = (uint32_t)(in[i]);
-#endif
       if (j >= loadmodel->numsurfaces)
          SV_Error("%s: bad surface number", __func__);
       out[i] = loadmodel->surfaces + j;
@@ -2182,11 +1986,7 @@ Mod_LoadSurfedges(lump_t *l)
    loadmodel->numsurfedges = count;
 
    for (i = 0; i < count; i++) {
-#ifdef MSB_FIRST
       out[i] = LittleLong(in[i]);
-#else
-      out[i] = (in[i]);
-#endif
       /* surfedges are signed indices into edges[]: positive
        * value means walk edge[i].v[0]->v[1], negative means
        * walk edge[-i].v[1]->v[0].  Out-of-range values cause
@@ -2230,22 +2030,13 @@ static void Mod_LoadPlanes(lump_t *l)
       int bits = 0;
       for (j = 0; j < 3; j++)
       {
-#ifdef MSB_FIRST
          out->normal[j] = LittleFloat(in->normal[j]);
-#else
-         out->normal[j] = (in->normal[j]);
-#endif
          if (out->normal[j] < 0)
             bits |= 1 << j;
       }
 
-#ifdef MSB_FIRST
       out->dist = LittleFloat(in->dist);
       out->type = LittleLong(in->type);
-#else
-      out->dist = (in->dist);
-      out->type = (in->type);
-#endif
       out->signbits = bits;
    }
 }
@@ -2280,14 +2071,12 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
    loadmodel->type = mod_brush;
    header = (dheader_t *)buffer;
 
-#ifdef MSB_FIRST
    /* swap all the header entries */
    header->version = LittleLong(header->version);
    for (i = 0; i < HEADER_LUMPS; i++) {
       header->lumps[i].fileofs = LittleLong(header->lumps[i].fileofs);
       header->lumps[i].filelen = LittleLong(header->lumps[i].filelen);
    }
-#endif
 
    if (header->version != BSPVERSION && header->version != BSP2VERSION)
       SV_Error("%s: %s has wrong version number (%i should be %i or %i)",

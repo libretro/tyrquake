@@ -87,13 +87,8 @@ bool W_LoadWadFile(const char *filename)
          || header->identification[3] != '2')
       return Sys_Error("Wad file %s doesn't have WAD2 id", filename);
 
-#ifdef MSB_FIRST
    wad_numlumps = LittleLong(header->numlumps);
    infotableofs = LittleLong(header->infotableofs);
-#else
-   wad_numlumps = (header->numlumps);
-   infotableofs = (header->infotableofs);
-#endif
 
    /* Defensive: numlumps and infotableofs are file-controlled.
     * Without bounds checking, a hostile WAD can make wad_lumps
@@ -117,11 +112,9 @@ bool W_LoadWadFile(const char *filename)
 
    for (i = 0, lump_p = wad_lumps; i < wad_numlumps; i++, lump_p++)
    {
-#ifdef MSB_FIRST
       lump_p->filepos  = LittleLong(lump_p->filepos);
       lump_p->disksize = LittleLong(lump_p->disksize);
       lump_p->size     = LittleLong(lump_p->size);
-#endif
       /* Per-lump bounds.  Each lump points to a region of the
        * loaded WAD by (filepos, disksize); consumers of
        * W_GetLumpName / W_GetLumpNum receive (wad_base +
@@ -154,9 +147,7 @@ bool W_LoadWadFile(const char *filename)
                              "(disksize=%i)", filename, i,
                              lump_p->disksize);
          qpic = (qpic_t *)(wad_base + lump_p->filepos);
-#ifdef MSB_FIRST
          SwapPic(qpic);
-#endif
          /* Validate width/height fit within the lump's
           * disksize.  Same shape as Draw_CachePic's check
           * for standalone .lmp files: a hostile WAD with
@@ -233,8 +224,6 @@ automatic byte swapping
 
 void SwapPic(qpic_t *pic)
 {
-#ifdef MSB_FIRST
     pic->width  = LittleLong(pic->width);
     pic->height = LittleLong(pic->height);
-#endif
 }

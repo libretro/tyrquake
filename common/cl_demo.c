@@ -90,13 +90,11 @@ int
 CL_GetMessage(void)
 {
    int r;
-#ifdef MSB_FIRST
-   float f;
-#endif
 
    if (cls.demoplayback)
    {
       int i;
+      float f;
 
       /* decide if it is time to grab the next message */
       /* allways grab until fully connected */
@@ -124,17 +122,12 @@ CL_GetMessage(void)
       rfread(&net_message.cursize, 4, 1, cls.demofile);
       VectorCopy(cl.mviewangles[0], cl.mviewangles[1]);
 
-      for (i = 0; i < 3; i++)
-#ifdef MSB_FIRST
-      {
+      for (i = 0; i < 3; i++) {
          rfread(&f, 4, 1, cls.demofile);
          cl.mviewangles[0][i] = LittleFloat(f);
       }
 
       net_message.cursize = LittleLong(net_message.cursize);
-#else
-      r = rfread (&cl.mviewangles[0][i], 4, 1, cls.demofile);
-#endif
 
       if (net_message.cursize > MAX_MSGLEN)
          Sys_Error("Demo message > MAX_MSGLEN");
