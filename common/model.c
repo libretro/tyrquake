@@ -1283,7 +1283,7 @@ CalcSurfaceExtents(msurface_t *s)
 	 * extents bound below catches positive overflow but a
 	 * NaN-derived junk value can land coincidentally in
 	 * [0, 256].  Reject early. */
-	if (!isfinite((float)mins[i]) || !isfinite((float)maxs[i]))
+	if (IS_NAN((float)mins[i]) || IS_NAN((float)maxs[i]))
 	    SV_Error("Bad surface extents (NaN/Inf vertex position)");
 
 	bmins[i] = floorf(mins[i] / 16);

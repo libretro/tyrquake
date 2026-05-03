@@ -49,21 +49,18 @@ typedef int fixed16_t;
 #define M_PI 3.14159265358979323846	/* matches value in gcc v2 math.h */
 #endif
 
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38f 
+#endif
+
 extern vec3_t vec3_origin;
 
 /* IS_NAN — true if x is NaN or Infinity. The original implementation
  * type-punned a float through an int pointer and ANDed against
  * nanmask (the IEEE-754 single-precision exponent bits 0x7f800000),
- * which evaluates true for both NaN and Infinity. That cast violates
- * strict aliasing and trips -Wstrict-aliasing on modern GCC. Use
- * !isfinite() from <math.h> — same NaN-or-Inf semantics, C99
- * standard, no worse codegen. MSVC <2013 (_MSC_VER < 1800) doesn't
- * have isfinite; fall back to !_finite() there. */
-#if defined(_MSC_VER) && _MSC_VER < 1800
-#define	IS_NAN(x) (!_finite(x))
-#else
-#define	IS_NAN(x) (!isfinite(x))
-#endif
+ * which evaluates true for both NaN and Infinity. */
+#define IS_NAN(x) (!((x) >= -FLT_MAX && (x) <= FLT_MAX))
+
 extern int32_t nanmask;
 
 #define DotProduct(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
