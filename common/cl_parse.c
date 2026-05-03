@@ -507,8 +507,14 @@ CL_ParseUpdate(unsigned int bits)
 
    if (bits & U_MODEL) {
       modnum = CL_ReadModelIndex(0);
-      if (modnum >= max_models(cl.protocol))
-         Host_Error("CL_ParseModel: bad modnum");
+      /* CL_ReadModelIndex returns int; protocols read either
+       * a byte or a short.  Both can return -1 on truncated
+       * read (msg_badread set, fires next loop iteration --
+       * but the OOB cl.model_precache[modnum] read happens
+       * here first when ent->model is set later via the same
+       * baseline path). */
+      if (modnum < 0 || modnum >= max_models(cl.protocol))
+         Host_Error("CL_ParseModel: bad modnum %i", modnum);
    } else
       modnum = ent->baseline.modelindex;
 
@@ -534,8 +540,18 @@ CL_ParseUpdate(unsigned int bits)
    if (!i)
       ent->colormap = vid.colormap;
    else {
-      if (i > cl.maxclients)
-         Sys_Error("i >= cl.maxclients");
+      /* i indexes cl.players[i - 1]; valid i is
+       * [1, cl.maxclients].  i == cl.maxclients gives
+       * cl.players[cl.maxclients - 1] which is the last
+       * valid slot.  i > cl.maxclients was already rejected;
+       * add the negative case (MSG_ReadByte returns -1 on
+       * truncated read; ent->baseline.colormap could also
+       * be from an earlier bad packet, but baseline reads
+       * have been hardened separately).  Also tighten the
+       * error message which previously said "i >= cl.maxclients"
+       * while the code was "i >". */
+      if (i < 0 || i > cl.maxclients)
+         Sys_Error("CL_ParseUpdate: bad colormap %i", i);
       ent->colormap = cl.players[i - 1].translations;
    }
 
@@ -657,8 +673,25 @@ CL_ParseBaseline(entity_t *ent, unsigned int bits)
    int i;
 
    ent->baseline.modelindex = CL_ReadModelIndex(bits);
+   /* CL_ReadModelIndex returns int from MSG_ReadByte/Short;
+    * truncated read returns -1.  Two callers (CL_ParseStatic
+    * and svc_spawnbaseline) immediately dereference
+    * cl.model_precache[ent->baseline.modelindex] -- OOB
+    * read for negative or large values. */
+   if (ent->baseline.modelindex < 0
+       || ent->baseline.modelindex >= max_models(cl.protocol))
+      Host_Error("CL_ParseBaseline: bad modelindex %i",
+                 ent->baseline.modelindex);
+
    ent->baseline.frame      = CL_ReadModelFrame(bits);
    ent->baseline.colormap   = MSG_ReadByte();
+   /* baseline.colormap is later used as cl.players[colormap - 1]
+    * in CL_ParseUpdate's else branch.  Reject negative
+    * (truncated read returns -1) and out-of-range. */
+   if (ent->baseline.colormap < 0 || ent->baseline.colormap > cl.maxclients)
+      Host_Error("CL_ParseBaseline: bad colormap %i",
+                 ent->baseline.colormap);
+
    ent->baseline.skinnum    = MSG_ReadByte();
    for (i = 0; i < 3; i++)
    {

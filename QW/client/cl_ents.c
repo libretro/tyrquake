@@ -181,14 +181,29 @@ CL_ParseDelta(entity_state_t *from, entity_state_t *to, int bits)
     }
     to->flags = bits;
 
-    if (bits & U_MODEL)
+    if (bits & U_MODEL) {
 	to->modelindex = MSG_ReadByte();
+	/* MSG_ReadByte returns int [-1, 255]; -1 means
+	 * truncated packet (msg_badread fires next loop, but
+	 * cl.model_precache[-1] would be read in the meantime
+	 * by CL_LinkPacketEntities at line ~446).  255 is in
+	 * range for QW (MAX_MODELS = 256). */
+	if (to->modelindex < 0 || to->modelindex >= MAX_MODELS)
+	    Host_EndGame("CL_ParseDelta: bad modelindex %i", to->modelindex);
+    }
 
     if (bits & U_FRAME)
 	to->frame = MSG_ReadByte();
 
-    if (bits & U_COLORMAP)
+    if (bits & U_COLORMAP) {
 	to->colormap = MSG_ReadByte();
+	/* colormap == 0 means "no colormap (use default)";
+	 * 1..MAX_CLIENTS index cl.players[colormap - 1] in
+	 * CL_LinkPacketEntities.  Negative or out-of-range
+	 * would OOB-read a player_info_t. */
+	if (to->colormap < 0 || to->colormap > MAX_CLIENTS)
+	    Host_EndGame("CL_ParseDelta: bad colormap %i", to->colormap);
+    }
 
     if (bits & U_SKIN)
 	to->skinnum = MSG_ReadByte();
