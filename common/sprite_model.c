@@ -39,6 +39,11 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
 {
    int origin[2];
    dspriteframe_t *pinframe = (dspriteframe_t *)pin;
+   int width;
+   int height;
+   int numpixels;
+   int size;
+   mspriteframe_t *pspriteframe;
 
    /* dspriteframe_t header itself must fit before we read
     * width/height. */
@@ -46,15 +51,12 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
       Sys_Error("%s: %s: frame header past EOF", __func__, modname);
 
 #ifdef MSB_FIRST
-   int width = LittleLong(pinframe->width);
-   int height = LittleLong(pinframe->height);
+   width = LittleLong(pinframe->width);
+   height = LittleLong(pinframe->height);
 #else
-   int width = (pinframe->width);
-   int height = (pinframe->height);
+   width = (pinframe->width);
+   height = (pinframe->height);
 #endif
-   int numpixels;
-   int size;
-   mspriteframe_t *pspriteframe;
 
    /* Defensive: width/height come from the .spr file directly.
     * Without bounds checking, width*height can overflow the
@@ -115,17 +117,18 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    dspriteinterval_t *pin_intervals;
    float *poutintervals;
    void *ptemp;
-
    dspritegroup_t *pingroup = (dspritegroup_t *)pin;
+   int numframes;
+   mspritegroup_t *pspritegroup;
 
    /* dspritegroup_t header must fit before we read numframes */
    if ((const byte *)pingroup + sizeof(dspritegroup_t) > bufend)
       Sys_Error("%s: %s: group header past EOF", __func__, modname);
 
 #ifdef MSB_FIRST
-   int numframes = LittleLong(pingroup->numframes);
+   numframes = LittleLong(pingroup->numframes);
 #else
-   int numframes = (pingroup->numframes);
+   numframes = (pingroup->numframes);
 #endif
 
    /* Defensive: numframes is file-controlled.  Negative or
@@ -134,7 +137,7 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    if (numframes < 1 || numframes > 1024)
       Sys_Error("%s: bad numframes %d", __func__, numframes);
 
-   mspritegroup_t *pspritegroup = (mspritegroup_t*)Hunk_Alloc(sizeof(*pspritegroup) +
+   pspritegroup = (mspritegroup_t*)Hunk_Alloc(sizeof(*pspritegroup) +
          numframes * sizeof(pspritegroup->frames[0]));
 
    pspritegroup->numframes = numframes;
@@ -185,6 +188,7 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    dspriteframetype_t *pframetype;
    dsprite_t *pin = (dsprite_t *)buffer;
    const byte *bufend;
+   int version;
 
    /* bufend bounds the input buffer extent (com_filesize bytes
     * loaded).  See 1301598 for the equivalent treatment of
@@ -201,9 +205,9 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    bufend = (const byte *)buffer + com_filesize;
 
 #ifdef MSB_FIRST
-   int version = LittleLong(pin->version);
+   version = LittleLong(pin->version);
 #else
-   int version = (pin->version);
+   version = (pin->version);
 #endif
    if (version != SPRITE_VERSION)
       Sys_Error("%s: %s has wrong version number (%i should be %i)",

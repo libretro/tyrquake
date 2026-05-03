@@ -256,6 +256,8 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
    skinnum = 0;
    for (i = 0; i < numskins; i++)
    {
+      aliasskintype_t skintype;
+
       /* daliasskintype_t (just the type int) must fit
        * before we read pskintype->type. */
       if ((const byte *)pskintype + sizeof(daliasskintype_t) > bufend)
@@ -263,9 +265,9 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
                    __func__, loadmodel->name, i);
 
 #ifdef MSB_FIRST
-      aliasskintype_t skintype = (aliasskintype_t)LittleLong(pskintype->type);
+      skintype = (aliasskintype_t)LittleLong(pskintype->type);
 #else
-      aliasskintype_t skintype = (aliasskintype_t)(pskintype->type);
+      skintype = (aliasskintype_t)(pskintype->type);
 #endif
       if (skintype == ALIAS_SKIN_SINGLE)
       {
