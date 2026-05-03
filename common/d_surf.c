@@ -44,11 +44,24 @@ int D_SurfaceCacheForRes(int width, int height)
    int size, pix;
 
    if (COM_CheckParm("-surfcachesize")) {
-      size = Q_atoi(com_argv[COM_CheckParm("-surfcachesize") + 1]) * 1024;
+      int kb = Q_atoi(com_argv[COM_CheckParm("-surfcachesize") + 1]);
+      /* Command-line value is in KB; multiplied by 1024 to give
+       * the cache size in bytes.  A negative or absurdly large
+       * value would overflow the int multiplication; the cache
+       * allocator (D_InitCaches) would then receive a wrapped
+       * size and the rover walk would corrupt unrelated memory. */
+      if (kb < 1 || kb > INT_MAX / 1024)
+         Sys_Error("-surfcachesize: bad value %i (KB)", kb);
+      size = kb * 1024;
       return size;
    }
 
    size = SURFCACHE_SIZE_AT_320X200;
+   /* width and height come from VID_Init (35783da clamped them
+    * to [320, MAXWIDTH] and [200, MAXHEIGHT]); width*height is
+    * at most 1920*1200 = 2.3M pixels, easily fits in int.  The
+    * (pix - 64000) * 3 increment is at most ~7M.  Total well
+    * under INT_MAX, no overflow possible. */
    pix  = width * height;
    if (pix > 64000)
       size += (pix - 64000) * 3;

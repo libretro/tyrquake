@@ -97,6 +97,15 @@ void R_InitParticles(void)
       r_numparticles = (int)(Q_atoi(com_argv[i + 1]));
       if (r_numparticles < ABSOLUTE_MIN_PARTICLES)
          r_numparticles = ABSOLUTE_MIN_PARTICLES;
+      /* r_numparticles * sizeof(particle_t) is allocated below and
+       * also walked by R_ValidParticle (f744f3a) to validate
+       * pointer ranges on every particle reference.  Cap well
+       * below INT_MAX / sizeof(particle_t) so neither the
+       * multiplication here nor the validator's range check
+       * can overflow.  16 million is far above any legitimate
+       * use of -particles. */
+      if (r_numparticles > 16 * 1024 * 1024)
+         r_numparticles = 16 * 1024 * 1024;
    }
    else
       r_numparticles = MAX_PARTICLES;

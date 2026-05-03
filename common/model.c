@@ -1273,13 +1273,47 @@ CalcSurfaceExtents(msurface_t *s)
     }
 
     for (i = 0; i < 2; i++) {
+	/* mins[i] / maxs[i] are accumulated from vertex positions
+	 * dotted with texinfo vecs; vertex positions and tex->vecs
+	 * are loaded raw from the BSP (LittleFloat -- bit pattern
+	 * preserved).  A NaN / Inf there propagates into mins/maxs
+	 * here, and floorf(NaN) is NaN.  NaN converted to int is
+	 * undefined behaviour and typically yields INT_MIN; the
+	 * subsequent (bmaxs-bmins)*16 then signed-overflows.  The
+	 * extents bound below catches positive overflow but a
+	 * NaN-derived junk value can land coincidentally in
+	 * [0, 256].  Reject early. */
+	if (!isfinite((float)mins[i]) || !isfinite((float)maxs[i]))
+	    SV_Error("Bad surface extents (NaN/Inf vertex position)");
+
 	bmins[i] = floorf(mins[i] / 16);
 	bmaxs[i] = ceilf(maxs[i] / 16);
 
 	s->texturemins[i] = bmins[i] * 16;
 	s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
-	if (!(tex->flags & TEX_SPECIAL) && s->extents[i] > 256)
-	    SV_Error("Bad surface extents");
+	/* Vanilla allowed TEX_SPECIAL surfaces to skip the
+	 * extents bound because in the original engine those
+	 * were always sky or liquid surfaces, which the loader
+	 * later overrode with extents = 16384 and routed through
+	 * the SURF_DRAWSKY / SURF_DRAWTURB code paths
+	 * (D_DrawSkyScans8 / Turbulent8 -- not lightmapped).
+	 * However, the SURF_DRAWSKY / SURF_DRAWTURB routing is
+	 * decided by texture-name prefix ("sky"/"*"), not the
+	 * TEX_SPECIAL flag.  A hostile BSP with TEX_SPECIAL set
+	 * on a normally-named texture and absurd vertex positions
+	 * makes this surface enter R_DrawSurface ->
+	 * R_BuildLightMap with smax*tmax far exceeding the
+	 * size of the static blocklights[18*18*3] buffer,
+	 * producing an OOB write.
+	 *
+	 * Bound regardless of TEX_SPECIAL: an extent of 256
+	 * means smax = (256>>4)+1 = 17, so 17*17*3 = 867 fits
+	 * comfortably in blocklights[972].  The 16384-extent
+	 * override at Mod_LoadFaces still happens for water
+	 * surfaces, but those are routed away from the
+	 * lightmap path by the texture-name check. */
+	if (s->extents[i] < 0 || s->extents[i] > 256)
+	    SV_Error("Bad surface extents (%d)", s->extents[i]);
     }
 }
 
