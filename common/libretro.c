@@ -117,14 +117,14 @@ static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
 /* Linear output buffer.  S_PaintChannels writes
  * exactly samples_per_frame stereo frames into this
- * buffer per S_Update; audio_callback then hands it
+ * buffer per S_Update; audio_step then hands it
  * straight to audio_batch_cb.  No ring, no wrap. */
 static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
 
 /* Initial cap on stereo frames per audio_batch_cb
  * invocation.  RetroArch typically accepts up to
  * ~4096 per call; if the frontend partial-writes
- * we shrink this dynamically (see audio_callback). */
+ * we shrink this dynamically (see audio_step). */
 static unsigned audio_batch_frames_max = 4096;
 
 /* System analog stick range is -0x8000 to 0x8000 */
@@ -915,8 +915,7 @@ short *zbuffer;
 short *finalimage;
 byte* surfcache;
 
-static void audio_process(void);
-static void audio_callback(void);
+static void audio_step(void);
 
 static bool did_flip;
 
@@ -949,8 +948,7 @@ void retro_run(void)
 
    if (!did_flip)
       video_cb(NULL, width, height, width << 1); /* dupe */
-   audio_process();
-   audio_callback();
+   audio_step();
 }
 
 static void extract_directory(char *out_dir, const char *in_dir, size_t size)
@@ -1428,11 +1426,34 @@ void D_EndDirectRect(int x, int y, int w, int h)
  * SOUND (TODO)
  */
 
-static void audio_process(void)
+/*
+ * Per-frame audio: mix the engine's channels into
+ * audio_out_buffer, then push that buffer to the
+ * frontend.  Called once at the end of every
+ * retro_run, after Host_Frame has finished the game
+ * tick (so any sounds triggered this frame are
+ * already in the channel array when we mix them).
+ *
+ * The two halves (mix, push) used to be split into
+ * audio_process / audio_callback helpers; nothing
+ * else ever called them and the "callback" naming
+ * was misleading -- it's a regular synchronous call,
+ * not an async notification.  Kept as one function
+ * for clarity.
+ */
+static void audio_step(void)
 {
-   /* adds music raw samples and/or advances midi driver */
-   BGM_Update(); 
-   /* update audio */
+   unsigned audio_frames_remaining;
+   int16_t *audio_out_ptr;
+
+   /* Mix.  S_Update does the spatialization /
+    * volume falloff for the listener position; the
+    * BGM and CD updaters feed raw streaming samples
+    * into the same paintbuffer.  S_Update_ at the
+    * tail of S_Update writes exactly samples_per_
+    * frame stereo frames into shm->buffer ==
+    * audio_out_buffer. */
+   BGM_Update();
    if (cls.state == ca_active)
    {
       S_Update(r_origin, vpn, vright, vup);
@@ -1440,27 +1461,16 @@ static void audio_process(void)
    }
    else
       S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
-
    CDAudio_Update();
-}
 
-static void audio_callback(void)
-{
-   /* audio_process() above has just run, which calls
-    * S_Update -> S_Update_ -> S_PaintChannels.
-    * S_PaintChannels writes exactly samples_per_frame
-    * stereo frames into shm->buffer == audio_out_buffer
-    * (as a linear int16 sequence: L, R, L, R, ...).
-    * Hand that buffer straight to the frontend.  No
-    * ring, no wrap, no soundtime drift. */
-   unsigned audio_frames_remaining = audio_samplerate / framerate;
-   int16_t *audio_out_ptr          = audio_out_buffer;
-
-   /* At very low framerates one video frame's worth
-    * of audio can exceed the frontend's internal
-    * batch limit; chunk if so.  At 60fps / 44.1kHz
-    * the count is 735 stereo frames -- well below
-    * any reasonable limit -- and the loop runs once. */
+   /* Push.  At very low framerates one video frame's
+    * worth of audio can exceed the frontend's
+    * internal batch limit; chunk if so.  At 60fps /
+    * 44.1kHz the count is 735 stereo frames -- well
+    * below any reasonable limit -- and the loop runs
+    * once. */
+   audio_frames_remaining = audio_samplerate / framerate;
+   audio_out_ptr          = audio_out_buffer;
    do
    {
       unsigned audio_frames_to_write =
