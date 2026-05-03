@@ -51,13 +51,21 @@ static int r_cnumsurfs;
 static qboolean r_surfsonstack;
 
 byte *r_warpbuffer;
-/* Warp buffer is sized to the compile-time maximum
- * WARP_WIDTH x WARP_HEIGHT (currently 960x600 = ~562 KB);
- * the stack-allocated previous form was viable only because
- * those constants were 320x200 = 64 KB. Move it to BSS now
- * that the upper bound is bigger than is reasonable on the
- * stack. */
-static byte r_warpbuffer_storage[WARP_WIDTH * WARP_HEIGHT];
+/* Warp buffer must be sized for the largest vid.height the
+ * software renderer can drive, not WARP_HEIGHT, because the
+ * rasterizers walk d_scantable[0..vid.height-1] regardless of
+ * which buffer d_viewbuffer points at.  D_ViewChanged builds
+ * d_scantable[i] = i * WARP_WIDTH when r_dowarp is true, but
+ * iterates 0..vid.height-1.  At modern resolutions where
+ * vid.height (capped at MAXHEIGHT) exceeds WARP_HEIGHT (720),
+ * every frame the player spends in water/lava/slime stomps
+ * (vid.height - WARP_HEIGHT) * WARP_WIDTH bytes of whatever
+ * static data follows this buffer in .bss -- a class of heap-
+ * stomp-shaped corruption masquerading as bogus pointers in
+ * unrelated subsystems.  Sizing for MAXHEIGHT closes the
+ * window cleanly; cost is ~600 KB extra .bss on top of the
+ * existing ~900 KB allocation. */
+static byte r_warpbuffer_storage[WARP_WIDTH * MAXHEIGHT];
 
 static byte *r_stack_start;
 
