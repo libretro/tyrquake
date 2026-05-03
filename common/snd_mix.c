@@ -63,24 +63,28 @@ static void Snd_WriteLinearBlastStereo16 (void)
 	}
 }
 
-static void S_TransferStereo16 (int endtime)
+/* Linearly transfer the contents of paintbuffer[0..count) into
+ * the output destination buffer at the offset corresponding to
+ * (lpaintedtime - paint_start_time).  The destination is
+ * shm->buffer, which the libretro layer points at a linear
+ * int16 buffer sized for one video frame's audio (plus
+ * PAINTBUFFER_SIZE headroom for the worst-case low-framerate
+ * case).  No ring math, no wraparound: paintedtime is the
+ * monotonic engine clock and the output buffer is rewound at
+ * the start of each S_Update_ call. */
+static void S_TransferStereo16 (int paint_start, int endtime)
 {
-	int		lpaintedtime;
+	int lpaintedtime;
 
 	snd_p        = (int*)paintbuffer;
 	lpaintedtime = paintedtime;
 
 	while (lpaintedtime < endtime)
 	{
-		/* handle recirculating buffer issues */
-		int lpos = lpaintedtime & ((AUDIO_BUFFER_SIZE >> 1) - 1);
+		snd_out = (short *)shm->buffer
+			+ ((lpaintedtime - paint_start) << 1);
 
-		snd_out = (short *)shm->buffer + (lpos << 1);
-
-		snd_linear_count = (AUDIO_BUFFER_SIZE >> 1) - lpos;
-		if (lpaintedtime + snd_linear_count > endtime)
-			snd_linear_count = endtime - lpaintedtime;
-
+		snd_linear_count = endtime - lpaintedtime;
 		snd_linear_count <<= 1;
 
 		/* write a linear blast of samples */
@@ -105,6 +109,7 @@ void S_PaintChannels (int endtime)
 {
 	int		i;
 	int		end, ltime, count;
+	int		paint_start = paintedtime;
 	channel_t	*ch;
 	sfxcache_t	*sc;
 	float		vol;
@@ -211,7 +216,7 @@ void S_PaintChannels (int endtime)
 		}
 
 		/* transfer out according to DMA format */
-		S_TransferStereo16(end);
+		S_TransferStereo16(paint_start, end);
 		paintedtime = end;
 	}
 }

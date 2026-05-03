@@ -54,8 +54,6 @@ int snd_blocked = 0;
 static qboolean snd_ambient = 1;
 static qboolean snd_initialized = false;
 
-#define CHANNELS 2
-
 /* pointer should go away (JC?) */
 volatile dma_t *shm = 0;
 static dma_t sn;
@@ -66,7 +64,6 @@ static vec3_t listener_right;
 static vec3_t listener_up;
 static vec_t sound_nominal_clip_dist = 1000.0;
 
-static int soundtime;		/* sample PAIRS */
 int paintedtime;		/* sample PAIRS */
 
 #define	MAX_SFX 512
@@ -120,7 +117,6 @@ cvar_t sfxvolume = { "volume", "0.7", true };
 static cvar_t precache = { "precache", "1" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
-static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
 
 /*
  * ================
@@ -162,7 +158,6 @@ S_Init(void)
     Cvar_RegisterVariable(&bgmvolume);
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
-    Cvar_RegisterVariable(&snd_noextraupdate);
 
     snd_initialized = true;
 
@@ -194,9 +189,7 @@ S_Shutdown(void)
 
    /* Clear sound_started first so any reader that observes
     * the new sound_started==0 won't proceed into the mixer
-    * and try to dereference the just-cleared shm.  The
-    * sound_started check is the gate; pairing this with the
-    * shm null-check in SNDDMA_GetDMAPos closes the window. */
+    * and try to dereference the just-cleared shm. */
    sound_started = 0;
    shm = 0;
 }
@@ -690,76 +683,52 @@ S_UpdateAmbientSounds(void)
    }
 }
 
-static void GetSoundtime(void)
-{
-   static int buffers;
-   static int oldsamplepos;
-   int fullsamples = AUDIO_BUFFER_SIZE / CHANNELS;
-
-   /*
-    * it is possible to miscount buffers if it has wrapped twice between
-    * calls to S_Update.  Oh well.
-    */
-   int samplepos = SNDDMA_GetDMAPos();
-
-   /* Check for buffer wrap */
-   if (samplepos < oldsamplepos)
-   {
-      buffers++;
-
-      /* time to chop things off to avoid 32 bit limits */
-      if (paintedtime > 0x40000000)
-      {
-         buffers = 0;
-         paintedtime = fullsamples;
-         S_StopAllSounds(true);
-      }
-   }
-   oldsamplepos = samplepos;
-
-   soundtime = buffers * fullsamples + samplepos / CHANNELS;
-}
-
 static void S_Update_(void)
 {
    unsigned endtime;
-   int samps;
    int frame_samps;
 
-   if (!sound_started || (snd_blocked > 0))
+   if (!sound_started || (snd_blocked > 0)) {
+      /* Engine isn't mixing this frame -- but
+       * audio_callback in libretro.c will still push
+       * the contents of shm->buffer.  Zero it so we
+       * push silence instead of stale samples. */
+      if (shm && shm->buffer && shm->samples_per_frame > 0)
+         memset(shm->buffer, 0,
+                shm->samples_per_frame * sizeof(int16_t) * 2);
       return;
-
-   /* Updates DMA time */
-   GetSoundtime();
-
-   /* check to make sure that we haven't overshot */
-   if (paintedtime < soundtime) {
-      /* FIXME - handle init & wrap properly and report actual overflow */
-      /* Con_DPrintf("%s: overflow\n", __func__); */
-      paintedtime = soundtime;
    }
-   /* Paint exactly one video frame's worth of audio
-    * ahead of the consumer.  In the libretro
-    * deterministic model the audio_callback drains
-    * exactly samples_per_frame stereo frames per
-    * retro_run; mixing the same number of samples
-    * per S_Update keeps the in-flight buffer at a
-    * steady ~1 frame, which gives ~1 video frame of
-    * audio latency (~16.6ms at 60fps) instead of
-    * the historical ~93ms (mixahead 0.1s).
+
+   /* In the libretro deterministic model paintedtime
+    * is a monotonic counter that advances exactly
+    * samples_per_frame stereo frames per call.  No
+    * wraparound accounting is needed because no ring
+    * buffer is involved -- audio_callback in
+    * libretro.c reads the linear paint output buffer
+    * straight back to audio_batch_cb.
     *
-    * If the libretro layer hasn't told us how big a
-    * video frame's audio is yet (samples_per_frame
-    * unset before SNDDMA_Init has run with a real
-    * framerate), fall back to the original ~0.1s
-    * lookahead -- harmless first-tick warmup. */
+    * Periodically chop paintedtime down to keep it
+    * out of int-overflow territory.  Static-sound
+    * channels store absolute end positions in
+    * channel->end (paintedtime + sc->length); if
+    * paintedtime ever wraps past INT_MAX those
+    * comparisons start lying.  At 44.1kHz that's a
+    * little over 13.5 hours of continuous playback,
+    * so this branch is mostly insurance. */
+   if (paintedtime > 0x40000000) {
+      paintedtime = 0;
+      S_StopAllSounds(true);
+   }
+
+   /* Paint exactly one video frame's worth of audio.
+    * If the libretro layer hasn't told us yet
+    * (samples_per_frame == 0 before the first
+    * SNDDMA_Init), fall back to ~0.1s -- harmless
+    * first-tick warmup. */
    frame_samps = shm->samples_per_frame;
    if (frame_samps <= 0)
-      frame_samps = shm->speed / 10;	/* 0.1s fallback */
-   endtime = soundtime + (unsigned)frame_samps;
-   samps   = AUDIO_BUFFER_SIZE >> 1;
-   if (endtime - soundtime > (unsigned)samps)
-      endtime = soundtime + samps;
+      frame_samps = shm->speed / 10;
+   endtime = paintedtime + (unsigned)frame_samps;
 
    S_PaintChannels(endtime);
 }

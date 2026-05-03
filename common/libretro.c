@@ -115,11 +115,17 @@ static bool libretro_supports_bitmasks = false;
 #define AUDIO_SAMPLERATE_48KHZ 48000
 static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
-static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
+/* Linear output buffer.  S_PaintChannels writes
+ * exactly samples_per_frame stereo frames into this
+ * buffer per S_Update; audio_callback then hands it
+ * straight to audio_batch_cb.  No ring, no wrap. */
 static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
-static unsigned audio_buffer_ptr = 0;
 
-static unsigned audio_batch_frames_max = AUDIO_BUFFER_SIZE >> 1;
+/* Initial cap on stereo frames per audio_batch_cb
+ * invocation.  RetroArch typically accepts up to
+ * ~4096 per call; if the frontend partial-writes
+ * we shrink this dynamically (see audio_callback). */
+static unsigned audio_batch_frames_max = 4096;
 
 /* System analog stick range is -0x8000 to 0x8000 */
 #define ANALOG_RANGE 0x8000
@@ -450,7 +456,6 @@ void retro_deinit(void)
     * of carrying values over from the previous session. */
    initial_resolution_set = false;
    has_set_username       = false;
-   audio_buffer_ptr       = 0;
    width                  = 320;
    height                 = 200;
    shutdown_core          = false;
@@ -1441,39 +1446,21 @@ static void audio_process(void)
 
 static void audio_callback(void)
 {
-   unsigned read_first;
-   unsigned read_second;
-   unsigned samples_per_frame      = (2 * audio_samplerate) / framerate;
-   unsigned audio_frames_remaining = samples_per_frame >> 1;
-   unsigned read_end               = audio_buffer_ptr + samples_per_frame;
+   /* audio_process() above has just run, which calls
+    * S_Update -> S_Update_ -> S_PaintChannels.
+    * S_PaintChannels writes exactly samples_per_frame
+    * stereo frames into shm->buffer == audio_out_buffer
+    * (as a linear int16 sequence: L, R, L, R, ...).
+    * Hand that buffer straight to the frontend.  No
+    * ring, no wrap, no soundtime drift. */
+   unsigned audio_frames_remaining = audio_samplerate / framerate;
    int16_t *audio_out_ptr          = audio_out_buffer;
-   uintptr_t i;
 
-   if (read_end > AUDIO_BUFFER_SIZE)
-      read_end = AUDIO_BUFFER_SIZE;
-
-   read_first  = read_end - audio_buffer_ptr;
-   read_second = samples_per_frame - read_first;
-
-   for (i = 0; i < read_first; i++)
-      *(audio_out_ptr++) = *(audio_buffer + audio_buffer_ptr + i);
-
-   audio_buffer_ptr += read_first;
-
-   if (read_second >= 1)
-   {
-      for (i = 0; i < read_second; i++)
-         *(audio_out_ptr++) = *(audio_buffer + i);
-
-      audio_buffer_ptr = read_second;
-   }
-
-   /* At low framerates we generate very large
-    * numbers of samples per frame. This may
-    * exceed the capacity of the frontend audio
-    * batch callback; if so, write the audio
-    * samples in chunks */
-   audio_out_ptr = audio_out_buffer;
+   /* At very low framerates one video frame's worth
+    * of audio can exceed the frontend's internal
+    * batch limit; chunk if so.  At 60fps / 44.1kHz
+    * the count is 735 stereo frames -- well below
+    * any reasonable limit -- and the loop runs once. */
    do
    {
       unsigned audio_frames_to_write =
@@ -1496,7 +1483,6 @@ qboolean SNDDMA_Init(dma_t *dma)
 {
    shm                    = dma;
    shm->speed             = audio_samplerate;
-   shm->samplepos         = 0;
    /* Stereo frames per video frame.  audio_samplerate
     * and framerate are both set by update_variables()
     * which runs before this in retro_load_game.
@@ -1504,21 +1490,12 @@ qboolean SNDDMA_Init(dma_t *dma)
     * frame's worth of audio per call, matching what
     * audio_callback drains. */
    shm->samples_per_frame = (int)(audio_samplerate / framerate);
-   shm->buffer            = (unsigned char *volatile)audio_buffer;
+   /* Engine writes mixed audio directly into our
+    * linear output buffer; audio_callback then hands
+    * that buffer straight to audio_batch_cb. */
+   shm->buffer            = (unsigned char *volatile)audio_out_buffer;
 
    return true;
-}
-
-int SNDDMA_GetDMAPos(void)
-{
-   /* Defensive: shm can be NULL during shutdown windows
-    * (S_Shutdown clears it) or before SNDDMA_Init has run.
-    * Other functions in snd_dma.c (e.g. S_ClearBuffer at
-    * line 447) already pair a sound_started check with an
-    * explicit shm null-check; mirror that here. */
-   if (!shm)
-      return 0;
-   return shm->samplepos = audio_buffer_ptr;
 }
 
 /*

@@ -28,20 +28,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-/* Audio ring sized to hold one video frame's worth
- * of stereo samples plus headroom.  At 60 fps /
- * 44.1 kHz that's 1470 int16 (= 735 stereo frames)
- * per frame; the ring holds ~5.5 frames.  Power of 2
- * is required so the modulo masking in
- * S_TransferStereo16 (lpos & ((SIZE>>1)-1)) works.
- * The libretro layer paints exactly one video
- * frame's worth ahead per retro_run.  At very low
- * framerates (e.g. 10 fps), one frame's audio
- * exceeds this buffer size; supported framerates
- * have been chosen so that doesn't happen for any
- * frame target the user is likely to actually
- * select. */
-#define AUDIO_BUFFER_SIZE 8192
+/* Linear audio output buffer size, in int16
+ * samples (= 2 per stereo frame).  Sized for the
+ * worst-case (smallest framerate, largest sample
+ * rate) one-frame chunk: 48000 / 10 fps = 4800
+ * stereo frames = 9600 int16.  Rounded up to the
+ * next power of 2 for slop.  PAINTBUFFER_SIZE in
+ * snd_mix.c is independently 16384 portable_
+ * samplepair_t (per-frame mixing scratch); both
+ * sizes need to comfortably hold one video frame's
+ * worth of audio. */
+#define AUDIO_BUFFER_SIZE 16384
 
 /* sound.h -- client sound i/o functions */
 
@@ -69,7 +66,6 @@ typedef struct {
 } sfxcache_t;
 
 typedef struct {
-    int samplepos;		/* in mono samples */
     int speed;			/* sample rate (44100 / 22050 / 48000) */
     int samples_per_frame;	/* stereo frames per video frame; the
 				 * libretro layer sets this to
@@ -115,7 +111,6 @@ void S_StopSound(int entnum, int entchannel);
 void S_StopAllSounds(qboolean clear);
 void S_ClearBuffer(void);
 void S_Update(vec3_t origin, vec3_t v_forward, vec3_t v_right, vec3_t v_up);
-void S_ExtraUpdate(void);
 
 sfx_t *S_PrecacheSound(const char *sample);
 void S_TouchSound(const char *sample);
@@ -142,7 +137,6 @@ void S_RawSamples(int samples, int rate, int width, int nchannels, byte * data, 
 qboolean SNDDMA_Init(dma_t *dma);
 
 /* gets the current DMA position */
-int SNDDMA_GetDMAPos(void);
 
 /* ==================================================================== */
 /* User-setable variables */
