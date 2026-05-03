@@ -234,8 +234,11 @@ Cvar_Set(const char *var_name, const char *value)
 
     Z_Free((void *)var->string);	/* free the old value string */
 
-    newstring = (char*)Z_Malloc(strlen(value) + 1);
-    strcpy(newstring, value);
+    {
+	size_t valuelen = strlen(value) + 1;
+	newstring = (char*)Z_Malloc(valuelen);
+	memcpy(newstring, value, valuelen);
+    }
     var->string = newstring;
     var->value = Q_atof(var->string);
 

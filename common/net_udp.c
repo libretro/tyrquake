@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include <stdint.h>
 #include <sys/types.h>
 #if !defined(_MSC_VER) && !defined(__PS3__)
@@ -197,7 +198,7 @@ UDP_Init(void)
    broadcastaddr.port = htons(net_hostport);
 
    UDP_GetSocketAddr(net_controlsocket, &addr);
-   strcpy(my_tcpip_address, NET_AdrToString(&addr));
+   strlcpy(my_tcpip_address, NET_AdrToString(&addr), sizeof(my_tcpip_address));
    colon = strrchr(my_tcpip_address, ':');
    if (colon)
       *colon = 0;
@@ -409,7 +410,12 @@ UDP_GetNameFromAddr(const netadr_t *addr, char *name)
 	return 0;
     }
 #endif
-    strcpy(name, NET_AdrToString(addr));
+    /* The 'name' buffer is by convention NET_NAMELEN bytes
+     * (see hostcache_t.cname / qsocket_t.address); callers
+     * either pass one of those struct fields or a stack
+     * buffer of the same size.  strlcpy with NET_NAMELEN
+     * matches the implicit interface contract. */
+    strlcpy(name, NET_AdrToString(addr), NET_NAMELEN);
 
     return 0;
 }

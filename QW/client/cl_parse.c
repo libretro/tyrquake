@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* cl_parse.c  -- parse a message received from the server */
 
+#include "compat/strl.h"
 #include "cdaudio.h"
 #include "client.h"
 #include "cmd.h"
@@ -198,7 +199,7 @@ CL_CheckOrDownloadFile(char *filename)
      * download to a temp name, and only rename to the real name when
      * done, so if interrupted a runt file wont be left
      */
-    strcpy(cls.downloadtempname, cls.downloadname); /* same size */
+    strlcpy(cls.downloadtempname, cls.downloadname, sizeof(cls.downloadtempname)); /* same size */
     COM_StripExtension(cls.downloadtempname);
 
     /* make sure the .tmp extension fits... */
@@ -207,7 +208,7 @@ CL_CheckOrDownloadFile(char *filename)
 	Con_Printf("Refusing download, pathname too long\n");
 	return true;
     }
-    strcat(cls.downloadtempname, ".tmp");
+    strlcat(cls.downloadtempname, ".tmp", sizeof(cls.downloadtempname));
 
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteStringf(&cls.netchan.message, "download %s", cls.downloadname);
@@ -372,9 +373,9 @@ CL_ParseDownload(void)
     /* open the file if not opened yet */
     if (!cls.download) {
 	if (strncmp(cls.downloadtempname, "skins/", 6))
-	    sprintf(name, "%s/%s", com_gamedir, cls.downloadtempname);
+	    snprintf(name, sizeof(name), "%s/%s", com_gamedir, cls.downloadtempname);
 	else
-	    sprintf(name, "qw/%s", cls.downloadtempname);
+	    snprintf(name, sizeof(name), "qw/%s", cls.downloadtempname);
 
 	COM_CreatePath(name);
 
@@ -409,11 +410,11 @@ CL_ParseDownload(void)
 	/* rename the temp file to it's final name */
 	if (strcmp(cls.downloadtempname, cls.downloadname)) {
 	    if (strncmp(cls.downloadtempname, "skins/", 6)) {
-		sprintf(oldn, "%s/%s", com_gamedir, cls.downloadtempname);
-		sprintf(newn, "%s/%s", com_gamedir, cls.downloadname);
+		snprintf(oldn, sizeof(oldn), "%s/%s", com_gamedir, cls.downloadtempname);
+		snprintf(newn, sizeof(newn), "%s/%s", com_gamedir, cls.downloadname);
 	    } else {
-		sprintf(oldn, "qw/%s", cls.downloadtempname);
-		sprintf(newn, "qw/%s", cls.downloadname);
+		snprintf(oldn, sizeof(oldn), "qw/%s", cls.downloadtempname);
+		snprintf(newn, sizeof(newn), "qw/%s", cls.downloadname);
 	    }
 	    r = rename(oldn, newn);
 	    if (r)

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  * snd_dma.c -- main control for any streaming sound output device
  */
 
+#include "compat/strl.h"
 #include "bspfile.h"
 #include "client.h"
 #include "cmd.h"
@@ -229,7 +230,7 @@ S_FindName(const char *name)
 	Sys_Error("%s: out of sfx_t", __func__);
 
     sfx = &known_sfx[i];
-    strcpy(sfx->name, name);
+    strlcpy(sfx->name, name, sizeof(sfx->name));
 
     num_sfx++;
 
@@ -844,11 +845,11 @@ static void S_Play(void)
 
       if (!strrchr(Cmd_Argv(i), '.'))
       {
-         strcpy(name, Cmd_Argv(i));
-         strcat(name, ".wav");
+         strlcpy(name, Cmd_Argv(i), sizeof(name));
+         strlcat(name, ".wav", sizeof(name));
       }
       else
-         strcpy(name, Cmd_Argv(i));
+         strlcpy(name, Cmd_Argv(i), sizeof(name));
       sfx = S_PrecacheSound(name);
       S_StartSound(hash++, 0, sfx, listener_origin, 1.0, 1.0);
       i++;
@@ -868,11 +869,11 @@ static void S_PlayVol(void)
 
       if (!strrchr(Cmd_Argv(i), '.'))
       {
-         strcpy(name, Cmd_Argv(i));
-         strcat(name, ".wav");
+         strlcpy(name, Cmd_Argv(i), sizeof(name));
+         strlcat(name, ".wav", sizeof(name));
       }
       else
-         strcpy(name, Cmd_Argv(i));
+         strlcpy(name, Cmd_Argv(i), sizeof(name));
       sfx = S_PrecacheSound(name);
       vol = Q_atof(Cmd_Argv(i + 1));
       S_StartSound(hash++, 0, sfx, listener_origin, vol, 1.0);

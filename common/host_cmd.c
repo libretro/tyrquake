@@ -295,7 +295,7 @@ static void Host_Map_f(void)
    SCR_BeginLoadingPlaque();
 
    svs.serverflags = 0;	/* haven't completed an episode yet */
-   strcpy(name, Cmd_Argv(1));
+   strlcpy(name, Cmd_Argv(1), sizeof(name));
 
    SV_SpawnServer(name);
 
@@ -303,11 +303,11 @@ static void Host_Map_f(void)
       return;
 
    if (cls.state != ca_dedicated) {
-      strcpy(cls.spawnparms, "");
+      cls.spawnparms[0] = '\0';
 
       for (i = 2; i < Cmd_Argc(); i++) {
-         strcat(cls.spawnparms, Cmd_Argv(i));
-         strcat(cls.spawnparms, " ");
+         strlcat(cls.spawnparms, Cmd_Argv(i), sizeof(cls.spawnparms));
+         strlcat(cls.spawnparms, " ", sizeof(cls.spawnparms));
       }
       Cmd_ExecuteString("connect local", src_command);
    }
@@ -355,7 +355,7 @@ static void Host_Changelevel_f(void)
       return;
    }
    SV_SaveSpawnparms();
-   strcpy(level, Cmd_Argv(1));
+   strlcpy(level, Cmd_Argv(1), sizeof(level));
    SV_SpawnServer(level);
 }
 
@@ -375,7 +375,7 @@ static void Host_Restart_f(void)
 
    if (cmd_source != src_command)
       return;
-   strcpy(mapname, sv.name);	/* must copy out, because it gets cleared */
+   strlcpy(mapname, sv.name, sizeof(mapname));	/* must copy out, because it gets cleared */
    /* in sv_spawnserver */
    SV_SpawnServer(mapname);
 }
@@ -417,7 +417,7 @@ static void Host_Connect_f(void)
       CL_StopPlayback();
       CL_Disconnect();
    }
-   strcpy(name, Cmd_Argv(1));
+   strlcpy(name, Cmd_Argv(1), sizeof(name));
    CL_EstablishConnection(name);
    Host_Reconnect_f();
 }
@@ -448,7 +448,7 @@ static void Host_SavegameComment(char *text)
    for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
       text[i] = ' ';
    memcpy(text, cl.levelname, strlen(cl.levelname));
-   sprintf(kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS],
+   snprintf(kills, sizeof(kills), "kills:%3i/%3i", cl.stats[STAT_MONSTERS],
          cl.stats[STAT_TOTALMONSTERS]);
    memcpy(text + 22, kills, strlen(kills));
    /* convert space to _ to make stdio happy */
@@ -518,7 +518,7 @@ static void Host_Savegame_f(void)
       Con_Printf("ERROR: save name too long.\n");
       return;
    }
-   COM_DefaultExtension(name, ".sav");
+   COM_DefaultExtension(name, sizeof(name), ".sav");
 
    Con_Printf("Saving game to %s...\n", name);
    f = rfopen(name, "w");
@@ -607,7 +607,7 @@ void Host_Loadgame_f(void)
       Con_Printf("ERROR: load name too long.\n");
       goto done;
    }
-   COM_DefaultExtension(name, ".sav");
+   COM_DefaultExtension(name, sizeof(name), ".sav");
 
    /* we can't call SCR_BeginLoadingPlaque, because too much stack space has */
    /* been used.  The menu calls it before stuffing loadgame command */
@@ -662,9 +662,11 @@ void Host_Loadgame_f(void)
 
    for (i = 0; i < MAX_LIGHTSTYLES; i++)
    {
+      size_t lslen;
       rfscanf(f, "%32767s\n", str);
-      lightstyle = (char*)Hunk_Alloc(strlen(str) + 1);
-      strcpy(lightstyle, str);
+      lslen = strlen(str) + 1;
+      lightstyle = (char*)Hunk_Alloc(lslen);
+      memcpy(lightstyle, str, lslen);
       sv.lightstyles[i] = lightstyle;
    }
 
@@ -757,7 +759,7 @@ static void Host_Name_f(void)
    if (host_client->name[0] && strcmp(host_client->name, "unconnected"))
       if (strcmp(host_client->name, new_name) != 0)
          Con_Printf("%s renamed to %s\n", host_client->name, new_name);
-   strcpy(host_client->name, new_name);
+   strlcpy(host_client->name, new_name, sizeof(host_client->name));
    host_client->edict->v.netname = PR_SetString(host_client->name);
 
    /* send notification to all clients */
@@ -804,9 +806,9 @@ Host_Say(qboolean teamonly)
 
 /* turn on color set 1 */
     if (!fromServer)
-	sprintf(text, "%c%s: ", 1, save->name);
+	snprintf(text, sizeof(text), "%c%s: ", 1, save->name);
     else
-	sprintf(text, "%c<%s> ", 1, hostname.string);
+	snprintf(text, sizeof(text), "%c<%s> ", 1, hostname.string);
 
     len = strlen(text);
     space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
@@ -819,7 +821,7 @@ Host_Say(qboolean teamonly)
 	strncat(text, p, space);
 	text[len + qmin(strlen(p), space)] = 0;
     }
-    strcat(text, "\n");
+    strlcat(text, "\n", sizeof(text));
 
     for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++) {
 	if (!client || !client->active || !client->spawned)
@@ -866,8 +868,8 @@ static void Host_Tell_f(void)
    if (Cmd_Argc() < 3)
       return;
 
-   strcpy(text, host_client->name);
-   strcat(text, ": ");
+   strlcpy(text, host_client->name, sizeof(text));
+   strlcat(text, ": ", sizeof(text));
 
    len = strlen(text);
    space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
@@ -886,7 +888,7 @@ static void Host_Tell_f(void)
       strncat(text, p, space);
       text[len + qmin((int)strlen(p), space)] = 0;
    }
-   strcat(text, "\n");
+   strlcat(text, "\n", sizeof(text));
 
    save = host_client;
    for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++) {

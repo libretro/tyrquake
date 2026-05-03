@@ -471,11 +471,11 @@ Sbar_SoloScoreboard(void)
     int minutes, seconds, tens, units;
     int l;
 
-    sprintf(str, "Monsters:%3i /%3i", cl.stats[STAT_MONSTERS],
+    snprintf(str, sizeof(str), "Monsters:%3i /%3i", cl.stats[STAT_MONSTERS],
 	    cl.stats[STAT_TOTALMONSTERS]);
     Sbar_DrawString(8, 4, str);
 
-    sprintf(str, "Secrets :%3i /%3i", cl.stats[STAT_SECRETS],
+    snprintf(str, sizeof(str), "Secrets :%3i /%3i", cl.stats[STAT_SECRETS],
 	    cl.stats[STAT_TOTALSECRETS]);
     Sbar_DrawString(8, 12, str);
 
@@ -484,7 +484,7 @@ Sbar_SoloScoreboard(void)
     seconds = cl.time - 60 * minutes;
     tens = seconds / 10;
     units = seconds - 10 * tens;
-    sprintf(str, "Time :%3i:%i%i", minutes, tens, units);
+    snprintf(str, sizeof(str), "Time :%3i:%i%i", minutes, tens, units);
     Sbar_DrawString(184, 4, str);
 
 /* draw level name */
@@ -604,7 +604,7 @@ Sbar_DrawInventory(void)
     }
 /* ammo counts */
     for (i = 0; i < 4; i++) {
-	sprintf(num, "%3i", cl.stats[STAT_SHELLS + i]);
+	snprintf(num, sizeof(num), "%3i", cl.stats[STAT_SHELLS + i]);
 	if (num[0] != ' ')
 	    Sbar_DrawCharacter((6 * i + 1) * 8 - 2, -24, 18 + num[0] - '0');
 	if (num[1] != ' ')
@@ -724,7 +724,7 @@ Sbar_DrawFrags(void)
 
 	/* draw number (logical coords, wrapper handles scale) */
 	f = p->frags;
-	sprintf(num, "%3i", f);
+	snprintf(num, sizeof(num), "%3i", f);
 
 	Sbar_DrawCharacter((x + 1) * 8, -24, num[0]);
 	Sbar_DrawCharacter((x + 2) * 8, -24, num[1]);
@@ -780,7 +780,7 @@ Sbar_DrawFace(void)
 
 	/* draw number */
 	f = p->frags;
-	sprintf(num, "%3i", f);
+	snprintf(num, sizeof(num), "%3i", f);
 
 	if (top == 8) {
 	    if (num[0] != ' ')
@@ -1030,7 +1030,7 @@ Sbar_DeathmatchOverlay(void)
 
 	/* draw number */
 	f = p->frags;
-	sprintf(num, "%3i", f);
+	snprintf(num, sizeof(num), "%3i", f);
 
 	Draw_CharacterScaled(x + 8 * scale, y, num[0], scale);
 	Draw_CharacterScaled(x + 16 * scale, y, num[1], scale);
@@ -1112,7 +1112,7 @@ Sbar_MiniDeathmatchOverlay(void)
 
 	/* draw number */
 	f = p->frags;
-	sprintf(num, "%3i", f);
+	snprintf(num, sizeof(num), "%3i", f);
 
 	Draw_CharacterScaled(x + 8 * scale, y, num[0], scale);
 	Draw_CharacterScaled(x + 16 * scale, y, num[1], scale);

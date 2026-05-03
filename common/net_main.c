@@ -36,6 +36,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <arpa/inet.h>
 #endif
 
+#include "compat/strl.h"
+
 #include "cmd.h"
 #include "console.h"
 #include "net.h"
@@ -133,7 +135,7 @@ NET_AdrToString(const netadr_t *a)
     static char s[64];
     const byte *b = a->ip.b;
 
-    sprintf(s, "%i.%i.%i.%i:%i", b[0], b[1], b[2], b[3], ntohs(a->port));
+    snprintf(s, sizeof(s), "%i.%i.%i.%i:%i", b[0], b[1], b[2], b[3], ntohs(a->port));
 
     return s;
 }
@@ -176,7 +178,7 @@ NET_NewQSocket(void)
 
     sock->disconnected = false;
     sock->connecttime = net_time;
-    strcpy(sock->address, "UNSET ADDRESS");
+    strlcpy(sock->address, "UNSET ADDRESS", sizeof(sock->address));
     sock->driver = net_driver;
     sock->socket = 0;
     sock->driverdata = NULL;

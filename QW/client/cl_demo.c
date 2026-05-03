@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "client.h"
 #include "cmd.h"
 #include "common.h"
@@ -224,8 +225,8 @@ CL_PlayDemo_f(void)
     CL_Disconnect();
 
     /* open the demo file */
-    strcpy(name, Cmd_Argv(1));
-    COM_DefaultExtension(name, ".qwd");
+    strlcpy(name, Cmd_Argv(1), sizeof(name));
+    COM_DefaultExtension(name, sizeof(name), ".qwd");
 
     Con_Printf("Playing demo from %s.\n", name);
     COM_FOpenFile(name, &cls.demofile);

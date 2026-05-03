@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 /* common.c -- misc functions used in client and server */
+#include "compat/strl.h"
 #include <ctype.h>
 #include <limits.h>
 #include <retro_dirent.h>
@@ -879,7 +880,7 @@ const char *COM_FileExtension(const char *in)
 COM_DefaultExtension
 ==================
 */
-void COM_DefaultExtension(char *path, const char *extension)
+void COM_DefaultExtension(char *path, size_t pathsize, const char *extension)
 {
    /* if path doesn't have a .EXT, append extension */
    /* (extension should include the .) */
@@ -890,7 +891,7 @@ void COM_DefaultExtension(char *path, const char *extension)
          return;		/* it has an extension */
       src--;
    }
-   strcat(path, extension);
+   strlcat(path, extension, pathsize);
 }
 
 int COM_CheckExtension(const char *path, const char *extn)
@@ -1755,7 +1756,6 @@ static pack_t *COM_LoadPackFile(const char *packfile)
       goto error;
 
    snprintf(pack->filename, sizeof(pack->filename), "%s", packfile);
-   strcpy(pack->filename, packfile);
    pack->numfiles = numfiles;
    pack->files = mfiles;
 
@@ -1796,21 +1796,21 @@ static void COM_AddGameDirectory(const char *base, const char *dir)
 
 #ifdef _XBOX360
    if (!strcmp(dir, ""))
-      strcpy(com_gamedir, base);
+      strlcpy(com_gamedir, base, sizeof(com_gamedir));
    else
 #endif
-      strcpy(com_gamedir, va("%s%c%s", base, slash, dir));
+      strlcpy(com_gamedir, va("%s%c%s", base, slash, dir), sizeof(com_gamedir));
 
 #ifdef QW_HACK
    {
       char *p = strrchr(com_gamedir, slash);
-      strcpy(gamedirfile, ++p);
+      strlcpy(gamedirfile, ++p, sizeof(gamedirfile));
    }
 #endif
 
    /* add the directory to the search path */
    search = (searchpath_t*)Hunk_Alloc(sizeof(searchpath_t));
-   strcpy(search->filename, com_gamedir);
+   strlcpy(search->filename, com_gamedir, sizeof(search->filename));
    search->next = com_searchpaths;
    com_searchpaths = search;
 
@@ -1872,7 +1872,7 @@ void COM_Gamedir(const char *dir)
 
    if (!strcmp(gamedirfile, dir))
       return;			/* still the same */
-   strcpy(gamedirfile, dir);
+   strlcpy(gamedirfile, dir, sizeof(gamedirfile));
 
    /* free up any current game dir info */
    while (com_searchpaths != com_base_searchpaths)
@@ -1897,7 +1897,7 @@ void COM_Gamedir(const char *dir)
 
    /* add the directory to the search path */
    search = Z_Malloc(sizeof(searchpath_t));
-   strcpy(search->filename, com_gamedir);
+   strlcpy(search->filename, com_gamedir, sizeof(search->filename));
    search->next = com_searchpaths;
    com_searchpaths = search;
 
@@ -1935,12 +1935,12 @@ static void COM_InitFilesystem(void)
 #endif
 
    /* Set save directory */
-   strcpy(com_savedir, host_parms.savedir);
+   strlcpy(com_savedir, host_parms.savedir, sizeof(com_savedir));
    
    /* -basedir <path> */
    /* Overrides the system supplied base directory (under id1) */
    i = COM_CheckParm("-basedir");
-   strcpy(com_basedir, host_parms.basedir);
+   strlcpy(com_basedir, host_parms.basedir, sizeof(com_basedir));
 
    /* start up with id1 by default */
    COM_AddGameDirectory(com_basedir, "id1");
@@ -1996,7 +1996,7 @@ static void COM_InitFilesystem(void)
             if (!search->pack)
                Sys_Error("Couldn't load packfile: %s", com_argv[i]);
          } else
-            strcpy(search->filename, com_argv[i]);
+            strlcpy(search->filename, com_argv[i], sizeof(search->filename));
          search->next = com_searchpaths;
          com_searchpaths = search;
       }

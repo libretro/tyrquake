@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "console.h"
 #include "crc.h"
 #include "model.h"
@@ -308,7 +309,7 @@ SV_SpawnServer(const char *server)
     sv.signon.data = sv.signon_buffers[0];
     sv.num_signon_buffers = 1;
 
-    strcpy(sv.name, server);
+    strlcpy(sv.name, server, sizeof(sv.name));
 
     /* load progs to get entity field count */
     /* which determines how big each edict is */
@@ -328,8 +329,8 @@ SV_SpawnServer(const char *server)
 
     sv.time = 1.0;
 
-    strcpy(sv.name, server);
-    sprintf(sv.modelname, "maps/%s.bsp", server);
+    strlcpy(sv.name, server, sizeof(sv.name));
+    snprintf(sv.modelname, sizeof(sv.modelname), "maps/%s.bsp", server);
     sv.worldmodel = Mod_ForName(sv.modelname, true);
     SV_CalcPHS();
 

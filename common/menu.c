@@ -521,7 +521,7 @@ static void M_ScanSaves(void)
       char comment[MAX_OSPATH];
       RFILE *f;
 
-      strcpy(m_filenames[i], "--- UNUSED SLOT ---");
+      strlcpy(m_filenames[i], "--- UNUSED SLOT ---", sizeof(m_filenames[i]));
       loadable[i] = false;
       /* Build the slot suffix into a small bounded local first, then
        * use COM_JoinPath which performs an explicit overflow check —
@@ -1936,7 +1936,7 @@ M_Keys_Key(int k)
 	if (k == K_ESCAPE) {
 	    bind_grab = false;
 	} else if (k != '`') {
-	    sprintf(cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString(k),
+	    snprintf(cmd, sizeof(cmd), "bind \"%s\" \"%s\"\n", Key_KeynumToString(k),
 		    bindnames[keys_cursor][0]);
 	    Cbuf_InsertText(cmd);
 	}
@@ -2214,7 +2214,7 @@ M_Menu_LanConfig_f(void)
     if (StartingGame && lanConfig_cursor == 2)
 	lanConfig_cursor = 1;
     lanConfig_port = DEFAULTnet_hostport;
-    sprintf(lanConfig_portname, "%u", lanConfig_port);
+    snprintf(lanConfig_portname, sizeof(lanConfig_portname), "%u", lanConfig_port);
 
     m_return_onerror = false;
     m_return_reason[0] = 0;
@@ -2380,7 +2380,7 @@ M_LanConfig_Key(int key)
 
     l = Q_atoi(lanConfig_portname);
     lanConfig_port = qmin(l, 65535);
-    sprintf(lanConfig_portname, "%u", lanConfig_port);
+    snprintf(lanConfig_portname, sizeof(lanConfig_portname), "%u", lanConfig_port);
 }
 
 /* ============================================================================= */
@@ -2978,11 +2978,11 @@ M_ServerList_Draw(void)
     M_DrawPic((320 - p->width) / 2, 4, p);
     for (n = 0; n < hostCacheCount; n++) {
 	if (hostcache[n].maxusers)
-	    sprintf(string, "%-15.15s %-15.15s %2u/%2u\n", hostcache[n].name,
+	    snprintf(string, sizeof(string), "%-15.15s %-15.15s %2u/%2u\n", hostcache[n].name,
 		    hostcache[n].map, hostcache[n].users,
 		    hostcache[n].maxusers);
 	else
-	    sprintf(string, "%-15.15s %-15.15s\n", hostcache[n].name,
+	    snprintf(string, sizeof(string), "%-15.15s %-15.15s\n", hostcache[n].name,
 		    hostcache[n].map);
 	M_Print(16, 32 + 8 * n, string);
     }

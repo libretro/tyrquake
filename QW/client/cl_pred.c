@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "client.h"
 #include "console.h"
 #include "cvar.h"
@@ -161,7 +162,7 @@ CL_PredictMove(void)
 	char text[1024];
 
 	cls.state = ca_active;
-	sprintf(text, "QuakeWorld: %s", cls.servername);
+	snprintf(text, sizeof(text), "QuakeWorld: %s", cls.servername);
 #ifdef _WIN32
 	SetWindowText(mainwindow, text);
 #endif

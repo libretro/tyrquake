@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include <winsock2.h>
 
 #include "console.h"
@@ -178,7 +179,7 @@ WINS_Init(void)
     broadcastaddr.port = htons(net_hostport);
 
     WINS_GetSocketAddr(net_controlsocket, &addr);
-    strcpy(my_tcpip_address, NET_AdrToString(&addr));
+    strlcpy(my_tcpip_address, NET_AdrToString(&addr), sizeof(my_tcpip_address));
     colon = strrchr(my_tcpip_address, ':');
     if (colon)
 	*colon = 0;
@@ -396,7 +397,9 @@ WINS_GetNameFromAddr(const netadr_t *addr, char *name)
 	strncpy(name, (char *)hostentry->h_name, NET_NAMELEN - 1);
 	return 0;
     }
-    strcpy(name, NET_AdrToString(addr));
+    /* See UDP_GetNameFromAddr: name is conventionally
+     * NET_NAMELEN bytes per the GetNameFromAddr signature. */
+    strlcpy(name, NET_AdrToString(addr), NET_NAMELEN);
 
     return 0;
 }

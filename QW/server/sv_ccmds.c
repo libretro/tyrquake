@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "cmd.h"
 #include "console.h"
 #include "qwsvdef.h"
@@ -252,10 +253,10 @@ SV_Map_f(void)
 	    Con_Printf ("Currently on: %s\n",sv.name);
 	return;
     }
-    strcpy(level, Cmd_Argv(1));
+    strlcpy(level, Cmd_Argv(1), sizeof(level));
 
     /* check to make sure the level exists */
-    sprintf(expanded, "maps/%s.bsp", level);
+    snprintf(expanded, sizeof(expanded), "maps/%s.bsp", level);
     COM_FOpenFile(expanded, &f);
     if (!f) {
 	Con_Printf("Can't find %s\n", expanded);
@@ -418,7 +419,7 @@ SV_ConSay_f(void)
     if (Cmd_Argc() < 2)
 	return;
 
-    strcpy(text, "console: ");
+    strlcpy(text, "console: ", sizeof(text));
 
     len = strlen(text);
     space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
@@ -431,7 +432,7 @@ SV_ConSay_f(void)
 	strncat(text, p, space);
 	text[len + qmin(strlen(p), space)] = 0;
     }
-    strcat(text, "\n");
+    strlcat(text, "\n", sizeof(text));
 
     for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++) {
 	if (client->state != cs_spawned)
@@ -645,7 +646,7 @@ SV_Floodprotmsg_f(void)
 	Con_Printf("Usage: floodprotmsg \"<message>\"\n");
 	return;
     }
-    sprintf(fp_msg, "%s", Cmd_Argv(1));
+    snprintf(fp_msg, sizeof(fp_msg), "%s", Cmd_Argv(1));
 }
 
 /*

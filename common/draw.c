@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* draw.c -- this is the only file outside the refresh that touches the */
 /* vid buffer */
 
+#include "compat/strl.h"
 #include "common.h"
 #include "console.h"
 #include "d_iface.h"
@@ -94,7 +95,7 @@ Draw_CachePic(const char *path)
 	if (menu_numcachepics == MAX_CACHED_PICS)
 	    Sys_Error("menu_numcachepics == MAX_CACHED_PICS");
 	menu_numcachepics++;
-	strcpy(pic->name, path);
+	strlcpy(pic->name, path, sizeof(pic->name));
     }
 
     dat = (qpic_t*)Cache_Check(&pic->cache);

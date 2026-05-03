@@ -387,7 +387,7 @@ void CL_NextDemo(void)
       }
    }
 
-   sprintf(str, "playdemo %s\n", cls.demos[cls.demonum]);
+   snprintf(str, sizeof(str), "playdemo %s\n", cls.demos[cls.demonum]);
    Cbuf_InsertText(str);
    cls.demonum++;
 }

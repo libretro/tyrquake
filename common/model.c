@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* models are the only shared resource between a client and server running */
 /* on the same machine. */
 
+#include "compat/strl.h"
 #include <float.h>
 #include <stdint.h>
 
@@ -788,9 +789,9 @@ Mod_LoadLighting(lump_t *l)
 
 	if (coloredlights)	/* look for a .lit file to load */
 	{
-		strcpy(litname, loadmodel->name);
+		strlcpy(litname, loadmodel->name, sizeof(litname));
 		COM_StripExtension(litname);
-		COM_DefaultExtension(litname, ".lit");
+		COM_DefaultExtension(litname, sizeof(litname), ".lit");
 		lightmapfile = COM_LoadHunkFile(litname);
 		if (lightmapfile)
 		{
@@ -2184,7 +2185,7 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
                snprintf(name, sizeof(name), "*%i", i + 1);
                loadmodel = Mod_FindName(name);
                *loadmodel = *mod;
-               strcpy(loadmodel->name, name);
+               strlcpy(loadmodel->name, name, sizeof(loadmodel->name));
                mod = loadmodel;
             }
          }

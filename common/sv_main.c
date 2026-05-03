@@ -168,7 +168,7 @@ void SV_Init(void)
     Cmd_SetCompletion("sv_protocol", SV_Protocol_Arg_f);
 
     for (i = 0; i < MAX_MODELS; i++)
-	sprintf(localmodels[i], "*%i", i);
+	snprintf(localmodels[i], MODSTRLEN, "*%i", i);
 }
 
 /*
@@ -434,7 +434,7 @@ static void SV_ConnectClient(int clientnum)
    memset(client, 0, sizeof(*client));
    client->netconnection = netconnection;
 
-   strcpy(client->name, "unconnected");
+   strlcpy(client->name, "unconnected", sizeof(client->name));
    client->active = true;
    client->spawned = false;
    client->edict = ent;

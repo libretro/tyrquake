@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* sv_user.c -- server code for moving users */
 
+#include "compat/strl.h"
 #include "cmd.h"
 #include "console.h"
 #include "pmove.h"
@@ -707,11 +708,11 @@ SV_Say(qboolean team)
     }
 
     if (host_client->spectator && (!sv_spectalk.value || team))
-	sprintf(text, "[SPEC] %s: ", host_client->name);
+	snprintf(text, sizeof(text), "[SPEC] %s: ", host_client->name);
     else if (team)
-	sprintf(text, "(%s): ", host_client->name);
+	snprintf(text, sizeof(text), "(%s): ", host_client->name);
     else {
-	sprintf(text, "%s: ", host_client->name);
+	snprintf(text, sizeof(text), "%s: ", host_client->name);
     }
 
     if (fp_messages) {
@@ -753,7 +754,7 @@ SV_Say(qboolean team)
 	strncat(text, p, space);
 	text[len + qmin(strlen(p), space)] = 0;
     }
-    strcat(text, "\n");
+    strlcat(text, "\n", sizeof(text));
 
     Sys_Printf("%s", text);
 
@@ -902,9 +903,9 @@ SV_Pause_f(void)
     }
 
     if (sv.paused)
-	sprintf(st, "%s paused the game\n", host_client->name);
+	snprintf(st, sizeof(st), "%s paused the game\n", host_client->name);
     else
-	sprintf(st, "%s unpaused the game\n", host_client->name);
+	snprintf(st, sizeof(st), "%s unpaused the game\n", host_client->name);
 
     SV_TogglePause(st);
 }
@@ -1048,7 +1049,7 @@ SV_SetInfo_f(void)
     if (Cmd_Argv(1)[0] == '*')
 	return;			/* don't set priveledged values */
 
-    strcpy(oldval, Info_ValueForKey(host_client->userinfo, Cmd_Argv(1)));
+    strlcpy(oldval, Info_ValueForKey(host_client->userinfo, Cmd_Argv(1)), sizeof(oldval));
 
     Info_SetValueForKey(host_client->userinfo, Cmd_Argv(1), Cmd_Argv(2),
 			MAX_INFO_STRING);

@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* cl_main.c  -- client main loop */
 
+#include "compat/strl.h"
 #include <ctype.h>
 
 #ifdef _WIN32
@@ -226,7 +227,7 @@ CL_SendConnectPacket(void)
 			    MAX_INFO_STRING);
 
 /*      Con_Printf ("Connecting to %s...\n", cls.servername); */
-    sprintf(data, "%c%c%c%cconnect %i %i %i \"%s\"\n",
+    snprintf(data, sizeof(data), "%c%c%c%cconnect %i %i %i \"%s\"\n",
 	    255, 255, 255, 255, PROTOCOL_VERSION, cls.qport, cls.challenge,
 	    cls.userinfo);
     NET_SendPacket(strlen(data), data, adr);
@@ -268,7 +269,7 @@ CL_CheckForResend(void)
     connect_time = realtime + t2 - t1;	/* for retransmit requests */
 
     Con_Printf("Connecting to %s...\n", cls.servername);
-    sprintf(data, "%c%c%c%cgetchallenge\n", 255, 255, 255, 255);
+    snprintf(data, sizeof(data), "%c%c%c%cgetchallenge\n", 255, 255, 255, 255);
     NET_SendPacket(strlen(data), data, adr);
 }
 
@@ -331,14 +332,14 @@ CL_Rcon_f(void)
     message[3] = 255;
     message[4] = 0;
 
-    strcat(message, "rcon ");
+    strlcat(message, "rcon ", sizeof(message));
 
-    strcat(message, rcon_password.string);
-    strcat(message, " ");
+    strlcat(message, rcon_password.string, sizeof(message));
+    strlcat(message, " ", sizeof(message));
 
     for (i = 1; i < Cmd_Argc(); i++) {
-	strcat(message, Cmd_Argv(i));
-	strcat(message, " ");
+	strlcat(message, Cmd_Argv(i), sizeof(message));
+	strlcat(message, " ", sizeof(message));
     }
 
     if (cls.state >= ca_connected)
@@ -424,7 +425,7 @@ CL_Disconnect(void)
 	CL_StopPlayback();
     else if (cls.state != ca_disconnected) {
 	final[0] = clc_stringcmd;
-	strcpy((char *)final + 1, "drop");
+	strlcpy((char *)final + 1, "drop", sizeof(final) - 1);
 	Netchan_Transmit(&cls.netchan, 6, final);
 	Netchan_Transmit(&cls.netchan, 6, final);
 	Netchan_Transmit(&cls.netchan, 6, final);
@@ -540,9 +541,9 @@ CL_Color_f(void)
     if (bottom > 13)
 	bottom = 13;
 
-    sprintf(num, "%i", top);
+    snprintf(num, sizeof(num), "%i", top);
     Cvar_Set("topcolor", num);
-    sprintf(num, "%i", bottom);
+    snprintf(num, sizeof(num), "%i", bottom);
     Cvar_Set("bottomcolor", num);
 }
 
@@ -564,7 +565,7 @@ CL_FullServerinfo_f(void)
 	return;
     }
 
-    strcpy(cl.serverinfo, Cmd_Argv(1));
+    strlcpy(cl.serverinfo, Cmd_Argv(1), sizeof(cl.serverinfo));
 
     if ((p = Info_ValueForKey(cl.serverinfo, "*vesion")) && *p) {
 	v = Q_atof(p);
@@ -724,7 +725,7 @@ CL_NextDemo(void)
 	}
     }
 
-    sprintf(str, "playdemo %s\n", cls.demos[cls.demonum]);
+    snprintf(str, sizeof(str), "playdemo %s\n", cls.demos[cls.demonum]);
     Cbuf_InsertText(str);
     cls.demonum++;
 }
@@ -970,7 +971,7 @@ CL_Download_f(void)
 	return;
     }
 
-    sprintf(cls.downloadname, "%s/%s", com_gamedir, Cmd_Argv(1));
+    snprintf(cls.downloadname, sizeof(cls.downloadname), "%s/%s", com_gamedir, Cmd_Argv(1));
 
     p = cls.downloadname;
     for (;;) {
@@ -983,7 +984,7 @@ CL_Download_f(void)
 	    break;
     }
 
-    strcpy(cls.downloadtempname, cls.downloadname);
+    strlcpy(cls.downloadtempname, cls.downloadname, sizeof(cls.downloadtempname));
     cls.download = fopen(cls.downloadname, "wb");
     cls.downloadtype = dl_single;
 
@@ -1039,7 +1040,7 @@ CL_Init(void)
     Info_SetValueForKey(cls.userinfo, "bottomcolor", "0", MAX_INFO_STRING);
     Info_SetValueForKey(cls.userinfo, "rate", "2500", MAX_INFO_STRING);
     Info_SetValueForKey(cls.userinfo, "msg", "1", MAX_INFO_STRING);
-    sprintf(st, "TyrQuake-%s", stringify(TYR_VERSION));
+    snprintf(st, sizeof(st), "TyrQuake-%s", stringify(TYR_VERSION));
     Info_SetValueForStarKey(cls.userinfo, "*ver", st, MAX_INFO_STRING);
 
     CL_InitInput();

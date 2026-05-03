@@ -154,9 +154,10 @@ STree_InsertAlloc(struct stree_root *root, const char *s, qboolean alloc_str)
     n = STree_AllocNode();
     if (n) {
 	if (alloc_str) {
-	    tmp = (char*)STree_AllocString(strlen(s) + 1);
+	    size_t slen = strlen(s) + 1;
+	    tmp = (char*)STree_AllocString(slen);
 	    if (tmp) {
-		strcpy(tmp, s);
+		memcpy(tmp, s, slen);
 		n->string = tmp;
 	    }
 	} else {

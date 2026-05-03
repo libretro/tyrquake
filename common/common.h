@@ -232,7 +232,7 @@ const char *COM_SkipPath(const char *pathname);
 const char *COM_FileExtension(const char *in);
 qboolean COM_FileExists(const char *filename);
 void COM_StripExtension(char *filename);
-void COM_DefaultExtension(char *path, const char *extension);
+void COM_DefaultExtension(char *path, size_t pathsize, const char *extension);
 int COM_CheckExtension(const char *path, const char *extn);
 
 char *va(const char *format, ...);

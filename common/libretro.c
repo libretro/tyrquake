@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "libretro.h"
 #include "libretro_core_options.h"
 #include <retro_miscellaneous.h>
@@ -883,7 +884,7 @@ static void update_env_variables(void)
       if (default_username && default_username[0] != '\0')
       {
          char setplayer[256];
-         sprintf(setplayer, "name %s", default_username);
+         snprintf(setplayer, sizeof(setplayer), "name %s", default_username);
          retro_cheat_set(0, true, setplayer);
       }
    }

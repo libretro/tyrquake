@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "client.h"
 #include "console.h"
 #include "cmd.h"
@@ -265,6 +266,6 @@ Sets all skins to one specific one
 void
 Skin_AllSkins_f(void)
 {
-    strcpy(allskins, Cmd_Argv(1));
+    strlcpy(allskins, Cmd_Argv(1), sizeof(allskins));
     Skin_Skins_f();
 }

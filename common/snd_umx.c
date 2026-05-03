@@ -27,6 +27,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include "compat/strl.h"
 #include "quakedef.h"
 #include "sound.h"
 
@@ -201,7 +202,7 @@ static int read_export (fshandle_t *f, const struct upkg_hdr *hdr,
 }
 
 static int read_typname(fshandle_t *f, const struct upkg_hdr *hdr,
-			int idx, char *out)
+			int idx, char *out, size_t outsize)
 {
 	int i, s;
 	long l;
@@ -222,7 +223,7 @@ static int read_typname(fshandle_t *f, const struct upkg_hdr *hdr,
 		}
 	}
 
-	strcpy(out, (hdr->file_version >= 64)? &buf[1] : buf);
+	strlcpy(out, (hdr->file_version >= 64)? &buf[1] : buf, outsize);
 	return 0;
 }
 
@@ -260,7 +261,7 @@ static int probe_umx   (fshandle_t *f, const struct upkg_hdr *hdr,
 	if ((t = read_export(f, hdr, &pos, &s)) < 0) return -1;
 	if (s <= 0 || s > fsiz - pos) return -1;
 
-	if (read_typname(f, hdr, t, buf) < 0) return -1;
+	if (read_typname(f, hdr, t, buf, sizeof(buf)) < 0) return -1;
 	for (i = 0; mustype[i] != NULL; i++) {
 		if (!q_strcasecmp(buf, mustype[i])) {
 			t = i;

@@ -318,7 +318,7 @@ GetEdictFieldValue(edict_t *ed, const char *field)
 
     if (strlen(field) < MAX_FIELD_LEN) {
 	gefvCache[rep].pcache = def;
-	strcpy(gefvCache[rep].field, field);
+	strlcpy(gefvCache[rep].field, field, sizeof(gefvCache[rep].field));
 	rep ^= 1;
     }
 
@@ -459,8 +459,8 @@ char *PR_GlobalString(int ofs)
    }
 
    for (i = strlen(line); i < 20; i++)
-      strcat(line, " ");
-   strcat(line, " ");
+      strlcat(line, " ", sizeof(line));
+   strlcat(line, " ", sizeof(line));
 
    return line;
 }
@@ -477,8 +477,8 @@ char *PR_GlobalStringNoContents(int ofs)
 
    i = strlen(line);
    for (; i < 20; i++)
-      strcat(line, " ");
-   strcat(line, " ");
+      strlcat(line, " ", sizeof(line));
+   strlcat(line, " ", sizeof(line));
 
    return line;
 }
@@ -729,7 +729,7 @@ ED_ParseEpair(void *base, ddef_t *key, const char *s)
 	break;
 
     case ev_vector:
-	strcpy(string, s);
+	strlcpy(string, s, sizeof(string));
 	v = string;
 	w = string;
 	for (i = 0; i < 3; i++) {
@@ -805,7 +805,7 @@ ED_ParseEdict(const char *data, edict_t *ent)
 /* and allow them to be turned into vectors. (FIXME...) */
 	if (!strcmp(com_token, "angle"))
 	{
-	    strcpy(com_token, "angles");
+	    strlcpy(com_token, "angles", sizeof(com_token));
 	    anglehack = true;
 	}
 	else
@@ -813,7 +813,7 @@ ED_ParseEdict(const char *data, edict_t *ent)
 
 	/* FIXME: change light to _light to get rid of this hack */
 	if (!strcmp(com_token, "light"))
-	    strcpy(com_token, "light_lev");	/* hack for single light def */
+	    strlcpy(com_token, "light_lev", sizeof(com_token));	/* hack for single light def */
 
 	strlcpy(keyname, com_token, sizeof(keyname));
 
@@ -849,8 +849,8 @@ ED_ParseEdict(const char *data, edict_t *ent)
 	if (anglehack) {
 	    char temp[32];
 
-	    strcpy(temp, com_token);
-	    sprintf(com_token, "0 %s 0", temp);
+	    strlcpy(temp, com_token, sizeof(temp));
+	    snprintf(com_token, sizeof(com_token), "0 %s 0", temp);
 	}
 
 	if (!ED_ParseEpair((void *)&ent->v, key, com_token))
@@ -999,7 +999,7 @@ PR_LoadProgs(void)
 #endif
 #if defined(QW_HACK) && defined(SERVERONLY)
    /* add prog crc to the serverinfo */
-   sprintf(num, "%i", CRC_Block((byte *)progs, com_filesize));
+   snprintf(num, sizeof(num), "%i", CRC_Block((byte *)progs, com_filesize));
    Info_SetValueForStarKey(svs.info, "*progs", num, MAX_SERVERINFO_STRING);
 #endif
 

@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* cmd.c -- Quake script command processing module */
 
+#include "compat/strl.h"
 #include <string.h>
 
 #include "client.h"
@@ -277,9 +278,9 @@ Cmd_StuffCmds_f(void)
     for (i = 1; i < com_argc; i++) {
 	if (!com_argv[i])
 	    continue;		/* NEXTSTEP nulls out -NXHost */
-	strcat(text, com_argv[i]);
+	strlcat(text, com_argv[i], s + 1);
 	if (i != com_argc - 1)
-	    strcat(text, " ");
+	    strlcat(text, " ", s + 1);
     }
 
 /* pull out the commands */
@@ -296,8 +297,8 @@ Cmd_StuffCmds_f(void)
 	    c = text[j];
 	    text[j] = 0;
 
-	    strcat(build, text + i);
-	    strcat(build, "\n");
+	    strlcat(build, text + i, s + 1);
+	    strlcat(build, "\n", s + 1);
 	    text[j] = c;
 	    i = j - 1;
 	}
@@ -412,7 +413,7 @@ Cmd_Alias_f(void)
 
     if (!a) {
 	a = (cmdalias_t*)Z_Malloc(sizeof(cmdalias_t));
-	strcpy(a->name, s);
+	strlcpy(a->name, s, sizeof(a->name));
 	a->stree.string = a->name;
 	STree_Insert(&cmdalias_tree, &a->stree);
     }
@@ -431,14 +432,14 @@ Cmd_Alias_f(void)
 	    cmd[0] = 0;	/* nullify the string */
 	    break;
 	}
-	strcat(cmd, Cmd_Argv(i));
+	strlcat(cmd, Cmd_Argv(i), sizeof(cmd));
 	if (i != c - 1)
-	    strcat(cmd, " ");
+	    strlcat(cmd, " ", sizeof(cmd));
     }
-    strcat(cmd, "\n");
+    strlcat(cmd, "\n", sizeof(cmd));
 
     newval = (char*)Z_Malloc(strlen(cmd) + 1);
-    strcpy(newval, cmd);
+    memcpy(newval, cmd, strlen(cmd) + 1);
     a->value = newval;
 }
 
@@ -606,8 +607,9 @@ Cmd_TokenizeString(const char *text)
 	    return;
 
 	if (cmd_argc < MAX_ARGS) {
-	    arg = (char*)Z_Malloc(strlen(com_token) + 1);
-	    strcpy(arg, com_token);
+	    size_t toklen = strlen(com_token) + 1;
+	    arg = (char*)Z_Malloc(toklen);
+	    memcpy(arg, com_token, toklen);
 	    cmd_argv[cmd_argc] = arg;
 	    cmd_argc++;
 	}

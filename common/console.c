@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* console.c */
 
+#include "compat/strl.h"
 #include <string.h>
 
 #include "client.h"
@@ -696,9 +697,11 @@ Con_ShowList(const char **list, int cnt, int maxlen)
     const char *s;
     unsigned i, j, len, cols, rows;
     char *line;
+    size_t linesize;
 
     /* Lay them out in columns */
-    line = (char*)Z_Malloc(Con_GetWidth() + 1);
+    linesize = Con_GetWidth() + 1;
+    line = (char*)Z_Malloc(linesize);
     cols = Con_GetWidth() / (maxlen + 2);
     rows = cnt / cols + ((cnt % cols) ? 1 : 0);
 
@@ -716,13 +719,13 @@ Con_ShowList(const char **list, int cnt, int maxlen)
 	    s = list[j * rows + i];
 	    len = strlen(s);
 
-	    strcat(line, s);
+	    strlcat(line, s, linesize);
 	    if (j < cols - 1) {
 		while (len < maxlen) {
-		    strcat(line, " ");
+		    strlcat(line, " ", linesize);
 		    len++;
 		}
-		strcat(line, "  ");
+		strlcat(line, "  ", linesize);
 	    }
 	}
 	Con_Printf("%s\n", line);

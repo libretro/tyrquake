@@ -32,6 +32,8 @@ extern int m_state;
 #include <net/net_compat.h>
 #include <net/net_socket.h>
 
+#include "compat/strl.h"
+
 #include "cmd.h"
 #include "common.h"
 #include "console.h"
@@ -104,8 +106,8 @@ NET_Ban_f(void)
       case 1:
          if (banAddr.ip.l != INADDR_ANY)
          {
-            strcpy(addrStr, NET_AdrToString(&banAddr));
-            strcpy(maskStr, NET_AdrToString(&banMask));
+            strlcpy(addrStr, NET_AdrToString(&banAddr), sizeof(addrStr));
+            strlcpy(maskStr, NET_AdrToString(&banMask), sizeof(maskStr));
             print("Banning %s [%s]\n", addrStr, maskStr);
          } else
             print("Banning not active\n");
@@ -986,7 +988,7 @@ _Datagram_CheckNewConnections(net_landriver_t *driver)
     sock->socket = newsock;
     sock->landriver = driver;
     sock->addr = clientaddr;
-    strcpy(sock->address, NET_AdrToString(&clientaddr));
+    strlcpy(sock->address, NET_AdrToString(&clientaddr), sizeof(sock->address));
     sock->mtu = driver->GetDefaultMTU() - NET_HEADERSIZE;
 
     /* send him back the info about the server connection he has been allocated */
@@ -1091,15 +1093,15 @@ _Datagram_SearchForHosts(qboolean xmit, net_landriver_t *driver)
 	host->users = MSG_ReadByte();
 	host->maxusers = MSG_ReadByte();
 	if (MSG_ReadByte() != NET_PROTOCOL_VERSION) {
-	    strcpy(host->cname, host->name);
+	    strlcpy(host->cname, host->name, sizeof(host->cname));
 	    host->cname[14] = 0;
-	    strcpy(host->name, "*");
-	    strcat(host->name, host->cname);
+	    strlcpy(host->name, "*", sizeof(host->name));
+	    strlcat(host->name, host->cname, sizeof(host->name));
 	}
 	host->addr = readaddr;
 	host->driver = net_driver;
 	host->ldriver = driver;
-	strcpy(host->cname, NET_AdrToString(&readaddr));
+	strlcpy(host->cname, NET_AdrToString(&readaddr), sizeof(host->cname));
 
 	/*
 	 * check for a name conflict (FIXME - gross!)

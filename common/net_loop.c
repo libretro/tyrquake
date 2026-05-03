@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* net_loop.c */
 
+#include "compat/strl.h"
 #include "quakedef.h"
 #include "net_loop.h"
 #include "client.h"
@@ -59,14 +60,14 @@ Loop_SearchForHosts(qboolean xmit)
 
     hostCacheCount = 1;
     if (strcmp(hostname.string, "UNNAMED") == 0)
-	strcpy(hostcache[0].name, "local");
+	strlcpy(hostcache[0].name, "local", sizeof(hostcache[0].name));
     else
-	strcpy(hostcache[0].name, hostname.string);
-    strcpy(hostcache[0].map, sv.name);
+	strlcpy(hostcache[0].name, hostname.string, sizeof(hostcache[0].name));
+    strlcpy(hostcache[0].map, sv.name, sizeof(hostcache[0].map));
     hostcache[0].users = net_activeconnections;
     hostcache[0].maxusers = svs.maxclients;
     hostcache[0].driver = net_driver;
-    strcpy(hostcache[0].cname, "local");
+    strlcpy(hostcache[0].cname, "local", sizeof(hostcache[0].cname));
 }
 
 
@@ -83,7 +84,7 @@ Loop_Connect(const char *host)
 	    Con_Printf("Loop_Connect: no qsocket available\n");
 	    return NULL;
 	}
-	strcpy(loop_client->address, "localhost");
+	strlcpy(loop_client->address, "localhost", sizeof(loop_client->address));
     }
     loop_client->receiveMessageLength = 0;
     loop_client->sendMessageLength = 0;
@@ -95,7 +96,7 @@ Loop_Connect(const char *host)
 	    Con_Printf("Loop_Connect: no qsocket available\n");
 	    return NULL;
 	}
-	strcpy(loop_server->address, "LOCAL");
+	strlcpy(loop_server->address, "LOCAL", sizeof(loop_server->address));
     }
     loop_server->receiveMessageLength = 0;
     loop_server->sendMessageLength = 0;

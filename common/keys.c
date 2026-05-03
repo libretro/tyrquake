@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "client.h"
 #include "cmd.h"
 #include "common.h"
@@ -242,13 +243,17 @@ CompleteCommand(void)
     s = GetCommandPos(key_lines[edit_line] + 1);
     cmd = Cmd_CommandComplete(s);
     if (cmd) {
+	size_t remaining;
 	key_linepos = s - key_lines[edit_line];
 	if (s == key_lines[edit_line] + 1) {
 	    *s++ = '/';
 	    key_linepos++;
 	}
-	strcpy(s, cmd);
+	remaining = MAXCMDLINE - (s - key_lines[edit_line]);
+	strlcpy(s, cmd, remaining);
 	key_linepos += strlen(cmd);
+	if (key_linepos >= MAXCMDLINE)
+	    key_linepos = MAXCMDLINE - 1;
 	key_lines[edit_line][key_linepos] = 0;
 	Z_Free((void *)cmd);
     } else {
@@ -273,9 +278,12 @@ CompleteCommand(void)
 		completion = Cvar_ArgComplete(newcmd, s);
 	    }
 	    if (completion) {
+		size_t remaining = MAXCMDLINE - (s - key_lines[edit_line]);
 		key_linepos = s - key_lines[edit_line];
-		strcpy(s, completion);
+		strlcpy(s, completion, remaining);
 		key_linepos += strlen(completion);
+		if (key_linepos >= MAXCMDLINE)
+		    key_linepos = MAXCMDLINE - 1;
 		Z_Free((void *)completion);
 	    }
 	    Z_Free(newcmd);
@@ -602,8 +610,9 @@ Key_SetBinding(knum_t keynum, const char *binding)
 
     if (binding) {
 	/* allocate memory for new binding */
-	newbinding = (char*)Z_Malloc(strlen(binding) + 1);
-	strcpy(newbinding, binding);
+	size_t bindlen = strlen(binding) + 1;
+	newbinding = (char*)Z_Malloc(bindlen);
+	memcpy(newbinding, binding, bindlen);
 	keybindings[keynum] = newbinding;
     }
 }
@@ -685,8 +694,8 @@ Key_Bind_f(void)
 	    return;
 	}
 	if (i > 2)
-	    strcat(cmd, " ");
-	strcat(cmd, Cmd_Argv(i));
+	    strlcat(cmd, " ", sizeof(cmd));
+	strlcat(cmd, Cmd_Argv(i), sizeof(cmd));
     }
 
     Key_SetBinding((knum_t)keynum, cmd);

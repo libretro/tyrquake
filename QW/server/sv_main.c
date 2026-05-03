@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "cmd.h"
 #include "console.h"
 #include "model.h"
@@ -311,7 +312,7 @@ SV_FullClientUpdate(client_t *client, sizebuf_t *buf)
      * bytes, but this is just ugly. Maintain the prefixed keys in a separate
      * buffer?
      */
-    strcpy(info, client->userinfo);
+    strlcpy(info, client->userinfo, sizeof(info));
     Info_RemovePrefixedKeys(info, '_');	/* server passwords, etc */
 
     MSG_WriteByte(buf, svc_updateuserinfo);
@@ -445,8 +446,8 @@ SVC_Log(void)
     Con_DPrintf("sending log %i to %s\n", svs.logsequence - 1,
 		NET_AdrToString(net_from));
 
-    sprintf(data, "stdlog %i\n", svs.logsequence - 1);
-    strcat(data, (char *)svs.log_buf[((svs.logsequence - 1) & 1)]);
+    snprintf(data, sizeof(data), "stdlog %i\n", svs.logsequence - 1);
+    strlcat(data, (char *)svs.log_buf[((svs.logsequence - 1) & 1)], sizeof(data));
 
     NET_SendPacket(strlen(data) + 1, data, net_from);
 }
@@ -759,8 +760,8 @@ SVC_RemoteCommand(void)
 	remaining[0] = 0;
 
 	for (i = 2; i < Cmd_Argc(); i++) {
-	    strcat(remaining, Cmd_Argv(i));
-	    strcat(remaining, " ");
+	    strlcat(remaining, Cmd_Argv(i), sizeof(remaining));
+	    strlcat(remaining, " ", sizeof(remaining));
 	}
 	Cmd_ExecuteString(remaining);
     }
@@ -1019,7 +1020,7 @@ SV_WriteIP_f(void)
     char name[MAX_OSPATH];
     int i;
 
-    sprintf(name, "%s/listip.cfg", com_gamedir);
+    snprintf(name, sizeof(name), "%s/listip.cfg", com_gamedir);
 
     Con_Printf("Writing %s.\n", name);
 
@@ -1050,7 +1051,7 @@ SV_SendBan(void)
     data[0] = data[1] = data[2] = data[3] = 0xff;
     data[4] = A2C_PRINT;
     data[5] = 0;
-    strcat(data, "\nbanned.\n");
+    strlcat(data, "\nbanned.\n", sizeof(data));
 
     NET_SendPacket(strlen(data), data, net_from);
 }
@@ -1371,7 +1372,7 @@ SV_InitLocal(void)
     Cmd_AddCommand("writeip", SV_WriteIP_f);
 
     for (i = 0; i < MAX_MODELS; i++)
-	sprintf(localmodels[i], "*%i", i);
+	snprintf(localmodels[i], sizeof(localmodels[i]), "*%i", i);
 
     Info_SetValueForStarKey(svs.info, "*version",
 			    va("TyrQuake-%s", stringify(TYR_VERSION)),
@@ -1424,7 +1425,7 @@ Master_Heartbeat(void)
 	    active++;
 
     svs.heartbeat_sequence++;
-    sprintf(string, "%c\n%i\n%i\n", S2M_HEARTBEAT,
+    snprintf(string, sizeof(string), "%c\n%i\n%i\n", S2M_HEARTBEAT,
 	    svs.heartbeat_sequence, active);
 
     /* send to group master */
@@ -1449,7 +1450,7 @@ Master_Shutdown(void)
     char string[2048];
     int i;
 
-    sprintf(string, "%c\n", S2M_SHUTDOWN);
+    snprintf(string, sizeof(string), "%c\n", S2M_SHUTDOWN);
 
     /* send to group master */
     for (i = 0; i < MAX_MASTERS; i++)
@@ -1489,7 +1490,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 
     if (p != newname && !*p) {
 	/* white space only */
-	strcpy(newname, "unnamed");
+	strlcpy(newname, "unnamed", sizeof(newname));
 	p = newname;
     }
 
@@ -1530,7 +1531,7 @@ SV_ExtractFromUserinfo(client_t *cl)
 		    p = val + 4;
 	    }
 
-	    sprintf(newname, "(%d)%-.40s", dupc++, p);
+	    snprintf(newname, sizeof(newname), "(%d)%-.40s", dupc++, p);
 	    Info_SetValueForKey(cl->userinfo, "name", newname,
 				MAX_INFO_STRING);
 	    val = Info_ValueForKey(cl->userinfo, "name");

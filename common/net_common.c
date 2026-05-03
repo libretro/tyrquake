@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "common.h"
 #include "net.h"
 
@@ -64,7 +65,7 @@ NET_PartialIPAddress(const char *in, const netadr_t *myaddr, netadr_t *addr)
 
     buff[0] = '.';
     b = buff;
-    strcpy(buff + 1, in);
+    strlcpy(buff + 1, in, sizeof(buff) - 1);
     if (buff[1] == '.')
 	b++;
 

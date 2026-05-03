@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* sv_send.c */
 
+#include "compat/strl.h"
 #include "model.h"
 #include "qwsvdef.h"
 #include "server.h"
@@ -116,7 +117,7 @@ Con_Printf(const char *fmt, ...)
     if (sv_redirected) {
 	if (strlen(msg) + strlen(outputbuf) > sizeof(outputbuf) - 1)
 	    SV_FlushRedirect();
-	strcat(outputbuf, msg);
+	strlcat(outputbuf, msg, sizeof(outputbuf));
 	return;
     }
 

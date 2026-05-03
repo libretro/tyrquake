@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
 #include "client.h"
 #include "cmd.h"
 #include "console.h"
@@ -674,7 +675,7 @@ M_Keys_Key(int k)
 	if (k == K_ESCAPE) {
 	    bind_grab = false;
 	} else if (k != '`') {
-	    sprintf(cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString(k),
+	    snprintf(cmd, sizeof(cmd), "bind \"%s\" \"%s\"\n", Key_KeynumToString(k),
 		    bindnames[keys_cursor][0]);
 	    Cbuf_InsertText(cmd);
 	}
