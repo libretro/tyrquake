@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* cl_parse.c  -- parse a message received from the server */
 
+#include "compat/strl.h"
+
 #include "cdaudio.h"
 #include "client.h"
 #include "cmd.h"
@@ -266,9 +268,9 @@ CL_ParseServerInfo(void)
     char **model_precache = malloc(sizeof(char*) * MAX_MODELS);
     char **sound_precache = malloc(sizeof(char*) * MAX_SOUNDS);
     for (i = 0; i < MAX_MODELS; i++)
-       model_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
+       model_precache[i] = malloc(sizeof(char) * MAX_QPATH);
     for (i = 0; i < MAX_SOUNDS; i++)
-       sound_precache[i] = malloc(sizeof(char*) * MAX_QPATH);
+       sound_precache[i] = malloc(sizeof(char) * MAX_QPATH);
 
     Con_DPrintf("Serverinfo packet received.\n");
 
@@ -324,7 +326,7 @@ CL_ParseServerInfo(void)
                 max_models(cl.protocol));
           return;
        }
-       strcpy(model_precache[nummodels], in);
+       strlcpy(model_precache[nummodels], in, MAX_QPATH);
        Mod_TouchModel(in);
     }
 
@@ -342,7 +344,7 @@ CL_ParseServerInfo(void)
           return;
        }
 
-       strcpy(sound_precache[numsounds], in);
+       strlcpy(sound_precache[numsounds], in, MAX_QPATH);
        S_TouchSound(in);
     }
 

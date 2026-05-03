@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
+
 #include "client.h"
 #include "cmd.h"
 #include "console.h"
@@ -191,7 +193,7 @@ CL_PlayDemo_f(void)
 /**/
 /* open the demo file */
 /**/
-    strcpy(name, Cmd_Argv(1));
+    strlcpy(name, Cmd_Argv(1), sizeof(name));
     COM_DefaultExtension(name, ".dem");
 
     Con_Printf("Playing demo from %s.\n", name);

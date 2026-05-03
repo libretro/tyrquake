@@ -18,6 +18,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
+#include "compat/strl.h"
+
 #include "client.h"
 #include "cmd.h"
 #include "console.h"
@@ -793,8 +795,8 @@ static void M_Menu_Setup_f(void)
    key_dest = key_menu;
    m_state = m_setup;
    m_entersound = true;
-   strcpy(setup_myname, cl_name.string);
-   strcpy(setup_hostname, hostname.string);
+   strlcpy(setup_myname, cl_name.string, sizeof(setup_myname));
+   strlcpy(setup_hostname, hostname.string, sizeof(setup_hostname));
    setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
    setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
 }

@@ -19,6 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 /* snd_mem.c: sound caching */
 
+#include "compat/strl.h"
+
 #include "common.h"
 #include "console.h"
 #include "quakedef.h"
@@ -117,8 +119,8 @@ S_LoadSound(sfx_t *s)
 	return sc;
 
     /* load it in */
-    strcpy(namebuffer, "sound/");
-    strcat(namebuffer, s->name);
+    strlcpy(namebuffer, "sound/", sizeof(namebuffer));
+    strlcat(namebuffer, s->name, sizeof(namebuffer));
 
     data = (byte*)COM_LoadStackFile(namebuffer, stackbuf, sizeof(stackbuf), NULL);
 
