@@ -1246,12 +1246,31 @@ Mod_LoadFaces_BSP29(lump_t *l)
       if (side)
          out->flags |= SURF_PLANEBACK;
 
-      out->plane = loadmodel->planes + planenum;
+      /* Defensive: planenum and texinfo come from the BSP
+       * file as raw shorts.  A truncated, corrupt, or
+       * malicious map can leave them out of range -- the
+       * resulting out->plane / out->texinfo points outside
+       * the loaded arrays, and later renderer / collision
+       * code dereferences garbage.  This is the surface-side
+       * of the same crash class hardened on the consumer side
+       * by the SV_HullPointContents null-guards (commit
+       * 6042e45). */
+      if (planenum < 0 || planenum >= loadmodel->numplanes)
+         SV_Error("%s: bad planenum %i (numplanes=%i) in %s",
+               __func__, planenum, loadmodel->numplanes,
+               loadmodel->name);
+
 #ifdef MSB_FIRST
-      out->texinfo = loadmodel->texinfo + LittleShort(in->texinfo);
+      i = LittleShort(in->texinfo);
 #else
-      out->texinfo = &loadmodel->texinfo[in->texinfo];
+      i = (in->texinfo);
 #endif
+      if (i < 0 || i >= loadmodel->numtexinfo)
+         SV_Error("%s: bad texinfo index %i (numtexinfo=%i) in %s",
+               __func__, i, loadmodel->numtexinfo, loadmodel->name);
+
+      out->plane = loadmodel->planes + planenum;
+      out->texinfo = loadmodel->texinfo + i;
 
       CalcSurfaceExtents(out);
       CalcSurfaceBounds(out);
@@ -1329,12 +1348,23 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
       if (side)
          out->flags |= SURF_PLANEBACK;
 
-      out->plane = loadmodel->planes + planenum;
+      /* Defensive: see Mod_LoadFaces_BSP29 above. */
+      if (planenum < 0 || planenum >= loadmodel->numplanes)
+         SV_Error("%s: bad planenum %i (numplanes=%i) in %s",
+               __func__, planenum, loadmodel->numplanes,
+               loadmodel->name);
+
 #ifdef MSB_FIRST
-      out->texinfo = loadmodel->texinfo + LittleLong(in->texinfo);
+      i = LittleLong(in->texinfo);
 #else
-      out->texinfo = &loadmodel->texinfo[in->texinfo];
+      i = (in->texinfo);
 #endif
+      if (i < 0 || i >= loadmodel->numtexinfo)
+         SV_Error("%s: bad texinfo index %i (numtexinfo=%i) in %s",
+               __func__, i, loadmodel->numtexinfo, loadmodel->name);
+
+      out->plane = loadmodel->planes + planenum;
+      out->texinfo = loadmodel->texinfo + i;
 
       CalcSurfaceExtents(out);
       CalcSurfaceBounds(out);
@@ -1421,6 +1451,14 @@ Mod_LoadNodes_BSP29(lump_t *l)
 #else
       p = (in->planenum);
 #endif
+      /* Defensive: planenum and child indices come from the
+       * BSP file as raw integers.  Walked at runtime by the
+       * BSP collision code; an out-of-range value yields a
+       * pointer into garbage that crashes deep in
+       * SV_PointContents / R_RecursiveWorldNode. */
+      if (p < 0 || p >= loadmodel->numplanes)
+         SV_Error("%s: bad node planenum %i (numplanes=%i) in %s",
+               __func__, p, loadmodel->numplanes, loadmodel->name);
       out->plane = loadmodel->planes + p;
 
 #ifdef MSB_FIRST
@@ -1438,10 +1476,19 @@ Mod_LoadNodes_BSP29(lump_t *l)
 #else
          p = (in->children[j]);
 #endif
-         if (p >= 0)
+         if (p >= 0) {
+            if (p >= loadmodel->numnodes)
+               SV_Error("%s: bad node child index %i (numnodes=%i) in %s",
+                     __func__, p, loadmodel->numnodes, loadmodel->name);
             out->children[j] = loadmodel->nodes + p;
-         else
-            out->children[j] = (mnode_t *)(loadmodel->leafs + (-1 - p));
+         } else {
+            int leafidx = -1 - p;
+            if (leafidx < 0 || leafidx >= loadmodel->numleafs)
+               SV_Error("%s: bad node leaf index %i (numleafs=%i) in %s",
+                     __func__, leafidx, loadmodel->numleafs,
+                     loadmodel->name);
+            out->children[j] = (mnode_t *)(loadmodel->leafs + leafidx);
+         }
       }
    }
 
@@ -1483,6 +1530,10 @@ static void Mod_LoadNodes_BSP2(lump_t *l)
 #else
       p = (in->planenum);
 #endif
+      /* Defensive: see Mod_LoadNodes_BSP29 above. */
+      if (p < 0 || p >= loadmodel->numplanes)
+         SV_Error("%s: bad node planenum %i (numplanes=%i) in %s",
+               __func__, p, loadmodel->numplanes, loadmodel->name);
       out->plane = loadmodel->planes + p;
 
 #ifdef MSB_FIRST
@@ -1500,10 +1551,19 @@ static void Mod_LoadNodes_BSP2(lump_t *l)
 #else
          p = (in->children[j]);
 #endif
-         if (p >= 0)
+         if (p >= 0) {
+            if (p >= loadmodel->numnodes)
+               SV_Error("%s: bad node child index %i (numnodes=%i) in %s",
+                     __func__, p, loadmodel->numnodes, loadmodel->name);
             out->children[j] = loadmodel->nodes + p;
-         else
-            out->children[j] = (mnode_t *)(loadmodel->leafs + (-1 - p));
+         } else {
+            int leafidx = -1 - p;
+            if (leafidx < 0 || leafidx >= loadmodel->numleafs)
+               SV_Error("%s: bad node leaf index %i (numleafs=%i) in %s",
+                     __func__, leafidx, loadmodel->numleafs,
+                     loadmodel->name);
+            out->children[j] = (mnode_t *)(loadmodel->leafs + leafidx);
+         }
       }
    }
 
@@ -1687,6 +1747,14 @@ Mod_LoadClipnodes_BSP29(lump_t *l)
 #else
       out->planenum = (in->planenum);
 #endif
+      /* Defensive: planenum dereferenced as
+       * hull->planes[node->planenum] in the BSP traversal
+       * (SV_HullPointContents).  Same crash class as the
+       * face planenum check above. */
+      if (out->planenum < 0 || out->planenum >= loadmodel->numplanes)
+         SV_Error("%s: bad planenum %i (numplanes=%i) in %s",
+               __func__, out->planenum, loadmodel->numplanes,
+               loadmodel->name);
       for (j = 0; j < 2; j++) {
 #ifdef MSB_FIRST
          out->children[j] = (uint16_t)LittleShort(in->children[j]);
@@ -1748,6 +1816,11 @@ Mod_LoadClipnodes_BSP2(lump_t *l)
 #else
       out->planenum = (in->planenum);
 #endif
+      /* Defensive: see Mod_LoadClipnodes_BSP29 above. */
+      if (out->planenum < 0 || out->planenum >= loadmodel->numplanes)
+         SV_Error("%s: bad planenum %i (numplanes=%i) in %s",
+               __func__, out->planenum, loadmodel->numplanes,
+               loadmodel->name);
       for (j = 0; j < 2; j++) {
 #ifdef MSB_FIRST
          out->children[j] = LittleLong(in->children[j]);
