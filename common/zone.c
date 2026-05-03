@@ -213,6 +213,18 @@ static void *Z_TagMalloc(int size, int tag)
    if (!tag)
       Sys_Error("%s: tried to use a 0 tag", __func__);
 
+   /* Reject callers that pass a non-positive size or a size so
+    * large that the +sizeof(memblock_t)+4 alignment math below
+    * would overflow into a negative int.  The free-list scan
+    * compares block->size (positive) against this size; with
+    * a wrapped-negative size every free block looks "big enough"
+    * and we hand back a pointer to whatever the rover lands on,
+    * with nominal size 0.  Subsequent caller writes corrupt
+    * adjacent allocations. */
+   if (size <= 0
+       || size > INT_MAX - (int)sizeof(memblock_t) - 4 - 7)
+      Sys_Error("%s: bad size %i", __func__, size);
+
    /*
     * Scan through the block list looking for the first free block of
     * sufficient size
@@ -300,6 +312,14 @@ void *Z_Realloc(void *ptr, int size)
    if (!ptr)
       return Z_Malloc(size);
 
+   /* POSIX realloc(p, 0) is implementation-defined since C17.
+    * Quake's allocator never asked for size 0 historically;
+    * treat it as a request to shrink to a minimum block.
+    * Don't free + return NULL because callers do not check
+    * for NULL after Z_Realloc. */
+   if (size <= 0)
+      size = 1;
+
    block = (memblock_t *)((byte *)ptr - sizeof(memblock_t));
    if (block->id != ZONEID)
       Sys_Error("%s: realloced a pointer without ZONEID", __func__);
@@ -310,12 +330,26 @@ void *Z_Realloc(void *ptr, int size)
    orig_size -= sizeof(memblock_t);
    orig_size -= 4;
 
-   Z_Free(ptr);
+   /* The original implementation freed ptr first, then alloc'd a
+    * new block, then memmove'd from the (already-freed) ptr.
+    * That's a use-after-free: between Z_Free and Z_TagMalloc the
+    * block headers are coalesced (Z_Free overwrites the freed
+    * block's prev/next/size links with the merged-block layout),
+    * and Z_TagMalloc itself can split the same region we just
+    * freed and write a new memblock_t header partway through it.
+    * Either path corrupts the source bytes before memmove reads
+    * them.
+    *
+    * Allocate first, copy, then free.  In the size-shrink case
+    * this slightly increases peak footprint; in exchange we no
+    * longer read garbage when the shrink happens to be in a
+    * region the new alloc reuses. */
    ret = Z_TagMalloc(size, 1);
    if (!ret)
       Sys_Error("%s: failed on allocation of %i bytes", __func__, size);
    if (ret != ptr)
       memmove(ret, ptr, qmin(orig_size, size));
+   Z_Free(ptr);
 
    return ret;
 }
@@ -364,7 +398,12 @@ void Hunk_Check(void)
    {
       if (h->sentinal != HUNK_SENTINAL)
          Sys_Error("%s: trashed sentinal", __func__);
-      if (h->size < sizeof(hunk_t) ||
+      /* h->size includes sizeof(hunk_t) and is rounded up to a
+       * 16-byte multiple (see Hunk_Alloc).  A zero or negative
+       * size, or a size large enough that h + size walks past
+       * hunk_low_used, indicates a stomped header -- diagnose
+       * loudly rather than infinite-looping. */
+      if (h->size < (int)sizeof(hunk_t) ||
             h->size + (byte *)h - hunk_base > hunk_size)
          Sys_Error("%s: bad size", __func__);
       h = (hunk_t *)((byte *)h + h->size);
@@ -401,8 +440,17 @@ void *Hunk_Alloc(int size)
 {
    hunk_t *h;
 
+   /* Reject negative sizes, and sizes large enough that
+    * sizeof(hunk_t) + ((size + 15) & ~15) would overflow int.
+    * Without the upper-bound check, a wrapped-negative size
+    * passes the (hunk_size - ... < size) guard (because
+    * negative < any positive), then hunk_low_used += size
+    * walks backward and the next allocation overlaps the
+    * previous one. */
    if (size < 0)
       Sys_Error("%s: bad size: %i", __func__, size);
+   if (size > INT_MAX - (int)sizeof(hunk_t) - 15)
+      Sys_Error("%s: size %i too large", __func__, size);
 
    size = sizeof(hunk_t) + ((size + 15) & ~15);
 
@@ -473,6 +521,8 @@ void *Hunk_HighAlloc(int size)
 
    if (size < 0)
       Sys_Error("%s: bad size: %i", __func__, size);
+   if (size > INT_MAX - (int)sizeof(hunk_t) - 15)
+      Sys_Error("%s: size %i too large", __func__, size);
 
    if (hunk_tempactive)
    {
@@ -512,6 +562,11 @@ void *Hunk_TempAlloc(int size)
 {
    void *buf;
 
+   if (size < 0)
+      Sys_Error("%s: bad size: %i", __func__, size);
+   if (size > INT_MAX - 15)
+      Sys_Error("%s: size %i too large", __func__, size);
+
    size = (size + 15) & ~15;
 
    if (hunk_tempactive)
@@ -543,6 +598,10 @@ void *Hunk_TempAllocExtend(int size)
 
    if (!hunk_tempactive)
       Sys_Error("%s: temp hunk not active", __func__);
+   if (size < 0)
+      Sys_Error("%s: bad size: %i", __func__, size);
+   if (size > INT_MAX - 15)
+      Sys_Error("%s: size %i too large", __func__, size);
 
    old = (hunk_t *)(hunk_base + hunk_size - hunk_high_used);
 
@@ -880,6 +939,15 @@ void *Cache_AllocPadded(cache_user_t *c, int pad, int size)
 
    if (size <= 0)
       Sys_Error("%s: size %i", __func__, size);
+   /* Reject sizes that would overflow the alignment math below.
+    * pad is typically a small alignment fudge but isn't bounded
+    * from above; reject negative pad explicitly and reject any
+    * size + pad that would walk past INT_MAX after adding
+    * sizeof(cache_system_t) and the 15-byte rounding slack. */
+   if (pad < 0)
+      Sys_Error("%s: bad pad %i", __func__, pad);
+   if (size > INT_MAX - pad - (int)sizeof(cache_system_t) - 15)
+      Sys_Error("%s: size %i (pad %i) too large", __func__, size, pad);
 
    size = (size + pad + sizeof(cache_system_t) + 15) & ~15;
 
