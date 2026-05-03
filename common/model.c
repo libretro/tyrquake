@@ -31,20 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "model.h"
 
-#ifdef SERVERONLY
-#include "qwsvdef.h"
-/* A dummy texture to point to. FIXME - should server care about textures? */
-static texture_t r_notexture_mip_qwsv;
-#else
 #include "quakedef.h"
 #include "render.h"
 #include "sys.h"
-#ifdef QW_HACK
-#include "crc.h"
-#endif
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Sys_Error
-#endif
 
 static model_t *loadmodel;
 
@@ -165,27 +156,6 @@ Mod_AddLeafBits(leafbits_t *dst, const leafbits_t *src)
     for (i = 0; i < leafblocks; i++)
 	*dstblock++ |= *srcblock++;
 }
-
-#ifdef SERVERONLY
-int
-Mod_CountLeafBits(const leafbits_t *leafbits)
-{
-    int i, leafblocks, count;
-    leafblock_t block;
-
-    count = 0;
-    leafblocks = (leafbits->numleafs + LEAFMASK) >> LEAFSHIFT;
-    for (i = 0; i < leafblocks; i++) {
-	block = leafbits->bits[i];
-	while (block) {
-	    count++;
-	    block &= (block - 1); /* remove least significant bit */
-	}
-    }
-
-    return count;
-};
-#endif
 
 /*
  * Simple LRU cache for decompressed vis data
@@ -569,7 +539,6 @@ Mod_LoadModel(model_t *mod, qboolean crash)
 
     switch (LittleLong(*(unsigned *)buf))
     {
-#ifndef SERVERONLY
        case IDPOLYHEADER:
           Mod_LoadAliasModel(mod_loader, mod, buf, loadmodel);
           break;
@@ -577,7 +546,6 @@ Mod_LoadModel(model_t *mod, qboolean crash)
        case IDSPRITEHEADER:
           Mod_LoadSpriteModel(mod, buf);
           break;
-#endif
        default:
           Mod_LoadBrushModel(mod, buf, size);
           break;
@@ -714,10 +682,8 @@ Mod_LoadTextures(lump_t *l)
       /* the pixels immediately follow the structures */
       memcpy(tx + 1, mt + 1, pixels);
 
-#ifndef SERVERONLY
       if (!strncmp(mt->name, "sky", 3))
          R_InitSky(tx);
-#endif
    }
 
    /**/
@@ -1194,22 +1160,14 @@ static void Mod_LoadTexinfo(lump_t *l)
 #endif
 
       if (!loadmodel->textures) {
-#ifndef SERVERONLY
          out->texture = r_notexture_mip;	/* checkerboard texture */
-#else
-         out->texture = &r_notexture_mip_qwsv;	/* checkerboard texture */
-#endif
          out->flags = 0;
       } else {
          if (miptex >= loadmodel->numtextures)
             SV_Error("miptex >= loadmodel->numtextures");
          out->texture = loadmodel->textures[miptex];
          if (!out->texture) {
-#ifndef SERVERONLY
             out->texture = r_notexture_mip;	/* texture not found */
-#else
-            out->texture = &r_notexture_mip_qwsv;	/* texture not found */
-#endif
             out->flags = 0;
          }
       }
@@ -2368,29 +2326,6 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
       }
    }
 
-#ifdef QW_HACK
-   mod->checksum = 0;
-   mod->checksum2 = 0;
-
-   /* checksum all of the map, except for entities */
-   for (i = 0; i < HEADER_LUMPS; i++) {
-      const lump_t *l = &header->lumps[i];
-      unsigned int checksum;
-
-      if (i == LUMP_ENTITIES)
-         continue;
-      checksum = Com_BlockChecksum(mod_base + l->fileofs, l->filelen);
-      mod->checksum ^= checksum;
-      if (i == LUMP_VISIBILITY || i == LUMP_LEAFS || i == LUMP_NODES)
-         continue;
-      mod->checksum2 ^= checksum;
-   }
-#ifdef MSB_FIRST
-   mod->checksum  = LittleLong(mod->checksum);
-   mod->checksum2 = LittleLong(mod->checksum2);
-#endif
-#endif
-
    /* load into heap */
    Mod_LoadVertexes(&header->lumps[LUMP_VERTEXES]);
    if (header->version == BSPVERSION)
@@ -2479,7 +2414,6 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
  *                          CLIENT ONLY FUNCTIONS
  * =========================================================================
  */
-#ifndef SERVERONLY
 
 /*
 ===============
@@ -2534,4 +2468,3 @@ void Mod_TouchModel(char *name)
    }
 }
 
-#endif /* !SERVERONLY */

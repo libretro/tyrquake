@@ -26,12 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "quakedef.h"
-#endif
-#ifdef QW_HACK
-#include "bothdefs.h"
-#endif
 
 /* Audio buffer must be sufficient for operation
  * at 10 fps
@@ -43,10 +38,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* sound.h -- client sound i/o functions */
 
 /* FIXME - QW defines these in protocol.h, which is better? */
-#ifdef NQ_HACK
 #define DEFAULT_SOUND_PACKET_VOLUME 255
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0
-#endif
 
 /* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {

@@ -28,21 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "shell.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "server.h"
 #include "quakedef.h"
 #include "host.h"
-#endif
-
-#ifdef SERVERONLY
-#include "qwsvdef.h"
-#include "server.h"
-#else
-#ifdef QW_HACK
-#include "quakedef.h"
-#include "client.h"
-#endif
-#endif
 
 #include <streams/file_stream.h>
 
@@ -107,7 +95,6 @@ Cvar_ArgComplete(const char *name, const char *buf)
 }
 
 
-#ifdef NQ_HACK
 /*
  * For NQ/net_dgrm.c, command == CCREQ_RULE_INFO case
  */
@@ -148,7 +135,6 @@ Cvar_NextServerVar(const char *var_name)
 
    return ret;
 }
-#endif
 
 /*
 ============
@@ -215,25 +201,6 @@ Cvar_Set(const char *var_name, const char *value)
 	return;
     }
 
-#ifdef SERVERONLY
-    if (var->info) {
-	Info_SetValueForKey(svs.info, var_name, value, MAX_SERVERINFO_STRING);
-	SV_SendServerInfoChange(var_name, value);
-/*              SV_BroadcastCommand ("fullserverinfo \"%s\"\n", svs.info); */
-    }
-#else
-#ifdef QW_HACK
-    if (var->info) {
-	Info_SetValueForKey(cls.userinfo, var_name, value, MAX_INFO_STRING);
-	if (cls.state >= ca_connected) {
-	    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-	    MSG_WriteStringf(&cls.netchan.message, "setinfo \"%s\" \"%s\"\n",
-			     var_name, value);
-	}
-    }
-#endif
-#endif
-
     {
 	/* The original implementation freed var->string and *then*
 	 * read `value` to copy it.  If the caller passed
@@ -254,24 +221,20 @@ Cvar_Set(const char *var_name, const char *value)
     var->string = newstring;
     var->value = Q_atof(var->string);
 
-#ifdef NQ_HACK
     if (var->server && changed) {
 	if (sv.active)
 	    SV_BroadcastPrintf("\"%s\" changed to \"%s\"\n", var->name,
 			       var->string);
     }
-#endif
 
     if (changed && var->callback)
 	var->callback(var);
 
-#ifdef NQ_HACK
     /* Don't allow deathmatch and coop at the same time... */
     if ((var->value != 0) && (!strcmp(var->name, deathmatch.name)))
 	Cvar_Set("coop", "0");
     if ((var->value != 0) && (!strcmp(var->name, coop.name)))
 	Cvar_Set("deathmatch", "0");
-#endif
 }
 
 /*

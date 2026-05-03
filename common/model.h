@@ -75,12 +75,7 @@ static INLINE int ffs (int x)
 #include "spritegn.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "quakedef.h"
-#endif
-#ifdef QW_HACK
-#include "bothdefs.h"
-#endif
 
 /*
 
@@ -424,11 +419,6 @@ typedef struct model_s {
     int lightdatasize;
     char *entities;
 
-#ifdef QW_HACK
-    unsigned checksum;		/* for world models only */
-    unsigned checksum2;		/* for world models only */
-#endif
-
 /**/
 /* additional model data */
 /**/
@@ -528,11 +518,6 @@ Mod_NextLeafBit(const leafbits_t *leafbits, int leafnum, leafblock_t *check)
 
 /* 'OR' the bits of src into dst */
 void Mod_AddLeafBits(leafbits_t *dst, const leafbits_t *src);
-
-#ifdef SERVERONLY
-/* Slightly faster counting of sparse sets for QWSV */
-int Mod_CountLeafBits(const leafbits_t *leafbits);
-#endif
 
 /* FIXME - surely this doesn't belong here? */
 texture_t *R_TextureAnimation(const struct entity_s *e, texture_t *base);

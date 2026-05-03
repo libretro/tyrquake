@@ -61,14 +61,12 @@ typedef struct {
     int index1;
 } aedge_t;
 
-#ifdef NQ_HACK
 /*
  * incomplete model interpolation support
  * -> default to off and don't save to config for now
  */
 cvar_t r_lerpmodels = { "r_lerpmodels", "0", true };
 cvar_t r_lerpmove = { "r_lerpmove", "0", true };
-#endif
 
 static aedge_t aedges[12] = {
     {0, 1}, {1, 2}, {2, 3}, {3, 0},
@@ -306,14 +304,12 @@ qboolean R_AliasCheckBBox(entity_t *e)
    if (allclip)
       return false;		/* trivial reject off one side */
 
-#ifdef NQ_HACK
    /*
     * FIXME - Trivial accept not safe while lerping unless we check
     *         the bbox of both src and dst frames
     */
    if (r_lerpmodels.value)
       return true;
-#endif
 
    e->trivial_accept = !anyclip & !zclipped;
    if (e->trivial_accept) {
@@ -424,7 +420,6 @@ R_AliasSetUpTransform(const entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 /* TODO: should use a look-up table */
 /* TODO: could cache lazily, stored in the entity */
 
-#ifdef NQ_HACK
     if (r_lerpmove.value && e->previousanglestime != e->currentanglestime) {
 	float delta = e->currentanglestime - e->previousanglestime;
 	float frac = qclamp((cl.time - e->currentanglestime) / delta, 0.0, 1.0);
@@ -445,7 +440,6 @@ R_AliasSetUpTransform(const entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 	angles[PITCH] = -angles[PITCH];
     } else
     nolerp:
-#endif
     {
 	angles[ROLL] = e->angles[ROLL];
 	angles[PITCH] = -e->angles[PITCH];
@@ -700,21 +694,6 @@ static void R_AliasSetupSkin(const entity_t *e, aliashdr_t *pahdr)
    r_affinetridesc.seamfixupX16 = (a_skinwidth >> 1) << 16;
    r_affinetridesc.skinheight = pahdr->skinheight;
 
-#ifdef QW_HACK
-   if (e->scoreboard)
-   {
-      byte *base;
-
-      if (!e->scoreboard->skin)
-         Skin_Find(e->scoreboard);
-      base = Skin_Cache(e->scoreboard->skin);
-      if (base) {
-         r_affinetridesc.pskin = base;
-         r_affinetridesc.skinwidth = 320;
-         r_affinetridesc.skinheight = 200;
-      }
-   }
-#endif
 }
 
 /*
@@ -781,7 +760,6 @@ R_AliasSetupLighting(alight_t *plighting, const vec3_t entity_origin)
     r_phalfvec[2] =  DotProduct(h_world, alias_up);
 }
 
-#ifdef NQ_HACK
 static trivertx_t *
 R_AliasBlendPoseVerts(const entity_t *e, aliashdr_t *hdr, float blend)
 {
@@ -809,7 +787,6 @@ R_AliasBlendPoseVerts(const entity_t *e, aliashdr_t *hdr, float blend)
 
     return blendverts;
 }
-#endif
 
 /*
 =================
@@ -839,7 +816,6 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
       pose += Mod_FindInterval(intervals, numposes, cl.time + e->syncbase);
    }
 
-#ifdef NQ_HACK
    if (r_lerpmodels.value) {
       float delta, time, blend;
 
@@ -886,7 +862,6 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
       return;
    }
 nolerp:
-#endif
    r_apverts = (trivertx_t *)((byte *)pahdr + pahdr->posedata);
    r_apverts += pose * pahdr->numverts;
 }

@@ -33,13 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "wad.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "sound.h"
-#endif
-#ifdef QW_HACK
-#include "bothdefs.h"
-#include "client.h"
-#endif
 
 typedef struct {
     vrect_t rect;

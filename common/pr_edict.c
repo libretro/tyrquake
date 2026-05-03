@@ -31,17 +31,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "world.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "host.h"
 #include "quakedef.h"
 #include "sys.h"
 
 /* FIXME - quick hack to enable merging of NQ/QWSV shared code */
 #define SV_Error Sys_Error
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-#include "qwsvdef.h"
-#endif
 
 #include <streams/file_stream.h>
 
@@ -86,7 +81,6 @@ typedef struct {
 
 static gefv_cache gefvCache[GEFV_CACHESIZE] = { {NULL, ""}, {NULL, ""} };
 
-#ifdef NQ_HACK
 unsigned short pr_crc;
 cvar_t nomonsters = { "nomonsters", "0" };
 static cvar_t gamecfg = { "gamecfg", "0" };
@@ -99,12 +93,6 @@ static cvar_t saved1 = { "saved1", "0", true };
 static cvar_t saved2 = { "saved2", "0", true };
 static cvar_t saved3 = { "saved3", "0", true };
 static cvar_t saved4 = { "saved4", "0", true };
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-func_t SpectatorConnect;
-func_t SpectatorThink;
-func_t SpectatorDisconnect;
-#endif
 
 /*
 =================
@@ -137,12 +125,7 @@ ED_Alloc(void)
     int i;
     edict_t *e;
 
-#ifdef NQ_HACK
     for (i = svs.maxclients + 1; i < sv.num_edicts; i++) {
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-    for (i = MAX_CLIENTS + 1; i < sv.num_edicts; i++) {
-#endif
 	e = EDICT_NUM(i);
 	/* the first couple seconds of server time can involve a lot of */
 	/* freeing and allocating, so relax the replacement policy */
@@ -152,20 +135,9 @@ ED_Alloc(void)
 	}
     }
 
-#ifdef NQ_HACK
     if (i == MAX_EDICTS)
 	SV_Error("%s: no free edicts", __func__);
     sv.num_edicts++;
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-    if (i == MAX_EDICTS) {
-	Con_Printf("WARNING: ED_Alloc: no free edicts\n");
-	i--;			/* step on whatever is the last edict */
-	e = EDICT_NUM(i);
-	SV_UnlinkEdict(e);
-    } else
-	sv.num_edicts++;
-#endif
 
     e = EDICT_NUM(i);
     ED_ClearEdict(e);
@@ -721,12 +693,7 @@ ED_ParseGlobals(const char *data)
 	}
 
 	if (!ED_ParseEpair((void *)pr_globals, key, com_token))
-#ifdef NQ_HACK
 	    Host_Error("%s: parse error", __func__);
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-	    SV_Error("%s: parse error", __func__);
-#endif
     }
 }
 
@@ -938,12 +905,7 @@ ED_ParseEdict(const char *data, edict_t *ent)
 	}
 
 	if (!ED_ParseEpair((void *)&ent->v, key, com_token))
-#ifdef NQ_HACK
 	    Host_Error("%s: parse error", __func__);
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-	    SV_Error("%s: parse error", __func__);
-#endif
     }
 
     if (!init)
@@ -996,15 +958,12 @@ ED_LoadFromFile(const char *data)
 	data = ED_ParseEdict(data, ent);
 
 	/* remove things from different skill levels or deathmatch */
-#ifdef NQ_HACK
 	if (deathmatch.value) {
-#endif
 	    if (((int)ent->v.spawnflags & SPAWNFLAG_NOT_DEATHMATCH)) {
 		ED_Free(ent);
 		inhibit++;
 		continue;
 	    }
-#ifdef NQ_HACK
 	} else
 	    if ((current_skill == 0
 		 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_EASY))
@@ -1016,7 +975,6 @@ ED_LoadFromFile(const char *data)
 	    inhibit++;
 	    continue;
 	}
-#endif
 
 /**/
 /* immediately call spawn function */
@@ -1039,9 +997,6 @@ ED_LoadFromFile(const char *data)
 
 	pr_global_struct->self = EDICT_TO_PROG(ent);
 	PR_ExecuteProgram(func - pr_functions);
-#if defined(QW_HACK) && defined(SERVERONLY)
-	SV_FlushSignon();
-#endif
     }
 
     Con_DPrintf("%i entities inhibited\n", inhibit);
@@ -1057,35 +1012,17 @@ void
 PR_LoadProgs(void)
 {
    int i;
-#if defined(QW_HACK) && defined(SERVERONLY)
-   char num[32];
-   dfunction_t *f;
-#endif
 
    /* flush the non-C variable lookup cache */
    for (i = 0; i < GEFV_CACHESIZE; i++)
       gefvCache[i].field[0] = 0;
 
-#ifdef NQ_HACK
    progs = (dprograms_t*)COM_LoadHunkFile("progs.dat");
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-   progs = COM_LoadHunkFile("qwprogs.dat");
-   if (!progs)
-      progs = COM_LoadHunkFile("progs.dat");
-#endif
    if (!progs)
       SV_Error("%s: couldn't load progs.dat", __func__);
    Con_DPrintf("Programs occupy %iK.\n", com_filesize / 1024);
 
-#ifdef NQ_HACK
    pr_crc = CRC_Block((byte *)progs, com_filesize);
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-   /* add prog crc to the serverinfo */
-   snprintf(num, sizeof(num), "%i", CRC_Block((byte *)progs, com_filesize));
-   Info_SetValueForStarKey(svs.info, "*progs", num, MAX_SERVERINFO_STRING);
-#endif
 
 #ifdef MSB_FIRST
    /* byte swap the header */
@@ -1097,24 +1034,14 @@ PR_LoadProgs(void)
       SV_Error("progs.dat has wrong version number (%i should be %i)",
             progs->version, PROG_VERSION);
    if (progs->crc != PROGHEADER_CRC)
-#ifdef NQ_HACK
       SV_Error("progs.dat system vars have been modified, "
             "progdefs.h is out of date");
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-   SV_Error("You must have the progs.dat from QuakeWorld installed");
-#endif
 
    pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
    pr_strings = (char *)progs + progs->ofs_strings;
    pr_strings_size = progs->strings_size;
    if (progs->ofs_strings + pr_strings_size >= com_filesize)
-#ifdef NQ_HACK
       Host_Error("progs.dat strings extend past end of file\n");
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
-   SV_Error("progs.dat strings extend past end of file\n");
-#endif
 
    /* Bounds-check every (ofs, num) pair in the progs.dat header
     * against com_filesize.  Without this, a crafted progs.dat with
@@ -1336,17 +1263,6 @@ PR_LoadProgs(void)
       }
    }
 
-#if defined(QW_HACK) && defined(SERVERONLY)
-   /* Zoid, find the spectator functions */
-   SpectatorConnect = SpectatorThink = SpectatorDisconnect = 0;
-
-   if ((f = ED_FindFunction("SpectatorConnect")) != NULL)
-      SpectatorConnect = (func_t)(f - pr_functions);
-   if ((f = ED_FindFunction("SpectatorThink")) != NULL)
-      SpectatorThink = (func_t)(f - pr_functions);
-   if ((f = ED_FindFunction("SpectatorDisconnect")) != NULL)
-      SpectatorDisconnect = (func_t)(f - pr_functions);
-#endif
 }
 
 
@@ -1359,7 +1275,6 @@ void
 PR_Init(void)
 {
     Cmd_AddCommand("profile", PR_Profile_f);
-#ifdef NQ_HACK
     Cvar_RegisterVariable(&nomonsters);
     Cvar_RegisterVariable(&gamecfg);
     Cvar_RegisterVariable(&scratch1);
@@ -1371,7 +1286,6 @@ PR_Init(void)
     Cvar_RegisterVariable(&saved2);
     Cvar_RegisterVariable(&saved3);
     Cvar_RegisterVariable(&saved4);
-#endif
 }
 
 edict_t *
@@ -1385,13 +1299,8 @@ EDICT_NUM(int n)
      * that fallthrough is currently unreachable.  Make the check
      * unconditional so any future build that links pr_edict.c
      * into a non-server target stays safe. */
-#ifdef NQ_HACK
     if (n < 0 || n >= sv.max_edicts)
         SV_Error("%s: bad number %i (max %i)", __func__, n, sv.max_edicts);
-#else
-    if (n < 0 || n >= MAX_EDICTS)
-        SV_Error("%s: bad number %i (max %i)", __func__, n, MAX_EDICTS);
-#endif
     return (edict_t *)((byte *)sv.edicts + (n) * pr_edict_size);
 }
 
@@ -1420,11 +1329,7 @@ PROG_TO_EDICT(int e)
 
     if (!sv.edicts)
         SV_Error("%s: sv.edicts not allocated", __func__);
-#ifdef NQ_HACK
     max_byte_offset = sv.max_edicts * pr_edict_size;
-#else
-    max_byte_offset = MAX_EDICTS * pr_edict_size;
-#endif
     if (e < 0 || e >= max_byte_offset || (e % pr_edict_size) != 0)
         SV_Error("%s: bad offset %i (max %i, edict_size %i)",
                  __func__, e, max_byte_offset, pr_edict_size);

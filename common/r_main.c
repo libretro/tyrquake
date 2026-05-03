@@ -167,11 +167,6 @@ cvar_t r_lockfrustum = { "r_lockfrustum", "0" };
 
 cvar_t r_fullbright = { "r_fullbright", "0" };
 
-#ifdef QW_HACK
-cvar_t r_netgraph = { "r_netgraph", "0" };
-static cvar_t r_zgraph = { "r_zgraph", "0" };
-#endif
-
 static cvar_t r_timegraph = { "r_timegraph", "0" };
 static cvar_t r_aliasstats = { "r_polymodelstats", "0" };
 static cvar_t r_dspeeds = { "r_dspeeds", "0" };
@@ -269,10 +264,8 @@ R_Init(void)
     Cvar_RegisterVariable(&r_ambient);
     Cvar_RegisterVariable(&r_numsurfs);
     Cvar_RegisterVariable(&r_numedges);
-#ifdef NQ_HACK
     Cvar_RegisterVariable(&r_lerpmodels);
     Cvar_RegisterVariable(&r_lerpmove);
-#endif
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);
 
@@ -285,11 +278,6 @@ R_Init(void)
     Cvar_RegisterVariable(&r_maxedges);
     Cvar_RegisterVariable(&r_aliastransbase);
     Cvar_RegisterVariable(&r_aliastransadj);
-
-#ifdef QW_HACK
-    Cvar_RegisterVariable(&r_netgraph);
-    Cvar_RegisterVariable(&r_zgraph);
-#endif
 
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);
@@ -442,12 +430,7 @@ R_SetVrect(const vrect_t *pvrectin, vrect_t *pvrect, int lineadj)
     float size;
     qboolean full;
 
-#ifdef NQ_HACK
     full = (scr_viewsize.value >= 120.0f);
-#endif
-#ifdef QW_HACK
-    full = (!cl_sbar.value && scr_viewsize.value >= 100.0f);
-#endif
     size = qmin(scr_viewsize.value, 100.0f);
 
     /* Hide the status bar during intermission */
@@ -1000,10 +983,8 @@ R_DrawEntitiesOnList(void)
 
     for (i = 0; i < cl_numvisedicts; i++) {
 	e = &cl_visedicts[i];
-#ifdef NQ_HACK
 	if (e == &cl_entities[cl.viewentity])
 	    continue;		/* don't draw the player */
-#endif
 	switch (e->model->type) {
 	case mod_sprite:
 	    VectorCopy(e->origin, r_entorigin);
@@ -1012,7 +993,6 @@ R_DrawEntitiesOnList(void)
 	    break;
 
 	case mod_alias:
-#ifdef NQ_HACK
 	    if (r_lerpmove.value) {
 		float delta = e->currentorigintime - e->previousorigintime;
 		float frac = qclamp((cl.time - e->currentorigintime) / delta, 0.0, 1.0);
@@ -1026,7 +1006,6 @@ R_DrawEntitiesOnList(void)
 		VectorMA(e->previousorigin, frac, lerpvec, r_entorigin);
 	    } else
 	    nolerp:
-#endif
 	    {
 		VectorCopy(e->origin, r_entorigin);
 	    }
@@ -1097,14 +1076,8 @@ R_DrawViewModel(void)
     float add;
     dlight_t *dl;
 
-#ifdef NQ_HACK
     if (!r_drawviewmodel.value || chase_active.value)
 	return;
-#endif
-#ifdef QW_HACK
-    if (!r_drawviewmodel.value || !Cam_DrawViewModel())
-	return;
-#endif
 
     if (cl.stats[STAT_ITEMS] & IT_INVISIBILITY)
 	return;

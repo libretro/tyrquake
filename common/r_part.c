@@ -21,9 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "model.h"
 #include "quakedef.h"
-#ifdef NQ_HACK
 #include "server.h"
-#endif
 
 #include "d_iface.h"
 #include "r_local.h"
@@ -114,7 +112,6 @@ void R_InitParticles(void)
       Hunk_Alloc(r_numparticles * sizeof(particle_t));
 }
 
-#ifdef NQ_HACK
 /*
 ===============
 R_EntityParticles
@@ -178,7 +175,6 @@ void R_EntityParticles(const entity_t *ent)
          forward[2] * beamlength;
    }
 }
-#endif /* NQ_HACK */
 
 /*
 ===============
@@ -198,7 +194,6 @@ void R_ClearParticles(void)
 }
 
 
-#ifdef NQ_HACK
 /*
 ===============
 R_ParseParticleEffect
@@ -225,7 +220,6 @@ void R_ParseParticleEffect(void)
 
    R_RunParticleEffect(org, dir, color, count);
 }
-#endif
 
 /*
 ===============
@@ -265,7 +259,6 @@ void R_ParticleExplosion(vec3_t org)
    }
 }
 
-#ifdef NQ_HACK
 /*
 ===============
 R_ParticleExplosion2
@@ -309,7 +302,6 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
       }
    }
 }
-#endif
 
 /*
 ===============
@@ -360,16 +352,6 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 {
    int i, j;
    particle_t *p;
-#ifdef QW_HACK
-   int scale;
-
-   if (count > 130)
-      scale = 3;
-   else if (count > 20)
-      scale = 2;
-   else
-      scale = 1;
-#endif
 
    for (i = 0; i < count; i++) {
       if (!R_ValidParticle(free_particles))
@@ -379,7 +361,6 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
       p->next = active_particles;
       active_particles = p;
 
-#ifdef NQ_HACK
       if (count == 1024) {	/* rocket explosion */
          p->die = cl.time + 5;
          p->color = ramp1[0];
@@ -406,16 +387,6 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
             p->vel[j] = dir[j] * 15;	/* + (rand()%300)-150; */
          }
       }
-#endif
-#ifdef QW_HACK
-      p->die = cl.time + 0.1 * (rand() % 5);
-      p->color = (color & ~7) + (rand() & 7);
-      p->type = pt_grav;
-      for (j = 0; j < 3; j++) {
-         p->org[j] = org[j] + scale * ((rand() & 15) - 8);
-         p->vel[j] = dir[j] * 15;	/* + (rand()%300)-150; */
-      }
-#endif
    }
 }
 
@@ -511,28 +482,19 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
    float len;
    int j;
    particle_t *p;
-#ifdef NQ_HACK
    int dec;
-#endif
 
    VectorSubtract(end, start, vec);
    len = VectorNormalize(vec);
-#ifdef NQ_HACK
    if (type < 128)
       dec = 3;
    else {
       dec = 1;
       type -= 128;
    }
-#endif
 
    while (len > 0) {
-#ifdef NQ_HACK
       len -= dec;
-#endif
-#ifdef QW_HACK
-      len -= 3;
-#endif
       if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
@@ -617,14 +579,8 @@ void CL_RunParticles(void)
 {
    particle_t *p, *kill;
    int i;
-#ifdef NQ_HACK
    float frametime = cl.time - cl.oldtime;
    float grav      = frametime * sv_gravity.value * 0.05;
-#endif
-#ifdef QW_HACK
-   float frametime = host_frametime;
-   float grav      = frametime * 800 * 0.05;
-#endif
    float time3     = frametime * 15;
    float time2     = frametime * 10;	/* 15; */
    float time1     = frametime * 5;

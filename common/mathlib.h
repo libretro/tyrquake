@@ -127,9 +127,6 @@ int BoxOnPlaneSide(const vec3_t mins, const vec3_t maxs, const mplane_t *plane);
 	:							\
 		BoxOnPlaneSide( (mins), (maxs), (p)))
 
-#ifdef QW_HACK
-fixed16_t Mul16_30(fixed16_t multiplier, fixed16_t multiplicand);
-#endif
 void RotatePointAroundVector(vec3_t dst, const vec3_t dir,
 			     const vec3_t point, float degrees);
 

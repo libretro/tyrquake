@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "server.h"
 #include "world.h"
 
-#ifdef NQ_HACK
 #include "client.h"        /* CL_PersistGib for r_persistgibs cvar */
 #include "host.h"
 #include "protocol.h"
@@ -57,10 +56,6 @@ SV_IsGibModelName(const char *name)
     if (!strncmp(name, "progs/zom_gib", 13)) return true;
     return false;
 }
-#endif
-#ifdef QW_HACK
-#include "qwsvdef.h"
-#endif
 
 #define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 #define	RETURN_STRING(s) (((int *)pr_globals)[OFS_RETURN] = PR_SetString(s))
@@ -185,7 +180,6 @@ PF_setorigin(void)
     SV_LinkEdict(e, false);
 }
 
-#ifdef NQ_HACK
 static void
 SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 {
@@ -255,7 +249,6 @@ SetMinMaxSize(edict_t *e, float *min, float *max, qboolean rotate)
 
     SV_LinkEdict(e, false);
 }
-#endif
 
 /*
 =================
@@ -275,15 +268,7 @@ PF_setsize(void)
     e = G_EDICT(OFS_PARM0);
     min = G_VECTOR(OFS_PARM1);
     max = G_VECTOR(OFS_PARM2);
-#ifdef NQ_HACK
     SetMinMaxSize(e, min, max, false);
-#endif
-#ifdef QW_HACK
-    VectorCopy(min, e->v.mins);
-    VectorCopy(max, e->v.maxs);
-    VectorSubtract(max, min, e->v.size);
-    SV_LinkEdict(e, false);
-#endif
 }
 
 
@@ -303,11 +288,7 @@ PF_setmodel(void)
     const char **check;
     edict_t *e    = G_EDICT(OFS_PARM0);
     const char *m = G_STRING(OFS_PARM1);
-#ifdef NQ_HACK
     int max = max_models(sv.protocol);
-#else
-    int max = MAX_MODELS;
-#endif
 
     /* check to see if model was properly precached.  Defensive
      * upper bound on the walk: sv.model_precache[] is sized
@@ -326,23 +307,11 @@ PF_setmodel(void)
     e->v.model = PR_SetString(m);
     e->v.modelindex = i;
 
-#ifdef NQ_HACK
     mod = sv.models[(int)e->v.modelindex];
     if (mod)
 	SetMinMaxSize(e, mod->mins, mod->maxs, true);
     else
 	SetMinMaxSize(e, vec3_origin, vec3_origin, true);
-#endif
-#ifdef QW_HACK
-    /* if it is an inline model, get the size information for it */
-    if (m[0] == '*') {
-	mod = Mod_ForName(m, true);
-	VectorCopy(mod->mins, e->v.mins);
-	VectorCopy(mod->maxs, e->v.maxs);
-	VectorSubtract(mod->maxs, mod->mins, e->v.size);
-	SV_LinkEdict(e, false);
-    }
-#endif
 }
 
 /*
@@ -357,15 +326,8 @@ bprint(value)
 static void
 PF_bprint(void)
 {
-#ifdef NQ_HACK
     const char *s = PF_VarString(0);
     SV_BroadcastPrintf("%s", s);
-#endif
-#ifdef QW_HACK
-    int level     = G_FLOAT(OFS_PARM0);
-    const char *s = PF_VarString(1);
-    SV_BroadcastPrintf(level, "%s", s);
-#endif
 }
 
 /*
@@ -380,7 +342,6 @@ sprint(clientent, value)
 static void
 PF_sprint(void)
 {
-#ifdef NQ_HACK
     client_t *client;
     int entnum    = G_EDICTNUM(OFS_PARM0);
     const char *s = PF_VarString(1);
@@ -393,21 +354,6 @@ PF_sprint(void)
     client = &svs.clients[entnum - 1];
     MSG_WriteChar(&client->message, svc_print);
     MSG_WriteString(&client->message, s);
-#endif
-#ifdef QW_HACK
-    client_t *client;
-    int entnum    = G_EDICTNUM(OFS_PARM0);
-    int level     = G_FLOAT(OFS_PARM1);
-    const char *s = PF_VarString(2);
-
-    if (entnum < 1 || entnum > MAX_CLIENTS) {
-	Con_Printf("tried to sprint to a non-client\n");
-	return;
-    }
-
-    client = &svs.clients[entnum - 1];
-    SV_ClientPrintf(client, level, "%s", s);
-#endif
 }
 
 
@@ -427,25 +373,14 @@ PF_centerprint(void)
     int entnum    = G_EDICTNUM(OFS_PARM0);
     const char *s = PF_VarString(1);
 
-#ifdef NQ_HACK
     if (entnum < 1 || entnum > svs.maxclients) {
-#endif
-#ifdef QW_HACK
-    if (entnum < 1 || entnum > MAX_CLIENTS) {
-#endif
 	Con_Printf("tried to sprint to a non-client\n");
 	return;
     }
 
     client = &svs.clients[entnum - 1];
-#ifdef NQ_HACK
     MSG_WriteChar(&client->message, svc_centerprint);
     MSG_WriteString(&client->message, s);
-#endif
-#ifdef QW_HACK
-    ClientReliableWrite_Begin(client, svc_centerprint, 2 + strlen(s));
-    ClientReliableWrite_String(client, s);
-#endif
 }
 
 
@@ -574,7 +509,6 @@ PF_random(void)
     G_FLOAT(OFS_RETURN) = num;
 }
 
-#ifdef NQ_HACK
 /*
 =================
 PF_particle
@@ -615,7 +549,6 @@ PF_WriteSoundNum_Static(sizebuf_t *sb, int c)
 		   sv.protocol);
     }
 }
-#endif
 
 /*
 =================
@@ -644,24 +577,14 @@ PF_ambientsound(void)
     }
 
 /* add an svc_spawnambient command to the level signon packet */
-#ifdef NQ_HACK
     if (sv.protocol == PROTOCOL_VERSION_FITZ && soundnum > 255)
 	MSG_WriteByte(&sv.signon, svc_fitz_spawnstaticsound2);
     else
 	MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
-#endif
-#ifdef QW_HACK
-    MSG_WriteByte(&sv.signon, svc_spawnstaticsound);
-#endif
     for (i = 0; i < 3; i++)
 	MSG_WriteCoord(&sv.signon, pos[i]);
 
-#ifdef NQ_HACK
     PF_WriteSoundNum_Static(&sv.signon, soundnum);
-#endif
-#ifdef QW_HACK
-    MSG_WriteByte(&sv.signon, soundnum);
-#endif
     MSG_WriteByte(&sv.signon, vol * 255);
     MSG_WriteByte(&sv.signon, attenuation * 64);
 }
@@ -689,7 +612,6 @@ static void PF_sound(void)
     int volume         = G_FLOAT(OFS_PARM3) * 255;
     float attenuation  = G_FLOAT(OFS_PARM4);
 
-#ifdef NQ_HACK
     if (volume < 0 || volume > 255)
 	Sys_Error("%s: volume = %i", __func__, volume);
 
@@ -698,7 +620,6 @@ static void PF_sound(void)
 
     if (channel < 0 || channel > 7)
 	Sys_Error("%s: channel = %i", __func__, channel);
-#endif
 
     SV_StartSound(entity, channel, sample, volume, attenuation);
 }
@@ -766,24 +687,12 @@ PF_newcheckclient(int check)
     vec3_t org;
 
 /* cycle to the next one */
-#ifdef NQ_HACK
     check = qclamp(check, 1, svs.maxclients);
     entnum = (check == svs.maxclients) ? 1 : check + 1;
-#endif
-#ifdef QW_HACK
-    check = qclamp(check, 1, MAX_CLIENTS);
-    entnum = (check == MAX_CLIENTS) ? 1 : check + 1;
-#endif
 
     for (;; entnum++) {
-#ifdef NQ_HACK
 	if (entnum == svs.maxclients + 1)
 	    entnum = 1;
-#endif
-#ifdef QW_HACK
-	if (entnum == MAX_CLIENTS + 1)
-	    entnum = 1;
-#endif
 
 	ent = EDICT_NUM(entnum);
 
@@ -879,32 +788,14 @@ PF_stuffcmd(void)
     const char *str;
     client_t *client;
     int entnum = G_EDICTNUM(OFS_PARM0);
-#ifdef NQ_HACK
     if (entnum < 1 || entnum > svs.maxclients)
 	PR_RunError("Parm 0 not a client");
-#endif
-#ifdef QW_HACK
-    if (entnum < 1 || entnum > MAX_CLIENTS)
-	PR_RunError("Parm 0 not a client");
-#endif
     str = G_STRING(OFS_PARM1);
 
-#ifdef NQ_HACK
     client = host_client;
     host_client = &svs.clients[entnum - 1];
     Host_ClientCommands("%s", str);
     host_client = client;
-#endif
-#ifdef QW_HACK
-    client = &svs.clients[entnum - 1];
-    if (strcmp(str, "disconnect\n") == 0) {
-	/* so long and thanks for all the fish */
-	client->drop = true;
-	return;
-    }
-    ClientReliableWrite_Begin(client, svc_stufftext, 2 + strlen(str));
-    ClientReliableWrite_String(client, str);
-#endif
 }
 
 /*
@@ -1040,7 +931,6 @@ PF_Remove(void)
 
     ed = G_EDICT(OFS_PARM0);
 
-#ifdef NQ_HACK
     /* If r_persistgibs is set, intercept the removal of gib edicts
      * and snapshot them into the persistent-gib pool first.  The
      * snapshot is purely visual: we copy the entity's final origin,
@@ -1060,7 +950,6 @@ PF_Remove(void)
 	                  (int)ed->v.frame, (int)ed->v.skin);
 	}
     }
-#endif
 
     ED_Free(ed);
 }
@@ -1135,12 +1024,7 @@ PF_precache_sound(void)
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
     PR_CheckEmptyString(s);
 
-#ifdef NQ_HACK
     for (i = 0; i < max_sounds(sv.protocol); i++) {
-#endif
-#ifdef QW_HACK
-    for (i = 0; i < MAX_SOUNDS; i++) {
-#endif
 	if (!sv.sound_precache[i]) {
 	    sv.sound_precache[i] = s;
 	    return;
@@ -1148,12 +1032,7 @@ PF_precache_sound(void)
 	if (!strcmp(sv.sound_precache[i], s))
 	    return;
     }
-#ifdef NQ_HACK
     PR_RunError("%s: overflow (max = %d)", __func__, max_sounds(sv.protocol));
-#endif
-#ifdef QW_HACK
-    PR_RunError("%s: overflow (max = %d)", __func__, MAX_SOUNDS);
-#endif
 }
 
 static void
@@ -1170,28 +1049,16 @@ PF_precache_model(void)
     G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
     PR_CheckEmptyString(s);
 
-#ifdef NQ_HACK
     for (i = 0; i < max_models(sv.protocol); i++) {
-#endif
-#ifdef QW_HACK
-    for (i = 0; i < MAX_MODELS; i++) {
-#endif
 	if (!sv.model_precache[i]) {
 	    sv.model_precache[i] = s;
-#ifdef NQ_HACK
 	    sv.models[i] = Mod_ForName(s, true);
-#endif
 	    return;
 	}
 	if (!strcmp(sv.model_precache[i], s))
 	    return;
     }
-#ifdef NQ_HACK
     PR_RunError("%s: overflow (max = %d)", __func__, max_models(sv.protocol));
-#endif
-#ifdef QW_HACK
-    PR_RunError("%s: overflow (max = %d)", __func__, MAX_MODELS);
-#endif
 }
 
 static void
@@ -1322,23 +1189,12 @@ PF_lightstyle(void)
     if (sv.state != ss_active)
 	return;
 
-#ifdef NQ_HACK
     for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
 	if (client->active || client->spawned) {
 	    MSG_WriteChar(&client->message, svc_lightstyle);
 	    MSG_WriteChar(&client->message, style);
 	    MSG_WriteString(&client->message, val);
 	}
-#endif
-#ifdef QW_HACK
-    for (i = 0, client = svs.clients; i < MAX_CLIENTS; i++, client++)
-	if (client->state == cs_spawned) {
-	    ClientReliableWrite_Begin(client, svc_lightstyle,
-				      strlen(val) + 3);
-	    ClientReliableWrite_Char(client, style);
-	    ClientReliableWrite_String(client, val);
-	}
-#endif
 }
 
 static void
@@ -1432,12 +1288,7 @@ Pick a vector for the player to shoot along
 vector aim(entity, missilespeed)
 =============
 */
-#ifdef NQ_HACK
 cvar_t sv_aim = { "sv_aim", "0.93" };
-#endif
-#ifdef QW_HACK
-cvar_t sv_aim = { "sv_aim", "2" };
-#endif
 
 static void
 PF_aim(void)
@@ -1449,25 +1300,10 @@ PF_aim(void)
     float dist, bestdist;
     /* NOTE: missilespeed parameter is ignored */
     /* float speed; */
-#ifdef QW_HACK
-    char *noaim;
-#endif
     edict_t *ent = G_EDICT(OFS_PARM0);
 
     VectorCopy(ent->v.origin, start);
     start[2] += 20;
-
-#ifdef QW_HACK
-/* noaim option */
-    i = NUM_FOR_EDICT(ent);
-    if (i > 0 && i < MAX_CLIENTS) {
-	noaim = Info_ValueForKey(svs.clients[i - 1].userinfo, "noaim");
-	if (atoi(noaim) > 0) {
-	    VectorCopy(pr_global_struct->v_forward, G_VECTOR(OFS_RETURN));
-	    return;
-	}
-    }
-#endif
 
 /* try sending a trace straight */
     VectorCopy(pr_global_struct->v_forward, dir);
@@ -1567,49 +1403,29 @@ MESSAGE WRITING
 #define MSG_ONE		1	/* reliable to one (msg_entity) */
 #define MSG_ALL		2	/* reliable to all              */
 #define MSG_INIT	3	/* write to the init string     */
-#ifdef QW_HACK
-#define MSG_MULTICAST	4	/* for multicast()              */
-#endif
 
 static sizebuf_t *
 WriteDest(void)
 {
-#ifdef NQ_HACK
     int entnum;
     edict_t *ent;
-#endif
     int dest = G_FLOAT(OFS_PARM0);
     switch (dest) {
     case MSG_BROADCAST:
 	return &sv.datagram;
 
     case MSG_ONE:
-#ifdef NQ_HACK
 	ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
 	entnum = NUM_FOR_EDICT(ent);
 	if (entnum < 1 || entnum > svs.maxclients)
 	    PR_RunError("%s: not a client", __func__);
 	return &svs.clients[entnum - 1].message;
-#endif
-#ifdef QW_HACK
-	SV_Error("%s: Shouldn't be at MSG_ONE", __func__);
-#endif
 
     case MSG_ALL:
 	return &sv.reliable_datagram;
 
     case MSG_INIT:
-#ifdef QW_HACK
-	if (sv.state != ss_loading)
-	    PR_RunError("%s: MSG_INIT can only be written in spawn functions",
-			__func__);
-#endif
 	return &sv.signon;
-
-#ifdef QW_HACK
-    case MSG_MULTICAST:
-	return &sv.multicast;
-#endif
 
     default:
 	PR_RunError("%s: bad destination", __func__);
@@ -1619,127 +1435,51 @@ WriteDest(void)
     return NULL;
 }
 
-#ifdef QW_HACK
-static client_t *
-Write_GetClient(void)
-{
-    edict_t *ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
-    int entnum   = NUM_FOR_EDICT(ent);
-    if (entnum < 1 || entnum > MAX_CLIENTS)
-	PR_RunError("%s: not a client", __func__);
-    return &svs.clients[entnum - 1];
-}
-#endif
-
 static void
 PF_WriteByte(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 1);
-	ClientReliableWrite_Byte(client, G_FLOAT(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteByte(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteChar(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 1);
-	ClientReliableWrite_Char(client, G_FLOAT(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteChar(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteShort(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 2);
-	ClientReliableWrite_Short(client, G_FLOAT(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteShort(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteLong(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 4);
-	ClientReliableWrite_Long(client, G_FLOAT(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteLong(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteAngle(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 1);
-	ClientReliableWrite_Angle(client, G_FLOAT(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteAngle(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteCoord(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 2);
-	ClientReliableWrite_Coord(client, G_FLOAT(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteCoord(WriteDest(), G_FLOAT(OFS_PARM1));
 }
 
 static void
 PF_WriteString(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 1 + strlen(G_STRING(OFS_PARM1)));
-	ClientReliableWrite_String(client, G_STRING(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteString(WriteDest(), G_STRING(OFS_PARM1));
 }
 
 static void
 PF_WriteEntity(void)
 {
-#ifdef QW_HACK
-    if (G_FLOAT(OFS_PARM0) == MSG_ONE) {
-	client_t *client = Write_GetClient();
-	ClientReliableCheckBlock(client, 2);
-	ClientReliableWrite_Short(client, G_EDICTNUM(OFS_PARM1));
-	return;
-    }
-#endif
     MSG_WriteShort(WriteDest(), G_EDICTNUM(OFS_PARM1));
 }
 
@@ -1748,12 +1488,9 @@ PF_WriteEntity(void)
 static void PF_makestatic(void)
 {
     int i;
-#ifdef NQ_HACK
     unsigned int bits;
-#endif
     edict_t *ent = G_EDICT(OFS_PARM0);
 
-#ifdef NQ_HACK
     bits = 0;
     if (sv.protocol == PROTOCOL_VERSION_FITZ)
     {
@@ -1770,11 +1507,6 @@ static void PF_makestatic(void)
 	MSG_WriteByte(&sv.signon, svc_spawnstatic);
     }
     SV_WriteModelIndex(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)), bits);
-#endif
-#ifdef QW_HACK
-    MSG_WriteByte(&sv.signon, svc_spawnstatic);
-    MSG_WriteByte(&sv.signon, SV_ModelIndex(PR_GetString(ent->v.model)));
-#endif
 
     MSG_WriteByte(&sv.signon, ent->v.frame);
     MSG_WriteByte(&sv.signon, ent->v.colormap);
@@ -1801,13 +1533,8 @@ static void PF_setspawnparms(void)
     client_t *client;
     edict_t *ent = G_EDICT(OFS_PARM0);
     int i        = NUM_FOR_EDICT(ent);
-#ifdef NQ_HACK
     if (i < 1 || i > svs.maxclients)
         PR_RunError("%s: Entity is not a client", __func__);
-#else
-    if (i < 1 || i > MAX_CLIENTS)
-        PR_RunError("%s: Entity is not a client", __func__);
-#endif
 
     /* copy spawn parms out of the client_t */
     client = svs.clients + (i - 1);
@@ -1842,121 +1569,13 @@ PF_changelevel(void)
 	if (c == ';' || c == '\n' || c == '\r' || c == '"' || c == '\\' || c < 0x20)
 	    PR_RunError("%s: bad map name", __func__);
     }
-#ifdef NQ_HACK
     /* make sure we don't issue two changelevels */
     if (svs.changelevel_issued)
 	return;
     svs.changelevel_issued = true;
 
     Cbuf_AddText("changelevel %s\n", s);
-#endif
-#ifdef QW_HACK
-    static int last_spawncount;
-
-    /* make sure we don't issue two changelevels */
-    if (svs.spawncount == last_spawncount)
-	return;
-    last_spawncount = svs.spawncount;
-
-    Cbuf_AddText("map %s\n", s);
-#endif
 }
-
-#ifdef QW_HACK
-/*
-==============
-PF_logfrag
-
-logfrag (killer, killee)
-==============
-*/
-static void PF_logfrag(void)
-{
-    const char *s;
-    edict_t *ent1 = G_EDICT(OFS_PARM0);
-    edict_t *ent2 = G_EDICT(OFS_PARM1);
-    int e1        = NUM_FOR_EDICT(ent1);
-    int e2        = NUM_FOR_EDICT(ent2);
-
-    if (e1 < 1 || e1 > MAX_CLIENTS || e2 < 1 || e2 > MAX_CLIENTS)
-	return;
-
-    s = va("\\%s\\%s\\\n", svs.clients[e1 - 1].name,
-	   svs.clients[e2 - 1].name);
-
-    SZ_Print(&svs.log[svs.logsequence & 1], s);
-    if (sv_fraglogfile) {
-	fprintf(sv_fraglogfile, "%s", s);
-	fflush(sv_fraglogfile);
-    }
-}
-
-
-/*
-==============
-PF_infokey
-
-string(entity e, string key) infokey
-==============
-*/
-static void
-PF_infokey(void)
-{
-    const char *value;
-    static char buf[256]; /* only needs to fit IP or ping */
-    edict_t *e      = G_EDICT(OFS_PARM0);
-    int e1          = NUM_FOR_EDICT(e);
-    const char *key = G_STRING(OFS_PARM1);
-
-    if (e1 == 0) {
-	if ((value = Info_ValueForKey(svs.info, key)) == NULL || !*value)
-	    value = Info_ValueForKey(localinfo, key);
-    } else if (e1 <= MAX_CLIENTS) {
-	if (!strcmp(key, "ip")) {
-	    netadr_t addr = svs.clients[e1 - 1].netchan.remote_address;
-	    snprintf(buf, sizeof(buf), "%s", NET_BaseAdrToString(addr));
-	    value = buf;
-	} else if (!strcmp(key, "ping")) {
-	    int ping = SV_CalcPing(&svs.clients[e1 - 1]);
-	    snprintf(buf, sizeof(buf), "%d", ping);
-	    value = buf;
-	} else
-	    value = Info_ValueForKey(svs.clients[e1 - 1].userinfo, key);
-    } else
-	value = "";
-
-    RETURN_STRING(value);
-}
-
-/*
-==============
-PF_stof
-
-float(string s) stof
-==============
-*/
-static void PF_stof(void)
-{
-    const char *s = G_STRING(OFS_PARM0);
-    G_FLOAT(OFS_RETURN) = atof(s);
-}
-
-
-/*
-==============
-PF_multicast
-
-void(vector where, float set) multicast
-==============
-*/
-static void
-PF_multicast(void)
-{
-    float *o = G_VECTOR(OFS_PARM0);
-    int to   = G_FLOAT(OFS_PARM1);
-    SV_Multicast(o, to);
-}
-#endif /* QW_HACK */
 
 static void PF_Fixme(void)
 {
@@ -2012,12 +1631,7 @@ builtin_t pr_builtin[] = {
     PF_cvar,
     PF_localcmd,
     PF_nextent,
-#ifdef NQ_HACK
     PF_particle,
-#endif
-#ifdef QW_HACK
-    PF_Fixme,
-#endif
     PF_changeyaw,
     PF_Fixme,
     PF_vectoangles,
@@ -2057,12 +1671,6 @@ builtin_t pr_builtin[] = {
 
     PF_setspawnparms,
 
-#ifdef QW_HACK
-    PF_logfrag,
-    PF_infokey,
-    PF_stof,
-    PF_multicast,
-#endif
 };
 
 builtin_t *pr_builtins = pr_builtin;

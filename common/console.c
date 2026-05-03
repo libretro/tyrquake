@@ -32,10 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "host.h"
 #include "sound.h"
-#endif
 
 #define CON_TEXTSIZE 16384
 #define	NUM_CON_TIMES 4
@@ -250,10 +248,8 @@ Con_Print(const char *txt)
     if (txt[0] == 1 || txt[0] == 2) {
 	mask = 128;		/* go to colored text */
 	txt++;
-#ifdef NQ_HACK
 	if (txt[0] == 1)
 	    S_LocalSound("misc/talk.wav");	/* play talk wav */
-#endif
     } else
 	mask = 0;
 
@@ -326,10 +322,8 @@ void Con_Printf(const char *fmt, ...)
    if (!con_initialized)
       return;
 
-#ifdef NQ_HACK
    if (cls.state == ca_dedicated)
       return;			/* no graphics mode */
-#endif
 
    /* write it to the scrollable buffer */
    Con_Print(msg);
@@ -343,11 +337,7 @@ void Con_Printf(const char *fmt, ...)
       return;
 
    /* update the screen immediately if the console is displayed */
-#ifdef NQ_HACK
    if (cls.state != ca_active && !scr_disabled_for_loading)
-#else
-      if (con_forcedup)
-#endif
       {
          static qboolean inupdate;
          /* protect against infinite loop if something in SCR_UpdateScreen calls */
@@ -514,61 +504,6 @@ void Con_DrawNotify(void)
 static void
 Con_DrawDLBar(void)
 {
-#ifdef QW_HACK
-    char dlbar[256];
-    const char *dlname;
-    char *buf;
-    int bufspace;
-    int namespace, len;
-    int barchars, totalchars, markpos;
-    int i;
-
-    if (!cls.download)
-	return;
-
-    /*
-     * totalchars = the space available for the whole bar + text
-     * barchars   = the space for just the bar
-     *
-     * Bar looks like this:
-     *  filename     <====*====> 42%
-     *  longfilen... <==*======> 31%
-     */
-    dlname = COM_SkipPath(cls.downloadname);
-
-    buf = dlbar;
-    bufspace = sizeof(dlbar) - 1;
-
-    namespace  = qmin(con_linewidth / 3, 20);
-    totalchars = qmin(con_linewidth - 2, (int)sizeof(dlbar) - 1);
-
-    if (strlen(dlname) > namespace) {
-	len = snprintf(buf, bufspace, "%.*s... ", namespace - 2, dlname);
-    } else {
-	len = snprintf(buf, bufspace, "%-*s ", namespace + 1, dlname);
-    }
-    buf += len;
-    totalchars -= len;
-    barchars = totalchars - 7; /* 7 => 2 endcaps, space, "100%" */
-
-    markpos = barchars * cls.downloadpercent / 100;
-    *buf++ = '\x80';
-    for (i = 0; i < barchars; i++) {
-	if (i == markpos)
-	    *buf++ = '\x83';
-	else
-	    *buf++ = '\x81';
-    }
-    *buf++ = '\x82';
-    snprintf(buf, 6, " %3d%%", cls.downloadpercent);
-
-    /* draw it */
-    {
-	int scale = SCR_GetUIScale();
-	Draw_StringScaled(8 * scale, con_vislines - 22 * scale + 8 * scale,
-			  dlbar, scale);
-    }
-#endif
 }
 
 /*

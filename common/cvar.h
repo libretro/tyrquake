@@ -87,12 +87,7 @@ typedef struct cvar_s {
     qboolean archive;	/* set to true to cause it to be saved to vars.rc */
 
     /* FIXME - obviously... */
-#ifdef NQ_HACK
     qboolean server;	/* NQ: notifies players when changed */
-#endif
-#ifdef QW_HACK
-    qboolean info;	/* QW: added to serverinfo or userinfo when changed */
-#endif
 
     float value;
     cvar_callback callback;
@@ -146,9 +141,7 @@ cvar_t *Cvar_FindVar(const char *var_name);
 char *Cvar_ArgComplete(const char *name, const char *buf);
 struct stree_root *Cvar_ArgCompletions(const char *name, const char *buf);
 
-# ifdef NQ_HACK
 cvar_t *Cvar_NextServerVar(const char *var_name);
-#endif
 
 extern struct stree_root cvar_tree;
 

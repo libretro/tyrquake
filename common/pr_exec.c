@@ -25,13 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-#ifdef NQ_HACK
 #include "host.h"
 #include "quakedef.h"
-#endif
-#ifdef QW_HACK
-#include "qwsvdef.h"
-#endif
 
 typedef struct {
     int s;
@@ -272,12 +267,7 @@ PR_RunError(const char *error, ...)
     /* dump the stack so SV/Host_Error can shutdown functions */
     pr_depth = 0;
 
-#ifdef NQ_HACK
     Host_Error("Program error");
-#endif
-#ifdef QW_HACK
-    SV_Error("Program error");
-#endif
 }
 
 /*
@@ -341,12 +331,7 @@ PR_LeaveFunction(void)
     int i, c;
 
     if (pr_depth <= 0)
-#ifdef NQ_HACK
 	Sys_Error("prog stack underflow");
-#endif
-#ifdef QW_HACK
-	SV_Error("prog stack underflow");
-#endif
 
 /* restore locals from the stack */
     c = pr_xfunction->locals;
@@ -386,12 +371,7 @@ PR_ExecuteProgram(func_t fnum)
     if (!fnum || fnum >= progs->numfunctions) {
 	if (pr_global_struct->self)
 	    ED_Print(PROG_TO_EDICT(pr_global_struct->self));
-#ifdef NQ_HACK
 	Host_Error("PR_ExecuteProgram: NULL function");
-#endif
-#ifdef QW_HACK
-	SV_Error("PR_ExecuteProgram: NULL function");
-#endif
     }
 
     f = &pr_functions[fnum];
@@ -772,14 +752,8 @@ PR_GetString(int num)
 	    s = "";
     }
     else
-#ifdef NQ_HACK
 	Host_Error("%s: invalid string offset %d (%d to %d valid)\n",
 		 __func__, num, -num_prstr, pr_strings_size - 2);
-#endif
-#ifdef QW_HACK
-	SV_Error("%s: invalid string offset %d (%d to %d valid)\n",
-		 __func__, num, -num_prstr, pr_strings_size - 2);
-#endif
 
     return s;
 }

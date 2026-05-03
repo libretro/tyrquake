@@ -83,7 +83,6 @@ typedef void (*xcommand_t)(void);
  */
 typedef struct stree_root *(*cmd_arg_f)(const char *);
 
-#ifdef NQ_HACK
 /*
  * In NQ, commands can come from three sources, but the handler functions may
  * choose to dissallow the action or forward it to a remote server if the
@@ -103,14 +102,6 @@ extern cmd_source_t cmd_source;
  * The text can come from the command buffer, a remote client, or stdin.
  */
 void Cmd_ExecuteString(const char *text, cmd_source_t src);
-#endif
-#ifdef QW_HACK
-/*
- * Parses a single line of text into arguments and tries to execute it as if
- * it was typed at the console
- */
-void Cmd_ExecuteString(const char *text);
-#endif
 
 void Cmd_Init(void);
 
@@ -155,14 +146,9 @@ void Cmd_ForwardToServer(void);
 /* things like godmode, noclip, etc, are commands directed to the server, */
 /* so when they are typed in at the console, they will need to be forwarded. */
 
-#ifdef NQ_HACK
 void Cmd_Print(const char *text);
 
 /* used by command functions to send output to either the graphics console or */
 /* passed as a print message to the client */
-#endif
-#ifdef QW_HACK
-void Cmd_StuffCmds_f(void);
-#endif
 
 #endif /* CMD_H */

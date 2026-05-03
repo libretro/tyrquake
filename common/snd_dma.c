@@ -36,9 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "sys.h"
 
-#ifdef NQ_HACK
 #include "host.h"
-#endif
 
 /* FIXME - reorder to remove forward decls? */
 static void S_Play(void);
@@ -305,16 +303,9 @@ SND_PickChannel(int entnum, int entchannel)
 	    break;
 	}
 	/* don't let monster sounds override player sounds */
-#ifdef NQ_HACK
 	if (channel->entnum == cl.viewentity
 	    && entnum != cl.viewentity && channel->sfx)
 	    continue;
-#endif
-#ifdef QW_HACK
-	if (channel->entnum == cl.playernum + 1
-	    && entnum != cl.playernum + 1 && channel->sfx)
-	    continue;
-#endif
 	if (channel->end - paintedtime < life_left) {
 	    life_left = channel->end - paintedtime;
 	    first_to_die = channel;
@@ -340,20 +331,11 @@ SND_Spatialize(channel_t *ch)
     vec3_t source_vec;
 
     /* anything coming from the view entity will allways be full volume */
-#ifdef NQ_HACK
     if (ch->entnum == cl.viewentity) {
 	ch->leftvol = ch->master_vol;
 	ch->rightvol = ch->master_vol;
 	return;
     }
-#endif
-#ifdef QW_HACK
-    if (ch->entnum == cl.playernum + 1) {
-	ch->leftvol = ch->master_vol;
-	ch->rightvol = ch->master_vol;
-	return;
-    }
-#endif
 
     /* calculate stereo seperation and distance attenuation */
     VectorSubtract(ch->origin, listener_origin, source_vec);
@@ -919,12 +901,7 @@ void S_LocalSound(const char *sound)
       Con_Printf("%s: can't cache %s\n", __func__, sound);
       return;
    }
-#ifdef NQ_HACK
    S_StartSound(cl.viewentity, -1, sfx, vec3_origin, 1, 1);
-#endif
-#ifdef QW_HACK
-   S_StartSound(cl.playernum + 1, -1, sfx, vec3_origin, 1, 1);
-#endif
 }
 
 void S_BeginPrecaching(void)

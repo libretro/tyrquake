@@ -22,14 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PROGDEFS_H
 
 #include "mathlib.h"
-#ifdef NQ_HACK
 #include "progdefs-id1.h"
-#else
-#if defined (QW_HACK) && defined(SERVERONLY)
-#include "progdefs-qw.h"
-#else
-#error "Progdefs are only for NQ and QW server"
-#endif
-#endif
 
 #endif /* PROGDEFS_H */

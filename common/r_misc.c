@@ -26,10 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 #include "render.h"
 #include "sbar.h"
-#ifdef NQ_HACK
 #include "host.h"
 #include "server.h"
-#endif
 #include "sys.h"
 
 /*
@@ -72,10 +70,8 @@ R_TransformFrustum(void)
     vec3_t v, v2;
     mplane_t *plane;
 
-#ifdef NQ_HACK
     if (r_lockfrustum.value)
 	return;
-#endif
 
     for (i = 0; i < 4; i++) {
 	v[0] = screenedge[i].normal[2];
@@ -135,18 +131,11 @@ R_SetupFrame(void)
     float w, h;
 
 /* don't allow cheats in multiplayer */
-#ifdef NQ_HACK
     if (cl.maxclients > 1) {
 	Cvar_Set("r_draworder", "0");
 	Cvar_Set("r_fullbright", "0");
 	Cvar_Set("r_ambient", "0");
     }
-#endif
-#ifdef QW_HACK
-    r_draworder.value = 0;
-    r_fullbright.value = 0;
-    r_ambient.value = 0;
-#endif
 
     if (r_numsurfs.value) {
 	if ((surface_p - surfaces) > r_maxsurfsseen)
@@ -172,13 +161,8 @@ R_SetupFrame(void)
     if (r_refdef.ambientlight < 0)
 	r_refdef.ambientlight = 0;
 
-#ifdef NQ_HACK
     if (!sv.active)
 	r_draworder.value = 0;	/* don't let cheaters look behind walls */
-#endif
-#ifdef QW_HACK
-    r_draworder.value = 0;	/* don't let cheaters look behind walls */
-#endif
 
     R_CheckVariables();
 

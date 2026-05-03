@@ -39,9 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_iface.h"
 #include "r_local.h"
 
-#ifdef NQ_HACK
 #include "host.h"
-#endif
 
 /*
 
@@ -127,14 +125,8 @@ static int scr_center_lines;
 static int scr_erase_lines;
 static int scr_erase_center;
 
-#ifdef NQ_HACK
 static qboolean scr_drawloading;
 static float scr_disabled_time;
-#endif
-#ifdef QW_HACK
-static float oldsbar;
-static cvar_t scr_allowsnap = { "scr_allowsnap", "1" };
-#endif
 
 
 /* ============================================================================= */
@@ -176,15 +168,8 @@ SCR_DrawNet
 static void
 SCR_DrawNet(void)
 {
-#ifdef NQ_HACK
    if (realtime - cl.last_received_message < 0.3)
       return;
-#endif
-#ifdef QW_HACK
-   if (cls.netchan.outgoing_sequence - cls.netchan.incoming_acknowledged <
-         UPDATE_BACKUP - 1)
-      return;
-#endif
 
    if (cls.demoplayback)
       return;
@@ -206,18 +191,11 @@ static void SCR_SetUpToDrawConsole(void)
 {
    Con_CheckResize();
 
-#ifdef NQ_HACK
    if (scr_drawloading)
       return;			/* never a console with loading plaque */
-#endif
 
    /* decide on the height of the console */
-#ifdef NQ_HACK
    con_forcedup = !cl.worldmodel || cls.state != ca_active;
-#endif
-#ifdef QW_HACK
-   con_forcedup = cls.state != ca_active;
-#endif
 
    if (con_forcedup) {
       scr_conlines = vid.height;	/* full screen */
@@ -432,10 +410,8 @@ keypress.
 int
 SCR_ModalMessage(const char *text)
 {
-#ifdef NQ_HACK
     if (cls.state == ca_dedicated)
 	return true;
-#endif
 
     scr_notifystring = text;
 
@@ -587,7 +563,6 @@ static void SCR_SizeDown_f(void)
    vid.recalc_refdef = 1;
 }
 
-#ifdef NQ_HACK
 /*
 ===============
 SCR_BeginLoadingPlaque
@@ -647,7 +622,6 @@ void SCR_EndLoadingPlaque(void)
    scr_fullupdate = 0;
    Con_ClearNotify();
 }
-#endif /* NQ_HACK */
 
 /* ============================================================================= */
 
@@ -673,7 +647,6 @@ SCR_UpdateScreen(void)
    if (scr_block_drawing)
       return;
 
-#ifdef NQ_HACK
    if (scr_disabled_for_loading) {
       /*
        * FIXME - this really needs to be fixed properly.
@@ -686,16 +659,9 @@ SCR_UpdateScreen(void)
       } else
          return;
    }
-#endif
-#ifdef QW_HACK
-   if (scr_disabled_for_loading)
-      return;
-#endif
 
-#ifdef NQ_HACK
    if (cls.state == ca_dedicated)
       return;			/* stdout only */
-#endif
 
    if (!scr_initialized || !con_initialized)
       return;			/* not initialized yet */
@@ -714,12 +680,6 @@ SCR_UpdateScreen(void)
       old_viewsize = scr_viewsize.value;
       vid.recalc_refdef = true;
    }
-#ifdef QW_HACK
-   if (oldsbar != cl_sbar.value) {
-      oldsbar = cl_sbar.value;
-      vid.recalc_refdef = true;
-   }
-#endif
 
    if (vid.recalc_refdef)
       SCR_CalcRefdef();
@@ -745,20 +705,16 @@ SCR_UpdateScreen(void)
       Draw_FadeScreen();
       SCR_DrawNotifyString();
       scr_copyeverything = true;
-#ifdef NQ_HACK
    } else if (scr_drawloading) {
       SCR_DrawLoading();
       Sbar_Draw();
-#endif
    } else if (cl.intermission == 1 && key_dest == key_game) {
       Sbar_IntermissionOverlay();
    } else if (cl.intermission == 2 && key_dest == key_game) {
       Sbar_FinaleOverlay();
       SCR_DrawCenterString();
-#if defined(NQ_HACK) /* FIXME? */
    } else if (cl.intermission == 3 && key_dest == key_game) {
       SCR_DrawCenterString();
-#endif
    } else {
       SCR_DrawNet();
       SCR_DrawCenterString();
@@ -820,16 +776,8 @@ SCR_Init(void)
     Cmd_AddCommand("sizeup", SCR_SizeUp_f);
     Cmd_AddCommand("sizedown", SCR_SizeDown_f);
 
-#ifdef NQ_HACK
     scr_ram = (qpic_t*)Draw_PicFromWad("ram");
     scr_net = (qpic_t*)Draw_PicFromWad("net");
-#endif
-#ifdef QW_HACK
-    scr_ram = W_GetLumpName("ram");
-    scr_net = W_GetLumpName("net");
-
-    Cvar_RegisterVariable(&scr_allowsnap);
-#endif
 
     scr_initialized = true;
 }

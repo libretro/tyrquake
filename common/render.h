@@ -26,12 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #include "vid.h"
 
-#ifdef NQ_HACK
 #include "quakedef.h"
-#endif
-#ifdef QW_HACK
-#include "protocol.h"
-#endif
 
 /* render.h -- public interface to refresh functions */
 
@@ -49,7 +44,6 @@ typedef struct efrag_s {
 
 
 typedef struct entity_s {
-#ifdef NQ_HACK
     qboolean forcelink;		/* model changed */
 
     int update_type;
@@ -59,28 +53,19 @@ typedef struct entity_s {
     double msgtime;		/* time of last update */
     vec3_t msg_origins[2];	/* last two updates (0 is newest) */
     vec3_t msg_angles[2];	/* last two updates (0 is newest) */
-#endif
-#ifdef QW_HACK
-    int keynum;			/* for matching entities in different frames */
-#endif
     vec3_t origin;
     vec3_t angles;
     struct model_s *model;	/* NULL = no model */
     int frame;
     byte *colormap;
     int skinnum;		/* for Alias models */
-#ifdef QW_HACK
-    struct player_info_s *scoreboard;	/* identify player */
-#endif
     float syncbase;		/* for client-side animations */
 
     struct efrag_s *efrag;	/* linked list of efrags (FIXME) */
     int visframe;		/* last frame this entity was */
     /* found in an active leaf */
 
-#ifdef NQ_HACK
     int effects;		/* light, particals, etc */
-#endif
     int dlightframe;		/* dynamic lighting */
     /* qbism - not used here... */
 
@@ -174,10 +159,8 @@ void R_ParticleExplosion(vec3_t org);
 void R_LavaSplash(vec3_t org);
 void R_TeleportSplash(vec3_t org);
 
-#ifdef NQ_HACK
 void R_EntityParticles(const entity_t *ent);
 void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength);
-#endif
 
 void R_InitParticles(void);
 void R_ClearParticles(void);

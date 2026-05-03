@@ -25,11 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #include "sys.h"
 
-#ifdef SERVERONLY
-#include "qwsvdef.h"
-#else
 #include "quakedef.h"
-#endif
 
 vec3_t vec3_origin = { 0, 0, 0 };
 int32_t nanmask = 255 << 23;

@@ -57,12 +57,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cdaudio_driver.h"
 #include "input.h"
 
-#ifdef NQ_HACK
 #include "client.h"
 #include "host.h"
 
 qboolean isDedicated;
-#endif
 
 #ifdef GEKKO
 #include <ogc/lwp_watchdog.h>
@@ -1103,14 +1101,8 @@ bool retro_load_game(const struct retro_game_info *info)
 
    parms.membase = heap;
 
-#ifdef NQ_HACK
    if (log_cb)
       log_cb(RETRO_LOG_INFO, "Quake Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
-#endif
-#ifdef QW_HACK
-   if (log_cb)
-      log_cb(RETRO_LOG_INFO, "QuakeWorld Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
-#endif
 
    if (!Host_Init(&parms))
    {

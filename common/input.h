@@ -26,13 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qtypes.h"
 #include "cvar.h"
 
-#ifdef NQ_HACK
 #include "client.h"
-#endif
-
-#ifdef QW_HACK
-#include "protocol.h"
-#endif
 
 /* FIXME - windows only? */
 extern qboolean mouseactive;
