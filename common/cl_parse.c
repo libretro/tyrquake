@@ -1065,7 +1065,7 @@ CL_ParseServerMessage(void)
 
          case svc_lightstyle:
             i = MSG_ReadByte();
-            if (i >= MAX_LIGHTSTYLES)
+            if (i < 0 || i >= MAX_LIGHTSTYLES)
                Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
             s = MSG_ReadString();
             snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
@@ -1084,7 +1084,7 @@ CL_ParseServerMessage(void)
          case svc_updatename:
             Sbar_Changed();
             i = MSG_ReadByte();
-            if (i >= cl.maxclients)
+            if (i < 0 || i >= cl.maxclients)
                Host_Error("%s: svc_updatename > MAX_SCOREBOARD", __func__);
             s = MSG_ReadString();
             snprintf(cl.players[i].name, MAX_SCOREBOARDNAME, "%s", s);
@@ -1093,7 +1093,7 @@ CL_ParseServerMessage(void)
          case svc_updatefrags:
             Sbar_Changed();
             i = MSG_ReadByte();
-            if (i >= cl.maxclients)
+            if (i < 0 || i >= cl.maxclients)
                Host_Error("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
             cl.players[i].frags = MSG_ReadShort();
             break;
@@ -1101,7 +1101,7 @@ CL_ParseServerMessage(void)
          case svc_updatecolors:
             Sbar_Changed();
             i = MSG_ReadByte();
-            if (i >= cl.maxclients)
+            if (i < 0 || i >= cl.maxclients)
                Host_Error("%s: svc_updatecolors > MAX_SCOREBOARD", __func__);
             colors = MSG_ReadByte();
             cl.players[i].topcolor = (colors & 0xf0) >> 4;

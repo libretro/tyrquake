@@ -564,12 +564,37 @@ SV_NextUpload(void)
 	/* suck out rest of packet */
 	size = MSG_ReadShort();
 	MSG_ReadByte();
+	/* MSG_ReadShort returns a signed value; an attacker can
+	 * send a negative size, which would back up msg_readcount
+	 * into earlier already-parsed clc bytes (potentially
+	 * re-dispatching them) or push it past net_message.cursize
+	 * causing later reads to spill past the recv buffer.
+	 * Validate before advancing. */
+	if (size < 0 || size > net_message.cursize - msg_readcount) {
+	    Con_Printf("SV_NextUpload: bad upload size %i from %s\n",
+		       size, NET_AdrToString(host_client->netchan.remote_address));
+	    msg_badread = true;
+	    return;
+	}
 	msg_readcount += size;
 	return;
     }
 
     size = MSG_ReadShort();
     percent = MSG_ReadByte();
+
+    /* Same bounds as the early-out path.  fwrite below reads
+     * `size` bytes from net_message.data + msg_readcount; a
+     * negative or oversized size would walk past the recv
+     * buffer.  net_message.cursize is the actual bytes
+     * delivered by the receive layer, msg_readcount is how
+     * many of those have been consumed so far. */
+    if (size < 0 || size > net_message.cursize - msg_readcount) {
+	Con_Printf("SV_NextUpload: bad upload size %i from %s\n",
+		   size, NET_AdrToString(host_client->netchan.remote_address));
+	msg_badread = true;
+	return;
+    }
 
     if (!host_client->upload) {
 	host_client->upload = fopen(host_client->uploadfn, "wb");

@@ -354,6 +354,22 @@ CL_ParseDownload(void)
     int size    = MSG_ReadShort();
     int percent = MSG_ReadByte();
 
+    /* size == -1 is the documented "file not found" sentinel
+     * and is handled below.  Any other negative value, or a
+     * positive value larger than the remaining bytes in the
+     * recv buffer, is hostile: rfwrite below would read
+     * `size` bytes from net_message.data + msg_readcount,
+     * walking past the buffer (negative size becomes a huge
+     * size_t).  msg_readcount += size with negative would also
+     * back the read cursor into earlier already-parsed
+     * bytes. */
+    if (size != -1
+        && (size < 0 || size > net_message.cursize - msg_readcount)) {
+	Con_Printf("CL_ParseDownload: bad size %i\n", size);
+	msg_badread = true;
+	return;
+    }
+
     if (cls.demoplayback) {
 	if (size > 0)
 	    msg_readcount += size;
@@ -967,7 +983,7 @@ CL_UpdateUserinfo(void)
     int slot;
 
     slot = MSG_ReadByte();
-    if (slot >= MAX_CLIENTS)
+    if (slot < 0 || slot >= MAX_CLIENTS)
 	Host_EndGame("%s: svc_updateuserinfo > MAX_SCOREBOARD", __func__);
 
     player = &cl.players[slot];
@@ -992,7 +1008,7 @@ CL_SetInfo(void)
     int slot;
 
     slot = MSG_ReadByte();
-    if (slot >= MAX_CLIENTS)
+    if (slot < 0 || slot >= MAX_CLIENTS)
 	Host_EndGame("%s: svc_setinfo > MAX_SCOREBOARD", __func__);
 
     player = &cl.players[slot];
@@ -1183,7 +1199,7 @@ CL_ParseServerMessage(void)
 
 	case svc_lightstyle:
 	    i = MSG_ReadByte();
-	    if (i >= MAX_LIGHTSTYLES)
+	    if (i < 0 || i >= MAX_LIGHTSTYLES)
 		Sys_Error("svc_lightstyle > MAX_LIGHTSTYLES");
 	    s = MSG_ReadString();
 	    snprintf(cl_lightstyle[i].map, MAX_STYLESTRING, "%s", s);
@@ -1202,21 +1218,21 @@ CL_ParseServerMessage(void)
 	case svc_updatefrags:
 	    Sbar_Changed();
 	    i = MSG_ReadByte();
-	    if (i >= MAX_CLIENTS)
+	    if (i < 0 || i >= MAX_CLIENTS)
 		Host_EndGame("%s: svc_updatefrags > MAX_SCOREBOARD", __func__);
 	    cl.players[i].frags = MSG_ReadShort();
 	    break;
 
 	case svc_updateping:
 	    i = MSG_ReadByte();
-	    if (i >= MAX_CLIENTS)
+	    if (i < 0 || i >= MAX_CLIENTS)
 		Host_EndGame("%s: svc_updateping > MAX_SCOREBOARD", __func__);
 	    cl.players[i].ping = MSG_ReadShort();
 	    break;
 
 	case svc_updatepl:
 	    i = MSG_ReadByte();
-	    if (i >= MAX_CLIENTS)
+	    if (i < 0 || i >= MAX_CLIENTS)
 		Host_EndGame("%s: svc_updatepl > MAX_SCOREBOARD", __func__);
 	    cl.players[i].pl = MSG_ReadByte();
 	    break;
@@ -1224,7 +1240,7 @@ CL_ParseServerMessage(void)
 	case svc_updateentertime:
 	    /* time is sent over as seconds ago */
 	    i = MSG_ReadByte();
-	    if (i >= MAX_CLIENTS)
+	    if (i < 0 || i >= MAX_CLIENTS)
 		Host_EndGame("%s: svc_updateentertime > MAX_SCOREBOARD",
 			     __func__);
 	    cl.players[i].entertime = realtime - MSG_ReadFloat();
@@ -1232,6 +1248,14 @@ CL_ParseServerMessage(void)
 
 	case svc_spawnbaseline:
 	    i = MSG_ReadShort();
+	    /* i is a signed short read into int; range
+	     * [-32768, 32767].  cl_baselines is MAX_EDICTS slots
+	     * (8192).  Without this bound, CL_ParseBaseline writes
+	     * an entity_state_t at cl_baselines[i] which is OOB
+	     * for negative i or i >= MAX_EDICTS. */
+	    if (i < 0 || i >= MAX_EDICTS)
+		Host_EndGame("%s: svc_spawnbaseline %i out of range",
+			     __func__, i);
 	    CL_ParseBaseline(&cl_baselines[i]);
 	    break;
 	case svc_spawnstatic:
