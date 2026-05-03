@@ -35,10 +35,15 @@ Mod_LoadSpriteFrame
 =================
 */
 static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
-      int framenum)
+      int framenum, const byte *bufend, const char *modname)
 {
    int origin[2];
    dspriteframe_t *pinframe = (dspriteframe_t *)pin;
+
+   /* dspriteframe_t header itself must fit before we read
+    * width/height. */
+   if ((const byte *)pinframe + sizeof(dspriteframe_t) > bufend)
+      Sys_Error("%s: %s: frame header past EOF", __func__, modname);
 
 #ifdef MSB_FIRST
    int width = LittleLong(pinframe->width);
@@ -61,6 +66,15 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
       Sys_Error("%s: bad sprite dimensions %dx%d", __func__, width, height);
 
    numpixels = width * height;
+   /* dspriteframe_t header + numpixels bytes of pixel data
+    * must all fit in the input buffer.  R_SpriteDataStore
+    * memcpy's exactly numpixels bytes from (pinframe + 1);
+    * with the source past EOF it walks adjacent host memory
+    * into the persistent sprite cache. */
+   if ((const byte *)(pinframe + 1) + numpixels > bufend)
+      Sys_Error("%s: %s: pixel data past EOF (%dx%d)",
+                __func__, modname, width, height);
+
    size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
    pspriteframe = (mspriteframe_t*)Hunk_Alloc(size);
 
@@ -95,7 +109,7 @@ Mod_LoadSpriteGroup
 =================
 */
 static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
-		    int framenum)
+		    int framenum, const byte *bufend, const char *modname)
 {
    int i;
    dspriteinterval_t *pin_intervals;
@@ -103,6 +117,11 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    void *ptemp;
 
    dspritegroup_t *pingroup = (dspritegroup_t *)pin;
+
+   /* dspritegroup_t header must fit before we read numframes */
+   if ((const byte *)pingroup + sizeof(dspritegroup_t) > bufend)
+      Sys_Error("%s: %s: group header past EOF", __func__, modname);
+
 #ifdef MSB_FIRST
    int numframes = LittleLong(pingroup->numframes);
 #else
@@ -121,6 +140,10 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    pspritegroup->numframes = numframes;
    *ppframe = (mspriteframe_t *)pspritegroup;
    pin_intervals = (dspriteinterval_t *)(pingroup + 1);
+   /* numframes * dspriteinterval_t must fit. */
+   if ((const byte *)&pin_intervals[numframes] > bufend)
+      Sys_Error("%s: %s: group intervals past EOF (numframes %d)",
+                __func__, modname, numframes);
    poutintervals = (float*)Hunk_Alloc(numframes * sizeof(float));
    pspritegroup->intervals = poutintervals;
 
@@ -140,7 +163,8 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
    ptemp = (void *)pin_intervals;
 
    for (i = 0; i < numframes; i++) {
-      ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i], framenum * 100 + i);
+      ptemp = Mod_LoadSpriteFrame(ptemp, &pspritegroup->frames[i],
+                                  framenum * 100 + i, bufend, modname);
    }
 
    return ptemp;
@@ -160,6 +184,21 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    int size;
    dspriteframetype_t *pframetype;
    dsprite_t *pin = (dsprite_t *)buffer;
+   const byte *bufend;
+
+   /* bufend bounds the input buffer extent (com_filesize bytes
+    * loaded).  See 1301598 for the equivalent treatment of
+    * Mod_LoadAliasModel.  Without these checks a hostile .spr
+    * with a header that lies about numframes / per-frame
+    * dimensions causes the running pointer cursor (pframetype,
+    * Mod_LoadSpriteFrame's ptemp) to walk past the buffer; the
+    * R_SpriteDataStore memcpy at sprite_model.c:86 then reads
+    * width*height bytes from past-EOF heap memory into the
+    * persistent sprite cache (game-renderable disclosure). */
+   if (com_filesize < (int)sizeof(dsprite_t))
+      Sys_Error("%s: %s truncated (filesize %d < %d)",
+                __func__, mod->name, com_filesize, (int)sizeof(dsprite_t));
+   bufend = (const byte *)buffer + com_filesize;
 
 #ifdef MSB_FIRST
    int version = LittleLong(pin->version);
@@ -219,6 +258,12 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    for (i = 0; i < numframes; i++) {
       spriteframetype_t frametype;
 
+      /* dspriteframetype_t (just an int) must fit before
+       * we read pframetype->type. */
+      if ((const byte *)pframetype + sizeof(dspriteframetype_t) > bufend)
+         Sys_Error("%s: %s: frame %d type past EOF",
+                   __func__, mod->name, i);
+
 #ifdef MSB_FIRST
       frametype = (spriteframetype_t)LittleLong(pframetype->type);
 #else
@@ -229,12 +274,16 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
       if (frametype == SPR_SINGLE) {
          pframetype = (dspriteframetype_t *)
             Mod_LoadSpriteFrame(pframetype + 1,
-                  &psprite->frames[i].frameptr, i);
+                  &psprite->frames[i].frameptr, i, bufend, mod->name);
       } else {
          pframetype = (dspriteframetype_t *)
             Mod_LoadSpriteGroup(pframetype + 1,
-                  &psprite->frames[i].frameptr, i);
+                  &psprite->frames[i].frameptr, i, bufend, mod->name);
       }
+      /* check returned cursor stays within the buffer */
+      if ((const byte *)pframetype > bufend)
+         Sys_Error("%s: %s: frame %d walked past EOF",
+                   __func__, mod->name, i);
    }
 
    mod->type = mod_sprite;
