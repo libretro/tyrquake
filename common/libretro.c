@@ -1525,7 +1525,6 @@ void CDDrv_Stop(void) { }
 void CDDrv_Pause(void) { }
 void CDDrv_Resume(byte track) { }
 int CDDrv_GetMaxTrack(byte *track) { return 0; }
-int CDDrv_SetVolume(byte volume) { return -1; }
 
 /*
  * INPUT (TODO)

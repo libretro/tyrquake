@@ -26,11 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sys.h"
 #include "zone.h"
 
-#ifdef HEXEN2
-#define	DYNAMIC_SIZE	0xc000
-#else
 #define	DYNAMIC_SIZE	0x40000		/* 256k */
-#endif
 #define	ZONEID		0x1d4a11
 #define MINFRAGMENT	64
 
@@ -358,11 +354,7 @@ void *Z_Realloc(void *ptr, int size)
 
 #define	HUNK_SENTINAL	0x1df001ed
 
-#ifdef HEXEN2
-#define HUNK_NAMELEN	20
-#else
 #define HUNK_NAMELEN	8
-#endif
 
 /* sizeof(hunk_t) must be a multiple of 16 so that the pointer returned
  * to callers (h + 1) preserves the 16-byte alignment promised in zone.h

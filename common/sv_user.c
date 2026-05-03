@@ -171,11 +171,7 @@ static void SV_UserFriction(void)
 SV_Accelerate
 ==============
 */
-#ifdef HEXEN2
-cvar_t sv_maxspeed = { "sv_maxspeed", "640", false, true };
-#else
 cvar_t sv_maxspeed = { "sv_maxspeed", "320", false, true };
-#endif
 cvar_t sv_accelerate = { "sv_accelerate", "10" };
 
 static void SV_Accelerate(void)
@@ -260,25 +256,7 @@ static void SV_WaterMove(void)
       wspeed = sv_maxspeed.value;
    }
 
-#ifdef HEXEN2
-   if (sv_player->v.playerclass==CLASS_DEMON)   /* Paladin Special Ability #1 - unrestricted movement in water */
-      wspeed *= 0.5;
-   else if (sv_player->v.playerclass!=CLASS_PALADIN)   /* Paladin Special Ability #1 - unrestricted movement in water */
-      wspeed *= 0.7;
-   else if (sv_player->v.level == 1)
-      wspeed *= 0.75;
-   else if (sv_player->v.level == 2)
-      wspeed *= 0.80;
-   else if ((sv_player->v.level == 3) || (sv_player->v.level == 4))
-      wspeed *= 0.85;
-   else if ((sv_player->v.level == 5) || (sv_player->v.level == 6))
-      wspeed *= 0.90;
-   else if ((sv_player->v.level == 7) || (sv_player->v.level == 8))
-      wspeed *= 0.95;
-   /* else: leave wspeed unchanged */
-#else
    wspeed *= 0.7;
-#endif
 
    /* water friction */
    speed = Length(velocity);
@@ -422,13 +400,6 @@ void SV_ClientThink(void)
       SV_WaterMove();
       return;
    }
-#ifdef HEXEN2
-   else if (sv_player->v.movetype == MOVETYPE_FLY)
-	{
-		SV_FlightMove ();
-		return;
-   } 
-#endif
 
    SV_AirMove();
 }
@@ -468,13 +439,6 @@ static void SV_ReadClientMove(usercmd_t *move)
    bits              = MSG_ReadByte();
    host_client->edict->v.button0 = bits & 1;
    host_client->edict->v.button2 = (bits & 2) >> 1;
-
-#ifdef HEXEN2
-   if (bits & 4) /* crouched? */
-      host_client->edict->v.flags2 = ((int)host_client->edict->v.flags2) | FL2_CROUCHED;
-   else
-      host_client->edict->v.flags2 = ((int)host_client->edict->v.flags2) & (~FL2_CROUCHED);
-#endif
 
    i = MSG_ReadByte();
    if (i)
@@ -535,11 +499,6 @@ nextmsg:
             case clc_stringcmd:
                s = MSG_ReadString();
 
-#ifdef HEXEN2
-               if (host_client->privileged)
-                  ret = 2;
-               else
-#endif
                   ret = 0;
 
                if (strncasecmp(s, "status", 6) == 0)
@@ -552,10 +511,6 @@ nextmsg:
                   ret = 1;
                else if (strncasecmp(s, "name", 4) == 0)
                   ret = 1;
-#ifdef HEXEN2
-               else if (Q_strncasecmp(s, "playerclass", 11) == 0)
-                  ret = 1;
-#endif
                else if (strncasecmp(s, "noclip", 6) == 0)
                   ret = 1;
                else if (strncasecmp(s, "say", 3) == 0)
@@ -585,11 +540,6 @@ nextmsg:
                else if (strncasecmp(s, "ban", 3) == 0)
                   ret = 1;
  
-#ifdef HEXEN2
-               if (ret == 2)
-                  Cbuf_InsertText (s);
-               else
-#endif
                if (ret == 1)
                   Cmd_ExecuteString(s, src_client);
                else
@@ -604,16 +554,6 @@ nextmsg:
                SV_ReadClientMove(&host_client->cmd);
                break;
 
-#ifdef HEXEN2
-            case clc_inv_select:
-               host_client->edict->v.inventory = MSG_ReadByte();
-               break;
-
-            case clc_frame:
-               host_client->last_frame = MSG_ReadByte();
-               host_client->last_sequence = MSG_ReadByte();
-               break;
-#endif
          }
       }
    }while (ret == 1);

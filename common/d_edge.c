@@ -23,9 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "r_local.h"
 
-#ifdef NQ_HACK
 #include "client.h"
-#endif
 
 static int miplevel;
 static vec3_t transformed_modelorg;

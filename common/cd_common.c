@@ -32,9 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "sound.h"
 
-#ifdef NQ_HACK
 #include "client.h"
-#endif
 
 static byte remap[100];
 static qboolean enabled = false;
@@ -154,12 +152,6 @@ CDAudio_Play(byte track, qboolean looping)
 }
 
 void
-CDAudio_InvalidateDisk(void)
-{
-    cdValid = false;
-}
-
-void
 CDAudio_Update(void)
 {
     static time_t lastchk;
@@ -276,11 +268,9 @@ CDAudio_Init(void)
 {
     int i, err;
 
-#ifdef NQ_HACK
     /* FIXME - not a valid client state in QW? */
     if (cls.state == ca_dedicated)
 	return -1;
-#endif
 
     if (COM_CheckParm("-nocdaudio"))
 	return -1;

@@ -1471,11 +1471,6 @@ void *COM_LoadHunkFile(const char *path)
    return COM_LoadFile(path, 1, NULL);
 }
 
-void *COM_LoadTempFile(const char *path)
-{
-   return COM_LoadFile(path, 2, NULL);
-}
-
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu)
 {
    loadcache = cu;
@@ -1827,15 +1822,6 @@ int FS_fseek(fshandle_t *fh, long offset, int whence)
 	return 0;
 }
 
-int FS_fclose(fshandle_t *fh)
-{
-	if (!fh) {
-		errno = EBADF;
-		return -1;
-	}
-	return rfclose(fh->file);
-}
-
 long FS_ftell(fshandle_t *fh)
 {
 	if (!fh) {
@@ -1882,22 +1868,6 @@ int FS_fgetc(fshandle_t *fh)
 		return EOF;
 	fh->pos += 1;
 	return rfgetc(fh->file);
-}
-
-char *FS_fgets(char *s, int size, fshandle_t *fh)
-{
-	char *ret;
-
-	if (FS_feof(fh))
-		return NULL;
-
-	if (size > (fh->length - fh->pos) + 1)
-		size = (fh->length - fh->pos) + 1;
-
-	ret     = rfgets(s, size, fh->file);
-	fh->pos = rftell(fh->file) - fh->start;
-
-	return ret;
 }
 
 long FS_filelength (fshandle_t *fh)

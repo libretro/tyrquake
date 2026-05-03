@@ -234,7 +234,6 @@ extern qboolean noclip_anglehack;
 extern cvar_t chase_active;
 
 void Chase_Init(void);
-void Chase_Reset(void);
 void Chase_Update(void);
 
 extern cvar_t r_lockfrustum;	/* FIXME - with rendering stuff please... */

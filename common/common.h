@@ -226,7 +226,6 @@ int COM_JoinPath(char *dst, size_t dst_size,
 
 void *COM_LoadStackFile(const char *path, void *buffer, int bufsize,
 			unsigned long *length);
-void *COM_LoadTempFile(const char *path);
 void *COM_LoadHunkFile(const char *path);
 void COM_LoadCacheFile(const char *path, struct cache_user_s *cu);
 
@@ -259,9 +258,7 @@ long FS_ftell(fshandle_t *fh);
 void FS_rewind(fshandle_t *fh);
 int FS_feof(fshandle_t *fh);
 int FS_ferror(fshandle_t *fh);
-int FS_fclose(fshandle_t *fh);
 int FS_fgetc(fshandle_t *fh);
-char *FS_fgets(char *s, int size, fshandle_t *fh);
 long FS_filelength (fshandle_t *fh);
 
 #endif /* COMMON_H */

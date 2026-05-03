@@ -222,64 +222,6 @@ D_PolysetDraw(void)
       D_DrawNonSubdiv();
 }
 
-#ifdef HEXEN2
-void D_PolysetDrawT3 (void)
-{
-   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
-   /* one extra because of cache line pretouching */
-
-   a_spans = (spanpackage_t *)
-      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
-
-	if (r_affinetridesc.drawtype)
-		D_DrawSubdivT3 ();
-	else
-		D_DrawNonSubdiv ();
-}
-
-void D_PolysetDrawT (void)
-{
-   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
-   /* one extra because of cache line pretouching */
-
-   a_spans = (spanpackage_t *)
-      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
-
-	if (r_affinetridesc.drawtype)
-		D_DrawSubdivT ();
-	else
-		D_DrawNonSubdiv ();
-}
-
-void D_PolysetDrawT2 (void)
-{
-   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
-   /* one extra because of cache line pretouching */
-
-   a_spans = (spanpackage_t *)
-      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
-
-	if (r_affinetridesc.drawtype)
-		D_DrawSubdivT2 ();
-	else
-		D_DrawNonSubdiv ();
-}
-
-void D_PolysetDrawT5 (void)
-{
-   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
-   /* one extra because of cache line pretouching */
-
-   a_spans = (spanpackage_t *)
-      (((long)&spans[0] + CACHE_SIZE - 1) & ~(CACHE_SIZE - 1));
-
-	if (r_affinetridesc.drawtype)
-		D_DrawSubdivT5 ();
-	else
-		D_DrawNonSubdiv ();
-}
-#endif
-
 
 /*
 ================
@@ -1238,17 +1180,6 @@ void D_RasterizeAliasPolySmooth(void)
    /**/
    /* set the s, t, and light gradients, which are consistent across the triangle */
    /* because being a triangle, things are affine */
-#ifdef HEXEN2
-   if ((currententity->model->flags & EF_SPECIAL_TRANS))
-      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
-   else if (currententity->drawflags & DRF_TRANSLUCENT)
-      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
-   else if ((currententity->model->flags & EF_TRANSPARENT))
-      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
-   else if ((currententity->model->flags & EF_HOLEY))
-      D_PolysetCalcGradients (r_affinetridesc.skinwidth);
-   else
-#endif
       D_PolysetCalcGradients(r_affinetridesc.skinwidth);
 
    /**/

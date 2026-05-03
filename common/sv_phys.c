@@ -340,41 +340,6 @@ SV_FlyMove(edict_t *ent, float time, trace_t *steptrace)
    return blocked;
 }
 
-#ifdef HEXEN2
-/*
-============
-SV_FlyExtras
-============
-*/
-void SV_FlyExtras (edict_t *ent, float time, trace_t *steptrace)
-{
-   const float hoverinc = 0.4;
-
-	ent->v.flags = (int) ent->v.flags | FL_ONGROUND;  /* Jumping makes you loose this flag so reset it */
-
-	if ((ent->v.velocity[2]<=6) && (ent->v.velocity[2]>=-6))
-	{
-		ent->v.velocity[2]+=ent->v.hoverz;
-
-		if (ent->v.velocity[2]>=6)
-		{
-			ent->v.hoverz=-hoverinc;
-			ent->v.velocity[2]+=ent->v.hoverz;
-		}
-		else if (ent->v.velocity[2]<=-6)
-		{
-			ent->v.hoverz=hoverinc;
-			ent->v.velocity[2]+=ent->v.hoverz;
-		}
-	}
-	else  /* friction for upward or downward progress once key is released */
-	{
-		ent->v.velocity[2]-=sv_player->v.velocity[2] * .1;
-	}
-
-}
-#endif
-
 
 /*
 ============
@@ -1063,11 +1028,7 @@ SV_CheckWaterTransition(edict_t *ent)
       if (ent->v.watertype == CONTENTS_EMPTY)
       {
          /* just crossed into water */
-#ifdef HEXEN2
-         SV_StartSound (ent, 0, "misc/hith2o.wav", 255, 1);
-#else
          SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
-#endif
       }
       ent->v.watertype = cont;
       ent->v.waterlevel = 1;
@@ -1077,11 +1038,7 @@ SV_CheckWaterTransition(edict_t *ent)
       if (ent->v.watertype != CONTENTS_EMPTY)
       {
          /* just crossed into water */
-#ifdef HEXEN2
-         SV_StartSound (ent, 0, "misc/hith2o.wav", 255, 1);
-#else
          SV_StartSound(ent, 0, "misc/h2ohit1.wav", 255, 1);
-#endif
       }
       ent->v.watertype = CONTENTS_EMPTY;
       ent->v.waterlevel = cont;
@@ -1115,10 +1072,6 @@ SV_Physics_Toss(edict_t *ent)
    /* add gravity */
    if (     ent->v.movetype != MOVETYPE_FLY
          && ent->v.movetype != MOVETYPE_FLYMISSILE
-#ifdef HEXEN2
-         && ent->v.movetype != MOVETYPE_BOUNCEMISSILE
-         && ent->v.movetype != MOVETYPE_SWIM
-#endif
          )
       SV_AddGravity(ent);
 
@@ -1199,11 +1152,7 @@ SV_Physics_Step(edict_t *ent)
          /* just hit ground */
          if (hitsound)
          {
-#ifdef HEXEN2
-            SV_StartSound (ent, 0, "fx/thngland.wav", 255, 1);
-#else
             SV_StartSound(ent, 0, "demon/dland2.wav", 255, 1);
-#endif
          }
       }
    }
@@ -1225,9 +1174,6 @@ SV_Physics(void)
 {
    int i;
    edict_t *ent;
-#ifdef HEXEN2
-   edict_t *ent2;
-#endif
 
    /* let the progs know that a new frame has started */
    pr_global_struct->self  = EDICT_TO_PROG(sv.edicts);
@@ -1244,15 +1190,6 @@ SV_Physics(void)
       if (ent->free)
          continue;
 
-#ifdef HEXEN2
-      ent2 = PROG_TO_EDICT(ent->v.movechain);
-		if (ent2 != sv.edicts)
-      {
-         VectorCopy(ent->v.origin,oldOrigin);
-         VectorCopy(ent->v.angles,oldAngle);
-      }
-#endif
-
       if (pr_global_struct->force_retouch)
          SV_LinkEdict(ent, true);	/* force retouch even for stationary */
 
@@ -1265,57 +1202,16 @@ SV_Physics(void)
       else if (ent->v.movetype == MOVETYPE_NOCLIP)
          SV_Physics_Noclip(ent);
       else if (ent->v.movetype == MOVETYPE_STEP
-#ifdef HEXEN2
-            || (ent->v.movetype == MOVETYPE_PUSHPULL)
-#endif
             )
          SV_Physics_Step(ent);
       else if (ent->v.movetype == MOVETYPE_TOSS
             || ent->v.movetype == MOVETYPE_BOUNCE
-#ifdef HEXEN2
-            || ent->v.movetype == MOVETYPE_BOUNCEMISSILE
-            || ent->v.movetype == MOVETYPE_SWIM
-#endif
             || ent->v.movetype == MOVETYPE_FLY
             || ent->v.movetype == MOVETYPE_FLYMISSILE)
          SV_Physics_Toss(ent);
       else
          Sys_Error("%s: bad movetype %i", __func__, (int)ent->v.movetype);
 
-#ifdef HEXEN2
-      if (ent2 != sv.edicts)
-      {
-         originMoved = !VectorCompare(ent->v.origin,oldOrigin);
-
-         if (originMoved || !VectorCompare(ent->v.angles,oldAngle))
-         {
-            VectorSubtract(ent->v.origin,oldOrigin,oldOrigin);
-            VectorSubtract(ent->v.angles,oldAngle,oldAngle);
-
-            for(c=0;c<10;c++)
-            {   /* chain a max of 10 objects */
-               if (ent2->free) break;
-
-               VectorAdd(oldOrigin,ent2->v.origin,ent2->v.origin);
-               if ((int)ent2->v.flags & FL_MOVECHAIN_ANGLE)
-               {
-                  VectorAdd(oldAngle,ent2->v.angles,ent2->v.angles);
-               }
-
-               if (originMoved && ent2->v.chainmoved)
-               {	/* callback function */
-                  pr_global_struct->self = EDICT_TO_PROG(ent2);
-                  pr_global_struct->other = EDICT_TO_PROG(ent);
-                  PR_ExecuteProgram(ent2->v.chainmoved);
-               }
-
-               ent2 = PROG_TO_EDICT(ent2->v.movechain);
-               if (ent2 == sv.edicts) break;
-
-            }
-         }
-      }
-#endif
    }
 
    if (pr_global_struct->force_retouch)

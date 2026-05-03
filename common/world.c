@@ -159,26 +159,6 @@ static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t o
 
       VectorSubtract(maxs, mins, size);
 
-#ifdef HEXEN2
-      /* THIS IS WHERE THE MONSTER STEPPING ERROR WAS- IN CHECKBOTTOM,
-       * A '0 0 0' MINS AND MAXS WERE SENT, BUT HERE, IT LOOKS TO SEE
-       * IF THE MONSTER HAS A HULL AND CALCULATES THE OFFSET FROM
-       * THE HULL MINS AND MAXS AND THE PASSED MINS AND MAXS,
-       * THIS WILL INCORRECTLY OFFSET THE TEST MOVE BY THE MINS AND
-       * MAXS OF THE MONSTER!  WILL CHECK FOR SIDE EFFECTS...
-       */
-		if (move_ent->v.hull)  /* Entity is specifying which hull to use */
-		{
-			int index=move_ent->v.hull-1;
-			hull = &model->hulls[index];
-			if (!hull)  /* Invalid hull */
-			{
-				Con_Printf ("ERROR: hull %d is null.\n",hull);
-				hull = &model->hulls[0];
-			}
-		}
-		else  /* Using the old way uses size to determine hull to use */
-#endif
       {
          if (size[0] < 3)              /* Point */
             hull = &model->hulls[0];
@@ -187,11 +167,7 @@ static hull_t *SV_HullForEntity(edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t o
          else if (size[0] <= 32)
             hull = &model->hulls[1];
          else
-#ifdef HEXEN2
-            hull = &model->hulls[5]; /* Golem */
-#else
             hull = &model->hulls[2];
-#endif
       }
 
       /* calculate an offset value to center the origin */
@@ -450,31 +426,6 @@ SV_LinkEdict(edict_t *ent, qboolean touch_triggers)
       return;
 
    /* set the abs box */
-#ifdef QUAKE2RJ
-	if (ent->v.solid == SOLID_BSP && 
-	(ent->v.angles[0] || ent->v.angles[1] || ent->v.angles[2]) )
-	{	/* expand for rotation */
-		float		max, v;
-		int			i;
-
-		max = 0;
-		for (i=0 ; i<3 ; i++)
-		{
-			v =fabsf( ent->v.mins[i]);
-			if (v > max)
-				max = v;
-			v =fabsf( ent->v.maxs[i]);
-			if (v > max)
-				max = v;
-		}
-		for (i=0 ; i<3 ; i++)
-		{
-			ent->v.absmin[i] = ent->v.origin[i] - max;
-			ent->v.absmax[i] = ent->v.origin[i] + max;
-		}
-	}
-	else
-#endif
    {
       VectorAdd(ent->v.origin, ent->v.mins, ent->v.absmin);
       VectorAdd(ent->v.origin, ent->v.maxs, ent->v.absmax);
@@ -594,9 +545,6 @@ SV_PointContents
 int
 SV_PointContents(vec3_t p)
 {
-#ifdef QUAKE2RJ
-   int cont;
-#endif
 
    /* Defensive: physics callers (SV_CheckWater etc.) can fire
     * during a brief window between map unload and reload when
@@ -604,14 +552,7 @@ SV_PointContents(vec3_t p)
     * space rather than dereferencing a stale or NULL pointer. */
    if (!sv.worldmodel)
       return CONTENTS_EMPTY;
-#ifdef QUAKE2RJ
-   cont = SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
-   if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
-      cont = CONTENTS_WATER;
-   return cont;
-#else
    return SV_HullPointContents(&sv.worldmodel->hulls[0], 0, p);
-#endif
 }
 
 /* =========================================================================== */
@@ -758,32 +699,6 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
       trace->plane.dist = -plane->dist;
    }
 
-#ifdef HEXEN2
-	while (1)
-		/* SV_HullPointContents (hull, hull->firstclipnode, mid) == CONTENTS_SOLID) */
-	{ /* shouldn't really happen, but does occasionally */
-		contents = SV_HullPointContents (hull, hull->firstclipnode, mid);
-/* 		if (contents != CONTENTS_SOLID && */ 
-/* 			(contents == CONTENTS_WATER || move_type != MOVE_WATER)) */
-		if (contents != CONTENTS_SOLID)
-			break;
-
-		frac -= 0.1;
-		if (frac < 0)
-		{
-			trace->fraction = midf;
-			VectorCopy (mid, trace->endpos);
-			Con_DPrintf ("backup past 0\n");
-			return false;
-		}
-		midf = p1f + (p2f - p1f)*frac;
-
-/* 		for (i=0 ; i<3 ; i++) */
-/* 			mid[i] = p1[i] + frac * (p2[i] - p1[i]); */
-
-		WackyBugFixer(&p1f, &p2f, p1, p2, &frac, &midf, mid);
-	}
-#else
    /* shouldn't really happen, but does occasionally */
    while (SV_HullPointContents(hull, hull->firstclipnode, mid) == CONTENTS_SOLID) {
       frac -= 0.1;
@@ -797,7 +712,6 @@ qboolean SV_RecursiveHullCheck(hull_t *hull, int num, float p1f, float p2f,
       for (i = 0; i < 3; i++)
          mid[i] = p1[i] + frac * (p2[i] - p1[i]);
    }
-#endif
 
    trace->fraction = midf;
    VectorCopy(mid, trace->endpos);

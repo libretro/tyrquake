@@ -58,6 +58,5 @@ void Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
 				  byte *translation, int scale);
 void Draw_CharacterScaled(int x, int y, int num, int scale);
 void Draw_StringScaled(int x, int y, char *str, int scale);
-void Draw_FillScaled(int x, int y, int w, int h, int c, int scale);
 
 #endif /* DRAW_H */

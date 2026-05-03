@@ -891,11 +891,7 @@ Key_Event(knum_t key, qboolean down)
     if ((key_dest == key_menu && menubound[key])
 	|| (key_dest == key_console && !consolekeys[key])
 	|| (key_dest == key_game
-#ifdef NQ_HACK
 	    && (!con_forcedup || !consolekeys[key]))) {
-#else
-	    && (cls.state == ca_active || !consolekeys[key]))) {
-#endif
 	kb = keybindings[key];
 	if (kb) {
 	    if (kb[0] == '+')

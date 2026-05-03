@@ -708,15 +708,6 @@ Draw_StringScaled(int x, int y, char *str, int scale)
     }
 }
 
-void
-Draw_FillScaled(int x, int y, int w, int h, int c, int scale)
-{
-    if (scale < 1)
-	scale = 1;
-    /* Callers pass logical (pre-scale) w/h; we multiply through to physical. */
-    Draw_Fill(x, y, w * scale, h * scale, c);
-}
-
 
 #define CONBACK_CHAR_W	8
 #define CONBACK_CHAR_H	8
