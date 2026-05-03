@@ -688,6 +688,20 @@ S_UpdateAmbientSounds(void)
          if (accum < target)
             accum = target;
       }
+      /* ambient_level / ambient_fade are user-settable cvars
+       * and can be set to NaN ("ambient_level nan") or to
+       * extreme values.  target / accum then propagate NaN
+       * or values outside int range, and (int)accum is UB
+       * (typically INT_MIN on x86; INT_MAX or 0 on some
+       * ARM).  The downstream master_vol cap at
+       * SND_PaintChannelFrom16 only clamps the upper end --
+       * a negative-from-UB master_vol would underflow into
+       * the painting multiply.  Clamp to [0, 255] in float
+       * before casting.  IS_NAN catches NaN/Inf too. */
+      if (IS_NAN(accum) || accum < 0.0f)
+         accum = 0.0f;
+      else if (accum > 255.0f)
+         accum = 255.0f;
       ambient_vol_accum[ambient_channel] = accum;
 
       chan->master_vol = (int)accum;
@@ -730,6 +744,7 @@ static void S_Update_(void)
 {
    unsigned endtime;
    int samps;
+   float mixahead;
 
    if (!sound_started || (snd_blocked > 0))
       return;
@@ -743,10 +758,21 @@ static void S_Update_(void)
       /* Con_DPrintf("%s: overflow\n", __func__); */
       paintedtime = soundtime;
    }
-   /* mix ahead of current position */
-   endtime = soundtime + _snd_mixahead.value * shm->speed;
+   /* mix ahead of current position.  _snd_mixahead is a
+    * cvar; user can set it to NaN ("_snd_mixahead nan"),
+    * negative, or huge.  NaN * shm->speed = NaN; (unsigned)NaN
+    * is UB.  Negative mixahead makes endtime < soundtime;
+    * the (endtime - soundtime > samps) check below relies on
+    * unsigned arithmetic and would wrap.  Clamp to a sane
+    * range first. */
+   mixahead = _snd_mixahead.value;
+   if (IS_NAN(mixahead) || mixahead < 0.0f)
+      mixahead = 0.1f;	/* original default */
+   else if (mixahead > 1.0f)
+      mixahead = 1.0f;
+   endtime = soundtime + mixahead * shm->speed;
    samps   = AUDIO_BUFFER_SIZE >> 1;
-   if (endtime - soundtime > samps)
+   if (endtime - soundtime > (unsigned)samps)
       endtime = soundtime + samps;
 
    S_PaintChannels(endtime);
