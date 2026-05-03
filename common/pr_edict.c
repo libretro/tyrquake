@@ -717,7 +717,30 @@ ED_ParseEpair(void *base, ddef_t *key, const char *s)
     ddef_t *def;
     char *v, *w;
     dfunction_t *func;
-    void *d = (void *)((int *)base + key->ofs);
+    void *d;
+    int max_ofs;
+
+    /* key->ofs is read from progs.dat (pr_globaldefs / pr_fielddefs).
+     * An out-of-range ofs lets ED_ParseEpair write past the end of
+     * the entity (when called from ED_ParseEdict with base=&ent->v)
+     * or past the end of pr_globals (from ED_ParseGlobals).  The
+     * caller can't easily compute the right limit in either case
+     * because ddef_t doesn't carry it, so do the check here using
+     * key->ofs vs the appropriate live size. */
+    if (base == (void *)pr_globals)
+	max_ofs = progs->numglobals;
+    else
+	max_ofs = progs->entityfields;
+
+    /* Reject a pure overflow first.  ev_vector writes 3 floats so it
+     * needs three slots starting at ofs; everything else writes one. */
+    if (key->ofs < 0 || key->ofs >= max_ofs)
+	return false;
+    if ((key->type & ~DEF_SAVEGLOBAL) == ev_vector
+	&& key->ofs > max_ofs - 3)
+	return false;
+
+    d = (void *)((int *)base + key->ofs);
 
     switch (key->type & ~DEF_SAVEGLOBAL) {
     case ev_string:
@@ -1031,6 +1054,46 @@ PR_LoadProgs(void)
 #if defined(QW_HACK) && defined(SERVERONLY)
    SV_Error("progs.dat strings extend past end of file\n");
 #endif
+
+   /* Bounds-check every (ofs, num) pair in the progs.dat header
+    * against com_filesize.  Without this, a crafted progs.dat with
+    * the matching PROGHEADER_CRC but malicious offsets would cause
+    * the byte-swap and lookup loops below to read and write off
+    * the end of the progs.dat hunk allocation.  Each lump's size
+    * is implied by its element count times the on-disk struct
+    * size; check ofs >= 0, count >= 0, and ofs + count*sizeof(elt)
+    * fits within com_filesize.  Use a size_t cast and a subtraction
+    * formulation to avoid signed overflow during the comparison. */
+   {
+      const size_t fsize = (size_t)com_filesize;
+      const struct {
+	 const char *name;
+	 int32_t ofs;
+	 int32_t count;
+	 size_t elt_size;
+      } lumps[] = {
+	 { "statements",  progs->ofs_statements,  progs->numstatements,  sizeof(dstatement_t) },
+	 { "globaldefs",  progs->ofs_globaldefs,  progs->numglobaldefs,  sizeof(ddef_t)       },
+	 { "fielddefs",   progs->ofs_fielddefs,   progs->numfielddefs,   sizeof(ddef_t)       },
+	 { "functions",   progs->ofs_functions,   progs->numfunctions,   sizeof(dfunction_t)  },
+	 { "globals",     progs->ofs_globals,     progs->numglobals,     sizeof(int32_t)      },
+      };
+      size_t li;
+      for (li = 0; li < sizeof(lumps)/sizeof(lumps[0]); li++) {
+	 if (lumps[li].ofs < 0 || lumps[li].count < 0)
+	    SV_Error("progs.dat: bad %s lump (ofs=%d, count=%d)",
+		     lumps[li].name, lumps[li].ofs, lumps[li].count);
+	 if ((size_t)lumps[li].count > (fsize - (size_t)lumps[li].ofs) / lumps[li].elt_size
+	     || (size_t)lumps[li].ofs > fsize)
+	    SV_Error("progs.dat: %s lump extends past end of file "
+		     "(ofs=%d, count=%d, filesize=%i)",
+		     lumps[li].name, lumps[li].ofs, lumps[li].count,
+		     com_filesize);
+      }
+      if (progs->entityfields < 0)
+	 SV_Error("progs.dat: bad entityfields (%d)", progs->entityfields);
+   }
+
    PR_InitStringTable();
 
    pr_globaldefs = (ddef_t *)((byte *)progs + progs->ofs_globaldefs);

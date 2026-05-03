@@ -928,6 +928,13 @@ static const char *COM_Parse_(const char *data, qboolean split_single_chars)
 {
    int c;
    int len = 0;
+   /* com_token is sizeof(com_token) bytes; reserve one for NUL.
+    * Without this guard, a long quoted string or unbroken word
+    * walks off the end of the static buffer and corrupts whatever
+    * follows it in .bss.  This is reachable from any attacker-
+    * controlled text the engine parses: BSP entity lump, savegame,
+    * config files, Cmd_TokenizeString'd console / network input. */
+   const int max = (int)sizeof(com_token) - 1;
 
    com_token[0] = 0;
 
@@ -954,10 +961,13 @@ skipwhite:
       while (1) {
          c = *data++;
          if (c == '\"' || !c) {
+            if (len > max)
+               len = max;
             com_token[len] = 0;
             return data;
          }
-         com_token[len] = c;
+         if (len < max)
+            com_token[len] = c;
          len++;
       }
    }
@@ -970,7 +980,8 @@ skipwhite:
    }
    /* parse a regular word */
    do {
-      com_token[len] = c;
+      if (len < max)
+         com_token[len] = c;
       data++;
       len++;
       c = *data;
@@ -978,6 +989,11 @@ skipwhite:
          break;
    } while (c > 32);
 
+   /* If the token overflowed, len may exceed max here.  Clamp the
+    * terminator position to the last valid byte so we always end
+    * up with a NUL inside the buffer. */
+   if (len > max)
+      len = max;
    com_token[len] = 0;
    return data;
 }
