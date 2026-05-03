@@ -354,11 +354,28 @@ PR_ValueString(etype_t type, eval_t *val)
 		 NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
 	break;
     case ev_function:
+	/* val->function is a QC-stored function index; bytecode
+	 * can plant arbitrary values.  Bound against
+	 * progs->numfunctions before computing the pointer; an
+	 * out-of-range index would read OOB from pr_functions. */
+	if (val->function < 0 || val->function >= progs->numfunctions) {
+	    snprintf(line, sizeof(line), "bad function %i()", val->function);
+	    break;
+	}
 	f = pr_functions + val->function;
 	snprintf(line, sizeof(line), "%s()", PR_GetString(f->s_name));
 	break;
     case ev_field:
+	/* ED_FieldAtOfs returns NULL when no fielddef has the
+	 * given offset.  A malicious progs.dat (or in-progress
+	 * data corruption) can plant an ofs that misses every
+	 * fielddef; the pre-existing code then dereferenced
+	 * NULL via def->s_name. */
 	def = ED_FieldAtOfs(val->_int);
+	if (!def) {
+	    snprintf(line, sizeof(line), ".bad field ofs %i", val->_int);
+	    break;
+	}
 	snprintf(line, sizeof(line), ".%s", PR_GetString(def->s_name));
 	break;
     case ev_void:
@@ -408,11 +425,28 @@ PR_UglyValueString(etype_t type, eval_t *val)
 		 NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
 	break;
     case ev_function:
+	/* val->function is a QC-stored function index; bytecode
+	 * can plant arbitrary values.  Bound against
+	 * progs->numfunctions before computing the pointer; an
+	 * out-of-range index would read OOB from pr_functions. */
+	if (val->function < 0 || val->function >= progs->numfunctions) {
+	    snprintf(line, sizeof(line), "bad function %i", val->function);
+	    break;
+	}
 	f = pr_functions + val->function;
 	snprintf(line, sizeof(line), "%s", PR_GetString(f->s_name));
 	break;
     case ev_field:
+	/* ED_FieldAtOfs returns NULL when no fielddef has the
+	 * given offset.  A malicious progs.dat (or in-progress
+	 * data corruption) can plant an ofs that misses every
+	 * fielddef; the pre-existing code then dereferenced
+	 * NULL via def->s_name. */
 	def = ED_FieldAtOfs(val->_int);
+	if (!def) {
+	    snprintf(line, sizeof(line), "bad field ofs %i", val->_int);
+	    break;
+	}
 	snprintf(line, sizeof(line), "%s", PR_GetString(def->s_name));
 	break;
     case ev_void:
@@ -446,8 +480,22 @@ char *PR_GlobalString(int ofs)
    static char line[128];
    char *s;
    int i;
-   void *val = (void *)&pr_globals[ofs];
-   ddef_t *def = ED_GlobalAtOfs(ofs);
+   void *val;
+   ddef_t *def;
+
+   /* ofs is a global offset typically taken from a statement
+    * operand (s->a, s->b, s->c).  The bytecode dispatch in
+    * 1a8b98d validates these per-op for normal execution,
+    * but pr_exec's trace path calls into here directly.  A
+    * hostile progs.dat with an out-of-range operand makes
+    * pr_globals[ofs] an OOB read.  Guard before deref. */
+   if (ofs < 0 || ofs >= progs->numglobals)
+   {
+      snprintf(line, sizeof(line), "%i(BAD OFS)", ofs);
+      goto pad;
+   }
+   val = (void *)&pr_globals[ofs];
+   def = ED_GlobalAtOfs(ofs);
 
    if (!def)
       snprintf(line, sizeof(line), "%i(???"")", ofs);
@@ -458,6 +506,7 @@ char *PR_GlobalString(int ofs)
             PR_GetString(def->s_name), s);
    }
 
+pad:
    for (i = strlen(line); i < 20; i++)
       strlcat(line, " ", sizeof(line));
    strlcat(line, " ", sizeof(line));
@@ -469,12 +518,24 @@ char *PR_GlobalStringNoContents(int ofs)
 {
    static char line[128];
    int i;
-   ddef_t *def = ED_GlobalAtOfs(ofs);
+   ddef_t *def;
+
+   /* Same hostile-operand reasoning as PR_GlobalString;
+    * ED_GlobalAtOfs already returns NULL for unknown offsets
+    * so this path is safe for unbounded ofs, but be explicit
+    * about the bound for parity. */
+   if (ofs < 0 || ofs >= progs->numglobals)
+   {
+      snprintf(line, sizeof(line), "%i(BAD OFS)", ofs);
+      goto pad;
+   }
+   def = ED_GlobalAtOfs(ofs);
    if (!def)
       snprintf(line, sizeof(line), "%i(???"")", ofs);
    else
       snprintf(line, sizeof(line), "%i(%s)", ofs, PR_GetString(def->s_name));
 
+pad:
    i = strlen(line);
    for (; i < 20; i++)
       strlcat(line, " ", sizeof(line));
