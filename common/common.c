@@ -2046,6 +2046,16 @@ static const char * Info_ReadString(const char *infostring, char *buffer, int bu
 {
    char *out = buffer;
 
+   /* Defensive: a zero or negative buflen would make
+    * (out - buffer < buflen - 1) compare 0 < -1 (false), exit
+    * the loop, and then *out = 0 below writes at buffer[0]
+    * which is OOB for a 0-byte buffer.  All current callers
+    * pass sizeof(stack_array) which is positive, but the
+    * function signature accepts int and a future caller might
+    * compute the size dynamically. */
+   if (buflen <= 0)
+      return infostring;
+
    while (out - buffer < buflen - 1)
    {
       if (!*infostring || *infostring == '\\')
