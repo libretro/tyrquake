@@ -116,9 +116,6 @@ static bool libretro_supports_bitmasks = false;
 static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
 
 static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
-static unsigned audio_buffer_ptr;
-
-static int16_t audio_buffer[AUDIO_BUFFER_SIZE];
 static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
 static unsigned audio_buffer_ptr = 0;
 
@@ -311,7 +308,11 @@ void retro_set_rumble_touch(unsigned intensity, float duration)
 /**/
 static retro_log_printf_t log_cb;
 static retro_video_refresh_t video_cb;
-static retro_audio_sample_t audio_cb;
+/* per-sample audio_cb is required by the libretro
+ * API but never invoked: this core only ever uses
+ * the batch callback (audio_batch_cb).  See
+ * retro_set_audio_sample below -- we accept the
+ * callback registration but throw it away. */
 static retro_audio_sample_batch_t audio_batch_cb;
 retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
@@ -562,7 +563,10 @@ void retro_set_environment(retro_environment_t cb)
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
 {
-   audio_cb = cb;
+   /* No-op: this core uses only the batch callback.
+    * The libretro API requires this entry point but
+    * we never invoke the per-sample callback. */
+   (void)cb;
 }
 
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb)
@@ -1490,10 +1494,17 @@ static void audio_callback(void)
 
 qboolean SNDDMA_Init(dma_t *dma)
 {
-   shm             = dma;
-   shm->speed      = audio_samplerate;
-   shm->samplepos  = 0;
-   shm->buffer     = (unsigned char *volatile)audio_buffer;
+   shm                    = dma;
+   shm->speed             = audio_samplerate;
+   shm->samplepos         = 0;
+   /* Stereo frames per video frame.  audio_samplerate
+    * and framerate are both set by update_variables()
+    * which runs before this in retro_load_game.
+    * S_Update_ uses this to mix exactly one video
+    * frame's worth of audio per call, matching what
+    * audio_callback drains. */
+   shm->samples_per_frame = (int)(audio_samplerate / framerate);
+   shm->buffer            = (unsigned char *volatile)audio_buffer;
 
    return true;
 }

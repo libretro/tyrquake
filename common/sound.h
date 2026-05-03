@@ -28,11 +28,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-/* Audio buffer must be sufficient for operation
- * at 10 fps
- * > (2 * 44100) / 10 = 8820 total samples
- * > buffer size must be a power of 2
- * > Nearest power of 2 to 8820 is 16384 */
+/* Audio ring sized to hold one video frame's worth
+ * of stereo samples plus headroom.  At 60 fps /
+ * 44.1 kHz that's 1470 int16 (= 735 stereo frames)
+ * per frame; the ring holds ~5.5 frames.  Power of 2
+ * is required so the modulo masking in
+ * S_TransferStereo16 (lpos & ((SIZE>>1)-1)) works.
+ * The libretro layer paints exactly one video
+ * frame's worth ahead per retro_run.  At very low
+ * framerates (e.g. 10 fps), one frame's audio
+ * exceeds this buffer size; supported framerates
+ * have been chosen so that doesn't happen for any
+ * frame target the user is likely to actually
+ * select. */
 #define AUDIO_BUFFER_SIZE 8192
 
 /* sound.h -- client sound i/o functions */
@@ -41,7 +49,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define DEFAULT_SOUND_PACKET_VOLUME 255
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0
 
-/* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {
     int left;
     int right;
@@ -52,7 +59,6 @@ typedef struct sfx_s {
     cache_user_t cache;
 } sfx_t;
 
-/* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {
     int length;
     int loopstart;
@@ -63,13 +69,16 @@ typedef struct {
 } sfxcache_t;
 
 typedef struct {
-    int submission_chunk;	/* don't mix less than this # */
     int samplepos;		/* in mono samples */
-    int speed;
+    int speed;			/* sample rate (44100 / 22050 / 48000) */
+    int samples_per_frame;	/* stereo frames per video frame; the
+				 * libretro layer sets this to
+				 * (speed / framerate) so the mixer
+				 * paints exactly one video frame's
+				 * worth of audio per S_Update. */
     unsigned char *buffer;
 } dma_t;
 
-/* !!! if this is changed, it much be changed in asm_i386.h too !!! */
 typedef struct {
     sfx_t *sfx;			/* sfx number */
     int leftvol;		/* 0-255 volume */

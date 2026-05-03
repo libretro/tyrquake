@@ -121,7 +121,6 @@ static cvar_t precache = { "precache", "1" };
 static cvar_t ambient_level = { "ambient_level", "0.3" };
 static cvar_t ambient_fade = { "ambient_fade", "100" };
 static cvar_t snd_noextraupdate = { "snd_noextraupdate", "0" };
-static cvar_t _snd_mixahead = { "_snd_mixahead", "0.1", true };
 
 /*
  * ================
@@ -164,7 +163,6 @@ S_Init(void)
     Cvar_RegisterVariable(&ambient_level);
     Cvar_RegisterVariable(&ambient_fade);
     Cvar_RegisterVariable(&snd_noextraupdate);
-    Cvar_RegisterVariable(&_snd_mixahead);
 
     snd_initialized = true;
 
@@ -726,7 +724,7 @@ static void S_Update_(void)
 {
    unsigned endtime;
    int samps;
-   float mixahead;
+   int frame_samps;
 
    if (!sound_started || (snd_blocked > 0))
       return;
@@ -740,19 +738,25 @@ static void S_Update_(void)
       /* Con_DPrintf("%s: overflow\n", __func__); */
       paintedtime = soundtime;
    }
-   /* mix ahead of current position.  _snd_mixahead is a
-    * cvar; user can set it to NaN ("_snd_mixahead nan"),
-    * negative, or huge.  NaN * shm->speed = NaN; (unsigned)NaN
-    * is UB.  Negative mixahead makes endtime < soundtime;
-    * the (endtime - soundtime > samps) check below relies on
-    * unsigned arithmetic and would wrap.  Clamp to a sane
-    * range first. */
-   mixahead = _snd_mixahead.value;
-   if (IS_NAN(mixahead) || mixahead < 0.0f)
-      mixahead = 0.1f;	/* original default */
-   else if (mixahead > 1.0f)
-      mixahead = 1.0f;
-   endtime = soundtime + mixahead * shm->speed;
+   /* Paint exactly one video frame's worth of audio
+    * ahead of the consumer.  In the libretro
+    * deterministic model the audio_callback drains
+    * exactly samples_per_frame stereo frames per
+    * retro_run; mixing the same number of samples
+    * per S_Update keeps the in-flight buffer at a
+    * steady ~1 frame, which gives ~1 video frame of
+    * audio latency (~16.6ms at 60fps) instead of
+    * the historical ~93ms (mixahead 0.1s).
+    *
+    * If the libretro layer hasn't told us how big a
+    * video frame's audio is yet (samples_per_frame
+    * unset before SNDDMA_Init has run with a real
+    * framerate), fall back to the original ~0.1s
+    * lookahead -- harmless first-tick warmup. */
+   frame_samps = shm->samples_per_frame;
+   if (frame_samps <= 0)
+      frame_samps = shm->speed / 10;	/* 0.1s fallback */
+   endtime = soundtime + (unsigned)frame_samps;
    samps   = AUDIO_BUFFER_SIZE >> 1;
    if (endtime - soundtime > (unsigned)samps)
       endtime = soundtime + samps;
