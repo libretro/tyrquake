@@ -397,10 +397,20 @@ void MSG_WriteStringvf(sizebuf_t *sb, const char *fmt, va_list ap)
     * hand. Update the SZ interface?
     */
    int maxlen = sb->maxsize - sb->cursize;
-   int    len = vsnprintf((char *)sb->data + sb->cursize, maxlen, fmt, ap);
+   int    len;
+
+   /* Defensive: a corrupted sizebuf where cursize exceeds
+    * maxsize would make maxlen negative, then the cast to
+    * size_t in vsnprintf turns it into an enormous value and
+    * overflows sb->data.  Bail rather than scribble. */
+   if (maxlen <= 0)
+      return;
+
+   len = vsnprintf((char *)sb->data + sb->cursize, maxlen, fmt, ap);
 
    /* Use SZ_GetSpace to check for overflow */
-   SZ_GetSpace(sb, len + 1);
+   if (len >= 0)
+      SZ_GetSpace(sb, len + 1);
 }
 
 void MSG_WriteStringf(sizebuf_t *sb, const char *fmt, ...)
@@ -758,6 +768,16 @@ void SZ_Clear(sizebuf_t *buf)
 static void *SZ_GetSpace(sizebuf_t *buf, int length)
 {
    void *data;
+
+   /* Defensive: reject negative or absurd lengths up front.
+    * The original signed-int arithmetic in the overflow check
+    * below can wrap when length is large enough that
+    * cursize + length > INT_MAX, silently passing the check. */
+   if (length < 0 || length > buf->maxsize)
+   {
+      Sys_Error("%s: bad length %d (max %d)",
+                __func__, length, buf->maxsize);
+   }
 
    if (buf->cursize + length > buf->maxsize)
    {
@@ -1553,6 +1573,18 @@ static void *COM_LoadFile(const char *path, int usehunk, unsigned long *length)
    if (!f)
       return NULL;
 
+   /* Defensive: the filesize ultimately comes from the PAK
+    * directory entry's filelen field, which is untrusted.  A
+    * negative or absurdly large value would either underflow
+    * the buf[len]=0 store below or overflow the rfread buffer.
+    * Cap to a reasonable maximum (256 MB) -- larger than any
+    * legitimate single Quake asset, smaller than int wraparound. */
+   if (len < 0 || len > 256 * 1024 * 1024) {
+      rfclose(f);
+      com_filesize = -1;
+      return NULL;
+   }
+
    if (length)
       *length = len;
 
@@ -1653,6 +1685,18 @@ static pack_t *COM_LoadPackFile(const char *packfile)
    header.dirofs = LittleLong(header.dirofs);
    header.dirlen = LittleLong(header.dirlen);
 #endif
+
+   /* Defensive: the on-disk dirofs/dirlen are untrusted.
+    * Negative or absurd values produce a negative numfiles,
+    * an enormous Hunk_Alloc, or an rfread that overruns dfiles.
+    * Bound numfiles to MAX_FILES_IN_PACK (the historical Quake
+    * limit, 2048).  Reject malformed values outright rather
+    * than trying to recover. */
+   if (header.dirlen < 0 || header.dirofs < 0
+       || header.dirlen % sizeof(dpackfile_t) != 0
+       || header.dirlen / (int)sizeof(dpackfile_t) > 65536) {
+      Sys_Error("%s has corrupt directory header", packfile);
+   }
 
    numfiles = header.dirlen / sizeof(dpackfile_t);
 

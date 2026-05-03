@@ -138,6 +138,16 @@ CL_GetMessage(void)
 
       if (net_message.cursize > MAX_MSGLEN)
          Sys_Error("Demo message > MAX_MSGLEN");
+      /* Defensive: a corrupt or hostile demo can put a negative
+       * cursize on the wire.  Without this check, rfread is
+       * called with size = (size_t)cursize -- a negative int
+       * cast to size_t becomes a huge value and overflows
+       * net_message.data[].  The upper bound above already
+       * caught absurd positive values; mirror that for negatives. */
+      if (net_message.cursize < 0) {
+         CL_StopPlayback();
+         return 0;
+      }
       r = rfread(net_message.data, net_message.cursize, 1, cls.demofile);
       if (r != 1) {
          CL_StopPlayback();
@@ -208,11 +218,29 @@ CL_PlayDemo_f(void)
     cls.state = ca_connected;
     cls.forcetrack = 0;
 
-    while ((c = rfgetc(cls.demofile)) != '\n')
-	if (c == '-')
-	    neg = true;
-	else
-	    cls.forcetrack = cls.forcetrack * 10 + (c - '0');
+    /* Defensive: bound the header parse.  The original loop has
+     * no EOF check (rfgetc returns -1, which is not '\n' so the
+     * loop spins forever on a truncated file) and no iteration
+     * cap (a hostile demo of solid digits could overflow
+     * forcetrack into UB and stall the loader).  Cap the read at
+     * a generous fixed count and treat EOF / control characters
+     * as terminators. */
+    {
+	int iter;
+	for (iter = 0; iter < 32; iter++) {
+	    c = rfgetc(cls.demofile);
+	    if (c == EOF || c == '\n' || c == '\0')
+		break;
+	    if (c == '-') {
+		neg = true;
+	    } else if (c >= '0' && c <= '9') {
+		/* Saturate rather than overflow on absurd input. */
+		if (cls.forcetrack < 100000)
+		    cls.forcetrack = cls.forcetrack * 10 + (c - '0');
+	    }
+	    /* silently ignore other characters */
+	}
+    }
 
     if (neg)
 	cls.forcetrack = -cls.forcetrack;

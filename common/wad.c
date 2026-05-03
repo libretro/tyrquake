@@ -94,6 +94,20 @@ bool W_LoadWadFile(const char *filename)
    wad_numlumps = (header->numlumps);
    infotableofs = (header->infotableofs);
 #endif
+
+   /* Defensive: numlumps and infotableofs are file-controlled.
+    * Without bounds checking, a hostile WAD can make wad_lumps
+    * point outside the loaded buffer or make the loop walk far
+    * past the lumpinfo array.  com_filesize was set by the
+    * underlying COM_LoadFile and reflects the actual byte
+    * count loaded into wad_base. */
+   if (wad_numlumps > 65536
+       || infotableofs < 0
+       || infotableofs > com_filesize
+       || (long long)infotableofs + (long long)wad_numlumps
+              * (long long)sizeof(lumpinfo_t) > (long long)com_filesize)
+      return Sys_Error("Wad file %s has corrupt header", filename);
+
    wad_lumps    = (lumpinfo_t *)(wad_base + infotableofs);
 
    for (i = 0, lump_p = wad_lumps; i < wad_numlumps; i++, lump_p++)

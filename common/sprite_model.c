@@ -47,9 +47,22 @@ static void * Mod_LoadSpriteFrame(void *pin, mspriteframe_t **ppframe,
    int width = (pinframe->width);
    int height = (pinframe->height);
 #endif
-   int numpixels = width * height;
-   int size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
-   mspriteframe_t *pspriteframe = (mspriteframe_t*)Hunk_Alloc(size);
+   int numpixels;
+   int size;
+   mspriteframe_t *pspriteframe;
+
+   /* Defensive: width/height come from the .spr file directly.
+    * Without bounds checking, width*height can overflow the
+    * signed int and produce a tiny allocation whose subsequent
+    * memcpy in R_SpriteDataStore reads many MB beyond the
+    * source.  Cap each dimension to a value well above any
+    * legitimate Quake sprite (hellknight nail trail is 32x32). */
+   if (width <= 0 || height <= 0 || width > 4096 || height > 4096)
+      Sys_Error("%s: bad sprite dimensions %dx%d", __func__, width, height);
+
+   numpixels = width * height;
+   size = sizeof(mspriteframe_t) + R_SpriteDataSize(numpixels);
+   pspriteframe = (mspriteframe_t*)Hunk_Alloc(size);
 
    memset(pspriteframe, 0, size);
    *ppframe = pspriteframe;
@@ -95,6 +108,12 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
 #else
    int numframes = (pingroup->numframes);
 #endif
+
+   /* Defensive: numframes is file-controlled.  Negative or
+    * huge values either underflow Hunk_Alloc or produce a
+    * runaway loop that walks far past the .spr buffer. */
+   if (numframes < 1 || numframes > 1024)
+      Sys_Error("%s: bad numframes %d", __func__, numframes);
 
    mspritegroup_t *pspritegroup = (mspritegroup_t*)Hunk_Alloc(sizeof(*pspritegroup) +
          numframes * sizeof(pspritegroup->frames[0]));
@@ -156,6 +175,15 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
 #else
    numframes = (pin->numframes);
 #endif
+
+   /* Defensive: bound numframes BEFORE the alloc so the
+    * size = sizeof(*psprite) + numframes * sizeof(...)
+    * arithmetic can't overflow.  The original numframes < 1
+    * check was after the alloc had already used the bad size. */
+   if (numframes < 1 || numframes > 1024)
+      Sys_Error("%s: %s has bad numframes %d",
+                __func__, mod->name, numframes);
+
    size = sizeof(*psprite) + numframes * sizeof(psprite->frames[0]);
    psprite = (msprite_t*)Hunk_Alloc(size);
    mod->cache.data = psprite;
@@ -183,9 +211,6 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    /**/
    /* load the frames */
    /**/
-   if (numframes < 1)
-      Sys_Error("%s: Invalid # of frames: %d", __func__, numframes);
-
    mod->numframes = numframes;
    mod->flags = 0;
 

@@ -57,6 +57,12 @@ Mod_LoadAliasFrame(const daliasframe_t *in, maliasframedesc_t *frame)
 {
     int i;
 
+    /* Defensive: ensure we have room in the per-load poseverts
+     * pool before writing. */
+    if (posenum >= MAXALIASFRAMES)
+	Sys_Error("%s: posenum (%d) >= MAXALIASFRAMES",
+                  __func__, posenum);
+
     frame->firstpose = posenum;
     frame->numposes = 1;
 
@@ -91,6 +97,16 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
 #else
    numframes = (in->numframes);
 #endif
+
+   /* Defensive: numframes is file-controlled; without bounds
+    * checking, a negative or absurdly large value either
+    * underflows the in->intervals[numframes] pointer arithmetic
+    * (causing OOB reads on subsequent loads) or overflows the
+    * static poseverts[MAXALIASFRAMES] array. */
+   if (numframes < 1 || numframes > MAXALIASFRAMES - posenum)
+      Sys_Error("%s: bad numframes %d (posenum %d, max %d)",
+                __func__, numframes, posenum, MAXALIASFRAMES);
+
    frame->firstpose = posenum;
    frame->numposes = numframes;
 
@@ -129,18 +145,29 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
    daliasskininterval_t *pinskinintervals;
    byte *pdata;
    int i;
+   int numframes;
 
    daliasskingroup_t *pinskingroup  = (daliasskingroup_t*)pin;
 
-   pskindesc->firstframe = skinnum;
 #ifdef MSB_FIRST
-   pskindesc->numframes = LittleLong(pinskingroup->numskins);
+   numframes = LittleLong(pinskingroup->numskins);
 #else
-   pskindesc->numframes = (pinskingroup->numskins);
+   numframes = (pinskingroup->numskins);
 #endif
+
+   /* Defensive: numskins is file-controlled.  Without bounds
+    * checking, a negative or large value either skips the
+    * loops below entirely (latent bug) or overflows the
+    * static skinintervals[]/skindata[] arrays. */
+   if (numframes < 1 || numframes > MAXALIASSKINS - skinnum)
+      Sys_Error("%s: bad numframes %d (skinnum %d, max %d)",
+                __func__, numframes, skinnum, MAXALIASSKINS);
+
+   pskindesc->firstframe = skinnum;
+   pskindesc->numframes  = numframes;
    pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
 
-   for (i = 0; i < pskindesc->numframes; i++) {
+   for (i = 0; i < numframes; i++) {
 #ifdef MSB_FIRST
       skinintervals[skinnum] = LittleFloat(pinskinintervals->interval);
 #else
@@ -153,7 +180,7 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
    }
 
    pdata = (byte *)pinskinintervals;
-   for (i = 0; i < pskindesc->numframes; i++)
+   for (i = 0; i < numframes; i++)
    {
       skindata[pskindesc->firstframe + i] = pdata;
       pdata += skinsize;

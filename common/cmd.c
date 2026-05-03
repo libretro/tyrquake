@@ -120,11 +120,19 @@ Cbuf_AddText(const char *fmt, ...)
 
     buf = (char *)cmd_text.data + cmd_text.cursize;
     maxlen = cmd_text.maxsize - cmd_text.cursize;
+    /* Defensive: never pass a negative maxlen to vsnprintf;
+     * size_t cast turns it into a huge number and overflows
+     * the buffer.  cursize > maxsize shouldn't occur but
+     * could after corruption upstream. */
+    if (maxlen <= 0) {
+	Con_Printf("%s: overflow\n", __func__);
+	return;
+    }
     va_start(ap, fmt);
     len = vsnprintf(buf, maxlen, fmt, ap);
     va_end(ap);
 
-    if (cmd_text.cursize + len < cmd_text.maxsize)
+    if (len >= 0 && len < maxlen)
 	cmd_text.cursize += len;
     else
 	Con_Printf("%s: overflow\n", __func__);
@@ -417,7 +425,8 @@ Cmd_Alias_f(void)
 	cmd_len += strlen(Cmd_Argv(i));
 	if (i != c - 1)
 		cmd_len++;
-	if (cmd_len >= sizeof(cmd)) {
+	/* Reserve one byte for the trailing "\n" appended below. */
+	if (cmd_len >= sizeof(cmd) - 1) {
 	    Con_Printf("Alias value is too long\n");
 	    cmd[0] = 0;	/* nullify the string */
 	    break;
