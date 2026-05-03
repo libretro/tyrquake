@@ -299,7 +299,20 @@ void Draw_String(int x, int y, char *str)
 
 static void Draw_Pixel(int x, int y, byte color)
 {
-      uint8_t *dest = vid.conbuffer + y * vid.conrowbytes + x;
+      uint8_t *dest;
+      /* Defensive: x and y come from float arithmetic that
+       * folds in user cvars (cl_crossx, cl_crossy).  A NaN
+       * cvar value (e.g. "cl_crossx nan", reachable via
+       * svc_stufftext from a hostile NQ server) propagates
+       * to (int)NaN at the implicit cast and yields INT_MIN
+       * on x86 -- a wild address single-byte write through
+       * vid.conbuffer otherwise.  Bound to the visible
+       * framebuffer rectangle. */
+      if (x < 0 || y < 0
+          || (unsigned)x >= vid.width
+          || (unsigned)y >= vid.height)
+         return;
+      dest = vid.conbuffer + y * vid.conrowbytes + x;
       *dest = color;
 }
 
@@ -307,12 +320,30 @@ void
 Draw_Crosshair(void)
 {
    int x, y;
-   byte c = (byte)crosshaircolor.value;
+   float cx = cl_crossx.value;
+   float cy = cl_crossy.value;
+   byte c;
+
+   /* Cvars below feed an int conversion via Draw_Pixel /
+    * Draw_Character.  NaN/Inf cvar values (reachable via
+    * svc_stufftext "cl_crossx nan" from a hostile server)
+    * make the cast UB.  Draw_Pixel clamps the resulting
+    * coordinates defensively but treat the cvars at the
+    * source too -- silently coerces wild values to 0 so
+    * the crosshair stays visible at center. */
+   if (IS_NAN(cx))
+      cx = 0;
+   if (IS_NAN(cy))
+      cy = 0;
+   if (IS_NAN(crosshaircolor.value))
+      c = 0;
+   else
+      c = (byte)((int)crosshaircolor.value & 0xFF);
 
    if (crosshair.value == 2)
    {
-      x = scr_vrect.x + scr_vrect.width / 2 + cl_crossx.value;
-      y = scr_vrect.y + scr_vrect.height / 2 + cl_crossy.value;
+      x = scr_vrect.x + scr_vrect.width / 2 + (int)cx;
+      y = scr_vrect.y + scr_vrect.height / 2 + (int)cy;
       Draw_Pixel(x - 1, y, c);
       Draw_Pixel(x - 3, y, c);
       Draw_Pixel(x + 1, y, c);
@@ -324,9 +355,9 @@ Draw_Crosshair(void)
    }
    else if (crosshair.value)
       Draw_Character(scr_vrect.x + scr_vrect.width / 2 - 4 +
-            cl_crossx.value,
+            (int)cx,
             scr_vrect.y + scr_vrect.height / 2 - 4 +
-            cl_crossy.value, '+');
+            (int)cy, '+');
 }
 
 

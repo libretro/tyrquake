@@ -127,18 +127,31 @@ static float V_CalcBob(void)
 {
    float bob;
    float cycle;
+   float bobcycle = cl_bobcycle.value;
+   float bobup    = cl_bobup.value;
 
-   /* Avoid divide-by-zero, don't bob */
-   if (!cl_bobcycle.value)
+   /* cl_bobcycle and cl_bobup are user cvars.  NaN
+    * propagates through `cl.time / NaN = NaN`, then
+    * `(int)NaN` is UB, and the post-cast multiply puts
+    * NaN into the returned bob value -- visible as a
+    * wrong viewmodel position but not a crash.  Treat
+    * any non-finite or non-positive cycle as
+    * "don't bob" and clamp bobup to the [0,1) range it
+    * implicitly wants. */
+   if (IS_NAN(bobcycle) || bobcycle <= 0.0f)
       return 0.0f;
+   if (IS_NAN(bobup) || bobup < 0.0f)
+      bobup = 0.0f;
+   else if (bobup >= 1.0f)
+      bobup = 0.999f;	/* avoid /0 in the (1.0 - bobup) branch */
 
-   cycle = cl.time - (int)(cl.time / cl_bobcycle.value) * cl_bobcycle.value;
-   cycle /= cl_bobcycle.value;
-   if (cycle < cl_bobup.value)
-      cycle = M_PI * cycle / cl_bobup.value;
+   cycle = cl.time - (int)(cl.time / bobcycle) * bobcycle;
+   cycle /= bobcycle;
+   if (cycle < bobup)
+      cycle = M_PI * cycle / bobup;
    else
       cycle =
-         M_PI + M_PI * (cycle - cl_bobup.value) / (1.0 - cl_bobup.value);
+         M_PI + M_PI * (cycle - bobup) / (1.0 - bobup);
 
    /* bob is proportional to velocity in the xy plane */
    /* (don't count Z, or jumping messes it up) */

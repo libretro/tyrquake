@@ -107,8 +107,19 @@ void S_PaintChannels (int endtime)
 	int		end, ltime, count;
 	channel_t	*ch;
 	sfxcache_t	*sc;
+	float		vol;
 
-	snd_vol = sfxvolume.value * 256;
+	/* sfxvolume is a user cvar.  NaN propagates to snd_vol
+	 * via (int)(NaN * 256), which is UB; on x86 typically
+	 * INT_MIN.  Then `data * leftvol` with leftvol ~ INT_MIN/256
+	 * overflows the int multiplication used at line 238.  Clamp
+	 * the computed product before the cast. */
+	vol = sfxvolume.value;
+	if (IS_NAN(vol) || vol < 0.0f)
+		vol = 0.0f;
+	else if (vol > 1.0f)
+		vol = 1.0f;
+	snd_vol = (int)(vol * 256);
 
 	while (paintedtime < endtime)
 	{

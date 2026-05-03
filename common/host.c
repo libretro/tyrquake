@@ -518,7 +518,18 @@ static void Host_FilterTime(float time)
     host_frametime = realtime - oldrealtime;
     oldrealtime    = realtime;
 
-    if (host_framerate.value > 0)
+    /* host_framerate is a user cvar.  > 0 lets a finite
+     * positive value override the measured frametime
+     * (used for timedemos / fixed-step debug).  Reject
+     * non-finite values so a "host_framerate nan" or
+     * "host_framerate inf" doesn't propagate through
+     * every per-frame multiplication (movement, particle
+     * decay, ambient_vol, etc.) -- with NaN, > 0 is false
+     * and the natural-frametime branch is taken
+     * accidentally; with +Inf the override fires and
+     * poisons every consumer. */
+    if (host_framerate.value > 0 && !IS_NAN(host_framerate.value)
+        && host_framerate.value <= 1.0f)
 	host_frametime = host_framerate.value;
     else {			/* don't allow really long or short frames */
 	if (host_frametime > 0.1)
