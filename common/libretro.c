@@ -948,6 +948,14 @@ void retro_run(void)
 
    if (!did_flip)
       video_cb(NULL, width, height, width << 1); /* dupe */
+   /* Light decay is per-frame, not audio.  Was
+    * historically bundled into audio_step because
+    * that was the "do this once per frame" hook,
+    * but it has nothing to do with the mixer and
+    * must always run regardless of any audio
+    * skip-path. */
+   if (cls.state == ca_active)
+      CL_DecayLights();
    audio_step();
 }
 
@@ -1434,17 +1442,47 @@ void D_EndDirectRect(int x, int y, int w, int h)
  * tick (so any sounds triggered this frame are
  * already in the channel array when we mix them).
  *
- * The two halves (mix, push) used to be split into
- * audio_process / audio_callback helpers; nothing
- * else ever called them and the "callback" naming
- * was misleading -- it's a regular synchronous call,
- * not an async notification.  Kept as one function
- * for clarity.
+ * The "audio_callback" / "audio_process" split was
+ * organizational only -- nothing else ever called
+ * either half, and the "callback" naming was
+ * misleading (this is a regular synchronous call,
+ * not the async push model that
+ * RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK provides).
  */
 static void audio_step(void)
 {
    unsigned audio_frames_remaining;
    int16_t *audio_out_ptr;
+   int      av_flags = RETRO_AV_ENABLE_VIDEO | RETRO_AV_ENABLE_AUDIO;
+   qboolean push_audio;
+
+   /* RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE lets
+    * the frontend tell us when audio output isn't
+    * needed.  Two cases are interesting here:
+    *
+    * - HARD_DISABLE_AUDIO: a runahead secondary
+    *   core whose audio is never consumed.  The
+    *   docs allow skipping audio synthesis
+    *   entirely "without compromising emulation
+    *   accuracy".  In tyrquake the mixer state is
+    *   purely output -- it does not feed back into
+    *   game state -- so we can short-circuit the
+    *   whole step.
+    *
+    * - AUDIO cleared (without HARD_DISABLE):
+    *   frontend will discard the samples this
+    *   frame (e.g. fast-forward).  We still update
+    *   engine state (channel positions, BGM
+    *   stream cursor, paintedtime) so the next
+    *   non-skipped frame mixes from the right
+    *   position; we just don't push the buffer.
+    *
+    * Older frontends that don't implement env 47
+    * fall through with all flags set as default. */
+   environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av_flags);
+   if (av_flags & RETRO_AV_ENABLE_HARD_DISABLE_AUDIO)
+      return;
+   push_audio = (av_flags & RETRO_AV_ENABLE_AUDIO) != 0;
 
    /* Mix.  S_Update does the spatialization /
     * volume falloff for the listener position; the
@@ -1455,20 +1493,24 @@ static void audio_step(void)
     * audio_out_buffer. */
    BGM_Update();
    if (cls.state == ca_active)
-   {
       S_Update(r_origin, vpn, vright, vup);
-      CL_DecayLights();
-   }
    else
       S_Update(vec3_origin, vec3_origin, vec3_origin, vec3_origin);
    CDAudio_Update();
+
+   if (!push_audio)
+      return;
 
    /* Push.  At very low framerates one video frame's
     * worth of audio can exceed the frontend's
     * internal batch limit; chunk if so.  At 60fps /
     * 44.1kHz the count is 735 stereo frames -- well
     * below any reasonable limit -- and the loop runs
-    * once. */
+    * once.  On a partial write (frontend returned
+    * fewer frames than asked), shrink our cap and
+    * advance only by what was actually consumed --
+    * the unwritten tail will be retried in the next
+    * loop iteration. */
    audio_frames_remaining = audio_samplerate / framerate;
    audio_out_ptr          = audio_out_buffer;
    do
@@ -1479,12 +1521,14 @@ static void audio_step(void)
       unsigned audio_frames_written  =
             audio_batch_cb(audio_out_ptr, audio_frames_to_write);
 
-      if ((audio_frames_written < audio_frames_to_write) &&
-          (audio_frames_written > 0))
+      if (audio_frames_written == 0)
+         break;	/* frontend can't accept any more this frame */
+
+      if (audio_frames_written < audio_frames_to_write)
          audio_batch_frames_max = audio_frames_written;
 
-      audio_frames_remaining -= audio_frames_to_write;
-      audio_out_ptr          += audio_frames_to_write << 1;
+      audio_frames_remaining -= audio_frames_written;
+      audio_out_ptr          += audio_frames_written << 1;
    }
    while (audio_frames_remaining > 0);
 }
@@ -1498,10 +1542,10 @@ qboolean SNDDMA_Init(dma_t *dma)
     * which runs before this in retro_load_game.
     * S_Update_ uses this to mix exactly one video
     * frame's worth of audio per call, matching what
-    * audio_callback drains. */
+    * audio_step drains. */
    shm->samples_per_frame = (int)(audio_samplerate / framerate);
    /* Engine writes mixed audio directly into our
-    * linear output buffer; audio_callback then hands
+    * linear output buffer; audio_step then hands
     * that buffer straight to audio_batch_cb. */
    shm->buffer            = (unsigned char *volatile)audio_out_buffer;
 
