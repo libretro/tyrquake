@@ -115,6 +115,27 @@ Draw_CachePic(const char *path)
 
     SwapPic(dat);
 
+    /* Defensive: the on-disk .lmp format is just `int width;
+     * int height; byte data[width*height]`.  Both fields are
+     * file-controlled.  Without bounds, dat->width = -1 (or any
+     * negative) makes Draw_Pic's `memcpy(dest, source,
+     * pic->width)` interpret the size as size_t = SIZE_MAX --
+     * catastrophic write.  dat->height huge with a tiny
+     * pic->width walks pic->data[] far past the cache extent
+     * (com_filesize bytes loaded) on every redraw.  Cap each
+     * dimension to vid.maxwidth/maxheight (qpic was never
+     * intended to exceed screen size; the largest legitimate
+     * Quake .lmp is 320x200 conback) and require the implied
+     * total fits within the loaded file. */
+    if (dat->width <= 0 || dat->height <= 0
+        || dat->width > 4096 || dat->height > 4096
+        || (size_t)com_filesize < sizeof(qpic_t)
+        || (size_t)dat->width * (size_t)dat->height
+             > (size_t)com_filesize - offsetof(qpic_t, data))
+	Sys_Error("%s: %s has bad dimensions %dx%d (filesize %d)",
+                  __func__, path, dat->width, dat->height,
+                  com_filesize);
+
     return dat;
 }
 

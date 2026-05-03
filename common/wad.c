@@ -144,17 +144,36 @@ bool W_LoadWadFile(const char *filename)
                           lump_p->disksize, com_filesize);
 
       W_CleanupName(lump_p->name, lump_p->name);
-#ifdef MSB_FIRST
       if (lump_p->type == TYP_QPIC) {
+         qpic_t *qpic;
+
          /* Need at least the qpic_t header (8 bytes for two
           * int32s) before SwapPic touches it. */
          if (lump_p->disksize < (int)(2 * sizeof(int32_t)))
             return Sys_Error("Wad file %s qpic lump %u too small "
                              "(disksize=%i)", filename, i,
                              lump_p->disksize);
-         SwapPic((qpic_t *)(wad_base + lump_p->filepos));
-      }
+         qpic = (qpic_t *)(wad_base + lump_p->filepos);
+#ifdef MSB_FIRST
+         SwapPic(qpic);
 #endif
+         /* Validate width/height fit within the lump's
+          * disksize.  Same shape as Draw_CachePic's check
+          * for standalone .lmp files: a hostile WAD with
+          * width = -1 / huge / negative makes downstream
+          * Draw_Pic's `memcpy(dest, source, pic->width)`
+          * either interpret -1 as size_t SIZE_MAX or walk
+          * pic->data[] far past the lump extent.
+          * disksize - 8 is the available pixel space. */
+         if (qpic->width <= 0 || qpic->height <= 0
+             || qpic->width > 4096 || qpic->height > 4096
+             || (size_t)qpic->width * (size_t)qpic->height
+                  > (size_t)lump_p->disksize - offsetof(qpic_t, data))
+            return Sys_Error("Wad file %s qpic lump %u has bad "
+                             "dimensions %dx%d (disksize=%i)",
+                             filename, i, qpic->width, qpic->height,
+                             lump_p->disksize);
+      }
    }
 
    return true;
