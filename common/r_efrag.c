@@ -46,6 +46,34 @@ vec3_t r_emins, r_emaxs;
 
 /*
 ================
+R_ValidEfrag
+
+Returns true iff e points to an aligned slot inside the
+cl_efrags array.  Used to gate the free-list pop in
+R_SplitEntityOnNode against corruption of cl.free_efrags or
+some node's entnext pointer -- same defense pattern as
+R_ValidParticle in r_part.c.  Bailing out when corruption is
+detected treats the situation as "free list exhausted",
+which is the existing graceful-skip path.
+================
+*/
+static int
+R_ValidEfrag(const efrag_t *e)
+{
+    const char *base = (const char *)cl_efrags;
+    const char *end  = base + sizeof(cl_efrags);
+    const char *q    = (const char *)e;
+    if (!e)
+        return 0;
+    if (q < base || q >= end)
+        return 0;
+    if (((size_t)(q - base) % sizeof(efrag_t)) != 0)
+        return 0;
+    return 1;
+}
+
+/*
+================
 R_RemoveEfrags
 
 Call when removing an object from the world or moving it to another position
@@ -59,6 +87,14 @@ R_RemoveEfrags(entity_t *ent)
     ef = ent->efrag;
 
     while (ef) {
+	/* Defensive: if the entity's efrag chain links into
+	 * memory outside cl_efrags[], abort the walk rather
+	 * than dereferencing garbage and propagating corruption
+	 * onto the free list. */
+	if (!R_ValidEfrag(ef)) {
+	    ent->efrag = NULL;
+	    return;
+	}
 	prev = &ef->leaf->efrags;
 	while (1) {
 	    walk = *prev;
@@ -108,9 +144,15 @@ R_SplitEntityOnNode(mnode_t *node)
 
 /* grab an efrag off the free list */
 	ef = cl.free_efrags;
-	if (!ef) {
-	    Con_Printf("Too many efrags!\n");
-	    return;		/* no free fragments... */
+	if (!R_ValidEfrag(ef)) {
+	    /* Either the free list is exhausted (NULL) or its
+	     * head has been corrupted by a stomp from another
+	     * subsystem.  Either way, drop this efrag silently --
+	     * matches the existing "Too many efrags!" graceful
+	     * path. */
+	    if (!ef)
+		Con_Printf("Too many efrags!\n");
+	    return;
 	}
 	cl.free_efrags = cl.free_efrags->entnext;
 

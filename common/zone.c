@@ -102,6 +102,58 @@ Z_ClearZone(memzone_t *zone, int size)
 
 /*
  * ========================
+ * Z_CheckHeap
+ *
+ * Walk every block in the zone and verify:
+ *   - block->id == ZONEID
+ *   - block->next->prev == block (back-link integrity)
+ *   - no two consecutive free blocks (allocator invariant)
+ *   - allocated blocks have their trailing trash-tester word
+ *     intact (set by Z_TagMalloc near "marker for memory trash
+ *     testing").
+ *
+ * The trash-tester check catches the most common stomp shape:
+ * a strcpy/strcat that walks a few bytes past the end of an
+ * allocated region and overwrites the start of the next
+ * block's header.  Without this check such corruption is
+ * silent until a much later allocator traversal trips far
+ * from the culprit.
+ *
+ * Cheap enough to invoke from a console command; on a 16 MB
+ * zone with a few thousand blocks this is a few microseconds.
+ * ========================
+ */
+void
+Z_CheckHeap(void)
+{
+    memblock_t *block;
+
+    if (!mainzone)
+        return;
+
+    for (block = mainzone->blocklist.next; ; block = block->next) {
+        if (block->next == &mainzone->blocklist)
+            break;          /* all blocks checked */
+        if (block->id != ZONEID)
+            Sys_Error("%s: block id != ZONEID", __func__);
+        if (block->next->prev != block)
+            Sys_Error("%s: next block doesn't have proper back link",
+                      __func__);
+        if (!block->tag && !block->next->tag)
+            Sys_Error("%s: two consecutive free blocks", __func__);
+        if (block->tag) {
+            int *trash = (int *)((byte *)block + block->size - 4);
+            if (*trash != ZONEID)
+                Sys_Error("%s: trashed trash-tester at end of block "
+                          "(tag=%i, size=%i)",
+                          __func__, block->tag, block->size);
+        }
+    }
+}
+
+
+/*
+ * ========================
  * Z_Free
  * ========================
  */
@@ -878,4 +930,5 @@ void Memory_Init(void *buf, int size)
    /* Needs to be added after the zone init... */
    Cmd_AddCommand("flush", Cache_Flush);
    Cmd_AddCommand("cache", Cache_f);
+   Cmd_AddCommand("zone_check", Z_CheckHeap);
 }

@@ -105,6 +105,16 @@ void *Hunk_TempAllocExtend(int size);
 
 void Hunk_Check(void);
 
+/*
+ * Z_CheckHeap
+ * - walks the zone block list and verifies every block's id
+ *   field, the next/prev pointers, and the trailing
+ *   trash-tester word written by Z_TagMalloc.  Sys_Errors on
+ *   the first inconsistency.  Cheap enough to call from a
+ *   console command for live debugging of heap stomps.
+ */
+void Z_CheckHeap(void);
+
 typedef struct cache_user_s {
     void *data;
     int pad;
