@@ -94,16 +94,31 @@ void ED_LoadFromFile(const char *data);
 edict_t *EDICT_NUM(int n);
 int NUM_FOR_EDICT(const edict_t *e);
 
+/* PROG_TO_EDICT converts a QuakeC-stored byte offset into an
+ * edict_t pointer.  The offset is set either by the engine
+ * (always valid) or by bytecode (self/other/world globals,
+ * eval_t.edict fields).  Bytecode-set values aren't bounded
+ * by the bytecode store ops -- those validate the offset
+ * within pr_globals[] but not the *contents* of an edict
+ * field -- so a hostile progs.dat can plant a value that
+ * makes the resulting pointer land outside sv.edicts.
+ *
+ * Convert to an inline function so we can bound the offset
+ * at every consumer.  The bound matches NUM_FOR_EDICT's
+ * pointer-extent check: offset must be a non-negative
+ * multiple of pr_edict_size, less than max_edicts *
+ * pr_edict_size. */
+edict_t *PROG_TO_EDICT(int e);
+
 #define	NEXT_EDICT(e) ((edict_t *)( (byte *)e + pr_edict_size))
 
 #define	EDICT_TO_PROG(e) ((byte *)e - (byte *)sv.edicts)
-#define PROG_TO_EDICT(e) ((edict_t *)((byte *)sv.edicts + e))
 
 /* ============================================================================ */
 
 #define	G_FLOAT(o) (pr_globals[o])
 #define	G_INT(o) (*(int *)&pr_globals[o])
-#define	G_EDICT(o) ((edict_t *)((byte *)sv.edicts+ *(int *)&pr_globals[o]))
+#define	G_EDICT(o) PROG_TO_EDICT(*(int *)&pr_globals[o])
 #define G_EDICTNUM(o) NUM_FOR_EDICT(G_EDICT(o))
 #define	G_VECTOR(o) (&pr_globals[o])
 #define	G_STRING(o) (PR_GetString(*(string_t *)&pr_globals[o]))

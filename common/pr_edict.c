@@ -1316,21 +1316,81 @@ PR_Init(void)
 edict_t *
 EDICT_NUM(int n)
 {
+    /* sv.max_edicts is set at server init for NQ and to MAX_EDICTS
+     * for QW.  Bound against whichever is the active limit; the
+     * dead-fallthrough case (QW_HACK !SERVERONLY) was the only
+     * path where this function returned an unbounded computation,
+     * but pr_edict.c is built only on server-capable targets so
+     * that fallthrough is currently unreachable.  Make the check
+     * unconditional so any future build that links pr_edict.c
+     * into a non-server target stays safe. */
 #ifdef NQ_HACK
     if (n < 0 || n >= sv.max_edicts)
-#endif
-#if defined(QW_HACK) && defined(SERVERONLY)
+        SV_Error("%s: bad number %i (max %i)", __func__, n, sv.max_edicts);
+#else
     if (n < 0 || n >= MAX_EDICTS)
+        SV_Error("%s: bad number %i (max %i)", __func__, n, MAX_EDICTS);
 #endif
-	SV_Error("%s: bad number %i", __func__, n);
     return (edict_t *)((byte *)sv.edicts + (n) * pr_edict_size);
+}
+
+edict_t *
+PROG_TO_EDICT(int e)
+{
+    /* e is a byte offset into sv.edicts as stored by
+     * EDICT_TO_PROG.  The engine sets edict-typed globals
+     * (self / other / world / msg_entity) and eval_t.edict
+     * field values to EDICT_TO_PROG(known_good_edict), so the
+     * "trusted" path is always within the array.  But QuakeC
+     * bytecode can also write directly to an edict-typed
+     * global or field; the bytecode store ops bound the offset
+     * within pr_globals[] but not the *value* being stored.
+     * A hostile progs.dat can plant any int, then cause a
+     * builtin to receive the resulting wild pointer and
+     * dereference (e.g. ED_Free, PF_setorigin's
+     * ent->v.origin).  That gives bytecode an OOB write into
+     * arbitrary host memory at sv.edicts + offset.
+     *
+     * Bound the offset before computing the pointer: must be
+     * non-negative, a multiple of pr_edict_size (otherwise the
+     * offset doesn't address an edict's start), and less than
+     * sv.max_edicts * pr_edict_size. */
+    int max_byte_offset;
+
+    if (!sv.edicts)
+        SV_Error("%s: sv.edicts not allocated", __func__);
+#ifdef NQ_HACK
+    max_byte_offset = sv.max_edicts * pr_edict_size;
+#else
+    max_byte_offset = MAX_EDICTS * pr_edict_size;
+#endif
+    if (e < 0 || e >= max_byte_offset || (e % pr_edict_size) != 0)
+        SV_Error("%s: bad offset %i (max %i, edict_size %i)",
+                 __func__, e, max_byte_offset, pr_edict_size);
+    return (edict_t *)((byte *)sv.edicts + e);
 }
 
 int
 NUM_FOR_EDICT(const edict_t *e)
 {
-    int b = (byte *)e - (byte *)sv.edicts;
-    b = b / pr_edict_size;
+    /* Pointer subtraction across distinct allocations is UB in
+     * the C abstract machine.  e usually came from EDICT_NUM or
+     * PROG_TO_EDICT and so is within the edicts array, but
+     * defensively bound the pointer against the array's byte
+     * extent before doing the subtraction.  Also reject
+     * pointers that aren't on a pr_edict_size boundary -- a
+     * misaligned pointer would yield a non-integer division and
+     * silently round, producing the wrong edict index. */
+    const byte *p = (const byte *)e;
+    const byte *base = (const byte *)sv.edicts;
+    int b;
+
+    if (!sv.edicts || p < base
+        || p >= base + (size_t)sv.max_edicts * (size_t)pr_edict_size
+        || ((size_t)(p - base)) % (size_t)pr_edict_size != 0)
+	SV_Error("%s: bad pointer", __func__);
+
+    b = (p - base) / pr_edict_size;
 
     if (b < 0 || b >= sv.num_edicts)
 	SV_Error("%s: bad pointer", __func__);
