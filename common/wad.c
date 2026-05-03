@@ -100,8 +100,13 @@ bool W_LoadWadFile(const char *filename)
     * point outside the loaded buffer or make the loop walk far
     * past the lumpinfo array.  com_filesize was set by the
     * underlying COM_LoadFile and reflects the actual byte
-    * count loaded into wad_base. */
-   if (wad_numlumps > 65536
+    * count loaded into wad_base.
+    *
+    * wad_numlumps is signed, so reject negatives explicitly --
+    * a comparison of a negative int with the positive constant
+    * 65536 is signed and would otherwise pass. */
+   if (wad_numlumps < 0
+       || wad_numlumps > 65536
        || infotableofs < 0
        || infotableofs > com_filesize
        || (long long)infotableofs + (long long)wad_numlumps
@@ -113,13 +118,42 @@ bool W_LoadWadFile(const char *filename)
    for (i = 0, lump_p = wad_lumps; i < wad_numlumps; i++, lump_p++)
    {
 #ifdef MSB_FIRST
-      lump_p->filepos = LittleLong(lump_p->filepos);
-      lump_p->size    = LittleLong(lump_p->size);
+      lump_p->filepos  = LittleLong(lump_p->filepos);
+      lump_p->disksize = LittleLong(lump_p->disksize);
+      lump_p->size     = LittleLong(lump_p->size);
 #endif
+      /* Per-lump bounds.  Each lump points to a region of the
+       * loaded WAD by (filepos, disksize); consumers of
+       * W_GetLumpName / W_GetLumpNum receive (wad_base +
+       * filepos) and use the data without further range checks
+       * (they rely on Hunk_PointerInHunk only for the *base*
+       * pointer, not for the lump extent).  Without this check
+       * a hostile WAD can make a lump appear to start anywhere
+       * within addressable memory, or extend far past the end
+       * of the file.
+       *
+       * disksize 0 is acceptable for label / placeholder lumps,
+       * but a negative value or a (filepos + disksize) extending
+       * past com_filesize is a corrupt or malicious file. */
+      if (lump_p->filepos < 0 || lump_p->disksize < 0
+          || (long long)lump_p->filepos + (long long)lump_p->disksize
+                 > (long long)com_filesize)
+         return Sys_Error("Wad file %s lump %u out of range "
+                          "(filepos=%i, disksize=%i, filesize=%i)",
+                          filename, i, lump_p->filepos,
+                          lump_p->disksize, com_filesize);
+
       W_CleanupName(lump_p->name, lump_p->name);
 #ifdef MSB_FIRST
-      if (lump_p->type == TYP_QPIC)
+      if (lump_p->type == TYP_QPIC) {
+         /* Need at least the qpic_t header (8 bytes for two
+          * int32s) before SwapPic touches it. */
+         if (lump_p->disksize < (int)(2 * sizeof(int32_t)))
+            return Sys_Error("Wad file %s qpic lump %u too small "
+                             "(disksize=%i)", filename, i,
+                             lump_p->disksize);
          SwapPic((qpic_t *)(wad_base + lump_p->filepos));
+      }
 #endif
    }
 
@@ -160,7 +194,9 @@ void *W_GetLumpNum(int num)
 {
    lumpinfo_t *lump;
 
-   if (num < 0 || num > wad_numlumps)
+   /* Off-by-one: num == wad_numlumps would read one past the
+    * end of the wad_lumps array. */
+   if (num < 0 || num >= wad_numlumps)
       Sys_Error("%s: bad number: %i", __func__, num);
 
    lump = wad_lumps + num;

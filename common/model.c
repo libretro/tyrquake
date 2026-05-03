@@ -634,11 +634,27 @@ Mod_LoadTextures(lump_t *l)
       loadmodel->textures = NULL;
       return;
    }
+   /* l->filelen has already been bounded against mod_base size
+    * by the dheader_t lump validation, but the contents of the
+    * texture lump are file-controlled.  Defend each step. */
+   if (l->filelen < (int)sizeof(int32_t))
+      SV_Error("%s: texture lump too small for nummiptex (%d)",
+               __func__, l->filelen);
    m = (dmiptexlump_t *)(mod_base + l->fileofs);
 
 #ifdef MSB_FIRST
    m->nummiptex = LittleLong(m->nummiptex);
 #endif
+
+   /* nummiptex bounds.  Need (nummiptex >= 0) and the dataofs
+    * array of int32_t * nummiptex to fit in the lump after the
+    * 4-byte nummiptex header. */
+   if (m->nummiptex < 0
+       || (long long)m->nummiptex
+              > ((long long)l->filelen - (long long)sizeof(int32_t))
+                / (long long)sizeof(int32_t))
+      SV_Error("%s: bad nummiptex %d (lump size %d)", __func__,
+               m->nummiptex, l->filelen);
 
    loadmodel->numtextures = m->nummiptex;
    loadmodel->textures = (texture_t**)Hunk_Alloc(m->nummiptex * sizeof(*loadmodel->textures));
@@ -650,6 +666,13 @@ Mod_LoadTextures(lump_t *l)
 #endif
       if (m->dataofs[i] == -1)
          continue;
+      /* dataofs[i] is a byte offset within the texture lump.
+       * Require room for at least the miptex_t header. */
+      if (m->dataofs[i] < 0
+          || (long long)m->dataofs[i] + (long long)sizeof(miptex_t)
+                 > (long long)l->filelen)
+         SV_Error("%s: bad dataofs[%d] = %d (lump size %d)",
+                  __func__, i, m->dataofs[i], l->filelen);
       mt = (miptex_t *)((byte *)m + m->dataofs[i]);
 #ifdef MSB_FIRST
       mt->width = (uint32_t)LittleLong(mt->width);
@@ -660,7 +683,25 @@ Mod_LoadTextures(lump_t *l)
 
       if ((mt->width & 15) || (mt->height & 15))
          SV_Error("Texture %s is not 16 aligned", mt->name);
-      pixels = mt->width * mt->height / 64 * 85;
+      /* width, height are uint32_t.  pixels = w*h/64*85 (the
+       * mip-chain expansion factor) must not overflow.  Reject
+       * any combination that would produce a >= INT_MAX pixel
+       * count, which would also fail Hunk_Alloc cleanly but
+       * only after a memcpy-sized read past the lump. */
+      if (mt->width == 0 || mt->height == 0
+          || mt->width > 32768 || mt->height > 32768
+          || (uint64_t)mt->width * (uint64_t)mt->height
+                 > (uint64_t)INT_MAX / 85 * 64)
+         SV_Error("%s: texture %s has bad dimensions %ux%u",
+                  __func__, mt->name, mt->width, mt->height);
+      pixels = (int)((uint64_t)mt->width * (uint64_t)mt->height / 64 * 85);
+      /* The miptex header plus its mip chain occupies
+       * sizeof(miptex_t) + pixels bytes in the lump; require
+       * that range to fit. */
+      if ((long long)m->dataofs[i] + (long long)sizeof(miptex_t)
+              + (long long)pixels > (long long)l->filelen)
+         SV_Error("%s: texture %s pixels (%d) extend past lump end",
+                  __func__, mt->name, pixels);
       tx = (texture_t*)Hunk_Alloc(sizeof(texture_t) + pixels);
       loadmodel->textures[i] = tx;
 
