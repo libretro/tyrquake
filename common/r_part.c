@@ -278,6 +278,18 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
    particle_t *p;
    int colorMod = 0;
 
+   /* colorStart and colorLength come from MSG_ReadByte at
+    * the TE_EXPLOSION2 caller (range [-1, 255]).
+    * colorLength == 0 makes (colorMod % colorLength)
+    * divide by zero (UB; SIGFPE on x86); colorLength < 0
+    * yields an implementation-defined modulo result that
+    * may be negative or zero, both of which would put
+    * p->color out of palette range.  Reject up front; a
+    * malformed packet just produces a less colorful
+    * explosion. */
+   if (colorLength <= 0)
+      return;
+
    for (i = 0; i < 512; i++) {
       if (!R_ValidParticle(free_particles))
          return;
