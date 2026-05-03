@@ -87,7 +87,8 @@ returns a pointer to the memory location following this frame group
 =================
 */
 static daliasframetype_t *
-Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
+Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
+                   const byte *bufend, const char *modname)
 {
    int i, numframes;
    daliasframe_t *dframe;
@@ -107,6 +108,12 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
       Sys_Error("%s: bad numframes %d (posenum %d, max %d)",
                 __func__, numframes, posenum, MAXALIASFRAMES);
 
+   /* in->intervals[numframes] is the start of the per-subframe
+    * data.  Bound the array within the file. */
+   if ((const byte *)&in->intervals[numframes] > bufend)
+      Sys_Error("model %s: group intervals past EOF (numframes %d)",
+                modname, numframes);
+
    frame->firstpose = posenum;
    frame->numposes = numframes;
 
@@ -118,6 +125,12 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame)
 
    dframe = (daliasframe_t *)&in->intervals[numframes];
    for (i = 0; i < numframes; i++) {
+      /* dframe header + numverts trivertx_t must fit.
+       * numverts was bounded against MAXALIASVERTS in
+       * Mod_LoadAliasModel. */
+      if ((const byte *)&dframe->verts[pheader->numverts] > bufend)
+         Sys_Error("model %s: group subframe %d data past EOF",
+                   modname, i);
       poseverts[posenum] = dframe->verts;
 #ifdef MSB_FIRST
       poseintervals[posenum] = LittleFloat(in->intervals[i].interval);
@@ -269,6 +282,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    daliasskintype_t *pskintype;
    int start, end, total;
    float *intervals;
+   const byte *bufend;
 
 #ifdef QW_HACK
    const char *crcmodel = NULL;
@@ -295,6 +309,23 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    start = Hunk_LowMark();
 
    pinmodel = (mdl_t *)buffer;
+   /* bufend is the one-past-end pointer for `buffer`, the
+    * com_filesize bytes loaded from disk.  Used below to
+    * bound the running pointer cursor as we walk through
+    * the variable-size sections (skins, frames).  Without
+    * these checks a hostile .mdl whose header lies about
+    * numverts/numframes/numtris can make a pointer step
+    * past the end of the loaded buffer; subsequent reads
+    * (Mod_LoadAliasFrame's bbox copies, the verts pointer
+    * stored into poseverts[] for SW_LoadMeshData's per-pose
+    * memcpy) walk into adjacent host memory.  com_filesize
+    * is the file's actual size as set by COM_LoadStackFile
+    * / Mod_LoadModel before this is called.  We require
+    * the header itself to fit before we even read it. */
+   if (com_filesize < (int)sizeof(mdl_t))
+      Sys_Error("model %s truncated (filesize %d < %d)",
+                mod->name, com_filesize, (int)sizeof(mdl_t));
+   bufend = (const byte *)buffer + com_filesize;
 
 #ifdef MSB_FIRST
    version = LittleLong(pinmodel->version);
@@ -422,11 +453,21 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 
    /* load the skins */
    pskintype = (daliasskintype_t *)&pinmodel[1];
+   if ((const byte *)pskintype > bufend)
+      Sys_Error("model %s: skintype past EOF", mod->name);
    pskintype = (daliasskintype_t *)Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
          pskintype);
+   if ((const byte *)pskintype > bufend)
+      Sys_Error("model %s: skin data past EOF", mod->name);
 
    /* set base s and t vertices */
    pinstverts = (stvert_t *)pskintype;
+   /* numverts was bounded against MAXALIASVERTS above, so
+    * numverts * sizeof(stvert_t) cannot overflow; compare
+    * the resulting one-past-end pointer against bufend. */
+   if ((const byte *)&pinstverts[pheader->numverts] > bufend)
+      Sys_Error("model %s: stverts past EOF (numverts %d)",
+                mod->name, pheader->numverts);
    for (i = 0; i < pheader->numverts; i++) {
 #ifdef MSB_FIRST
       stverts[i].onseam = LittleLong(pinstverts[i].onseam);
@@ -441,6 +482,9 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 
    /* set up the triangles */
    pintriangles = (dtriangle_t *)&pinstverts[pheader->numverts];
+   if ((const byte *)&pintriangles[pheader->numtris] > bufend)
+      Sys_Error("model %s: triangles past EOF (numtris %d)",
+                mod->name, pheader->numtris);
    for (i = 0; i < pheader->numtris; i++)
    {
 #ifdef MSB_FIRST
@@ -470,9 +514,19 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 
    posenum = 0;
    pframetype = (daliasframetype_t *)&pintriangles[pheader->numtris];
+   /* bound the initial frame pointer; the loop body checks
+    * each subsequent step before dereferencing */
+   if ((const byte *)pframetype + sizeof(daliasframetype_t) > bufend)
+      Sys_Error("model %s: frametype past EOF", mod->name);
 
    for (i = 0; i < numframes; i++)
    {
+      /* per-iteration: pframetype must have room for at
+       * least the type field; the inner branches check
+       * the larger sub-headers (daliasframe_t /
+       * daliasgroup_t) before walking past them. */
+      if ((const byte *)pframetype + sizeof(daliasframetype_t) > bufend)
+         Sys_Error("model %s: frame %d header past EOF", mod->name, i);
 #ifdef MSB_FIRST
       if (LittleLong(pframetype->type) == ALIAS_SINGLE)
 #else
@@ -480,11 +534,31 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
 #endif
          {
             frame = (daliasframe_t *)(pframetype + 1);
+            /* daliasframe_t header + numverts * trivertx_t
+             * must all fit.  numverts was bounded against
+             * MAXALIASVERTS so the multiplication is safe. */
+            if ((const byte *)&frame->verts[pheader->numverts] > bufend)
+               Sys_Error("model %s: frame %d data past EOF",
+                         mod->name, i);
             Mod_LoadAliasFrame(frame, &pheader->frames[i]);
             pframetype = (daliasframetype_t *)&frame->verts[pheader->numverts];
          } else {
             group = (daliasgroup_t *)(pframetype + 1);
-            pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i]);
+            /* daliasgroup_t header itself must fit before
+             * we read group->numframes inside
+             * Mod_LoadAliasGroup; that function then
+             * walks group->intervals[numframes] and
+             * subsequent daliasframe_t verts.  The full
+             * extent depends on the file-supplied
+             * numframes, so we re-check inside the helper
+             * before each step. */
+            if ((const byte *)group + sizeof(daliasgroup_t) > bufend)
+               Sys_Error("model %s: frame %d group header past EOF",
+                         mod->name, i);
+            pframetype = Mod_LoadAliasGroup(group, &pheader->frames[i], bufend, mod->name);
+            if ((const byte *)pframetype > bufend)
+               Sys_Error("model %s: frame %d group walk past EOF",
+                         mod->name, i);
          }
    }
    pheader->numposes = posenum;
