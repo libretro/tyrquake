@@ -234,13 +234,23 @@ Cvar_Set(const char *var_name, const char *value)
 #endif
 #endif
 
-    Z_Free((void *)var->string);	/* free the old value string */
-
     {
+	/* The original implementation freed var->string and *then*
+	 * read `value` to copy it.  If the caller passed
+	 * var->string itself (or a pointer into it) as `value`,
+	 * the read at strlen/memcpy would be a use-after-free.
+	 * No caller in the current codebase does this -- the
+	 * typical path is Cvar_Command which sources `value` from
+	 * Cmd_Argv() -- but the alias is silently legal at the
+	 * API level and a future caller could hit it.  Allocate
+	 * and copy before freeing the old string, so the source
+	 * bytes stay live across the operation.  Slightly higher
+	 * peak footprint during the realloc, no UB. */
 	size_t valuelen = strlen(value) + 1;
 	newstring = (char*)Z_Malloc(valuelen);
 	memcpy(newstring, value, valuelen);
     }
+    Z_Free((void *)var->string);	/* free the old value string */
     var->string = newstring;
     var->value = Q_atof(var->string);
 
@@ -432,6 +442,25 @@ void Cvar_WriteVariables(RFILE *f)
    {
       cvar_t *var = cvar_entry(n);
       if (var->archive)
-         rfprintf(f, "%s \"%s\"\n", var->name, var->string);
+      {
+         /* Cvar values can contain arbitrary bytes including
+          * '"', '\n', and ';', which break out of the
+          * "%s \"%s\"\n" framing on re-parse and inject
+          * commands into the next exec config.cfg.  Hostile
+          * sources for such bytes include QW server-pushed
+          * setinfo commands that the client mirrors into a
+          * local cvar, and in NQ any rcon / stuffcmd path that
+          * sets a cvar.  Skip the offending chars on write
+          * rather than corrupting the config file format. */
+         const char *s;
+         rfprintf(f, "%s \"", var->name);
+         for (s = var->string; *s; s++) {
+            unsigned char c = (unsigned char)*s;
+            if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c < 0x20)
+               continue;
+            rfprintf(f, "%c", c);
+         }
+         rfprintf(f, "\"\n");
+      }
    }
 }
