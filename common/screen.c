@@ -144,7 +144,16 @@ dimensions of a 320x200 reference. Manual overrides are clamped to
 int
 SCR_GetUIScale(void)
 {
-    int s = (int)scr_uiscale.value;
+    int s;
+
+    /* (int)NaN and (int)Inf are UB; on x86 typically yield
+     * INT_MIN, but the C standard does not require any
+     * particular value.  Treat any non-finite cvar value as
+     * "auto" so the platform-derived path picks a sane scale. */
+    if (IS_NAN(scr_uiscale.value))
+	s = 0;
+    else
+	s = (int)scr_uiscale.value;
 
     if (s <= 0) {
 	int sx = vid.width  / 320;
@@ -324,9 +333,23 @@ SCR_DrawCenterString(void)
 	return;
 
 /* the finale prints the characters one at a time */
-    if (cl.intermission)
-	remaining = scr_printspeed.value * (cl.time - scr_centertime_start);
-    else
+    if (cl.intermission) {
+	float speed = scr_printspeed.value;
+	float dt    = cl.time - scr_centertime_start;
+	/* (int)NaN and (int)Inf are UB; with a user-typeable
+	 * scr_printspeed cvar, NaN times any dt is NaN.  Clamp
+	 * the product to a sane range before casting. */
+	if (IS_NAN(speed) || speed < 0.0f)
+	    speed = 8.0f;	/* default */
+	if (IS_NAN(dt) || dt < 0.0f)
+	    dt = 0.0f;
+	{
+	    float r = speed * dt;
+	    if (r > 9999.0f)
+		r = 9999.0f;
+	    remaining = (int)r;
+	}
+    } else
 	remaining = 9999;
 
     scr_erase_center = 0;
@@ -479,6 +502,18 @@ static void SCR_CalcRefdef(void)
    Sbar_Changed();
 
    /* ======================================== */
+
+   /* bound viewsize / fov.  NaN compares false in any
+    * direction, so the < / > tests below silently let NaN
+    * pass through to the renderer; CalcFov then divides
+    * width by tan(NaN) and stores NaN in r_refdef.fov_y,
+    * which propagates through view setup.  Reset to the
+    * default first so the subsequent range tests do their
+    * normal job. */
+   if (IS_NAN(scr_viewsize.value))
+      Cvar_Set("viewsize", "100");
+   if (IS_NAN(scr_fov.value))
+      Cvar_Set("fov", "90");
 
    /* bound viewsize */
    if (scr_viewsize.value < 30)
