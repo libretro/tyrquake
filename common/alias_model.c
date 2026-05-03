@@ -153,7 +153,8 @@ Mod_LoadAliasSkinGroup
 =================
 */
 static void *
-Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
+Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize,
+                       const byte *bufend, const char *modname)
 {
    daliasskininterval_t *pinskinintervals;
    byte *pdata;
@@ -161,6 +162,12 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
    int numframes;
 
    daliasskingroup_t *pinskingroup  = (daliasskingroup_t*)pin;
+
+   /* daliasskingroup_t header (just the numskins int) must
+    * fit before we read it. */
+   if ((const byte *)pinskingroup + sizeof(daliasskingroup_t) > bufend)
+      Sys_Error("%s: %s: skin group header past EOF",
+                __func__, modname);
 
 #ifdef MSB_FIRST
    numframes = LittleLong(pinskingroup->numskins);
@@ -180,6 +187,11 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
    pskindesc->numframes  = numframes;
    pinskinintervals = (daliasskininterval_t *)(pinskingroup + 1);
 
+   /* numframes daliasskininterval_t entries must fit. */
+   if ((const byte *)&pinskinintervals[numframes] > bufend)
+      Sys_Error("%s: %s: skin group intervals past EOF (numframes %d)",
+                __func__, modname, numframes);
+
    for (i = 0; i < numframes; i++) {
 #ifdef MSB_FIRST
       skinintervals[skinnum] = LittleFloat(pinskinintervals->interval);
@@ -193,6 +205,21 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize)
    }
 
    pdata = (byte *)pinskinintervals;
+   /* numframes * skinsize bytes of pixel data must fit.
+    * skinsize was already bounded against
+    * MAX_LBM_HEIGHT * MAX_LBM_HEIGHT in Mod_LoadAliasModel,
+    * so the multiplication can't overflow when widened to
+    * size_t.  Store-side (LoadSkinData -> memcpy) reads
+    * `skinsize` bytes from each skindata[i] pointer; without
+    * the bound here, that memcpy would walk past the input
+    * buffer. */
+   {
+      size_t total = (size_t)numframes * (size_t)skinsize;
+      if ((const byte *)pdata > bufend
+          || total > (size_t)(bufend - (const byte *)pdata))
+         Sys_Error("%s: %s: skin group pixel data past EOF",
+                   __func__, modname);
+   }
    for (i = 0; i < numframes; i++)
    {
       skindata[pskindesc->firstframe + i] = pdata;
@@ -209,7 +236,8 @@ Mod_LoadAllSkins
 */
 static void *
 Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
-		 int numskins, daliasskintype_t *pskintype)
+		 int numskins, daliasskintype_t *pskintype,
+		 const byte *bufend)
 {
    int i, skinsize;
    maliasskindesc_t *pskindesc;
@@ -228,6 +256,12 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
    skinnum = 0;
    for (i = 0; i < numskins; i++)
    {
+      /* daliasskintype_t (just the type int) must fit
+       * before we read pskintype->type. */
+      if ((const byte *)pskintype + sizeof(daliasskintype_t) > bufend)
+         Sys_Error("%s: %s: skin %d type past EOF",
+                   __func__, loadmodel->name, i);
+
 #ifdef MSB_FIRST
       aliasskintype_t skintype = (aliasskintype_t)LittleLong(pskintype->type);
 #else
@@ -235,6 +269,11 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
 #endif
       if (skintype == ALIAS_SKIN_SINGLE)
       {
+         /* (pskintype + 1) + skinsize must fit. */
+         if ((const byte *)(pskintype + 1) > bufend
+             || (size_t)skinsize > (size_t)(bufend - (const byte *)(pskintype + 1)))
+            Sys_Error("%s: %s: skin %d pixel data past EOF",
+                      __func__, loadmodel->name, i);
          pskindesc[i].firstframe = skinnum;
          pskindesc[i].numframes = 1;
          skindata[skinnum] = (byte *)(pskintype + 1);
@@ -245,7 +284,7 @@ Mod_LoadAllSkins(const model_loader_t *loader, const model_t *loadmodel,
       else
       {
          pskintype = (daliasskintype_t*)Mod_LoadAliasSkinGroup(pskintype + 1, pskindesc + i,
-               skinsize);
+               skinsize, bufend, loadmodel->name);
       }
    }
 
@@ -456,7 +495,7 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    if ((const byte *)pskintype > bufend)
       Sys_Error("model %s: skintype past EOF", mod->name);
    pskintype = (daliasskintype_t *)Mod_LoadAllSkins(loader, loadmodel, pheader->numskins,
-         pskintype);
+         pskintype, bufend);
    if ((const byte *)pskintype > bufend)
       Sys_Error("model %s: skin data past EOF", mod->name);
 
