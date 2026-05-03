@@ -113,8 +113,17 @@ S_LoadSound(sfx_t *s)
     int len;
     float stepscale;
     byte stackbuf[1024];	/* avoid dirtying the cache heap */
+    sfxcache_t *sc;
+
+    /* Defensive: sfx pointers reach this function via channels[].sfx,
+     * which can be corrupted by a heap stomp from unrelated
+     * code.  Bail before dereferencing s->cache or s->name if
+     * s isn't a valid known_sfx[] slot. */
+    if (!S_ValidSfx(s))
+	return NULL;
+
     /* see if still in memory */
-    sfxcache_t *sc = (sfxcache_t*)Cache_Check(&s->cache);
+    sc = (sfxcache_t*)Cache_Check(&s->cache);
     if (sc)
 	return sc;
 

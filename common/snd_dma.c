@@ -74,6 +74,40 @@ int paintedtime;		/* sample PAIRS */
 static sfx_t *known_sfx;	/* hunk allocated [MAX_SFX] */
 static int num_sfx;
 
+/*
+ * ==================
+ * S_ValidSfx
+ *
+ * Returns true iff sfx points to an aligned slot inside the
+ * known_sfx[] array.  Same defense pattern as R_ValidParticle
+ * and R_ValidEfrag -- known_sfx is hunk-allocated once at
+ * startup and never moves, so any sfx_t* not falling on a
+ * proper slot inside [known_sfx, known_sfx + num_sfx) is
+ * garbage from a stomp in unrelated subsystem.
+ *
+ * S_LoadSound/S_PaintChannels/S_StartSound previously trusted
+ * any non-NULL sfx -- the channels[].sfx field had no guard
+ * against stale or wild pointers.  Crash signature: SIGSEGV
+ * deep in Cache_Check (c->data deref) called from S_LoadSound
+ * called from S_PaintChannels with ch->sfx pointing into the
+ * malloc'd heap somewhere outside the known_sfx range.
+ * ==================
+ */
+int
+S_ValidSfx(const sfx_t *sfx)
+{
+    const char *base = (const char *)known_sfx;
+    const char *end  = base + (size_t)num_sfx * sizeof(sfx_t);
+    const char *q    = (const char *)sfx;
+    if (!sfx || !known_sfx || num_sfx <= 0)
+	return 0;
+    if (q < base || q >= end)
+	return 0;
+    if (((size_t)(q - base) % sizeof(sfx_t)) != 0)
+	return 0;
+    return 1;
+}
+
 int s_rawend;
 portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
@@ -355,6 +389,13 @@ S_StartSound(int entnum, int entchannel, sfx_t *sfx, vec3_t origin,
 	return;
     if (!sfx)
 	return;
+    /* Defensive: sfx may have been read from a stale or
+     * out-of-bounds index in cl.sound_precache[].  Reject
+     * pointers that don't refer to a real known_sfx[] slot
+     * before storing into channels[].sfx, where it would
+     * later crash S_PaintChannels. */
+    if (!S_ValidSfx(sfx))
+	return;
 
     vol = fvol * 255;
 
@@ -553,6 +594,9 @@ S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
     sfxcache_t *sc;
 
     if (!sfx)
+	return;
+    /* Defensive: see S_StartSound. */
+    if (!S_ValidSfx(sfx))
 	return;
     if (total_channels == MAX_CHANNELS) {
 	Con_Printf("total_channels == MAX_CHANNELS\n");

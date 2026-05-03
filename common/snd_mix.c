@@ -126,6 +126,14 @@ void S_PaintChannels (int endtime)
 		{
 			if (!ch->sfx)
 				continue;
+			/* Defensive: if a channel's sfx pointer is non-NULL
+			 * but doesn't point into known_sfx[], a heap stomp
+			 * has corrupted it.  Clear and skip rather than
+			 * crashing in S_LoadSound/Cache_Check. */
+			if (!S_ValidSfx(ch->sfx)) {
+				ch->sfx = NULL;
+				continue;
+			}
 			if (!ch->leftvol && !ch->rightvol)
 				continue;
 			sc = S_LoadSound (ch->sfx);

@@ -119,6 +119,16 @@ sfx_t *S_PrecacheSound(const char *sample);
 void S_TouchSound(const char *sample);
 void S_BeginPrecaching(void);
 void S_EndPrecaching(void);
+
+/*
+ * Returns true iff sfx points to an aligned slot inside the
+ * known_sfx[] array.  Use as a guard at every call site that
+ * dereferences a sfx_t pointer of uncertain provenance --
+ * heap stomps elsewhere have been observed to leave bogus
+ * non-NULL sfx pointers on the channels[] array, which then
+ * crash deep in S_LoadSound / Cache_Check.
+ */
+int S_ValidSfx(const sfx_t *sfx);
 void S_PaintChannels(int endtime);
 void S_InitPaintChannels(void);
 
