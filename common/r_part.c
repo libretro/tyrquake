@@ -47,6 +47,44 @@ vec3_t r_pright, r_pup, r_ppn;
 
 /*
 ===============
+R_ValidParticle
+
+Returns true iff p points to a slot inside the particles array.
+The free and active particle lists are normally well-formed, but
+heap or list corruption from an unrelated subsystem can leave
+free_particles or some node's next pointer aimed at memory
+outside the array.  Without validation, the first pop of the
+free list (p = free_particles; free_particles = p->next;
+p->next = active_particles;) crashes when the bogus p is
+written to.
+
+Used as a gate at every list-pop site.  Cheap (two pointer
+compares) so safe to call on every iteration.  When the gate
+trips, the caller bails out of the current particle effect --
+visually equivalent to "no free particles" (a condition the
+existing code already handles), so no user-visible artefact
+beyond the missing effect for that frame.
+===============
+*/
+static int
+R_ValidParticle(const particle_t *p)
+{
+   const char *base = (const char *)particles;
+   const char *end  = base + (size_t)r_numparticles * sizeof(particle_t);
+   const char *q    = (const char *)p;
+   if (!p)
+      return 0;
+   if (q < base || q >= end)
+      return 0;
+   /* Slot must be aligned on a particle_t boundary. */
+   if (((size_t)(q - base) % sizeof(particle_t)) != 0)
+      return 0;
+   return 1;
+}
+
+
+/*
+===============
 R_InitParticles
 ===============
 */
@@ -109,7 +147,7 @@ void R_EntityParticles(const entity_t *ent)
       forward[1] = cp * sy;
       forward[2] = -sp;
 
-      if (!free_particles)
+      if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
       free_particles = p->next;
@@ -192,7 +230,7 @@ void R_ParticleExplosion(vec3_t org)
    particle_t *p;
 
    for (i = 0; i < 1024; i++) {
-      if (!free_particles)
+      if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
       free_particles = p->next;
@@ -232,7 +270,7 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
    int colorMod = 0;
 
    for (i = 0; i < 512; i++) {
-      if (!free_particles)
+      if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
       free_particles = p->next;
@@ -264,7 +302,7 @@ void R_BlobExplosion(vec3_t org)
    particle_t *p;
 
    for (i = 0; i < 1024; i++) {
-      if (!free_particles)
+      if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
       free_particles = p->next;
@@ -313,7 +351,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
 #endif
 
    for (i = 0; i < count; i++) {
-      if (!free_particles)
+      if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
       free_particles = p->next;
@@ -378,7 +416,7 @@ void R_LavaSplash(vec3_t org)
       for (j = -16; j < 16; j++)
          for (k = 0; k < 1; k++)
          {
-            if (!free_particles)
+            if (!R_ValidParticle(free_particles))
                return;
             p = free_particles;
             free_particles = p->next;
@@ -420,7 +458,7 @@ void R_TeleportSplash(vec3_t org)
       for (j = -16; j < 16; j += 4)
          for (k = -24; k < 32; k += 4)
          {
-            if (!free_particles)
+            if (!R_ValidParticle(free_particles))
                return;
             p = free_particles;
             free_particles = p->next;
@@ -474,7 +512,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 #ifdef QW_HACK
       len -= 3;
 #endif
-      if (!free_particles)
+      if (!R_ValidParticle(free_particles))
          return;
       p = free_particles;
       free_particles = p->next;
@@ -574,6 +612,14 @@ void CL_RunParticles(void)
    for (;;) {
       kill = active_particles;
       if (kill && kill->die < cl.time) {
+         /* Defensive: if kill itself or its successor isn't a
+          * real particle slot, the active list is corrupt;
+          * truncate it here rather than splicing garbage onto
+          * the free list. */
+         if (!R_ValidParticle(kill)) {
+            active_particles = NULL;
+            break;
+         }
          active_particles = kill->next;
          kill->next = free_particles;
          free_particles = kill;
@@ -583,9 +629,18 @@ void CL_RunParticles(void)
    }
 
    for (p = active_particles; p; p = p->next) {
+      /* Defensive: if walking the active list lands outside the
+       * particles array, abort the iteration to avoid
+       * dereferencing garbage. */
+      if (!R_ValidParticle(p))
+         break;
       for (;;) {
          kill = p->next;
          if (kill && kill->die < cl.time) {
+            if (!R_ValidParticle(kill)) {
+               p->next = NULL;
+               break;
+            }
             p->next = kill->next;
             kill->next = free_particles;
             free_particles = kill;
