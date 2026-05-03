@@ -58,9 +58,6 @@ void Con_ToggleConsole_f(void);
 void Con_ShowList(const char **list, int cnt, int maxlen);
 void Con_ShowTree(struct stree_root *root);
 
-/* during startup for sound / cd warnings */
-void Con_NotifyBox(char *text);
-
 int Con_GetWidth(void); /* return the printing width in chars*/
 
 #endif /* CONSOLE_H */

@@ -252,8 +252,16 @@ CL_KeepaliveMessage(void)
     net_message = old;
     memcpy(net_message.data, olddata, net_message.cursize);
 
-/* check time */
-    time = Sys_DoubleTime();
+/* check time -- throttle keepalives to once per
+ * 5 simulated seconds.  host_time is the synthetic
+ * per-frame clock; using it here keeps the cooldown
+ * tied to game-frames rather than wall-clock, which
+ * is fine for a heartbeat: the keepalive's job is
+ * to prevent the server from timing out the client
+ * during long load operations, and "long" measured
+ * in frames is the relevant quantity to a libretro
+ * core. */
+    time = host_time;
     if (time - lastmsg < 5)
 	return;
     lastmsg = time;

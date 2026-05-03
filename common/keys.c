@@ -815,7 +815,7 @@ Key_Event(knum_t key, qboolean down)
     key_lastpress = key;
     key_count++;
     if (key_count <= 0) {
-	return;			/* just catching keys for Con_NotifyBox */
+	return;			/* just catching keys for SCR_ModalMessage */
     }
 /* update auto-repeat status */
     if (down) {

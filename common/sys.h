@@ -40,8 +40,6 @@ bool Sys_Error(const char *error, ...);
 
 void Sys_Quit(void);
 
-double Sys_DoubleTime(void);
-
 char *Sys_ConsoleInput(void);
 
 /* called to yield for a little bit so as */

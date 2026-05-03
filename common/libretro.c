@@ -351,58 +351,6 @@ bool Sys_Error(const char *error, ...)
    return false;
 }
 
-double Sys_DoubleTime(void)
-{
-   static int first = true;
-   static double oldtime = 0.0, curtime = 0.0;
-   double newtime;
-#if defined(WIIU)
-   uint64_t OSGetSystemTime();
-   newtime = (OSGetSystemTime() / 62156250.f);
-#elif defined(GEKKO)
-   newtime = ticks_to_microsecs(gettime()) / 1000000.0;
-#elif defined(__PSL1GHT__)
-   newtime = sysGetSystemTime() / 1000000.0;
-#elif defined(__PS3__)
-   newtime = sys_time_get_system_time() / 1000000.0;
-#elif defined(_WIN32)
-   static double pfreq;
-   static __int64 startcount;
-   __int64 pcount;
-
-   if (!pfreq)
-   {
-      __int64 freq;
-      if (QueryPerformanceFrequency((LARGE_INTEGER*)&freq) && freq > 0)
-      {
-         /* hardware timer available */
-         pfreq = (double)freq;
-         QueryPerformanceCounter((LARGE_INTEGER*)&startcount);
-      }
-   }
-
-   QueryPerformanceCounter((LARGE_INTEGER*)&pcount);
-   /* TODO -check for wrapping - is it necessary? */
-   newtime = (pcount - startcount) / pfreq;
-#else
-   struct timeval tp;
-   gettimeofday(&tp, NULL);
-   newtime = (double)tp.tv_sec + tp.tv_usec / 1000000.0;
-#endif
-
-   if (first)
-   {
-      first = false;
-      oldtime = newtime;
-   }
-
-   if (newtime >= oldtime)
-      curtime += newtime - oldtime;
-   oldtime = newtime;
-
-   return curtime;
-}
-
 /* ======================================================================= */
 /* Sleeps for microseconds */
 /* ======================================================================= */

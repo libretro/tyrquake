@@ -144,7 +144,17 @@ NET_AdrToString(const netadr_t *a)
 double
 SetNetTime(void)
 {
-    net_time = Sys_DoubleTime();
+    /* net_time used to come from Sys_DoubleTime, the
+     * platform wall clock.  In a libretro core that's
+     * a poor source -- it makes timeout / retransmit /
+     * scheduling decisions vary with frontend pacing
+     * jitter and host CPU load, instead of being
+     * deterministic per frame.  host_time is a
+     * synthetic clock advanced by exactly host_frametime
+     * each _Host_Frame (= 1.0/framerate from retro_run).
+     * Same units (seconds), same monotonic property,
+     * but tied to frame count instead of wall clock. */
+    net_time = host_time;
     return net_time;
 }
 
@@ -362,7 +372,7 @@ NET_Slist_f(void)
     }
 
     slistInProgress = true;
-    slistStartTime = Sys_DoubleTime();
+    slistStartTime = host_time;
 
     SchedulePollProcedure(&slistSendProcedure, 0.0);
     SchedulePollProcedure(&slistPollProcedure, 0.1);
@@ -387,7 +397,7 @@ Slist_Send(void *arg)
 	net_driver->SearchForHosts(true);
     }
 
-    if ((Sys_DoubleTime() - slistStartTime) < 0.5)
+    if ((host_time - slistStartTime) < 0.5)
 	SchedulePollProcedure(&slistSendProcedure, 0.75);
 }
 
@@ -411,7 +421,7 @@ Slist_Poll(void *arg)
     if (!slistSilent)
 	PrintSlist();
 
-    if ((Sys_DoubleTime() - slistStartTime) < 1.5) {
+    if ((host_time - slistStartTime) < 1.5) {
 	SchedulePollProcedure(&slistPollProcedure, 0.1);
 	return;
     }
@@ -687,9 +697,23 @@ NET_CanSendMessage(qsocket_t *sock)
 int
 NET_SendToAll(sizebuf_t *data, double blocktime)
 {
-    double start;
     int i;
     int count = 0;
+    /* Loop is bounded by an iteration cap rather than
+     * a wall-clock timeout: each iteration probes all
+     * clients with non-blocking NET_CanSendMessage /
+     * NET_GetMessage, so spinning depends on the
+     * driver returning false repeatedly, not on time
+     * passing.  In practice for the loopback driver
+     * count is 0 from the start and the outer while
+     * exits immediately.  For real-network clients
+     * we cap at (blocktime seconds * 10000 iters/sec
+     * worst case) -- if the driver hasn't drained in
+     * that many spins something's broken and the
+     * historical 3-second wall-clock timeout would
+     * also have given up. */
+    int max_iters = (int)(blocktime * 10000);
+    int iters = 0;
     qboolean msg_init[MAX_SCOREBOARD]; /* data written */
     qboolean msg_sent[MAX_SCOREBOARD]; /* send completed */
 
@@ -714,7 +738,6 @@ NET_SendToAll(sizebuf_t *data, double blocktime)
 	}
     }
 
-    start = Sys_DoubleTime();
     while (count) {
 	count = 0;
 	for (i = 0, host_client = svs.clients; i < svs.maxclients;
@@ -740,7 +763,7 @@ NET_SendToAll(sizebuf_t *data, double blocktime)
 		continue;
 	    }
 	}
-	if ((Sys_DoubleTime() - start) > blocktime)
+	if (++iters > max_iters)
 	    break;
     }
     return count;
@@ -888,7 +911,12 @@ SchedulePollProcedure(PollProcedure *proc, double timeOffset)
 {
     PollProcedure *pp, *prev;
 
-    proc->nextTime = Sys_DoubleTime() + timeOffset;
+    /* Schedule against host_time (synthetic per-frame
+     * clock).  The procedure list is processed in
+     * NET_Poll where SetNetTime() copies host_time
+     * into net_time and procedures with nextTime <=
+     * net_time fire.  Same scale, no wall clock. */
+    proc->nextTime = host_time + timeOffset;
     for (pp = pollProcedureList, prev = NULL; pp; pp = pp->next) {
 	if (pp->nextTime >= proc->nextTime)
 	    break;

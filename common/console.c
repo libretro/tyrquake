@@ -566,44 +566,6 @@ void Con_DrawConsole(int lines)
 
 /*
 ==================
-Con_NotifyBox
-==================
-*/
-void
-Con_NotifyBox(char *text)
-{
-    double t1, t2;
-
-/* during startup for sound / cd warnings */
-    Con_Printf
-	("\n\n\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
-
-    Con_Printf("%s", text);
-
-    Con_Printf("Press a key.\n");
-    Con_Printf
-	("\35\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\36\37\n");
-
-    key_count = -2;		/* wait for a key down and up */
-    key_dest = key_console;
-
-    do
-    {
-       t1 = Sys_DoubleTime();
-       SCR_UpdateScreen();
-       Sys_SendKeyEvents();
-       t2 = Sys_DoubleTime();
-       realtime += t2 - t1;	/* make the cursor blink */
-    } while (key_count < 0);
-
-    Con_Printf("\n");
-    key_dest = key_game;
-    realtime = 0;		/* put the cursor back to invisible */
-}
-
-
-/*
-==================
 Con_SafePrintf
 
 Okay to call even when the screen can't be updated

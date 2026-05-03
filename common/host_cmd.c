@@ -1081,7 +1081,14 @@ Host_Spawn_f(void)
 	pr_global_struct->self = EDICT_TO_PROG(sv_player);
 	PR_ExecuteProgram(pr_global_struct->ClientConnect);
 
-	if ((Sys_DoubleTime() - host_client->netconnection->connecttime) <=
+	/* connecttime is set to net_time at connect;
+	 * compare against net_time here for unit
+	 * consistency with the other connecttime users
+	 * in net_dgrm.c and host_cmd.c:106.  net_time
+	 * is updated to host_time by SetNetTime in
+	 * NET_Poll earlier in the same _Host_Frame, so
+	 * it's current. */
+	if ((net_time - host_client->netconnection->connecttime) <=
 	    sv.time)
 	    Sys_Printf("%s entered the game\n", host_client->name);
 

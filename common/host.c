@@ -424,7 +424,6 @@ Host_ShutdownServer(qboolean crash)
     int count;
     sizebuf_t buf;
     byte message[4];
-    double start;
 
     if (!sv.active)
 	return;
@@ -435,26 +434,36 @@ Host_ShutdownServer(qboolean crash)
     if (cls.state >= ca_connected)
 	CL_Disconnect();
 
-/* flush any pending messages - like the score!!! */
-    start = Sys_DoubleTime();
-    do {
-	count = 0;
-	for (i = 0, host_client = svs.clients; i < svs.maxclients;
-	     i++, host_client++) {
-	    if (host_client->active && host_client->message.cursize) {
-		if (NET_CanSendMessage(host_client->netconnection)) {
-		    NET_SendMessage(host_client->netconnection,
-				    &host_client->message);
-		    SZ_Clear(&host_client->message);
-		} else {
-		    NET_GetMessage(host_client->netconnection);
-		    count++;
+/* flush any pending messages - like the score!!!
+ * Bounded by an iteration cap rather than a 3-second
+ * wall-clock deadline.  In SP play with the loopback
+ * driver count is 0 from the start (NET_CanSendMessage
+ * always returns true) and the loop never actually
+ * iterates.  For a real-network session with an
+ * unresponsive client, 30000 spins is plenty for the
+ * driver to either drain or fail; the historical
+ * 3-second timeout served the same emergency role. */
+    {
+	int iters = 0;
+	do {
+	    count = 0;
+	    for (i = 0, host_client = svs.clients; i < svs.maxclients;
+		 i++, host_client++) {
+		if (host_client->active && host_client->message.cursize) {
+		    if (NET_CanSendMessage(host_client->netconnection)) {
+			NET_SendMessage(host_client->netconnection,
+					&host_client->message);
+			SZ_Clear(&host_client->message);
+		    } else {
+			NET_GetMessage(host_client->netconnection);
+			count++;
+		    }
 		}
 	    }
-	}
-	if ((Sys_DoubleTime() - start) > 3.0)
-	    break;
-    } while (count);
+	    if (++iters > 30000)
+		break;
+	} while (count);
+    }
 
 /* make sure all the clients know we're disconnecting */
     buf.data = message;
