@@ -357,16 +357,12 @@ void Sys_Error(const char *error, ...)
    /* Historical behaviour: log and return.  An earlier
     * round added a longjmp-out via sys_abort to give
     * Sys_Error proper no-return semantics matching stock
-    * Quake, but that broke the renderer -- several call
-    * sites in the per-frame path (notably the alignment
-    * checks at the top of R_RenderView) fire on what
-    * turns out to be tolerable conditions in the
-    * libretro environment, and previously execution
-    * continued past them harmlessly.  Forcing the
-    * longjmp made every frame skip rendering entirely.
-    *
-    * Keep log-and-return for now.  Properly fixing the
-    * call sites that DO depend on no-return semantics
+    * Quake; that broke the renderer because R_RenderView
+    * had three vestigial alignment guards firing
+    * Sys_Error every frame.  The longjmp was reverted
+    * (3301dcf) and the alignment guards were removed in
+    * a follow-up.  Properly fixing the remaining call
+    * sites that DO depend on no-return semantics
     * (SZ_GetSpace overflow, Hunk_Alloc failure) needs
     * per-site review rather than a blanket abort. */
 }

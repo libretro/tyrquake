@@ -1304,8 +1304,8 @@ R_RenderView
 r_refdef must be set before the first call
 ================
 */
-static void
-R_RenderView_(void)
+void
+R_RenderView(void)
 {
     r_warpbuffer = r_warpbuffer_storage;
 
@@ -1332,21 +1332,18 @@ R_RenderView_(void)
 
     if (r_aliasstats.value)
 	R_PrintAliasStats();
-}
 
-void
-R_RenderView(void)
-{
-    int dummy;
-
-    if (Hunk_LowMark() & 3)
-	Sys_Error("Hunk is missaligned");
-
-    if ((intptr_t)(&dummy) & 3)
-	Sys_Error("Stack is missaligned");
-
-    if ((intptr_t)(&r_warpbuffer) & 3)
-	Sys_Error("Globals are missaligned");
-
-    R_RenderView_();
+    /* Historical R_RenderView previously wrapped this body
+     * with three alignment guards (Hunk_LowMark()&3,
+     * &dummy_local&3, &r_warpbuffer&3) and Sys_Error'd on
+     * any failure.  All three are vestigial DOS/Win16
+     * paranoia: Hunk_Alloc rounds every allocation to 16
+     * bytes ((size+15)&~15 in Hunk_Alloc) so Hunk_LowMark
+     * is structurally 16-byte aligned, and modern x86/x64
+     * ABIs guarantee >=4-byte alignment for stack ints
+     * and globals of pointer type.  The checks fired
+     * during the brief window when Sys_Error longjmp'd
+     * (commit c992cb3) and broke the renderer entirely;
+     * the longjmp was reverted in 3301dcf, but the
+     * checks themselves are noise and have been removed. */
 }
