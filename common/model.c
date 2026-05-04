@@ -896,8 +896,17 @@ Mod_LoadEntities(lump_t *l)
 	loadmodel->entities = NULL;
 	return;
     }
-    loadmodel->entities = (char*)Hunk_Alloc(l->filelen);
+    /* Reserve +1 for an explicit NUL terminator.  COM_Parse
+     * (the consumer in ED_LoadFromFile) walks the entity
+     * string until *data == 0; if the file's entity lump
+     * happens to contain no trailing NUL within filelen
+     * bytes, the parser walks past the allocation into the
+     * next hunk lump (typically submodels).  qbsp-produced
+     * BSPs include a NUL but a malformed or hostile BSP
+     * could omit it. */
+    loadmodel->entities = (char*)Hunk_Alloc(l->filelen + 1);
     memcpy(loadmodel->entities, mod_base + l->fileofs, l->filelen);
+    loadmodel->entities[l->filelen] = 0;
 }
 
 
@@ -2069,6 +2078,19 @@ static void Mod_LoadBrushModel(model_t *mod, void *buffer, unsigned long size)
    dmodel_t *bm;
 
    loadmodel->type = mod_brush;
+
+   /* The header itself must fit in the loaded buffer before
+    * we can byte-swap or read its fields.  Without this
+    * check, a truncated or malformed BSP shorter than
+    * sizeof(dheader_t) (typically 116 bytes) walks past
+    * `buffer` during the LittleLong loop below, reading
+    * uninitialised heap memory.  com_filesize is the
+    * authority on the actual size; the `size` parameter is
+    * the same value plumbed through Mod_LoadModel. */
+   if (size < sizeof(dheader_t))
+      SV_Error("%s: %s truncated (size %lu < %lu)", __func__,
+               mod->name, size, (unsigned long)sizeof(dheader_t));
+
    header = (dheader_t *)buffer;
 
    /* swap all the header entries */

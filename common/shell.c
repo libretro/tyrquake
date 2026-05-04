@@ -58,9 +58,15 @@ static int st_string_space;
 void
 STree_AllocInit(void)
 {
-    /* Init the temp hunk */
+    /* Init the temp hunk.  In practice this 2KB allocation
+     * cannot fail, but Hunk_TempAlloc -> Hunk_HighAlloc
+     * returns NULL on out-of-memory rather than Sys_Error'ing.
+     * Match the NULL-handling pattern used by STree_AllocNode
+     * / STree_AllocString below so the failure mode is
+     * "tree refuses inserts" instead of "writes through
+     * NULL on first AllocNode call". */
     st_node_next = (struct stree_node*)Hunk_TempAlloc(ST_NODE_CHUNK);
-    st_node_space = ST_NODE_CHUNK;
+    st_node_space = st_node_next ? ST_NODE_CHUNK : 0;
 
     /* Allocate string space on demand */
     st_string_space = 0;

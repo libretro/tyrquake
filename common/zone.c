@@ -580,8 +580,26 @@ void *Hunk_TempAlloc(int size)
  * =====================
  * Hunk_TempAllocExtend
  *
- * Extend the existing temp hunk allocation.
- * Size is the number of extra bytes required
+ * Grow the active temp hunk allocation by `size` more bytes
+ * and return a pointer to the start of the newly-added
+ * region.  The original temp data remains valid through any
+ * pointers the caller already holds: the high hunk grows
+ * downward (toward the low hunk), so the new region lands
+ * IMMEDIATELY BELOW the original allocation in memory, not
+ * at the same address with extended size.
+ *
+ * Layout after extend (high hunk grows downward):
+ *   [hunk_high_used grew by `size`]
+ *   newobj header   <-- returned pointer is newobj+1
+ *   newly-added region (size bytes, uninitialised)
+ *   ... old user data (still at original addresses) ...
+ *   ... rest of hunk ...
+ *
+ * STree_AllocNode / STree_AllocString are the only callers;
+ * they treat the returned pointer as a fresh chunk and never
+ * reach back into the old region through it.
+ *
+ * Returns NULL if there isn't enough free hunk space.
  * =====================
  */
 void *Hunk_TempAllocExtend(int size)
