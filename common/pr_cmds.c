@@ -71,17 +71,16 @@ SV_IsGibModelName(const char *name)
 static const char *PF_VarString(int first)
 {
     static char out[512];
-    const char *arg;
-    int i, arglen;
-    int buflen = sizeof(out) - 1;
+    int i;
     out[0] = 0;
     for (i = first; i < pr_argc; i++)
     {
-	arg = G_STRING(OFS_PARM0 + i * 3);
-	arglen = strlen(arg);
-	strncat(out, arg, buflen);
-	buflen -= arglen;
-	if (buflen < 0)
+	const char *arg = G_STRING(OFS_PARM0 + i * 3);
+	/* strlcat appends as much of arg as fits before the
+	 * sizeof(out)-1 boundary, returns the total length
+	 * the result would have been.  >= sizeof(out) means
+	 * truncation happened. */
+	if (strlcat(out, arg, sizeof(out)) >= sizeof(out))
 	{
 	    Con_DPrintf("%s: overflow (string truncated)\n", __func__);
 	    break;
@@ -1203,6 +1202,23 @@ PF_lightstyle(void)
     if (style < 0 || style >= MAX_LIGHTSTYLES)
         PR_RunError("%s: bad style %d (max %d)", __func__,
                     style, MAX_LIGHTSTYLES);
+
+    /* val is a QC-controlled string of unbounded length.
+     * Stock Quake lightstyles are 4-char patterns ("amma"
+     * etc.) but a malicious or buggy progs.dat could pass
+     * an arbitrarily long string; the client snprintf-
+     * truncates to MAX_STYLESTRING on receive (cl_parse.c
+     * svc_lightstyle handler), but the SERVER side
+     * MSG_WriteString below transmits the whole thing,
+     * pushing a multi-KB svc_lightstyle into every active
+     * client's message buffer.  That overflows host_client
+     * ->message and trips Sys_Error -- a self-DoS the
+     * local server's QC can drive against its own client
+     * (sister to PF_break / PF_traceon hardening). */
+    if (strlen(val) >= MAX_STYLESTRING)
+        PR_RunError("%s: style %d string too long (%u, max %d)",
+                    __func__, style, (unsigned)strlen(val),
+                    MAX_STYLESTRING - 1);
 
 /* change the string in sv */
     sv.lightstyles[style] = val;

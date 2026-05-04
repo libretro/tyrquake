@@ -343,7 +343,13 @@ bool Sys_Error(const char *error, ...)
    va_list ap;
 
    va_start(ap, error);
-   vsprintf(buffer, error, ap);
+   /* vsnprintf instead of vsprintf -- buffer is fixed size,
+    * and even though all current Sys_Error callers pass
+    * compile-time format strings with bounded %s args, a
+    * future caller passing a long argument (or any caller
+    * forgetting to cap a %s arg) would silently overflow
+    * the stack frame. */
+   vsnprintf(buffer, sizeof(buffer), error, ap);
    if (log_cb)
       log_cb(RETRO_LOG_ERROR, "%s\n", buffer);
    va_end(ap);

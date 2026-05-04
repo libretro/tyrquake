@@ -109,6 +109,14 @@ This error checks and tracks the total number of entities
 static entity_t *
 CL_EntityNum(int num)
 {
+    /* num comes from MSG_ReadShort (svc_spawnbaseline et al)
+     * which is signed [-32768, 32767].  The original code
+     * only bounded num >= MAX_EDICTS; a negative num falls
+     * through both branches and reaches &cl_entities[num]
+     * with negative indexing, walking into adjacent globals
+     * before this address. */
+    if (num < 0)
+        Host_Error("CL_EntityNum: %i is an invalid number", num);
     if (num >= cl.num_entities) {
 	if (num >= MAX_EDICTS)
 	    Host_Error("CL_EntityNum: %i is an invalid number", num);
@@ -818,6 +826,12 @@ CL_ParseClientdata(void)
 	    Sbar_Changed();
 	}
     } else {
+	/* Mission packs encode active weapon as a single bit
+	 * via 1 << i.  i is server-controlled (MSG_ReadByte
+	 * range 0..255); shifting 1 (int) by >= 32 is C
+	 * undefined behavior.  Reject out-of-range bits. */
+	if (i < 0 || i >= 32)
+	    Host_Error("CL_ParseClientdata: bad active weapon bit %i", i);
 	if (cl.stats[STAT_ACTIVEWEAPON] != (1 << i)) {
 	    cl.stats[STAT_ACTIVEWEAPON] = (1 << i);
 	    Sbar_Changed();
@@ -1047,7 +1061,8 @@ CL_ParseServerMessage(void)
          continue;
       }
 
-      SHOWNET(svc_strings[cmd]);
+      SHOWNET((cmd >= 0 && cmd < (int)(sizeof(svc_strings) / sizeof(svc_strings[0])))
+              ? svc_strings[cmd] : "(unknown)");
 
       /* other commands */
       switch (cmd) {

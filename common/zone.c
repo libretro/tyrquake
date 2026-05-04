@@ -643,9 +643,11 @@ void *Hunk_TempAllocExtend(int size)
  */
 
 #define CACHE_NAMELEN 32
+#define CACHE_SENTINAL 0x10ad1ed5    /* "loadied5" — distinct from HUNK_SENTINAL */
 
 typedef struct cache_system_s
 {
+   int sentinal;		/* trash detector; see Cache_CheckSentinal */
    int size;			/* including this header */
    cache_user_t *user;
    struct cache_system_s *prev, *next;
@@ -654,6 +656,26 @@ typedef struct cache_system_s
 
 static cache_system_t cache_head;
 static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom);
+
+/*
+ * Cache headers live in the middle of the hunk between the
+ * low and high marks.  A bug or hostile content that stomps
+ * a header would normally surface as a wild pointer deref
+ * during the linked-list walk in Cache_TryAlloc / Cache_Free
+ * Low / Cache_FreeHigh, or a wrong-size memcpy in
+ * Cache_Move -- the cache walks cs->size and cs->next
+ * unconditionally.  Validate the sentinal at each handoff
+ * to convert silent corruption into a named error.
+ *
+ * Mirrors the HUNK_SENTINAL pattern in Hunk_Check / Hunk_
+ * TempAllocExtend.
+ */
+static INLINE void Cache_CheckSentinal(const cache_system_t *cs,
+                                       const char *where)
+{
+   if (cs->sentinal != CACHE_SENTINAL)
+      Sys_Error("%s: trashed cache sentinal", where);
+}
 
 static INLINE cache_system_t *Cache_System(const cache_user_t *c)
 {
@@ -673,7 +695,10 @@ static INLINE void *Cache_Data(const cache_system_t *c)
 static void Cache_Move(cache_system_t *c)
 {
    /* we are clearing up space at the bottom, so only allocate it late */
-   cache_system_t *newobj = Cache_TryAlloc(c->size, true);
+   cache_system_t *newobj;
+
+   Cache_CheckSentinal(c, __func__);
+   newobj = Cache_TryAlloc(c->size, true);
 
    if (newobj)
    {
@@ -708,6 +733,7 @@ static void Cache_FreeLow(int new_low_hunk)
       c = cache_head.next;
       if (c == &cache_head)
          return;		/* nothing in cache at all */
+      Cache_CheckSentinal(c, __func__);
       if ((byte *)c >= hunk_base + new_low_hunk)
          return;		/* there is space to grow the hunk */
       Cache_Move(c);		/* reclaim the space */
@@ -731,6 +757,7 @@ static void Cache_FreeHigh(int new_high_hunk)
       c = cache_head.prev;
       if (c == &cache_head)
          return;		/* nothing in cache at all */
+      Cache_CheckSentinal(c, __func__);
       if ((byte *)c + c->size <= hunk_base + hunk_size - new_high_hunk)
          return;		/* there is space to grow the hunk */
       if (c == prev)
@@ -785,6 +812,7 @@ static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom)
 
       newobj = (cache_system_t *)(hunk_base + hunk_low_used);
       memset(newobj, 0, sizeof(*newobj));
+      newobj->sentinal = CACHE_SENTINAL;
       newobj->size = size;
 
       cache_head.prev = cache_head.next = newobj;
@@ -800,11 +828,17 @@ static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom)
 
    do
    {
+      /* Sentinal-validate every cs we read cs->size /
+       * cs->next from -- a stomped header here makes the
+       * subsequent (byte *)cs + cs->size walk go anywhere. */
+      Cache_CheckSentinal(cs, __func__);
+
       if (!nobottom || cs != cache_head.next)
       {
          if ((byte *)cs - (byte *)newobj >= size)
          {	/* found space */
             memset(newobj, 0, sizeof(*newobj));
+            newobj->sentinal = CACHE_SENTINAL;
             newobj->size = size;
 
             newobj->next = cs;
@@ -827,6 +861,7 @@ static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom)
    /* try to allocate one at the very end */
    if (hunk_base + hunk_size - hunk_high_used - (byte *)newobj >= size) {
       memset(newobj, 0, sizeof(*newobj));
+      newobj->sentinal = CACHE_SENTINAL;
       newobj->size = size;
 
       newobj->next = &cache_head;
@@ -895,6 +930,12 @@ void Cache_Free(cache_user_t *c)
       Sys_Error("%s: not allocated", __func__);
 
    cs = Cache_System(c);
+   Cache_CheckSentinal(cs, __func__);
+   /* Invalidate the sentinal before unlinking so any later
+    * use-after-free that re-derefs this header trips the
+    * check rather than getting at stale-but-plausible
+    * pointers. */
+   cs->sentinal = 0;
    cs->prev->next = cs->next;
    cs->next->prev = cs->prev;
    cs->next = cs->prev = NULL;
@@ -918,6 +959,14 @@ void *Cache_Check(const cache_user_t *c)
       return NULL;
 
    cs = Cache_System(c);
+   /* No sentinal check here -- Cache_Check is per-visible-
+    * alias-model per frame (called from Mod_Extradata in
+    * the renderer hot path).  Validation lives at the rare
+    * sites that read cs->size / cs->next during a list
+    * walk: Cache_TryAlloc, Cache_FreeLow, Cache_FreeHigh,
+    * Cache_Move, Cache_Free.  A header that gets stomped
+    * between two Cache_Check calls (with no intervening
+    * reorganisation) will be caught at the next walk. */
 
    /* move to head of LRU */
    Cache_UnlinkLRU(cs);

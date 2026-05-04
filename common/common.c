@@ -522,6 +522,18 @@ float MSG_ReadFloat(void)
       int l;
    } dat;
 
+   /* Match MSG_ReadByte / Short / Long: bounds-check before
+    * reading 4 bytes.  Without this, a truncated server
+    * message ending right before a float field reads 4
+    * bytes past net_message.data[].  Set msg_badread so the
+    * outer parse loop sees the failure on its next
+    * iteration check; return 0.0f as the safe default. */
+   if (msg_readcount + 4 > net_message.cursize)
+   {
+      msg_badread = true;
+      return 0.0f;
+   }
+
    dat.b[0] = net_message.data[msg_readcount];
    dat.b[1] = net_message.data[msg_readcount + 1];
    dat.b[2] = net_message.data[msg_readcount + 2];

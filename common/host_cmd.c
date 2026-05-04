@@ -840,12 +840,32 @@ Host_Say(qboolean teamonly)
     space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
     p = Cmd_Args();
     if (*p == '"') {
-	/* remove quotes */
-	strncat(text, p + 1, qmin(strlen(p) - 2, space));
-	text[len + qmin(strlen(p) - 2, space)] = 0;
+	/* Strip surrounding quotes.  Original code did
+	 * strlen(p) - 2 to drop the leading and trailing ",
+	 * but if the input is just `"` (length 1) or empty,
+	 * strlen(p) - 2 underflows size_t to SIZE_MAX-1, and
+	 * the subsequent qmin() returns `space`, which makes
+	 * the copy read up to `space` bytes from p+1 -- past
+	 * the end of the (short) source string into adjacent
+	 * memory until a NUL appears.  Require at least the
+	 * two quote characters before subtracting.
+	 *
+	 * memcpy + manual NUL is the correct primitive here:
+	 * we want to copy exactly `copy` bytes, dropping
+	 * everything from index `copy` onward (including
+	 * the trailing closing quote).  strncat / strlcat
+	 * both append until source NUL or a different cap,
+	 * not what we want. */
+	size_t plen = strlen(p);
+	size_t inner = (plen >= 2) ? plen - 2 : 0;
+	size_t copy = qmin(inner, space);
+	memcpy(text + len, p + 1, copy);
+	text[len + copy] = 0;
     } else {
-	strncat(text, p, space);
-	text[len + qmin(strlen(p), space)] = 0;
+	size_t plen = strlen(p);
+	size_t copy = qmin(plen, space);
+	memcpy(text + len, p, copy);
+	text[len + copy] = 0;
     }
     strlcat(text, "\n", sizeof(text));
 
@@ -901,18 +921,24 @@ static void Host_Tell_f(void)
    space = sizeof(text) - len - 2; /* -2 for \n and null terminator */
    p = Cmd_Args();
    if (*p == '"') {
-      /* remove quotes. Be defensive: a client could legitimately send
-       * a single '"' as the entire argument. strlen(p) - 2 underflows
-       * to a huge size_t in that case, so clamp the inner length to
-       * zero before passing it through. */
-      int inner = (int)strlen(p) - 2;
-      if (inner < 0)
-         inner = 0;
-      strncat(text, p + 1, qmin(inner, space));
-      text[len + qmin(inner, space)] = 0;
+      /* Remove quotes.  Be defensive: a client could
+       * legitimately send a single '"' as the entire
+       * argument; (int)strlen(p) - 2 goes negative there
+       * and is clamped to 0.  Use memcpy + manual NUL
+       * rather than strncat -- we want to copy exactly
+       * `copy` bytes (dropping the trailing closing
+       * quote at offset copy), not "concat until source
+       * NUL". */
+      size_t plen = strlen(p);
+      size_t inner = (plen >= 2) ? plen - 2 : 0;
+      size_t copy = qmin(inner, (size_t)space);
+      memcpy(text + len, p + 1, copy);
+      text[len + copy] = 0;
    } else {
-      strncat(text, p, space);
-      text[len + qmin((int)strlen(p), space)] = 0;
+      size_t plen = strlen(p);
+      size_t copy = qmin(plen, (size_t)space);
+      memcpy(text + len, p, copy);
+      text[len + copy] = 0;
    }
    strlcat(text, "\n", sizeof(text));
 
