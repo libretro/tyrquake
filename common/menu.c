@@ -469,12 +469,6 @@ M_SinglePlayer_Key(int key)
 
 	switch (m_singleplayer_cursor) {
 	case 0:
-#if 0
-	    if (sv.active)
-		if (!SCR_ModalMessage("Are you sure you want to\n"
-				      "start a new game?\n"))
-		    break;
-#endif
 	    key_dest = key_game;
 	    if (sv.active)
 		Cbuf_AddText("disconnect\n");

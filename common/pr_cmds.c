@@ -628,13 +628,28 @@ static void PF_sound(void)
 =================
 PF_break
 
-break()
+QC's break() builtin -- intended in the original
+1996 code as a debug-only "drop into the debugger"
+hook, originally implemented by writing to address
+-4 to deliberately segfault.  tyrquake had this
+calling abort(), which from a libretro core takes
+down the entire frontend process when QC code
+invokes break() -- a hostile or malformed
+progs.dat could drop a "break();" anywhere in
+its source and the user's whole RetroArch session
+would die.
+
+Treat as a programmer error in the QC: print a
+diagnostic and drop into the standard PR_RunError
+path which longjmps back to the host-frame
+boundary (skips the rest of the QC frame, returns
+control to the engine, the level state survives).
 =================
 */
 static void PF_break(void)
 {
-    Con_Printf("break statement\n");
-    abort(); /* dump to debugger */
+    PR_RunError("break statement in %s",
+                PR_GetString(pr_xfunction->s_name));
 }
 
 /*
@@ -1061,16 +1076,23 @@ PF_precache_model(void)
     PR_RunError("%s: overflow (max = %d)", __func__, max_models(sv.protocol));
 }
 
+/* QC's traceon()/traceoff() builtins enable a per-
+ * bytecode-instruction PR_PrintStatement print loop
+ * (see pr_exec.c).  Useful as a development aid in
+ * 1996; in a libretro core a malicious or buggy
+ * progs.dat that calls traceon() and never calls
+ * traceoff() floods the console with millions of
+ * Con_Printf calls per second and tanks framerate.
+ * No legitimate shipped QC uses this -- stub both as
+ * no-ops to keep the builtin index stable. */
 static void
 PF_traceon(void)
 {
-    pr_trace = true;
 }
 
 static void
 PF_traceoff(void)
 {
-    pr_trace = false;
 }
 
 static void

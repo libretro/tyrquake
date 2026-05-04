@@ -41,7 +41,6 @@ int pr_depth;
 int localstack[LOCALSTACK_SIZE];
 int localstack_used;
 
-qboolean pr_trace;
 dfunction_t *pr_xfunction;
 int pr_xstatement;
 int pr_argc;
@@ -377,7 +376,6 @@ PR_ExecuteProgram(func_t fnum)
     f = &pr_functions[fnum];
 
     runaway = 1000000;
-    pr_trace = false;
 
 /* make a stack frame */
     exitdepth = pr_depth;
@@ -413,9 +411,6 @@ PR_ExecuteProgram(func_t fnum)
 
 	pr_xfunction->profile++;
 	pr_xstatement = s;
-
-	if (pr_trace)
-	    PR_PrintStatement(st);
 
 	switch (st->op) {
 	case OP_ADD_F:

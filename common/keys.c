@@ -61,8 +61,6 @@ int history_line = 0;
 
 keydest_t key_dest;
 
-int key_count;			/* incremented every key event */
-
 const char *keybindings[K_LAST];
 qboolean consolekeys[K_LAST];	/* if true, can't be rebound while in console */
 qboolean menubound[K_LAST];	/* if true, can't be rebound while in menu */
@@ -813,10 +811,7 @@ Key_Event(knum_t key, qboolean down)
 	key_repeats[key] = 0;
 
     key_lastpress = key;
-    key_count++;
-    if (key_count <= 0) {
-	return;			/* just catching keys for SCR_ModalMessage */
-    }
+
 /* update auto-repeat status */
     if (down) {
 	key_repeats[key]++;

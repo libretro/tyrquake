@@ -168,6 +168,7 @@ void Cbuf_Execute(void)
       char *text = (char *)cmd_text.data;
       int quotes = 0;
       int maxlen = qmin(cmd_text.cursize, (int)sizeof(line));
+      qboolean truncated = false;
 
       for (len = 0; len < maxlen; len++)
       {
@@ -179,11 +180,39 @@ void Cbuf_Execute(void)
             break;
       }
       if (len == sizeof(line)) {
-         Con_Printf("%s: command truncated\n", __func__);
-         len--;
+         /* The command line is longer than our line[1024] copy
+          * buffer.  Previously we just decremented len to fit and
+          * advanced the buffer by 1024 bytes -- which left the
+          * remaining ~N-1024 bytes of the same command still in
+          * the buffer, where the next iteration parsed them as
+          * fresh commands.  An attacker controlling an svc_stuff
+          * text payload could exploit this to smuggle an
+          * unintended command through the truncation tail.
+          *
+          * Instead, scan the rest of the command (still within
+          * the buffer, just beyond our copy buffer's reach) up
+          * to the real ';' or '\n' separator and discard the
+          * whole thing.  We continue the same quote-state
+          * tracking from above so quoted ';' inside the
+          * truncated portion don't end the command early. */
+         int scan;
+         truncated = true;
+         for (scan = (int)sizeof(line); scan < cmd_text.cursize; scan++) {
+            if (text[scan] == '"')
+               quotes++;
+            if (!(quotes & 1) && text[scan] == ';')
+               break;
+            if (text[scan] == '\n')
+               break;
+         }
+         len = scan;
+         Con_Printf("%s: command too long, discarded\n", __func__);
       }
-      memcpy(line, text, len);
-      line[len] = 0;
+
+      if (!truncated) {
+         memcpy(line, text, len);
+         line[len] = 0;
+      }
 
       /*
        * delete the text from the command buffer and move remaining commands
@@ -198,8 +227,9 @@ void Cbuf_Execute(void)
          memmove(text, text + len, cmd_text.cursize);
       }
 
-      /* execute the command line */
-      Cmd_ExecuteString(line, src_command);
+      /* execute the command line (skip the truncated one) */
+      if (!truncated)
+         Cmd_ExecuteString(line, src_command);
 
       if (cmd_wait)
       {

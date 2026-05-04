@@ -383,81 +383,6 @@ SCR_DrawCenterString(void)
     } while (1);
 }
 
-/* ============================================================================= */
-
-static const char *scr_notifystring;
-static qboolean scr_drawdialog;
-
-static void
-SCR_DrawNotifyString(void)
-{
-    const char *start;
-    int l;
-    int j;
-    int x, y;
-    int scale = SCR_GetUIScale();
-
-    start = scr_notifystring;
-
-    y = vid.height * 0.35;
-
-    do {
-	/* scan the width of the line */
-	for (l = 0; l < 40; l++)
-	    if (start[l] == '\n' || !start[l])
-		break;
-	x = (vid.width - l * 8 * scale) / 2;
-	for (j = 0; j < l; j++, x += 8 * scale)
-	    Draw_CharacterScaled(x, y, start[j], scale);
-
-	y += 8 * scale;
-
-	while (*start && *start != '\n')
-	    start++;
-
-	if (!*start)
-	    break;
-	start++;		/* skip the \n */
-    } while (1);
-}
-
-
-/*
-==================
-SCR_ModalMessage
-
-Displays a text string in the center of the screen and waits for a Y or N
-keypress.
-==================
-*/
-int
-SCR_ModalMessage(const char *text)
-{
-    if (cls.state == ca_dedicated)
-	return true;
-
-    scr_notifystring = text;
-
-/* draw a fresh screen */
-    scr_fullupdate = 0;
-    scr_drawdialog = true;
-    SCR_UpdateScreen();
-    scr_drawdialog = false;
-
-    S_ClearBuffer();		/* so dma doesn't loop current sound */
-
-    do {
-	key_count = -1;		/* wait for a key down and up */
-	Sys_SendKeyEvents();
-    } while (key_lastpress != 'y' && key_lastpress != 'n'
-	     && key_lastpress != K_ESCAPE);
-
-    scr_fullupdate = 0;
-    SCR_UpdateScreen();
-
-    return key_lastpress == 'y';
-}
-
 /* ============================================================================ */
 
 /*
@@ -735,12 +660,7 @@ SCR_UpdateScreen(void)
 
    V_RenderView();
 
-   if (scr_drawdialog) {
-      Sbar_Draw();
-      Draw_FadeScreen();
-      SCR_DrawNotifyString();
-      scr_copyeverything = true;
-   } else if (scr_drawloading) {
+   if (scr_drawloading) {
       SCR_DrawLoading();
       Sbar_Draw();
    } else if (cl.intermission == 1 && key_dest == key_game) {

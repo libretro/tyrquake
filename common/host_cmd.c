@@ -443,18 +443,45 @@ Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 static void Host_SavegameComment(char *text)
 {
    int i;
+   size_t lname_len;
    char kills[20];
 
+   /* Layout: bytes 0..21 hold the level name (22 bytes),
+    * bytes 22.. hold "kills:NNN/NNN".  Each field is
+    * blank-filled with '_' first, then overwritten with
+    * its content.  Without the 22-byte cap on the level
+    * name, a long level name (cl.levelname is 40 bytes
+    * total) overflows into the kills field, where the
+    * kills memcpy then partially clobbers it -- the load
+    * menu shows a savegame comment with a chopped middle.
+    * Cap explicitly to keep both fields intact. */
    for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
-      text[i] = ' ';
-   memcpy(text, cl.levelname, strlen(cl.levelname));
+      text[i] = '_';
+
+   lname_len = strlen(cl.levelname);
+   if (lname_len > 22)
+      lname_len = 22;
+   memcpy(text, cl.levelname, lname_len);
+
    snprintf(kills, sizeof(kills), "kills:%3i/%3i", cl.stats[STAT_MONSTERS],
          cl.stats[STAT_TOTALMONSTERS]);
    memcpy(text + 22, kills, strlen(kills));
-   /* convert space to _ to make stdio happy */
-   for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
-      if (text[i] == ' ')
+
+   /* Sanitize: comment is written as "%s\n" by the writer,
+    * so any embedded newline (or other control char) breaks
+    * the line-per-field savegame format and could be read
+    * back as the next field.  Replace anything outside
+    * printable ASCII with '_' -- defends against a
+    * maliciously crafted BSP whose worldspawn.message
+    * contains a newline reaching cl.levelname via
+    * svc_serverinfo.  In SP this is "your own" content but
+    * BSPs are user-installed and may not be trusted. */
+   for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++) {
+      unsigned char c = (unsigned char)text[i];
+      if (c < 0x20 || c == 0x7f)
          text[i] = '_';
+   }
+
    text[SAVEGAME_COMMENT_LENGTH] = '\0';
 }
 
@@ -1405,108 +1432,6 @@ Host_Give_f(void)
     }
 }
 
-static edict_t *
-FindViewthing(void)
-{
-    int i;
-    edict_t *e;
-
-    for (i = 0; i < sv.num_edicts; i++) {
-	e = EDICT_NUM(i);
-	if (!strcmp(PR_GetString(e->v.classname), "viewthing"))
-	    return e;
-    }
-    Con_Printf("No viewthing on map\n");
-    return NULL;
-}
-
-/*
-==================
-Host_Viewmodel_f
-==================
-*/
-static void
-Host_Viewmodel_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-
-    m = Mod_ForName(Cmd_Argv(1), false);
-    if (!m) {
-	Con_Printf("Can't load %s\n", Cmd_Argv(1));
-	return;
-    }
-
-    e->v.frame = 0;
-    cl.model_precache[(int)e->v.modelindex] = m;
-}
-
-/*
-==================
-Host_Viewframe_f
-==================
-*/
-static void
-Host_Viewframe_f(void)
-{
-    edict_t *e;
-    int f;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    f = atoi(Cmd_Argv(1));
-    if (f >= m->numframes)
-	f = m->numframes - 1;
-
-    e->v.frame = f;
-}
-
-/*
-==================
-Host_Viewnext_f
-==================
-*/
-static void
-Host_Viewnext_f(void)
-{
-    edict_t *e;
-    model_t *m;
-
-    e = FindViewthing();
-    if (!e)
-	return;
-    m = cl.model_precache[(int)e->v.modelindex];
-
-    e->v.frame = e->v.frame + 1;
-    if (e->v.frame >= m->numframes)
-	e->v.frame = m->numframes - 1;
-}
-
-/*
-==================
-Host_Viewprev_f
-==================
-*/
-static void
-Host_Viewprev_f(void)
-{
-    edict_t *e = FindViewthing();
-    if (!e)
-	return;
-
-    e->v.frame = e->v.frame - 1;
-    if (e->v.frame < 0)
-	e->v.frame = 0;
-}
-
 /*
 ===============================================================================
 
@@ -1632,9 +1557,4 @@ Host_InitCommands(void)
     Cmd_AddCommand("startdemos", Host_Startdemos_f);
     Cmd_AddCommand("demos", Host_Demos_f);
     Cmd_AddCommand("stopdemo", Host_Stopdemo_f);
-
-    Cmd_AddCommand("viewmodel", Host_Viewmodel_f);
-    Cmd_AddCommand("viewframe", Host_Viewframe_f);
-    Cmd_AddCommand("viewnext", Host_Viewnext_f);
-    Cmd_AddCommand("viewprev", Host_Viewprev_f);
 }
