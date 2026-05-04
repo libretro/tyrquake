@@ -247,8 +247,6 @@ extern cvar_t sensitivity;
 
 extern cvar_t m_pitch;
 extern cvar_t m_yaw;
-extern cvar_t m_forward;
-extern cvar_t m_side;
 
 
 #define	MAX_TEMP_ENTITIES	64	/* lightning bolts, etc */
