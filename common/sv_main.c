@@ -561,15 +561,19 @@ static void SV_WriteEntitiesToClient(edict_t *clent, sizebuf_t *msg)
     * amount of client-side rendering can recover entities the
     * server never sent.
     *
-    * Cvar lookup happens once per client per server tick.  The
-    * cvar lives client-side but in single-player it's resolvable
-    * via Cvar_VariableValue from server code -- when running as a
-    * dedicated server with no local client this returns 0 and we
-    * fall through to the vanilla path. */
-   if (Cvar_VariableValue("r_liquidblend") != 0.0f)
-      pvs = Mod_FatPVSThroughLiquid(sv.worldmodel, org);
-   else
-      pvs = Mod_FatPVS(sv.worldmodel, org);
+    * The cvar is defined in r_main.c and shared via the extern
+    * below (r_local.h is renderer-internal, not visible from
+    * server code).  Use the cvar's value field directly instead
+    * of Cvar_VariableValue, which does an O(log n) red-black
+    * tree walk plus an atof per call -- and this fires once per
+    * client per server tick, so it accumulates per-frame. */
+   {
+      extern cvar_t r_liquidblend;
+      if (r_liquidblend.value != 0.0f)
+         pvs = Mod_FatPVSThroughLiquid(sv.worldmodel, org);
+      else
+         pvs = Mod_FatPVS(sv.worldmodel, org);
+   }
 
    /* send over all entities (excpet the client) that touch the pvs */
    ent = NEXT_EDICT(sv.edicts);

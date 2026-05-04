@@ -80,7 +80,6 @@ void
 D_SetupFrame(void)
 {
    int i;
-   cvar_t *cvar = Cvar_FindVar("dither_filter");
 
    if (r_dowarp)
       d_viewbuffer = r_warpbuffer;
@@ -103,9 +102,11 @@ D_SetupFrame(void)
    for (i = 0; i < (NUM_MIPS - 1); i++)
       d_scalemip[i] = basemip[i] * d_mipscale.value;
 
-   D_DrawSpans = D_DrawSpans8;
-
-   if (cvar && cvar->value == 1.0f)
+   /* dither_filter is defined right above in this same
+    * translation unit -- use its address directly instead
+    * of Cvar_FindVar("dither_filter") which is an O(log n)
+    * red-black tree walk per frame. */
+   if (dither_filter.value == 1.0f)
       D_DrawSpans = D_DrawSpans16QbDither;
    else
       D_DrawSpans = D_DrawSpans16Qb;
