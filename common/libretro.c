@@ -27,6 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <string/stdstring.h>
 #include <retro_dirent.h>
 
+#include <setjmp.h>
+
 #if defined(_WIN32) && !defined(_XBOX)
 #include <windows.h>
 #elif defined(_WIN32) && defined(_XBOX)
@@ -61,6 +63,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 
 qboolean isDedicated;
+
+/*
+ * Sys_Error escape mechanism.
+ *
+ * Stock Quake's Sys_Error called exit() / aborted; the
+ * libretro core cannot kill the host process, so the
+ * historical impl just logged-and-returned.  That left
+ * ~190 call sites (zone allocator failures, sizebuf
+ * overflows, model-loader sanity checks, etc.) silently
+ * fall through with broken state.  Mirror Host_Error's
+ * approach: longjmp out to the nearest retro_*-level
+ * setjmp.
+ *
+ * sys_abort_set is true when a corresponding setjmp is
+ * live on the stack.  Sys_Error must check it before
+ * longjmping -- early-init or post-shutdown calls land
+ * here with no jmp_buf set up, in which case we fall
+ * back to log-and-return rather than walking off into
+ * an uninitialised buffer.
+ *
+ * sys_error_pending is set when a Sys_Error has fired
+ * during the current retro_run; the frame loop checks
+ * it after returning from the longjmp and skips audio
+ * push and video presentation rather than presenting
+ * potentially-garbage state.
+ */
+static jmp_buf  sys_abort;
+static qboolean sys_abort_set    = false;
+static qboolean sys_error_pending = false;
 
 #ifdef GEKKO
 #include <ogc/lwp_watchdog.h>
@@ -337,7 +368,7 @@ void Sys_Init(void)
    }
 }
 
-bool Sys_Error(const char *error, ...)
+void Sys_Error(const char *error, ...)
 {
    char buffer[256];
    va_list ap;
@@ -354,7 +385,22 @@ bool Sys_Error(const char *error, ...)
       log_cb(RETRO_LOG_ERROR, "%s\n", buffer);
    va_end(ap);
 
-   return false;
+   /* If the current call stack is wrapped by a setjmp in
+    * retro_run / retro_load_game, longjmp out to the
+    * recovery point.  Stock Quake aborts here and ~190
+    * call sites in this engine assume the function does
+    * not return (e.g. SZ_GetSpace overflow falls through
+    * into a zero-init that the caller will then write
+    * into; Hunk_Alloc failure has no fallback path).
+    *
+    * If sys_abort isn't set up (early init, late
+    * shutdown, or a Sys_Error during retro_init before
+    * any frame has run), fall through to log-and-return
+    * -- jumping into an uninitialised jmp_buf would
+    * crash worse than the original silent-continue. */
+   sys_error_pending = true;
+   if (sys_abort_set)
+      longjmp(sys_abort, 1);
 }
 
 char * Sys_ConsoleInput(void) { return NULL; }
@@ -873,15 +919,28 @@ void retro_run(void)
 
    did_flip = false;
 
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
-      update_variables(false);
-   if (!has_set_username)
+   /* Sys_Error escape: any longjmp during this frame
+    * lands here.  Treat it like a soft frame-skip --
+    * skip the rest of Host_Frame, but still present a
+    * dupe video frame and silent audio so the frontend
+    * keeps a steady cadence rather than seeing a stalled
+    * core. */
+   sys_error_pending = false;
+   if (setjmp(sys_abort) == 0)
    {
-      update_env_variables();
-      has_set_username = true;
-   }
+      sys_abort_set = true;
 
-   Host_Frame(1.0 / framerate);
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+         update_variables(false);
+      if (!has_set_username)
+      {
+         update_env_variables();
+         has_set_username = true;
+      }
+
+      Host_Frame(1.0 / framerate);
+   }
+   sys_abort_set = false;
 
    if (rumble_touch_counter > -1)
    {
@@ -902,7 +961,7 @@ void retro_run(void)
     * but it has nothing to do with the mixer and
     * must always run regardless of any audio
     * skip-path. */
-   if (cls.state == ca_active)
+   if (cls.state == ca_active && !sys_error_pending)
       CL_DecayLights();
    audio_step();
 }
@@ -1067,11 +1126,38 @@ bool retro_load_game(const struct retro_game_info *info)
    if (log_cb)
       log_cb(RETRO_LOG_INFO, "Quake Libretro -- TyrQuake Version %s\n", stringify(TYR_VERSION));
 
+   /* Sys_Error escape: any longjmp during Host_Init lands
+    * here.  Host_Init itself is allowed to fail
+    * gracefully via its bool return (PAK loading), but
+    * deeper sanity-check failures (allocator, model
+    * loader, etc.) come out via Sys_Error.  Treat both
+    * paths uniformly as "load failed" -- show the same
+    * message and bail. */
+   sys_error_pending = false;
+   if (setjmp(sys_abort) != 0)
+   {
+      struct retro_message msg;
+      char msg_local[256];
+
+      sys_abort_set = false;
+      Host_Shutdown();
+
+      snprintf(msg_local, sizeof(msg_local),
+            "Quake initialization aborted (Sys_Error)...");
+      msg.msg    = msg_local;
+      msg.frames = 360;
+      if (environ_cb)
+         environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void*)&msg);
+      return false;
+   }
+   sys_abort_set = true;
+
    if (!Host_Init(&parms))
    {
       struct retro_message msg;
       char msg_local[256];
 
+      sys_abort_set = false;
       Host_Shutdown();
 
       snprintf(msg_local, sizeof(msg_local),
@@ -1082,6 +1168,7 @@ bool retro_load_game(const struct retro_game_info *info)
          environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, (void*)&msg);
       return false;
    }
+   sys_abort_set = false;
 
    /* Override some default binds with more modern ones if we are booting the 
     * game for the first time. */

@@ -76,16 +76,20 @@ bool W_LoadWadFile(const char *filename)
    int infotableofs;
 
    wad_base = (byte*)COM_LoadHunkFile(filename);
-   if (!wad_base)
-      return Sys_Error("%s: couldn't load %s", __func__, filename);
+   if (!wad_base) {
+      Sys_Error("%s: couldn't load %s", __func__, filename);
+      return false;
+   }
 
    header = (wadinfo_t *)wad_base;
 
    if (header->identification[0] != 'W'
          || header->identification[1] != 'A'
          || header->identification[2] != 'D'
-         || header->identification[3] != '2')
-      return Sys_Error("Wad file %s doesn't have WAD2 id", filename);
+         || header->identification[3] != '2') {
+      Sys_Error("Wad file %s doesn't have WAD2 id", filename);
+      return false;
+   }
 
    wad_numlumps = LittleLong(header->numlumps);
    infotableofs = LittleLong(header->infotableofs);
@@ -105,8 +109,10 @@ bool W_LoadWadFile(const char *filename)
        || infotableofs < 0
        || infotableofs > com_filesize
        || (long long)infotableofs + (long long)wad_numlumps
-              * (long long)sizeof(lumpinfo_t) > (long long)com_filesize)
-      return Sys_Error("Wad file %s has corrupt header", filename);
+              * (long long)sizeof(lumpinfo_t) > (long long)com_filesize) {
+      Sys_Error("Wad file %s has corrupt header", filename);
+      return false;
+   }
 
    wad_lumps    = (lumpinfo_t *)(wad_base + infotableofs);
 
@@ -130,11 +136,13 @@ bool W_LoadWadFile(const char *filename)
        * past com_filesize is a corrupt or malicious file. */
       if (lump_p->filepos < 0 || lump_p->disksize < 0
           || (long long)lump_p->filepos + (long long)lump_p->disksize
-                 > (long long)com_filesize)
-         return Sys_Error("Wad file %s lump %u out of range "
+                 > (long long)com_filesize) {
+         Sys_Error("Wad file %s lump %u out of range "
                           "(filepos=%i, disksize=%i, filesize=%i)",
                           filename, i, lump_p->filepos,
                           lump_p->disksize, com_filesize);
+         return false;
+      }
 
       W_CleanupName(lump_p->name, lump_p->name);
       if (lump_p->type == TYP_QPIC) {
@@ -142,10 +150,12 @@ bool W_LoadWadFile(const char *filename)
 
          /* Need at least the qpic_t header (8 bytes for two
           * int32s) before SwapPic touches it. */
-         if (lump_p->disksize < (int)(2 * sizeof(int32_t)))
-            return Sys_Error("Wad file %s qpic lump %u too small "
+         if (lump_p->disksize < (int)(2 * sizeof(int32_t))) {
+            Sys_Error("Wad file %s qpic lump %u too small "
                              "(disksize=%i)", filename, i,
                              lump_p->disksize);
+            return false;
+         }
          qpic = (qpic_t *)(wad_base + lump_p->filepos);
          SwapPic(qpic);
          /* Validate width/height fit within the lump's
@@ -159,11 +169,13 @@ bool W_LoadWadFile(const char *filename)
          if (qpic->width <= 0 || qpic->height <= 0
              || qpic->width > 4096 || qpic->height > 4096
              || (size_t)qpic->width * (size_t)qpic->height
-                  > (size_t)lump_p->disksize - offsetof(qpic_t, data))
-            return Sys_Error("Wad file %s qpic lump %u has bad "
+                  > (size_t)lump_p->disksize - offsetof(qpic_t, data)) {
+            Sys_Error("Wad file %s qpic lump %u has bad "
                              "dimensions %dx%d (disksize=%i)",
                              filename, i, qpic->width, qpic->height,
                              lump_p->disksize);
+            return false;
+         }
       }
    }
 

@@ -33,10 +33,15 @@ void Sys_MakeCodeWriteable(unsigned long startaddr, unsigned long length);
 #define MAX_PRINTMSG 4096
 
 void Sys_Printf(const char *fmt, ...);
-bool Sys_Error(const char *error, ...);
+void Sys_Error(const char *error, ...);
 
 /* send text to the console */
-/* an error will cause the entire program to exit */
+/* Sys_Error logs the message and longjmps out to the
+ * nearest retro_run / retro_load_game setjmp guard.
+ * Callers must treat it as no-return -- if the longjmp
+ * isn't live (early init, late shutdown), Sys_Error
+ * falls through to log-and-return as a last resort, but
+ * code paths must not depend on the return path. */
 
 void Sys_Quit(void);
 

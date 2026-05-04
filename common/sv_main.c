@@ -377,7 +377,20 @@ static void SV_SendServerinfo(client_t *client)
    else
       MSG_WriteByte(&client->message, GAME_COOP);
 
-   MSG_WriteString(&client->message, PR_GetString(sv.edicts->v.message));
+   {
+      /* Map title is QC-set during worldspawn; stock Quake
+       * titles are ~40 chars but a malicious or buggy
+       * progs.dat can push an arbitrarily long string here,
+       * which the unbounded MSG_WriteString below would
+       * push to every connecting client.  Cap it at a sane
+       * length matching what cl_parse uses for centerprint
+       * destinations.  Truncation is preferable to
+       * dropping the field entirely. */
+      const char *title = PR_GetString(sv.edicts->v.message);
+      char title_buf[80];
+      strlcpy(title_buf, title, sizeof(title_buf));
+      MSG_WriteString(&client->message, title_buf);
+   }
 
    for (s = sv.model_precache + 1; *s; s++)
       MSG_WriteString(&client->message, *s);

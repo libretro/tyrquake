@@ -682,9 +682,11 @@ Host_Init(quakeparms_t *parms)
 
     host_parms = *parms;
 
-    if (parms->memsize < minimum_memory)
-       return Sys_Error("Only %4.1f megs of memory reported, can't execute game",
+    if (parms->memsize < minimum_memory) {
+       Sys_Error("Only %4.1f megs of memory reported, can't execute game",
              parms->memsize / (float)0x100000);
+       return false;
+    }
 
     com_argc = parms->argc;
     com_argv = parms->argv;
@@ -714,21 +716,27 @@ Host_Init(quakeparms_t *parms)
 
     if (cls.state != ca_dedicated) {
 	host_basepal = (byte*)COM_LoadHunkFile("gfx/palette.lmp");
-	if (!host_basepal)
-	    return Sys_Error("Couldn't load gfx/palette.lmp");
+	if (!host_basepal) {
+	    Sys_Error("Couldn't load gfx/palette.lmp");
+	    return false;
+	}
 	/* palette.lmp is exactly 256 RGB triples = 768 bytes.
 	 * Consumers (V_UpdatePalette, the 24bit-table builder
 	 * d_8to24table, every renderer that reads
 	 * host_basepal[i*3+{0,1,2}] for i in [0,256)) walk
 	 * 768 bytes unconditionally; a truncated file lets
 	 * them OOB-read into adjacent hunk memory. */
-	if (com_filesize != 768)
-	    return Sys_Error("gfx/palette.lmp has bad size %d (expected 768)",
+	if (com_filesize != 768) {
+	    Sys_Error("gfx/palette.lmp has bad size %d (expected 768)",
 	                     com_filesize);
+	    return false;
+	}
 
 	host_colormap = (byte*)COM_LoadHunkFile("gfx/colormap.lmp");
-	if (!host_colormap)
-	    return Sys_Error("Couldn't load gfx/colormap.lmp");
+	if (!host_colormap) {
+	    Sys_Error("Couldn't load gfx/colormap.lmp");
+	    return false;
+	}
 	/* colormap.lmp is exactly 64 shade-rows * 256 colors
 	 * + 1 trailing fullbrights byte = 16385 bytes.  The
 	 * fullbrights read at host_colormap[16384] right
@@ -736,9 +744,11 @@ Host_Init(quakeparms_t *parms)
 	 * indexes vid.colormap[(light & 0xFF00) + pix] up to
 	 * 64 * 256 - 1 = 16383, also requiring the full
 	 * extent. */
-	if (com_filesize != 16385)
-	    return Sys_Error("gfx/colormap.lmp has bad size %d (expected 16385)",
+	if (com_filesize != 16385) {
+	    Sys_Error("gfx/colormap.lmp has bad size %d (expected 16385)",
 	                     com_filesize);
+	    return false;
+	}
 
 
    /* Always derive host_fullbrights from the colormap.  This is the

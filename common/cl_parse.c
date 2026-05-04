@@ -268,7 +268,21 @@ CL_KeepaliveMessage(void)
  * to prevent the server from timing out the client
  * during long load operations, and "long" measured
  * in frames is the relevant quantity to a libretro
- * core. */
+ * core.
+ *
+ * Note: reaching this point at all requires sv.active
+ * to be false (line 236) -- the libretro core almost
+ * always runs a local listenserver, so the keepalive
+ * is effectively only exercised when connected to a
+ * remote network server, where Host_Frame continues to
+ * tick and host_time advances normally.  In that mode
+ * the 5-second cooldown via host_time behaves exactly
+ * as wall-clock would.
+ *
+ * lastmsg persists across map / server transitions,
+ * but host_time is monotonic since process start
+ * (see round-5 host clock work) so the relative
+ * delta stays sensible. */
     time = host_time;
     if (time - lastmsg < 5)
 	return;
@@ -501,10 +515,16 @@ CL_ParseUpdate(unsigned int bits)
    }
 
    if (cl.protocol == PROTOCOL_VERSION_FITZ) {
+      /* Cast to unsigned before shift: MSG_ReadByte returns
+       * int [0..255], and shifting 0x80..0xff left by 24
+       * pushes into the sign bit (implementation-defined
+       * per C99 6.5.7).  bits is unsigned int so the
+       * subsequent OR is fine; the issue is the shift
+       * itself. */
       if (bits & U_FITZ_EXTEND1)
-         bits |= MSG_ReadByte() << 16;
+         bits |= (unsigned)MSG_ReadByte() << 16;
       if (bits & U_FITZ_EXTEND2)
-         bits |= MSG_ReadByte() << 24;
+         bits |= (unsigned)MSG_ReadByte() << 24;
    }
 
    if (bits & U_LONGENTITY)
@@ -734,10 +754,12 @@ CL_ParseClientdata(void)
     unsigned int bits;
 
     bits = (unsigned short)MSG_ReadShort();
+    /* Cast to unsigned before shift: see CL_ParseUpdate
+     * for the same fix. */
     if (bits & SU_FITZ_EXTEND1)
-	bits |= MSG_ReadByte() << 16;
+	bits |= (unsigned)MSG_ReadByte() << 16;
     if (bits & SU_FITZ_EXTEND2)
-	bits |= MSG_ReadByte() << 24;
+	bits |= (unsigned)MSG_ReadByte() << 24;
 
     if (bits & SU_VIEWHEIGHT)
 	cl.viewheight = MSG_ReadChar();

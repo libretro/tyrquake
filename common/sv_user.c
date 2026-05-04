@@ -499,47 +499,70 @@ nextmsg:
             case clc_stringcmd:
                s = MSG_ReadString();
 
-                  ret = 0;
+               /* Exact-token whitelist of commands a client
+                * is allowed to dispatch via clc_stringcmd.
+                * Original code used strncasecmp prefix
+                * matching, which was non-exploitable in
+                * practice (Cmd_FindCommand on an unknown
+                * extended-prefix token would fail and the
+                * dispatch would be logged-and-rejected at
+                * the cvar fallthrough), but the logic was
+                * wrong in spirit -- "saywhatever" prefix-
+                * matched "say" and was waved through to
+                * Cmd_ExecuteString.
+                *
+                * We compare against the leading whitespace-
+                * delimited token of s.  Each handler still
+                * checks cmd_source for its own
+                * sensitive-action gating (verified by
+                * the Thread D audit); this whitelist is
+                * the outer perimeter. */
+               {
+                  static const char * const allowed[] = {
+                     "status", "god", "notarget", "fly",
+                     "name", "noclip", "say", "say_team",
+                     "tell", "color", "kill", "pause",
+                     "spawn", "begin", "prespawn", "kick",
+                     "ping", "give", "ban", NULL
+                  };
+                  const char *cmd_start;
+                  size_t      cmd_len;
+                  unsigned    ai;
 
-               if (strncasecmp(s, "status", 6) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "god", 3) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "notarget", 8) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "fly", 3) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "name", 4) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "noclip", 6) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "say", 3) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "say_team", 8) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "tell", 4) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "color", 5) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "kill", 4) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "pause", 5) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "spawn", 5) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "begin", 5) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "prespawn", 8) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "kick", 4) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "ping", 4) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "give", 4) == 0)
-                  ret = 1;
-               else if (strncasecmp(s, "ban", 3) == 0)
-                  ret = 1;
- 
+                  /* Cap input length: MSG_ReadString already
+                   * bounds at COM_STRBUF_LEN, but a 64KB
+                   * command line is still a Cmd_Tokenize
+                   * Z_Malloc storm and a Sys_Printf-of-
+                   * verbose-rejection log spam.  Trim
+                   * silently to a sane cap. */
+                  if (strlen(s) >= 1024) {
+                     Con_DPrintf("%s: oversized stringcmd from %s "
+                                 "(%u bytes), dropping\n",
+                                 __func__, host_client->name,
+                                 (unsigned)strlen(s));
+                     break;
+                  }
+
+                  /* Skip leading whitespace */
+                  cmd_start = s;
+                  while (*cmd_start && *cmd_start <= ' ')
+                     cmd_start++;
+                  /* Find token end */
+                  cmd_len = 0;
+                  while (cmd_start[cmd_len] > ' ')
+                     cmd_len++;
+
+                  ret = 0;
+                  for (ai = 0; allowed[ai]; ai++) {
+                     if (strlen(allowed[ai]) == cmd_len
+                         && strncasecmp(cmd_start, allowed[ai],
+                                        cmd_len) == 0) {
+                        ret = 1;
+                        break;
+                     }
+                  }
+               }
+
                if (ret == 1)
                   Cmd_ExecuteString(s, src_client);
                else

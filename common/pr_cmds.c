@@ -1017,6 +1017,19 @@ PR_CheckEmptyString(const char *s)
 {
     if (s[0] <= ' ')
 	PR_RunError("%s: Bad string", __func__);
+    /* Cap precache and similar QC-passed name strings at
+     * MAX_QPATH.  Without this, a malicious or buggy
+     * progs.dat passing a multi-KB string to precache_
+     * model / precache_sound is later reflected into
+     * every connecting client's message buffer via
+     * SV_SendServerinfo's MSG_WriteString loop, blowing
+     * past client->message.maxsize.  Models also try to
+     * open the path via Mod_ForName, where stock Quake
+     * has its own MAX_QPATH-sized buffers downstream.
+     * Sister to PF_lightstyle's MAX_STYLESTRING cap. */
+    if (strlen(s) >= MAX_QPATH)
+	PR_RunError("%s: string too long (%u, max %d)",
+	            __func__, (unsigned)strlen(s), MAX_QPATH - 1);
 }
 
 static void

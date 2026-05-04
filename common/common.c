@@ -495,19 +495,28 @@ error:
 
 int MSG_ReadLong(void)
 {
-   int c;
+   /* Use unsigned accumulation: in the original signed
+    * formulation, net_message.data[msg_readcount+3] is
+    * promoted to int and then shifted by 24.  When that
+    * byte has its high bit set (>= 0x80), the shifted
+    * value 0x80000000+ exceeds INT_MAX; left-shifting an
+    * int into the sign bit is implementation-defined per
+    * C99 6.5.7.  All real compilers wrap to negative
+    * correctly, but the unsigned form is well-defined and
+    * lets a static analyser verify the read. */
+   unsigned int u;
 
    if (msg_readcount + 4 > net_message.cursize)
       goto error;
 
-   c = net_message.data[msg_readcount]
-   + (net_message.data[msg_readcount + 1] << 8)
-   + (net_message.data[msg_readcount + 2] << 16)
-   + (net_message.data[msg_readcount + 3] << 24);
+   u =  (unsigned)net_message.data[msg_readcount]
+      | ((unsigned)net_message.data[msg_readcount + 1] << 8)
+      | ((unsigned)net_message.data[msg_readcount + 2] << 16)
+      | ((unsigned)net_message.data[msg_readcount + 3] << 24);
 
    msg_readcount += 4;
 
-   return c;
+   return (int)u;
 
 error:
    msg_badread = true;
@@ -588,7 +597,11 @@ float MSG_ReadAngle16(void)
  */
 int MSG_ReadControlHeader(void)
 {
-   int c;
+   /* Same unsigned-shift fix as MSG_ReadLong; this reads
+    * the 4-byte network-byte-order control header and
+    * suffers the same implementation-defined behavior
+    * when data[0] has its high bit set. */
+   unsigned int u;
 
    if (msg_readcount + 4 > net_message.cursize)
    {
@@ -596,14 +609,14 @@ int MSG_ReadControlHeader(void)
       return -1;
    }
 
-   c = (net_message.data[msg_readcount] << 24)
-      + (net_message.data[msg_readcount + 1] << 16)
-      + (net_message.data[msg_readcount + 2] << 8)
-      + net_message.data[msg_readcount + 3];
+   u =  ((unsigned)net_message.data[msg_readcount]     << 24)
+      | ((unsigned)net_message.data[msg_readcount + 1] << 16)
+      | ((unsigned)net_message.data[msg_readcount + 2] << 8)
+      |  (unsigned)net_message.data[msg_readcount + 3];
 
    msg_readcount += 4;
 
-   return c;
+   return (int)u;
 }
 
 /* =========================================================================== */
