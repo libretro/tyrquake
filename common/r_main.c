@@ -604,40 +604,6 @@ R_LiquidsAreTransparent(void)
 
 /*
 ===============
-R_MarkLeaf
-
-Mark a leaf and walk parent nodes setting visframe up to the
-first node that's already current.  Idempotent when called
-multiple times for the same leaf in the same frame.
-===============
-*/
-static void
-R_MarkLeaf(mleaf_t *leaf)
-{
-    msurface_t **mark;
-    mnode_t *node;
-    int i;
-
-    /* Mark all surfaces referenced from this leaf. */
-    mark = leaf->firstmarksurface;
-    for (i = 0; i < leaf->nummarksurfaces; i++) {
-	(*mark)->visframe = r_visframecount;
-	mark++;
-    }
-    /* Mark the leaf itself plus its parent chain. */
-    node = (mnode_t *)leaf;
-    do {
-	if (node->visframe == r_visframecount)
-	    break;
-	node->visframe = r_visframecount;
-	node = node->parent;
-    } while (node);
-}
-
-
-
-/*
-===============
 R_MarkSurfaces
 ===============
 */
