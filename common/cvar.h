@@ -45,7 +45,7 @@ Cvars must be registered before use, or they will have a 0 value instead of
 the float interpretation of the string.  Generally, all cvar_t declarations
 should be registered in the apropriate init function before any console
 commands are executed:
-	Cvar_RegisterVariable (&host_framerate);
+	Cvar_RegisterVariable (&teamplay);
 
 C code usually just references a cvar in place:
 	if ( r_draworder.value )

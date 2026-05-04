@@ -1086,7 +1086,7 @@ Host_Spawn_f(void)
 	 * consistency with the other connecttime users
 	 * in net_dgrm.c and host_cmd.c:106.  net_time
 	 * is updated to host_time by SetNetTime in
-	 * NET_Poll earlier in the same _Host_Frame, so
+	 * NET_Poll earlier in the same Host_Frame, so
 	 * it's current. */
 	if ((net_time - host_client->netconnection->connecttime) <=
 	    sv.time)

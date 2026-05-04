@@ -80,15 +80,13 @@ static jmp_buf host_abort;
 byte *host_basepal;
 byte *host_colormap;
 
-cvar_t host_framerate = { "host_framerate", "0" };	/* set for slow motion */
-cvar_t host_speeds = { "host_speeds", "0" };	/* set for running times */
-
-cvar_t serverprofile = { "serverprofile", "0" };
-
 cvar_t fraglimit = { "fraglimit", "0", false, true };
 cvar_t timelimit = { "timelimit", "0", false, true };
 cvar_t teamplay = { "teamplay", "0", false, true };
 
+/* QC-visible cvars (read by id1/progs.dat via the
+ * cvar() builtin in PF_cvar / PF_cvar_set).  No
+ * engine-side reader; do not remove. */
 cvar_t samelevel = { "samelevel", "0" };
 cvar_t noexit = { "noexit", "0", false, true };
 
@@ -229,11 +227,6 @@ static void
 Host_InitLocal(void)
 {
     Host_InitCommands();
-
-    Cvar_RegisterVariable(&host_framerate);
-    Cvar_RegisterVariable(&host_speeds);
-
-    Cvar_RegisterVariable(&serverprofile);
 
     Cvar_RegisterVariable(&fraglimit);
     Cvar_RegisterVariable(&timelimit);
@@ -527,25 +520,15 @@ static void Host_FilterTime(float time)
     host_frametime = realtime - oldrealtime;
     oldrealtime    = realtime;
 
-    /* host_framerate is a user cvar.  > 0 lets a finite
-     * positive value override the measured frametime
-     * (used for timedemos / fixed-step debug).  Reject
-     * non-finite values so a "host_framerate nan" or
-     * "host_framerate inf" doesn't propagate through
-     * every per-frame multiplication (movement, particle
-     * decay, ambient_vol, etc.) -- with NaN, > 0 is false
-     * and the natural-frametime branch is taken
-     * accidentally; with +Inf the override fires and
-     * poisons every consumer. */
-    if (host_framerate.value > 0 && !IS_NAN(host_framerate.value)
-        && host_framerate.value <= 1.0f)
-	host_frametime = host_framerate.value;
-    else {			/* don't allow really long or short frames */
-	if (host_frametime > 0.1)
-	    host_frametime = 0.1;
-	if (host_frametime < 0.001)
-	    host_frametime = 0.001;
-    }
+    /* don't allow really long or short frames -- this
+     * is a defence against degenerate values from
+     * Host_Frame's caller (libretro retro_run passes
+     * 1.0/framerate, well within these bounds for any
+     * sane framerate setting). */
+    if (host_frametime > 0.1)
+	host_frametime = 0.1;
+    if (host_frametime < 0.001)
+	host_frametime = 0.001;
 }
 
 
@@ -610,7 +593,7 @@ Host_Frame
 Runs all active servers
 ==================
 */
-static void _Host_Frame(float time)
+void Host_Frame(float time)
 {
    /* something bad happened, or the server disconnected */
    if (setjmp(host_abort))
@@ -675,33 +658,6 @@ static void _Host_Frame(float time)
    CL_RunParticles();
 
    host_framecount++;
-}
-
-void Host_Frame(float time)
-{
-   static int timecount;
-   int i, c;
-
-   if (!serverprofile.value)
-   {
-      _Host_Frame(time);
-      return;
-   }
-
-   _Host_Frame(time);
-
-   timecount++;
-
-   if (timecount < 1000)
-      return;
-
-   timecount = 0;
-   c = 0;
-   for (i = 0; i < svs.maxclients; i++)
-   {
-      if (svs.clients[i].active)
-         c++;
-   }
 }
 
 

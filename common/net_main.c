@@ -151,7 +151,7 @@ SetNetTime(void)
      * jitter and host CPU load, instead of being
      * deterministic per frame.  host_time is a
      * synthetic clock advanced by exactly host_frametime
-     * each _Host_Frame (= 1.0/framerate from retro_run).
+     * each Host_Frame (= 1.0/framerate from retro_run).
      * Same units (seconds), same monotonic property,
      * but tied to frame count instead of wall clock. */
     net_time = host_time;

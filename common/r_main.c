@@ -141,8 +141,6 @@ float r_aliastransition, r_resfudge;
 int d_lightstylevalue[256];	/* 8.8 fraction of base light value */
 
 cvar_t r_draworder = { "r_draworder", "0" };
-cvar_t r_speeds = { "r_speeds", "0" };
-cvar_t r_graphheight = { "r_graphheight", "15" };
 cvar_t r_clearcolor = { "r_clearcolor", "2" };
 cvar_t r_waterwarp = { "r_waterwarp", "1" };
 cvar_t r_waterwarp_scale = { "r_waterwarp_scale", "0.5" };
@@ -167,9 +165,7 @@ cvar_t r_lockfrustum = { "r_lockfrustum", "0" };
 
 cvar_t r_fullbright = { "r_fullbright", "0" };
 
-static cvar_t r_timegraph = { "r_timegraph", "0" };
 static cvar_t r_aliasstats = { "r_polymodelstats", "0" };
-static cvar_t r_dspeeds = { "r_dspeeds", "0" };
 static cvar_t r_maxsurfs = { "r_maxsurfs", "0" };
 static cvar_t r_maxedges = { "r_maxedges", "0" };
 static cvar_t r_aliastransbase = { "r_aliastransbase", "200" };
@@ -244,8 +240,6 @@ R_Init(void)
     R_InitTurb();
 
     Cvar_RegisterVariable(&r_draworder);
-    Cvar_RegisterVariable(&r_speeds);
-    Cvar_RegisterVariable(&r_graphheight);
     Cvar_RegisterVariable(&r_clearcolor);
     Cvar_RegisterVariable(&r_waterwarp);
     Cvar_RegisterVariable(&r_waterwarp_scale);
@@ -271,9 +265,7 @@ R_Init(void)
 
     Cvar_RegisterVariable(&r_fullbright);
 
-    Cvar_RegisterVariable(&r_timegraph);
     Cvar_RegisterVariable(&r_aliasstats);
-    Cvar_RegisterVariable(&r_dspeeds);
     Cvar_RegisterVariable(&r_maxsurfs);
     Cvar_RegisterVariable(&r_maxedges);
     Cvar_RegisterVariable(&r_aliastransbase);
