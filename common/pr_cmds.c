@@ -825,7 +825,27 @@ localcmd (string)
 */
 static void PF_localcmd(void)
 {
-    Cbuf_AddText("%s", G_STRING(OFS_PARM0));
+    const char *text = G_STRING(OFS_PARM0);
+
+    /* QC's localcmd stuffs arbitrary text into the
+     * client console execution buffer.  cmd_text is
+     * a fixed 8KB sizebuf, so a single oversized call
+     * is bounded -- but a tight QC loop calling
+     * localcmd with multi-KB strings each frame fills
+     * cmd_text faster than Cbuf_Execute can drain it,
+     * leading to overflow logs every frame and eventual
+     * Cmd_TokenizeString Z_Malloc churn (per-arg
+     * allocation, fragmenting the zone).
+     *
+     * Cap individual calls at 1KB; legitimate QC uses
+     * are short ("centerprint", "setcvar deathmatch
+     * 1", ...).  Sister to the clc_stringcmd 1024-byte
+     * cap from the previous round. */
+    if (strlen(text) >= 1024)
+        PR_RunError("%s: text too long (%u, max 1023)",
+                    __func__, (unsigned)strlen(text));
+
+    Cbuf_AddText("%s", text);
 }
 
 /*
@@ -853,6 +873,30 @@ static void PF_cvar_set(void)
 {
     const char *var = G_STRING(OFS_PARM0);
     const char *val = G_STRING(OFS_PARM1);
+
+    /* Both args are QC-controlled.  Cvar_Set Z_Mallocs a
+     * copy of `val` of strlen(val)+1 bytes on every
+     * change.  A hostile or buggy progs.dat that passes
+     * a multi-KB string here, or that calls cvar_set in
+     * a tight loop with varying-length values, drives
+     * the zone allocator into fragmentation/exhaustion
+     * (sister to PF_lightstyle / PF_precache_*).  Stock
+     * Quake cvar values are short numeric strings and
+     * the longest legitimate use case (e.g. _cl_name) is
+     * still under 64 bytes; cap at MAX_QPATH for the
+     * same reasons as the precache path -- generous but
+     * finite.  Also bound the cvar name itself; a QC-
+     * supplied multi-KB name walks Cvar_FindVar's
+     * strcmp loop pointlessly. */
+    if (strlen(var) >= MAX_QPATH)
+        PR_RunError("%s: cvar name too long (%u, max %d)",
+                    __func__, (unsigned)strlen(var),
+                    MAX_QPATH - 1);
+    if (strlen(val) >= MAX_QPATH)
+        PR_RunError("%s: cvar value too long (%u, max %d)",
+                    __func__, (unsigned)strlen(val),
+                    MAX_QPATH - 1);
+
     Cvar_Set(var, val);
 }
 

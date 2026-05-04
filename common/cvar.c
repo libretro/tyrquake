@@ -201,6 +201,24 @@ Cvar_Set(const char *var_name, const char *value)
 	return;
     }
 
+    /* Central length cap on cvar values.  Cvar_Set Z_Mallocs
+     * a copy of `value` of strlen(value)+1 bytes per call;
+     * left unbounded, hostile or buggy inputs (QC's
+     * cvar_set, server svc_stufftext, autoexec config
+     * lines, key-bind reload) can drive the zone into
+     * fragmentation/exhaustion.  Stock Quake cvars are
+     * short numeric or path-like strings; the longest
+     * legitimate cases (like _cl_name) fit in MAX_QPATH.
+     * Truncate rather than reject so a malformed config
+     * line doesn't refuse-to-load the rest of the
+     * settings.  PF_cvar_set additionally rejects
+     * upstream so QC sees an error rather than silent
+     * truncation. */
+    if (strlen(value) >= MAX_QPATH) {
+	Con_Printf("Cvar_Set: \"%s\" value too long (%u >= %d), truncating\n",
+	           var_name, (unsigned)strlen(value), MAX_QPATH);
+    }
+
     {
 	/* The original implementation freed var->string and *then*
 	 * read `value` to copy it.  If the caller passed
@@ -214,8 +232,11 @@ Cvar_Set(const char *var_name, const char *value)
 	 * bytes stay live across the operation.  Slightly higher
 	 * peak footprint during the realloc, no UB. */
 	size_t valuelen = strlen(value) + 1;
+	if (valuelen > MAX_QPATH)
+	    valuelen = MAX_QPATH;
 	newstring = (char*)Z_Malloc(valuelen);
-	memcpy(newstring, value, valuelen);
+	memcpy(newstring, value, valuelen - 1);
+	newstring[valuelen - 1] = 0;
     }
     Z_Free((void *)var->string);	/* free the old value string */
     var->string = newstring;
