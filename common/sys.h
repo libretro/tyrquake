@@ -42,16 +42,8 @@ void Sys_Quit(void);
 
 char *Sys_ConsoleInput(void);
 
-/* called to yield for a little bit so as */
-/* not to hog cpu when paused or debugging */
-
+/* Perform Key_Event() callbacks until the input queue is empty */
 void Sys_SendKeyEvents(void);
-
-/* Perform Key_Event () callbacks until the input que is empty */
-
-void Sys_LowFPPrecision(void);
-void Sys_HighFPPrecision(void);
-void Sys_SetFPCW(void);
 
 void Sys_Init(void);
 

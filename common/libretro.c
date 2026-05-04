@@ -351,12 +351,6 @@ bool Sys_Error(const char *error, ...)
    return false;
 }
 
-/* ======================================================================= */
-/* Sleeps for microseconds */
-/* ======================================================================= */
-
-void Sys_HighFPPrecision(void) { }
-void Sys_LowFPPrecision(void) { }
 char * Sys_ConsoleInput(void) { return NULL; }
 
 viddef_t vid;			/* global video state */

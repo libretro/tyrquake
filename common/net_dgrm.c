@@ -1156,7 +1156,6 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
     int newsock;
     int ret;
     int reps;
-    double start_time;
     int control;
     const char *reason;
 
@@ -1179,9 +1178,26 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
     /* send the connection request */
     Con_Printf("trying...\n");
     SCR_UpdateScreen();
-    start_time = net_time;
 
+    /* This whole function is a busy-wait that
+     * runs inside a single retro_run.  In the
+     * libretro core net_time / host_time don't
+     * advance during a Host_Frame, so the
+     * historical "(SetNetTime() - start_time) <
+     * 2.5" deadline is unreachable and the inner
+     * loop would spin forever.  Replace with an
+     * iteration cap.  On modern hardware the
+     * driver->Read() call is non-blocking and
+     * returns -1 / 0 / >0 promptly, so 250000
+     * spins is a defensible analogue of the old
+     * 2.5-second timeout (each loop iteration
+     * is a syscall + a few branches; very
+     * approximately 10us at most).  Datagram_
+     * Connect is only invoked from the explicit
+     * `connect <ip>` console command, never
+     * per-frame in normal SP play. */
     for (reps = 0; reps < 3; reps++) {
+	int connect_iters = 0;
 	SZ_Clear(&net_message);
 	/* save space for the header, filled in later */
 	MSG_WriteLong(&net_message, 0);
@@ -1230,13 +1246,12 @@ _Datagram_Connect(const char *host, net_landriver_t *driver)
 		    continue;
 		}
 	    }
-	} while (ret == 0 && (SetNetTime() - start_time) < 2.5);
+	} while (ret == 0 && ++connect_iters < 250000);
 
 	if (ret)
 	    break;
 	Con_Printf("still trying...\n");
 	SCR_UpdateScreen();
-	start_time = SetNetTime();
     }
 
     if (ret == 0) {
