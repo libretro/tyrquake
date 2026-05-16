@@ -35,16 +35,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *     deduplicated across triangles so adjacent faces share their
  *     midpoint vertex; the mesh stays watertight.
  *
- *   - Geometry: edge midpoints are the plain byte-quantised midpoint
- *     of the two endpoint positions.  An earlier revision used the
- *     standard Loop interior mask 3/8(a + b) + 1/8(c + d), which
- *     converges to a smooth limit surface but visibly shrinks convex
- *     silhouettes -- shotgun stocks, monster horns, axe blades --
+ *   - Geometry: edge midpoints are normally the plain byte-quantised
+ *     midpoint of the two endpoint positions.  An earlier revision
+ *     used the standard Loop interior mask 3/8(a + b) + 1/8(c + d),
+ *     which converges to a smooth limit surface but visibly shrinks
+ *     convex silhouettes -- shotgun stocks, monster horns, axe blades --
  *     on the low-poly Quake meshes this code targets.  Plain
  *     midpoints keep every new vertex exactly on the original edge
  *     polyline, so the model's outline is preserved bit-for-bit;
  *     visual smoothing comes entirely from the higher triangle
- *     count feeding Gouraud-interpolated shading, see below.
+ *     count feeding Gouraud-interpolated shading.
+ *
+ *     When the caller passes phong_tess=true, midpoints are instead
+ *     placed by Phong tessellation (Boubekeur & Alexa, "Phong
+ *     Tessellation", SIGGRAPH Asia 2008): project the linear
+ *     midpoint onto the tangent planes at the two endpoint normals
+ *     and blend the linear and projected midpoints by alpha.  On
+ *     convex curved surfaces this rounds the silhouette outward
+ *     instead of leaving it on the chord, so the same triangle count
+ *     produces visibly rounder cylinders / spheres.  Flat regions
+ *     (endpoint normals near-parallel) collapse the projection
+ *     back to the linear midpoint, so sharp features are not
+ *     over-smoothed.  Caller drives this off r_phongshading: the
+ *     same vertex normals that feed per-pixel Phong shading at
+ *     draw time also drive per-vertex tessellation here at load
+ *     time.
  *
  *   - Vertex normals: trivertx_t.lightnormalindex picks one of the
  *     162 precomputed directions in r_avertexnormals[].  For a
@@ -189,6 +204,20 @@ typedef struct subdiv_edge_s {
     int facesfront_mask;/* bit 0: a front-facing tri uses this edge,
 			 * bit 1: a back-facing tri uses this edge.
 			 * mask==3 means the edge is the texture seam. */
+    int first_tri;	/* index of the first triangle that referenced
+			 * this edge during the build loop; only used
+			 * when phong_tess is active, to dihedral-test
+			 * the edge against the second triangle's face
+			 * normal for crease detection. */
+    byte crease;	/* 1 = edge is a model crease (sharp dihedral or
+			 * non-manifold/boundary), 0 = smooth.  Default
+			 * is 1; cleared when a second triangle is seen
+			 * whose face normal matches the first's within
+			 * the PHONG_TESS_CREASE_COS threshold.  Only
+			 * smooth edges get Phong-tessellated midpoints;
+			 * crease edges fall back to plain midpoints
+			 * to preserve sharp features like axe blade
+			 * edges or gun-stock seams. */
     int next;		/* hash chain pointer, -1 = end */
 } subdiv_edge_t;
 
@@ -213,16 +242,147 @@ ByteMid2(int a, int b)
 }
 
 /*
+ * Phong-tessellation blend strength.  0.0 = plain midpoint (no
+ * curvature), 1.0 = full projection onto the tangent planes.  The
+ * Phong tessellation paper uses 0.75 as its default; on byte-
+ * quantised Quake meshes any finer setting would fall below the
+ * 1/255 byte step we round to anyway, so this constant is hardcoded
+ * rather than exposed as a cvar.
+ */
+#define PHONG_TESS_ALPHA 0.75f
+
+/*
+ * Crease-detection threshold for Phong tessellation: cos of the
+ * maximum dihedral angle between two adjacent face normals that we
+ * still treat as "smooth surface, displace the midpoint outward".
+ * Anything tighter (sharper dihedral) is classified as a crease and
+ * gets a plain midpoint instead, so sharp features (axe blade edges,
+ * weapon-stock seams, monster horns) keep their silhouette.
+ *
+ * cos(60 deg) = 0.5 picks up:
+ *   - chunky N-sided cylinders (N >= 6, dihedral <= 60 deg) as smooth
+ *     -> Phong displacement applies, silhouette rounds outward
+ *   - blade-to-flank crease on axe heads (~90 deg dihedral) as crease
+ *     -> plain midpoint, blade stays flat
+ *   - perpendicular box edges, gun stock seams, monster joints
+ *     -> plain midpoint, sharp corners preserved
+ *
+ * 4-sided cylinders (90 deg) collapse to plain midpoint as a false
+ * positive; with only 4 sides the silhouette is too coarse for Phong
+ * to help meaningfully anyway, so this is an acceptable tradeoff.
+ */
+#define PHONG_TESS_CREASE_COS 0.5f
+
+/*
+ * Squared form of the face-dihedral threshold, used in the actual
+ * edge-build comparison so we can avoid sqrt: the test cos(theta) > T
+ * becomes
+ *   (a . b) > 0  AND  (a . b)^2 > T^2 * |a|^2 * |b|^2
+ * which is equivalent for acute angles and rejects obtuse ones (where
+ * a . b <= 0) automatically -- exactly what we want, since dihedral
+ * > 90 deg always counts as a crease.
+ */
+#define PHONG_TESS_CREASE_COS_SQ (PHONG_TESS_CREASE_COS * PHONG_TESS_CREASE_COS)
+
+/*
+ * Vertex-normal alignment threshold for Phong tessellation.  The face
+ * dihedral test above only catches creases where the two adjacent
+ * face normals disagree (e.g. cube-edge 90 deg dihedral).  It does
+ * NOT catch the much more common Quake-MDL failure mode: a flat face
+ * shared by two coplanar triangles (face dihedral = 0) whose corner
+ * vertices have normals that have been smoothed across the adjacent
+ * perpendicular faces, so each vertex normal tilts ~45 deg away from
+ * the local face normal.  Phong projection on such an edge reads the
+ * tilted normals as 'surface is curving outward' and pushes the
+ * midpoint perpendicular to the actual face plane, inflating the
+ * whole face.  Axe heads, gun stocks, monster torso panels all fail
+ * this way under the face-dihedral test alone.
+ *
+ * Real fix: also require each endpoint's vertex normal to align with
+ * each adjacent face's face normal.  When the vertex normal is the
+ * true local surface normal (genuinely smooth surface), this dot is
+ * close to 1.  When the vertex normal has been averaged across a
+ * crease, it tilts away from the face normal and the dot drops.
+ *
+ * cos(31.8 deg) = 0.85 picks up:
+ *   - 6+-sided cylinders (per-face vertex tilt <= 30 deg) as smooth
+ *   - smoothed cube corner (54.7 deg tilt from any face) as crease
+ *   - axe head, gun stock, monster panels as crease
+ */
+#define PHONG_TESS_VERT_ALIGN_COS 0.85f
+#define PHONG_TESS_VERT_ALIGN_COS_SQ \
+    (PHONG_TESS_VERT_ALIGN_COS * PHONG_TESS_VERT_ALIGN_COS)
+
+/*
+ * Compute the Phong-tessellated byte midpoint position between two
+ * trivertx endpoints.  The two endpoint normals come from
+ * r_avertexnormals[] via lightnormalindex; the model's per-axis scale
+ * converts byte-space coordinates to model-space and back.
+ *
+ * Math:
+ *   M_lin = 0.5 (A + B)                            // linear midpoint
+ *   d_i   = (M_lin - P_i) . n_i                    // signed distance
+ *                                                  // from M_lin to the
+ *                                                  // tangent plane at i
+ *   pi_i  = M_lin - d_i * n_i                      // projection onto
+ *                                                  // that tangent plane
+ *   M_phong = 0.5 (pi_A + pi_B)
+ *   M     = (1 - alpha) M_lin + alpha * M_phong
+ *         = M_lin - 0.5 * alpha * (d_A * n_A + d_B * n_B)
+ *
+ * Working in model space lets us dot with the unit normals directly.
+ * We then divide each axis of the displacement by scale[k] to convert
+ * back to byte units, round to nearest, and clamp to [0, 255].
+ *
+ * Degenerate scale (any axis == 0) is treated as "no displacement on
+ * that axis" so a malformed model can't blow this routine up with a
+ * division by zero.
+ */
+static void
+PhongMidpoint(const trivertx_t *va, const trivertx_t *vb,
+	      const float *scale, byte out[3])
+{
+    const float *nA = r_avertexnormals[va->lightnormalindex];
+    const float *nB = r_avertexnormals[vb->lightnormalindex];
+    float dx, dy, dz;	/* model-space (B - A)/2 */
+    float dA, dB;
+    int k;
+
+    /* Half the model-space step from A to B.  scale_origin cancels
+     * out in (B - A), so we don't need it. */
+    dx = 0.5f * ((int)vb->v[0] - (int)va->v[0]) * scale[0];
+    dy = 0.5f * ((int)vb->v[1] - (int)va->v[1]) * scale[1];
+    dz = 0.5f * ((int)vb->v[2] - (int)va->v[2]) * scale[2];
+
+    /* (M_lin - A) is exactly +(B - A)/2 ; (M_lin - B) is the negation. */
+    dA =  dx * nA[0] + dy * nA[1] + dz * nA[2];
+    dB = -dx * nB[0] - dy * nB[1] - dz * nB[2];
+
+    for (k = 0; k < 3; k++) {
+	float d_model = -0.5f * PHONG_TESS_ALPHA * (dA * nA[k] + dB * nB[k]);
+	float d_byte  = (scale[k] != 0.0f) ? (d_model / scale[k]) : 0.0f;
+	int mid       = ((int)va->v[k] + (int)vb->v[k] + 1) >> 1;
+	float f       = (float)mid + d_byte;
+	int r         = (int)(f + (f >= 0.0f ? 0.5f : -0.5f));
+	if (r < 0)   r = 0;
+	if (r > 255) r = 255;
+	out[k] = (byte)r;
+    }
+}
+
+/*
  * Apply a single 1-to-4 subdivision pass.  Inputs and outputs are
  * malloc'd buffers; on success the *_io pointers are freed and
  * replaced.  Returns false (with originals untouched) if the result
  * would exceed the runtime caps or on allocation failure.  skinwidth
  * is the model's skin width, needed to resolve the texture-seam
  * side that an interior midpoint sits on (see the stvert build
- * loop below).
+ * loop below).  scale is the model's per-axis byte-to-model-space
+ * scale, used only when phong_tess is true.
  */
 static qboolean
 SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
+	      qboolean phong_tess, const float *scale,
 	      stvert_t **stverts_io, mtriangle_t **tris_io,
 	      trivertx_t **poses_io)
 {
@@ -237,6 +397,9 @@ SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
     stvert_t *new_stverts = NULL;
     mtriangle_t *new_tris = NULL;
     trivertx_t *new_poses = NULL;
+    float (*face_normals)[3] = NULL;	/* per-triangle face normals in
+					 * pose 0, used for Phong
+					 * crease detection only. */
     stvert_t *old_stverts = *stverts_io;
     mtriangle_t *old_tris = *tris_io;
     trivertx_t *old_poses = *poses_io;
@@ -267,13 +430,51 @@ SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
     if (!tri_edge_idx)
 	goto fail;
 
+    /* Precompute pose-0 face normals for crease detection.  Only done
+     * when Phong tessellation is requested; for plain midpoints we
+     * don't need them at all.  Working in model space (byte * scale)
+     * matches the space the endpoint normals from r_avertexnormals[]
+     * live in, so the dihedral test compares apples to apples.
+     *
+     * We keep the cross product unnormalised: the comparison
+     *   (a.b)^2 > THRESH^2 * |a|^2 * |b|^2
+     * is sign-aware and works without sqrt, so each per-edge dihedral
+     * check is a handful of multiplies. */
+    if (phong_tess) {
+	face_normals = (float (*)[3])malloc((size_t)nt * sizeof(*face_normals));
+	if (!face_normals)
+	    goto fail;
+	for (i = 0; i < nt; i++) {
+	    const trivertx_t *va = &old_poses[old_tris[i].vertindex[0]];
+	    const trivertx_t *vb = &old_poses[old_tris[i].vertindex[1]];
+	    const trivertx_t *vc = &old_poses[old_tris[i].vertindex[2]];
+	    float abx = ((int)vb->v[0] - (int)va->v[0]) * scale[0];
+	    float aby = ((int)vb->v[1] - (int)va->v[1]) * scale[1];
+	    float abz = ((int)vb->v[2] - (int)va->v[2]) * scale[2];
+	    float acx = ((int)vc->v[0] - (int)va->v[0]) * scale[0];
+	    float acy = ((int)vc->v[1] - (int)va->v[1]) * scale[1];
+	    float acz = ((int)vc->v[2] - (int)va->v[2]) * scale[2];
+	    face_normals[i][0] = aby * acz - abz * acy;
+	    face_normals[i][1] = abz * acx - abx * acz;
+	    face_normals[i][2] = abx * acy - aby * acx;
+	}
+    }
+
     /* Walk every triangle edge, deduplicating into a flat list of
      * unique undirected edges, and OR each contributing triangle's
      * facesfront bit into the edge record.  The combined mask later
      * tells us whether each edge is front-only (mask=1), back-only
      * (mask=2) or the texture seam itself (mask=3), which the
      * stvert build loop needs to keep mid-edge texture coordinates
-     * on the right half of the skin. */
+     * on the right half of the skin.
+     *
+     * For Phong tessellation we also need to know, per edge, whether
+     * it's a crease.  Strategy: when we first see an edge, mark it
+     * crease=1 (default safe) and remember which triangle introduced
+     * it; when a second triangle hits the same edge, compare the two
+     * face normals and clear crease only if the dihedral is shallow.
+     * Edges that stay singly-referenced (boundary or non-manifold)
+     * keep crease=1, so Phong won't inflate model boundaries. */
     for (i = 0; i < nt; i++) {
 	int facebit = old_tris[i].facesfront ? 1 : 2;
 	for (j = 0; j < 3; j++) {
@@ -292,10 +493,52 @@ SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
 		edges[e].v1 = v1;
 		edges[e].new_vert = nv + e;
 		edges[e].facesfront_mask = facebit;
+		edges[e].first_tri = i;
+		edges[e].crease = 1;
 		edges[e].next = buckets[bucket];
 		buckets[bucket] = e;
 	    } else {
 		edges[e].facesfront_mask |= facebit;
+		if (phong_tess && edges[e].crease) {
+		    const float *na = face_normals[edges[e].first_tri];
+		    const float *nb = face_normals[i];
+		    float dot = na[0]*nb[0] + na[1]*nb[1] + na[2]*nb[2];
+		    /* Test 1: the two adjacent face normals must agree
+		     * (no sharp dihedral between faces).  This catches
+		     * cube-edge style 90 deg creases. */
+		    if (dot > 0.0f) {
+			float la2 = na[0]*na[0] + na[1]*na[1] + na[2]*na[2];
+			float lb2 = nb[0]*nb[0] + nb[1]*nb[1] + nb[2]*nb[2];
+			if (dot * dot > PHONG_TESS_CREASE_COS_SQ * la2 * lb2) {
+			    /* Test 2: BOTH endpoint vertex normals must
+			     * align with BOTH adjacent face normals.  The
+			     * vertex normals from r_avertexnormals[] are
+			     * unit vectors; the face normals here are the
+			     * unnormalised cross product, so the squared
+			     * comparison uses |f|^2 on the right.  This
+			     * catches the smoothed-corner-of-a-flat-face
+			     * case where Test 1 passes (faces coplanar)
+			     * but the vertex normals tilt outward toward
+			     * adjacent perpendicular faces and would
+			     * Phong-inflate the flat face. */
+			    const float *nvA = r_avertexnormals[
+				old_poses[edges[e].v0].lightnormalindex];
+			    const float *nvB = r_avertexnormals[
+				old_poses[edges[e].v1].lightnormalindex];
+			    float dAa = nvA[0]*na[0] + nvA[1]*na[1] + nvA[2]*na[2];
+			    float dBa = nvB[0]*na[0] + nvB[1]*na[1] + nvB[2]*na[2];
+			    float dAb = nvA[0]*nb[0] + nvA[1]*nb[1] + nvA[2]*nb[2];
+			    float dBb = nvB[0]*nb[0] + nvB[1]*nb[1] + nvB[2]*nb[2];
+			    if (dAa > 0.0f && dBa > 0.0f &&
+				dAb > 0.0f && dBb > 0.0f &&
+				dAa*dAa > PHONG_TESS_VERT_ALIGN_COS_SQ * la2 &&
+				dBa*dBa > PHONG_TESS_VERT_ALIGN_COS_SQ * la2 &&
+				dAb*dAb > PHONG_TESS_VERT_ALIGN_COS_SQ * lb2 &&
+				dBb*dBb > PHONG_TESS_VERT_ALIGN_COS_SQ * lb2)
+				edges[e].crease = 0;
+			}
+		    }
+		}
 	    }
 	    tri_edge_idx[i][j] = e;
 	}
@@ -385,16 +628,29 @@ SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
 	    const trivertx_t *va = &src[edges[i].v0];
 	    const trivertx_t *vb = &src[edges[i].v1];
 	    trivertx_t *out = &dst[nv + i];
-	    /* Plain midpoint for every edge -- see header comment.
-	     * Loop-style weighting using opposite vertices shrinks
-	     * convex silhouettes on chunky game models, which is
-	     * the opposite of what users expect from a "smoother
-	     * models" option; we leave positions exactly on the
-	     * original edge polylines and let the higher tri count
-	     * carry the visual smoothing via Gouraud lighting. */
-	    out->v[0] = ByteMid2(va->v[0], vb->v[0]);
-	    out->v[1] = ByteMid2(va->v[1], vb->v[1]);
-	    out->v[2] = ByteMid2(va->v[2], vb->v[2]);
+	    if (phong_tess && !edges[i].crease) {
+		/* Smooth (non-crease) edge: place midpoint on the
+		 * quadric implied by the endpoint normals.  Rounds
+		 * convex curved surfaces outward.  Cheap enough at
+		 * load time (a handful of multiplies per midpoint
+		 * per pose) and amplifies the visual gain of
+		 * subdivision on cylinders / spheres. */
+		PhongMidpoint(va, vb, scale, out->v);
+	    } else {
+		/* Plain midpoint: used either when Phong tessellation
+		 * is off, OR when this specific edge was flagged as a
+		 * crease during the edge build above.  Loop-style
+		 * weighting using opposite vertices shrinks convex
+		 * silhouettes on chunky game models, which is the
+		 * opposite of what users expect from a "smoother
+		 * models" option; we leave positions exactly on the
+		 * original edge polylines so visual smoothing comes
+		 * from the higher tri count feeding Gouraud lighting
+		 * rather than from geometric shrinkage. */
+		out->v[0] = ByteMid2(va->v[0], vb->v[0]);
+		out->v[1] = ByteMid2(va->v[1], vb->v[1]);
+		out->v[2] = ByteMid2(va->v[2], vb->v[2]);
+	    }
 	    /* Averaged-normal lookup: the midpoint represents a
 	     * point on the surface between the two endpoint
 	     * vertices, so its smoothed normal is the normalised
@@ -437,6 +693,8 @@ SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
     free(buckets);
     free(edges);
     free(tri_edge_idx);
+    if (face_normals)
+	free(face_normals);
 
     /* Replace inputs (caller hands ownership of the old buffers
      * to us; they get freed here). */
@@ -457,6 +715,8 @@ fail:
 	free(edges);
     if (tri_edge_idx)
 	free(tri_edge_idx);
+    if (face_normals)
+	free(face_normals);
     if (new_stverts)
 	free(new_stverts);
     if (new_tris)
@@ -467,7 +727,8 @@ fail:
 }
 
 qboolean
-R_SubdivideAliasMesh(int passes, int numposes, int skinwidth,
+R_SubdivideAliasMesh(int passes, qboolean phong_tess,
+		     int numposes, int skinwidth, const float *scale,
 		     int numverts_in, int numtris_in,
 		     const stvert_t *stverts_in,
 		     const mtriangle_t *tris_in,
@@ -517,6 +778,7 @@ R_SubdivideAliasMesh(int passes, int numposes, int skinwidth,
      * partially smoothed mesh is still better than the original. */
     for (i = 0; i < passes; i++) {
 	if (!SubdivOnePass(&nv, &nt, numposes, skinwidth,
+			   phong_tess, scale,
 			   &stverts, &tris, &poses))
 	    break;
 	applied++;

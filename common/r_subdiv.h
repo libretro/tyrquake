@@ -80,12 +80,23 @@ int R_PolySubdivPasses(void);
  *
  * Inputs (read-only, caller-owned):
  *   passes      - number of subdivision passes to apply, >= 1.
+ *   phong_tess  - if true, edge midpoints are placed via Phong
+ *                 tessellation (Boubekeur & Alexa, SIGGRAPH Asia
+ *                 2008): project the linear midpoint onto the
+ *                 tangent planes at the two endpoint normals and
+ *                 blend.  Rounds convex silhouettes outward.  When
+ *                 false, midpoints sit on the original edge line.
  *   numposes    - frame poses; each contributes numverts_in trivertx_t.
  *   skinwidth   - the model's full skin width in texels.  Used to
  *                 resolve which texture half a new midpoint vertex
  *                 sits on (front = [0, skinwidth/2), back =
  *                 [skinwidth/2, skinwidth]); see the stvert build
  *                 loop in r_subdiv.c.
+ *   scale       - the model's per-axis byte-to-model-space scale
+ *                 (aliashdr_t.scale).  Used by the Phong tessellation
+ *                 path to convert displacement back to byte units;
+ *                 ignored when phong_tess is false.  May be NULL in
+ *                 that case.
  *   numverts_in - source vertex count.
  *   numtris_in  - source triangle count.
  *   stverts_in  - [numverts_in] texture-coord verts.
@@ -111,8 +122,10 @@ int R_PolySubdivPasses(void);
  * *passes_applied (may be NULL).
  */
 qboolean R_SubdivideAliasMesh(int passes,
+			      qboolean phong_tess,
 			      int numposes,
 			      int skinwidth,
+			      const float *scale,
 			      int numverts_in,
 			      int numtris_in,
 			      const stvert_t *stverts_in,

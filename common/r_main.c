@@ -173,6 +173,25 @@ static cvar_t r_aliastransbase = { "r_aliastransbase", "200" };
 static cvar_t r_aliastransadj = { "r_aliastransadj", "100" };
 
 /*
+ * r_phongshading callback: Phong shading itself is a per-pixel
+ * rasterizer choice picked up automatically on the next frame, so
+ * by itself the toggle needs no special handling.  But when
+ * r_polysubdiv is also on, the same vertex normals drive Phong
+ * tessellation at model-load time (see r_subdiv.c PhongMidpoint),
+ * which means changing this flag changes the baked geometry.  In
+ * that case we flush the alias cache so models reload with the
+ * new midpoint positions.  When r_polysubdiv is 0 the geometry
+ * doesn't depend on Phong shading and we leave the cache alone.
+ */
+static void
+R_PhongShadingChanged(cvar_t *var)
+{
+    (void)var;
+    if (R_PolySubdivPasses() > 0)
+	Mod_FlushAlias();
+}
+
+/*
  * r_polysubdiv callback: clamp the user-entered value to the
  * supported range and force every cached alias model to reload, so
  * the new subdivision level takes effect for currently-visible
@@ -305,6 +324,7 @@ R_Init(void)
 
     Cvar_RegisterVariable(&r_polysubdiv);
     Cvar_SetCallback(&r_polysubdiv, R_PolySubdivChanged);
+    Cvar_SetCallback(&r_phongshading, R_PhongShadingChanged);
 
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);

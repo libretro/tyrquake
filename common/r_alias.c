@@ -137,8 +137,18 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
     qboolean subdivided = false;
 
     if (sub_passes > 0) {
-	subdivided = R_SubdivideAliasMesh(sub_passes, hdr->numposes,
-					  hdr->skinwidth,
+	/* Phong shading at any non-zero level (Phong, Phong+specular)
+	 * signals the user wants smoother-looking models; we mirror
+	 * that intent at subdivision time by using Phong tessellation
+	 * for the new vertex positions, which rounds convex silhouettes
+	 * outward.  The r_phongshading cvar callback in r_main.c
+	 * flushes the alias cache when this flag changes, so models
+	 * pick up the new geometry on next reference.  Off here means
+	 * plain midpoint subdivision (silhouette preserved bit-exact). */
+	qboolean phong_tess = (r_phongshading.value != 0.0f);
+	subdivided = R_SubdivideAliasMesh(sub_passes, phong_tess,
+					  hdr->numposes,
+					  hdr->skinwidth, hdr->scale,
 					  hdr->numverts, hdr->numtris,
 					  stverts, tris, verts,
 					  &sub_nv, &sub_nt,
