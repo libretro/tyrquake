@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "model.h"
 #include "quakedef.h"
 #include "r_local.h"
+#include "r_subdiv.h"
 #include "sys.h"
 #include "world.h"   /* SV_RecursiveHullCheck for r_shadows ground trace */
 
@@ -121,14 +122,55 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
     stvert_t *pstverts;
     mtriangle_t *ptris;
 
+    /* Optional polygon subdivision (Catmull / Loop-style 1-to-4
+     * split, see r_subdiv.c).  When r_polysubdiv > 0 we synthesize
+     * a denser mesh and feed that to the rest of the loader; the
+     * Hunk_Alloc-backed arrays still own the final data, so the
+     * persisted model image is the subdivided one and no per-frame
+     * cost is added.  On failure (allocation or runtime-cap
+     * overshoot) we fall through with the unsubdivided source. */
+    int sub_passes = R_PolySubdivPasses();
+    int sub_nv = 0, sub_nt = 0, sub_applied = 0;
+    stvert_t    *sub_stverts = NULL;
+    mtriangle_t *sub_tris    = NULL;
+    trivertx_t  *sub_poses   = NULL;
+    qboolean subdivided = false;
+
+    if (sub_passes > 0) {
+	subdivided = R_SubdivideAliasMesh(sub_passes, hdr->numposes,
+					  hdr->skinwidth,
+					  hdr->numverts, hdr->numtris,
+					  stverts, tris, verts,
+					  &sub_nv, &sub_nt,
+					  &sub_stverts, &sub_tris,
+					  &sub_poses, &sub_applied);
+	if (subdivided) {
+	    /* Mesh size grew; keep the model's notion of numverts /
+	     * numtris in sync so all downstream loops scale up too. */
+	    hdr->numverts = sub_nv;
+	    hdr->numtris  = sub_nt;
+	    Con_DPrintf("%s: subdivided %s, %d passes -> %d verts, %d tris\n",
+			__func__, model->name, sub_applied,
+			sub_nv, sub_nt);
+	} else if (sub_applied == 0) {
+	    Con_DPrintf("%s: %s subdivision skipped (cap or alloc)\n",
+			__func__, model->name);
+	}
+    }
+
     /*
      * Save the pose vertex data
      */
     pverts = (trivertx_t*)Hunk_Alloc(hdr->numposes * hdr->numverts * sizeof(*pverts));
     hdr->posedata = (byte *)pverts - (byte *)hdr;
-    for (i = 0; i < hdr->numposes; i++) {
-	memcpy(pverts, verts[i], hdr->numverts * sizeof(*pverts));
-	pverts += hdr->numverts;
+    if (subdivided) {
+	memcpy(pverts, sub_poses,
+	       (size_t)hdr->numposes * (size_t)hdr->numverts * sizeof(*pverts));
+    } else {
+	for (i = 0; i < hdr->numposes; i++) {
+	    memcpy(pverts, verts[i], hdr->numverts * sizeof(*pverts));
+	    pverts += hdr->numverts;
+	}
     }
 
     /*
@@ -137,10 +179,13 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
      */
     pstverts = (stvert_t*)Hunk_Alloc(hdr->numverts * sizeof(*pstverts));
     SW_Aliashdr(hdr)->stverts = (byte *)pstverts - (byte *)hdr;
-    for (i = 0; i < hdr->numverts; i++) {
-	pstverts[i].onseam = stverts[i].onseam;
-	pstverts[i].s = stverts[i].s << 16;
-	pstverts[i].t = stverts[i].t << 16;
+    {
+	const stvert_t *src = subdivided ? sub_stverts : stverts;
+	for (i = 0; i < hdr->numverts; i++) {
+	    pstverts[i].onseam = src[i].onseam;
+	    pstverts[i].s = src[i].s << 16;
+	    pstverts[i].t = src[i].t << 16;
+	}
     }
 
     /*
@@ -148,7 +193,16 @@ SW_LoadMeshData(const model_t *model, aliashdr_t *hdr, const mtriangle_t *tris,
      */
     ptris = (mtriangle_t*)Hunk_Alloc(hdr->numtris * sizeof(*ptris));
     SW_Aliashdr(hdr)->triangles = (byte *)ptris - (byte *)hdr;
-    memcpy(ptris, tris, hdr->numtris * sizeof(*ptris));
+    if (subdivided)
+	memcpy(ptris, sub_tris, hdr->numtris * sizeof(*ptris));
+    else
+	memcpy(ptris, tris, hdr->numtris * sizeof(*ptris));
+
+    if (subdivided) {
+	free(sub_stverts);
+	free(sub_tris);
+	free(sub_poses);
+    }
 }
 
 static model_loader_t SW_Model_Loader = {
@@ -763,7 +817,10 @@ R_AliasSetupLighting(alight_t *plighting, const vec3_t entity_origin)
 static trivertx_t *
 R_AliasBlendPoseVerts(const entity_t *e, aliashdr_t *hdr, float blend)
 {
-    static trivertx_t blendverts[MAXALIASVERTS];
+    /* Sized to MAXALIASVERTS_RUNTIME to cover meshes that have been
+     * grown by r_polysubdiv at load time.  At the default (no
+     * subdivision) only the first numverts entries are touched. */
+    static trivertx_t blendverts[MAXALIASVERTS_RUNTIME];
     trivertx_t *poseverts, *pv1, *pv2, *light;
     int i, blend0, blend1;
 
@@ -878,17 +935,18 @@ void R_AliasDrawModel(entity_t *e, alight_t *plighting)
    finalvert_t *pfinalverts;
    auxvert_t *pauxverts;
 
-   /* These working buffers are sized only from MAXALIASVERTS, so cache
-    * them across all alias entities for the lifetime of the process.
-    * R_AliasDrawModel is called once per visible alias entity per
-    * frame; removing the malloc/free pair eliminates a noticeable
-    * amount of heap traffic on busy scenes. */
+   /* These working buffers are sized only from MAXALIASVERTS_RUNTIME,
+    * so cache them across all alias entities for the lifetime of the
+    * process.  R_AliasDrawModel is called once per visible alias
+    * entity per frame; removing the malloc/free pair eliminates a
+    * noticeable amount of heap traffic on busy scenes.  The RUNTIME
+    * cap covers meshes that have been grown by r_polysubdiv. */
    static auxvert_t *auxverts;
    static finalvert_t *finalverts;
    if (!auxverts)
-      auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS);
+      auxverts = malloc(sizeof(auxvert_t) * MAXALIASVERTS_RUNTIME);
    if (!finalverts)
-      finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS, finalvert_t));
+      finalverts = malloc(sizeof(finalvert_t)*CACHE_PAD_ARRAY(MAXALIASVERTS_RUNTIME, finalvert_t));
 
    r_amodels_drawn++;
 
@@ -997,12 +1055,14 @@ void R_AliasDrawShadow(entity_t *e)
     float        floor_z;
     float        yaw_rad, yc, ys;
     int          i;
-    /* Per-vert working buffers, sized to MAXALIASVERTS to cover any
-     * stock alias model.  File-static so they're not on the stack
-     * (MAXALIASVERTS = 2048, totalling ~24KB across the three arrays). */
-    static float shadow_screen[MAXALIASVERTS][2];
-    static float shadow_depth[MAXALIASVERTS];
-    static byte  shadow_clipped[MAXALIASVERTS];
+    /* Per-vert working buffers, sized to MAXALIASVERTS_RUNTIME to
+     * cover any alias model after r_polysubdiv subdivision (3-pass
+     * worst case).  File-static so they're not on the stack.  At
+     * the default subdivision level (off) only the first numverts
+     * entries are touched. */
+    static float shadow_screen[MAXALIASVERTS_RUNTIME][2];
+    static float shadow_depth[MAXALIASVERTS_RUNTIME];
+    static byte  shadow_clipped[MAXALIASVERTS_RUNTIME];
 
     if (!e->model || e->model->type != mod_alias)
 	return;
@@ -1041,7 +1101,7 @@ void R_AliasDrawShadow(entity_t *e)
     pverts = r_apverts;
     ptri = (mtriangle_t *)((byte *)pahdr + swhdr->triangles);
 
-    if (pahdr->numverts > MAXALIASVERTS)
+    if (pahdr->numverts > MAXALIASVERTS_RUNTIME)
 	return;     /* malformed model, defensive */
 
     /* Yaw rotation precompute (PITCH/ROLL deliberately ignored). */

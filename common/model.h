@@ -438,6 +438,7 @@ typedef struct model_loader {
 void Mod_Init(const model_loader_t *loader);
 void Mod_Shutdown(void);
 void Mod_ClearAll(void);
+void Mod_FlushAlias(void);
 model_t *Mod_ForName(const char *name, qboolean crash);
 void *Mod_Extradata(model_t *mod);	/* handles caching */
 void Mod_TouchModel(char *name);

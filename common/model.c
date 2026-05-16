@@ -465,6 +465,38 @@ Mod_ClearAll(void)
 }
 
 /*
+===================
+Mod_FlushAlias
+
+Drop every cached alias model and mark it for reload.  Used when a
+mesh-affecting render option (currently r_polysubdiv) changes value:
+alias models normally outlive map changes and live in the cache
+indefinitely, so without this helper a setting change would only
+become visible when the cache happens to evict the old entry.
+
+Each alias model's Hunk image (created by Mod_LoadAliasModel via
+Cache_AllocPadded) is released with Cache_Free, then needload is set
+so Mod_LoadModel re-reads the file the next time the model is
+referenced.  Brush and sprite models are left alone; they don't
+participate in alias subdivision and have their own load semantics.
+===================
+*/
+void
+Mod_FlushAlias(void)
+{
+    int i;
+    model_t *mod;
+
+    for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++) {
+	if (mod->type != mod_alias)
+	    continue;
+	if (Cache_Check(&mod->cache))
+	    Cache_Free(&mod->cache);
+	mod->needload = true;
+    }
+}
+
+/*
 ==================
 Mod_FindName
 

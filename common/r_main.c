@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "console.h"
 #include "quakedef.h"
 #include "r_local.h"
+#include "r_subdiv.h"
 #include "screen.h"
 #include "sound.h"
 #include "sys.h"
@@ -172,6 +173,37 @@ static cvar_t r_aliastransbase = { "r_aliastransbase", "200" };
 static cvar_t r_aliastransadj = { "r_aliastransadj", "100" };
 
 /*
+ * r_polysubdiv callback: clamp the user-entered value to the
+ * supported range and force every cached alias model to reload, so
+ * the new subdivision level takes effect for currently-visible
+ * entities without waiting for cache pressure to evict them.
+ *
+ * The clamp is one-shot: if the user typed an out-of-range value at
+ * the console (e.g. "r_polysubdiv 7"), we write back the clamped
+ * value via Cvar_SetValue, which re-enters this callback.  We detect
+ * the recursive entry by comparing the float value to the integer
+ * round-trip and skip the flush the second time around, so a single
+ * user-driven change produces a single Mod_FlushAlias call.
+ */
+static void
+R_PolySubdivChanged(cvar_t *var)
+{
+    int v = (int)var->value;
+    int clamped = v;
+    if (clamped < 0)
+	clamped = 0;
+    if (clamped > R_POLYSUBDIV_MAX_PASSES)
+	clamped = R_POLYSUBDIV_MAX_PASSES;
+    if ((float)clamped != var->value) {
+	Cvar_SetValue(var->name, (float)clamped);
+	return;	/* re-entered through the Set; the second pass does the flush */
+    }
+    Mod_FlushAlias();
+    Con_Printf("polygon subdivision: %d pass%s\n",
+	       clamped, clamped == 1 ? "" : "es");
+}
+
+/*
 ==================
 R_InitTextures
 ==================
@@ -270,6 +302,9 @@ R_Init(void)
     Cvar_RegisterVariable(&r_maxedges);
     Cvar_RegisterVariable(&r_aliastransbase);
     Cvar_RegisterVariable(&r_aliastransadj);
+
+    Cvar_RegisterVariable(&r_polysubdiv);
+    Cvar_SetCallback(&r_polysubdiv, R_PolySubdivChanged);
 
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);

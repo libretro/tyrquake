@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "menu.h"
 #include "net.h"
 #include "quakedef.h"
+#include "r_subdiv.h"
 #include "render.h"
 #include "screen.h"
 #include "server.h"
@@ -1104,7 +1105,7 @@ M_OptionsInput_Key(int k)
 /* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 16
+#define	OPTIONSVIDEO_ITEMS 17
 
 static int optionsvideo_cursor;
 
@@ -1239,6 +1240,20 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_slimealpha", v);
           break;
        }
+       case 16: {
+          /* Polygon subdivision: cycle 0..R_POLYSUBDIV_MAX_PASSES.
+           * The cvar callback (R_PolySubdivChanged) clamps and
+           * flushes the alias model cache, so the change is visible
+           * the next time each model is referenced -- typically
+           * within a frame for any visible entity. */
+          int v;
+          cvar = Cvar_FindVar("r_polysubdiv");
+          v = (int)cvar->value + dir;
+          if (v < 0) v = R_POLYSUBDIV_MAX_PASSES;
+          if (v > R_POLYSUBDIV_MAX_PASSES) v = 0;
+          Cvar_SetValue("r_polysubdiv", (float)v);
+          break;
+       }
     }
 }
 
@@ -1357,6 +1372,29 @@ M_OptionsVideo_Draw(void)
 	v = (cvar->value - lo) / (hi - lo);
 	M_Print(16, 152, "         Slime Alpha");
 	M_DrawSlider(220, 152, v);
+    }
+
+    /* Polygon Subdivision: cycling text widget showing the current
+     * pass count (0..R_POLYSUBDIV_MAX_PASSES).  Each pass quadruples
+     * the triangle count of every alias model, smoothing curvature
+     * at the cost of memory and per-frame transform work; see
+     * r_subdiv.c.  The cvar string mirrors the array indices so a
+     * future bump of R_POLYSUBDIV_MAX_PASSES only requires extending
+     * this table. */
+    {
+	static const char *subdiv_state_names[R_POLYSUBDIV_MAX_PASSES + 1] = {
+	    "Off",
+	    "1 pass (4x tris)",
+	    "2 pass (16x tris)",
+	    "3 pass (64x tris)"
+	};
+	int sub_v;
+	cvar = Cvar_FindVar("r_polysubdiv");
+	sub_v = (int)cvar->value;
+	if (sub_v < 0) sub_v = 0;
+	if (sub_v > R_POLYSUBDIV_MAX_PASSES) sub_v = R_POLYSUBDIV_MAX_PASSES;
+	M_Print(16, 160, "   Polygon Subdivision");
+	M_Print(220, 160, subdiv_state_names[sub_v]);
     }
 
 /* cursor */
