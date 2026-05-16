@@ -37,14 +37,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /*
  * Per-pass subdivision multiplies the source mesh size by ~4x for
  * triangles and ~3x for vertices in the limit (V_after = V + E,
- * E ~= 1.5 F for a closed mesh).  The runtime vertex / triangle
- * caps below cover three passes applied to a small-to-medium source
- * mesh, or two passes applied to a max-sized source mesh.  Meshes
- * that would exceed these caps fall back to fewer passes; see
- * R_SubdivideAliasMesh.
+ * E ~= 1.5 F for a closed mesh).  The runtime caps below cap each
+ * subdivided model at roughly 3.6 MB of Hunk image (8192 trivertx
+ * poses * ~100 frames + 16384 tris + 8192 stverts).  At the original
+ * cap of 32768 / 65536 a single max-sized model could reach 14 MB,
+ * which on the default 32 MB libretro heap was enough to push
+ * Cache_AllocPadded into Sys_Error("out of memory") once several
+ * subdivided monsters became visible.  The new caps also reclaim
+ * ~400 KB of BSS from the MAXALIASVERTS_RUNTIME-sized static
+ * working buffers in r_alias.c.
+ *
+ * Practical effect on the user-facing setting:
+ *   - 3 passes still works on small models (player.mdl head, weapon
+ *     barrels, projectile sprites).
+ *   - Mid-size models (most monsters at ~500 verts) cap at 2 passes;
+ *     R_SubdivideAliasMesh drops the third pass and returns the
+ *     2-pass result.
+ *   - Max-sized source meshes cap at 1 pass.
+ *
+ * The cap-fallback in R_SubdivideAliasMesh tries passes one at a
+ * time so a model that overshoots at pass N still keeps the result
+ * of pass N-1; you never end up with an unsubdivided model just
+ * because you asked for one pass too many.
  */
-#define MAXALIASVERTS_RUNTIME 32768
-#define MAXALIASTRIS_RUNTIME  65536
+#define MAXALIASVERTS_RUNTIME 8192
+#define MAXALIASTRIS_RUNTIME  16384
 
 /* User-controlled subdivision level cvar (0..R_POLYSUBDIV_MAX_PASSES). */
 extern cvar_t r_polysubdiv;
