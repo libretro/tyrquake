@@ -26,64 +26,95 @@
  *     -DRHI_BACKEND_VULKAN=1 macro at compile time would
  *     replace the enum identifier with the literal 1).
  *
- * Phase 4f (this file's current state): GPU palette LUT.
- * The fragment shader (textured_palette.frag) does the index-
- * into-palette lookup itself, instead of the host doing the
- * palette convert and uploading 32bpp pixels.
+ * Phase 4g (this file's current state): the per-frame
+ * palette LUT moved off the graphics pipeline and into a
+ * compute dispatch.  Same on-screen output as Phase 4f;
+ * what changes is the GPU work that produces it.
  *
- * On the upload side, vid.buffer goes straight to a R8_UNORM
- * texture (1 byte per pixel, not 4), d_8to24table_shifted
- * goes to a
- * 256x1 R8G8B8A8_UNORM palette texture, and the staging
- * buffer holds both: the first width*height bytes are the
- * index data, the next 1024 bytes are the palette.  Two
- * CmdCopyBufferToImage commands per frame carry both into
- * their respective textures.  Staging memory drops from
- * width*height*4 to width*height + 1024 (a 4x reduction at
- * 1280x960, ~5 MiB -> ~1.25 MiB) and the CPU palette-convert
- * loop in backend_vk_upload_vid_buffer becomes two memcpy
- * calls -- no per-pixel work on the host at all.
+ * Phase 4f reserved a "compute door" for exactly this
+ * swap: VK_IMAGE_USAGE_STORAGE_BIT on the render target,
+ * descriptor-set-layout binding stage flags declared as
+ * FRAGMENT | COMPUTE, per-frame command recording from
+ * Phase 4e ready to issue compute dispatches as well as
+ * graphics draws.  This phase walks through that door.
  *
- * Visual output is unchanged from Phase 4d / 4e: same Quake
- * content delivered through the same render pass, just with
- * the palette lookup moved off the CPU.
+ * What's gone:
  *
- * Compute-readiness (per Lib's direction)
- * --------------------------------------
- * Several design choices keep the door open for an eventual
- * compute-based path -- whether that's a compute palette
- * LUT (read index, write RGBA via storage image), compute
- * post-process (HDR tonemap, sharpening), or eventually a
- * compute-based rasterizer that replaces R_RenderView:
+ *   - vk_render_pass.  No render pass; the compute
+ *     dispatch is the entire per-frame GPU workload.
+ *   - vk_framebuffer.  Render passes need framebuffers;
+ *     compute dispatches write directly into images via
+ *     storage descriptors.
+ *   - vk_pipeline (graphics) + vk_vs_module + vk_fs_module.
+ *     No graphics pipeline; no vertex or fragment shader.
+ *     The fullscreen_quad.vert and textured_palette.frag
+ *     SPIR-V headers stay in the tree as reference
+ *     material but are no longer #included from this file.
+ *   - CmdBeginRenderPass / CmdEndRenderPass / CmdDraw /
+ *     CreateRenderPass / CreateFramebuffer /
+ *     CreateGraphicsPipelines / DestroyRenderPass /
+ *     DestroyFramebuffer entries in vk_fn -- the function
+ *     pointers themselves drop out because nothing calls
+ *     them.
  *
- *   - vk_image (the render target) gains VK_IMAGE_USAGE_
- *     STORAGE_BIT.  R8G8B8A8_UNORM's STORAGE_IMAGE_BIT is
- *     mandatory in Vulkan 1.0, so the flag is free now and
- *     lets a future compute pipeline write to the render
- *     target directly without recreating the image.
+ * What's new:
  *
- *   - The descriptor set layout declares its bindings with
- *     stageFlags = FRAGMENT | COMPUTE so a future compute
- *     pipeline can be created against the same DSL without
- *     having to redeclare a parallel layout for the same
- *     resources.
+ *   - textured_palette.comp + its generated SPIR-V
+ *     header (common/shaders/generated/spv/
+ *     textured_palette_cs.h).  Functional equivalent of
+ *     textured_palette.frag.
+ *   - vk_cs_module + vk_compute_pipeline.
+ *   - CreateComputePipelines + CmdDispatch in vk_fn.
+ *   - Descriptor set layout grows from 2 to 3 bindings:
+ *       binding 0: sampler2D u_index   (unchanged)
+ *       binding 1: sampler2D u_palette (unchanged)
+ *       binding 2: writeonly image2D u_output -- the
+ *         compute shader's storage-image write target,
+ *         pointing at vk_image_view.  Stage flags =
+ *         COMPUTE only (no fragment use).
+ *   - Descriptor pool gains 1 STORAGE_IMAGE entry.
+ *   - record_frame loses the BeginRenderPass / Draw /
+ *     EndRenderPass triplet and gains a CmdDispatch
+ *     bracketed by two extra layout transitions on
+ *     vk_image: UNDEFINED -> GENERAL on entry (compute
+ *     needs GENERAL to write storage images), then
+ *     GENERAL -> SHADER_READ_ONLY_OPTIMAL on exit so the
+ *     libretro frontend reads it as a sampled image.
  *
- *   - Per-frame command recording (Phase 4e) is already
- *     compute-friendly: switching from CmdBeginRenderPass
- *     to CmdDispatch is a record-time change with no
- *     restructuring of the pool / buffer / submit path.
+ * What's the same:
  *
- *   - The libretro Vulkan interface gives us a graphics-
- *     capable queue, which on every Vulkan-conformant
- *     implementation can also issue compute work -- no
- *     queue-family migration needed.
+ *   - vid.buffer upload pattern.  R_RenderView still
+ *     populates the 8bpp framebuffer; backend_vk_upload_
+ *     vid_buffer still memcpys the index data and
+ *     d_8to24table_shifted into the staging buffer.
+ *   - CmdCopyBufferToImage staging -> vk_texture and
+ *     staging -> vk_palette_texture, with their pre /
+ *     post layout transitions.
+ *   - Per-frame command recording (Phase 4e mechanics).
+ *   - QueueSubmit + QueueWaitIdle + set_image to the
+ *     libretro frontend.
  *
- * The index and palette textures stay SAMPLED-only.
- * R8_UNORM's STORAGE_IMAGE_BIT is not in the Vulkan 1.0
- * mandatory format support table and there's no plausible
- * compute use case where these are write targets anyway
- * (the natural compute pattern reads them and writes
- * elsewhere).
+ * Why this is worth doing:
+ *
+ *   - Validates the Phase 4f compute-door design end-to-
+ *     end.  Without the swap, the door is just an
+ *     assertion; with it, the assertion is exercised.
+ *   - Removes graphics-pipeline state that wasn't going
+ *     to survive into Phase 4h+.  When real geometry
+ *     drawing arrives, its render pass / pipeline / blend
+ *     state / vertex input will be designed for that
+ *     workload (overlay quads with alpha blending,
+ *     world surfaces with depth + multitexturing, etc.).
+ *     The fullscreen-palette-quad pipeline this file used
+ *     to carry was specific to "show the SW framebuffer
+ *     with an LUT" and wouldn't have been the right
+ *     ancestor for any of those.  Better to drop it now
+ *     and write the right thing later than to carry it
+ *     forward as legacy.
+ *   - Sets up the recording pattern (compute dispatch as
+ *     a first-class per-frame operation) that future
+ *     compute work -- HDR tonemap, post-process,
+ *     compute-based rasterizer -- will reuse.
  *
  *   Phase 4g..N -- real geometry: world surfaces, alias
  *     models, sprites, sky, liquids, shadows; palette +
@@ -120,8 +151,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 
 #include "vulkan/vulkan_core.h"
 #include "libretro_vulkan.h"
-#include "shaders/generated/spv/fullscreen_quad_vs.h"
-#include "shaders/generated/spv/textured_palette_fs.h"
+#include "shaders/generated/spv/textured_palette_cs.h"
 #include <string.h>
 
 extern retro_environment_t    environ_cb;
@@ -171,30 +201,37 @@ static VkImageView      vk_image_view;
 static VkCommandPool    vk_cmd_pool;
 static VkCommandBuffer  vk_cmd_buffer;
 
-/* Phase 4b: shader modules + render-pass/pipeline objects.
- * Same lifetime as the image -- created in context_reset
- * after the function-pointer table is populated, destroyed
- * in context_destroy.  vk_render_pass + vk_framebuffer wrap
- * vk_image_view; vk_pipeline binds vk_render_pass at
- * creation time, so the pipeline can only be used with
- * this render pass + framebuffer. */
-static VkShaderModule   vk_vs_module;
-static VkShaderModule   vk_fs_module;
-static VkRenderPass     vk_render_pass;
-static VkFramebuffer    vk_framebuffer;
+/* Phase 4g: compute pipeline + its shader module.  Same
+ * lifetime as vk_image -- created in context_reset after
+ * the function-pointer table is populated, destroyed in
+ * context_destroy.  The pipeline binds vk_pipeline_layout
+ * which references the (3-binding) descriptor set layout
+ * declared further down; the layout has no push constants. */
+static VkShaderModule   vk_cs_module;
 static VkPipelineLayout vk_pipeline_layout;
-static VkPipeline       vk_pipeline;
+static VkPipeline       vk_compute_pipeline;
 
 /* Phase 4c: sampled-texture objects.  vk_texture is the
- * source image that the fragment shader reads through u_tex;
+ * source image that the compute shader reads through u_index;
  * separate from vk_image (the render target).  Sized at
  * width x height: the texture is a 1:1 image of the SW
  * renderer's vid.buffer (Phase 4d).
  *
- * Phase 4f: vk_texture is now R8_UNORM (single channel
- * holding the palette index) instead of R8G8B8A8_UNORM.
- * vk_palette_texture is the 256x1 RGBA8 lookup the FS
- * indexes into using vk_texture's value as the U coordinate.
+ * Phase 4f: vk_texture is R8_UNORM (single channel holding
+ * the palette index) instead of R8G8B8A8_UNORM.
+ * vk_palette_texture is the 256x1 RGBA8 lookup the compute
+ * shader indexes into using vk_texture's value as the U
+ * coordinate.
+ *
+ * Phase 4g: the descriptor set grows from 2 bindings to 3.
+ * Binding 2 is a writeonly STORAGE_IMAGE pointing at
+ * vk_image_view -- the compute dispatch's output target.
+ * The same vk_image_view is reused for both compute-write
+ * (descriptor binding 2 with VK_IMAGE_LAYOUT_GENERAL) and
+ * frontend-sample (libretro set_image with VK_IMAGE_LAYOUT_
+ * SHADER_READ_ONLY_OPTIMAL); R8G8B8A8_UNORM is storage-
+ * capable per the Vulkan 1.0 mandatory format support table
+ * and the view inherits the image's full usage flags.
  *
  * vk_staging is a HOST_VISIBLE buffer.  Layout:
  *   bytes [0 .. width*height-1]   = index data (R8 per pixel)
@@ -274,21 +311,22 @@ static struct {
     PFN_vkQueueSubmit                     QueueSubmit;
     PFN_vkQueueWaitIdle                   QueueWaitIdle;
 
-    /* Shader / render-pass / pipeline (Phase 4b) */
+    /* Shader / pipeline (Phase 4b for the layout, Phase 4g
+     * for compute).  Render-pass / framebuffer / graphics-
+     * pipeline / Cmd{BeginRenderPass,EndRenderPass,Draw}
+     * dropped at Phase 4g -- nothing in the file calls them
+     * now that the per-frame work is a compute dispatch.
+     * They'll be added back, with the right design for
+     * their workload, when Phase 4h introduces a graphics
+     * path for HUD / overlay rendering. */
     PFN_vkCreateShaderModule              CreateShaderModule;
     PFN_vkDestroyShaderModule             DestroyShaderModule;
-    PFN_vkCreateRenderPass                CreateRenderPass;
-    PFN_vkDestroyRenderPass               DestroyRenderPass;
-    PFN_vkCreateFramebuffer               CreateFramebuffer;
-    PFN_vkDestroyFramebuffer              DestroyFramebuffer;
     PFN_vkCreatePipelineLayout            CreatePipelineLayout;
     PFN_vkDestroyPipelineLayout           DestroyPipelineLayout;
-    PFN_vkCreateGraphicsPipelines         CreateGraphicsPipelines;
+    PFN_vkCreateComputePipelines          CreateComputePipelines;
     PFN_vkDestroyPipeline                 DestroyPipeline;
-    PFN_vkCmdBeginRenderPass              CmdBeginRenderPass;
-    PFN_vkCmdEndRenderPass                CmdEndRenderPass;
     PFN_vkCmdBindPipeline                 CmdBindPipeline;
-    PFN_vkCmdDraw                         CmdDraw;
+    PFN_vkCmdDispatch                     CmdDispatch;
 
     /* Sampler / descriptor / staging upload (Phase 4c) */
     PFN_vkCreateSampler                   CreateSampler;
@@ -385,13 +423,14 @@ backend_vk_find_memory_type(uint32_t type_bits,
 
 /*
  * Create the per-context render target (image + memory + view),
- * the graphics-pipeline objects (shader modules + render pass +
- * framebuffer + pipeline layout + graphics pipeline), and the
- * command-buffer infrastructure (pool + one primary buffer);
- * then pre-record a render-pass-based draw that runs every
- * frame.  On any failure rolls back and leaves
- * vk_resources_ready false; end_frame then no-ops and the
- * frontend falls back to dupe.
+ * the compute-pipeline objects (shader module + pipeline layout
+ * + compute pipeline), the texture / palette-texture / staging
+ * resources, the descriptor set, and the command-buffer
+ * infrastructure (pool + one primary buffer).  Per-frame
+ * command recording (Phase 4e) is dispatched from
+ * backend_vk_record_frame, not here.  On any failure rolls
+ * back and leaves vk_resources_ready false; end_frame then
+ * no-ops and the frontend falls back to dupe.
  */
 static qboolean
 backend_vk_create_resources(void)
@@ -401,36 +440,20 @@ backend_vk_create_resources(void)
     VkMemoryAllocateInfo                    alloc_info;
     VkImageViewCreateInfo                   view_ci;
     VkShaderModuleCreateInfo                sm_ci;
-    VkAttachmentDescription                 attachment;
-    VkAttachmentReference                   color_ref;
-    VkSubpassDescription                    subpass;
-    VkSubpassDependency                     dep;
-    VkRenderPassCreateInfo                  rp_ci;
-    VkFramebufferCreateInfo                 fb_ci;
     VkPipelineLayoutCreateInfo              pl_ci;
-    VkPipelineShaderStageCreateInfo         stages[2];
-    VkPipelineVertexInputStateCreateInfo    vi;
-    VkPipelineInputAssemblyStateCreateInfo  ia;
-    VkViewport                              viewport;
-    VkRect2D                                scissor;
-    VkPipelineViewportStateCreateInfo       vp;
-    VkPipelineRasterizationStateCreateInfo  rs;
-    VkPipelineMultisampleStateCreateInfo    ms;
-    VkPipelineColorBlendAttachmentState     cba;
-    VkPipelineColorBlendStateCreateInfo     cb;
-    VkGraphicsPipelineCreateInfo            gp_ci;
+    VkPipelineShaderStageCreateInfo         cs_stage;
+    VkComputePipelineCreateInfo             cp_ci;
     VkCommandPoolCreateInfo                 pool_ci;
     VkCommandBufferAllocateInfo             cmd_alloc;
-    VkImageView                             fb_attachments[1];
     VkSamplerCreateInfo                     sampler_ci;
     VkBufferCreateInfo                      buf_ci;
-    VkDescriptorSetLayoutBinding            dsl_bindings[2];
+    VkDescriptorSetLayoutBinding            dsl_bindings[3];
     VkDescriptorSetLayoutCreateInfo         dsl_ci;
-    VkDescriptorPoolSize                    dp_size;
+    VkDescriptorPoolSize                    dp_sizes[2];
     VkDescriptorPoolCreateInfo              dp_ci;
     VkDescriptorSetAllocateInfo             ds_alloc;
-    VkDescriptorImageInfo                   ds_image_infos[2];
-    VkWriteDescriptorSet                    ds_writes[2];
+    VkDescriptorImageInfo                   ds_image_infos[3];
+    VkWriteDescriptorSet                    ds_writes[3];
     uint32_t                                mem_type;
     VkResult                                r;
 
@@ -546,111 +569,22 @@ backend_vk_create_resources(void)
     vk_retro_image.create_info  = view_ci;
 
     /* ---------------------------------------------------------
-     * Shader modules.  Each module is just the SPIR-V bytecode
-     * wrapped -- modules can be destroyed immediately after the
-     * pipeline that uses them is created, but we keep them
-     * around for the lifetime of the context to keep teardown
-     * symmetric.  No per-frame cost; the driver compiled the
-     * bytecode into its internal ISA at pipeline creation. */
+     * Compute shader module.  Just the SPIR-V bytecode
+     * wrapped -- the module can be destroyed immediately
+     * after the pipeline that uses it is created, but we
+     * keep it around for the lifetime of the context to
+     * keep teardown symmetric.  No per-frame cost; the
+     * driver compiled the bytecode into its internal ISA at
+     * pipeline creation. */
     memset(&sm_ci, 0, sizeof(sm_ci));
     sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    sm_ci.codeSize = spv_fullscreen_quad_vs_size;
-    sm_ci.pCode    = spv_fullscreen_quad_vs;
-    r = vk_fn.CreateShaderModule(vk_device, &sm_ci, NULL, &vk_vs_module);
+    sm_ci.codeSize = spv_textured_palette_cs_size;
+    sm_ci.pCode    = spv_textured_palette_cs;
+    r = vk_fn.CreateShaderModule(vk_device, &sm_ci, NULL, &vk_cs_module);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: CreateShaderModule (vs) failed (%d)\n", (int)r);
-        return false;
-    }
-
-    memset(&sm_ci, 0, sizeof(sm_ci));
-    sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    sm_ci.codeSize = spv_textured_palette_fs_size;
-    sm_ci.pCode    = spv_textured_palette_fs;
-    r = vk_fn.CreateShaderModule(vk_device, &sm_ci, NULL, &vk_fs_module);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: CreateShaderModule (fs) failed (%d)\n", (int)r);
-        return false;
-    }
-
-    /* ---------------------------------------------------------
-     * Render pass.  One color attachment, one subpass.  The
-     * attachment's load_op = CLEAR handles the per-frame
-     * background fill (no separate vkCmdClearColorImage
-     * needed); the final_layout = SHADER_READ_ONLY_OPTIMAL
-     * triggers the layout transition we previously did
-     * manually via a second pipeline barrier.  Both happen as
-     * part of the render-pass instance with no explicit
-     * barrier commands in the command buffer.
-     *
-     * The external -> 0 subpass dependency covers the case
-     * where the frontend is still reading from a previous
-     * frame's image when we start writing the next: it waits
-     * for SHADER_READ to finish before COLOR_ATTACHMENT_WRITE
-     * begins.  Today end_frame's QueueWaitIdle already drains
-     * the queue between submits so the dependency is
-     * redundant, but it's correct hygiene for a future phase
-     * that removes the wait. */
-    memset(&attachment, 0, sizeof(attachment));
-    attachment.format         = VK_FORMAT_R8G8B8A8_UNORM;
-    attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-    attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    attachment.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    color_ref.attachment = 0;
-    color_ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    memset(&subpass, 0, sizeof(subpass));
-    subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments    = &color_ref;
-
-    memset(&dep, 0, sizeof(dep));
-    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
-    dep.dstSubpass    = 0;
-    dep.srcStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-    memset(&rp_ci, 0, sizeof(rp_ci));
-    rp_ci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    rp_ci.attachmentCount = 1;
-    rp_ci.pAttachments    = &attachment;
-    rp_ci.subpassCount    = 1;
-    rp_ci.pSubpasses      = &subpass;
-    rp_ci.dependencyCount = 1;
-    rp_ci.pDependencies   = &dep;
-
-    r = vk_fn.CreateRenderPass(vk_device, &rp_ci, NULL, &vk_render_pass);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateRenderPass failed (%d)\n", (int)r);
-        return false;
-    }
-
-    /* Framebuffer wraps the image view + render pass. */
-    fb_attachments[0] = vk_image_view;
-    memset(&fb_ci, 0, sizeof(fb_ci));
-    fb_ci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fb_ci.renderPass      = vk_render_pass;
-    fb_ci.attachmentCount = 1;
-    fb_ci.pAttachments    = fb_attachments;
-    fb_ci.width           = width;
-    fb_ci.height          = height;
-    fb_ci.layers          = 1;
-
-    r = vk_fn.CreateFramebuffer(vk_device, &fb_ci, NULL, &vk_framebuffer);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateFramebuffer failed (%d)\n", (int)r);
+                   "rhi-vk: CreateShaderModule (cs) failed (%d)\n", (int)r);
         return false;
     }
 
@@ -942,15 +876,19 @@ backend_vk_create_resources(void)
     memset(vk_staging_ptr, 0, (size_t)vk_staging_size);
 
     /* ---------------------------------------------------------
-     * Descriptor set layout.  Two combined-image-samplers
-     * matching textured_palette.frag's
-     *   layout(set = 0, binding = 0) uniform sampler2D u_index;
-     *   layout(set = 0, binding = 1) uniform sampler2D u_palette;
-     * stageFlags = FRAGMENT | COMPUTE so the same DSL can
-     * be referenced by a future compute pipeline without
-     * having to declare a parallel layout for the same
-     * resources -- "compute door" architecture per Lib's
-     * direction. */
+     * Descriptor set layout (Phase 4g).  Three bindings,
+     * matching textured_palette.comp's
+     *   layout(set = 0, binding = 0) uniform sampler2D       u_index;
+     *   layout(set = 0, binding = 1) uniform sampler2D       u_palette;
+     *   layout(set = 0, binding = 2, rgba8) uniform writeonly image2D u_output;
+     * stageFlags on the sampler bindings stay FRAGMENT |
+     * COMPUTE -- COMPUTE because the compute pipeline reads
+     * them, FRAGMENT preserved for a future Phase 4h
+     * graphics pipeline that might want to sample the same
+     * textures (e.g. an overlay pass that composites onto
+     * the compute output).  The storage-image binding is
+     * COMPUTE-only since fragment shaders write through
+     * attachments, not storage descriptors. */
     memset(&dsl_bindings, 0, sizeof(dsl_bindings));
     dsl_bindings[0].binding         = 0;
     dsl_bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -962,10 +900,14 @@ backend_vk_create_resources(void)
     dsl_bindings[1].descriptorCount = 1;
     dsl_bindings[1].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT
                                     | VK_SHADER_STAGE_COMPUTE_BIT;
+    dsl_bindings[2].binding         = 2;
+    dsl_bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    dsl_bindings[2].descriptorCount = 1;
+    dsl_bindings[2].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
 
     memset(&dsl_ci, 0, sizeof(dsl_ci));
     dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    dsl_ci.bindingCount = 2;
+    dsl_ci.bindingCount = 3;
     dsl_ci.pBindings    = dsl_bindings;
 
     r = vk_fn.CreateDescriptorSetLayout(vk_device, &dsl_ci, NULL,
@@ -978,16 +920,19 @@ backend_vk_create_resources(void)
     }
 
     /* Descriptor pool sized for exactly one set holding two
-     * combined-image-samplers (index + palette). */
-    memset(&dp_size, 0, sizeof(dp_size));
-    dp_size.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    dp_size.descriptorCount = 2;
+     * combined-image-samplers (index + palette) and one
+     * storage image (compute output). */
+    memset(&dp_sizes, 0, sizeof(dp_sizes));
+    dp_sizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    dp_sizes[0].descriptorCount = 2;
+    dp_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    dp_sizes[1].descriptorCount = 1;
 
     memset(&dp_ci, 0, sizeof(dp_ci));
     dp_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     dp_ci.maxSets       = 1;
-    dp_ci.poolSizeCount = 1;
-    dp_ci.pPoolSizes    = &dp_size;
+    dp_ci.poolSizeCount = 2;
+    dp_ci.pPoolSizes    = dp_sizes;
 
     r = vk_fn.CreateDescriptorPool(vk_device, &dp_ci, NULL, &vk_descriptor_pool);
     if (r != VK_SUCCESS) {
@@ -1011,11 +956,16 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    /* Point each binding at its texture + the shared sampler.
-     * The imageLayout we declare here is what the shader
-     * assumes at sample time; record_frame's per-frame layout
-     * transitions land both textures in
-     * SHADER_READ_ONLY_OPTIMAL before the draw runs. */
+    /* Point each binding at its image + (for the sampled
+     * bindings) the shared sampler.  The imageLayout we
+     * declare here is what the shader expects to find at
+     * dispatch time.  record_frame's per-frame transitions
+     * land vk_texture and vk_palette_texture in
+     * SHADER_READ_ONLY_OPTIMAL for the compute reads, and
+     * vk_image in GENERAL for the compute write.
+     *
+     * Binding 2 has no sampler: storage-image descriptors
+     * sample-less, the shader uses imageStore directly. */
     memset(&ds_image_infos, 0, sizeof(ds_image_infos));
     ds_image_infos[0].sampler     = vk_sampler;
     ds_image_infos[0].imageView   = vk_texture_view;
@@ -1023,6 +973,9 @@ backend_vk_create_resources(void)
     ds_image_infos[1].sampler     = vk_sampler;
     ds_image_infos[1].imageView   = vk_palette_texture_view;
     ds_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ds_image_infos[2].sampler     = VK_NULL_HANDLE;
+    ds_image_infos[2].imageView   = vk_image_view;
+    ds_image_infos[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     memset(&ds_writes, 0, sizeof(ds_writes));
     ds_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1039,8 +992,15 @@ backend_vk_create_resources(void)
     ds_writes[1].descriptorCount = 1;
     ds_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     ds_writes[1].pImageInfo      = &ds_image_infos[1];
+    ds_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    ds_writes[2].dstSet          = vk_descriptor_set;
+    ds_writes[2].dstBinding      = 2;
+    ds_writes[2].dstArrayElement = 0;
+    ds_writes[2].descriptorCount = 1;
+    ds_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    ds_writes[2].pImageInfo      = &ds_image_infos[2];
 
-    vk_fn.UpdateDescriptorSets(vk_device, 2, ds_writes, 0, NULL);
+    vk_fn.UpdateDescriptorSets(vk_device, 3, ds_writes, 0, NULL);
 
     /* ---------------------------------------------------------
      * Pipeline layout.  Includes the Phase 4c descriptor set
@@ -1058,94 +1018,31 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    /* Graphics pipeline.  Static viewport / scissor matched to
-     * our render-target dimensions (the resolution option is
-     * requires-restart, so width / height don't change for the
-     * lifetime of the context -- no need for VK_DYNAMIC_STATE_
-     * VIEWPORT).  No vertex input (the VS generates positions
-     * from gl_VertexIndex).  No depth / stencil.  No blending.
-     * Triangle list with three vertices = the fullscreen
-     * triangle. */
-    memset(&stages[0], 0, sizeof(stages[0]));
-    stages[0].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stages[0].stage  = VK_SHADER_STAGE_VERTEX_BIT;
-    stages[0].module = vk_vs_module;
-    stages[0].pName  = "main";
-    memset(&stages[1], 0, sizeof(stages[1]));
-    stages[1].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stages[1].stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
-    stages[1].module = vk_fs_module;
-    stages[1].pName  = "main";
+    /* Compute pipeline.  No vertex / fragment / blend /
+     * rasterizer / viewport state -- compute pipelines
+     * carry just a single shader stage and the layout
+     * (same vk_pipeline_layout that the graphics path used,
+     * since it references the same DSL).  basePipelineHandle
+     * VK_NULL_HANDLE because we don't derive from anything. */
+    memset(&cs_stage, 0, sizeof(cs_stage));
+    cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+    cs_stage.module = vk_cs_module;
+    cs_stage.pName  = "main";
 
-    memset(&vi, 0, sizeof(vi));
-    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    memset(&cp_ci, 0, sizeof(cp_ci));
+    cp_ci.sType              = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    cp_ci.stage              = cs_stage;
+    cp_ci.layout             = vk_pipeline_layout;
+    cp_ci.basePipelineHandle = VK_NULL_HANDLE;
+    cp_ci.basePipelineIndex  = -1;
 
-    memset(&ia, 0, sizeof(ia));
-    ia.sType    = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-    memset(&viewport, 0, sizeof(viewport));
-    viewport.x        = 0.0f;
-    viewport.y        = 0.0f;
-    viewport.width    = (float)width;
-    viewport.height   = (float)height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    memset(&scissor, 0, sizeof(scissor));
-    scissor.extent.width  = width;
-    scissor.extent.height = height;
-
-    memset(&vp, 0, sizeof(vp));
-    vp.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    vp.viewportCount = 1;
-    vp.pViewports    = &viewport;
-    vp.scissorCount  = 1;
-    vp.pScissors     = &scissor;
-
-    memset(&rs, 0, sizeof(rs));
-    rs.sType       = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode    = VK_CULL_MODE_NONE;
-    rs.frontFace   = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rs.lineWidth   = 1.0f;
-
-    memset(&ms, 0, sizeof(ms));
-    ms.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    memset(&cba, 0, sizeof(cba));
-    cba.blendEnable    = VK_FALSE;
-    cba.colorWriteMask = VK_COLOR_COMPONENT_R_BIT
-                       | VK_COLOR_COMPONENT_G_BIT
-                       | VK_COLOR_COMPONENT_B_BIT
-                       | VK_COLOR_COMPONENT_A_BIT;
-
-    memset(&cb, 0, sizeof(cb));
-    cb.sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    cb.attachmentCount = 1;
-    cb.pAttachments    = &cba;
-
-    memset(&gp_ci, 0, sizeof(gp_ci));
-    gp_ci.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gp_ci.stageCount          = 2;
-    gp_ci.pStages             = stages;
-    gp_ci.pVertexInputState   = &vi;
-    gp_ci.pInputAssemblyState = &ia;
-    gp_ci.pViewportState      = &vp;
-    gp_ci.pRasterizationState = &rs;
-    gp_ci.pMultisampleState   = &ms;
-    gp_ci.pColorBlendState    = &cb;
-    gp_ci.layout              = vk_pipeline_layout;
-    gp_ci.renderPass          = vk_render_pass;
-    gp_ci.subpass             = 0;
-
-    r = vk_fn.CreateGraphicsPipelines(vk_device, VK_NULL_HANDLE,
-                                      1, &gp_ci, NULL, &vk_pipeline);
+    r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE,
+                                     1, &cp_ci, NULL, &vk_compute_pipeline);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: CreateGraphicsPipelines failed (%d)\n", (int)r);
+                   "rhi-vk: CreateComputePipelines failed (%d)\n", (int)r);
         return false;
     }
 
@@ -1191,7 +1088,7 @@ backend_vk_create_resources(void)
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
                "rhi-vk: render target %ux%u + R8 index + 256x1 palette + "
-               "staging %llu bytes ready; GPU palette LUT active\n",
+               "staging %llu bytes ready; compute palette LUT active\n",
                width, height,
                (unsigned long long)vk_staging_size);
     return true;
@@ -1293,40 +1190,24 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroySampler(vk_device, vk_sampler, NULL);
         vk_sampler = VK_NULL_HANDLE;
     }
-    /* Phase 4b pipeline objects: reverse-create order.  The
-     * graphics pipeline references the layout and the render
-     * pass; the framebuffer references the render pass + image
-     * view; the shader modules can go any time after pipeline
-     * destruction. */
-    if (vk_pipeline != VK_NULL_HANDLE) {
+    /* Phase 4g pipeline objects: reverse-create order.  The
+     * compute pipeline references vk_pipeline_layout, which
+     * references the DSL; the shader module can go any time
+     * after pipeline destruction. */
+    if (vk_compute_pipeline != VK_NULL_HANDLE) {
         if (vk_fn.DestroyPipeline)
-            vk_fn.DestroyPipeline(vk_device, vk_pipeline, NULL);
-        vk_pipeline = VK_NULL_HANDLE;
+            vk_fn.DestroyPipeline(vk_device, vk_compute_pipeline, NULL);
+        vk_compute_pipeline = VK_NULL_HANDLE;
     }
     if (vk_pipeline_layout != VK_NULL_HANDLE) {
         if (vk_fn.DestroyPipelineLayout)
             vk_fn.DestroyPipelineLayout(vk_device, vk_pipeline_layout, NULL);
         vk_pipeline_layout = VK_NULL_HANDLE;
     }
-    if (vk_framebuffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyFramebuffer)
-            vk_fn.DestroyFramebuffer(vk_device, vk_framebuffer, NULL);
-        vk_framebuffer = VK_NULL_HANDLE;
-    }
-    if (vk_render_pass != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyRenderPass)
-            vk_fn.DestroyRenderPass(vk_device, vk_render_pass, NULL);
-        vk_render_pass = VK_NULL_HANDLE;
-    }
-    if (vk_fs_module != VK_NULL_HANDLE) {
+    if (vk_cs_module != VK_NULL_HANDLE) {
         if (vk_fn.DestroyShaderModule)
-            vk_fn.DestroyShaderModule(vk_device, vk_fs_module, NULL);
-        vk_fs_module = VK_NULL_HANDLE;
-    }
-    if (vk_vs_module != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyShaderModule)
-            vk_fn.DestroyShaderModule(vk_device, vk_vs_module, NULL);
-        vk_vs_module = VK_NULL_HANDLE;
+            vk_fn.DestroyShaderModule(vk_device, vk_cs_module, NULL);
+        vk_cs_module = VK_NULL_HANDLE;
     }
     if (vk_image_view != VK_NULL_HANDLE) {
         if (vk_fn.DestroyImageView)
@@ -1382,21 +1263,19 @@ backend_vk_load_fn(void)
         LOAD_DEV(CmdClearColorImage);
         LOAD_DEV(QueueSubmit);
         LOAD_DEV(QueueWaitIdle);
-        /* Phase 4b additions */
+        /* Phase 4b for shader/pipeline-layout, Phase 4g
+         * for the compute pipeline.  Graphics-pipeline and
+         * render-pass loaders dropped at Phase 4g; they'll
+         * come back when Phase 4h+ introduces graphics
+         * pipelines for overlay rendering. */
         LOAD_DEV(CreateShaderModule);
         LOAD_DEV(DestroyShaderModule);
-        LOAD_DEV(CreateRenderPass);
-        LOAD_DEV(DestroyRenderPass);
-        LOAD_DEV(CreateFramebuffer);
-        LOAD_DEV(DestroyFramebuffer);
         LOAD_DEV(CreatePipelineLayout);
         LOAD_DEV(DestroyPipelineLayout);
-        LOAD_DEV(CreateGraphicsPipelines);
+        LOAD_DEV(CreateComputePipelines);
         LOAD_DEV(DestroyPipeline);
-        LOAD_DEV(CmdBeginRenderPass);
-        LOAD_DEV(CmdEndRenderPass);
         LOAD_DEV(CmdBindPipeline);
-        LOAD_DEV(CmdDraw);
+        LOAD_DEV(CmdDispatch);
         /* Phase 4c additions */
         LOAD_DEV(CreateSampler);
         LOAD_DEV(DestroySampler);
@@ -1615,10 +1494,11 @@ backend_vk_upload_vid_buffer(void)
 
 /*
  * Record the per-frame command buffer.  Called by end_frame
- * after the host-side staging upload.  Sequence:
+ * after the host-side staging upload.  Sequence (Phase 4g):
  *
  *   Begin (ONE_TIME_SUBMIT)
- *     Barrier UNDEFINED -> TRANSFER_DST_OPTIMAL on vk_texture.
+ *     Barrier UNDEFINED -> TRANSFER_DST_OPTIMAL on
+ *       vk_texture + vk_palette_texture (batched).
  *       UNDEFINED-as-discard handles both the first frame
  *       (texture genuinely UNDEFINED out of create_resources)
  *       and subsequent frames (texture in
@@ -1626,11 +1506,30 @@ backend_vk_upload_vid_buffer(void)
  *       record).  Wrapping the previous content as garbage
  *       is correct: we overwrite the entire texture in the
  *       copy that follows.
- *     CmdCopyBufferToImage staging -> texture.
- *     Barrier TRANSFER_DST -> SHADER_READ_ONLY_OPTIMAL so
- *       the FS's sample sees the freshly copied bytes.
- *     CmdBindDescriptorSets binds the texture+sampler set.
- *     BeginRenderPass + BindPipeline + Draw(3) + EndRenderPass.
+ *     CmdCopyBufferToImage staging -> vk_texture.
+ *     CmdCopyBufferToImage staging -> vk_palette_texture.
+ *     Barrier TRANSFER_DST -> SHADER_READ_ONLY_OPTIMAL on
+ *       both textures (batched) with dstStage =
+ *       COMPUTE_SHADER (Phase 4f had FRAGMENT_SHADER here;
+ *       the consumer is now the compute dispatch, not a
+ *       graphics pipeline's FS).
+ *     Barrier UNDEFINED -> GENERAL on vk_image with dstStage
+ *       = COMPUTE_SHADER so the storage-image write the
+ *       compute shader does is ordered after the layout
+ *       transition.  Same UNDEFINED-as-discard pattern as
+ *       the textures -- previous frame's content is going
+ *       to be entirely overwritten.
+ *     CmdBindPipeline (COMPUTE) + CmdBindDescriptorSets
+ *       (COMPUTE) + CmdDispatch.  Dispatch dimensions are
+ *       ceil(width / 16) x ceil(height / 16) x 1; the in-
+ *       shader bounds check catches the right/bottom edges
+ *       when width or height isn't a multiple of 16.
+ *     Barrier GENERAL -> SHADER_READ_ONLY_OPTIMAL on
+ *       vk_image with srcStage = COMPUTE_SHADER so the
+ *       libretro frontend's later sample sees the compute
+ *       write.  Phase 4f had this transition folded into
+ *       the render-pass finalLayout; with the render pass
+ *       gone, it's explicit.
  *   End
  *
  * The ONE_TIME_SUBMIT flag tells the driver this recorded
@@ -1649,9 +1548,10 @@ backend_vk_record_frame(void)
 {
     VkCommandBufferBeginInfo  begin_info;
     VkImageMemoryBarrier      barriers[2];
+    VkImageMemoryBarrier      image_barrier;
     VkBufferImageCopy         regions[2];
-    VkRenderPassBeginInfo     rpbi;
-    VkClearValue              clear_val;
+    uint32_t                  group_count_x;
+    uint32_t                  group_count_y;
     VkResult                  r;
 
     memset(&begin_info, 0, sizeof(begin_info));
@@ -1736,7 +1636,9 @@ backend_vk_record_frame(void)
                                1, &regions[1]);
 
     /* Both textures: TRANSFER_DST -> SHADER_READ_ONLY in a
-     * single CmdPipelineBarrier. */
+     * single CmdPipelineBarrier.  dstStage = COMPUTE_SHADER
+     * (was FRAGMENT_SHADER in Phase 4f) -- the consumer is
+     * now the compute dispatch below. */
     barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     barriers[0].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1748,36 +1650,80 @@ backend_vk_record_frame(void)
 
     vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              0,
                              0, NULL,
                              0, NULL,
                              2, barriers);
 
-    clear_val.color.float32[0] = 0.39f;
-    clear_val.color.float32[1] = 0.58f;
-    clear_val.color.float32[2] = 0.93f;
-    clear_val.color.float32[3] = 1.0f;
+    /* Render target: UNDEFINED -> GENERAL.  UNDEFINED-as-
+     * discard because the compute dispatch will write
+     * every pixel via imageStore.  dstStage = COMPUTE_SHADER
+     * orders the layout transition before the dispatch's
+     * SHADER_WRITE. */
+    memset(&image_barrier, 0, sizeof(image_barrier));
+    image_barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_barrier.srcAccessMask                   = 0;
+    image_barrier.dstAccessMask                   = VK_ACCESS_SHADER_WRITE_BIT;
+    image_barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_barrier.newLayout                       = VK_IMAGE_LAYOUT_GENERAL;
+    image_barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    image_barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    image_barrier.image                           = vk_image;
+    image_barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_barrier.subresourceRange.baseMipLevel   = 0;
+    image_barrier.subresourceRange.levelCount     = 1;
+    image_barrier.subresourceRange.baseArrayLayer = 0;
+    image_barrier.subresourceRange.layerCount     = 1;
 
-    memset(&rpbi, 0, sizeof(rpbi));
-    rpbi.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpbi.renderPass               = vk_render_pass;
-    rpbi.framebuffer              = vk_framebuffer;
-    rpbi.renderArea.extent.width  = width;
-    rpbi.renderArea.extent.height = height;
-    rpbi.clearValueCount          = 1;
-    rpbi.pClearValues             = &clear_val;
+    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                             0,
+                             0, NULL,
+                             0, NULL,
+                             1, &image_barrier);
 
+    /* Compute dispatch.  Workgroup size 16x16 (declared in
+     * the shader); dispatch ceil(width/16) x ceil(height/16)
+     * workgroups so we cover the whole image, with the
+     * shader's bounds check handling the overshoot when
+     * width or height isn't a multiple of 16. */
+    vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                          VK_PIPELINE_BIND_POINT_COMPUTE,
+                          vk_compute_pipeline);
     vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                VK_PIPELINE_BIND_POINT_COMPUTE,
                                 vk_pipeline_layout,
                                 0,                /* firstSet */
                                 1, &vk_descriptor_set,
                                 0, NULL);          /* no dynamic offsets */
-    vk_fn.CmdBeginRenderPass(vk_cmd_buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
-    vk_fn.CmdBindPipeline(vk_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
-    vk_fn.CmdDraw(vk_cmd_buffer, 3, 1, 0, 0);
-    vk_fn.CmdEndRenderPass(vk_cmd_buffer);
+
+    group_count_x = (width  + 15u) / 16u;
+    group_count_y = (height + 15u) / 16u;
+    vk_fn.CmdDispatch(vk_cmd_buffer, group_count_x, group_count_y, 1);
+
+    /* Render target: GENERAL -> SHADER_READ_ONLY_OPTIMAL so
+     * the libretro frontend's sample reads what compute
+     * just wrote.  srcStage = COMPUTE_SHADER waits for the
+     * dispatch's writes; dstStage = BOTTOM_OF_PIPE because
+     * the frontend's own barriers handle its access scope
+     * (libretro_vulkan.h contract: src_queue_family ==
+     * queue_index means no ownership transfer, but the
+     * frontend still issues its own visibility barrier
+     * before sampling). */
+    image_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    image_barrier.dstAccessMask = 0;
+    image_barrier.oldLayout     = VK_IMAGE_LAYOUT_GENERAL;
+    image_barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                             0,
+                             0, NULL,
+                             0, NULL,
+                             1, &image_barrier);
 
     r = vk_fn.EndCommandBuffer(vk_cmd_buffer);
     if (r != VK_SUCCESS) {
