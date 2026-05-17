@@ -375,6 +375,20 @@ static void BGM_UpdateStream (void)
 	int	fileSamples;
 	int	fileBytes;
 	byte	raw[16384];
+	/* True iff the most recent S_CodecRewindStream succeeded
+	 * and we haven't yet seen a non-empty read from the rewound
+	 * stream. Used to break the rewind-then-immediate-EOF spin
+	 * for looping streams that decode to zero PCM samples (a
+	 * Vorbis/FLAC/Opus file with a valid header but no audio
+	 * payload, or a malformed file the underlying library skips
+	 * over). Without this flag the outer 'while (s_rawend <
+	 * paintedtime + MAX_RAW_SAMPLES)' loop never advances
+	 * s_rawend, so it rewinds and re-reads forever on the same
+	 * BGM_UpdateStream call. WAV streaming rejects zero-sample
+	 * files at the header parser already, but every other codec
+	 * routes through a third-party library whose validation we
+	 * don't own. */
+	qboolean just_rewound = false;
 
 	if (bgmstream->status != STREAM_PLAY)
 		return;
@@ -415,6 +429,7 @@ static void BGM_UpdateStream (void)
 
 		if (res > 0)	/* data: add to raw buffer */
 		{
+			just_rewound = false;
 			S_RawSamples(fileSamples, bgmstream->info.rate,
 							bgmstream->info.width,
 							bgmstream->info.channels,
@@ -422,6 +437,18 @@ static void BGM_UpdateStream (void)
 		}
 		else if (res == 0)	/* EOF */
 		{
+			if (just_rewound)
+			{
+				/* Rewound on the previous iteration and the
+				 * stream still produced nothing -- the source
+				 * decodes to zero PCM samples (empty payload,
+				 * malformed file the underlying library is
+				 * just skipping past, etc). Stop instead of
+				 * spinning the outer while-loop forever. */
+				Con_Printf("Stream produced no data after rewind, stopping.\n");
+				BGM_Stop();
+				return;
+			}
 			if (bgmloop)
 			{
 				res = S_CodecRewindStream(bgmstream);
@@ -431,6 +458,7 @@ static void BGM_UpdateStream (void)
 					BGM_Stop();
 					return;
 				}
+				just_rewound = true;
 			}
 			else
 			{
