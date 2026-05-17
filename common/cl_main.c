@@ -150,14 +150,17 @@ CL_PersistGib(const vec3_t origin, const vec3_t angles,
      * renderer never tries to interpolate from a stale frame. */
     ent->currentframe       = frame;
     ent->previousframe      = frame;
-    ent->currentframetime   = cl.time;
-    ent->previousframetime  = cl.time;
+    /* Lerp times use countdown semantics: currentX counts elapsed
+     * since the latest snapshot, previousX stores the duration of
+     * the previous interval. Both start at zero. */
+    ent->currentframetime   = 0;
+    ent->previousframetime  = 0;
     VectorCopy(origin, ent->currentorigin);
     VectorCopy(origin, ent->previousorigin);
     VectorCopy(angles, ent->currentangles);
     VectorCopy(angles, ent->previousangles);
-    ent->currentorigintime  = cl.time;
-    ent->previousorigintime = cl.time;
+    ent->currentorigintime  = 0;
+    ent->previousorigintime = 0;
 
     R_AddEfrags(ent);
 }
@@ -610,6 +613,14 @@ static void CL_RelinkEntities(void)
          ent->currentanglestime = 0;
          continue;
       }
+
+      /* Age the countdown lerp timers for this active entity. The
+       * inactive cleanup above already zeroes the time fields for
+       * empty/dead slots, so we only increment slots that have a
+       * live model and were in the latest server packet. */
+      ent->currentframetime  += host_frametime;
+      ent->currentorigintime += host_frametime;
+      ent->currentanglestime += host_frametime;
 
       VectorCopy(ent->origin, oldorg);
 

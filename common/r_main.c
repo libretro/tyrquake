@@ -1006,9 +1006,13 @@ R_DrawEntitiesOnList(void)
 	    break;
 
 	case mod_alias:
-	    if (r_lerpmove.value) {
-		float delta = e->currentorigintime - e->previousorigintime;
-		float frac = qclamp((cl.time - e->currentorigintime) / delta, 0.0, 1.0);
+	    if (r_lerpmove.value && e->previousorigintime > 0.0f) {
+		/* Countdown semantics: previousorigintime is the duration
+		 * of the prior snapshot interval (zero = no history, snap
+		 * instead of lerp), currentorigintime is the elapsed time
+		 * since the latest. */
+		float delta = e->previousorigintime;
+		float frac = qclamp(e->currentorigintime / delta, 0.0, 1.0);
 		vec3_t lerpvec;
 
 		/* FIXME - hack to skip the viewent (weapon) */

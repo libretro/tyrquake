@@ -371,12 +371,13 @@ void CL_UpdateTEnts(void)
          ent->frame = 0;
          ent->currentframe = 0;
          ent->previousframe = 0;
-         ent->currentframetime = cl.time;
-         ent->previousframetime = cl.time;
+         /* Lerp times use countdown semantics (see render.h). */
+         ent->currentframetime = 0;
+         ent->previousframetime = 0;
          VectorCopy(ent->origin, ent->currentorigin);
          VectorCopy(ent->origin, ent->previousorigin);
-         ent->currentorigintime = cl.time;
-         ent->previousorigintime = cl.time;
+         ent->currentorigintime = 0;
+         ent->previousorigintime = 0;
       }
    }
 }

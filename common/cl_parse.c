@@ -566,7 +566,7 @@ CL_ParseUpdate(unsigned int bits)
       ent->previousframe = ent->currentframe;
       ent->previousframetime = ent->currentframetime;
       ent->currentframe = ent->frame;
-      ent->currentframetime = cl.time;
+      ent->currentframetime = 0;
    }
 
    if (bits & U_COLORMAP)
@@ -664,26 +664,21 @@ CL_ParseUpdate(unsigned int bits)
 
    /* MOVEMENT LERP INFO - could I just extend baseline instead? */
    if (!VectorCompare(ent->msg_origins[0], ent->currentorigin)) {
-      if (ent->currentorigintime) {
-         VectorCopy(ent->currentorigin, ent->previousorigin);
-         ent->previousorigintime = ent->currentorigintime;
-      } else {
-         VectorCopy(ent->msg_origins[0], ent->previousorigin);
-         ent->previousorigintime = cl.mtime[0];
-      }
+      /* Shift the snapshot pair under countdown semantics: the
+       * just-elapsed interval becomes the new 'previous duration',
+       * and the elapsed counter resets. Bootstrap (no prior
+       * interval) collapses naturally -- previousorigintime stays
+       * at its init value of 0 and the consumer skips the lerp. */
+      VectorCopy(ent->currentorigin, ent->previousorigin);
+      ent->previousorigintime = ent->currentorigintime;
       VectorCopy(ent->msg_origins[0], ent->currentorigin);
-      ent->currentorigintime = cl.mtime[0];
+      ent->currentorigintime = 0;
    }
    if (!VectorCompare(ent->msg_angles[0], ent->currentangles)) {
-      if (ent->currentanglestime) {
-         VectorCopy(ent->currentangles, ent->previousangles);
-         ent->previousanglestime = ent->currentanglestime;
-      } else {
-         VectorCopy(ent->msg_angles[0], ent->previousangles);
-         ent->previousanglestime = cl.mtime[0];
-      }
+      VectorCopy(ent->currentangles, ent->previousangles);
+      ent->previousanglestime = ent->currentanglestime;
       VectorCopy(ent->msg_angles[0], ent->currentangles);
-      ent->currentanglestime = cl.mtime[0];
+      ent->currentanglestime = 0;
    }
 
    if (bits & U_NOLERP)
@@ -944,12 +939,13 @@ CL_ParseStatic(unsigned int bits)
     /* Initilise frames for model lerp */
     ent->currentframe = ent->baseline.frame;
     ent->previousframe = ent->baseline.frame;
-    ent->currentframetime = cl.time;
-    ent->previousframetime = cl.time;
+    /* Lerp times use countdown semantics (see render.h). */
+    ent->currentframetime = 0;
+    ent->previousframetime = 0;
 
     /* Initialise movelerp data */
-    ent->previousorigintime = cl.time;
-    ent->currentorigintime = cl.time;
+    ent->previousorigintime = 0;
+    ent->currentorigintime = 0;
     VectorCopy(ent->baseline.origin, ent->previousorigin);
     VectorCopy(ent->baseline.origin, ent->currentorigin);
     VectorCopy(ent->baseline.angles, ent->previousangles);

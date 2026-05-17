@@ -484,9 +484,12 @@ R_AliasSetUpTransform(const entity_t *e, aliashdr_t *pahdr, int trivial_accept)
 /* TODO: should use a look-up table */
 /* TODO: could cache lazily, stored in the entity */
 
-    if (r_lerpmove.value && e->previousanglestime != e->currentanglestime) {
-	float delta = e->currentanglestime - e->previousanglestime;
-	float frac = qclamp((cl.time - e->currentanglestime) / delta, 0.0, 1.0);
+    if (r_lerpmove.value && e->previousanglestime > 0.0f) {
+	/* Countdown semantics: previousanglestime is the duration of
+	 * the prior snapshot interval (zero = no history, skip lerp),
+	 * currentanglestime is the elapsed time since the latest. */
+	float delta = e->previousanglestime;
+	float frac = qclamp(e->currentanglestime / delta, 0.0, 1.0);
 	vec3_t lerpvec;
 
 	/* FIXME - hack to skip the viewent (weapon) */
@@ -892,10 +895,14 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
        * to a small bounded value (targettime, < fullinterval). */
       double time;
 
-      /* A few quick sanity checks to abort lerping */
-      if (e->currentframetime < e->previousframetime)
+      /* A few quick sanity checks to abort lerping. Under
+       * countdown semantics previousframetime is the duration of
+       * the just-completed interval: zero means we have no prior
+       * interval to lerp against, and > 1 s means the server
+       * hitched and we should snap rather than smear. */
+      if (e->previousframetime <= 0.0f)
          goto nolerp;
-      if (e->currentframetime - e->previousframetime > 1.0f)
+      if (e->previousframetime > 1.0f)
          goto nolerp;
       /* FIXME - hack to skip the viewent (weapon) */
       if (e == &cl.viewent)
@@ -926,8 +933,11 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
       } else {
          e->currentpose = pahdr->frames[e->currentframe].firstpose;
          e->previouspose = pahdr->frames[e->previousframe].firstpose;
-         time = cl.time - e->currentframetime;
-         delta = e->currentframetime - e->previousframetime;
+         /* Countdown semantics: currentframetime is the elapsed
+          * time since the latest snapshot, previousframetime is
+          * the duration of the prior interval. */
+         time = e->currentframetime;
+         delta = e->previousframetime;
       }
       blend = qclamp(time / delta, 0.0f, 1.0f);
       r_apverts = R_AliasBlendPoseVerts(e, pahdr, blend);

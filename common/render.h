@@ -75,7 +75,16 @@ typedef struct entity_s {
 				/*  that splits bmodel, or NULL if */
 				/*  not split */
 
-    /* Alias model lerping */
+    /* Alias model lerping.
+     *
+     * The previousX/currentX time fields below use countdown semantics
+     * to avoid fp32 precision drift once cl.time grows: currentX is the
+     * elapsed time since the latest snapshot (incremented per frame in
+     * CL_RelinkEntities, reset to 0 at each shift event), previousX is
+     * the duration of the previous interval (set at each shift to the
+     * outgoing currentX). The consumer's lerp is currentX / previousX,
+     * clamped to [0,1]; previousX <= 0 means 'no completed interval'
+     * and is treated as 'snap, don't lerp'. */
     short previouspose;
     short currentpose;
     short previousframe;
