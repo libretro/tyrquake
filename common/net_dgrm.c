@@ -169,12 +169,27 @@ Datagram_SendMessage(qsocket_t *sock, sizebuf_t *data)
     if (data->cursize == 0)
 	Sys_Error("%s: zero length message", __func__);
 
-    if (data->cursize > NET_MAXMESSAGE)
-	Sys_Error("%s: message too big %u", __func__, data->cursize);
-
     if (sock->canSend == false)
 	Sys_Error("%s: called with canSend == false", __func__);
 #endif
+
+    /* This one stays out of the DEBUG gate.  The other two
+     * assertions above are protocol-state sanity checks;
+     * this one guards a memcpy into sock->sendMessage,
+     * which is sized NET_MAXMESSAGE.  Currently the engine
+     * keeps every sizebuf_t passed in here at maxsize <=
+     * NET_MAXMESSAGE (SZ_GetSpace enforces cursize <=
+     * maxsize, so the precondition holds transitively), so
+     * this never fires in well-behaved code.  But if a
+     * future change ever wires a larger sizebuf through
+     * here -- or if SZ_GetSpace's invariant gets broken
+     * upstream -- the memcpy below overruns sock->
+     * sendMessage straight into adjacent qsocket_t fields
+     * (sendMessageLength, mtu, the function-pointer ack
+     * accounting, etc.). Crash loudly rather than corrupt
+     * silently. */
+    if (data->cursize > NET_MAXMESSAGE)
+	Sys_Error("%s: message too big %u", __func__, data->cursize);
 
     memcpy(sock->sendMessage, data->data, data->cursize);
     sock->sendMessageLength = data->cursize;
@@ -229,6 +244,17 @@ Datagram_SendUnreliableMessage(qsocket_t *sock, sizebuf_t *data)
     if (data->cursize > sock->mtu)
 	Sys_Error("%s: message too big %u", __func__, data->cursize);
 #endif
+
+    /* Memory bound on the unreliable path.  See Datagram_
+     * SendMessage for the full reasoning; the same memcpy-
+     * past-buffer-end concern applies here but against the
+     * shared packetBuffer.data (sized NET_MAXMESSAGE) rather
+     * than sock->sendMessage.  The DEBUG check above is the
+     * stricter MTU-compliance assertion; this one is the
+     * weaker but mandatory memory-safety floor that must
+     * survive a release build. */
+    if (data->cursize > NET_MAXMESSAGE)
+	Sys_Error("%s: message too big %u", __func__, data->cursize);
 
     packetLen = NET_HEADERSIZE + data->cursize;
 
