@@ -260,6 +260,7 @@ Datagram_GetMessage(qsocket_t *sock)
 	    ReSendMessage(sock);
 
     while (1) {
+	int actual;
 	length = sock->landriver->Read(sock->socket, &packetBuffer,
 				       NET_MESSAGESIZE, &readaddr);
 	if (length == 0)
@@ -284,9 +285,35 @@ Datagram_GetMessage(qsocket_t *sock)
 	    continue;
 	}
 
+	/* Stash the wire-read byte count before we overwrite
+	 * 'length' with the in-packet announced length below.
+	 * Without this the announced length is trusted blindly:
+	 * a peer that has cleared the source-address check
+	 * (a previously-authenticated client, or anyone on a
+	 * spoofable / connectionless transport) can send a
+	 * tiny actual datagram whose header announces up to
+	 * NETFLAG_LENGTH_MASK (0xFFFF) bytes, and the
+	 * SZ_Write / memcpy below then copies up to that many
+	 * bytes of stale packetBuffer.data from the previous
+	 * recv into net_message or sock->receiveMessage.  In
+	 * the DATA path the same overcount accumulates across
+	 * fragments into sock->receiveMessage[NET_MAXMESSAGE],
+	 * which sock->receiveMessageLength can drive past the
+	 * end of that fixed buffer. */
+	actual = (int)length;
+
 	length = BigLong(packetBuffer.length);
 	flags = length & (~NETFLAG_LENGTH_MASK);
 	length &= NETFLAG_LENGTH_MASK;
+
+	/* Announced length must (a) cover at least the header
+	 * we already required, and (b) not exceed what we
+	 * actually read off the wire.  Drop the packet rather
+	 * than try to recover -- it's malformed by definition. */
+	if ((int)length < NET_HEADERSIZE || (int)length > actual) {
+	    shortPacketCount++;
+	    continue;
+	}
 
 	if (flags & NETFLAG_CTL)
 	    continue;
@@ -354,6 +381,19 @@ Datagram_GetMessage(qsocket_t *sock)
 	    sock->receiveSequence++;
 
 	    length -= NET_HEADERSIZE;
+
+	    /* receiveMessage is a NET_MAXMESSAGE-sized
+	     * accumulator across DATA fragments.  Reject
+	     * fragments that would push us off the end --
+	     * a peer cycling sequenced DATA packets that
+	     * each declare a fragment near the per-packet
+	     * cap would otherwise overrun sock->
+	     * receiveMessage long before the EOM. */
+	    if (sock->receiveMessageLength + length > NET_MAXMESSAGE) {
+		Con_DPrintf("Datagram_GetMessage: oversized DATA fragment, "
+			    "dropping connection\n");
+		return -1;
+	    }
 
 	    if (flags & NETFLAG_EOM) {
 		SZ_Clear(&net_message);
