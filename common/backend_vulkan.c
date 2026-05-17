@@ -116,83 +116,78 @@
  *     compute work -- HDR tonemap, post-process,
  *     compute-based rasterizer -- will reuse.
  *
- * Phase 4h (this file's current state): a graphics
- * pipeline returns -- this time designed for 2D overlay
- * work (per-vertex position + colour, alpha blend
- * enabled) -- and an overlay render pass runs after the
- * compute dispatch on the same vk_image, drawing on top
- * of the SW-framebuffer-through-LUT result.  The commit
- * draws a single hardcoded gradient quad in the upper-
- * left corner as the demonstration; Phase 4i will
- * replace that quad with the first real Draw_Pic
- * intercept.
+ * Phase 4i (this file's current state): the overlay quad
+ * becomes textured.  The Phase 4h gradient quad (per-
+ * vertex RGBA colours, no texture) was a one-shot
+ * validator for the graphics-pipeline-on-top-of-compute
+ * path; Phase 4i replaces it with the infrastructure that
+ * actual 2D HUD work (Phase 4j+) will use: a palette-
+ * indexed R8_UNORM texture, sampled in the FS and looked
+ * up through the same 256x1 vk_palette_texture the
+ * compute palette LUT uses.
  *
- * Key Phase 4h additions:
+ * What changes from Phase 4h:
  *
- *   - overlay_quad.vert + overlay_quad.frag +
- *     generated SPIR-V headers.  Position + colour
- *     vertex input, no texture sampling; the FS just
- *     outputs the interpolated colour and the pipeline's
- *     blend stage composites it onto the existing
- *     content.
+ *   - overlay_quad.vert / .frag are rewritten.  Vertex
+ *     input becomes position + uv (stride 16 = 2 * vec2)
+ *     instead of position + colour.  The FS samples a
+ *     new u_index sampler at the interpolated UV, looks
+ *     the index up in u_palette, and outputs the
+ *     resulting RGB with opaque alpha.  Same palette
+ *     texture the compute path samples, so damage / quad
+ *     / underwater shifts already propagate to overlay
+ *     pics for free.
  *
- *   - vk_overlay_render_pass with loadOp = LOAD, so the
- *     compute output isn't discarded; storeOp = STORE,
- *     so the overlay's writes are preserved for the
- *     frontend sample.  initialLayout = GENERAL (where
- *     the compute dispatch left vk_image; the render
- *     pass's own attachment transition takes it to
- *     COLOR_ATTACHMENT_OPTIMAL for the subpass);
- *     finalLayout = SHADER_READ_ONLY_OPTIMAL (where the
- *     frontend wants it).  This replaces the explicit
- *     compute-exit pipeline barrier from Phase 4g.
+ *   - vk_overlay_test_texture + vk_overlay_test_memory +
+ *     vk_overlay_test_view: a 32x32 R8_UNORM image
+ *     populated once at create_resources with a 16x16
+ *     grid showing all 256 Quake palette entries (each
+ *     cell 2x2 pixels).  Demonstrates that texture
+ *     upload + palette sampling produce the expected
+ *     colours; Phase 4j replaces this single static pic
+ *     with a per-pic texture cache populated dynamically
+ *     by the Draw_Pic intercept.
  *
- *   - Subpass dependency EXTERNAL -> 0 with
- *     srcStage = COMPUTE_SHADER, dstStage =
- *     COLOR_ATTACHMENT_OUTPUT, srcAccess = SHADER_WRITE,
- *     dstAccess = COLOR_ATTACHMENT_WRITE |
- *     COLOR_ATTACHMENT_READ, providing the memory
- *     dependency that the explicit barrier used to carry.
+ *   - Descriptor pool sized for 2 sets (compute +
+ *     overlay) and 4 samplers + 2 storage images total;
+ *     vk_overlay_descriptor_set allocated alongside the
+ *     existing vk_descriptor_set.  Overlay set's
+ *     binding 0 -> vk_overlay_test_texture_view,
+ *     binding 1 -> vk_palette_texture_view (shared with
+ *     compute), binding 2 -> vk_image_view (placeholder
+ *     so the descriptor slot isn't uninitialised; the
+ *     overlay FS never reads it, the stage flags keep
+ *     storage-image access to COMPUTE-only).
  *
- *   - vk_overlay_framebuffer + vk_overlay_pipeline_layout
- *     + vk_overlay_pipeline.  The pipeline has vertex
- *     input bindings (binding 0 stride 24: vec2 position
- *     at offset 0, vec4 colour at offset 8), alpha blend
- *     enabled, triangle-strip topology so 4 vertices ->
- *     2 triangles, no depth / stencil.  Pipeline layout
- *     has no descriptor sets and no push constants --
- *     Phase 4i will introduce them when textured pics
- *     arrive.
+ *   - vk_overlay_pipeline_layout is dropped; the overlay
+ *     pipeline now uses vk_pipeline_layout (the 3-binding
+ *     compute layout).  Sharing layouts works because
+ *     the layouts of compute + overlay both reference
+ *     the same DSL and have no push constants.
  *
- *   - vk_overlay_vertex_buffer (HOST_VISIBLE +
- *     HOST_COHERENT, persistently mapped) holding 4
- *     vertices for one quad.  Writes happen at
- *     create_resources time; the buffer is bound and
- *     drawn from per-frame in record_frame.  Future
- *     phases will repurpose this buffer for dynamically-
- *     filled quad streams (one Draw_Pic / Draw_Character
- *     per quad).
+ *   - vk_overlay_pipeline's vertex input changes to
+ *     stride 16 + 2 R32G32_SFLOAT attributes (was 24
+ *     bytes + R32G32 + R32G32B32A32 in Phase 4h).
  *
- *   - vk_fn gains CreateRenderPass, DestroyRenderPass,
- *     CreateFramebuffer, DestroyFramebuffer,
- *     CreateGraphicsPipelines, CmdBeginRenderPass,
- *     CmdEndRenderPass, CmdDraw, CmdBindVertexBuffers
- *     (the first four were removed at Phase 4g; the
- *     last is new, needed for the vertex-buffer bind).
+ *   - record_frame's draw step gains a
+ *     CmdBindDescriptorSets (GRAPHICS bind point) for
+ *     vk_overlay_descriptor_set before the
+ *     CmdBindPipeline + CmdDraw.  No render-pass
+ *     changes; the load/store layout transition and
+ *     subpass dependency from Phase 4h are unchanged.
  *
- *   - record_frame's compute-exit step changes from
- *     "explicit barrier GENERAL -> SHADER_READ_ONLY_
- *     OPTIMAL" to "no explicit barrier; let the render
- *     pass's subpass dependency handle the
- *     synchronisation and its attachment description
- *     handle the layout transitions".  Then BeginRender-
- *     Pass + BindPipeline + BindVertexBuffers + Draw(4)
- *     + EndRenderPass replace what Phase 4g's compute-
- *     exit barrier used to do; vk_image ends in
- *     SHADER_READ_ONLY_OPTIMAL just as it did before,
- *     so the frontend sample path is unchanged.
+ *   - One-shot texture upload at create_resources end:
+ *     write the 1024-byte test-pic payload into the
+ *     start of vk_staging_buffer, record a UNDEFINED
+ *     -> TRANSFER_DST -> CopyBufferToImage ->
+ *     SHADER_READ_ONLY sequence on vk_cmd_buffer,
+ *     submit, QueueWaitIdle.  vk_cmd_buffer auto-resets
+ *     on the next per-frame BeginCommandBuffer, and the
+ *     staging-buffer region is overwritten by the first
+ *     per-frame vid.buffer upload, so neither resource
+ *     carries the upload's state forward.
  *
- * Phase 4i..N -- real geometry: world surfaces, alias
+ * Phase 4j..N -- real geometry: world surfaces, alias
  *     models, sprites, sky, liquids, shadows; palette +
  *     colormap LUT path; dynamic lightmap update; etc.
  *     R_RenderView's dispatch from backend_vk_draw_view
@@ -298,22 +293,30 @@ static VkPipeline       vk_compute_pipeline;
  * between them; the subpass dependency carries the
  * memory dependency), and finalLayout =
  * SHADER_READ_ONLY_OPTIMAL hands it to the libretro
- * frontend.  The pipeline layout is empty -- no
- * descriptor sets, no push constants -- because the
- * Phase 4h overlay is solid-colour-only; Phase 4i will
- * introduce a sampler binding and a projection push
- * constant.  vk_overlay_vertex_buffer is HOST_VISIBLE
- * (so we can write it from the CPU at create_resources
- * time without a staging round-trip) and holds 4
- * vertices for the demonstration quad. */
+ * frontend.
+ *
+ * Phase 4i: the overlay pipeline reuses vk_pipeline_layout
+ * (the 3-binding compute layout) instead of its own empty
+ * layout.  Sampling vk_overlay_test_texture (binding 0) +
+ * vk_palette_texture (binding 1) lets the FS do the same
+ * index-into-palette lookup the compute path does.
+ * vk_overlay_descriptor_set is the second set allocated
+ * from vk_descriptor_pool (pool sized for 2 sets in
+ * Phase 4i, was 1 in Phase 4g); it points at the test
+ * texture and the shared palette.  vk_overlay_vertex_
+ * buffer holds 4 vertices for the demonstration quad
+ * (position + uv, stride 16). */
 static VkShaderModule   vk_overlay_vs_module;
 static VkShaderModule   vk_overlay_fs_module;
 static VkRenderPass     vk_overlay_render_pass;
 static VkFramebuffer    vk_overlay_framebuffer;
-static VkPipelineLayout vk_overlay_pipeline_layout;
 static VkPipeline       vk_overlay_pipeline;
 static VkBuffer         vk_overlay_vertex_buffer;
 static VkDeviceMemory   vk_overlay_vertex_memory;
+static VkImage          vk_overlay_test_texture;
+static VkDeviceMemory   vk_overlay_test_texture_memory;
+static VkImageView      vk_overlay_test_texture_view;
+static VkDescriptorSet  vk_overlay_descriptor_set;
 
 /* Phase 4c: sampled-texture objects.  vk_texture is the
  * source image that the compute shader reads through u_index;
@@ -580,7 +583,6 @@ backend_vk_create_resources(void)
     VkRenderPassCreateInfo                  ov_rp_ci;
     VkFramebufferCreateInfo                 ov_fb_ci;
     VkImageView                             ov_fb_attachments[1];
-    VkPipelineLayoutCreateInfo              ov_pl_ci;
     VkPipelineShaderStageCreateInfo         ov_stages[2];
     VkVertexInputBindingDescription         ov_vb_binding;
     VkVertexInputAttributeDescription       ov_vb_attribs[2];
@@ -1063,18 +1065,20 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    /* Descriptor pool sized for exactly one set holding two
-     * combined-image-samplers (index + palette) and one
-     * storage image (compute output). */
+    /* Descriptor pool sized for two sets (compute +
+     * overlay) using the same 3-binding DSL.  Each set
+     * needs 2 sampler descriptors + 1 storage-image
+     * descriptor.  Phase 4i added the overlay set; Phase
+     * 4g had maxSets=1 + 2 samplers + 1 storage. */
     memset(&dp_sizes, 0, sizeof(dp_sizes));
     dp_sizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    dp_sizes[0].descriptorCount = 2;
+    dp_sizes[0].descriptorCount = 4;  /* 2 sets * 2 samplers */
     dp_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    dp_sizes[1].descriptorCount = 1;
+    dp_sizes[1].descriptorCount = 2;  /* 2 sets * 1 storage image */
 
     memset(&dp_ci, 0, sizeof(dp_ci));
     dp_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    dp_ci.maxSets       = 1;
+    dp_ci.maxSets       = 2;
     dp_ci.poolSizeCount = 2;
     dp_ci.pPoolSizes    = dp_sizes;
 
@@ -1097,6 +1101,23 @@ backend_vk_create_resources(void)
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: AllocateDescriptorSets failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Second set for the Phase 4i overlay path.  Uses the
+     * same DSL; the bindings get different image views
+     * (test texture instead of vid.buffer index texture)
+     * and the storage-image binding is filled with a
+     * placeholder (vk_image_view + GENERAL) so the slot
+     * isn't uninitialised -- the overlay shader never
+     * accesses binding 2 (DSL keeps it COMPUTE-stage
+     * only) but Vulkan still wants the descriptor in
+     * place after AllocateDescriptorSets. */
+    r = vk_fn.AllocateDescriptorSets(vk_device, &ds_alloc, &vk_overlay_descriptor_set);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateDescriptorSets (overlay) failed (%d)\n", (int)r);
         return false;
     }
 
@@ -1306,24 +1327,16 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    /* Pipeline layout.  Empty -- no descriptor sets, no
-     * push constants.  Phase 4h's overlay is solid-
-     * colour-only (per-vertex RGBA via vertex input);
-     * Phase 4i will introduce a sampler binding for
-     * textured pics and a push constant for the screen-
-     * space transform. */
-    memset(&ov_pl_ci, 0, sizeof(ov_pl_ci));
-    ov_pl_ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-
-    r = vk_fn.CreatePipelineLayout(vk_device, &ov_pl_ci, NULL,
-                                   &vk_overlay_pipeline_layout);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: CreatePipelineLayout (overlay) failed (%d)\n", (int)r);
-        return false;
-    }
-
+    /* Pipeline layout.  Phase 4i reuses vk_pipeline_layout
+     * (the 3-binding compute layout) instead of creating a
+     * separate empty one.  Both pipelines reference the
+     * same DSL (binding 0 sampler u_index, binding 1
+     * sampler u_palette, binding 2 storage_image
+     * u_output), neither uses push constants -- so the
+     * layouts are identical and one object covers both
+     * uses.  The overlay shader ignores binding 2
+     * (storage_image, COMPUTE-stage-only); the compute
+     * shader ignores no bindings. */
     /* Graphics pipeline.
      *
      * Vertex input: one binding (binding 0) with stride
@@ -1370,7 +1383,7 @@ backend_vk_create_resources(void)
 
     memset(&ov_vb_binding, 0, sizeof(ov_vb_binding));
     ov_vb_binding.binding   = 0;
-    ov_vb_binding.stride    = 24;  /* vec2 + vec4 */
+    ov_vb_binding.stride    = 16;  /* vec2 position + vec2 uv */
     ov_vb_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
     memset(&ov_vb_attribs, 0, sizeof(ov_vb_attribs));
@@ -1380,7 +1393,7 @@ backend_vk_create_resources(void)
     ov_vb_attribs[0].offset   = 0;
     ov_vb_attribs[1].location = 1;
     ov_vb_attribs[1].binding  = 0;
-    ov_vb_attribs[1].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
+    ov_vb_attribs[1].format   = VK_FORMAT_R32G32_SFLOAT;
     ov_vb_attribs[1].offset   = 8;
 
     memset(&ov_vi, 0, sizeof(ov_vi));
@@ -1452,7 +1465,7 @@ backend_vk_create_resources(void)
     ov_gp_ci.pRasterizationState = &ov_rs;
     ov_gp_ci.pMultisampleState   = &ov_ms;
     ov_gp_ci.pColorBlendState    = &ov_cb;
-    ov_gp_ci.layout              = vk_overlay_pipeline_layout;
+    ov_gp_ci.layout              = vk_pipeline_layout;
     ov_gp_ci.renderPass          = vk_overlay_render_pass;
     ov_gp_ci.subpass             = 0;
     ov_gp_ci.basePipelineHandle  = VK_NULL_HANDLE;
@@ -1488,7 +1501,7 @@ backend_vk_create_resources(void)
      * it's static and written once. */
     memset(&ov_vb_ci, 0, sizeof(ov_vb_ci));
     ov_vb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    ov_vb_ci.size        = 4 * 24;   /* 4 vertices * (vec2 + vec4) */
+    ov_vb_ci.size        = 4 * 16;   /* 4 vertices * (vec2 pos + vec2 uv) */
     ov_vb_ci.usage       = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     ov_vb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -1552,24 +1565,28 @@ backend_vk_create_resources(void)
         /* Inline literal vertex stream.  Float-packed
          * because the buffer is HOST_VISIBLE and we have a
          * direct mapped pointer; no endianness shenanigans
-         * because the bytes map directly to the vec2/vec4
-         * vertex input attributes the VS reads.
+         * because the bytes map directly to the vec2/vec2
+         * vertex input attributes (Phase 4i: position +
+         * uv, stride 16; Phase 4h was position + colour
+         * stride 24) the VS reads.
          *
-         * Strip winding (Vulkan NDC y is negative upward):
-         *   v0 bottom-left  (-0.9, -0.7) red       0.5a
-         *   v1 bottom-right (-0.7, -0.7) green     0.5a
-         *   v2 top-left     (-0.9, -0.9) blue      0.5a
-         *   v3 top-right    (-0.7, -0.9) yellow    0.5a
-         * which gives a visible colour-gradient quad in
-         * the upper-left of the screen (Vulkan top is
-         * negative-y, so "top-left" in screen space is
-         * NDC (-0.9, -0.9)). */
-        static const float quad_verts[4 * 6] = {
-            /*  x      y      r     g     b     a   */
-            -0.9f, -0.7f,    1.0f, 0.0f, 0.0f, 0.5f,
-            -0.7f, -0.7f,    0.0f, 1.0f, 0.0f, 0.5f,
-            -0.9f, -0.9f,    0.0f, 0.0f, 1.0f, 0.5f,
-            -0.7f, -0.9f,    1.0f, 1.0f, 0.0f, 0.5f
+         * Strip winding (Vulkan NDC y is negative upward,
+         * Vulkan UV v is positive downward, both with
+         * y/v = 0 at the top of the framebuffer/texture):
+         *   v0 bottom-left  NDC (-0.9, -0.7)  UV (0, 1)
+         *   v1 bottom-right NDC (-0.7, -0.7)  UV (1, 1)
+         *   v2 top-left     NDC (-0.9, -0.9)  UV (0, 0)
+         *   v3 top-right    NDC (-0.7, -0.9)  UV (1, 0)
+         * The full test texture maps onto the quad with
+         * no flipping; sampling at UV (0, 0) hits the
+         * top-left of the test texture which is palette
+         * index 0 in the 16x16-palette-grid layout. */
+        static const float quad_verts[4 * 4] = {
+            /*  x      y       u     v   */
+            -0.9f, -0.7f,    0.0f, 1.0f,
+            -0.7f, -0.7f,    1.0f, 1.0f,
+            -0.9f, -0.9f,    0.0f, 0.0f,
+            -0.7f, -0.9f,    1.0f, 0.0f
         };
         memcpy(ov_vb_ptr, quad_verts, sizeof(quad_verts));
     }
@@ -1577,6 +1594,146 @@ backend_vk_create_resources(void)
      * is fine (and required to avoid retracted memory
      * mapping invariants in some drivers).  vkFreeMemory
      * at teardown implicitly unmaps. */
+
+    /* ---------------------------------------------------------
+     * Phase 4i: overlay test texture.  32x32 R8_UNORM
+     * palette-index image; the FS samples it through the
+     * shared vk_palette_texture to produce the final RGB.
+     * SAMPLED for descriptor sampling, TRANSFER_DST for
+     * the one-shot upload below.  Lifetime matches the
+     * rest of the overlay resources (created here in
+     * create_resources, destroyed in destroy_resources). */
+    memset(&image_ci, 0, sizeof(image_ci));
+    image_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_ci.imageType     = VK_IMAGE_TYPE_2D;
+    image_ci.format        = VK_FORMAT_R8_UNORM;
+    image_ci.extent.width  = 32;
+    image_ci.extent.height = 32;
+    image_ci.extent.depth  = 1;
+    image_ci.mipLevels     = 1;
+    image_ci.arrayLayers   = 1;
+    image_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
+    image_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    image_ci.usage         = VK_IMAGE_USAGE_SAMPLED_BIT
+                           | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    image_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    r = vk_fn.CreateImage(vk_device, &image_ci, NULL, &vk_overlay_test_texture);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateImage (overlay test texture) failed (%d)\n",
+                   (int)r);
+        return false;
+    }
+
+    vk_fn.GetImageMemoryRequirements(vk_device,
+                                     vk_overlay_test_texture,
+                                     &mem_req);
+    mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
+                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (mem_type == 0xFFFFFFFFu) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: no DEVICE_LOCAL memory for overlay test texture\n");
+        return false;
+    }
+
+    memset(&alloc_info, 0, sizeof(alloc_info));
+    alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize  = mem_req.size;
+    alloc_info.memoryTypeIndex = mem_type;
+
+    r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL,
+                             &vk_overlay_test_texture_memory);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateMemory (overlay test texture) failed (%d)\n",
+                   (int)r);
+        return false;
+    }
+
+    r = vk_fn.BindImageMemory(vk_device, vk_overlay_test_texture,
+                              vk_overlay_test_texture_memory, 0);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: BindImageMemory (overlay test texture) failed (%d)\n",
+                   (int)r);
+        return false;
+    }
+
+    memset(&view_ci, 0, sizeof(view_ci));
+    view_ci.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_ci.image                       = vk_overlay_test_texture;
+    view_ci.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
+    view_ci.format                      = VK_FORMAT_R8_UNORM;
+    view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_ci.subresourceRange.levelCount = 1;
+    view_ci.subresourceRange.layerCount = 1;
+
+    r = vk_fn.CreateImageView(vk_device, &view_ci, NULL,
+                              &vk_overlay_test_texture_view);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateImageView (overlay test texture) failed (%d)\n",
+                   (int)r);
+        return false;
+    }
+
+    /* Update the overlay descriptor set: binding 0 ->
+     * test texture, binding 1 -> shared palette,
+     * binding 2 -> vk_image (placeholder; the overlay
+     * shader doesn't access it but the DSL has the slot).
+     * The imageLayout fields say what the shader expects
+     * to find at dispatch / draw time; the one-shot
+     * upload below transitions the test texture to
+     * SHADER_READ_ONLY_OPTIMAL before any frame draws,
+     * the palette texture is in SHADER_READ_ONLY_OPTIMAL
+     * after every per-frame copy, and vk_image is in
+     * GENERAL when compute is running (the placeholder
+     * descriptor isn't accessed there either, so the
+     * layout-mismatch between "GENERAL while compute
+     * runs" and "COLOR_ATTACHMENT_OPTIMAL during render
+     * pass" is moot for the overlay set). */
+    memset(&ds_image_infos, 0, sizeof(ds_image_infos));
+    ds_image_infos[0].sampler     = vk_sampler;
+    ds_image_infos[0].imageView   = vk_overlay_test_texture_view;
+    ds_image_infos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ds_image_infos[1].sampler     = vk_sampler;
+    ds_image_infos[1].imageView   = vk_palette_texture_view;
+    ds_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ds_image_infos[2].sampler     = VK_NULL_HANDLE;
+    ds_image_infos[2].imageView   = vk_image_view;
+    ds_image_infos[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    memset(&ds_writes, 0, sizeof(ds_writes));
+    ds_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    ds_writes[0].dstSet          = vk_overlay_descriptor_set;
+    ds_writes[0].dstBinding      = 0;
+    ds_writes[0].dstArrayElement = 0;
+    ds_writes[0].descriptorCount = 1;
+    ds_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    ds_writes[0].pImageInfo      = &ds_image_infos[0];
+    ds_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    ds_writes[1].dstSet          = vk_overlay_descriptor_set;
+    ds_writes[1].dstBinding      = 1;
+    ds_writes[1].dstArrayElement = 0;
+    ds_writes[1].descriptorCount = 1;
+    ds_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    ds_writes[1].pImageInfo      = &ds_image_infos[1];
+    ds_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    ds_writes[2].dstSet          = vk_overlay_descriptor_set;
+    ds_writes[2].dstBinding      = 2;
+    ds_writes[2].dstArrayElement = 0;
+    ds_writes[2].descriptorCount = 1;
+    ds_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    ds_writes[2].pImageInfo      = &ds_image_infos[2];
+
+    vk_fn.UpdateDescriptorSets(vk_device, 3, ds_writes, 0, NULL);
 
     /* ---------------------------------------------------------
      * Command pool + buffer.  RESET_COMMAND_BUFFER_BIT lets
@@ -1616,11 +1773,143 @@ backend_vk_create_resources(void)
      * implicit reset that vkBeginCommandBuffer does when the
      * pool was created with RESET_COMMAND_BUFFER_BIT. */
 
+    /* ---------------------------------------------------------
+     * Phase 4i: one-shot upload of the overlay test pic.
+     *
+     * Write the 1024-byte (32 * 32 * 1) test-pic payload
+     * into the start of vk_staging_buffer.  We're piggy-
+     * backing on the staging buffer here -- the per-frame
+     * upload pattern (backend_vk_upload_vid_buffer) writes
+     * vid.buffer to the same region every frame, so the
+     * test pic is only there briefly until the first
+     * frame overwrites it; the VRAM-resident copy in
+     * vk_overlay_test_texture is what gets sampled.
+     *
+     * Pattern: 16x16 grid of palette indices, 2x2 pixels
+     * per cell, indices 0..255 row-major.  The quad
+     * displays the entire Quake palette through the same
+     * index -> palette lookup the compute path uses, so
+     * any palette shift (damage / quad / underwater)
+     * tints the test pic the same way it tints the rest
+     * of the screen. */
+    {
+        uint8_t *test_pic = (uint8_t *)vk_staging_ptr;
+        unsigned int i, j;
+        for (i = 0; i < 32; i++) {
+            for (j = 0; j < 32; j++) {
+                test_pic[i * 32 + j] = (uint8_t)((i / 2) * 16 + (j / 2));
+            }
+        }
+    }
+
+    {
+        VkCommandBufferBeginInfo  upload_begin;
+        VkImageMemoryBarrier      upload_barrier;
+        VkBufferImageCopy         upload_region;
+        VkSubmitInfo              upload_submit;
+
+        memset(&upload_begin, 0, sizeof(upload_begin));
+        upload_begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        upload_begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        r = vk_fn.BeginCommandBuffer(vk_cmd_buffer, &upload_begin);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BeginCommandBuffer (overlay upload) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&upload_barrier, 0, sizeof(upload_barrier));
+        upload_barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        upload_barrier.srcAccessMask                   = 0;
+        upload_barrier.dstAccessMask                   = VK_ACCESS_TRANSFER_WRITE_BIT;
+        upload_barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+        upload_barrier.newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        upload_barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        upload_barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        upload_barrier.image                           = vk_overlay_test_texture;
+        upload_barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        upload_barrier.subresourceRange.baseMipLevel   = 0;
+        upload_barrier.subresourceRange.levelCount     = 1;
+        upload_barrier.subresourceRange.baseArrayLayer = 0;
+        upload_barrier.subresourceRange.layerCount     = 1;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 1, &upload_barrier);
+
+        memset(&upload_region, 0, sizeof(upload_region));
+        upload_region.bufferOffset                    = 0;
+        upload_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        upload_region.imageSubresource.mipLevel       = 0;
+        upload_region.imageSubresource.baseArrayLayer = 0;
+        upload_region.imageSubresource.layerCount     = 1;
+        upload_region.imageExtent.width               = 32;
+        upload_region.imageExtent.height              = 32;
+        upload_region.imageExtent.depth               = 1;
+
+        vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                                   vk_staging_buffer,
+                                   vk_overlay_test_texture,
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                   1, &upload_region);
+
+        upload_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        upload_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        upload_barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        upload_barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 1, &upload_barrier);
+
+        r = vk_fn.EndCommandBuffer(vk_cmd_buffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: EndCommandBuffer (overlay upload) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&upload_submit, 0, sizeof(upload_submit));
+        upload_submit.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        upload_submit.commandBufferCount = 1;
+        upload_submit.pCommandBuffers    = &vk_cmd_buffer;
+
+        r = vk_fn.QueueSubmit(vk_queue, 1, &upload_submit, VK_NULL_HANDLE);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: QueueSubmit (overlay upload) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* Wait for the upload to complete before we let
+         * create_resources return.  vk_cmd_buffer auto-
+         * resets on its next BeginCommandBuffer (the
+         * pool's RESET_COMMAND_BUFFER_BIT covers this),
+         * so we don't leave it in a state the per-frame
+         * recorder isn't ready to overwrite. */
+        vk_fn.QueueWaitIdle(vk_queue);
+    }
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
                "rhi-vk: render target %ux%u + R8 index + 256x1 palette + "
-               "staging %llu bytes ready; compute palette LUT + overlay quad active\n",
+               "staging %llu bytes ready; compute palette LUT + textured overlay quad active\n",
                width, height,
                (unsigned long long)vk_staging_size);
     return true;
@@ -1746,11 +2035,26 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroyPipeline(vk_device, vk_overlay_pipeline, NULL);
         vk_overlay_pipeline = VK_NULL_HANDLE;
     }
-    if (vk_overlay_pipeline_layout != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyPipelineLayout)
-            vk_fn.DestroyPipelineLayout(vk_device, vk_overlay_pipeline_layout, NULL);
-        vk_overlay_pipeline_layout = VK_NULL_HANDLE;
+    /* No vk_overlay_pipeline_layout to destroy at Phase 4i;
+     * the overlay pipeline shares vk_pipeline_layout with
+     * the compute pipeline, which is torn down below. */
+    if (vk_overlay_test_texture_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_overlay_test_texture_view, NULL);
+        vk_overlay_test_texture_view = VK_NULL_HANDLE;
     }
+    if (vk_overlay_test_texture != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_overlay_test_texture, NULL);
+        vk_overlay_test_texture = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_test_texture_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_overlay_test_texture_memory, NULL);
+        vk_overlay_test_texture_memory = VK_NULL_HANDLE;
+    }
+    /* vk_overlay_descriptor_set is freed implicitly when
+     * vk_descriptor_pool is destroyed below. */
     if (vk_overlay_framebuffer != VK_NULL_HANDLE) {
         if (vk_fn.DestroyFramebuffer)
             vk_fn.DestroyFramebuffer(vk_device, vk_overlay_framebuffer, NULL);
@@ -2335,6 +2639,18 @@ backend_vk_record_frame(void)
     vk_fn.CmdBindPipeline(vk_cmd_buffer,
                           VK_PIPELINE_BIND_POINT_GRAPHICS,
                           vk_overlay_pipeline);
+    /* Phase 4i: bind the overlay descriptor set so the FS
+     * can sample u_index (test texture) + u_palette.  The
+     * GRAPHICS bind point is independent of the COMPUTE
+     * bind point used earlier in the frame, so the
+     * compute set stays bound where the compute dispatch
+     * left it. */
+    vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                vk_pipeline_layout,
+                                0,
+                                1, &vk_overlay_descriptor_set,
+                                0, NULL);
     vb_offset = 0;
     vk_fn.CmdBindVertexBuffers(vk_cmd_buffer,
                                0,                          /* firstBinding */

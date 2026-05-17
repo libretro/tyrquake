@@ -1,27 +1,53 @@
 /*
- * Fragment shader for the Phase 4h 2D overlay path.
+ * Fragment shader for the Phase 4i 2D overlay path.
  *
- * Outputs the per-vertex colour as interpolated across
- * the primitive.  Alpha is preserved so the pipeline's
- * blend stage (SRC_ALPHA / ONE_MINUS_SRC_ALPHA) can
- * composite the quad over whatever's already in the
- * render target -- which on the Phase 4g compute path
- * is the SW renderer's output translated through the
- * palette LUT.
+ * Samples an R8_UNORM palette-index texture at the
+ * interpolated UV, then looks the index up in the same
+ * 256x1 RGBA8 palette texture the compute palette LUT
+ * uses (Phase 4f vk_palette_texture, propagated through
+ * d_8to24table_shifted to track damage / quad / under-
+ * water shifts).  Output is fully opaque -- the overlay
+ * pipeline's blend stage is still enabled, but with
+ * alpha = 1.0 the result is "src replaces dst" which is
+ * fine for the Phase 4i demo and matches how Quake's
+ * mostly-opaque HUD pics will composite once Phase 4j's
+ * Draw_Pic intercept is in place.
  *
- * No texture sample, no light, no fog.  This is the
- * minimum-viable FS for the overlay path; Phase 4i will
- * add texture sampling for real Draw_Pic content.
+ * Why palette-indexed and not pre-converted RGBA: every
+ * GPU-side pic uploaded from Quake's qpic_t will be 8bpp
+ * (that's the source format), so doing the index ->
+ * palette lookup on the GPU avoids a per-pixel CPU
+ * convert at upload time, mirrors the compute path
+ * exactly (every pic tracks runtime palette shifts the
+ * same way the main framebuffer does), and keeps the
+ * VRAM footprint small.
+ *
+ * Sampler binding details:
+ *   set = 0, binding = 0:  R8_UNORM    index     (per-quad texture)
+ *   set = 0, binding = 1:  R8G8B8A8_UNORM palette  (256x1, shared)
+ *
+ * Index sampling uses NEAREST filtering so Quake's
+ * pixel-perfect 2D look survives any upscaling the
+ * frontend does.  Palette sampling also uses NEAREST so
+ * the 256 entries don't smear into each other; we already
+ * trust the centered-texel mapping (u = b/255 in [0, 1]
+ * with width 256 lands on texel b for every byte b).
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 The libretro team
  */
 #version 450
 
-layout(location = 0) in  vec4 f_color;
+layout(set = 0, binding = 0) uniform sampler2D u_index;
+layout(set = 0, binding = 1) uniform sampler2D u_palette;
+
+layout(location = 0) in  vec2 f_uv;
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = f_color;
+    float idx = texture(u_index, f_uv).r;
+    vec3  rgb = texture(u_palette, vec2(idx, 0.5)).rgb;
+
+    out_color = vec4(rgb, 1.0);
 }
