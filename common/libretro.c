@@ -733,6 +733,18 @@ static float sanitise_framerate(float target)
 {
    unsigned i = 1;
 
+   /* NaN comparisons are all false, so the two early-return
+    * guards below (target <= first and target >= last) would
+    * both miss it, and the while-loop predicate
+    * 'supported_framerates[i] > target' is also false for NaN,
+    * so i walks past NUM_SUPPORTED_FRAMERATES-1 and the
+    * subsequent supported_framerates[i] read goes off the end
+    * of the table. +Inf takes the 'target >= last' branch
+    * correctly, but the NaN gap is real. Pin both to a sane
+    * default before the table walk. */
+   if (IS_NAN(target))
+      target = 60.0f;
+
    if (target <= supported_framerates[0])
       return supported_framerates[0];
 
@@ -776,7 +788,21 @@ static void update_variables(bool startup)
             framerate = sanitise_framerate(target_framerate);
          }
          else
-            framerate = atof(var.value);
+         {
+            /* Run the manual path through the same sanitiser as
+             * 'auto'.  atof returns 0.0 for unparseable input
+             * (which a misconfigured frontend or a hand-edited
+             * options file can supply -- the core-options system
+             * doesn't strictly enforce the enumerated set we
+             * advertise), and 0.0 would propagate to
+             * frametime_usec = 1000.0f / 0 = +inf and
+             * shm->samples_per_frame = (int)(audio_samplerate /
+             * 0) which is an undefined float->int cast.  Snap to
+             * the closest entry in supported_framerates[] just
+             * like the auto branch above so the rest of this
+             * function and SNDDMA_Init never see a bad value. */
+            framerate = sanitise_framerate((float)atof(var.value));
+         }
       }
       else
          framerate = 60.0f;
