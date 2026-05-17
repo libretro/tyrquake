@@ -33,6 +33,7 @@ void SCR_UpdateWholeScreen(void);
 void SCR_CenterPrint(const char *str);
 void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
+void SCR_AgeLoadingPlaque(float dt);
 
 /* Integer multiplier applied to all 320x200-native UI elements (menu,
  * status bar, console). 0 in the cvar means "auto", which resolves to

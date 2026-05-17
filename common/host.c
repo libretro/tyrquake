@@ -613,6 +613,7 @@ void Host_Frame(float time)
     * age in real time regardless of whether we're connected to a
     * server. */
    Con_AgeNotifyTimes(host_frametime);
+   SCR_AgeLoadingPlaque(host_frametime);
 
    /* get new key events */
    Sys_SendKeyEvents();

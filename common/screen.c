@@ -130,6 +130,11 @@ static int scr_erase_lines;
 static int scr_erase_center;
 
 static qboolean scr_drawloading;
+/* Elapsed time (in seconds) since SCR_BeginLoadingPlaque disabled
+ * the rendering pipeline. Used as a 5-second safety net to recover
+ * from a load that never completed. Aged once per frame in Host_Frame
+ * alongside the other realtime-domain countdowns; reset to 0 at the
+ * top of each loading sequence. */
 static float scr_disabled_time;
 
 
@@ -552,7 +557,7 @@ void SCR_BeginLoadingPlaque(void)
    scr_drawloading = false;
 
    scr_disabled_for_loading = true;
-   scr_disabled_time = realtime;
+   scr_disabled_time = 0;
    scr_fullupdate = 0;
 }
 
@@ -587,6 +592,23 @@ void SCR_EndLoadingPlaque(void)
    Con_ClearNotify();
 }
 
+/*
+================
+SCR_AgeLoadingPlaque
+
+Advance scr_disabled_time by dt. Called once per Host_Frame after
+Host_FilterTime, so the safety net stays in realtime-units regardless
+of whether SCR_BeginLoadingPlaque has been called recently. The
+counter is reset to 0 at every BeginLoadingPlaque, so its long-term
+unbounded growth is harmless -- only the < 5 s window after a load
+start is ever read.
+================
+*/
+void SCR_AgeLoadingPlaque(float dt)
+{
+   scr_disabled_time += dt;
+}
+
 /* ============================================================================= */
 
 /*
@@ -617,7 +639,7 @@ SCR_UpdateScreen(void)
        * Simply starting a new game and typing "changelevel foo" will hang
        * the engine for 5s (was 60s!) if foo.bsp does not exist.
        */
-      if (realtime - scr_disabled_time > 5) {
+      if (scr_disabled_time > 5) {
          scr_disabled_for_loading = false;
          Con_Printf("load failed.\n");
       } else
