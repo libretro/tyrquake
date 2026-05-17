@@ -496,6 +496,20 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 	if (rate <= 0 || !shm || shm->speed <= 0)
 		return;
 
+	/* The 8-bit-width branches below also do 'intVolume *= 256'
+	 * before the multiply, so a tiny pathological 'volume' can
+	 * still wrap intVolume in those branches; clamp on the float
+	 * side before the cast so the int math is bounded. NaN takes
+	 * the IS_NAN branch (NaN<0 and NaN>1 are both false otherwise)
+	 * for the same reason BGM_Update's clamp had to be widened.
+	 * The bgmvolume / sfxvolume cvar clamps already handle their
+	 * paths upstream, but S_RawSamples is exposed in sound.h and
+	 * a future caller could hand in any float. */
+	if (IS_NAN(volume) || volume < 0.0f)
+		volume = 0.0f;
+	else if (volume > 1.0f)
+		volume = 1.0f;
+
 	if (s_rawend < paintedtime)
 		s_rawend = paintedtime;
 
