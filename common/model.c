@@ -999,6 +999,22 @@ Mod_LoadSubmodels(lump_t *l)
          out->mins[j]   = LittleFloat(in->mins[j]) - 1;
          out->maxs[j]   = LittleFloat(in->maxs[j]) + 1;
          out->origin[j] = LittleFloat(in->origin[j]);
+         /* mins/maxs/origin are the entity bounding box and
+          * spawn origin for every cl.model_precache submodel
+          * (movers, doors, plats, world brushes parented to
+          * func_* entities). They flow straight into
+          * cl_entities[].origin and bbox tests in the client
+          * and into edict_t->v.mins / maxs / origin and the
+          * server's collision routines. A NaN/Inf here makes
+          * the entity's bbox unbounded -- NaN-comparisons all
+          * return false so SV_AreaEdicts can't decide whether
+          * the entity overlaps the trace bounds, and the entity
+          * gets included or excluded inconsistently across
+          * traces. Reject the BSP at load. */
+         if (IS_NAN(out->mins[j]) || IS_NAN(out->maxs[j]) ||
+               IS_NAN(out->origin[j]))
+            SV_Error("%s: non-finite submodel bbox in %s",
+                  __func__, loadmodel->name);
       }
       for (j = 0; j < MAX_MAP_HULLS; j++)
       {
