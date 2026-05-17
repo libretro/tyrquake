@@ -68,6 +68,8 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/r_vars.c \
 	$(CORE_DIR)/common/r_surf.c \
 	$(CORE_DIR)/common/rb_tree.c \
+	$(CORE_DIR)/common/rhi.c \
+	$(CORE_DIR)/common/backend_sw.c \
 	$(CORE_DIR)/common/sbar.c \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
