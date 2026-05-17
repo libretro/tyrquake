@@ -160,7 +160,7 @@ void R_EntityParticles(const entity_t *ent)
       p->next = active_particles;
       active_particles = p;
 
-      p->die = cl.time + 0.01;
+      p->die = 0.01;
       p->color = 0x6f;
       p->type = pt_explode;
 
@@ -240,7 +240,7 @@ void R_ParticleExplosion(vec3_t org)
       p->next = active_particles;
       active_particles = p;
 
-      p->die = cl.time + 5;
+      p->die = 5;
       p->color = ramp1[0];
       p->ramp = rand() & 3;
       if (i & 1) {
@@ -291,7 +291,7 @@ void R_ParticleExplosion2(vec3_t org, int colorStart, int colorLength)
       p->next = active_particles;
       active_particles = p;
 
-      p->die = cl.time + 0.3;
+      p->die = 0.3;
       p->color = colorStart + (colorMod % colorLength);
       colorMod++;
 
@@ -322,7 +322,7 @@ void R_BlobExplosion(vec3_t org)
       p->next = active_particles;
       active_particles = p;
 
-      p->die = cl.time + 1 + (rand() & 8) * 0.05;
+      p->die = 1 + (rand() & 8) * 0.05;
 
       if (i & 1) {
          p->type = pt_blob;
@@ -362,7 +362,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
       active_particles = p;
 
       if (count == 1024) {	/* rocket explosion */
-         p->die = cl.time + 5;
+         p->die = 5;
          p->color = ramp1[0];
          p->ramp = rand() & 3;
          if (i & 1) {
@@ -379,7 +379,7 @@ void R_RunParticleEffect(vec3_t org, vec3_t dir, int color, int count)
             }
          }
       } else {
-         p->die = cl.time + 0.1 * (rand() % 5);
+         p->die = 0.1 * (rand() % 5);
          p->color = (color & ~7) + (rand() & 7);
          p->type = pt_slowgrav;
          for (j = 0; j < 3; j++) {
@@ -415,7 +415,7 @@ void R_LavaSplash(vec3_t org)
             p->next = active_particles;
             active_particles = p;
 
-            p->die = cl.time + 2 + (rand() & 31) * 0.02;
+            p->die = 2 + (rand() & 31) * 0.02;
             p->color = 224 + (rand() & 7);
             p->type = pt_grav;
 
@@ -457,7 +457,7 @@ void R_TeleportSplash(vec3_t org)
             p->next = active_particles;
             active_particles = p;
 
-            p->die = cl.time + 0.2 + (rand() & 7) * 0.02;
+            p->die = 0.2 + (rand() & 7) * 0.02;
             p->color = 7 + (rand() & 7);
             p->type = pt_grav;
 
@@ -503,7 +503,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
       active_particles = p;
 
       VectorCopy(vec3_origin, p->vel);
-      p->die = cl.time + 2;
+      p->die = 2;
 
       switch (type) {
          case 0:		/* rocket trail */
@@ -531,7 +531,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
 
          case 3:
          case 5:		/* tracer */
-            p->die = cl.time + 0.5;
+            p->die = 0.5;
             p->type = pt_static;
             if (type == 3)
                p->color = 52 + ((tracercount & 4) << 1);
@@ -560,7 +560,7 @@ void R_RocketTrail(vec3_t start, vec3_t end, int type)
          case 6:		/* voor trail */
             p->color = 9 * 16 + 8 + (rand() & 3);
             p->type = pt_static;
-            p->die = cl.time + 0.3;
+            p->die = 0.3;
             for (j = 0; j < 3; j++)
                p->org[j] = start[j] + ((rand() & 15) - 8);
             break;
@@ -588,7 +588,7 @@ void CL_RunParticles(void)
 
    for (;;) {
       kill = active_particles;
-      if (kill && kill->die < cl.time) {
+      if (kill && kill->die <= 0) {
          /* Defensive: if kill itself or its successor isn't a
           * real particle slot, the active list is corrupt;
           * truncate it here rather than splicing garbage onto
@@ -613,7 +613,7 @@ void CL_RunParticles(void)
          break;
       for (;;) {
          kill = p->next;
-         if (kill && kill->die < cl.time) {
+         if (kill && kill->die <= 0) {
             if (!R_ValidParticle(kill)) {
                p->next = NULL;
                break;
@@ -687,6 +687,14 @@ void CL_RunParticles(void)
          default:
             break;
       }
+
+      /* Walk down remaining lifetime; the head/tail kill
+       * sweeps above will retire this particle next frame
+       * once die crosses zero. pt_fire/pt_explode* may have
+       * already set die = -1 above to force an early kill;
+       * the subtraction below is harmless in that case
+       * (die stays <= 0). */
+      p->die -= frametime;
    }
 }
 

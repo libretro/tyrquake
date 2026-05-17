@@ -64,7 +64,7 @@ typedef struct particle_s {
     struct particle_s *next;
     vec3_t vel;
     float ramp;
-    float die;
+    float die;		/* remaining lifetime in seconds; expires at <= 0 */
     ptype_t type;
 } particle_t;
 
