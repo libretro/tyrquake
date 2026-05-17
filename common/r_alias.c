@@ -871,12 +871,29 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
    int pose, numposes;
    float *intervals = NULL;
    int frame = e->frame;
+   int previousframe;
 
    if ((frame >= pahdr->numframes) || (frame < 0))
    {
       Con_DPrintf("%s: no such frame %d\n", __func__, frame);
       frame = 0;
    }
+
+   /* e->previousframe is shifted in CL_ParseUpdate without
+    * re-validation against the new model's pahdr->numframes,
+    * so a server-supplied frame byte that's out of range for
+    * the current model -- or a stale frame number left over
+    * after an entity slot is reused for a model with fewer
+    * frames -- can land here as a bogus index. The model-
+    * change reset in CL_ParseUpdate (regression fix) papers
+    * over the slot-reuse case for one frame by zeroing
+    * previousframetime, but doesn't cover hostile-server
+    * frames or the > 1 frame window after a frame shift on
+    * an entity that survived the model change. Clamp once,
+    * here, to the same fallback as 'frame' above. */
+   previousframe = e->previousframe;
+   if ((previousframe >= pahdr->numframes) || (previousframe < 0))
+      previousframe = frame;
 
    pose = pahdr->frames[frame].firstpose;
    numposes = pahdr->frames[frame].numposes;
@@ -919,9 +936,9 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
             if (intervals[i] > targettime)
                break;
 
-         e->currentpose = pahdr->frames[e->currentframe].firstpose + i;
+         e->currentpose = pahdr->frames[frame].firstpose + i;
          if (i == 0) {
-            e->previouspose = pahdr->frames[e->currentframe].firstpose;
+            e->previouspose = pahdr->frames[frame].firstpose;
             e->previouspose += numposes - 1;
             time = targettime;
             delta = intervals[0];
@@ -931,8 +948,8 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
             delta = intervals[i] - intervals[i - 1];
          }
       } else {
-         e->currentpose = pahdr->frames[e->currentframe].firstpose;
-         e->previouspose = pahdr->frames[e->previousframe].firstpose;
+         e->currentpose = pahdr->frames[frame].firstpose;
+         e->previouspose = pahdr->frames[previousframe].firstpose;
          /* Countdown semantics: currentframetime is the elapsed
           * time since the latest snapshot, previousframetime is
           * the duration of the prior interval. */
