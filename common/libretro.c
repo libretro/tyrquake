@@ -1298,18 +1298,36 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
  */
 
 unsigned short d_8to16table[256];
+unsigned       d_8to24table_shifted[256];
 
 #define MAKECOLOR(r, g, b) (((r & 0xf8) << 8) | ((g & 0xfc) << 3) | ((b & 0xf8) >> 3))
 
 
 void VID_SetPalette(unsigned char *palette)
 {
-   unsigned i, j;
-   unsigned short *pal = &d_8to16table[0];
+   unsigned        i, j;
+   unsigned short *pal16 = &d_8to16table[0];
+   unsigned       *pal32 = &d_8to24table_shifted[0];
 
-   for(i = 0, j = 0; i < 256; i++, j += 3)
-      *pal++ = MAKECOLOR(palette[j], palette[j+1], palette[j+2]);
-
+   /* Populate both the 16bpp (RGB565) lookup the SW present
+    * path uses in VID_Update and the 32bpp (RGBA8) lookup
+    * HW backends like backend_vulkan.c use to display
+    * vid.buffer.  Keeping both in sync means palette shifts
+    * (damage flash, bonus flash, underwater, quad damage)
+    * propagate to whichever backend is active.
+    *
+    * d_8to24table_shifted byte order matches VK_FORMAT_
+    * R8G8B8A8_UNORM: bytes [r, g, b, ff] in memory, which
+    * is 0xFF000000 | (b<<16) | (g<<8) | r as a little-
+    * endian uint32. */
+   for (i = 0, j = 0; i < 256; i++, j += 3)
+   {
+      *pal16++ = MAKECOLOR(palette[j], palette[j+1], palette[j+2]);
+      *pal32++ = 0xFF000000u
+              | ((unsigned)palette[j+2] << 16)
+              | ((unsigned)palette[j+1] <<  8)
+              | ((unsigned)palette[j+0] <<  0);
+   }
 }
 
 unsigned 	d_8to24table[256];

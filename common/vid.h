@@ -61,6 +61,25 @@ extern void (*vid_menudrawfn) (void);
 extern void (*vid_menukeyfn) (int key);
 
 extern	unsigned 	d_8to24table[256];
+/* d_8to24table_shifted holds the *currently displayed* palette
+ * in 32bpp RGBA8 (little-endian byte order: r, g, b, ff).
+ * Updated every time VID_SetPalette runs, so it tracks damage
+ * flashes, bonus flashes, underwater shifts, and quad-damage
+ * tinting just like d_8to16table does.
+ *
+ * Distinct from d_8to24table, which is the BASE palette
+ * built once at startup by VID_SetPalette2.  The SW
+ * renderer's alias/surface paths (d_polyse.c, r_surf.c)
+ * read d_8to24table for internal RGB-light math whose
+ * output gets quantized back to a vid.buffer index and
+ * then re-tinted by d_8to16table on the way to screen; if
+ * d_8to24table tracked palette shifts, that path would
+ * double-tint.
+ *
+ * HW backends that consume the SW renderer's vid.buffer
+ * (backend_vulkan.c) read d_8to24table_shifted so palette
+ * shifts propagate through the GPU sampling path. */
+extern	unsigned 	d_8to24table_shifted[256];
 
 void VID_SetPalette(unsigned char *palette);
 void VID_SetPalette2(unsigned char *palette);

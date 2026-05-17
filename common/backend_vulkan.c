@@ -32,7 +32,8 @@
  * palette convert and uploading 32bpp pixels.
  *
  * On the upload side, vid.buffer goes straight to a R8_UNORM
- * texture (1 byte per pixel, not 4), d_8to24table goes to a
+ * texture (1 byte per pixel, not 4), d_8to24table_shifted
+ * goes to a
  * 256x1 R8G8B8A8_UNORM palette texture, and the staging
  * buffer holds both: the first width*height bytes are the
  * index data, the next 1024 bytes are the palette.  Two
@@ -102,9 +103,13 @@
  */
 
 #include "rhi.h"
-#include "vid.h"          /* viddef_t vid, d_8to24table -- Phase 4d
-                           * needs vid.buffer and the palette LUT
-                           * for the per-frame upload. */
+#include "vid.h"          /* viddef_t vid, d_8to24table_shifted --
+                           * Phase 4d needs vid.buffer for the per-
+                           * frame index upload; Phase 4f reads
+                           * d_8to24table_shifted (the tinted
+                           * RGBA palette that tracks damage / quad /
+                           * underwater shifts) for the palette
+                           * texture upload. */
 
 extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
                                    * dispatches into the SW rasterizer
@@ -1560,10 +1565,19 @@ backend_vk_draw_view(const refdef_t *rd)
 /*
  * Per-frame upload (Phase 4f).  Copies the raw 8bpp vid.buffer
  * into the index region of the staging buffer (bytes
- * [0, width*height)) and d_8to24table into the palette region
- * (bytes [width*height, width*height + VK_PALETTE_BYTES)).
+ * [0, width*height)) and d_8to24table_shifted into the palette
+ * region (bytes [width*height, width*height + VK_PALETTE_BYTES)).
  * No per-pixel arithmetic on the host -- the FS does the
  * index-into-palette lookup at sample time.
+ *
+ * d_8to24table_shifted (not d_8to24table) is the source for
+ * the palette upload: it's the table that VID_SetPalette
+ * keeps in sync with d_8to16table, so it tracks damage
+ * flashes, bonus flashes, underwater shifts, and quad-damage
+ * tinting just like the SW present path does.  d_8to24table
+ * is the base palette (set once at startup, never updated),
+ * needed by the SW renderer's alias/surface RGB-light math
+ * but not by us.
  *
  * Walks the index region row by row to honour vid.rowbytes
  * (currently == width, but the SW renderer is allowed to pad
@@ -1596,7 +1610,7 @@ backend_vk_upload_vid_buffer(void)
     }
 
     pal_dst = idx_dst + (size_t)width * (size_t)height;
-    memcpy(pal_dst, d_8to24table, VK_PALETTE_BYTES);
+    memcpy(pal_dst, d_8to24table_shifted, VK_PALETTE_BYTES);
 }
 
 /*
