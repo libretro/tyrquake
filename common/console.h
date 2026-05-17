@@ -54,6 +54,7 @@ void Con_SafePrintf(const char *fmt, ...);
 void Con_Clear_f(void);
 void Con_DrawNotify(void);
 void Con_ClearNotify(void);
+void Con_AgeNotifyTimes(float dt);
 void Con_ToggleConsole_f(void);
 void Con_ShowList(const char **list, int cnt, int maxlen);
 void Con_ShowTree(struct stree_root *root);

@@ -608,6 +608,12 @@ void Host_Frame(float time)
     */
    Host_FilterTime(time);
 
+   /* Age the console notify-line elapsed counters by the same delta
+    * Host_FilterTime just folded into realtime, so notification lines
+    * age in real time regardless of whether we're connected to a
+    * server. */
+   Con_AgeNotifyTimes(host_frametime);
+
    /* get new key events */
    Sys_SendKeyEvents();
 

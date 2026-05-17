@@ -58,8 +58,15 @@ Con_GetWidth(void)
 static float con_cursorspeed = 4;
 static cvar_t con_notifytime = { "con_notifytime", "3" };	/* seconds */
 
-static float con_times[NUM_CON_TIMES];	/* realtime time the line was generated */
-					/* for transparent notify lines */
+/* Elapsed time (in seconds) since each notify slot was last printed
+ * to. Set to 0 by Con_Print and aged by host_frametime each Host_Frame
+ * via Con_AgeNotifyTimes; once an entry exceeds con_notifytime.value
+ * the line is no longer drawn. Con_ClearNotify fills with the
+ * CON_NOTIFY_NEVER sentinel rather than 0 so cleared/never-printed
+ * slots stay above the notifytime threshold (and stay stable under
+ * the per-frame increment, since fp32 saturates the addition). */
+#define CON_NOTIFY_NEVER 1.0e9f
+static float con_times[NUM_CON_TIMES];
 
 qboolean con_initialized;
 
@@ -107,7 +114,29 @@ Con_ClearNotify(void)
     int i;
 
     for (i = 0; i < NUM_CON_TIMES; i++)
-	con_times[i] = 0;
+	con_times[i] = CON_NOTIFY_NEVER;
+}
+
+
+/*
+================
+Con_AgeNotifyTimes
+
+Advance every notify slot's elapsed-since-print counter by dt. Called
+once per Host_Frame after Host_FilterTime, so the per-frame delta
+matches the realtime delta the original code's (realtime - snapshot)
+math used to recover. The CON_NOTIFY_NEVER sentinel is large enough
+that fp32 addition of host_frametime rounds away to a no-op, so
+cleared/never-printed slots stay above the notifytime threshold.
+================
+*/
+void
+Con_AgeNotifyTimes(float dt)
+{
+    int i;
+
+    for (i = 0; i < NUM_CON_TIMES; i++)
+	con_times[i] += dt;
 }
 
 
@@ -275,7 +304,7 @@ Con_Print(const char *txt)
 	    Con_Linefeed();
 	    /* mark time for transparent overlay */
 	    if (con->current >= 0)
-		con_times[con->current % NUM_CON_TIMES] = realtime;
+		con_times[con->current % NUM_CON_TIMES] = 0;
 	}
 
 	switch (c) {
@@ -445,10 +474,12 @@ void Con_DrawNotify(void)
    {
       if (i < 0)
          continue;
+      /* Under countdown semantics con_times[] stores elapsed-since-
+       * print directly, so no realtime subtraction is needed. The
+       * single > con_notifytime test covers both 'too old' and
+       * 'never logged' (the CON_NOTIFY_NEVER sentinel is far larger
+       * than any plausible con_notifytime). */
       time = con_times[i % NUM_CON_TIMES];
-      if (time == 0)
-         continue;
-      time = realtime - time;
       if (time > con_notifytime.value)
          continue;
       text = con->text + (i % con_totallines) * con_linewidth;
