@@ -2079,6 +2079,24 @@ static void Mod_LoadPlanes(lump_t *l)
       out->dist = LittleFloat(in->dist);
       out->type = LittleLong(in->type);
       out->signbits = bits;
+
+      /* Plane normals and distances feed BSP traversal
+       * (SV_RecursiveHullCheck, SV_HullPointContents) and
+       * visibility / PVS culling. A NaN/Inf in normal[] or dist
+       * collapses every 'DotProduct(plane->normal, p) - plane->
+       * dist' on either side of zero (NaN comparisons all return
+       * false), so PointContents returns CONTENTS_SOLID
+       * unconditionally for one side and CONTENTS_EMPTY for the
+       * other depending on which branch the traversal takes.
+       * Collision then either lets the player walk through every
+       * brush or wedges them against the first plane they touch.
+       * 'normal[j] < 0' above also missed the NaN case before
+       * the signbits computation, so signbits is wrong as well.
+       * Reject the BSP. */
+      if (IS_NAN(out->normal[0]) || IS_NAN(out->normal[1]) ||
+            IS_NAN(out->normal[2]) || IS_NAN(out->dist))
+         SV_Error("%s: non-finite plane in %s", __func__,
+               loadmodel->name);
    }
 }
 
