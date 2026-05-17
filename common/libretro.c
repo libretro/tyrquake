@@ -313,7 +313,11 @@ void retro_set_rumble_touch(unsigned intensity, float duration)
 /* General routines */
 /* ======================================================================= */
 /**/
-static retro_log_printf_t log_cb;
+/* log_cb is non-static so other TUs (rhi.c, future backend
+ * files) can log init-time events through the libretro
+ * frontend's log rather than Quake's in-game console.  Same
+ * extern convention as environ_cb below. */
+retro_log_printf_t log_cb;
 static retro_video_refresh_t video_cb;
 /* per-sample audio_cb is required by the libretro
  * API but never invoked: this core only ever uses

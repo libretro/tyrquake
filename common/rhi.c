@@ -24,14 +24,21 @@
  */
 
 #include "rhi.h"
-#include "console.h"
 #include "common.h"
 #include <string.h>
 #include <libretro.h>
 
 const render_backend_t *g_rhi = NULL;
 
-extern retro_environment_t environ_cb;  /* libretro.c */
+/* environ_cb / log_cb are owned by libretro.c.  Same extern
+ * pattern menu.c uses for environ_cb.  log_cb is the
+ * libretro frontend's logger; using it (rather than
+ * Con_Printf) routes init-time messages to whatever the
+ * frontend captures -- typically a log window or stdout --
+ * instead of burying them in Quake's in-game console
+ * scrollback. */
+extern retro_environment_t environ_cb;
+extern retro_log_printf_t  log_cb;
 
 static const render_backend_t *
 rhi_pick_backend(void)
@@ -72,13 +79,15 @@ rhi_init(void)
          * to the SW backend here, since its init is
          * always trivially successful.  Phase 1 has only
          * SW so a failure here is fatal. */
-        Con_Printf("rhi: %s backend init failed\n",
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR, "rhi: %s backend init failed\n",
                    candidate->name ? candidate->name : "(unnamed)");
         return false;
     }
 
     g_rhi = candidate;
-    Con_Printf("rhi: %s backend active\n", g_rhi->name);
+    if (log_cb)
+        log_cb(RETRO_LOG_INFO, "rhi: %s backend active\n", g_rhi->name);
     return true;
 }
 
