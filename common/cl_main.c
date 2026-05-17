@@ -455,7 +455,7 @@ CL_AllocDlight(int key)
    dl = cl_dlights;
    for (i = 0; i < MAX_DLIGHTS; i++, dl++)
    {
-      if (dl->die < cl.time)
+      if (dl->die <= 0)
       {
          memset(dl, 0, sizeof(*dl));
          dl->color = dl_colors[DLIGHT_FLASH];
@@ -490,12 +490,13 @@ CL_DecayLights(void)
    dl = cl_dlights;
    for (i = 0; i < MAX_DLIGHTS; i++, dl++)
    {
-      if (dl->die < cl.time || !dl->radius)
+      if (dl->die <= 0 || !dl->radius)
          continue;
 
       dl->radius -= time * dl->decay;
       if (dl->radius < 0)
          dl->radius = 0;
+      dl->die    -= time;
    }
 }
 
@@ -670,7 +671,7 @@ static void CL_RelinkEntities(void)
          VectorMA(dl->origin, 18, fv, dl->origin);
          dl->radius = 200 + (rand() & 31);
          dl->minlight = 32;
-         dl->die = cl.time + 0.1;
+         dl->die = 0.1;
          dl->color = dl_colors[DLIGHT_FLASH];
       }
 
@@ -680,7 +681,7 @@ static void CL_RelinkEntities(void)
          VectorCopy(ent->origin, dl->origin);
          dl->origin[2] += 16;
          dl->radius = 400 + (rand() & 31);
-         dl->die = cl.time + 0.001;
+         dl->die = 0.001;
          dl->color = dl_colors[DLIGHT_FLASH];
       }
 
@@ -689,7 +690,7 @@ static void CL_RelinkEntities(void)
          dl = CL_AllocDlight(i);
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
-         dl->die = cl.time + 0.001;
+         dl->die = 0.001;
          dl->color = dl_colors[DLIGHT_FLASH];
       }
 
@@ -698,19 +699,19 @@ static void CL_RelinkEntities(void)
          dl = CL_AllocDlight(i);
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
-         dl->die = cl.time + 0.001;
+         dl->die = 0.001;
          dl->color = dl_colors[DLIGHT_PURPLE];
       } else if (ent->effects & EF_BLUE) {
          dl = CL_AllocDlight(i);
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
-         dl->die = cl.time + 0.001;
+         dl->die = 0.001;
          dl->color = dl_colors[DLIGHT_BLUE];
       } else if (ent->effects & EF_RED) {
          dl = CL_AllocDlight(i);
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200 + (rand() & 31);
-         dl->die = cl.time + 0.001;
+         dl->die = 0.001;
          dl->color = dl_colors[DLIGHT_RED];
       }
 
@@ -727,7 +728,7 @@ static void CL_RelinkEntities(void)
          dl = CL_AllocDlight(i);
          VectorCopy(ent->origin, dl->origin);
          dl->radius = 200;
-         dl->die = cl.time + 0.01;
+         dl->die = 0.01;
       } else if (ent->model->flags & EF_GRENADE)
          R_RocketTrail(oldorg, ent->origin, 1);
       else if (ent->model->flags & EF_TRACER3)

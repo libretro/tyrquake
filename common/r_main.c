@@ -1122,7 +1122,7 @@ R_DrawViewModel(void)
 	    continue;
 	if (!dl->radius)
 	    continue;
-	if (dl->die < cl.time)
+	if (dl->die <= 0)
 	    continue;
 
 	VectorSubtract(e->origin, dl->origin, dist);

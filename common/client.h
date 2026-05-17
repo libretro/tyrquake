@@ -47,7 +47,7 @@ typedef struct {
     int key;			/* so entities can reuse same entry */
     vec3_t origin;
     float radius;
-    float die;			/* stop lighting after this time */
+    float die;			/* remaining lifetime in seconds; expires at <= 0 */
     float decay;		/* drop this each second */
     float minlight;		/* don't add when contributing less */
     const float *color;
