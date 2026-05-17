@@ -32,7 +32,7 @@ typedef struct
 {
     int entity;
     struct model_s *model;
-    float endtime;
+    float endtime;		/* (countdown) remaining lifetime in seconds; expires at <= 0 */
     vec3_t start, end;
 } beam_t;
 
@@ -101,7 +101,7 @@ CL_ParseBeam(model_t *m)
       {
          b->entity = ent;
          b->model = m;
-         b->endtime = cl.time + 0.2;
+         b->endtime = 0.2;
          VectorCopy(start, b->start);
          VectorCopy(end, b->end);
          return;
@@ -110,11 +110,11 @@ CL_ParseBeam(model_t *m)
    /* find a free beam */
    for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
    {
-      if (!b->model || b->endtime < cl.time)
+      if (!b->model || b->endtime <= 0)
       {
          b->entity = ent;
          b->model = m;
-         b->endtime = cl.time + 0.2;
+         b->endtime = 0.2;
          VectorCopy(start, b->start);
          VectorCopy(end, b->end);
          return;
@@ -317,7 +317,7 @@ void CL_UpdateTEnts(void)
    /* update lightning */
    for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
    {
-      if (!b->model || b->endtime < cl.time)
+      if (!b->model || b->endtime <= 0)
          continue;
 
       /* if coming from the player, update the start position */
@@ -379,5 +379,10 @@ void CL_UpdateTEnts(void)
          ent->currentorigintime = 0;
          ent->previousorigintime = 0;
       }
+
+      /* Age the beam after using it this frame so the per-frame
+       * progression matches the original (cl.time vs absolute
+       * b->endtime) timeline exactly. */
+      b->endtime -= host_frametime;
    }
 }
