@@ -667,6 +667,39 @@ CL_ParseUpdate(unsigned int bits)
             ent->syncbase = 0.0;
       } else
          forcelink = true;	/* hack to make null model players work */
+
+      /* When an entity slot gets reused for a different model
+       * -- the classic case is a corpse / gib spawning into a
+       * slot that previously held a monster -- the frame lerp
+       * state from the prior tenant is still here. The frame
+       * shift block above has already snapshot the OLD
+       * currentframe (from the prior model) into previousframe,
+       * so R_AliasSetupFrame does:
+       *
+       *   e->previouspose = pahdr->frames[e->previousframe].firstpose;
+       *
+       * indexing pahdr->frames[] (the NEW model's frame table,
+       * possibly only a handful of entries for a gib) with a
+       * frame number meaningful only to the old model (which
+       * could be 50+ for a monster with a full death animation).
+       * That's an out-of-bounds read; on the gib path it
+       * intermittently crashes -- frequency depends on what
+       * other model was previously in the slot and where the
+       * new pahdr lands relative to the old.
+       *
+       * On model change, force previousframe equal to
+       * currentframe and zero the time pair so R_AliasSetup
+       * Frame's 'previousframetime > 0' guard takes the no-lerp
+       * branch for one frame. Same idea for the origin/angles
+       * lerp pairs: the prior model's snapshots don't make
+       * sense for the new entity. */
+      ent->previousframe      = ent->currentframe;
+      ent->previousframetime  = 0;
+      ent->currentframetime   = 0;
+      ent->previousorigintime = 0;
+      ent->currentorigintime  = 0;
+      ent->previousanglestime = 0;
+      ent->currentanglestime  = 0;
    }
 
    /* MOVEMENT LERP INFO - could I just extend baseline instead? */
