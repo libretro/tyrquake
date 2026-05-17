@@ -67,11 +67,15 @@ typedef struct render_backend_s {
  * practice g_rhi is non-NULL after retro_load_game). */
 extern const render_backend_t *g_rhi;
 
-/* Backend instances published by each backend_*.c.  Always
- * compiled and linkable (their .c files are unconditionally
- * built today); whether each is selectable is decided at
- * rhi_init() time. */
+/* Backend instances published by each backend_*.c.  Each
+ * .c file compiles unconditionally so its vtable symbol is
+ * always linkable; whether the backend actually stands up is
+ * decided at rhi_init() time by the backend's init function
+ * (which returns false when its build flag -- RHI_HAVE_VULKAN
+ * etc. -- is undefined, causing rhi.c's auto path to fall
+ * through to the next candidate). */
 extern const render_backend_t g_rhi_backend_sw;
+extern const render_backend_t g_rhi_backend_vk;
 
 /* Backend-selection entry point, called from retro_load_game
  * after update_variables() has populated the core option

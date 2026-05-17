@@ -30,10 +30,11 @@ struct retro_core_option_definition option_defs_us[] = {
    {
       "tyrquake_renderer",
       "Renderer (restart)",
-      "Select the renderer backend. 'Auto' picks the best HW backend the frontend offers, falling back to software when no HW context is available. 'Software' forces the SW span rasterizer regardless of frontend video driver -- useful when the SW renderer's specific look (per-span affine texturing, palette + colormap output) is preferred. Requires a restart.",
+      "Select the renderer backend. 'Auto' picks the best HW backend the frontend offers, falling back to software when no HW context is available. 'Software' forces the SW span rasterizer regardless of frontend video driver -- useful when the SW renderer's specific look (per-span affine texturing, palette + colormap output) is preferred. 'Vulkan' forces the Vulkan HW backend; falls back to software if the build was made without Vulkan support or the frontend won't grant a Vulkan context. Requires a restart.",
       {
          { "auto",     "Auto"     },
          { "software", "Software" },
+         { "vulkan",   "Vulkan"   },
          { NULL, NULL },
       },
       "auto"

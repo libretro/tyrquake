@@ -51,15 +51,30 @@ rhi_pick_backend(void)
     if (environ_cb && environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
         value = var.value;
 
-    /* Explicit selection -- caller asked for the SW backend
-     * by name, honour it unconditionally. */
+    /* Explicit selection -- caller named a backend, honour
+     * it unconditionally.  Returning a backend whose init()
+     * will fail (e.g. the user asked for 'vulkan' on a build
+     * without RHI_HAVE_VULKAN) is fine: rhi_init logs the
+     * failure and the next launch picks something else. */
     if (value && strcmp(value, "software") == 0)
         return &g_rhi_backend_sw;
+    if (value && strcmp(value, "vulkan") == 0)
+        return &g_rhi_backend_vk;
 
-    /* Auto.  Phase 1 has only the SW backend.  Future code
-     * here will query GET_PREFERRED_HW_RENDER and try HW
-     * backends in order before falling through. */
-    return &g_rhi_backend_sw;
+    /* Auto.  Try HW backends in order, falling through to
+     * software when their init() refuses.  The order is
+     * roughly modern-first: Vulkan, then (future) D3D12,
+     * D3D11, GL.  Each backend's init() is responsible for
+     * actually negotiating the HW context with the frontend
+     * -- a false return here means the frontend declined or
+     * the build flag is off, and we should try the next.
+     *
+     * Note: the actual try-and-fall-through happens in
+     * rhi_init below, not here.  This function picks the
+     * preferred candidate; rhi_init drives the fallback
+     * chain.  When more backends ship, the fallback chain
+     * grows. */
+    return &g_rhi_backend_vk;  /* preferred HW backend today */
 }
 
 qboolean
@@ -70,25 +85,44 @@ rhi_init(void)
     if (g_rhi)
         return true;  /* already up; idempotent */
 
+    /* First try the preferred candidate (explicit user
+     * selection or the head of the auto chain).  On init
+     * failure, fall back to the software backend, which is
+     * always available and whose init() is trivially
+     * successful.  This keeps 'auto' robust: the user always
+     * gets *some* renderer.
+     *
+     * The fallback step is unconditional rather than driven
+     * by the option value: if the user explicitly asked for
+     * 'vulkan' but the build flag is off (or the HW context
+     * handshake fails), we still want a playable game.  The
+     * log line documents which backend actually came up so
+     * the user can see the fallback happened. */
     candidate = rhi_pick_backend();
-    if (!candidate || !candidate->init)
-        return false;
-
-    if (!candidate->init()) {
-        /* Backend refused to initialize.  Future: fall back
-         * to the SW backend here, since its init is
-         * always trivially successful.  Phase 1 has only
-         * SW so a failure here is fatal. */
+    if (candidate && candidate->init && candidate->init()) {
+        g_rhi = candidate;
         if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi: %s backend init failed\n",
-                   candidate->name ? candidate->name : "(unnamed)");
-        return false;
+            log_cb(RETRO_LOG_INFO, "rhi: %s backend active\n", g_rhi->name);
+        return true;
     }
 
-    g_rhi = candidate;
+    if (candidate && candidate != &g_rhi_backend_sw) {
+        if (log_cb)
+            log_cb(RETRO_LOG_WARN,
+                   "rhi: %s backend init failed; falling back to software\n",
+                   candidate->name ? candidate->name : "(unnamed)");
+    }
+
+    if (g_rhi_backend_sw.init && g_rhi_backend_sw.init()) {
+        g_rhi = &g_rhi_backend_sw;
+        if (log_cb)
+            log_cb(RETRO_LOG_INFO, "rhi: software backend active\n");
+        return true;
+    }
+
     if (log_cb)
-        log_cb(RETRO_LOG_INFO, "rhi: %s backend active\n", g_rhi->name);
-    return true;
+        log_cb(RETRO_LOG_ERROR, "rhi: no backend stood up\n");
+    return false;
 }
 
 void

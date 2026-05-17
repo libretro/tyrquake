@@ -4,6 +4,7 @@ endif
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
 LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
 LIBOGG_DIR     = $(CORE_DIR)/deps/libogg
+VULKAN_DIR     = $(CORE_DIR)/deps/vulkan
 
 INCFLAGS   := \
 	-I$(CORE_DIR) \
@@ -12,6 +13,19 @@ INCFLAGS   := \
 
 ifneq (,$(findstring msvc2003,$(platform)))
 INCFLAGS += -I$(LIBRETRO_COMM_DIR)/include/compat/msvc
+endif
+
+# Vulkan renderer backend.  Off by default so the base build
+# has no dependency on vendored Vulkan headers.  Enable with
+# `make RHI_HAVE_VULKAN=1`; the headers must be vendored under
+# deps/vulkan/include/ (see deps/vulkan/README.md for what
+# goes there and where to fetch from).  When unset, the
+# backend_vulkan.c TU still compiles but its init() returns
+# false unconditionally so the active backend stays software.
+RHI_HAVE_VULKAN ?= 0
+ifeq ($(RHI_HAVE_VULKAN), 1)
+CFLAGS  += -DRHI_HAVE_VULKAN
+INCFLAGS += -I$(VULKAN_DIR)/include
 endif
 
 SOURCES_C :=  \
@@ -70,6 +84,7 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/rb_tree.c \
 	$(CORE_DIR)/common/rhi.c \
 	$(CORE_DIR)/common/backend_sw.c \
+	$(CORE_DIR)/common/backend_vulkan.c \
 	$(CORE_DIR)/common/sbar.c \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
