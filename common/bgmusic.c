@@ -451,7 +451,20 @@ void BGM_Update (void)
 {
 	if (old_volume != bgmvolume.value)
 	{
-		if (bgmvolume.value < 0)
+		/* NaN compared to any number is false, so the bare
+		 * '<0' / '>1' tests both miss it -- a user setting
+		 * 'bgmvolume nan' from the console lands here every
+		 * frame ('old_volume != bgmvolume.value' fires because
+		 * NaN != X is always true), neither branch triggers,
+		 * and old_volume is then stamped to NaN as well so the
+		 * cvar never gets reset. Worse, BGM_UpdateStream's
+		 * '<= 0' early-return also misses NaN and S_RawSamples
+		 * ends up evaluating (int)(256 * NaN), which is UB
+		 * (typically INT_MIN on x86) and corrupts the music mix.
+		 * Treat NaN the same as a negative value -- clamp to 0
+		 * -- so the cvar gets sanitised back to a usable range
+		 * on the next BGM_Update tick. */
+		if (IS_NAN(bgmvolume.value) || bgmvolume.value < 0)
 			Cvar_Set ("bgmvolume", "0");
 		else if (bgmvolume.value > 1)
 			Cvar_Set ("bgmvolume", "1");
