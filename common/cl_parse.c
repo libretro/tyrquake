@@ -332,7 +332,7 @@ CL_ParseServerInfo(void)
     if (!Protocol_Known(i))
     {
        Con_Printf("Server returned unknown protocol version %i\n", i);
-       return;
+       goto done;
     }
     cl.protocol = i;
 
@@ -341,7 +341,7 @@ CL_ParseServerInfo(void)
     if (cl.maxclients < 1 || cl.maxclients > MAX_SCOREBOARD)
     {
        Con_Printf("Bad maxclients (%u) from server\n", cl.maxclients);
-       return;
+       goto done;
     }
     cl.players = (player_info_t*)Hunk_Alloc(cl.maxclients * sizeof(*cl.players));
 
@@ -372,6 +372,19 @@ CL_ParseServerInfo(void)
           break;
        if (nummodels == max_models(cl.protocol))
        {
+          /* Host_Error longjmps out of this function and the
+           * locals go away with the stack frame, so the cleanup
+           * at done: never runs.  Free the per-call buffers
+           * here before we hand off.  Returning afterwards is
+           * defensive -- Host_Error doesn't return in practice
+           * but if that ever changes we still want to fall
+           * through the cleanup. */
+          for (i = 0; i < MAX_MODELS; i++)
+             free(model_precache[i]);
+          free(model_precache);
+          for (i = 0; i < MAX_SOUNDS; i++)
+             free(sound_precache[i]);
+          free(sound_precache);
           Host_Error("Server sent too many model precaches (max = %d)",
                 max_models(cl.protocol));
           return;
@@ -389,6 +402,14 @@ CL_ParseServerInfo(void)
           break;
        if (numsounds == max_sounds(cl.protocol))
        {
+          /* Same longjmp/stack-frame issue as the model-precache
+           * Host_Error above: clean up before handing off. */
+          for (i = 0; i < MAX_MODELS; i++)
+             free(model_precache[i]);
+          free(model_precache);
+          for (i = 0; i < MAX_SOUNDS; i++)
+             free(sound_precache[i]);
+          free(sound_precache);
           Host_Error("Server sent too many sound precaches (max = %d)",
                 max_sounds(cl.protocol));
           return;
@@ -411,7 +432,7 @@ CL_ParseServerInfo(void)
        if (cl.model_precache[i] == NULL)
        {
           Con_Printf("Model %s not found\n", model_precache[i]);
-          return;
+          goto done;
        }
        CL_KeepaliveMessage();
     }
@@ -436,6 +457,7 @@ CL_ParseServerInfo(void)
     /* noclip is turned off at start */
     noclip_anglehack = false;
 
+done:
     for (i = 0; i < MAX_MODELS; i++)
        free(model_precache[i]);
     free(model_precache);
