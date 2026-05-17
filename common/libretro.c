@@ -1422,6 +1422,28 @@ void VID_Update(vrect_t *rects)
    if (!video_cb || !rects || did_flip)
       return;
 
+   /* When a HW backend is active, the SW pixel buffer
+    * (vid.buffer) is not the source of truth -- the active
+    * backend is rendering through its own command stream
+    * and will call video_cb with RETRO_HW_FRAME_BUFFER_VALID
+    * from its own end_frame.  Palette-converting stale
+    * vid.buffer contents here and pushing them to video_cb
+    * would either fight the HW backend for the video output
+    * (interleaved SW + HW frames) or simply present
+    * unrelated SW frames that the user never asked for.
+    * Bail out of the SW present path and let the HW
+    * backend own the video callback.
+    *
+    * Phase 3b: HW backends do not yet call video_cb either,
+    * so the frontend's frame-dupe path takes over (the
+    * 'if (!did_flip)' check in retro_run does
+    * video_cb(NULL, ...)).  This produces a frozen frame
+    * while Vulkan is active -- expected for the current
+    * phase; Phase 3c lands the actual HW-backed frame
+    * delivery and the frozen behaviour resolves. */
+   if (g_rhi && g_rhi->kind != RHI_BACKEND_SOFTWARE)
+      return;
+
    /* Palette-convert our 8bpp framebuffer into the 16bpp finalimage
     * buffer and hand that to video_cb. We deliberately do NOT use
     * RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER: the renderer
