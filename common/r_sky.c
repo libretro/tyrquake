@@ -57,7 +57,13 @@ void
 R_SetSkyFrame(void)
 {
     int g, s1, s2;
-    float temp;
+    /* 'temp' is the modulus we wrap cl.time against. Keep it (and the
+     * mod-then-multiply chain) in double so cl.time-derived inputs
+     * keep full precision regardless of how long the engine has been
+     * running; the final result is bounded below temp, so the cast
+     * to fp32 for skytime storage is exact. Same antipattern as
+     * V_CalcBob's bob-cycle math fixed earlier in the series. */
+    double temp;
 
     skyspeed = iskyspeed;
     skyspeed2 = iskyspeed2;
@@ -67,5 +73,5 @@ R_SetSkyFrame(void)
     s2 = iskyspeed2 / g;
     temp = SKYSIZE * s1 * s2;
 
-    skytime = cl.time - ((int)(cl.time / temp) * temp);
+    skytime = (float)(cl.time - ((int)(cl.time / temp) * temp));
 }
