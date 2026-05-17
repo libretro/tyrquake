@@ -116,63 +116,54 @@
  *     compute work -- HDR tonemap, post-process,
  *     compute-based rasterizer -- will reuse.
  *
- * Phase 4j (this file's current state): the overlay grows
- * from one hardcoded textured quad into a real-shaped
- * texture cache plus a per-frame draw list of arbitrary
- * quads.  The single vk_overlay_test_texture becomes
- * vk_overlay_slots[OVERLAY_SLOT_MAX], each slot holding
- * its own image / memory / view / descriptor set + width
- * / height; vk_overlay_descriptor_set becomes per-slot.
- * The demo writes three slots at create_resources end
- * with distinct test pics (32x32 full-palette grid,
- * 16x16 single-colour fill, 8x32 vertical gradient) and
- * draws three quads referencing those slots, exercising:
+ * Phase 4k (this file's current state): the overlay's hard-
+ * coded test pics give way to a real Draw_Pic intercept.
  *
- *   - Variable-size pic uploads (different w / h per
- *     slot; the upload helper handles any reasonable
- *     dimensions).
- *   - Per-slot descriptor sets allocated from the
- *     resized pool (was sized for 2 sets at Phase 4i,
- *     now sized for 1 + OVERLAY_SLOT_MAX).
- *   - Per-frame draw loop in record_frame: bind each
- *     slot's descriptor set, draw 4 verts from the
- *     packed vertex buffer at the right firstVertex.
- *   - Batched one-shot uploads: backend_vk_begin_uploads
- *     opens a recording on vk_cmd_buffer,
- *     backend_vk_upload_pic_slot appends barriers +
- *     CmdCopyBufferToImage per pic into the same buffer
- *     (each pic writes to its own offset in
- *     vk_staging_buffer), backend_vk_end_uploads closes
- *     + submits + waits once for the whole batch.
+ *   - struct overlay_slot grows a `const void *key`
+ *     field used as the cache key; backend_vk_queue_2d_pic
+ *     does a linear scan over the slot array looking for
+ *     a slot whose key == pic, and on miss finds the
+ *     first empty slot and uploads pic->data into it via
+ *     the existing begin_uploads / upload_pic_slot /
+ *     end_uploads trio.  Once the slot is populated (or
+ *     was already cached) the function appends an entry
+ *     to vk_overlay_draws with NDC corners converted
+ *     from Quake's vid.width / vid.height screen space.
  *
- * Why now:
+ *   - The render_backend_t vtable grows a queue_2d_pic
+ *     pointer (rhi.h).  Software backend leaves it NULL
+ *     (falls through to vid.buffer memcpy); Vulkan
+ *     backend points it at backend_vk_queue_2d_pic.
  *
- *   - All of these are infrastructure Phase 4k needs for
- *     the first real Draw_Pic intercept (texture cache
- *     populated dynamically per qpic_t encountered, per-
- *     frame draw list filled from the intercept's queued
- *     quads).  Phase 4j exercises every piece with
- *     hardcoded inputs; Phase 4k just changes the inputs.
+ *   - draw.c's Draw_Pic gains a one-liner that fires
+ *     g_rhi->queue_2d_pic if the backend implements it,
+ *     before the original SW memcpy runs.  Phase 4k
+ *     deliberately keeps the SW path -- Vulkan overlay
+ *     and SW HUD render the same pic at the same screen
+ *     position, the Vulkan one paints on top of the
+ *     compute-uploaded SW HUD, and they overlap pixel-
+ *     perfectly.  Phase 4l suppresses the SW path when
+ *     the Vulkan intercept is active.
  *
- *   - Validating the multi-quad path with hardcoded data
- *     keeps the bisect window clean: if Phase 4k breaks,
- *     we know it's the Quake-side hookup, not the
- *     Vulkan-side texture cache or draw loop.
+ *   - vk_overlay_draws is filled per-frame instead of
+ *     once at create_resources: backend_vk_record_frame
+ *     calls a new backend_vk_fill_overlay_vb at the
+ *     start of its overlay work (filling the vertex
+ *     buffer from whatever Draw_Pic queued during
+ *     retro_run), and resets vk_overlay_draw_count to
+ *     zero at the end of record_frame (ready for the
+ *     next frame's queue).  The three hardcoded demo
+ *     quads from Phase 4j are gone; the visible
+ *     overlay is now whatever Quake actually draws.
  *
- * What's unchanged from Phase 4i:
+ * Uploads are synchronous (begin_uploads /
+ * upload_pic_slot / end_uploads inside queue_2d_pic).
+ * First frame after a level load may stall briefly
+ * while ~50 HUD pics get uploaded; steady state hits
+ * the cache and only queues draws.  Phase 4m+ can batch
+ * uploads with a fence-based ring if needed.
  *
- *   - Compute palette LUT path (Phase 4g).
- *   - Overlay render pass + framebuffer + pipeline
- *     (Phase 4h shape with Phase 4i shaders).
- *   - Subpass dependency synchronising compute writes
- *     to colour-attachment access.
- *   - Shaders themselves -- overlay_quad.vert / .frag
- *     are byte-identical to Phase 4i; the FS still
- *     samples u_index + u_palette and outputs opaque
- *     RGB.  Each per-slot descriptor set just points
- *     binding 0 at a different image view.
- *
- * Phase 4k..N -- Quake-side hookup: intercept Draw_Pic
+ * Phase 4l..N -- suppress SW HUD; intercept Draw_Character,
  *     models, sprites, sky, liquids, shadows; palette +
  *     colormap LUT path; dynamic lightmap update; etc.
  *     R_RenderView's dispatch from backend_vk_draw_view
@@ -308,6 +299,8 @@ struct overlay_slot {
     VkDescriptorSet descriptor_set;
     unsigned        width;
     unsigned        height;
+    const void     *key;     /* cache key: qpic_t pointer the slot caches;
+                              * NULL == unpopulated */
 };
 
 struct overlay_draw {
@@ -1934,94 +1927,14 @@ backend_vk_create_resources(void)
      * implicit reset that vkBeginCommandBuffer does when the
      * pool was created with RESET_COMMAND_BUFFER_BIT. */
 
-    /* ---------------------------------------------------------
-     * Phase 4j: populate the demo slots and draw list.
-     *
-     * Three distinct test pics exercise variable-size
-     * uploads (32x32 + 16x16 + 8x32) and per-slot
-     * descriptor sets.  The three quads are placed side
-     * by side in the upper-left corner so a glance
-     * confirms all three slot uploads + draws + descriptor
-     * binds work; the palette grid in slot 0 also
-     * demonstrates that palette shifts propagate through
-     * the shared vk_palette_texture, same as for the
-     * Phase 4i single-quad version. */
-    {
-        uint8_t  pic0[32 * 32];   /* 16x16 palette grid, 2x2 pixels per cell */
-        uint8_t  pic1[16 * 16];   /* uniform palette index 79 (yellow-orange) */
-        uint8_t  pic2[ 8 * 32];   /* vertical gradient: row i -> index i*8 */
-        unsigned i, j;
-
-        for (i = 0; i < 32; i++)
-            for (j = 0; j < 32; j++)
-                pic0[i * 32 + j] = (uint8_t)((i / 2) * 16 + (j / 2));
-
-        for (i = 0; i < 16 * 16; i++)
-            pic1[i] = 79;
-
-        for (i = 0; i < 32; i++)
-            for (j = 0; j < 8; j++)
-                pic2[i * 8 + j] = (uint8_t)(i * 8);
-
-        if (!backend_vk_begin_uploads()) return false;
-        if (!backend_vk_upload_pic_slot(0, 32, 32, pic0)) return false;
-        if (!backend_vk_upload_pic_slot(1, 16, 16, pic1)) return false;
-        if (!backend_vk_upload_pic_slot(2,  8, 32, pic2)) return false;
-        if (!backend_vk_end_uploads())   return false;
-    }
-
-    /* Draw list: three quads in a row in the upper-left.
-     * NDC coordinates (Vulkan NDC y is negative upward):
-     *   slot 0: (-0.95, -0.95) -> (-0.70, -0.70)  square
-     *   slot 1: (-0.65, -0.95) -> (-0.50, -0.85)  short
-     *   slot 2: (-0.45, -0.95) -> (-0.40, -0.70)  tall thin
-     * The quads' aspect ratios deliberately don't match
-     * their textures' aspect ratios -- texture sampling
-     * stretches each pic to fill its quad, which is what
-     * Quake's Draw_Pic does too. */
-    vk_overlay_draws[0].slot_idx = 0;
-    vk_overlay_draws[0].x0 = -0.95f; vk_overlay_draws[0].y0 = -0.95f;
-    vk_overlay_draws[0].x1 = -0.70f; vk_overlay_draws[0].y1 = -0.70f;
-    vk_overlay_draws[1].slot_idx = 1;
-    vk_overlay_draws[1].x0 = -0.65f; vk_overlay_draws[1].y0 = -0.95f;
-    vk_overlay_draws[1].x1 = -0.50f; vk_overlay_draws[1].y1 = -0.85f;
-    vk_overlay_draws[2].slot_idx = 2;
-    vk_overlay_draws[2].x0 = -0.45f; vk_overlay_draws[2].y0 = -0.95f;
-    vk_overlay_draws[2].x1 = -0.40f; vk_overlay_draws[2].y1 = -0.70f;
-    vk_overlay_draw_count = 3;
-
-    /* Populate the vertex buffer from the draw list.  For
-     * Phase 4j the draws don't change after this point,
-     * so we fill once and reuse every frame; Phase 4k
-     * will move this fill into record_frame and call it
-     * once per frame after Draw_Pic intercept populates
-     * the list. */
-    {
-        float *dst = (float *)vk_overlay_vertex_ptr;
-        unsigned di;
-        for (di = 0; di < vk_overlay_draw_count; di++) {
-            const struct overlay_draw *d = &vk_overlay_draws[di];
-            /* strip winding (Phase 4i comments stand):
-             *   v0 bottom-left   (x0, y1, 0, 1)
-             *   v1 bottom-right  (x1, y1, 1, 1)
-             *   v2 top-left      (x0, y0, 0, 0)
-             *   v3 top-right     (x1, y0, 1, 0) */
-            dst[ 0] = d->x0; dst[ 1] = d->y1; dst[ 2] = 0.0f; dst[ 3] = 1.0f;
-            dst[ 4] = d->x1; dst[ 5] = d->y1; dst[ 6] = 1.0f; dst[ 7] = 1.0f;
-            dst[ 8] = d->x0; dst[ 9] = d->y0; dst[10] = 0.0f; dst[11] = 0.0f;
-            dst[12] = d->x1; dst[13] = d->y0; dst[14] = 1.0f; dst[15] = 0.0f;
-            dst += 16;
-        }
-    }
 
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
                "rhi-vk: render target %ux%u + R8 index + 256x1 palette + "
-               "staging %llu bytes ready; compute palette LUT + %u-quad textured overlay active\n",
+               "staging %llu bytes ready; compute palette LUT + Draw_Pic intercept active\n",
                width, height,
-               (unsigned long long)vk_staging_size,
-               vk_overlay_draw_count);
+               (unsigned long long)vk_staging_size);
     return true;
 }
 
@@ -2178,6 +2091,7 @@ backend_vk_destroy_resources(void)
             slot->descriptor_set = VK_NULL_HANDLE;
             slot->width          = 0;
             slot->height         = 0;
+            slot->key            = NULL;
         }
         vk_overlay_draw_count    = 0;
         vk_overlay_upload_offset = 0;
@@ -2415,7 +2329,181 @@ backend_vk_context_destroy(void)
         log_cb(RETRO_LOG_INFO, "rhi-vk: context destroyed\n");
 }
 
+/*
+ * Per-frame: walk vk_overlay_draws and write 4 vertices
+ * per entry into vk_overlay_vertex_buffer.  Phase 4j used
+ * to fill this once at create_resources; Phase 4k moves
+ * the fill here so the draw list can change per frame
+ * (which it will, now that backend_vk_queue_2d_pic
+ * populates it from Draw_Pic intercepts during retro_run).
+ *
+ * Buffer is HOST_VISIBLE + HOST_COHERENT and persistently
+ * mapped (vk_overlay_vertex_ptr), so the write is just
+ * memory; no flush required.  Strip winding is the same
+ * as in Phase 4i: v0 bottom-left, v1 bottom-right, v2
+ * top-left, v3 top-right, four floats per vertex
+ * (pos.x pos.y u v).
+ */
+static void
+backend_vk_fill_overlay_vb(void)
+{
+    float   *dst = (float *)vk_overlay_vertex_ptr;
+    unsigned di;
+
+    for (di = 0; di < vk_overlay_draw_count; di++) {
+        const struct overlay_draw *d = &vk_overlay_draws[di];
+        dst[ 0] = d->x0; dst[ 1] = d->y1; dst[ 2] = 0.0f; dst[ 3] = 1.0f;
+        dst[ 4] = d->x1; dst[ 5] = d->y1; dst[ 6] = 1.0f; dst[ 7] = 1.0f;
+        dst[ 8] = d->x0; dst[ 9] = d->y0; dst[10] = 0.0f; dst[11] = 0.0f;
+        dst[12] = d->x1; dst[13] = d->y0; dst[14] = 1.0f; dst[15] = 0.0f;
+        dst += 16;
+    }
+}
+
+/*
+ * backend_vk_queue_2d_pic -- the Phase 4k Draw_Pic
+ * intercept body.
+ *
+ * Wired up to render_backend_t::queue_2d_pic and called
+ * from common/draw.c::Draw_Pic before the SW
+ * memcpy-into-vid.buffer path runs.  Caches the pic in
+ * vk_overlay_slots (linear-scan lookup by qpic_t pointer)
+ * and appends an entry to vk_overlay_draws for
+ * record_frame to consume at end-of-frame.  Uploads on
+ * cache miss are synchronous (begin_uploads /
+ * upload_pic_slot / end_uploads -- the helper trio
+ * QueueWaitIdles); a level load's worth of new pics will
+ * cost one slow frame, then steady state hits the cache.
+ *
+ * Silently no-ops if resources aren't ready (the
+ * intercept can fire before create_resources finishes if
+ * a draw happens during init), if pic is NULL, or if the
+ * cache / draw list is full (no eviction yet -- Phase 4l
+ * adds invalidation hooks if it turns out to be needed).
+ *
+ * Coordinate conversion: Quake screen space goes
+ * (0..vid.width, 0..vid.height) with y = 0 at the top of
+ * the framebuffer.  Vulkan NDC goes (-1..+1) with y = -1
+ * at the top of the framebuffer (because the compute
+ * output samples vid.buffer with v = 0 at top and writes
+ * to render-target y = 0 at top, then the swapchain
+ * presents y = 0 as the top of the window).  So the
+ * conversion is a plain rescale:
+ *
+ *   ndc = 2 * screen / extent - 1
+ *
+ * with no flips on either axis.
+ */
+static void
+backend_vk_queue_2d_pic(int x, int y, const qpic_t *pic)
+{
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+    int                  pw, ph;
+
+    if (!vk_resources_ready || !pic)
+        return;
+
+    pw = pic->width;
+    ph = pic->height;
+    if (pw <= 0 || ph <= 0)
+        return;
+
+    /* Cache lookup: linear scan over populated slots.
+     * The qpic_t pointer is the key.  Slots with
+     * key == NULL are empty.  OVERLAY_SLOT_MAX is small
+     * enough (128) that the scan is microseconds even
+     * called many times per frame. */
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == (const void *)pic) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        /* Cache miss: find the first empty slot and
+         * upload pic->data there.  Empty == key NULL
+         * AND image VK_NULL_HANDLE (defensive double-
+         * check: a freshly-created slot has both, a
+         * torn-down slot has both, and we never zero
+         * one without the other). */
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX) {
+            /* Cache full.  Drop the draw silently --
+             * Phase 4k has no eviction policy; if Lib
+             * hits this in practice, Phase 4l adds one
+             * (LRU is the obvious choice).  The SW
+             * path still runs in Draw_Pic, so the user
+             * sees the pic via the compute upload --
+             * just not the crisp Vulkan-overlay copy. */
+            return;
+        }
+
+        if (!backend_vk_begin_uploads())
+            return;
+        if (!backend_vk_upload_pic_slot(slot_idx,
+                                        (unsigned)pw, (unsigned)ph,
+                                        pic->data)) {
+            /* upload_pic_slot may have partially
+             * populated the slot; clear the key so
+             * the next lookup treats it as empty
+             * (the partially-created image / memory
+             * / view get torn down at
+             * destroy_resources time via the slot
+             * loop, gated on each handle being
+             * non-null). */
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        if (!backend_vk_end_uploads()) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        vk_overlay_slots[slot_idx].key = (const void *)pic;
+    }
+
+    /* Append a draw entry.  Drop silently if the draw
+     * list is full -- Phase 4k caps at OVERLAY_DRAW_MAX
+     * (256), which is enough for the HUD + a typical
+     * menu; busier scenes (multi-line console with
+     * dozens of characters) will need a larger cap or
+     * Phase 4l's character-glyph batching. */
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = (float)(2.0  * (double)x        / (double)width  - 1.0);
+    draw->y0       = (float)(2.0  * (double)y        / (double)height - 1.0);
+    draw->x1       = (float)(2.0  * (double)(x + pw) / (double)width  - 1.0);
+    draw->y1       = (float)(2.0  * (double)(y + ph) / (double)height - 1.0);
+}
 #endif /* RHI_HAVE_VULKAN */
+
+/*
+ * Vtable entry point for queue_2d_pic.  Lives outside the
+ * RHI_HAVE_VULKAN block so the symbol is always defined
+ * (the vtable references it unconditionally; the body
+ * is a no-op in the SW-only build).
+ */
+static void
+backend_vk_queue_2d_pic_entry(int x, int y, const qpic_t *pic)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_pic(x, y, pic);
+#else
+    (void)x; (void)y; (void)pic;
+#endif
+}
 
 static void
 backend_vk_shutdown(void)
@@ -2762,6 +2850,17 @@ backend_vk_record_frame(void)
     rpbi.clearValueCount          = 0;
     rpbi.pClearValues             = NULL;
 
+    /* Phase 4k: write the vertex buffer from the draw
+     * list Draw_Pic intercepts populated during retro_run.
+     * Phase 4j had this fill happen once at create_
+     * resources; moving it here lets the draw list change
+     * each frame.  Safe to call with vk_overlay_draw_count
+     * == 0 (the loop simply does nothing and the per-
+     * frame CmdDraw count below stays zero too -- the
+     * render pass still runs but draws nothing, which is
+     * cheap). */
+    backend_vk_fill_overlay_vb();
+
     vk_fn.CmdBeginRenderPass(vk_cmd_buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     vk_fn.CmdBindPipeline(vk_cmd_buffer,
                           VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2801,6 +2900,14 @@ backend_vk_record_frame(void)
             log_cb(RETRO_LOG_ERROR, "rhi-vk: EndCommandBuffer failed (%d)\n", (int)r);
         return false;
     }
+
+    /* Phase 4k: reset the draw list now that the command
+     * buffer has captured everything it needs.  The next
+     * frame's retro_run will populate it from scratch via
+     * Draw_Pic intercepts.  Slot data stays put -- only
+     * the per-frame queue resets; the cache lives until
+     * destroy_resources. */
+    vk_overlay_draw_count = 0;
 
     return true;
 }
@@ -2884,5 +2991,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_shutdown,
     backend_vk_begin_frame,
     backend_vk_draw_view,
-    backend_vk_end_frame
+    backend_vk_end_frame,
+    backend_vk_queue_2d_pic_entry
 };

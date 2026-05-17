@@ -27,6 +27,7 @@
 
 #include "qtypes.h"
 #include "render.h"   /* for refdef_t */
+#include "wad.h"      /* for qpic_t (queue_2d_pic) */
 
 typedef enum {
     RHI_BACKEND_NONE = 0,
@@ -56,6 +57,22 @@ typedef struct render_backend_s {
     void     (*begin_frame)(void);
     void     (*draw_view)(const refdef_t *rd);
     void     (*end_frame)(void);
+
+    /* 2D pic intercept (Phase 4k).  Backends that render HUD /
+     * menu pics natively populate this; SW backend leaves it
+     * NULL and Draw_Pic falls through to its original
+     * memcpy-into-vid.buffer path.  When non-NULL the call
+     * runs in _addition_ to the SW path -- Phase 4k double-
+     * renders (pixel-perfect overlap, so it looks normal);
+     * Phase 4l suppresses the SW path when the intercept is
+     * active.
+     *
+     * x, y are in vid.width / vid.height screen-space (the
+     * same coordinates Draw_Pic gets); the backend converts
+     * to NDC internally.  pic->width / pic->height define
+     * the rectangle, pic->data is width*height bytes of
+     * palette indices. */
+    void     (*queue_2d_pic)(int x, int y, const qpic_t *pic);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

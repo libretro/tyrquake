@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_iface.h"
 #include "draw.h"
 #include "quakedef.h"
+#include "rhi.h"
 #include "sys.h"
 #include "vid.h"
 #include "view.h"
@@ -382,6 +383,17 @@ void Draw_Pic(int x, int y, const qpic_t *pic)
    if (x < 0 || x + pic->width > vid.width ||
          y < 0 || y + pic->height > vid.height)
       Sys_Error("%s: bad coordinates", __func__);
+
+   /* Phase 4k: forward to the active RHI backend's 2D
+    * intercept if it implements one (Vulkan backend does;
+    * SW leaves the slot NULL).  The SW memcpy below
+    * still runs unconditionally for Phase 4k -- the
+    * Vulkan overlay and the compute-uploaded SW HUD
+    * render at the same screen position pixel-perfectly,
+    * so they overlap rather than collide.  Phase 4l will
+    * suppress the SW path when the intercept is active. */
+   if (g_rhi && g_rhi->queue_2d_pic)
+      g_rhi->queue_2d_pic(x, y, pic);
 
    source = pic->data;
 
