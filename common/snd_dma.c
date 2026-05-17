@@ -714,9 +714,26 @@ static void S_Update_(void)
     * paintedtime ever wraps past INT_MAX those
     * comparisons start lying.  At 44.1kHz that's a
     * little over 13.5 hours of continuous playback,
-    * so this branch is mostly insurance. */
+    * so this branch is mostly insurance.
+    *
+    * Reset s_rawend at the same time as paintedtime
+    * for the same reason: s_rawend is a sample-pair
+    * counter that the music-mixing path compares with
+    * paintedtime ('if (s_rawend >= paintedtime)' in
+    * S_PaintChannels). S_StopAllSounds clears
+    * channels[] but not s_rawend, so if we only chop
+    * paintedtime back to 0 the mixer keeps thinking
+    * there's ~1 billion samples of music queued
+    * ahead and walks the (now-stale) s_rawsamples
+    * ring buffer cyclically until paintedtime catches
+    * back up -- ~7 h of audible garbage at 44.1kHz
+    * after every reset cycle. Reset both together so
+    * the music path's guard (line ~204 of snd_mix.c)
+    * sees s_rawend == paintedtime == 0 and emits no
+    * frames until new music data arrives. */
    if (paintedtime > 0x40000000) {
       paintedtime = 0;
+      s_rawend    = 0;
       S_StopAllSounds(true);
    }
 
