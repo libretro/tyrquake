@@ -1039,7 +1039,7 @@ R_DrawEntitiesOnList(void)
 		lighting.plightvec = lightvec;
 
 		for (lnum = 0; lnum < MAX_DLIGHTS; lnum++) {
-		    if (cl_dlights[lnum].die >= cl.time) {
+		    if (cl_dlights[lnum].die > 0) {
 			VectorSubtract(e->origin, cl_dlights[lnum].origin,
 				       dist);
 			add = cl_dlights[lnum].radius - Length(dist);
