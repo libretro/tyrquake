@@ -884,7 +884,13 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
    }
 
    if (r_lerpmodels.value) {
-      float delta, time, blend;
+      float delta, blend;
+      /* 'time' is the running cl.time-derived cursor for the inner
+       * pose-interval lerp below; keep it in double so we can mod
+       * against the (small) fullinterval without losing precision
+       * once cl.time grows. The later assignments narrow it back
+       * to a small bounded value (targettime, < fullinterval). */
+      double time;
 
       /* A few quick sanity checks to abort lerping */
       if (e->currentframetime < e->previousframetime)
@@ -901,7 +907,7 @@ R_AliasSetupFrame(entity_t *e, aliashdr_t *pahdr)
          float fullinterval, targettime;
          fullinterval = intervals[numposes - 1];
          time = cl.time + e->syncbase;
-         targettime = time - (int)(time / fullinterval) * fullinterval;
+         targettime = (float)(time - (int)(time / fullinterval) * fullinterval);
          for (i = 0; i < numposes - 1; i++)
             if (intervals[i] > targettime)
                break;

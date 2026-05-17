@@ -260,7 +260,7 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
 Mod_GetSpriteFrame
 ==================
 */
-mspriteframe_t *Mod_GetSpriteFrame(const entity_t *e, msprite_t *psprite, float time)
+mspriteframe_t *Mod_GetSpriteFrame(const entity_t *e, msprite_t *psprite, double time)
 {
    mspriteframe_t *pspriteframe;
    int i;
@@ -283,7 +283,11 @@ mspriteframe_t *Mod_GetSpriteFrame(const entity_t *e, msprite_t *psprite, float 
 
       /* when loading in Mod_LoadSpriteGroup, we guaranteed all interval */
       /* values are positive, so we don't have to worry about division by 0 */
-      float targettime             = time - ((int)(time / fullinterval)) * fullinterval;
+      /* Compute (time mod fullinterval) in double so cl.time-derived */
+      /* inputs keep full precision regardless of how long the engine */
+      /* has been running, then cast the bounded result (< fullinterval) */
+      /* to float for the comparison loop against the interval table. */
+      float targettime             = (float)(time - ((int)(time / fullinterval)) * fullinterval);
 
       for (i = 0; i < (numframes - 1); i++)
       {

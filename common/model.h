@@ -528,8 +528,8 @@ void Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod,
 void Mod_LoadSpriteModel(model_t *mod, void *buffer);
 
 mspriteframe_t *Mod_GetSpriteFrame(const struct entity_s *e,
-				   msprite_t *psprite, float time);
+				   msprite_t *psprite, double time);
 
-int Mod_FindInterval(const float *intervals, int numintervals, float time);
+int Mod_FindInterval(const float *intervals, int numintervals, double time);
 
 #endif /* MODEL_H */
