@@ -318,7 +318,13 @@ void retro_set_rumble_touch(unsigned intensity, float duration)
  * frontend's log rather than Quake's in-game console.  Same
  * extern convention as environ_cb below. */
 retro_log_printf_t log_cb;
-static retro_video_refresh_t video_cb;
+/* video_cb is non-static so HW backends (backend_vulkan.c) can
+ * call it directly from their end_frame with
+ * RETRO_HW_FRAME_BUFFER_VALID -- the frontend reads the HW
+ * image set via the per-API interface, so the core just needs
+ * to signal "frame ready" through the usual video callback.
+ * Same extern convention as environ_cb / log_cb. */
+retro_video_refresh_t video_cb;
 /* per-sample audio_cb is required by the libretro
  * API but never invoked: this core only ever uses
  * the batch callback (audio_batch_cb).  See
@@ -945,7 +951,11 @@ byte* surfcache;
 
 static void audio_step(void);
 
-static bool did_flip;
+/* did_flip is non-static so HW backends (backend_vulkan.c) can
+ * set it from their end_frame after handing a frame to the
+ * frontend via video_cb(RETRO_HW_FRAME_BUFFER_VALID, ...) --
+ * suppresses the dupe-last-frame path below in retro_run. */
+bool did_flip;
 
 void retro_run(void)
 {
@@ -973,6 +983,19 @@ void retro_run(void)
 
    if (shutdown_core)
       return;
+
+   /* HW backends present their frame here.  draw_view (called
+    * during Host_Frame's SCR_UpdateScreen) recorded the per-
+    * frame commands; end_frame submits them and hands the
+    * resulting image to the frontend via the per-API
+    * interface's set_image + a video_cb call with
+    * RETRO_HW_FRAME_BUFFER_VALID.  end_frame is responsible
+    * for setting did_flip so the dupe path below is
+    * suppressed.  The SW backend's end_frame is a no-op;
+    * its present path runs inside VID_Update earlier in
+    * SCR_UpdateScreen. */
+   if (g_rhi && g_rhi->kind != RHI_BACKEND_SOFTWARE && g_rhi->end_frame)
+      g_rhi->end_frame();
 
    if (!did_flip)
       video_cb(NULL, width, height, width << 1); /* dupe */
