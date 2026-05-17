@@ -822,7 +822,7 @@ Sbar_DrawFace(void)
     else
 	f = cl.stats[STAT_HEALTH] / 20;
 
-    if (cl.time <= cl.faceanimtime) {
+    if (cl.faceanimtime > 0) {
 	anim = 1;
 	sb_updates = 0;		/* make sure the anim gets drawn over */
     } else

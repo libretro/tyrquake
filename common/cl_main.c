@@ -773,6 +773,19 @@ int CL_ReadFromServer(void)
    cl.oldtime = cl.time;
    cl.time += host_frametime;
 
+   /* Age client-side countdown timers in lockstep with cl.time so
+    * their fp32 storage stays bounded (was previously a cl.time or
+    * realtime snapshot, which loses precision once those grow):
+    *   - faceanimtime: down-counter, remaining sbar pain-frame
+    *     duration. Goes negative once expired; readers check > 0.
+    *   - last_received_message: up-counter, elapsed since the last
+    *     server message arrived. Reset to 0 on receive (below).
+    *   - scr_centertime_start: up-counter, elapsed since the last
+    *     SCR_CenterPrint. Reset to 0 by SCR_CenterPrint. */
+   cl.faceanimtime          -= host_frametime;
+   cl.last_received_message += host_frametime;
+   scr_centertime_start     += host_frametime;
+
    do {
       ret = CL_GetMessage();
       if (ret == -1)
@@ -780,7 +793,7 @@ int CL_ReadFromServer(void)
       if (!ret)
          break;
 
-      cl.last_received_message = realtime;
+      cl.last_received_message = 0;
       CL_ParseServerMessage();
    } while (ret && cls.state >= ca_connected);
 

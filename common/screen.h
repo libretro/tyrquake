@@ -45,6 +45,7 @@ extern cvar_t scr_uiscale;
 
 extern float scr_con_current;
 extern float scr_centertime_off;
+extern float scr_centertime_start;
 extern int scr_fullupdate;	/* set to 0 to force full redraw */
 extern int clearnotify;		/* set to 0 whenever notify text is drawn */
 extern qboolean scr_disabled_for_loading;

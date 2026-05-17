@@ -143,7 +143,7 @@ typedef struct {
 /* information for local display */
     int stats[MAX_CL_STATS];	/* health, etc */
     float item_gettime[32];	/* cl.time of aquiring item, for blinking */
-    float faceanimtime;		/* use anim frame if cl.time < this */
+    float faceanimtime;		/* countdown: remaining sbar pain-frame duration (was: cl.time at which to stop showing); aged once per frame in CL_ReadFromServer */
 
     cshift_t cshifts[NUM_CSHIFTS];	/* color shifts for damage, powerups */
     cshift_t prev_cshifts[NUM_CSHIFTS];	/* and content types */
@@ -186,7 +186,7 @@ typedef struct {
     double oldtime;		/* previous cl.time, time-oldtime is used */
     /* to decay light values and smooth step ups */
 
-    float last_received_message;	/* (realtime) for net trouble icon */
+    float last_received_message;	/* (realtime-domain) elapsed since the last server message; aged once per frame in CL_ReadFromServer */
 
 /**/
 /* information that is static for the entire time connected to a server */

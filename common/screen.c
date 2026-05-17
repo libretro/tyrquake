@@ -119,7 +119,11 @@ static const qpic_t *scr_ram;
 static const qpic_t *scr_net;
 
 static char scr_centerstring[1024];
-static float scr_centertime_start;	/* for slow victory printing */
+/* Elapsed time since the most recent SCR_CenterPrint, in seconds.
+ * Aged once per frame in CL_ReadFromServer so the precision stays
+ * bounded even after long single-level engine times. Read by the
+ * cl.intermission slow-print branch in SCR_CheckDrawCenterString. */
+float scr_centertime_start;	/* for slow victory printing */
 float scr_centertime_off;
 static int scr_center_lines;
 static int scr_erase_lines;
@@ -177,7 +181,7 @@ SCR_DrawNet
 static void
 SCR_DrawNet(void)
 {
-   if (realtime - cl.last_received_message < 0.3)
+   if (cl.last_received_message < 0.3)
       return;
 
    if (cls.demoplayback)
@@ -276,7 +280,7 @@ SCR_CenterPrint(const char *str)
 {
    strlcpy(scr_centerstring, str, sizeof(scr_centerstring));
    scr_centertime_off = scr_centertime.value;
-   scr_centertime_start = cl.time;
+   scr_centertime_start = 0;
 
    /* count the number of lines for centering */
    scr_center_lines = 1;
@@ -335,7 +339,7 @@ SCR_DrawCenterString(void)
 /* the finale prints the characters one at a time */
     if (cl.intermission) {
 	float speed = scr_printspeed.value;
-	float dt    = cl.time - scr_centertime_start;
+	float dt    = scr_centertime_start;
 	/* (int)NaN and (int)Inf are UB; with a user-typeable
 	 * scr_printspeed cvar, NaN times any dt is NaN.  Clamp
 	 * the product to a sane range before casting. */
