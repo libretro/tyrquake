@@ -878,11 +878,36 @@ Mod_LoadLighting(lump_t *l)
 				i = LittleLong(((int *)data)[1]);
 				if (i == 1)
 				{
-					loadmodel->lightdata = data + 8;	
-					/* The .lit payload starts after the 8-byte
-					 * QLIT header. */
-					loadmodel->lightdatasize = com_filesize - 8;
-					return;
+					/* A .lit file is a sidecar replacement for the
+					 * BSP's grayscale lightdata lump: 1 byte per
+					 * sample in the BSP becomes 3 RGB bytes here.
+					 * If the payload size doesn't match the BSP's
+					 * expectation, individual lightofs values stored
+					 * in the BSP's surfaces still point inside the
+					 * .lit allocation (the per-surface bounds check
+					 * later in Mod_LoadFaces enforces that), but
+					 * they alias to the WRONG samples -- the .lit's
+					 * pixel layout is keyed to a particular BSP, so
+					 * a mismatched-size sidecar gives every surface
+					 * a deterministic-but-wrong RGB triplet. Visual
+					 * symptom is whole-room colour shifts that
+					 * don't bisect to any code change. Reject and
+					 * fall through to the grayscale->RGB expansion
+					 * of the BSP's own lightdata. */
+					if ((long long)com_filesize - 8
+					    != (long long)l->filelen * 3) {
+						Con_Printf("Mismatched .LIT file size "
+						           "(%i, expected %i), "
+						           "ignoring\n",
+						           com_filesize - 8,
+						           l->filelen * 3);
+					} else {
+						loadmodel->lightdata = data + 8;	
+						/* The .lit payload starts after the 8-byte
+						 * QLIT header. */
+						loadmodel->lightdatasize = com_filesize - 8;
+						return;
+					}
 				}
 				else
 					Con_Printf("Unknown .LIT file version (%d)\n", i);
