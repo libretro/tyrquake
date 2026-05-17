@@ -724,10 +724,27 @@ static void V_CalcViewRoll(void)
    r_refdef.viewangles[ROLL] += side;
 
    if (v_dmg_time > 0) {
-      r_refdef.viewangles[ROLL] +=
-         v_dmg_time / v_kicktime.value * v_dmg_roll;
-      r_refdef.viewangles[PITCH] +=
-         v_dmg_time / v_kicktime.value * v_dmg_pitch;
+      /* v_kicktime is a user cvar (default 0.5) controlling the
+       * decay time of the damage view kick. 'v_kicktime 0' from
+       * the console is a perfectly reasonable thing for a user
+       * to type if they want to disable the kick effect, and
+       * 'v_kicktime nan' is the same NaN reach we keep finding
+       * elsewhere (Q_atof / strtod accepts it). Either one turns
+       * 'v_dmg_time / kt' into +/-inf or NaN, which then lands
+       * directly in r_refdef.viewangles[ROLL/PITCH]. The
+       * downstream renderer eventually feeds those angles into
+       * an (int) cast (AngleVectors, screen transforms), which
+       * is UB on non-finite input. Treat <= 0 / NaN as "kick
+       * disabled" and skip the roll/pitch contribution; still
+       * decrement v_dmg_time and update the rumble so the rest
+       * of the block behaves as before. */
+      float kt = v_kicktime.value;
+      if (kt > 0.0f && !IS_NAN(kt)) {
+         r_refdef.viewangles[ROLL] +=
+            v_dmg_time / kt * v_dmg_roll;
+         r_refdef.viewangles[PITCH] +=
+            v_dmg_time / kt * v_dmg_pitch;
+      }
       v_dmg_time -= host_frametime;
 
       if (old_health > cl.stats[STAT_HEALTH])
