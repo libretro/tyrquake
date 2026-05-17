@@ -487,6 +487,15 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 	float scale;
 	int intVolume;
 
+	/* The per-format inner loops below exit on 'src = i*scale;
+	 * if (src >= samples) break;'. If scale ends up as 0 (rate
+	 * <= 0, which the WAV streaming parser now rejects, or
+	 * shm->speed somehow 0 from an early call), src stays at 0
+	 * forever and the loop spins indefinitely. Reject the bad
+	 * input here so no future codec gap reintroduces the hang. */
+	if (rate <= 0 || !shm || shm->speed <= 0)
+		return;
+
 	if (s_rawend < paintedtime)
 		s_rawend = paintedtime;
 
