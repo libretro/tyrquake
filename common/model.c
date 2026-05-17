@@ -1664,6 +1664,27 @@ Mod_LoadNodes_BSP29(lump_t *l)
 
       out->firstsurface = (uint16_t)LittleShort(in->firstface);
       out->numsurfaces = (uint16_t)LittleShort(in->numfaces);
+      /* firstsurface and numsurfaces are file-controlled
+       * 16-bit values, walked by the renderer as
+       *   surf = cl.worldmodel->surfaces + node->firstsurface;
+       *   for (count = node->numsurfaces; count; count--, surf++)
+       * (r_bsp.c R_RecursiveWorldNode, r_light.c lightmap walk).
+       * Out-of-range values let that loop read past the
+       * surfaces hunk allocation, dereferencing junk for
+       * surf->visframe / surf->clipflags.  Both fields are
+       * unsigned-narrowed at load (so individually <=
+       * 0xffff) but their sum can still exceed numsurfaces.
+       * Reject any node whose surface range walks past the
+       * end of the surfaces array.  Order: this runs after
+       * Mod_LoadFaces (which set loadmodel->numsurfaces), so
+       * the comparison is well-defined. */
+      if ((int)out->firstsurface > loadmodel->numsurfaces ||
+          (int)out->numsurfaces > loadmodel->numsurfaces - (int)out->firstsurface)
+         SV_Error("%s: bad node surface range (first=%u, num=%u; "
+                  "numsurfaces=%i) in %s",
+                  __func__, (unsigned)out->firstsurface,
+                  (unsigned)out->numsurfaces,
+                  loadmodel->numsurfaces, loadmodel->name);
 
       for (j = 0; j < 2; j++)
       {
@@ -1721,6 +1742,16 @@ static void Mod_LoadNodes_BSP2(lump_t *l)
 
       out->firstsurface = (uint32_t)LittleLong(in->firstface);
       out->numsurfaces = (uint32_t)LittleLong(in->numfaces);
+      /* See Mod_LoadNodes_BSP29 above.  BSP2 widens these to
+       * uint32, so individually they can be up to 4G; the
+       * sum-overflow / past-end check still applies. */
+      if ((int)out->firstsurface > loadmodel->numsurfaces ||
+          (int)out->numsurfaces > loadmodel->numsurfaces - (int)out->firstsurface)
+         SV_Error("%s: bad node surface range (first=%u, num=%u; "
+                  "numsurfaces=%i) in %s",
+                  __func__, (unsigned)out->firstsurface,
+                  (unsigned)out->numsurfaces,
+                  loadmodel->numsurfaces, loadmodel->name);
 
       for (j = 0; j < 2; j++)
       {
