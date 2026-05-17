@@ -122,7 +122,7 @@ void R_PushDlights(mnode_t *headnode) /* qbism- from MH tute - increased dlights
 
     for (i = 0; i < MAX_DLIGHTS; i++, l++)
     {
-       if (l->die < cl.time || (l->radius <= 0))
+       if (l->die <= 0 || (l->radius <= 0))
           continue;
 
        R_MarkLights(l, i, headnode);
