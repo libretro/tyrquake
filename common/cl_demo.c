@@ -125,6 +125,20 @@ CL_GetMessage(void)
       for (i = 0; i < 3; i++) {
          rfread(&f, 4, 1, cls.demofile);
          cl.mviewangles[0][i] = LittleFloat(f);
+         /* Demo viewangles are loaded raw from the file (bit
+          * pattern preserved). A malformed or hostile demo can
+          * land NaN/Inf here, which then flows through
+          * CL_RelinkEntities's lerp:
+          *   d = cl.mviewangles[0][j] - cl.mviewangles[1][j];
+          *   cl.viewangles[j] = cl.mviewangles[1][j] + frac * d;
+          * NaN propagates into cl.viewangles, feeds AngleVectors
+          * and the screen transforms, and the rasterizer takes
+          * non-finite inputs the way the MSG_ReadFloat audit
+          * already documented. Clamp to 0 -- losing one frame
+          * of view-angle continuity from a broken demo is the
+          * least-bad recovery. */
+         if (IS_NAN(cl.mviewangles[0][i]))
+            cl.mviewangles[0][i] = 0.0f;
       }
 
       net_message.cursize = LittleLong(net_message.cursize);
