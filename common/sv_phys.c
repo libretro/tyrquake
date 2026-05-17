@@ -82,6 +82,27 @@ SV_CheckVelocity(edict_t *ent)
                 PR_GetString(ent->v.classname));
           ent->v.origin[i] = 0;
        }
+       /* avelocity is added to ent->v.angles every tick by
+        * SV_Physics_Toss / SV_Physics_Noclip
+        * (VectorMA(angles, host_frametime, avelocity, angles)),
+        * so a NaN avelocity propagates through angles into
+        * every AngleVectors call site (rendering, traceline
+        * directionality, view-from-entity, etc.).  QC can
+        * legitimately set this (self.avelocity = '0 0 0' /
+        * 0 produces NaN in QC); the savegame loader's atof
+        * pass also accepts "nan" as a literal field value.
+        * Sanitize at the same boundary as velocity/origin so
+        * one bad QC trait or savefile doesn't taint
+        * downstream math.  No maxvelocity clamp on avelocity
+        * -- angular velocity has no natural cap and the
+        * downstream consumers handle large finite values
+        * fine. */
+       if (IS_NAN(ent->v.avelocity[i]))
+       {
+          Con_Printf("Got a NaN avelocity on %s\n",
+                PR_GetString(ent->v.classname));
+          ent->v.avelocity[i] = 0;
+       }
        if (ent->v.velocity[i] > sv_maxvelocity.value)
           ent->v.velocity[i] = sv_maxvelocity.value;
        else if (ent->v.velocity[i] < -sv_maxvelocity.value)
