@@ -79,7 +79,20 @@ typedef struct {
     sfx_t *sfx;			/* sfx number */
     int leftvol;		/* 0-255 volume */
     int rightvol;		/* 0-255 volume */
-    int end;			/* end time in global paintsamples */
+    int remaining_samples;	/* WAS: int end (= paintedtime + length).
+				 * Countdown: samples left to mix from
+				 * this channel before the sound either
+				 * loops (sc->loopstart >= 0) or ends
+				 * (ch->sfx = NULL).  Decremented in
+				 * S_PaintChannels by the per-channel
+				 * count actually painted each frame.
+				 * The old absolute-paintedtime model
+				 * carried a monotonic counter that
+				 * walked toward INT_MAX over hours of
+				 * playback; the countdown model has no
+				 * such drift -- it's the same change
+				 * we already made for dlight die and
+				 * the entity lerp time pairs. */
     int pos;			/* sample position in sfx */
     int looping;		/* where to loop, -1 = no looping */
     int entnum;			/* to allow overriding a specific sound */
@@ -155,9 +168,33 @@ extern channel_t channels[MAX_CHANNELS];
 
 extern int total_channels;
 
-extern int paintedtime;
 extern volatile dma_t *shm;
-extern int s_rawend;
+
+/* BGM ring-buffer cursor.  Replaces the old 'paintedtime'
+ * absolute-clock pair with a head/count FIFO:
+ *
+ *   s_rawhead   = next read position in s_rawsamples[]
+ *   s_rawavail  = number of queued stereo sample pairs
+ *
+ * Writer (S_RawSamples) appends at (s_rawhead + s_rawavail)
+ * & (MAX_RAW_SAMPLES - 1) and bumps s_rawavail.
+ * Reader (S_PaintChannels BGM mix) consumes from s_rawhead
+ * and decrements s_rawavail.
+ *
+ * The previous model used 'paintedtime' as the absolute
+ * sample-pair counter shared by both the channel mixer and
+ * the BGM ring math.  In this libretro fork the audio path
+ * is deterministic -- one S_Update_ call per video frame
+ * paints exactly samples_per_frame stereo pairs and ships
+ * them straight to audio_batch_cb -- so a monotonic clock
+ * served no purpose except to provide a shared modulo for
+ * the s_rawsamples ring buffer index, at the cost of a
+ * threshold-chop branch every frame to keep it out of
+ * INT_MAX wrap territory (~13.5h at 44.1 kHz).  The FIFO
+ * pair carries the same information with bounded values
+ * and no special-case cycling. */
+extern int s_rawhead;
+extern int s_rawavail;
 
 extern cvar_t bgmvolume;
 extern cvar_t sfxvolume;

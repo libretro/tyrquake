@@ -64,35 +64,20 @@ static void Snd_WriteLinearBlastStereo16 (void)
 }
 
 /* Linearly transfer the contents of paintbuffer[0..count) into
- * the output destination buffer at the offset corresponding to
- * (lpaintedtime - paint_start_time).  The destination is
- * shm->buffer, which the libretro layer points at a linear
- * int16 buffer sized for one video frame's audio (plus
- * PAINTBUFFER_SIZE headroom for the worst-case low-framerate
- * case).  No ring math, no wraparound: paintedtime is the
- * monotonic engine clock and the output buffer is rewound at
- * the start of each S_Update_ call. */
-static void S_TransferStereo16 (int paint_start, int endtime)
+ * the output destination buffer at dst_offset (in stereo
+ * frames).  The destination is shm->buffer, which the libretro
+ * layer points at a linear int16 buffer sized for one video
+ * frame's audio (plus PAINTBUFFER_SIZE headroom for the
+ * worst-case low-framerate case).  No ring math, no
+ * wraparound.  dst_offset advances across the chunked outer
+ * loop in S_PaintChannels so consecutive chunks land at
+ * consecutive shm->buffer positions. */
+static void S_TransferStereo16 (int dst_offset, int count)
 {
-	int lpaintedtime;
-
-	snd_p        = (int*)paintbuffer;
-	lpaintedtime = paintedtime;
-
-	while (lpaintedtime < endtime)
-	{
-		snd_out = (short *)shm->buffer
-			+ ((lpaintedtime - paint_start) << 1);
-
-		snd_linear_count = endtime - lpaintedtime;
-		snd_linear_count <<= 1;
-
-		/* write a linear blast of samples */
-		Snd_WriteLinearBlastStereo16();
-
-		snd_p        += snd_linear_count;
-		lpaintedtime += (snd_linear_count >> 1);
-	}
+	snd_p            = (int*)paintbuffer;
+	snd_out          = (short *)shm->buffer + (dst_offset << 1);
+	snd_linear_count = count << 1;
+	Snd_WriteLinearBlastStereo16();
 }
 
 /*
@@ -105,11 +90,11 @@ CHANNEL MIXING
 
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
 
-void S_PaintChannels (int endtime)
+void S_PaintChannels (int samples_to_paint)
 {
 	int		i;
-	int		end, ltime, count;
-	int		paint_start = paintedtime;
+	int		chunk, ltime, count;
+	int		painted = 0;	/* samples emitted so far this call */
 	channel_t	*ch;
 	sfxcache_t	*sc;
 	float		vol;
@@ -126,15 +111,20 @@ void S_PaintChannels (int endtime)
 		vol = 1.0f;
 	snd_vol = (int)(vol * 256);
 
-	while (paintedtime < endtime)
+	while (painted < samples_to_paint)
 	{
-		/* if paintbuffer is smaller than DMA buffer */
-		end = endtime;
-		if (endtime - paintedtime > PAINTBUFFER_SIZE)
-			end = paintedtime + PAINTBUFFER_SIZE;
+		/* The paintbuffer is a fixed PAINTBUFFER_SIZE scratch
+		 * buffer; chunk the per-frame work down to fit.  At
+		 * normal framerates one iteration covers the whole
+		 * frame; the loop only runs more than once when
+		 * samples_per_frame exceeds PAINTBUFFER_SIZE
+		 * (degenerate low-framerate paths). */
+		chunk = samples_to_paint - painted;
+		if (chunk > PAINTBUFFER_SIZE)
+			chunk = PAINTBUFFER_SIZE;
 
 		/* clear the paint buffer */
-		memset(paintbuffer, 0, (end - paintedtime) * sizeof(portable_samplepair_t));
+		memset(paintbuffer, 0, chunk * sizeof(portable_samplepair_t));
 
 		/* paint in the channels. */
 		ch = channels;
@@ -156,31 +146,41 @@ void S_PaintChannels (int endtime)
 			if (!sc)
 				continue;
 
-			ltime = paintedtime;
+			ltime = 0;	/* offset within this chunk */
 
-			while (ltime < end)
-			{	/* paint up to end */
-				if (ch->end < end)
-					count = ch->end - ltime;
+			while (ltime < chunk)
+			{	/* paint up to chunk */
+				if (ch->remaining_samples < chunk - ltime)
+					count = ch->remaining_samples;
 				else
-					count = end - ltime;
+					count = chunk - ltime;
 
 				if (count > 0)
 				{
 					/* the last param to SND_PaintChannelFrom is the index */
 					/* to start painting to in the paintbuffer, usually 0. */
-					SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
+					SND_PaintChannelFrom16(ch, sc, count, ltime);
 
 					ltime += count;
+					ch->remaining_samples -= count;
 				}
 
 				/* if at end of loop, restart */
-				if (ltime >= ch->end)
+				if (ch->remaining_samples <= 0)
 				{
 					if (sc->loopstart >= 0)
 					{
 						ch->pos = sc->loopstart;
-						ch->end = ltime + sc->length - ch->pos;
+						ch->remaining_samples = sc->length - ch->pos;
+						/* Defensive: a malformed sfxcache_t with
+						 * loopstart >= length would yield a non-
+						 * positive remaining_samples and re-enter
+						 * the loop forever.  Drop the channel. */
+						if (ch->remaining_samples <= 0)
+						{
+							ch->sfx = NULL;
+							break;
+						}
 					}
 					else
 					{	/* channel just stopped */
@@ -194,30 +194,33 @@ void S_PaintChannels (int endtime)
 		/* clip each sample to 0dB, then reduce by 6dB (to leave some headroom for */
 		/* the lowpass filter and the music). the lowpass will smooth out the */
 		/* clipping */
-		for (i=0; i<end-paintedtime; i++)
+		for (i = 0; i < chunk; i++)
 		{
 			paintbuffer[i].left = CLAMP(-32768  << 8, paintbuffer[i].left, 32767 << 8);
 			paintbuffer[i].right = CLAMP(-32768 << 8, paintbuffer[i].right, 32767 << 8);
 		}
 
 		/* paint in the music */
-		if (s_rawend >= paintedtime)
+		if (s_rawavail > 0)
 		{
 			/* copy from the streaming sound source */
-			int stop = (end < s_rawend) ? end : s_rawend;
+			int bgm_count = (s_rawavail < chunk) ? s_rawavail : chunk;
 
-			for (i = paintedtime; i < stop; i++)
+			for (i = 0; i < bgm_count; i++)
 			{
-				int s = i & (MAX_RAW_SAMPLES - 1);
+				int s = (s_rawhead + i) & (MAX_RAW_SAMPLES - 1);
 				/* lower music by 6db to match sfx */
-				paintbuffer[i - paintedtime].left += s_rawsamples[s].left;
-				paintbuffer[i - paintedtime].right += s_rawsamples[s].right;
+				paintbuffer[i].left  += s_rawsamples[s].left;
+				paintbuffer[i].right += s_rawsamples[s].right;
 			}
+
+			s_rawhead   = (s_rawhead + bgm_count) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail -= bgm_count;
 		}
 
 		/* transfer out according to DMA format */
-		S_TransferStereo16(paint_start, end);
-		paintedtime = end;
+		S_TransferStereo16(painted, chunk);
+		painted += chunk;
 	}
 }
 

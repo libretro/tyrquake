@@ -346,7 +346,14 @@ void BGM_Stop (void)
 		bgmstream->status = STREAM_NONE;
 		S_CodecCloseStream(bgmstream);
 		bgmstream = NULL;
-		s_rawend = 0;
+		/* Drop everything still queued for the mixer.  Reset
+		 * head too so the next track starts at offset 0 of
+		 * s_rawsamples -- cosmetic, not required for
+		 * correctness (the FIFO writer would resume at
+		 * (s_rawhead + 0) wherever s_rawhead happens to sit),
+		 * but easier to reason about. */
+		s_rawhead  = 0;
+		s_rawavail = 0;
 	}
 }
 
@@ -381,13 +388,13 @@ static void BGM_UpdateStream (void)
 	 * for looping streams that decode to zero PCM samples (a
 	 * Vorbis/FLAC/Opus file with a valid header but no audio
 	 * payload, or a malformed file the underlying library skips
-	 * over). Without this flag the outer 'while (s_rawend <
-	 * paintedtime + MAX_RAW_SAMPLES)' loop never advances
-	 * s_rawend, so it rewinds and re-reads forever on the same
-	 * BGM_UpdateStream call. WAV streaming rejects zero-sample
-	 * files at the header parser already, but every other codec
-	 * routes through a third-party library whose validation we
-	 * don't own. */
+	 * over). Without this flag the outer 'while (s_rawavail <
+	 * MAX_RAW_SAMPLES)' loop never advances s_rawavail, so it
+	 * rewinds and re-reads forever on the same BGM_UpdateStream
+	 * call. WAV streaming rejects zero-sample files at the
+	 * header parser already, but every other codec routes
+	 * through a third-party library whose validation we don't
+	 * own. */
 	qboolean just_rewound = false;
 
 	if (bgmstream->status != STREAM_PLAY)
@@ -398,12 +405,9 @@ static void BGM_UpdateStream (void)
 		return;
 
 	/* see how many samples should be copied into the raw buffer */
-	if (s_rawend < paintedtime)
-		s_rawend = paintedtime;
-
-	while (s_rawend < paintedtime + MAX_RAW_SAMPLES)
+	while (s_rawavail < MAX_RAW_SAMPLES)
 	{
-		bufferSamples = MAX_RAW_SAMPLES - (s_rawend - paintedtime);
+		bufferSamples = MAX_RAW_SAMPLES - s_rawavail;
 
 		/* decide how much data needs to be read from the file */
 		fileSamples = bufferSamples * bgmstream->info.rate / shm->speed;

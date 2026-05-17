@@ -64,8 +64,6 @@ static vec3_t listener_right;
 static vec3_t listener_up;
 static vec_t sound_nominal_clip_dist = 1000.0;
 
-int paintedtime;		/* sample PAIRS */
-
 #define	MAX_SFX 512
 static sfx_t *known_sfx;	/* hunk allocated [MAX_SFX] */
 static int num_sfx;
@@ -104,7 +102,8 @@ S_ValidSfx(const sfx_t *sfx)
     return 1;
 }
 
-int s_rawend;
+int s_rawhead;
+int s_rawavail;
 portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
 static sfx_t *ambient_sfx[NUM_AMBIENTS];
@@ -297,8 +296,8 @@ SND_PickChannel(int entnum, int entchannel)
 	if (channel->entnum == cl.viewentity
 	    && entnum != cl.viewentity && channel->sfx)
 	    continue;
-	if (channel->end - paintedtime < life_left) {
-	    life_left = channel->end - paintedtime;
+	if (channel->remaining_samples < life_left) {
+	    life_left = channel->remaining_samples;
 	    first_to_die = channel;
 	}
     }
@@ -399,7 +398,7 @@ S_StartSound(int entnum, int entchannel, sfx_t *sfx, vec3_t origin,
 
     target_chan->sfx = sfx;
     target_chan->pos = 0.0;
-    target_chan->end = paintedtime + sc->length;
+    target_chan->remaining_samples = sc->length;
 
     /*
      * if an identical sound has also been started this frame, offset the pos
@@ -412,10 +411,10 @@ S_StartSound(int entnum, int entchannel, sfx_t *sfx, vec3_t origin,
 	    continue;
 	if (check->sfx == sfx && !check->pos) {
 	    skip = rand() % (int)(0.1 * shm->speed);
-	    if (skip >= target_chan->end)
-		skip = target_chan->end - 1;
+	    if (skip >= target_chan->remaining_samples)
+		skip = target_chan->remaining_samples - 1;
 	    target_chan->pos += skip;
-	    target_chan->end -= skip;
+	    target_chan->remaining_samples -= skip;
 	    break;
 	}
     }
@@ -429,7 +428,7 @@ S_StopSound(int entnum, int entchannel)
     for (i = 0; i < MAX_DYNAMIC_CHANNELS; i++) {
 	if (channels[i].entnum == entnum
 	    && channels[i].entchannel == entchannel) {
-	    channels[i].end = 0;
+	    channels[i].remaining_samples = 0;
 	    channels[i].sfx = NULL;
 	    return;
 	}
@@ -510,12 +509,16 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 	else if (volume > 1.0f)
 		volume = 1.0f;
 
-	if (s_rawend < paintedtime)
-		s_rawend = paintedtime;
-
 	scale = (float) rate / shm->speed;
 	intVolume = (int) (256 * volume);
 
+	/* All four format branches below share the same FIFO append
+	 * pattern: write at (s_rawhead + s_rawavail) & MASK, bump
+	 * s_rawavail.  The 's_rawavail >= MAX_RAW_SAMPLES' break
+	 * stops us from overwriting unread samples (the FIFO is
+	 * full); BGM_UpdateStream keeps s_rawavail at or near
+	 * MAX_RAW_SAMPLES per frame, so the fill-into-empty-slot
+	 * pattern is the steady state. */
 	if (nchannels == 2 && width == 2)
 	{
 		for (i = 0; ; i++)
@@ -523,8 +526,10 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 			src = i * scale;
 			if (src >= samples)
 				break;
-			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
-			s_rawend++;
+			if (s_rawavail >= MAX_RAW_SAMPLES)
+				break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
 			s_rawsamples [dst].left = ((short *) data)[src * 2] * intVolume;
 			s_rawsamples [dst].right = ((short *) data)[src * 2 + 1] * intVolume;
 		}
@@ -536,8 +541,10 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 			src = i * scale;
 			if (src >= samples)
 				break;
-			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
-			s_rawend++;
+			if (s_rawavail >= MAX_RAW_SAMPLES)
+				break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
 			s_rawsamples [dst].left = ((short *) data)[src] * intVolume;
 			s_rawsamples [dst].right = ((short *) data)[src] * intVolume;
 		}
@@ -551,10 +558,10 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 			src = i * scale;
 			if (src >= samples)
 				break;
-			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
-			s_rawend++;
-		/* 	s_rawsamples [dst].left = ((signed char *) data)[src * 2] * intVolume; */
-		/* 	s_rawsamples [dst].right = ((signed char *) data)[src * 2 + 1] * intVolume; */
+			if (s_rawavail >= MAX_RAW_SAMPLES)
+				break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
 			s_rawsamples [dst].left = (((byte *) data)[src * 2] - 128) * intVolume;
 			s_rawsamples [dst].right = (((byte *) data)[src * 2 + 1] - 128) * intVolume;
 		}
@@ -568,10 +575,10 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 			src = i * scale;
 			if (src >= samples)
 				break;
-			dst = s_rawend & (MAX_RAW_SAMPLES - 1);
-			s_rawend++;
-		/* 	s_rawsamples [dst].left = ((signed char *) data)[src] * intVolume; */
-		/* 	s_rawsamples [dst].right = ((signed char *) data)[src] * intVolume; */
+			if (s_rawavail >= MAX_RAW_SAMPLES)
+				break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
 			s_rawsamples [dst].left = (((byte *) data)[src] - 128) * intVolume;
 			s_rawsamples [dst].right = (((byte *) data)[src] - 128) * intVolume;
 		}
@@ -616,7 +623,7 @@ S_StaticSound(sfx_t *sfx, vec3_t origin, float vol, float attenuation)
     VectorCopy(origin, ss->origin);
     ss->master_vol = vol;
     ss->dist_mult = (attenuation / 64) / sound_nominal_clip_dist;
-    ss->end = paintedtime + sc->length;
+    ss->remaining_samples = sc->length;
 
     SND_Spatialize(ss);
 }
@@ -708,7 +715,6 @@ S_UpdateAmbientSounds(void)
 
 static void S_Update_(void)
 {
-   unsigned endtime;
    int frame_samps;
 
    if (!sound_started || (snd_blocked > 0)) {
@@ -722,55 +728,25 @@ static void S_Update_(void)
       return;
    }
 
-   /* In the libretro deterministic model paintedtime
-    * is a monotonic counter that advances exactly
-    * samples_per_frame stereo frames per call.  No
-    * wraparound accounting is needed because no ring
-    * buffer is involved -- audio_callback in
-    * libretro.c reads the linear paint output buffer
-    * straight back to audio_batch_cb.
-    *
-    * Periodically chop paintedtime down to keep it
-    * out of int-overflow territory.  Static-sound
-    * channels store absolute end positions in
-    * channel->end (paintedtime + sc->length); if
-    * paintedtime ever wraps past INT_MAX those
-    * comparisons start lying.  At 44.1kHz that's a
-    * little over 13.5 hours of continuous playback,
-    * so this branch is mostly insurance.
-    *
-    * Reset s_rawend at the same time as paintedtime
-    * for the same reason: s_rawend is a sample-pair
-    * counter that the music-mixing path compares with
-    * paintedtime ('if (s_rawend >= paintedtime)' in
-    * S_PaintChannels). S_StopAllSounds clears
-    * channels[] but not s_rawend, so if we only chop
-    * paintedtime back to 0 the mixer keeps thinking
-    * there's ~1 billion samples of music queued
-    * ahead and walks the (now-stale) s_rawsamples
-    * ring buffer cyclically until paintedtime catches
-    * back up -- ~7 h of audible garbage at 44.1kHz
-    * after every reset cycle. Reset both together so
-    * the music path's guard (line ~204 of snd_mix.c)
-    * sees s_rawend == paintedtime == 0 and emits no
-    * frames until new music data arrives. */
-   if (paintedtime > 0x40000000) {
-      paintedtime = 0;
-      s_rawend    = 0;
-      S_StopAllSounds(true);
-   }
-
    /* Paint exactly one video frame's worth of audio.
     * If the libretro layer hasn't told us yet
     * (samples_per_frame == 0 before the first
     * SNDDMA_Init), fall back to ~0.1s -- harmless
-    * first-tick warmup. */
+    * first-tick warmup.
+    *
+    * No paintedtime, no monotonic counter, no chop.
+    * Channel lifetimes are countdown semantics in
+    * channel->remaining_samples (decremented inside
+    * S_PaintChannels by the count actually painted);
+    * the BGM ring is a head/avail FIFO maintained by
+    * S_RawSamples (write) and S_PaintChannels (read).
+    * Both stay bounded by their respective limits
+    * (sc->length and MAX_RAW_SAMPLES). */
    frame_samps = shm->samples_per_frame;
    if (frame_samps <= 0)
       frame_samps = shm->speed / 10;
-   endtime = paintedtime + (unsigned)frame_samps;
 
-   S_PaintChannels(endtime);
+   S_PaintChannels(frame_samps);
 }
 
 /*

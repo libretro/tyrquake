@@ -1496,9 +1496,10 @@ static void audio_step(void)
     *   frontend will discard the samples this
     *   frame (e.g. fast-forward).  We still update
     *   engine state (channel positions, BGM
-    *   stream cursor, paintedtime) so the next
-    *   non-skipped frame mixes from the right
-    *   position; we just don't push the buffer.
+    *   stream cursor, channel remaining_samples
+    *   countdowns) so the next non-skipped frame
+    *   mixes from the right position; we just
+    *   don't push the buffer.
     *
     * Older frontends that don't implement env 47
     * fall through with all flags set as default. */
