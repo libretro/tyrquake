@@ -775,7 +775,7 @@ static void update_variables(bool startup)
 
    if (startup)
    {
-      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+      if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
       {
          if (!strcmp(var.value, "auto"))
          {
@@ -824,7 +824,8 @@ static void update_variables(bool startup)
    var.key = "tyrquake_resolution";
    var.value = NULL;
 
-   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && !initial_resolution_set)
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value
+       && !initial_resolution_set)
    {
       char *pch;
       char str[100];
