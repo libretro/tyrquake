@@ -163,6 +163,22 @@ static qboolean WAV_ReadRIFFHeader(const char *name, RFILE *file, snd_info_t *in
 		return false;
 	}
 
+	/* The in-memory WAV loader (GetWavinfo in snd_mem.c) rejects
+	 * rate <= 0 explicitly because it feeds the same downstream
+	 * resampler. The streaming path was missing the check: a
+	 * malformed file with rate=0 made it past the bits-per-sample
+	 * gate, then bgmusic.c handed the rate to S_RawSamples, where
+	 * scale = (float)rate / shm->speed = 0 turns the per-format
+	 * 'for (i=0;;i++) { src = i*scale; if (src >= samples) break; }'
+	 * loop into an infinite spin: src stays 0 forever, samples > 0,
+	 * the break never fires. The same gate as in GetWavinfo lives
+	 * here for the same reason. */
+	if (info->rate <= 0)
+	{
+		Con_Printf("%s: bad sample rate %d\n", name, info->rate);
+		return false;
+	}
+
 	info->width   = info->bits / 8;
 	info->dataofs = 0;
 
