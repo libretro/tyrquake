@@ -93,8 +93,9 @@ regen_shader() {
 # Add new shaders below.
 # ============================================================
 
-regen_shader vert fullscreen_quad vs
+regen_shader vert fullscreen_quad  vs
 regen_shader frag gradient         fs
 regen_shader frag textured         fs
+regen_shader frag textured_palette fs
 
 echo "done."
