@@ -217,6 +217,17 @@ void Mod_LoadSpriteModel(model_t *mod, void *buffer)
    psprite->maxwidth = LittleLong(pin->width);
    psprite->maxheight = LittleLong(pin->height);
    psprite->beamlength = LittleFloat(pin->beamlength);
+   /* beamlength is loaded raw from the SPR file and threaded into
+    * R_RotateSprite (r_sprite.c) as the orientation length for
+    * SPR_ORIENTED-style sprites. The existing 'if (beamlength ==
+    * 0.0) return;' fast-path at the top of R_RotateSprite catches
+    * the zero case, but NaN != 0 and Inf != 0, so a malformed SPR
+    * with non-finite beamlength makes it through and feeds
+    * VectorScale(vpn, -beamlength, vec) where the scaled vector
+    * lands non-finite, then propagates through the per-vertex
+    * world->screen transform. Reject at the loader. */
+   if (IS_NAN(psprite->beamlength))
+      Sys_Error("%s: non-finite beamlength", __func__);
    mod->synctype = (synctype_t)LittleLong(pin->synctype);
    psprite->numframes = numframes;
 

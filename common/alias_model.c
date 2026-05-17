@@ -431,6 +431,25 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
       pheader->scale_origin[i] = LittleFloat(pinmodel->scale_origin[i]);
    }
 
+   /* All four header floats above are loaded raw from the file
+    * with no downstream sanity check.  pheader->scale[] and
+    * pheader->scale_origin[] go straight into the vertex
+    * transform matrix at r_alias.c:517-523 ('mx = pverts[i].v[0]
+    * * scale[0] + scale_origin[0]', etc.); pheader->size feeds
+    * the LOD transition test at r_alias.c:380 ('minz >
+    * r_aliastransition + (size * r_resfudge)'). A NaN/Inf in any
+    * of them propagates into vertex screen coordinates -- NaN
+    * compares all-false, so screen-space clipping ('if (sx >=
+    * vid.width)') passes the bad vertex through to the rasterizer
+    * -- or makes the LOD test mis-fire, producing wrong-mesh
+    * selection. Reject at the loader. */
+   if (IS_NAN(pheader->size))
+      Sys_Error("model %s: non-finite size", mod->name);
+   for (i = 0; i < 3; i++) {
+      if (IS_NAN(pheader->scale[i]) || IS_NAN(pheader->scale_origin[i]))
+         Sys_Error("model %s: non-finite scale/origin", mod->name);
+   }
+
    /* load the skins */
    pskintype = (daliasskintype_t *)&pinmodel[1];
    if ((const byte *)pskintype > bufend)
