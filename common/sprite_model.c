@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "common.h"
 #include "console.h"
+#include "mathlib.h"
 #include "model.h"
 #include "sys.h"
 #include "zone.h"
@@ -138,7 +139,14 @@ static void * Mod_LoadSpriteGroup(void *pin, mspriteframe_t **ppframe,
 
    for (i = 0; i < numframes; i++) {
       *poutintervals = LittleFloat(pin_intervals->interval);
-      if (*poutintervals <= 0.0)
+      /* Sprite-group frame intervals share the same loader gap as
+       * MDL pose/skin intervals: 'interval <= 0.0' lets NaN/Inf
+       * through (NaN <= 0 is false, Inf > 0). Downstream
+       * R_GetSpriteFrame divides cl.time by intervals[N-1] and
+       * compares element-by-element; NaN/Inf returns false on every
+       * comparison and the frame walk falls off the loop with
+       * undefined selection. Reject. */
+      if (IS_NAN(*poutintervals) || *poutintervals <= 0.0)
          Sys_Error("%s: interval <= 0", __func__);
 
       poutintervals++;

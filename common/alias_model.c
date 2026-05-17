@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "common.h"
 #include "crc.h"
+#include "mathlib.h"
 #include "model.h"
 #include "sys.h"
 
@@ -129,7 +130,18 @@ Mod_LoadAliasGroup(const daliasgroup_t *in, maliasframedesc_t *frame,
                    modname, i);
       poseverts[posenum] = dframe->verts;
       poseintervals[posenum] = LittleFloat(in->intervals[i].interval);
-      if (poseintervals[posenum] <= 0)
+      /* The MDL pose interval is a per-frame timing read raw from
+       * the model file (LittleFloat preserves the bit pattern). A
+       * malformed or hostile MDL can put NaN/Inf here, which
+       * 'interval <= 0' doesn't catch -- NaN <= 0 is false, and
+       * Inf > 0 -- so the bad value reaches Mod_FindInterval, where
+       * 'time = cl.time / intervals[N-1]' and the per-frame
+       * 'intervals[i] > time' comparisons all become NaN-returns-
+       * false. Frame selection then defaults to whichever element
+       * the loop falls through to, with NaN/Inf still floating
+       * around in the alias lerp time pairs we drive off the same
+       * intervals. Reject early. */
+      if (IS_NAN(poseintervals[posenum]) || poseintervals[posenum] <= 0)
          Sys_Error("%s: interval <= 0", __func__);
       posenum++;
       dframe = (daliasframe_t *)&dframe->verts[pheader->numverts];
@@ -182,7 +194,10 @@ Mod_LoadAliasSkinGroup(void *pin, maliasskindesc_t *pskindesc, int skinsize,
 
    for (i = 0; i < numframes; i++) {
       skinintervals[skinnum] = LittleFloat(pinskinintervals->interval);
-      if (skinintervals[skinnum] <= 0)
+      /* Same NaN/Inf reach as the pose-interval check above:
+       * the MDL skin-cycle timing is loaded raw and the '<= 0'
+       * test misses non-finite values. Reject the file. */
+      if (IS_NAN(skinintervals[skinnum]) || skinintervals[skinnum] <= 0)
          Sys_Error("%s: interval <= 0", __func__);
       skinnum++;
       pinskinintervals++;
