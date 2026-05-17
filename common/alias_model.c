@@ -379,9 +379,9 @@ Mod_LoadAliasModel(const model_loader_t *loader, model_t *mod, void *buffer,
    pheader->skinheight = LittleLong(pinmodel->skinheight);
 
 
-   if (pheader->skinheight > MAX_LBM_HEIGHT)
-      Sys_Error("model %s has a skin taller than %d", mod->name,
-            MAX_LBM_HEIGHT);
+   if (pheader->skinheight <= 0 || pheader->skinheight > MAX_LBM_HEIGHT)
+      Sys_Error("model %s has invalid skinheight %d", mod->name,
+            pheader->skinheight);
 
    /* Defensive: skinwidth was previously unchecked, leaving
     * skinwidth*skinheight in Mod_LoadAllSkins vulnerable to
