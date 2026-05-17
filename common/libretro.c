@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "compat/strl.h"
 #include "libretro.h"
 #include "libretro_core_options.h"
+#include "rhi.h"
 #include <retro_miscellaneous.h>
 #include <file/file_path.h>
 #include <streams/file_stream.h>
@@ -1190,6 +1191,19 @@ bool retro_load_game(const struct retro_game_info *info)
    Cmd_ExecuteString("bind AUX7 \"+lookup\"", src_command);
    Cmd_ExecuteString("bind AUX8 \"+lookdown\"", src_command);
 
+   /* Stand up the renderer backend selected by the
+    * 'tyrquake_renderer' core option.  Must run after
+    * update_variables (so the option is in the cache) and
+    * after Host_Init (so the SW renderer's globals exist if
+    * software is the active backend).  Failure here is
+    * survivable: V_RenderView falls back to a direct
+    * R_RenderView call when g_rhi is unset, so an init
+    * failure degrades to SW behaviour rather than crashing
+    * the load. */
+   if (!rhi_init())
+      log_cb(RETRO_LOG_WARN,
+             "rhi_init failed -- falling back to inline R_RenderView dispatch\n");
+
    return true;
 }
 
@@ -1197,6 +1211,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
 void retro_unload_game(void)
 {
+   rhi_shutdown();
 }
 
 unsigned retro_get_region(void)

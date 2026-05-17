@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 #include "input.h"
 #include "quakedef.h"
+#include "rhi.h"
 #include "screen.h"
 #include "view.h"
 
@@ -948,7 +949,19 @@ void V_RenderView(void)
          V_CalcRefdef();
    }
 
-   R_RenderView();
+   /* Renderer dispatch goes through the RHI vtable so a
+    * future HW backend can replace the per-frame work
+    * without touching this call site.  Fall back to a direct
+    * R_RenderView call if rhi_init hasn't published a
+    * backend yet -- that should not happen after
+    * retro_load_game's rhi_init call returns success, but
+    * the guard makes the call site safe during early
+    * startup and against any failure path that leaves g_rhi
+    * unset. */
+   if (g_rhi && g_rhi->draw_view)
+      g_rhi->draw_view(&r_refdef);
+   else
+      R_RenderView();
 
    if (crosshair.value)
       Draw_Crosshair();

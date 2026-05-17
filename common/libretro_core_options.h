@@ -28,6 +28,17 @@ extern "C" {
 
 struct retro_core_option_definition option_defs_us[] = {
    {
+      "tyrquake_renderer",
+      "Renderer (restart)",
+      "Select the renderer backend. 'Auto' picks the best HW backend the frontend offers, falling back to software when no HW context is available. 'Software' forces the SW span rasterizer regardless of frontend video driver -- useful when the SW renderer's specific look (per-span affine texturing, palette + colormap output) is preferred. Requires a restart.",
+      {
+         { "auto",     "Auto"     },
+         { "software", "Software" },
+         { NULL, NULL },
+      },
+      "auto"
+   },
+   {
       "tyrquake_resolution",
       "Internal resolution (restart)",
       "Configure the resolution. Requires a restart.",
