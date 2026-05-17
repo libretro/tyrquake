@@ -95,5 +95,6 @@ regen_shader() {
 
 regen_shader vert fullscreen_quad vs
 regen_shader frag gradient         fs
+regen_shader frag textured         fs
 
 echo "done."

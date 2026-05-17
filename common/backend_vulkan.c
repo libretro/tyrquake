@@ -26,39 +26,39 @@
  *     -DRHI_BACKEND_VULKAN=1 macro at compile time would
  *     replace the enum identifier with the literal 1).
  *
- * Phase 4b (this file's current state): graphics pipeline.
- * context_reset gains the construction of a single graphics
- * pipeline (render pass + framebuffer + pipeline layout +
- * graphics pipeline) using the shader modules built from the
- * pre-compiled SPIR-V bytecode in common/shaders/generated/spv/.
- * The pre-recorded command buffer no longer issues
- * vkCmdClearColorImage directly; instead it
- * BeginRenderPass / BindPipeline / Draw(3) / EndRenderPass,
- * letting the gradient fragment shader produce the output and
- * the render pass handle the load-clear plus the final layout
- * transition to SHADER_READ_ONLY_OPTIMAL.
+ * Phase 4c (this file's current state): texture sampling.
+ * context_reset gains a CPU-uploadable sampled texture and the
+ * descriptor-set machinery needed to bind it (sampler + set
+ * layout + pool + set + UpdateDescriptorSets).  Upload uses a
+ * persistent HOST_VISIBLE staging buffer + a one-shot
+ * CmdCopyBufferToImage submitted at create_resources time --
+ * the staging buffer stays mapped and resident so that
+ * Phase 4d (per-frame uploads from the SW renderer's
+ * vid.buffer) can reuse it.  For Phase 4c, the texture is
+ * filled once with a 256x256 RGBA checkerboard test pattern;
+ * the fragment shader (textured.frag) samples it at the
+ * interpolated screen UV; the pre-recorded per-frame command
+ * buffer issues CmdBindDescriptorSets before CmdDraw.
  *
- * Visual end state: the screen shows the gradient produced by
- * common/shaders/src/gradient.frag (red horizontal ramp, green
- * vertical ramp, constant 0.5 blue) instead of the Phase 3c
- * cornflower-blue solid clear.  Proves the entire shader-and-
- * pipeline path works end to end: SPIR-V module load, render
- * pass + framebuffer + pipeline state object creation, draw
- * command issuance, fragment output to the render target, and
- * the frontend's sample of the result.
+ * Visual end state: the screen shows the checkerboard test
+ * pattern instead of the Phase 4b gradient.  Proves the
+ * descriptor + sampler + texture upload + sample path works
+ * end to end before we point it at real game content.
  *
- *   Phase 4c -- texture sampling: bind a sampler + texture
- *     image and have the fragment shader read from it.  The
- *     "first real content" candidate is the SW renderer's
- *     vid.buffer uploaded as an 8bpp index texture plus the
- *     palette as a small lookup texture; the FS does the
- *     index-into-palette lookup and outputs RGBA.  Lets us
- *     see Quake content rendering through Vulkan while the
- *     SW renderer is still producing the pixel data, which
- *     validates the full upload + sample + present path
- *     before we replace the SW path with actual 3D geometry.
+ *   Phase 4d -- vid.buffer display: switch from a static
+ *     upload-once texture to a per-frame upload of the SW
+ *     renderer's vid.buffer.  The pre-recorded command buffer
+ *     stays valid; only the staging buffer's HOST_VISIBLE
+ *     contents change between frames (memcpy from vid.buffer
+ *     before submit, the pre-recorded CmdCopyBufferToImage
+ *     reads the new bytes).  Either upload palette-indexed
+ *     8bpp + a 256-entry palette LUT and do the lookup in
+ *     the FS, or convert to RGBA on the CPU and upload that.
+ *     The former is faster (1/4 the bandwidth) and matches
+ *     how a Phase 4e+ world shader will work; the latter is
+ *     simpler.  Decision deferred.
  *
- *   Phase 4d..N -- real geometry: world surfaces, alias
+ *   Phase 4e..N -- real geometry: world surfaces, alias
  *     models, sprites, sky, liquids, shadows; palette +
  *     colormap LUT path; dynamic lightmap update; etc.  Each
  *     lands as a separate commit against this same file.
@@ -77,7 +77,7 @@
 #include "vulkan/vulkan_core.h"
 #include "libretro_vulkan.h"
 #include "shaders/generated/spv/fullscreen_quad_vs.h"
-#include "shaders/generated/spv/gradient_fs.h"
+#include "shaders/generated/spv/textured_fs.h"
 #include <string.h>
 
 extern retro_environment_t    environ_cb;
@@ -141,6 +141,32 @@ static VkFramebuffer    vk_framebuffer;
 static VkPipelineLayout vk_pipeline_layout;
 static VkPipeline       vk_pipeline;
 
+/* Phase 4c: sampled-texture objects.  vk_texture is the
+ * source image that backend_vk_fs reads through u_tex;
+ * separate from vk_image (the render target).  vk_staging is
+ * a HOST_VISIBLE buffer sized for a full screen of 32bpp data
+ * -- generous for the Phase 4c 256x256 checkerboard upload;
+ * sized this way so Phase 4d's per-frame vid.buffer upload
+ * can reuse it without reallocation.  Lifetime as above:
+ * created in context_reset, destroyed in context_destroy.
+ *
+ * vk_descriptor_set is allocated from vk_descriptor_pool and
+ * is freed implicitly when the pool is destroyed; no separate
+ * FreeDescriptorSets call. */
+#define VK_TEXTURE_W   256u
+#define VK_TEXTURE_H   256u
+
+static VkSampler              vk_sampler;
+static VkImage                vk_texture;
+static VkDeviceMemory         vk_texture_memory;
+static VkImageView            vk_texture_view;
+static VkBuffer               vk_staging_buffer;
+static VkDeviceMemory         vk_staging_memory;
+static VkDeviceSize           vk_staging_size;
+static VkDescriptorSetLayout  vk_descriptor_set_layout;
+static VkDescriptorPool       vk_descriptor_pool;
+static VkDescriptorSet        vk_descriptor_set;
+
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
  * VkImageViewCreateInfo is what the frontend uses to know
@@ -198,6 +224,25 @@ static struct {
     PFN_vkCmdEndRenderPass                CmdEndRenderPass;
     PFN_vkCmdBindPipeline                 CmdBindPipeline;
     PFN_vkCmdDraw                         CmdDraw;
+
+    /* Sampler / descriptor / staging upload (Phase 4c) */
+    PFN_vkCreateSampler                   CreateSampler;
+    PFN_vkDestroySampler                  DestroySampler;
+    PFN_vkCreateBuffer                    CreateBuffer;
+    PFN_vkDestroyBuffer                   DestroyBuffer;
+    PFN_vkGetBufferMemoryRequirements     GetBufferMemoryRequirements;
+    PFN_vkBindBufferMemory                BindBufferMemory;
+    PFN_vkMapMemory                       MapMemory;
+    PFN_vkUnmapMemory                     UnmapMemory;
+    PFN_vkCreateDescriptorSetLayout       CreateDescriptorSetLayout;
+    PFN_vkDestroyDescriptorSetLayout      DestroyDescriptorSetLayout;
+    PFN_vkCreateDescriptorPool            CreateDescriptorPool;
+    PFN_vkDestroyDescriptorPool           DestroyDescriptorPool;
+    PFN_vkAllocateDescriptorSets          AllocateDescriptorSets;
+    PFN_vkUpdateDescriptorSets            UpdateDescriptorSets;
+    PFN_vkResetCommandBuffer              ResetCommandBuffer;
+    PFN_vkCmdCopyBufferToImage            CmdCopyBufferToImage;
+    PFN_vkCmdBindDescriptorSets           CmdBindDescriptorSets;
 } vk_fn;
 
 /* The retro_hw_render_callback we register with the frontend.
@@ -315,6 +360,22 @@ backend_vk_create_resources(void)
     VkRenderPassBeginInfo                   rpbi;
     VkClearValue                            clear_val;
     VkImageView                             fb_attachments[1];
+    VkSamplerCreateInfo                     sampler_ci;
+    VkBufferCreateInfo                      buf_ci;
+    VkDescriptorSetLayoutBinding            dsl_binding;
+    VkDescriptorSetLayoutCreateInfo         dsl_ci;
+    VkDescriptorPoolSize                    dp_size;
+    VkDescriptorPoolCreateInfo              dp_ci;
+    VkDescriptorSetAllocateInfo             ds_alloc;
+    VkDescriptorImageInfo                   ds_image_info;
+    VkWriteDescriptorSet                    ds_write;
+    VkImageMemoryBarrier                    barrier;
+    VkBufferImageCopy                       region;
+    VkSubmitInfo                            submit_info;
+    VkCommandBuffer                         upload_cmd;
+    void                                   *staging_ptr;
+    uint8_t                                *tex_pixels;
+    uint32_t                                tx, ty;
     uint32_t                                mem_type;
     VkResult                                r;
 
@@ -445,8 +506,8 @@ backend_vk_create_resources(void)
 
     memset(&sm_ci, 0, sizeof(sm_ci));
     sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    sm_ci.codeSize = spv_gradient_fs_size;
-    sm_ci.pCode    = spv_gradient_fs;
+    sm_ci.codeSize = spv_textured_fs_size;
+    sm_ci.pCode    = spv_textured_fs;
     r = vk_fn.CreateShaderModule(vk_device, &sm_ci, NULL, &vk_fs_module);
     if (r != VK_SUCCESS) {
         if (log_cb)
@@ -534,12 +595,307 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
-     * Pipeline layout.  Empty for Phase 4b: no descriptor sets
-     * (no textures, no uniform buffers) and no push constants.
-     * Phase 4c will add a descriptor set layout for the SW
-     * framebuffer texture + palette LUT. */
+     * Sampler.  NEAREST filtering on a CLAMP_TO_EDGE address
+     * mode.  NEAREST keeps the Phase 4c checkerboard crisp at
+     * any scale and matches Quake's "no texture filtering"
+     * aesthetic; LINEAR would be appropriate for a Phase 4e
+     * "filtered look" option.  CLAMP_TO_EDGE keeps the
+     * fragments sampled by the oversize triangle's out-of-
+     * viewport portion (uv.x or uv.y in (1, 2]) from wrapping
+     * back into the texture -- they'd be clipped anyway but
+     * the safe address mode costs nothing. */
+    memset(&sampler_ci, 0, sizeof(sampler_ci));
+    sampler_ci.sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_ci.magFilter    = VK_FILTER_NEAREST;
+    sampler_ci.minFilter    = VK_FILTER_NEAREST;
+    sampler_ci.mipmapMode   = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    sampler_ci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_ci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_ci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_ci.minLod       = 0.0f;
+    sampler_ci.maxLod       = 0.0f;
+
+    r = vk_fn.CreateSampler(vk_device, &sampler_ci, NULL, &vk_sampler);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateSampler failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* ---------------------------------------------------------
+     * Source texture for the fragment shader to sample from.
+     * VK_TEXTURE_W x VK_TEXTURE_H, R8G8B8A8_UNORM, OPTIMAL
+     * tiling, DEVICE_LOCAL memory.  Usage covers the data path
+     * we need: TRANSFER_DST for the upload, SAMPLED for the
+     * fragment-shader read.  No MUTABLE_FORMAT flag -- unlike
+     * the render-target image, the frontend never sees this
+     * one, so there's no sRGB-reinterpretation concern. */
+    memset(&image_ci, 0, sizeof(image_ci));
+    image_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_ci.imageType     = VK_IMAGE_TYPE_2D;
+    image_ci.format        = VK_FORMAT_R8G8B8A8_UNORM;
+    image_ci.extent.width  = VK_TEXTURE_W;
+    image_ci.extent.height = VK_TEXTURE_H;
+    image_ci.extent.depth  = 1;
+    image_ci.mipLevels     = 1;
+    image_ci.arrayLayers   = 1;
+    image_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
+    image_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    image_ci.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                           | VK_IMAGE_USAGE_SAMPLED_BIT;
+    image_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    r = vk_fn.CreateImage(vk_device, &image_ci, NULL, &vk_texture);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateImage (texture) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&mem_req, 0, sizeof(mem_req));
+    vk_fn.GetImageMemoryRequirements(vk_device, vk_texture, &mem_req);
+
+    mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
+                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (mem_type == 0xFFFFFFFFu) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: no device-local memory type for texture\n");
+        return false;
+    }
+
+    memset(&alloc_info, 0, sizeof(alloc_info));
+    alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize  = mem_req.size;
+    alloc_info.memoryTypeIndex = mem_type;
+
+    r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL, &vk_texture_memory);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateMemory (texture) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    r = vk_fn.BindImageMemory(vk_device, vk_texture, vk_texture_memory, 0);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: BindImageMemory (texture) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&view_ci, 0, sizeof(view_ci));
+    view_ci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_ci.image            = vk_texture;
+    view_ci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+    view_ci.format           = VK_FORMAT_R8G8B8A8_UNORM;
+    view_ci.components.r     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_ci.components.g     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_ci.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_ci.components.a     = VK_COMPONENT_SWIZZLE_IDENTITY;
+    view_ci.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_ci.subresourceRange.baseMipLevel   = 0;
+    view_ci.subresourceRange.levelCount     = 1;
+    view_ci.subresourceRange.baseArrayLayer = 0;
+    view_ci.subresourceRange.layerCount     = 1;
+
+    r = vk_fn.CreateImageView(vk_device, &view_ci, NULL, &vk_texture_view);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateImageView (texture) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* ---------------------------------------------------------
+     * Staging buffer.  HOST_VISIBLE | HOST_COHERENT, TRANSFER_
+     * SRC.  Sized to fit a full screen of 32bpp data so
+     * Phase 4d's per-frame vid.buffer upload can reuse it
+     * without reallocation, even though Phase 4c only writes
+     * VK_TEXTURE_W * VK_TEXTURE_H * 4 = 256 KiB into it.  At
+     * 1920x1080 the buffer is ~8 MiB; well under any normal
+     * device's HOST_VISIBLE budget. */
+    vk_staging_size = (VkDeviceSize)width * (VkDeviceSize)height
+                    * (VkDeviceSize)4;
+    if (vk_staging_size < (VkDeviceSize)VK_TEXTURE_W
+                        * (VkDeviceSize)VK_TEXTURE_H * 4) {
+        /* Pathological case (e.g. width or height misconfigured
+         * to 0); guarantee at least enough for the Phase 4c
+         * upload so we don't OOB the staging memcpy below. */
+        vk_staging_size = (VkDeviceSize)VK_TEXTURE_W
+                        * (VkDeviceSize)VK_TEXTURE_H * 4;
+    }
+
+    memset(&buf_ci, 0, sizeof(buf_ci));
+    buf_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buf_ci.size        = vk_staging_size;
+    buf_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buf_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    r = vk_fn.CreateBuffer(vk_device, &buf_ci, NULL, &vk_staging_buffer);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateBuffer (staging) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&mem_req, 0, sizeof(mem_req));
+    vk_fn.GetBufferMemoryRequirements(vk_device, vk_staging_buffer, &mem_req);
+
+    mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
+                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                                         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (mem_type == 0xFFFFFFFFu) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory for staging\n");
+        return false;
+    }
+
+    memset(&alloc_info, 0, sizeof(alloc_info));
+    alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize  = mem_req.size;
+    alloc_info.memoryTypeIndex = mem_type;
+
+    r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL, &vk_staging_memory);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateMemory (staging) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    r = vk_fn.BindBufferMemory(vk_device, vk_staging_buffer,
+                               vk_staging_memory, 0);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: BindBufferMemory (staging) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Generate the 256x256 RGBA8 checkerboard.  8x8 cells of
+     * 32x32 texels each: white vs dark red.  HOST_COHERENT
+     * memory means no Flush call after the write -- the GPU
+     * sees the data as soon as the next QueueSubmit acts on
+     * the buffer. */
+    staging_ptr = NULL;
+    r = vk_fn.MapMemory(vk_device, vk_staging_memory, 0,
+                        VK_WHOLE_SIZE, 0, &staging_ptr);
+    if (r != VK_SUCCESS || !staging_ptr) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: MapMemory (staging) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    tex_pixels = (uint8_t *)staging_ptr;
+    for (ty = 0; ty < VK_TEXTURE_H; ty++) {
+        for (tx = 0; tx < VK_TEXTURE_W; tx++) {
+            uint32_t       cx     = tx >> 5;       /* 32-texel cells */
+            uint32_t       cy     = ty >> 5;
+            int            white  = ((cx ^ cy) & 1u) == 0u;
+            uint8_t * const p     = tex_pixels + (ty * VK_TEXTURE_W + tx) * 4;
+            p[0] = white ? 255 : 128;
+            p[1] = white ? 255 :   0;
+            p[2] = white ? 255 :   0;
+            p[3] = 255;
+        }
+    }
+
+    vk_fn.UnmapMemory(vk_device, vk_staging_memory);
+
+    /* ---------------------------------------------------------
+     * Descriptor set layout.  Single combined-image-sampler at
+     * set 0 / binding 0, visible to the fragment stage.  Must
+     * match textured.frag's
+     *   layout(set = 0, binding = 0) uniform sampler2D u_tex;
+     */
+    memset(&dsl_binding, 0, sizeof(dsl_binding));
+    dsl_binding.binding         = 0;
+    dsl_binding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    dsl_binding.descriptorCount = 1;
+    dsl_binding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    memset(&dsl_ci, 0, sizeof(dsl_ci));
+    dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    dsl_ci.bindingCount = 1;
+    dsl_ci.pBindings    = &dsl_binding;
+
+    r = vk_fn.CreateDescriptorSetLayout(vk_device, &dsl_ci, NULL,
+                                        &vk_descriptor_set_layout);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateDescriptorSetLayout failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Descriptor pool sized for exactly one set with exactly
+     * one combined-image-sampler. */
+    memset(&dp_size, 0, sizeof(dp_size));
+    dp_size.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    dp_size.descriptorCount = 1;
+
+    memset(&dp_ci, 0, sizeof(dp_ci));
+    dp_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    dp_ci.maxSets       = 1;
+    dp_ci.poolSizeCount = 1;
+    dp_ci.pPoolSizes    = &dp_size;
+
+    r = vk_fn.CreateDescriptorPool(vk_device, &dp_ci, NULL, &vk_descriptor_pool);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateDescriptorPool failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&ds_alloc, 0, sizeof(ds_alloc));
+    ds_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    ds_alloc.descriptorPool     = vk_descriptor_pool;
+    ds_alloc.descriptorSetCount = 1;
+    ds_alloc.pSetLayouts        = &vk_descriptor_set_layout;
+
+    r = vk_fn.AllocateDescriptorSets(vk_device, &ds_alloc, &vk_descriptor_set);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateDescriptorSets failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Point the descriptor set at our texture + sampler.  The
+     * imageLayout we declare here is what the shader assumes
+     * at sample time; the upload commands below transition the
+     * image into exactly this layout before any per-frame
+     * draw can run. */
+    memset(&ds_image_info, 0, sizeof(ds_image_info));
+    ds_image_info.sampler     = vk_sampler;
+    ds_image_info.imageView   = vk_texture_view;
+    ds_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    memset(&ds_write, 0, sizeof(ds_write));
+    ds_write.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    ds_write.dstSet          = vk_descriptor_set;
+    ds_write.dstBinding      = 0;
+    ds_write.dstArrayElement = 0;
+    ds_write.descriptorCount = 1;
+    ds_write.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    ds_write.pImageInfo      = &ds_image_info;
+
+    vk_fn.UpdateDescriptorSets(vk_device, 1, &ds_write, 0, NULL);
+
+    /* ---------------------------------------------------------
+     * Pipeline layout.  Includes the Phase 4c descriptor set
+     * layout at set 0.  No push constants. */
     memset(&pl_ci, 0, sizeof(pl_ci));
-    pl_ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pl_ci.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pl_ci.setLayoutCount = 1;
+    pl_ci.pSetLayouts    = &vk_descriptor_set_layout;
 
     r = vk_fn.CreatePipelineLayout(vk_device, &pl_ci, NULL, &vk_pipeline_layout);
     if (r != VK_SUCCESS) {
@@ -671,6 +1027,126 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
+     * One-shot upload command buffer.  Transitions the texture
+     * from UNDEFINED to TRANSFER_DST_OPTIMAL, copies the
+     * staging buffer into it, transitions to
+     * SHADER_READ_ONLY_OPTIMAL (matches the imageLayout we
+     * declared in the descriptor set).  Submitted on the
+     * frontend's queue with QueueWaitIdle as the synchronisation
+     * primitive -- a fence would be more elegant but for a
+     * single one-shot upload at context_reset time the cost is
+     * trivial and the code is simpler.
+     *
+     * The upload buffer is left allocated after this completes;
+     * it'll be freed implicitly when the command pool is
+     * destroyed at context_destroy time. */
+    upload_cmd = VK_NULL_HANDLE;
+    r = vk_fn.AllocateCommandBuffers(vk_device, &cmd_alloc, &upload_cmd);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateCommandBuffers (upload) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&begin_info, 0, sizeof(begin_info));
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    r = vk_fn.BeginCommandBuffer(upload_cmd, &begin_info);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: BeginCommandBuffer (upload) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* UNDEFINED -> TRANSFER_DST_OPTIMAL */
+    memset(&barrier, 0, sizeof(barrier));
+    barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcAccessMask                   = 0;
+    barrier.dstAccessMask                   = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image                           = vk_texture;
+    barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel   = 0;
+    barrier.subresourceRange.levelCount     = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount     = 1;
+
+    vk_fn.CmdPipelineBarrier(upload_cmd,
+                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             0,
+                             0, NULL,
+                             0, NULL,
+                             1, &barrier);
+
+    memset(&region, 0, sizeof(region));
+    region.bufferOffset                    = 0;
+    region.bufferRowLength                 = 0;  /* tightly packed */
+    region.bufferImageHeight               = 0;
+    region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel       = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount     = 1;
+    region.imageExtent.width               = VK_TEXTURE_W;
+    region.imageExtent.height              = VK_TEXTURE_H;
+    region.imageExtent.depth               = 1;
+
+    vk_fn.CmdCopyBufferToImage(upload_cmd,
+                               vk_staging_buffer,
+                               vk_texture,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               1, &region);
+
+    /* TRANSFER_DST_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL */
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    vk_fn.CmdPipelineBarrier(upload_cmd,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             0,
+                             0, NULL,
+                             0, NULL,
+                             1, &barrier);
+
+    r = vk_fn.EndCommandBuffer(upload_cmd);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: EndCommandBuffer (upload) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&submit_info, 0, sizeof(submit_info));
+    submit_info.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers    = &upload_cmd;
+
+    r = vk_fn.QueueSubmit(vk_queue, 1, &submit_info, VK_NULL_HANDLE);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: QueueSubmit (upload) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    r = vk_fn.QueueWaitIdle(vk_queue);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: QueueWaitIdle (upload) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* ---------------------------------------------------------
      * Record the per-frame command buffer.  The render pass
      * does all the heavy lifting:
      *   - load_op = CLEAR fills the attachment with clear_val
@@ -715,6 +1191,12 @@ backend_vk_create_resources(void)
     rpbi.clearValueCount     = 1;
     rpbi.pClearValues        = &clear_val;
 
+    vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                vk_pipeline_layout,
+                                0,                /* firstSet */
+                                1, &vk_descriptor_set,
+                                0, NULL);          /* no dynamic offsets */
     vk_fn.CmdBeginRenderPass(vk_cmd_buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
     vk_fn.CmdBindPipeline(vk_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline);
     vk_fn.CmdDraw(vk_cmd_buffer, 3, 1, 0, 0);
@@ -730,9 +1212,9 @@ backend_vk_create_resources(void)
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
-               "rhi-vk: render target %ux%u + graphics pipeline ready; "
-               "gradient command buffer pre-recorded\n",
-               width, height);
+               "rhi-vk: render target %ux%u + textured pipeline + %ux%u "
+               "checkerboard ready\n",
+               width, height, VK_TEXTURE_W, VK_TEXTURE_H);
     return true;
 }
 
@@ -756,11 +1238,60 @@ backend_vk_destroy_resources(void)
     if (vk_cmd_pool != VK_NULL_HANDLE) {
         /* DestroyCommandPool frees every buffer allocated
          * from it; no separate FreeCommandBuffers call
-         * needed. */
+         * needed.  This also frees the one-shot upload
+         * command buffer if it was still allocated. */
         if (vk_fn.DestroyCommandPool)
             vk_fn.DestroyCommandPool(vk_device, vk_cmd_pool, NULL);
         vk_cmd_pool   = VK_NULL_HANDLE;
         vk_cmd_buffer = VK_NULL_HANDLE;
+    }
+    /* Phase 4c descriptor / sampler / staging / texture
+     * teardown.  Reverse-create order, except that descriptor
+     * pool destruction implicitly frees the allocated set, so
+     * vk_descriptor_set just gets zeroed without a separate
+     * Free call. */
+    if (vk_descriptor_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_descriptor_pool, NULL);
+        vk_descriptor_pool = VK_NULL_HANDLE;
+        vk_descriptor_set  = VK_NULL_HANDLE;
+    }
+    if (vk_descriptor_set_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device,
+                                             vk_descriptor_set_layout, NULL);
+        vk_descriptor_set_layout = VK_NULL_HANDLE;
+    }
+    if (vk_staging_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_staging_buffer, NULL);
+        vk_staging_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_staging_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_staging_memory, NULL);
+        vk_staging_memory = VK_NULL_HANDLE;
+    }
+    vk_staging_size = 0;
+    if (vk_texture_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_texture_view, NULL);
+        vk_texture_view = VK_NULL_HANDLE;
+    }
+    if (vk_texture != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_texture, NULL);
+        vk_texture = VK_NULL_HANDLE;
+    }
+    if (vk_texture_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_texture_memory, NULL);
+        vk_texture_memory = VK_NULL_HANDLE;
+    }
+    if (vk_sampler != VK_NULL_HANDLE) {
+        if (vk_fn.DestroySampler)
+            vk_fn.DestroySampler(vk_device, vk_sampler, NULL);
+        vk_sampler = VK_NULL_HANDLE;
     }
     /* Phase 4b pipeline objects: reverse-create order.  The
      * graphics pipeline references the layout and the render
@@ -866,6 +1397,24 @@ backend_vk_load_fn(void)
         LOAD_DEV(CmdEndRenderPass);
         LOAD_DEV(CmdBindPipeline);
         LOAD_DEV(CmdDraw);
+        /* Phase 4c additions */
+        LOAD_DEV(CreateSampler);
+        LOAD_DEV(DestroySampler);
+        LOAD_DEV(CreateBuffer);
+        LOAD_DEV(DestroyBuffer);
+        LOAD_DEV(GetBufferMemoryRequirements);
+        LOAD_DEV(BindBufferMemory);
+        LOAD_DEV(MapMemory);
+        LOAD_DEV(UnmapMemory);
+        LOAD_DEV(CreateDescriptorSetLayout);
+        LOAD_DEV(DestroyDescriptorSetLayout);
+        LOAD_DEV(CreateDescriptorPool);
+        LOAD_DEV(DestroyDescriptorPool);
+        LOAD_DEV(AllocateDescriptorSets);
+        LOAD_DEV(UpdateDescriptorSets);
+        LOAD_DEV(ResetCommandBuffer);
+        LOAD_DEV(CmdCopyBufferToImage);
+        LOAD_DEV(CmdBindDescriptorSets);
         #undef LOAD_DEV
     }
 }
