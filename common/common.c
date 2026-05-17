@@ -551,6 +551,29 @@ float MSG_ReadFloat(void)
 
    dat.l = LittleLong(dat.l);
 
+   /* IEEE-754 NaN and Inf bit patterns are perfectly valid
+    * over the wire -- any 4 bytes the server cared to send
+    * land here -- but every consumer of this function feeds
+    * the result into floating-point math whose downstream is
+    * undefined on non-finite input.  The only call site today
+    * is cl.mtime[0] (svc_time), which then drives cl.time,
+    * the interpolation denominator 'f = cl.mtime[0] -
+    * cl.mtime[1]' in CL_RelinkEntities (NaN propagates;
+    * Inf - Inf is NaN), ent->msgtime, and is echoed back to
+    * the server via MSG_WriteFloat for ping-time accounting.
+    * One malformed svc_time packet corrupts the client's
+    * notion of game time across every entity and the rest of
+    * the connection.
+    *
+    * Treat non-finite as a malformed packet: trip msg_badread
+    * the same way the bounds-check above does, and return
+    * 0.0f.  The outer parse loop drops the message. */
+   if (IS_NAN(dat.f))
+   {
+      msg_badread = true;
+      return 0.0f;
+   }
+
    return dat.f;
 }
 
