@@ -88,7 +88,7 @@ CHANNEL MIXING
 ===============================================================================
 */
 
-static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
+static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart);
 
 void S_PaintChannels (int samples_to_paint)
 {
