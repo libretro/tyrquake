@@ -58,20 +58,27 @@ typedef struct render_backend_s {
     void     (*draw_view)(const refdef_t *rd);
     void     (*end_frame)(void);
 
-    /* 2D pic intercept (Phase 4k).  Backends that render HUD /
-     * menu pics natively populate this; SW backend leaves it
-     * NULL and Draw_Pic falls through to its original
-     * memcpy-into-vid.buffer path.  When non-NULL the call
-     * runs in _addition_ to the SW path -- Phase 4k double-
-     * renders (pixel-perfect overlap, so it looks normal);
-     * Phase 4l suppresses the SW path when the intercept is
-     * active.
+    /* 2D pic intercept (Phase 4k, Phase 4l).  Backends
+     * that render HUD / menu pics natively populate this;
+     * SW backend leaves it NULL and Draw_Pic /
+     * Draw_TransPic fall through to their original
+     * memcpy-into-vid.buffer paths.  When non-NULL the
+     * call replaces the SW path: Draw_Pic / Draw_TransPic
+     * forward to queue_2d_pic and return; the SW
+     * rasterisation into vid.buffer is skipped.  Phase
+     * 4k double-rendered for one commit to validate the
+     * Vulkan side; Phase 4l makes the suppression
+     * unconditional so the compute upload of vid.buffer
+     * no longer carries redundant HUD pixels.
      *
      * x, y are in vid.width / vid.height screen-space (the
      * same coordinates Draw_Pic gets); the backend converts
      * to NDC internally.  pic->width / pic->height define
      * the rectangle, pic->data is width*height bytes of
-     * palette indices. */
+     * palette indices.  Index 255 is Quake's transparency
+     * key (d_iface.h: TRANSPARENT_COLOR) -- the overlay
+     * FS discards on it, so the same intercept handles
+     * Draw_TransPic correctly without a separate entry. */
     void     (*queue_2d_pic)(int x, int y, const qpic_t *pic);
 } render_backend_t;
 

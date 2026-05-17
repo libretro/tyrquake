@@ -384,16 +384,19 @@ void Draw_Pic(int x, int y, const qpic_t *pic)
          y < 0 || y + pic->height > vid.height)
       Sys_Error("%s: bad coordinates", __func__);
 
-   /* Phase 4k: forward to the active RHI backend's 2D
-    * intercept if it implements one (Vulkan backend does;
-    * SW leaves the slot NULL).  The SW memcpy below
-    * still runs unconditionally for Phase 4k -- the
-    * Vulkan overlay and the compute-uploaded SW HUD
-    * render at the same screen position pixel-perfectly,
-    * so they overlap rather than collide.  Phase 4l will
-    * suppress the SW path when the intercept is active. */
-   if (g_rhi && g_rhi->queue_2d_pic)
+   /* Phase 4l: forward to the active RHI backend's 2D
+    * intercept if it implements one, and skip the SW
+    * memcpy below when it does.  The Vulkan overlay
+    * renders the pic at native resolution; the compute
+    * upload no longer needs the SW-rasterised copy in
+    * vid.buffer.  When no backend implements the
+    * intercept (SW-only builds, SW backend selected),
+    * the field stays NULL and Draw_Pic falls through to
+    * its original memcpy-into-vid.buffer behaviour. */
+   if (g_rhi && g_rhi->queue_2d_pic) {
       g_rhi->queue_2d_pic(x, y, pic);
+      return;
+   }
 
    source = pic->data;
 
@@ -426,6 +429,17 @@ void Draw_TransPic(int x, int y, const qpic_t *pic)
    if (x < 0 || (unsigned)(x + pic->width) > vid.width ||
          y < 0 || (unsigned)(y + pic->height) > vid.height)
       Sys_Error("%s: bad coordinates", __func__);
+
+   /* Phase 4l: same intercept as Draw_Pic.  The overlay
+    * FS gained a discard on palette index 255
+    * (TRANSPARENT_COLOR in d_iface.h) at this phase, so
+    * the Vulkan-rendered TransPic gets the same per-
+    * pixel transparency the SW loop below provides.
+    * On intercept, skip the SW path entirely. */
+   if (g_rhi && g_rhi->queue_2d_pic) {
+      g_rhi->queue_2d_pic(x, y, pic);
+      return;
+   }
 
    source = pic->data;
 
