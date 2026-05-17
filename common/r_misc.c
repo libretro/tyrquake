@@ -120,6 +120,50 @@ R_TransformPlane(mplane_t *p, float *normal, float *dist)
 
 /*
 ===============
+R_PrepareFrame
+
+Compute the per-frame camera basis vectors (r_origin and the
+vpn/vright/vup orthonormal triad) from the refdef.  These four
+globals are read by non-renderer code that runs every frame
+regardless of which backend is active -- in particular, S_Update
+in libretro.c hands them to the audio mixer as the listener's
+position and orientation for 3D spatialization.
+
+Historically these assignments lived inside R_SetupFrame, which
+runs only as part of the SW backend's R_RenderView pipeline.
+With the RHI in place, R_RenderView is bypassed whenever a HW
+backend is active (Vulkan, future GL/D3D11/D3D12) -- the
+backend's draw_view does its own thing and the four globals
+freeze at whatever values the last SW frame computed.  Audio
+spatializes against a frozen listener, sounds get the wrong
+stereo pan, and 3D sounds outside the frozen hearing range
+drop out of the mix entirely.  The demo-loop case (which is
+deterministic player input) makes the divergence audible: the
+SW path's audio differs from any HW backend's audio for the
+same recorded inputs.
+
+Fix: split the assignments into this function, which V_RenderView
+calls before dispatching to g_rhi->draw_view.  Every backend now
+sees up-to-date listener state regardless of what draw_view does
+internally.  R_SetupFrame (called from R_RenderView, i.e. SW
+backend only) delegates to R_PrepareFrame so the SW path keeps
+the same effective behaviour without code duplication.
+===============
+*/
+void
+R_PrepareFrame(void)
+{
+    /* Listener / camera position. */
+    VectorCopy(r_refdef.vieworg, r_origin);
+
+    /* Camera basis vectors.  AngleVectors writes the
+     * orthonormal triad (forward = vpn, right = vright,
+     * up = vup) from the Euler angles. */
+    AngleVectors(r_refdef.viewangles, vpn, vright, vup);
+}
+
+/*
+===============
 R_SetupFrame
 ===============
 */
@@ -170,11 +214,15 @@ R_SetupFrame(void)
 
     r_framecount++;
 
-    /* build the transformation matrix for the given view angles */
+    /* build the transformation matrix for the given view angles.
+     * modelorg is renderer-internal; r_origin and the vpn/vright/vup
+     * triad are computed by R_PrepareFrame (which V_RenderView calls
+     * before dispatching to the backend, so they're already set by
+     * the time we get here -- the explicit call below is defence
+     * in depth in case R_SetupFrame ever gets invoked from a path
+     * that skipped R_PrepareFrame). */
     VectorCopy(r_refdef.vieworg, modelorg);
-    VectorCopy(r_refdef.vieworg, r_origin);
-
-    AngleVectors(r_refdef.viewangles, vpn, vright, vup);
+    R_PrepareFrame();
 
     /* current viewleaf */
     r_oldviewleaf = r_viewleaf;

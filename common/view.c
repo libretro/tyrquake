@@ -957,7 +957,20 @@ void V_RenderView(void)
     * retro_load_game's rhi_init call returns success, but
     * the guard makes the call site safe during early
     * startup and against any failure path that leaves g_rhi
-    * unset. */
+    * unset.
+    *
+    * R_PrepareFrame runs unconditionally before the backend
+    * dispatch.  It populates the r_origin / vpn / vright /
+    * vup globals that S_Update reads from this same
+    * retro_run iteration -- the audio listener position
+    * and orientation must follow the player view regardless
+    * of which renderer is active, and the SW path's
+    * R_RenderView is the only thing that historically
+    * updated those globals.  Without this call the audio
+    * listener would freeze at the position from when the
+    * HW backend became active. */
+   R_PrepareFrame();
+
    if (g_rhi && g_rhi->draw_view)
       g_rhi->draw_view(&r_refdef);
    else

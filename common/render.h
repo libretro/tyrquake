@@ -150,6 +150,11 @@ void R_Init(void);
 void R_InitTextures(void);
 void R_InitEfrags(void);
 void R_RenderView(void);	/* must set r_refdef first */
+void R_PrepareFrame(void);	/* per-frame camera basis: r_origin / vpn / vright / vup
+				 * V_RenderView calls this before dispatching to the
+				 * RHI backend so non-renderer code (S_Update) sees
+				 * up-to-date listener state regardless of which
+				 * backend is active. */
 void R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect);
 				/* called whenever r_refdef or vid change */
 
