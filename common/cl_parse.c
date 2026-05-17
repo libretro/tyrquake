@@ -785,7 +785,7 @@ CL_ParseClientdata(void)
 	Sbar_Changed();
 	for (j = 0; j < 32; j++)
 	    if ((i & (1 << j)) && !(cl.stats[STAT_ITEMS] & (1 << j)))
-		cl.item_gettime[j] = cl.time;
+		cl.item_gettime[j] = 0;
 	cl.stats[STAT_ITEMS] = i;
     }
 

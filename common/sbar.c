@@ -533,7 +533,7 @@ Sbar_DrawInventory(void)
     for (i = 0; i < 7; i++) {
 	if (cl.stats[STAT_ITEMS] & (IT_SHOTGUN << i)) {
 	    time = cl.item_gettime[i];
-	    flashon = qmax((int)((cl.time - time) * 10), 0);
+	    flashon = qmax((int)(time * 10), 0);
 	    if (flashon >= 10) {
 		if (cl.stats[STAT_ACTIVEWEAPON] == (IT_SHOTGUN << i))
 		    flashon = 1;
@@ -557,7 +557,7 @@ Sbar_DrawInventory(void)
 	for (i = 0; i < 4; i++) {
 	    if (cl.stats[STAT_ITEMS] & (1 << hipweapons[i])) {
 		time = cl.item_gettime[hipweapons[i]];
-		flashon = (int)((cl.time - time) * 10);
+		flashon = (int)(time * 10);
 		if (flashon >= 10) {
 		    if (cl.stats[STAT_ACTIVEWEAPON] == (1 << hipweapons[i]))
 			flashon = 1;
@@ -618,7 +618,7 @@ Sbar_DrawInventory(void)
     for (i = 0; i < 6; i++)
 	if (cl.stats[STAT_ITEMS] & (1 << (17 + i))) {
 	    time = cl.item_gettime[17 + i];
-	    if (time && time > cl.time - 2 && flashon) {	/* flash frame */
+	    if (time < 2 && flashon) {	/* flash frame */
 		sb_updates = 0;
 	    } else {
 		/* MED 01/04/97 changed keys */
@@ -626,7 +626,7 @@ Sbar_DrawInventory(void)
 		    Sbar_DrawPic(192 + i * 16, -16, sb_items[i]);
 		}
 	    }
-	    if (time && time > cl.time - 2)
+	    if (time < 2)
 		sb_updates = 0;
 	}
     /* MED 01/04/97 added hipnotic items */
@@ -635,12 +635,12 @@ Sbar_DrawInventory(void)
 	for (i = 0; i < 2; i++)
 	    if (cl.stats[STAT_ITEMS] & (1 << (24 + i))) {
 		time = cl.item_gettime[24 + i];
-		if (time && time > cl.time - 2 && flashon) {	/* flash frame */
+		if (time < 2 && flashon) {	/* flash frame */
 		    sb_updates = 0;
 		} else {
 		    Sbar_DrawPic(288 + i * 16, -16, hsb_items[i]);
 		}
-		if (time && time > cl.time - 2)
+		if (time < 2)
 		    sb_updates = 0;
 	    }
     }
@@ -651,13 +651,13 @@ Sbar_DrawInventory(void)
 	    if (cl.stats[STAT_ITEMS] & (1 << (29 + i))) {
 		time = cl.item_gettime[29 + i];
 
-		if (time && time > cl.time - 2 && flashon) {	/* flash frame */
+		if (time < 2 && flashon) {	/* flash frame */
 		    sb_updates = 0;
 		} else {
 		    Sbar_DrawPic(288 + i * 16, -16, rsb_items[i]);
 		}
 
-		if (time && time > cl.time - 2)
+		if (time < 2)
 		    sb_updates = 0;
 	    }
 	}
@@ -666,11 +666,11 @@ Sbar_DrawInventory(void)
 	for (i = 0; i < 4; i++) {
 	    if (cl.stats[STAT_ITEMS] & (1 << (28 + i))) {
 		time = cl.item_gettime[28 + i];
-		if (time && time > cl.time - 2 && flashon) {	/* flash frame */
+		if (time < 2 && flashon) {	/* flash frame */
 		    sb_updates = 0;
 		} else
 		    Sbar_DrawPic(320 - 32 + i * 8, -16, sb_sigil[i]);
-		if (time && time > cl.time - 2)
+		if (time < 2)
 		    sb_updates = 0;
 	    }
 	}

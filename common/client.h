@@ -142,7 +142,7 @@ typedef struct {
 
 /* information for local display */
     int stats[MAX_CL_STATS];	/* health, etc */
-    float item_gettime[32];	/* cl.time of aquiring item, for blinking */
+    float item_gettime[32];	/* (countdown) elapsed since item j was acquired, for sbar flash phase; aged per-frame in CL_ReadFromServer */
     float faceanimtime;		/* countdown: remaining sbar pain-frame duration (was: cl.time at which to stop showing); aged once per frame in CL_ReadFromServer */
 
     cshift_t cshifts[NUM_CSHIFTS];	/* color shifts for damage, powerups */

@@ -785,6 +785,17 @@ int CL_ReadFromServer(void)
    cl.faceanimtime          -= host_frametime;
    cl.last_received_message += host_frametime;
    scr_centertime_start     += host_frametime;
+   {
+      /* item_gettime[j] used to store cl.time at pickup; under the
+       * countdown it stores elapsed-since-pickup, set to 0 by the
+       * STAT_ITEMS-change handler in CL_ParseUpdate. Slots for items
+       * the player never owned grow unbounded but are gated out by
+       * the cl.stats[STAT_ITEMS] ownership test at every sbar read
+       * site, so no sentinel is needed. */
+      int j;
+      for (j = 0; j < 32; j++)
+         cl.item_gettime[j] += host_frametime;
+   }
 
    do {
       ret = CL_GetMessage();
