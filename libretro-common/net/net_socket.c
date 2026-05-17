@@ -303,11 +303,11 @@ int socket_select(int nfds, fd_set *readfds, fd_set *writefds,
 
       /* Keep a copy of the original sets for lookup later. */
       if (readfds)
-         memcpy(&rfds, readfds, sizeof(rfds));
+         rfds = *readfds;
       if (writefds)
-         memcpy(&wfds, writefds, sizeof(wfds));
+         wfds = *writefds;
       if (err_fds)
-         memcpy(&efds, err_fds, sizeof(efds));
+         efds = *err_fds;
    }
    else
    {
