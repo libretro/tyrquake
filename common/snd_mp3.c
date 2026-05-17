@@ -543,6 +543,17 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 	{
 		return true;
 	}
+	/* mp3_startread runs mad_stream_init / mad_frame_init /
+	 * mad_synth_init unconditionally before any of its failure
+	 * exits, and on a frame decode that gets far enough,
+	 * mad_stream's internal main_data buffer is allocated as
+	 * well. The matching teardown lives in mp3_stopread (the
+	 * mad_*_finish triad); free(stream->priv) alone leaves that
+	 * internal allocation behind every time a malformed MP3 (or
+	 * a valid one with channels != 1 && != 2) is rejected.
+	 * Call mp3_stopread before the free so the libmad state
+	 * goes the same path as the success-then-close case. */
+	mp3_stopread(stream);
 	free(stream->priv);
 	return false;
 }
