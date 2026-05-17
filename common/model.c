@@ -702,6 +702,38 @@ Mod_LoadTextures(lump_t *l)
       memcpy(tx->name, mt->name, sizeof(tx->name));
       tx->width = mt->width;
       tx->height = mt->height;
+      /* mt->offsets[j] are file-controlled byte offsets pointing
+       * from the miptex_t header to each of the four mip levels.
+       * The renderer (D_DrawSurface, R_DrawSubdividedSurfaces,
+       * R_InitSky's memcpy-into-tx) consumes the post-translation
+       * tx->offsets[j] as 'data = (byte*)tx + tx->offsets[j]' and
+       * walks the resulting pointer mip_w*mip_h bytes deep. A
+       * hostile or corrupt BSP can set any of the four offsets to
+       * a value outside the [sizeof(miptex_t),
+       * sizeof(miptex_t)+pixels) region we just memcpy'd, and the
+       * renderer reads (or, via R_InitSky, writes through) a wild
+       * pointer.
+       *
+       * Validate per level: the level's mip is (w >> j) * (h >> j)
+       * bytes (textures are required multiples of 16 so the
+       * right-shifts stay >= 2 for j up to 3, no max(1,) fallback
+       * needed).  Both the start of the level and its end must lie
+       * within the loaded mip range. */
+      for (j = 0; j < MIPLEVELS; j++) {
+         uint32_t mip_w = mt->width >> j;
+         uint32_t mip_h = mt->height >> j;
+         uint64_t mip_size = (uint64_t)mip_w * (uint64_t)mip_h;
+         if (mt->offsets[j] < sizeof(miptex_t)
+             || (uint64_t)mt->offsets[j] + mip_size
+                  > (uint64_t)sizeof(miptex_t) + (uint64_t)pixels)
+            SV_Error("%s: texture %s mip %d offset %u out of "
+                  "range [%zu, %zu) in %s",
+                  __func__, mt->name, j,
+                  (unsigned)mt->offsets[j],
+                  sizeof(miptex_t),
+                  (size_t)(sizeof(miptex_t) + pixels),
+                  loadmodel->name);
+      }
       for (j = 0; j < MIPLEVELS; j++)
          tx->offsets[j] =
             mt->offsets[j] + sizeof(texture_t) - sizeof(miptex_t);
