@@ -1025,6 +1025,25 @@ Mod_LoadVertexes(lump_t *l)
       out->position[0] = LittleFloat(in->point[0]);
       out->position[1] = LittleFloat(in->point[1]);
       out->position[2] = LittleFloat(in->point[2]);
+      /* Vertex coordinates are loaded raw from the BSP as
+       * float bit patterns (LittleFloat preserves the
+       * pattern); a malformed or hostile file can put
+       * NaN / Inf here.  Bad positions propagate into
+       * CalcSurfaceExtents (caught there by IS_NAN on
+       * mins/maxs), into SV_RecursiveHullCheck via brush
+       * collision (caught at the SV_Move boundary), and
+       * into renderer transforms.  All three downstream
+       * paths recover, but each has to re-discover the
+       * problem and each does it a little differently.
+       * Reject at the loader so every consumer can trust
+       * that loadmodel->vertexes[i].position is finite.
+       * Same defense pattern as the plane normal/dist
+       * check in Mod_LoadPlanes and the submodel
+       * mins/maxs/origin check in Mod_LoadSubmodels. */
+      if (IS_NAN(out->position[0]) || IS_NAN(out->position[1]) ||
+          IS_NAN(out->position[2]))
+         SV_Error("%s: non-finite vertex %d in %s",
+                  __func__, i, loadmodel->name);
    }
 }
 
