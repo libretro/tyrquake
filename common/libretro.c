@@ -890,7 +890,30 @@ static void update_variables(bool startup)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
    {
-		analog_deadzone = (int)(atoi(var.value) * 0.01f * ANALOG_RANGE);
+		int pct = atoi(var.value);
+		/* The core-options manifest advertises 0..30%, but
+		 * frontends don't strictly enforce the enumerated set
+		 * and a hand-edited options file can supply any
+		 * string.  atoi returns 0 for unparseable input
+		 * (harmless: deadzone disabled) but also accepts
+		 * values >= 100 verbatim.  At pct == 100,
+		 * analog_deadzone == ANALOG_RANGE == 32767 and the
+		 * subsequent IN_Move divisor 'ANALOG_RANGE -
+		 * analog_deadzone' becomes 0.  The deadzone gate
+		 * 'lsx > analog_deadzone || lsx < -analog_deadzone'
+		 * normally screens us off at that point (lsx can't
+		 * exceed 32767), but at lsx == -32768 (stick
+		 * physically fully one direction) the second
+		 * comparison fires and we land on a
+		 * 'cl_sidespeed.value * lsx / 0' divide-by-zero in
+		 * the float math.  At pct > 100, analog_deadzone >
+		 * ANALOG_RANGE and the divisor goes negative, which
+		 * silently inverts the stick mapping rather than
+		 * crashing -- still wrong behaviour.  Clamp pct so
+		 * the divisor stays strictly positive. */
+		if (pct < 0)  pct = 0;
+		if (pct > 99) pct = 99;
+		analog_deadzone = (int)(pct * 0.01f * ANALOG_RANGE);
    }
 
 }
