@@ -116,7 +116,83 @@
  *     compute work -- HDR tonemap, post-process,
  *     compute-based rasterizer -- will reuse.
  *
- *   Phase 4g..N -- real geometry: world surfaces, alias
+ * Phase 4h (this file's current state): a graphics
+ * pipeline returns -- this time designed for 2D overlay
+ * work (per-vertex position + colour, alpha blend
+ * enabled) -- and an overlay render pass runs after the
+ * compute dispatch on the same vk_image, drawing on top
+ * of the SW-framebuffer-through-LUT result.  The commit
+ * draws a single hardcoded gradient quad in the upper-
+ * left corner as the demonstration; Phase 4i will
+ * replace that quad with the first real Draw_Pic
+ * intercept.
+ *
+ * Key Phase 4h additions:
+ *
+ *   - overlay_quad.vert + overlay_quad.frag +
+ *     generated SPIR-V headers.  Position + colour
+ *     vertex input, no texture sampling; the FS just
+ *     outputs the interpolated colour and the pipeline's
+ *     blend stage composites it onto the existing
+ *     content.
+ *
+ *   - vk_overlay_render_pass with loadOp = LOAD, so the
+ *     compute output isn't discarded; storeOp = STORE,
+ *     so the overlay's writes are preserved for the
+ *     frontend sample.  initialLayout = GENERAL (where
+ *     the compute dispatch left vk_image; the render
+ *     pass's own attachment transition takes it to
+ *     COLOR_ATTACHMENT_OPTIMAL for the subpass);
+ *     finalLayout = SHADER_READ_ONLY_OPTIMAL (where the
+ *     frontend wants it).  This replaces the explicit
+ *     compute-exit pipeline barrier from Phase 4g.
+ *
+ *   - Subpass dependency EXTERNAL -> 0 with
+ *     srcStage = COMPUTE_SHADER, dstStage =
+ *     COLOR_ATTACHMENT_OUTPUT, srcAccess = SHADER_WRITE,
+ *     dstAccess = COLOR_ATTACHMENT_WRITE |
+ *     COLOR_ATTACHMENT_READ, providing the memory
+ *     dependency that the explicit barrier used to carry.
+ *
+ *   - vk_overlay_framebuffer + vk_overlay_pipeline_layout
+ *     + vk_overlay_pipeline.  The pipeline has vertex
+ *     input bindings (binding 0 stride 24: vec2 position
+ *     at offset 0, vec4 colour at offset 8), alpha blend
+ *     enabled, triangle-strip topology so 4 vertices ->
+ *     2 triangles, no depth / stencil.  Pipeline layout
+ *     has no descriptor sets and no push constants --
+ *     Phase 4i will introduce them when textured pics
+ *     arrive.
+ *
+ *   - vk_overlay_vertex_buffer (HOST_VISIBLE +
+ *     HOST_COHERENT, persistently mapped) holding 4
+ *     vertices for one quad.  Writes happen at
+ *     create_resources time; the buffer is bound and
+ *     drawn from per-frame in record_frame.  Future
+ *     phases will repurpose this buffer for dynamically-
+ *     filled quad streams (one Draw_Pic / Draw_Character
+ *     per quad).
+ *
+ *   - vk_fn gains CreateRenderPass, DestroyRenderPass,
+ *     CreateFramebuffer, DestroyFramebuffer,
+ *     CreateGraphicsPipelines, CmdBeginRenderPass,
+ *     CmdEndRenderPass, CmdDraw, CmdBindVertexBuffers
+ *     (the first four were removed at Phase 4g; the
+ *     last is new, needed for the vertex-buffer bind).
+ *
+ *   - record_frame's compute-exit step changes from
+ *     "explicit barrier GENERAL -> SHADER_READ_ONLY_
+ *     OPTIMAL" to "no explicit barrier; let the render
+ *     pass's subpass dependency handle the
+ *     synchronisation and its attachment description
+ *     handle the layout transitions".  Then BeginRender-
+ *     Pass + BindPipeline + BindVertexBuffers + Draw(4)
+ *     + EndRenderPass replace what Phase 4g's compute-
+ *     exit barrier used to do; vk_image ends in
+ *     SHADER_READ_ONLY_OPTIMAL just as it did before,
+ *     so the frontend sample path is unchanged.
+ *
+ * Phase 4i..N -- real geometry: world surfaces, alias
  *     models, sprites, sky, liquids, shadows; palette +
  *     colormap LUT path; dynamic lightmap update; etc.
  *     R_RenderView's dispatch from backend_vk_draw_view
@@ -152,6 +228,8 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "vulkan/vulkan_core.h"
 #include "libretro_vulkan.h"
 #include "shaders/generated/spv/textured_palette_cs.h"
+#include "shaders/generated/spv/overlay_quad_vs.h"
+#include "shaders/generated/spv/overlay_quad_fs.h"
 #include <string.h>
 
 extern retro_environment_t    environ_cb;
@@ -210,6 +288,32 @@ static VkCommandBuffer  vk_cmd_buffer;
 static VkShaderModule   vk_cs_module;
 static VkPipelineLayout vk_pipeline_layout;
 static VkPipeline       vk_compute_pipeline;
+
+/* Phase 4h: 2D overlay graphics pipeline.  Render pass +
+ * framebuffer wrap the same vk_image_view that the compute
+ * pipeline writes to, with loadOp = LOAD so the compute
+ * output is preserved.  The render pass's attachment
+ * initialLayout = GENERAL receives vk_image straight from
+ * the compute dispatch (no explicit pipeline barrier
+ * between them; the subpass dependency carries the
+ * memory dependency), and finalLayout =
+ * SHADER_READ_ONLY_OPTIMAL hands it to the libretro
+ * frontend.  The pipeline layout is empty -- no
+ * descriptor sets, no push constants -- because the
+ * Phase 4h overlay is solid-colour-only; Phase 4i will
+ * introduce a sampler binding and a projection push
+ * constant.  vk_overlay_vertex_buffer is HOST_VISIBLE
+ * (so we can write it from the CPU at create_resources
+ * time without a staging round-trip) and holds 4
+ * vertices for the demonstration quad. */
+static VkShaderModule   vk_overlay_vs_module;
+static VkShaderModule   vk_overlay_fs_module;
+static VkRenderPass     vk_overlay_render_pass;
+static VkFramebuffer    vk_overlay_framebuffer;
+static VkPipelineLayout vk_overlay_pipeline_layout;
+static VkPipeline       vk_overlay_pipeline;
+static VkBuffer         vk_overlay_vertex_buffer;
+static VkDeviceMemory   vk_overlay_vertex_memory;
 
 /* Phase 4c: sampled-texture objects.  vk_texture is the
  * source image that the compute shader reads through u_index;
@@ -312,21 +416,30 @@ static struct {
     PFN_vkQueueWaitIdle                   QueueWaitIdle;
 
     /* Shader / pipeline (Phase 4b for the layout, Phase 4g
-     * for compute).  Render-pass / framebuffer / graphics-
+     * for compute, Phase 4h for the overlay graphics
+     * path).  Render-pass / framebuffer / graphics-
      * pipeline / Cmd{BeginRenderPass,EndRenderPass,Draw}
-     * dropped at Phase 4g -- nothing in the file calls them
-     * now that the per-frame work is a compute dispatch.
-     * They'll be added back, with the right design for
-     * their workload, when Phase 4h introduces a graphics
-     * path for HUD / overlay rendering. */
+     * came back at Phase 4h for the overlay path on top
+     * of the compute output.  CmdBindVertexBuffers is new
+     * at Phase 4h -- the first time the file uses vertex
+     * input. */
     PFN_vkCreateShaderModule              CreateShaderModule;
     PFN_vkDestroyShaderModule             DestroyShaderModule;
     PFN_vkCreatePipelineLayout            CreatePipelineLayout;
     PFN_vkDestroyPipelineLayout           DestroyPipelineLayout;
     PFN_vkCreateComputePipelines          CreateComputePipelines;
+    PFN_vkCreateGraphicsPipelines         CreateGraphicsPipelines;
     PFN_vkDestroyPipeline                 DestroyPipeline;
+    PFN_vkCreateRenderPass                CreateRenderPass;
+    PFN_vkDestroyRenderPass               DestroyRenderPass;
+    PFN_vkCreateFramebuffer               CreateFramebuffer;
+    PFN_vkDestroyFramebuffer              DestroyFramebuffer;
     PFN_vkCmdBindPipeline                 CmdBindPipeline;
     PFN_vkCmdDispatch                     CmdDispatch;
+    PFN_vkCmdBeginRenderPass              CmdBeginRenderPass;
+    PFN_vkCmdEndRenderPass                CmdEndRenderPass;
+    PFN_vkCmdDraw                         CmdDraw;
+    PFN_vkCmdBindVertexBuffers            CmdBindVertexBuffers;
 
     /* Sampler / descriptor / staging upload (Phase 4c) */
     PFN_vkCreateSampler                   CreateSampler;
@@ -454,6 +567,37 @@ backend_vk_create_resources(void)
     VkDescriptorSetAllocateInfo             ds_alloc;
     VkDescriptorImageInfo                   ds_image_infos[3];
     VkWriteDescriptorSet                    ds_writes[3];
+    /* Phase 4h: overlay render-pass + graphics-pipeline locals.
+     * Kept inline rather than factored into a helper so the
+     * single-function create-resources structure is preserved;
+     * the overlay setup is mechanically distinct from the
+     * compute setup above but uses the same conventions
+     * (memset-to-zero, sType, populate, create, error-check). */
+    VkAttachmentDescription                 ov_attachment;
+    VkAttachmentReference                   ov_color_ref;
+    VkSubpassDescription                    ov_subpass;
+    VkSubpassDependency                     ov_dep;
+    VkRenderPassCreateInfo                  ov_rp_ci;
+    VkFramebufferCreateInfo                 ov_fb_ci;
+    VkImageView                             ov_fb_attachments[1];
+    VkPipelineLayoutCreateInfo              ov_pl_ci;
+    VkPipelineShaderStageCreateInfo         ov_stages[2];
+    VkVertexInputBindingDescription         ov_vb_binding;
+    VkVertexInputAttributeDescription       ov_vb_attribs[2];
+    VkPipelineVertexInputStateCreateInfo    ov_vi;
+    VkPipelineInputAssemblyStateCreateInfo  ov_ia;
+    VkViewport                              ov_viewport;
+    VkRect2D                                ov_scissor;
+    VkPipelineViewportStateCreateInfo       ov_vp;
+    VkPipelineRasterizationStateCreateInfo  ov_rs;
+    VkPipelineMultisampleStateCreateInfo    ov_ms;
+    VkPipelineColorBlendAttachmentState     ov_cba;
+    VkPipelineColorBlendStateCreateInfo     ov_cb;
+    VkGraphicsPipelineCreateInfo            ov_gp_ci;
+    VkBufferCreateInfo                      ov_vb_ci;
+    VkMemoryRequirements                    ov_vb_mem_req;
+    VkMemoryAllocateInfo                    ov_vb_alloc;
+    void                                   *ov_vb_ptr;
     uint32_t                                mem_type;
     VkResult                                r;
 
@@ -1047,6 +1191,394 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
+     * Phase 4h: overlay graphics path.  Render pass +
+     * framebuffer + graphics pipeline + vertex buffer for
+     * drawing 2D quads on top of the compute output.
+     *
+     * Shader modules. */
+    memset(&sm_ci, 0, sizeof(sm_ci));
+    sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    sm_ci.codeSize = spv_overlay_quad_vs_size;
+    sm_ci.pCode    = spv_overlay_quad_vs;
+    r = vk_fn.CreateShaderModule(vk_device, &sm_ci, NULL, &vk_overlay_vs_module);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateShaderModule (overlay vs) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    memset(&sm_ci, 0, sizeof(sm_ci));
+    sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    sm_ci.codeSize = spv_overlay_quad_fs_size;
+    sm_ci.pCode    = spv_overlay_quad_fs;
+    r = vk_fn.CreateShaderModule(vk_device, &sm_ci, NULL, &vk_overlay_fs_module);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateShaderModule (overlay fs) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Render pass.  One COLOR attachment (the same image
+     * the compute dispatch wrote to), loadOp = LOAD so the
+     * compute output is preserved.  initialLayout =
+     * GENERAL receives the image straight from the compute
+     * dispatch -- the render pass's own attachment-layout
+     * transition takes it to COLOR_ATTACHMENT_OPTIMAL for
+     * the subpass, then to SHADER_READ_ONLY_OPTIMAL via
+     * finalLayout for the frontend sample.
+     *
+     * Subpass dependency EXTERNAL -> 0 carries the memory
+     * dependency between the compute write and the
+     * attachment access: srcStage = COMPUTE_SHADER waits
+     * for the dispatch, srcAccess = SHADER_WRITE makes
+     * those writes visible; dstStage =
+     * COLOR_ATTACHMENT_OUTPUT and dstAccess =
+     * COLOR_ATTACHMENT_WRITE | COLOR_ATTACHMENT_READ
+     * cover both the LOAD (read) and the subpass draw
+     * (write+read for blend).  This replaces the explicit
+     * pipeline barrier Phase 4g used to issue between
+     * compute and the (then nonexistent) downstream
+     * pass. */
+    memset(&ov_attachment, 0, sizeof(ov_attachment));
+    ov_attachment.format         = VK_FORMAT_R8G8B8A8_UNORM;
+    ov_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+    ov_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_LOAD;
+    ov_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    ov_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    ov_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    ov_attachment.initialLayout  = VK_IMAGE_LAYOUT_GENERAL;
+    ov_attachment.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    ov_color_ref.attachment = 0;
+    ov_color_ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    memset(&ov_subpass, 0, sizeof(ov_subpass));
+    ov_subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    ov_subpass.colorAttachmentCount = 1;
+    ov_subpass.pColorAttachments    = &ov_color_ref;
+
+    memset(&ov_dep, 0, sizeof(ov_dep));
+    ov_dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
+    ov_dep.dstSubpass    = 0;
+    ov_dep.srcStageMask  = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    ov_dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    ov_dep.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    ov_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                         | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+
+    memset(&ov_rp_ci, 0, sizeof(ov_rp_ci));
+    ov_rp_ci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    ov_rp_ci.attachmentCount = 1;
+    ov_rp_ci.pAttachments    = &ov_attachment;
+    ov_rp_ci.subpassCount    = 1;
+    ov_rp_ci.pSubpasses      = &ov_subpass;
+    ov_rp_ci.dependencyCount = 1;
+    ov_rp_ci.pDependencies   = &ov_dep;
+
+    r = vk_fn.CreateRenderPass(vk_device, &ov_rp_ci, NULL, &vk_overlay_render_pass);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateRenderPass (overlay) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Framebuffer.  Wraps the same vk_image_view the
+     * compute dispatch writes to, so the overlay's draws
+     * land on top of the compute output. */
+    ov_fb_attachments[0] = vk_image_view;
+    memset(&ov_fb_ci, 0, sizeof(ov_fb_ci));
+    ov_fb_ci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    ov_fb_ci.renderPass      = vk_overlay_render_pass;
+    ov_fb_ci.attachmentCount = 1;
+    ov_fb_ci.pAttachments    = ov_fb_attachments;
+    ov_fb_ci.width           = width;
+    ov_fb_ci.height          = height;
+    ov_fb_ci.layers          = 1;
+
+    r = vk_fn.CreateFramebuffer(vk_device, &ov_fb_ci, NULL, &vk_overlay_framebuffer);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateFramebuffer (overlay) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Pipeline layout.  Empty -- no descriptor sets, no
+     * push constants.  Phase 4h's overlay is solid-
+     * colour-only (per-vertex RGBA via vertex input);
+     * Phase 4i will introduce a sampler binding for
+     * textured pics and a push constant for the screen-
+     * space transform. */
+    memset(&ov_pl_ci, 0, sizeof(ov_pl_ci));
+    ov_pl_ci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
+    r = vk_fn.CreatePipelineLayout(vk_device, &ov_pl_ci, NULL,
+                                   &vk_overlay_pipeline_layout);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreatePipelineLayout (overlay) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Graphics pipeline.
+     *
+     * Vertex input: one binding (binding 0) with stride
+     * 24 bytes = sizeof(vec2) + sizeof(vec4); two
+     * attributes (location 0 = R32G32_SFLOAT at offset 0
+     * for position, location 1 = R32G32B32A32_SFLOAT at
+     * offset 8 for colour).
+     *
+     * Input assembly: TRIANGLE_STRIP so 4 vertices
+     * produce 2 triangles for a quad without an index
+     * buffer.  Strip winding for a screen-aligned quad:
+     *   v0 = bottom-left  (NDC -, +y in Vulkan = bottom)
+     *   v1 = bottom-right
+     *   v2 = top-left
+     *   v3 = top-right
+     * Note Vulkan NDC has y = -1 at the TOP of the
+     * framebuffer; "bottom" above means larger y in NDC.
+     *
+     * Viewport / scissor: full vk_image extent; resolution
+     * is fixed for the lifetime of the context (the
+     * core option requires-restart), so static state is
+     * fine, no VK_DYNAMIC_STATE_VIEWPORT needed.
+     *
+     * Rasterization: FILL, no culling (we don't care
+     * about winding for 2D quads).
+     *
+     * Multisample: 1 sample.
+     *
+     * Color blend: standard alpha blending --
+     *   color = src.rgb * src.a + dst.rgb * (1 - src.a)
+     *   alpha = src.a       + dst.a * (1 - src.a)
+     * so the overlay quad composites smoothly over the
+     * compute output. */
+    memset(&ov_stages[0], 0, sizeof(ov_stages[0]));
+    ov_stages[0].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    ov_stages[0].stage  = VK_SHADER_STAGE_VERTEX_BIT;
+    ov_stages[0].module = vk_overlay_vs_module;
+    ov_stages[0].pName  = "main";
+    memset(&ov_stages[1], 0, sizeof(ov_stages[1]));
+    ov_stages[1].sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    ov_stages[1].stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
+    ov_stages[1].module = vk_overlay_fs_module;
+    ov_stages[1].pName  = "main";
+
+    memset(&ov_vb_binding, 0, sizeof(ov_vb_binding));
+    ov_vb_binding.binding   = 0;
+    ov_vb_binding.stride    = 24;  /* vec2 + vec4 */
+    ov_vb_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    memset(&ov_vb_attribs, 0, sizeof(ov_vb_attribs));
+    ov_vb_attribs[0].location = 0;
+    ov_vb_attribs[0].binding  = 0;
+    ov_vb_attribs[0].format   = VK_FORMAT_R32G32_SFLOAT;
+    ov_vb_attribs[0].offset   = 0;
+    ov_vb_attribs[1].location = 1;
+    ov_vb_attribs[1].binding  = 0;
+    ov_vb_attribs[1].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
+    ov_vb_attribs[1].offset   = 8;
+
+    memset(&ov_vi, 0, sizeof(ov_vi));
+    ov_vi.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    ov_vi.vertexBindingDescriptionCount   = 1;
+    ov_vi.pVertexBindingDescriptions      = &ov_vb_binding;
+    ov_vi.vertexAttributeDescriptionCount = 2;
+    ov_vi.pVertexAttributeDescriptions    = ov_vb_attribs;
+
+    memset(&ov_ia, 0, sizeof(ov_ia));
+    ov_ia.sType    = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    ov_ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+
+    memset(&ov_viewport, 0, sizeof(ov_viewport));
+    ov_viewport.x        = 0.0f;
+    ov_viewport.y        = 0.0f;
+    ov_viewport.width    = (float)width;
+    ov_viewport.height   = (float)height;
+    ov_viewport.minDepth = 0.0f;
+    ov_viewport.maxDepth = 1.0f;
+
+    memset(&ov_scissor, 0, sizeof(ov_scissor));
+    ov_scissor.extent.width  = width;
+    ov_scissor.extent.height = height;
+
+    memset(&ov_vp, 0, sizeof(ov_vp));
+    ov_vp.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    ov_vp.viewportCount = 1;
+    ov_vp.pViewports    = &ov_viewport;
+    ov_vp.scissorCount  = 1;
+    ov_vp.pScissors     = &ov_scissor;
+
+    memset(&ov_rs, 0, sizeof(ov_rs));
+    ov_rs.sType       = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    ov_rs.polygonMode = VK_POLYGON_MODE_FILL;
+    ov_rs.cullMode    = VK_CULL_MODE_NONE;
+    ov_rs.frontFace   = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    ov_rs.lineWidth   = 1.0f;
+
+    memset(&ov_ms, 0, sizeof(ov_ms));
+    ov_ms.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    ov_ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    memset(&ov_cba, 0, sizeof(ov_cba));
+    ov_cba.blendEnable         = VK_TRUE;
+    ov_cba.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    ov_cba.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    ov_cba.colorBlendOp        = VK_BLEND_OP_ADD;
+    ov_cba.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    ov_cba.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    ov_cba.alphaBlendOp        = VK_BLEND_OP_ADD;
+    ov_cba.colorWriteMask      = VK_COLOR_COMPONENT_R_BIT
+                               | VK_COLOR_COMPONENT_G_BIT
+                               | VK_COLOR_COMPONENT_B_BIT
+                               | VK_COLOR_COMPONENT_A_BIT;
+
+    memset(&ov_cb, 0, sizeof(ov_cb));
+    ov_cb.sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    ov_cb.attachmentCount = 1;
+    ov_cb.pAttachments    = &ov_cba;
+
+    memset(&ov_gp_ci, 0, sizeof(ov_gp_ci));
+    ov_gp_ci.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    ov_gp_ci.stageCount          = 2;
+    ov_gp_ci.pStages             = ov_stages;
+    ov_gp_ci.pVertexInputState   = &ov_vi;
+    ov_gp_ci.pInputAssemblyState = &ov_ia;
+    ov_gp_ci.pViewportState      = &ov_vp;
+    ov_gp_ci.pRasterizationState = &ov_rs;
+    ov_gp_ci.pMultisampleState   = &ov_ms;
+    ov_gp_ci.pColorBlendState    = &ov_cb;
+    ov_gp_ci.layout              = vk_overlay_pipeline_layout;
+    ov_gp_ci.renderPass          = vk_overlay_render_pass;
+    ov_gp_ci.subpass             = 0;
+    ov_gp_ci.basePipelineHandle  = VK_NULL_HANDLE;
+    ov_gp_ci.basePipelineIndex   = -1;
+
+    r = vk_fn.CreateGraphicsPipelines(vk_device, VK_NULL_HANDLE,
+                                      1, &ov_gp_ci, NULL, &vk_overlay_pipeline);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateGraphicsPipelines (overlay) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    /* Vertex buffer.  HOST_VISIBLE + HOST_COHERENT so we
+     * can write straight to it from the CPU; persistently
+     * mapped so the vk_overlay_vertex_buffer_ptr stays
+     * valid for the lifetime of the resources.  Size = 4
+     * vertices * 24 bytes = 96 bytes.
+     *
+     * Contents at create_resources time: one quad in the
+     * upper-left of the screen (NDC x in [-0.9, -0.7], y
+     * in [-0.9, -0.7]; Vulkan NDC y goes negative
+     * upward), with a different bright colour at each
+     * corner so the FS interpolation produces a visible
+     * gradient.  Alpha = 0.5 so the underlying content
+     * shows through.
+     *
+     * Phase 4i will reuse this buffer for dynamic per-
+     * frame quad streams (the Draw_Pic / Draw_Character
+     * intercept fills it with as many quads as the SW
+     * 2D drawing path requested that frame); for now
+     * it's static and written once. */
+    memset(&ov_vb_ci, 0, sizeof(ov_vb_ci));
+    ov_vb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    ov_vb_ci.size        = 4 * 24;   /* 4 vertices * (vec2 + vec4) */
+    ov_vb_ci.usage       = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    ov_vb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    r = vk_fn.CreateBuffer(vk_device, &ov_vb_ci, NULL, &vk_overlay_vertex_buffer);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: CreateBuffer (overlay vertex) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    vk_fn.GetBufferMemoryRequirements(vk_device,
+                                      vk_overlay_vertex_buffer,
+                                      &ov_vb_mem_req);
+
+    mem_type = backend_vk_find_memory_type(
+        ov_vb_mem_req.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+      | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (mem_type == 0xFFFFFFFFu) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: no HOST_VISIBLE | HOST_COHERENT memory for overlay vertex buffer\n");
+        return false;
+    }
+
+    memset(&ov_vb_alloc, 0, sizeof(ov_vb_alloc));
+    ov_vb_alloc.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ov_vb_alloc.allocationSize  = ov_vb_mem_req.size;
+    ov_vb_alloc.memoryTypeIndex = mem_type;
+
+    r = vk_fn.AllocateMemory(vk_device, &ov_vb_alloc, NULL,
+                             &vk_overlay_vertex_memory);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: AllocateMemory (overlay vertex) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    r = vk_fn.BindBufferMemory(vk_device, vk_overlay_vertex_buffer,
+                               vk_overlay_vertex_memory, 0);
+    if (r != VK_SUCCESS) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: BindBufferMemory (overlay vertex) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    ov_vb_ptr = NULL;
+    r = vk_fn.MapMemory(vk_device, vk_overlay_vertex_memory, 0,
+                        ov_vb_ci.size, 0, &ov_vb_ptr);
+    if (r != VK_SUCCESS || !ov_vb_ptr) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: MapMemory (overlay vertex) failed (%d)\n", (int)r);
+        return false;
+    }
+
+    {
+        /* Inline literal vertex stream.  Float-packed
+         * because the buffer is HOST_VISIBLE and we have a
+         * direct mapped pointer; no endianness shenanigans
+         * because the bytes map directly to the vec2/vec4
+         * vertex input attributes the VS reads.
+         *
+         * Strip winding (Vulkan NDC y is negative upward):
+         *   v0 bottom-left  (-0.9, -0.7) red       0.5a
+         *   v1 bottom-right (-0.7, -0.7) green     0.5a
+         *   v2 top-left     (-0.9, -0.9) blue      0.5a
+         *   v3 top-right    (-0.7, -0.9) yellow    0.5a
+         * which gives a visible colour-gradient quad in
+         * the upper-left of the screen (Vulkan top is
+         * negative-y, so "top-left" in screen space is
+         * NDC (-0.9, -0.9)). */
+        static const float quad_verts[4 * 6] = {
+            /*  x      y      r     g     b     a   */
+            -0.9f, -0.7f,    1.0f, 0.0f, 0.0f, 0.5f,
+            -0.7f, -0.7f,    0.0f, 1.0f, 0.0f, 0.5f,
+            -0.9f, -0.9f,    0.0f, 0.0f, 1.0f, 0.5f,
+            -0.7f, -0.9f,    1.0f, 1.0f, 0.0f, 0.5f
+        };
+        memcpy(ov_vb_ptr, quad_verts, sizeof(quad_verts));
+    }
+    /* Don't UnmapMemory: HOST_COHERENT, persistent map
+     * is fine (and required to avoid retracted memory
+     * mapping invariants in some drivers).  vkFreeMemory
+     * at teardown implicitly unmaps. */
+
+    /* ---------------------------------------------------------
      * Command pool + buffer.  RESET_COMMAND_BUFFER_BIT lets
      * vkBeginCommandBuffer implicitly reset the buffer at the
      * top of every per-frame recording (Phase 4e);
@@ -1088,7 +1620,7 @@ backend_vk_create_resources(void)
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
                "rhi-vk: render target %ux%u + R8 index + 256x1 palette + "
-               "staging %llu bytes ready; compute palette LUT active\n",
+               "staging %llu bytes ready; compute palette LUT + overlay quad active\n",
                width, height,
                (unsigned long long)vk_staging_size);
     return true;
@@ -1190,6 +1722,55 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroySampler(vk_device, vk_sampler, NULL);
         vk_sampler = VK_NULL_HANDLE;
     }
+    /* Phase 4h overlay objects: reverse-create order
+     * within this group, and this whole group goes before
+     * the Phase 4g compute objects.  The overlay pipeline
+     * references the overlay layout (which has no
+     * descriptors so isn't tied to the compute DSL), the
+     * overlay render pass, and the overlay shader
+     * modules; the framebuffer references the overlay
+     * render pass + vk_image_view; the vertex buffer
+     * stands alone. */
+    if (vk_overlay_vertex_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_overlay_vertex_buffer, NULL);
+        vk_overlay_vertex_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_vertex_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_overlay_vertex_memory, NULL);
+        vk_overlay_vertex_memory = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_overlay_pipeline, NULL);
+        vk_overlay_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device, vk_overlay_pipeline_layout, NULL);
+        vk_overlay_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_framebuffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyFramebuffer)
+            vk_fn.DestroyFramebuffer(vk_device, vk_overlay_framebuffer, NULL);
+        vk_overlay_framebuffer = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_render_pass != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyRenderPass)
+            vk_fn.DestroyRenderPass(vk_device, vk_overlay_render_pass, NULL);
+        vk_overlay_render_pass = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_fs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_overlay_fs_module, NULL);
+        vk_overlay_fs_module = VK_NULL_HANDLE;
+    }
+    if (vk_overlay_vs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_overlay_vs_module, NULL);
+        vk_overlay_vs_module = VK_NULL_HANDLE;
+    }
     /* Phase 4g pipeline objects: reverse-create order.  The
      * compute pipeline references vk_pipeline_layout, which
      * references the DSL; the shader module can go any time
@@ -1264,18 +1845,26 @@ backend_vk_load_fn(void)
         LOAD_DEV(QueueSubmit);
         LOAD_DEV(QueueWaitIdle);
         /* Phase 4b for shader/pipeline-layout, Phase 4g
-         * for the compute pipeline.  Graphics-pipeline and
-         * render-pass loaders dropped at Phase 4g; they'll
-         * come back when Phase 4h+ introduces graphics
-         * pipelines for overlay rendering. */
+         * for the compute pipeline, Phase 4h for the
+         * overlay graphics pipeline + render pass +
+         * framebuffer + vertex-buffer bind. */
         LOAD_DEV(CreateShaderModule);
         LOAD_DEV(DestroyShaderModule);
         LOAD_DEV(CreatePipelineLayout);
         LOAD_DEV(DestroyPipelineLayout);
         LOAD_DEV(CreateComputePipelines);
+        LOAD_DEV(CreateGraphicsPipelines);
         LOAD_DEV(DestroyPipeline);
+        LOAD_DEV(CreateRenderPass);
+        LOAD_DEV(DestroyRenderPass);
+        LOAD_DEV(CreateFramebuffer);
+        LOAD_DEV(DestroyFramebuffer);
         LOAD_DEV(CmdBindPipeline);
         LOAD_DEV(CmdDispatch);
+        LOAD_DEV(CmdBeginRenderPass);
+        LOAD_DEV(CmdEndRenderPass);
+        LOAD_DEV(CmdDraw);
+        LOAD_DEV(CmdBindVertexBuffers);
         /* Phase 4c additions */
         LOAD_DEV(CreateSampler);
         LOAD_DEV(DestroySampler);
@@ -1524,12 +2113,19 @@ backend_vk_upload_vid_buffer(void)
  *       ceil(width / 16) x ceil(height / 16) x 1; the in-
  *       shader bounds check catches the right/bottom edges
  *       when width or height isn't a multiple of 16.
- *     Barrier GENERAL -> SHADER_READ_ONLY_OPTIMAL on
- *       vk_image with srcStage = COMPUTE_SHADER so the
- *       libretro frontend's later sample sees the compute
- *       write.  Phase 4f had this transition folded into
- *       the render-pass finalLayout; with the render pass
- *       gone, it's explicit.
+ *     CmdBeginRenderPass (overlay) + CmdBindPipeline
+ *       (GRAPHICS, overlay) + CmdBindVertexBuffers (binding
+ *       0 = vk_overlay_vertex_buffer) + CmdDraw(4, 1, 0, 0)
+ *       + CmdEndRenderPass.  The render pass's
+ *       EXTERNAL -> 0 subpass dependency carries the
+ *       compute-write -> color-attachment-access memory
+ *       dependency that Phase 4g used to issue as an
+ *       explicit pipeline barrier; the attachment's
+ *       initialLayout = GENERAL takes the image straight
+ *       from the dispatch, finalLayout =
+ *       SHADER_READ_ONLY_OPTIMAL hands it to the frontend.
+ *       Phase 4h replaces the explicit compute-exit barrier
+ *       Phase 4g used to issue.
  *   End
  *
  * The ONE_TIME_SUBMIT flag tells the driver this recorded
@@ -1550,6 +2146,8 @@ backend_vk_record_frame(void)
     VkImageMemoryBarrier      barriers[2];
     VkImageMemoryBarrier      image_barrier;
     VkBufferImageCopy         regions[2];
+    VkRenderPassBeginInfo     rpbi;
+    VkDeviceSize              vb_offset;
     uint32_t                  group_count_x;
     uint32_t                  group_count_y;
     VkResult                  r;
@@ -1703,27 +2301,47 @@ backend_vk_record_frame(void)
     group_count_y = (height + 15u) / 16u;
     vk_fn.CmdDispatch(vk_cmd_buffer, group_count_x, group_count_y, 1);
 
-    /* Render target: GENERAL -> SHADER_READ_ONLY_OPTIMAL so
-     * the libretro frontend's sample reads what compute
-     * just wrote.  srcStage = COMPUTE_SHADER waits for the
-     * dispatch's writes; dstStage = BOTTOM_OF_PIPE because
-     * the frontend's own barriers handle its access scope
-     * (libretro_vulkan.h contract: src_queue_family ==
-     * queue_index means no ownership transfer, but the
-     * frontend still issues its own visibility barrier
-     * before sampling). */
-    image_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    image_barrier.dstAccessMask = 0;
-    image_barrier.oldLayout     = VK_IMAGE_LAYOUT_GENERAL;
-    image_barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    /* Phase 4h: overlay render pass.  No explicit
+     * pipeline barrier between the compute dispatch and
+     * the render pass; the render pass's EXTERNAL -> 0
+     * subpass dependency carries the memory dependency
+     * (srcStage = COMPUTE_SHADER, srcAccess = SHADER_
+     * WRITE -> dstStage = COLOR_ATTACHMENT_OUTPUT,
+     * dstAccess = COLOR_ATTACHMENT_WRITE | _READ), and
+     * the attachment description's
+     * initialLayout = GENERAL receives the image straight
+     * from the dispatch.
+     *
+     * The render pass's finalLayout = SHADER_READ_ONLY_
+     * OPTIMAL is what hands the image to the frontend in
+     * the right layout; no explicit post-render-pass
+     * barrier needed (the render pass implicitly does
+     * the COLOR_ATTACHMENT_OPTIMAL ->
+     * SHADER_READ_ONLY_OPTIMAL transition at end).
+     *
+     * The Draw is 4 vertices, 1 instance: triangle-strip
+     * topology turns those into the 2 triangles of the
+     * gradient quad. */
+    memset(&rpbi, 0, sizeof(rpbi));
+    rpbi.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    rpbi.renderPass               = vk_overlay_render_pass;
+    rpbi.framebuffer              = vk_overlay_framebuffer;
+    rpbi.renderArea.extent.width  = width;
+    rpbi.renderArea.extent.height = height;
+    rpbi.clearValueCount          = 0;
+    rpbi.pClearValues             = NULL;
 
-    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                             0,
-                             0, NULL,
-                             0, NULL,
-                             1, &image_barrier);
+    vk_fn.CmdBeginRenderPass(vk_cmd_buffer, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+    vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                          VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          vk_overlay_pipeline);
+    vb_offset = 0;
+    vk_fn.CmdBindVertexBuffers(vk_cmd_buffer,
+                               0,                          /* firstBinding */
+                               1, &vk_overlay_vertex_buffer,
+                               &vb_offset);
+    vk_fn.CmdDraw(vk_cmd_buffer, 4, 1, 0, 0);
+    vk_fn.CmdEndRenderPass(vk_cmd_buffer);
 
     r = vk_fn.EndCommandBuffer(vk_cmd_buffer);
     if (r != VK_SUCCESS) {

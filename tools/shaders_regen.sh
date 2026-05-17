@@ -98,5 +98,7 @@ regen_shader frag gradient         fs
 regen_shader frag textured         fs
 regen_shader frag textured_palette fs
 regen_shader comp textured_palette cs
+regen_shader vert overlay_quad     vs
+regen_shader frag overlay_quad     fs
 
 echo "done."
