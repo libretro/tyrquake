@@ -674,6 +674,21 @@ static void keyboard_cb(bool down, unsigned keycode,
 {
   /* character-only events are discarded */
   if (keycode != RETROK_UNKNOWN) {
+      /* Key_Event indexes keydown[key], key_repeats[key], and
+       * keybindings[key] directly with no internal bound check;
+       * each of those arrays is sized K_LAST. The full RETROK
+       * enum currently caps at RETROK_LAUNCH_APP2 = 341 and
+       * K_LAST evaluates to 383, so all real keycodes from a
+       * conformant frontend land inside. The cast 'unsigned'
+       * keycode -> 'knum_t' that Key_Event takes silently
+       * accepts any 32-bit value though, so a buggy or hostile
+       * frontend feeding RETROK_DUMMY or any out-of-range
+       * value would walk straight off the end of the keydown
+       * table and stomp adjacent globals (keybindings strings
+       * Z_Malloc'd at Key_SetBinding time, key_lastpress,
+       * etc.). Reject anything outside the enum range. */
+      if (keycode >= K_LAST)
+         return;
       if (down)
          Key_Event((knum_t) keycode, 1);
       else
