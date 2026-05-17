@@ -71,7 +71,14 @@ float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 /* BOF - Framerate-independent stair-step smoothing */
 float   v_oldz, v_stepz;
-float   v_steptime;
+/* Remaining lifetime / elapsed-since-last-step for the stair step-up
+ * view smoothing.  Was previously a cl.time snapshot ("when did this
+ * step animation start") stored as fp32; that loses precision once
+ * cl.time grows (ulp ~ 0.06 at cl.time ~ 1e6, which makes the lerp
+ * skip visibly).  Now: zero at step-reset, incremented by
+ * host_frametime once per use, read as the (small) elapsed time
+ * inside the step-active branch. */
+float   v_step_elapsed;
 /* EOF - Framerate-independent stair-step smoothing */
 
 static int old_health = 100;
@@ -89,7 +96,7 @@ vec3_t forward, right, up;
 void V_NewMap (void)
 {
    v_oldz = v_stepz = 0;
-   v_steptime = 0;
+   v_step_elapsed = 0;
 }
 
 float V_CalcRoll(vec3_t angles, vec3_t velocity)
@@ -145,7 +152,13 @@ static float V_CalcBob(void)
    else if (bobup >= 1.0f)
       bobup = 0.999f;	/* avoid /0 in the (1.0 - bobup) branch */
 
-   cycle = cl.time - (int)(cl.time / bobcycle) * bobcycle;
+   /* Compute (cl.time mod bobcycle) in double, then cast the bounded
+    * result (< bobcycle) to float.  Doing the multiplication in float
+    * would truncate (int)(cl.time / bobcycle) * bobcycle to fp32 with
+    * ulp ~ 0.1 at cl.time ~ 1e6 (~12 d of continuous engine time),
+    * which is enough to make the bob phase jump in ~36-degree
+    * increments. */
+   cycle = (float)(cl.time - (int)(cl.time / bobcycle) * (double)bobcycle);
    cycle /= bobcycle;
    if (cycle < bobup)
       cycle = M_PI * cycle / bobup;
@@ -857,27 +870,32 @@ static void V_CalcRefdef(void)
    /* smooth out stair step ups */
    if (cl.onground && ent->origin[2] - v_stepz > 0)
    {
-      v_stepz = v_oldz + (cl.time - v_steptime) * 80; /* BJP Quake used 160 here */
+      v_stepz = v_oldz + v_step_elapsed * 80; /* BJP Quake used 160 here */
 
       if (v_stepz > ent->origin[2])
       {
-         v_steptime = cl.time;
+         v_step_elapsed = 0;
          v_stepz = v_oldz = ent->origin[2];
       }
 
       if (ent->origin[2] - v_stepz > 12)
       {
-         v_steptime = cl.time;
+         v_step_elapsed = 0;
          v_stepz = v_oldz = ent->origin[2] - 12;
       }
 
       r_refdef.vieworg[2] += v_stepz - ent->origin[2];
       view->origin[2] += v_stepz - ent->origin[2];
+
+      /* Age the step after consuming it for this frame so the
+       * frame-by-frame progression matches the original
+       * (cl.time - v_steptime) timeline exactly. */
+      v_step_elapsed += host_frametime;
    }
    else
    {
       v_oldz = v_stepz = ent->origin[2];
-      v_steptime = cl.time;
+      v_step_elapsed = 0;
    }
 
    if (chase_active.value)
