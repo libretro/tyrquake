@@ -226,8 +226,15 @@ so the server doesn't disconnect.
 static void
 CL_KeepaliveMessage(void)
 {
-    float time;
-    static float lastmsg;
+    /* host_time is double; widen both the static throttle marker
+     * and the local snapshot so the 5-second cooldown comparison
+     * stays precise after long engine sessions. lastmsg persists
+     * across map / server transitions, so its fp32 storage would
+     * accumulate the usual truncation error otherwise (~0.06 s
+     * at host_time ~ 1e6, ~12 d). No ABI surface -- both
+     * are local to this translation unit and this function. */
+    double time;
+    static double lastmsg;
     int ret;
     sizebuf_t old;
     byte olddata[8192];
