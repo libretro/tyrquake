@@ -1231,6 +1231,66 @@ bool retro_load_game(const struct retro_game_info *info)
       log_cb(RETRO_LOG_WARN,
              "rhi_init failed -- falling back to inline R_RenderView dispatch\n");
 
+   /* Phase 4m: bypass Quake's vid.numpages-gated update
+    * counters.  Quake has five places (sbar.c::Sbar_Draw,
+    * screen.c::SCR_UpdateScreen @scr_fullupdate,
+    * ::clearconsole / ::clearnotify blocks, and
+    * ::SCR_EraseCenterString) that use the idiom
+    *
+    *   if (counter++ < vid.numpages) { redraw stuff; }
+    *
+    * to stop re-drawing after `vid.numpages` frames.  In
+    * the SW double-buffered era this was sound: each
+    * page-flip handed the renderer a buffer whose status-
+    * bar / border / centerstring region either already
+    * held the previous draw (no work needed) or had just
+    * been swapped in fresh (one draw catches it up).  In
+    * libretro's single-buffered model the assumption
+    * breaks two ways:
+    *
+    *   1. SW backend: vid.numpages = 1, so Sbar_Draw /
+    *      Draw_TileClear / etc. run exactly once and
+    *      never again until a state change resets the
+    *      counter.  Works as long as nothing overwrites
+    *      the status-bar / border region of vid.buffer.
+    *      But when scr_viewsize is high enough that
+    *      R_RenderView's 3D viewport extends into the
+    *      status-bar area, R_RenderView paints the
+    *      viewport edge on top of the previously-drawn
+    *      inventory icons, and the optimization keeps
+    *      Sbar_Draw from re-painting them.  User-visible:
+    *      'i don't think selecting the weapon in the HUD
+    *      is often accurately shown in software'.  Same
+    *      story for the SCR_UpdateScreen full-screen
+    *      Draw_TileClear that paints the wood-grain
+    *      borders -- once one frame paints them, the
+    *      optimization stops repainting, and the first
+    *      thing that disturbs the border strips (e.g.
+    *      the fresh malloc memory from a VID_Init
+    *      re-alloc) shows through.
+    *
+    *   2. Vulkan backend (Phase 4l): queue_2d_pic
+    *      rebuilds the per-frame overlay queue from
+    *      scratch every retro_run.  When Sbar_Draw
+    *      early-returns because sb_updates >=
+    *      vid.numpages, zero Draw_Pic calls fire, the
+    *      queue stays empty, and the HUD vanishes for
+    *      that frame.
+    *
+    * Both paths want the same thing: the redraw should
+    * happen every frame, not just N times.  Setting
+    * vid.numpages to 0x40000000 (~1 billion, ~8 years
+    * at 120 FPS, comfortably below INT_MAX so the
+    * existing post-increments don't overflow) lets every
+    * `counter++ < vid.numpages` stay true for the
+    * lifetime of any plausible session.  The override
+    * runs unconditionally (regardless of which backend
+    * rhi_init picked) because the underlying assumption
+    * the optimization makes -- that page-flipping
+    * provides natural redundancy -- is invalid for both
+    * backends, not just the Vulkan one. */
+   vid.numpages = 0x40000000;
+
    return true;
 }
 
@@ -1487,16 +1547,23 @@ void VID_Update(vrect_t *rects)
 
    /* Palette-convert our 8bpp framebuffer into the 16bpp finalimage
     * buffer and hand that to video_cb. We deliberately do NOT use
-    * RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER: the renderer
-    * relies on vid.buffer being a stable, persistent buffer across
-    * frames so partial-update optimizations (status bar sb_updates,
-    * console clearnotify, etc.) can leave undisturbed regions intact.
-    * The frontend's swapchain buffer is not stable across frames, so
-    * direct-rendering into it produces visible cross-buffer artifacts
+    * RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER: the SW path
+    * still wants vid.buffer to be a stable, persistent buffer across
+    * frames -- the libretro frontend's swapchain buffer is not, so
+    * direct-rendering into it produced visible cross-buffer artifacts
     * (e.g. a doubled status bar from previous-frame content showing
-    * through unwritten regions). The right way to claim the sw_fb
-    * speedup is to convert the renderer to write 16bpp natively; until
-    * then, this single post-pass is correct. */
+    * through unwritten regions).  The vid.numpages-gated partial-
+    * update optimizations the original code relied on (sb_updates,
+    * scr_fullupdate, clearnotify, etc.) are now bypassed at
+    * retro_load_game (Phase 4m sets vid.numpages to 0x40000000),
+    * because they assume page-flip redundancy that libretro's
+    * single-buffered model never provides -- and that assumption
+    * also breaks the moment R_RenderView's 3D viewport extends
+    * into the status-bar area at high scr_viewsize, overwriting
+    * the inventory icons between Sbar_Draw runs.  The right way
+    * to claim the sw_fb speedup is to convert the renderer to
+    * write 16bpp natively; until then, this single post-pass is
+    * correct. */
    pitch    = width;
    ptr      = (uint16_t*)finalimage;
    olineptr = ptr;
