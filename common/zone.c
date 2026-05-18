@@ -655,6 +655,13 @@ typedef struct cache_system_s
 } cache_system_t;
 
 static cache_system_t cache_head;
+
+/* Phase 5b-06 follow-up: optional callback fired right before any
+ * cache payload becomes invalid (Cache_Free, or the Cache_Free
+ * inside Cache_Move's relocate-then-discard-old path).  Registered
+ * by the renderer's backend init via Cache_SetInvalidateCallback;
+ * NULL means "no consumer" and the cache notify path is a no-op. */
+static cache_invalidate_cb_t cache_invalidate_cb;
 static cache_system_t *Cache_TryAlloc(int size, qboolean nobottom);
 
 /*
@@ -925,12 +932,30 @@ static void Cache_Init(void)
 void Cache_Free(cache_user_t *c)
 {
    cache_system_t *cs;
+   int             payload;
 
    if (!c->data)
       Sys_Error("%s: not allocated", __func__);
 
    cs = Cache_System(c);
    Cache_CheckSentinal(cs, __func__);
+
+   /* Notify external pointer-cache consumers (overlay slot
+    * cache in the Vulkan backend, etc.) BEFORE we invalidate
+    * the data pointer.  c->data is the live payload address
+    * and cs->size - sizeof(cache_system_t) is the payload
+    * extent; any cached pointer falling in this range is
+    * about to dangle.  Phase 5b-06 follow-up: this is the
+    * primary fix for the qplaque-stripes corruption -- the
+    * 7e88887 dim-check downstream catches the post-hoc
+    * collision, but invalidating on the source side means
+    * the collision can't even arise.  payload may be zero
+    * for a malformed entry; guard the call so a zero/
+    * negative range doesn't reach the renderer. */
+   payload = cs->size - (int)sizeof(cache_system_t);
+   if (cache_invalidate_cb && payload > 0)
+      cache_invalidate_cb(c->data, payload);
+
    /* Invalidate the sentinal before unlinking so any later
     * use-after-free that re-derefs this header trips the
     * check rather than getting at stale-but-plausible
@@ -944,6 +969,16 @@ void Cache_Free(cache_user_t *c)
    c->data = NULL;
 
    Cache_UnlinkLRU(cs);
+}
+
+/*
+ * ==============
+ * Cache_SetInvalidateCallback
+ * ==============
+ */
+void Cache_SetInvalidateCallback(cache_invalidate_cb_t cb)
+{
+   cache_invalidate_cb = cb;
 }
 
 /*

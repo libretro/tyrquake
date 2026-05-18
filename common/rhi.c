@@ -25,6 +25,7 @@
 
 #include "rhi.h"
 #include "common.h"
+#include "zone.h"
 #include <string.h>
 #include <libretro.h>
 
@@ -120,6 +121,11 @@ rhi_init(void)
     candidate = rhi_pick_backend();
     if (candidate && candidate->init && candidate->init()) {
         g_rhi = candidate;
+        /* Phase 5b-06 follow-up: route Cache_Free / Cache_Move
+         * notifications into the backend's pointer-cache
+         * invalidator (Vulkan overlay slot cache, etc.).  NULL
+         * for backends with no GPU-side pointer cache (SW). */
+        Cache_SetInvalidateCallback(g_rhi->notify_cache_invalidate);
         if (log_cb)
             log_cb(RETRO_LOG_INFO, "rhi: %s backend active\n", g_rhi->name);
         return true;
@@ -134,6 +140,7 @@ rhi_init(void)
 
     if (g_rhi_backend_sw.init && g_rhi_backend_sw.init()) {
         g_rhi = &g_rhi_backend_sw;
+        Cache_SetInvalidateCallback(g_rhi->notify_cache_invalidate);
         if (log_cb)
             log_cb(RETRO_LOG_INFO, "rhi: software backend active\n");
         return true;
@@ -153,7 +160,13 @@ rhi_shutdown(void)
     /* Clear g_rhi before the backend tears down so concurrent
      * callers (there shouldn't be any in the libretro
      * single-threaded model, but be conservative) don't
-     * dispatch into a half-destroyed backend. */
+     * dispatch into a half-destroyed backend.
+     *
+     * Phase 5b-06 follow-up: drop the cache invalidate callback
+     * first so any Cache_Free that runs during teardown (host
+     * shutdown unwinds models, sound, etc.) doesn't trampoline
+     * into a backend that's mid-destroy. */
+    Cache_SetInvalidateCallback(NULL);
     g_rhi = NULL;
     if (active->shutdown)
         active->shutdown();

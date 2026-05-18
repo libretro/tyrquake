@@ -471,6 +471,25 @@ typedef struct render_backend_s {
                                   int                       skin_width,
                                   int                       skin_height,
                                   const byte               *colormap);
+
+    /* Phase 5b-06 follow-up: cache-payload-invalidate hook.
+     * zone.c calls this (via Cache_SetInvalidateCallback's
+     * wiring) right before a cache entry's payload pointer
+     * becomes invalid -- Cache_Free, or the Cache_Free inside
+     * Cache_Move that runs after the data has been memcpy'd to
+     * its new location.  The backend uses the (data, size)
+     * range to drop any external cached pointers that fall
+     * inside it -- principally the Vulkan overlay-slot cache,
+     * which keys uploaded GPU images by qpic_t pointer and
+     * would otherwise return stale slots on Hunk-address
+     * reuse.  The 7e88887 width/height check is a downstream
+     * safety net; this hook is the proper source-side fix.
+     *
+     * NULL on the SW backend (no GPU-side pointer cache to
+     * invalidate) and on the Vulkan backend when no resources
+     * are stood up.  Safe to call with size <= 0 (the renderer
+     * returns without scanning). */
+    void     (*notify_cache_invalidate)(const void *data, int size);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

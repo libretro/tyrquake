@@ -161,4 +161,25 @@ void Cache_Free(cache_user_t *c);
 
 void Cache_Report(void);
 
+/*
+ * Cache_SetInvalidateCallback
+ *
+ * Register a callback invoked just before a cache payload becomes
+ * invalid (Cache_Free, or the Cache_Free inside Cache_Move's relocate-
+ * then-discard-old path).  The callback receives the OLD payload
+ * pointer and its byte size; the renderer uses this to drop any
+ * external references it has cached on that address (Vulkan overlay-
+ * slot cache, GL texture pointer caches, etc.).
+ *
+ * The callback fires from a single-threaded context (the libretro
+ * core's main thread); the renderer can synchronously update its
+ * own bookkeeping.  Passing NULL clears the callback.
+ *
+ * Decoupling the cache from any specific renderer keeps zone.c
+ * renderer-agnostic; whichever backend rhi_init stands up registers
+ * its hook right after backend init succeeds.
+ */
+typedef void (*cache_invalidate_cb_t)(const void *data, int size);
+void Cache_SetInvalidateCallback(cache_invalidate_cb_t cb);
+
 #endif /* ZONE_H */

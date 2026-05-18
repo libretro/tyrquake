@@ -335,6 +335,16 @@ struct overlay_slot {
     const void     *key;     /* cache key: qpic_t pointer for pic slots, or
                               * &draw_chars for the conchars slot, or NULL for
                               * an empty slot */
+    uint64_t        last_used_frame;
+                             /* Phase 5b-06 follow-up: monotonic
+                              * vk_overlay_frame_counter at the most
+                              * recent hit / fresh upload.  Begin-of-
+                              * frame eviction pass picks the slot
+                              * with the smallest stamp (older = less
+                              * recently used) so the table can't
+                              * deadlock at 128 stale entries from
+                              * sustained Cache_FreeLow churn.  Zero
+                              * for an empty slot. */
 };
 
 struct overlay_draw {
@@ -365,6 +375,20 @@ static struct overlay_slot  vk_overlay_slots[OVERLAY_SLOT_MAX];
 static struct overlay_draw  vk_overlay_draws[OVERLAY_DRAW_MAX];
 static unsigned             vk_overlay_draw_count;
 static size_t               vk_overlay_upload_offset;
+
+/* Phase 5b-06 follow-up: monotonic counter advanced at every
+ * backend_vk_begin_frame.  Used as the LRU stamp on slot hits /
+ * fresh uploads and as the grace-period reference in the begin_
+ * frame slot eviction pass (slots whose last_used_frame fell more
+ * than LRU_EVICT_GRACE_FRAMES behind the current value are torn
+ * down to reclaim their GPU image / memory / view / descriptor).
+ *
+ * Starts at 1 so a freshly-uploaded slot's stamp (=current frame)
+ * is strictly greater than the BSS-zero "never used" sentinel; the
+ * eviction pass would otherwise see brand-new slots as
+ * already-stale on the first frame and immediately tear them down. */
+static uint64_t             vk_overlay_frame_counter = 1;
+#define LRU_EVICT_GRACE_FRAMES 4u
 
 /* Phase 4c: sampled-texture objects.  vk_texture is the
  * source image that the compute shader reads through u_index;
@@ -1152,6 +1176,50 @@ backend_vk_begin_uploads(void)
     }
     vk_overlay_upload_offset = 0;
     return true;
+}
+
+/*
+ * Tear down one overlay slot's GPU resources in place.  Used by
+ * backend_vk_begin_frame's LRU eviction pass and by the slot loop
+ * inside destroy_resources at backend teardown.  descriptor_set is
+ * not freed explicitly here -- vk_descriptor_pool's lifetime covers
+ * every set it allocated, the pool teardown happens after the slot
+ * loop in destroy_resources, and the pool has 1 + OVERLAY_SLOT_MAX
+ * sets reserved (see VkDescriptorPoolCreateInfo.maxSets at the
+ * create site) so an evicted-then-reused slot trivially allocates a
+ * fresh DS without touching the leaked one.
+ *
+ * Caller is responsible for ensuring the slot's GPU resources are
+ * not referenced by any in-flight command buffer; backend_vk_begin_
+ * frame enforces that by only evicting slots whose last_used_frame
+ * is more than LRU_EVICT_GRACE_FRAMES behind the current counter
+ * (libretro frame pacing means previous-frame commands have
+ * completed by then). */
+static void
+backend_vk_free_overlay_slot(struct overlay_slot *slot)
+{
+    if (!slot)
+        return;
+    if (slot->view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, slot->view, NULL);
+    }
+    if (slot->image != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, slot->image, NULL);
+    }
+    if (slot->memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, slot->memory, NULL);
+    }
+    slot->view            = VK_NULL_HANDLE;
+    slot->image           = VK_NULL_HANDLE;
+    slot->memory          = VK_NULL_HANDLE;
+    slot->descriptor_set  = VK_NULL_HANDLE;
+    slot->width           = 0;
+    slot->height          = 0;
+    slot->key             = NULL;
+    slot->last_used_frame = 0;
 }
 
 static qboolean
@@ -4663,30 +4731,16 @@ backend_vk_destroy_resources(void)
          * destroy so a second create_resources won't see
          * stale handles).  descriptor_set is freed
          * implicitly when vk_descriptor_pool is destroyed
-         * below. */
+         * below.
+         *
+         * Phase 5b-06 follow-up: now routed through
+         * backend_vk_free_overlay_slot, which is also called
+         * by the mid-flight LRU eviction in begin_frame; one
+         * helper keeps the slot-teardown invariants in lock-
+         * step. */
         unsigned si;
-        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
-            struct overlay_slot *slot = &vk_overlay_slots[si];
-            if (slot->view != VK_NULL_HANDLE) {
-                if (vk_fn.DestroyImageView)
-                    vk_fn.DestroyImageView(vk_device, slot->view, NULL);
-            }
-            if (slot->image != VK_NULL_HANDLE) {
-                if (vk_fn.DestroyImage)
-                    vk_fn.DestroyImage(vk_device, slot->image, NULL);
-            }
-            if (slot->memory != VK_NULL_HANDLE) {
-                if (vk_fn.FreeMemory)
-                    vk_fn.FreeMemory(vk_device, slot->memory, NULL);
-            }
-            slot->view           = VK_NULL_HANDLE;
-            slot->image          = VK_NULL_HANDLE;
-            slot->memory         = VK_NULL_HANDLE;
-            slot->descriptor_set = VK_NULL_HANDLE;
-            slot->width          = 0;
-            slot->height         = 0;
-            slot->key            = NULL;
-        }
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++)
+            backend_vk_free_overlay_slot(&vk_overlay_slots[si]);
         vk_overlay_draw_count    = 0;
         vk_overlay_upload_offset = 0;
     }
@@ -5099,6 +5153,13 @@ backend_vk_queue_2d_pic(int x, int y, const qpic_t *pic)
      * menu; busier scenes (multi-line console with
      * dozens of characters) will need a larger cap or
      * Phase 4l's character-glyph batching. */
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
+
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
 
@@ -5212,6 +5273,13 @@ backend_vk_queue_2d_pic_scaled(int x, int y,
         }
         vk_overlay_slots[slot_idx].key = (const void *)pic;
     }
+
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
 
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
@@ -5370,6 +5438,13 @@ backend_vk_queue_2d_pic_translate_scaled(int x, int y,
             return;
     }
 
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
+
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
 
@@ -5462,6 +5537,13 @@ backend_vk_queue_2d_fill(int x, int y, int w, int h, int c)
         }
         vk_overlay_slots[slot_idx].key = key;
     }
+
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
 
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
@@ -5574,6 +5656,13 @@ backend_vk_queue_2d_fade_screen(void)
         free(mask);
         vk_overlay_slots[slot_idx].key = key;
     }
+
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
 
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
@@ -5716,6 +5805,13 @@ backend_vk_queue_2d_char(int x, int y, int num, int scale)
         vk_overlay_slots[slot_idx].key = conchars_key;
     }
 
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
+
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
 
@@ -5839,6 +5935,13 @@ backend_vk_queue_2d_console_background(int lines, const qpic_t *pic)
         }
         vk_overlay_slots[slot_idx].key = (const void *)pic;
     }
+
+    /* LRU stamp: both cache hits and fresh uploads converge
+     * here with a final slot_idx; touching once just before
+     * the draw-queue commit keeps backend_vk_begin_frame's
+     * eviction pass honest -- a slot drawn this frame stays
+     * pinned for at least LRU_EVICT_GRACE_FRAMES. */
+    vk_overlay_slots[slot_idx].last_used_frame = vk_overlay_frame_counter;
 
     if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
         return;
@@ -6524,7 +6627,39 @@ backend_vk_begin_frame(void)
      * pre-recorded once and re-submitted every frame, so
      * no per-frame setup is needed.  Future phases that
      * record fresh commands per frame will reset the
-     * command buffer here. */
+     * command buffer here.
+     *
+     * Phase 5b-06 follow-up: advance the overlay slot LRU
+     * counter and reclaim slots that have aged past the
+     * grace window.  The previous frame's command buffer
+     * has been submitted (and, for libretro frame pacing
+     * with the standard 2-3 in-flight maximum, completed)
+     * by the time we re-enter retro_run, so destroying an
+     * image / memory / view that hasn't been touched for
+     * LRU_EVICT_GRACE_FRAMES is safe without an explicit
+     * vkDeviceWaitIdle.  This is the bounded-pool side of
+     * the Phase 5b-06 fix; combined with the Cache_Free
+     * notify hook below it means a long playthrough with
+     * heavy r_polysubdiv-driven cache churn can't deadlock
+     * the slot table at 128 stale entries.
+     *
+     * Eviction is gated on vk_resources_ready so the pass
+     * is a no-op before backend_vk_create_resources stands
+     * the pool up (the slot array is BSS-zeroed at that
+     * point and would self-skip anyway, but the explicit
+     * gate keeps the intent obvious). */
+    vk_overlay_frame_counter++;
+    if (vk_resources_ready && vk_overlay_frame_counter > LRU_EVICT_GRACE_FRAMES) {
+        uint64_t cutoff = vk_overlay_frame_counter - LRU_EVICT_GRACE_FRAMES;
+        unsigned si;
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            struct overlay_slot *slot = &vk_overlay_slots[si];
+            if (slot->image != VK_NULL_HANDLE
+                && slot->last_used_frame > 0
+                && slot->last_used_frame < cutoff)
+                backend_vk_free_overlay_slot(slot);
+        }
+    }
 #endif
 }
 
@@ -7447,6 +7582,52 @@ backend_vk_end_frame(void)
 #endif
 }
 
+/*
+ * backend_vk_notify_cache_invalidate -- Phase 5b-06 follow-up
+ *
+ * zone.c fires this right before a cache payload pointer becomes
+ * invalid (Cache_Free, or the Cache_Free inside Cache_Move's
+ * relocate-then-discard-old branch).  The overlay slot cache keys
+ * each uploaded image by qpic_t pointer; when the Quake cache
+ * Hunk-relocates or evicts an entry, the slot that uploaded its
+ * pixels is left holding a stale key that could later collide with
+ * a different pic landing at the same recycled Hunk address.  Clear
+ * the slot->key for any slot whose key falls in [data, data + size)
+ * so the next lookup with an aliased pointer no longer matches it.
+ *
+ * GPU resources stay attached to the slot; freeing them mid-flight
+ * is unsafe if commands recorded earlier in the current frame still
+ * reference the image.  The LRU pass in backend_vk_begin_frame
+ * reclaims the resources once the slot has aged past the grace
+ * window with key == NULL (and so won't see another touch).
+ *
+ * Safe to call before resources are stood up: the slot array is
+ * BSS-zero, no slot->key matches, the scan returns instantly. */
+static void
+backend_vk_notify_cache_invalidate(const void *data, int size)
+{
+#ifdef RHI_HAVE_VULKAN
+    const byte *base, *end;
+    unsigned    si;
+
+    if (!data || size <= 0)
+        return;
+
+    base = (const byte *)data;
+    end  = base + size;
+
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        struct overlay_slot *slot = &vk_overlay_slots[si];
+        const byte          *key  = (const byte *)slot->key;
+        if (key && key >= base && key < end)
+            slot->key = NULL;
+    }
+#else
+    (void)data;
+    (void)size;
+#endif
+}
+
 const render_backend_t g_rhi_backend_vk = {
     "vulkan",
     RHI_BACKEND_VULKAN,
@@ -7465,5 +7646,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_dispatch_3d_particles_impl,
     backend_vk_dispatch_3d_warp_screen_impl,
     backend_vk_dispatch_3d_sprite_impl,
-    backend_vk_dispatch_3d_alias_impl
+    backend_vk_dispatch_3d_alias_impl,
+    backend_vk_notify_cache_invalidate
 };
