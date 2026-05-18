@@ -208,6 +208,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/particles_cs.h"
 #include "shaders/generated/spv/warpscreen_cs.h"
 #include "shaders/generated/spv/sprite_cs.h"
+#include "shaders/generated/spv/alias_cs.h"
 #include "d_iface.h"      /* particle_t -- the GPU compute particle
                            * rasterizer walks the active linked list
                            * via this typedef.  Also TURB_CYCLE for
@@ -755,6 +756,163 @@ static VkDescriptorSet        vk_sprite_set;
 static uint32_t               vk_sprite_count;
 static uint32_t               vk_sprite_vertex_cursor;
 static struct vk_sprite_pc    vk_sprite_calls[VK_SPRITE_MAX_PER_FRAME];
+
+/* --------------------------------------------------------
+ * Phase 5b-06: GPU compute alias-model rasterizer
+ * resources.
+ *
+ * Per-frame data flow:
+ *
+ *   D_PolysetDraw (CPU, d_polyse.c)
+ *     -> g_rhi->dispatch_3d_alias(...)
+ *        -> backend_vk_dispatch_3d_alias_impl
+ *           - Appends num_verts AliasVerts to
+ *             vk_alias_vertex_pool (host-mapped).
+ *           - Appends num_tris AliasTris to
+ *             vk_alias_triangle_pool (host-mapped).
+ *           - Resolves the skin pointer to a slot in
+ *             vk_alias_skin_pool via the per-frame skin
+ *             pointer cache (linear-probe table); on
+ *             miss, copies the skin bytes into the next
+ *             free slot.
+ *           - Same for the colormap pointer (almost
+ *             always host_colormap; one slot is reused
+ *             across the entire frame in practice).
+ *           - Computes the screen-space bbox from the
+ *             vertex positions of the triangles in this
+ *             call, clamped to the framebuffer.
+ *           - Appends the push-constants block to
+ *             vk_alias_calls[vk_alias_count++].
+ *
+ *   backend_vk_record_frame (CPU)
+ *     - In the same zbuf_active branch as particles +
+ *       sprites: bind the alias pipeline + set once,
+ *       then per-call push constants + CmdDispatch.
+ *
+ * Resources:
+ *   vk_alias_vertex_buffer   : host-mapped SSBO, 192 KiB
+ *                              (8192 verts * 24 bytes,
+ *                              std430 stride for a 6-int
+ *                              struct).  Host struct
+ *                              vk_alias_vert mirrors the
+ *                              layout; we copy only the
+ *                              v[0..5] portion of each
+ *                              finalvert_t into it.
+ *   vk_alias_triangle_buffer : host-mapped SSBO, 96 KiB
+ *                              (8192 tris * 12 bytes).
+ *   vk_alias_skin_buffer     : host-mapped SSBO, 2 MiB
+ *                              (16 slots * 128 KiB).
+ *                              Slot size covers the
+ *                              largest stock Quake alias
+ *                              skin (the player model
+ *                              skin at 384*256 = 96 KiB);
+ *                              16 slots is well above
+ *                              typical visible-entity
+ *                              counts.
+ *   vk_alias_colormap_buffer : host-mapped SSBO, 64 KiB
+ *                              (4 slots * 16 KiB).  The
+ *                              colormap is global
+ *                              (host_colormap, 64 light
+ *                              levels * 256 palette
+ *                              entries = 16 KiB); 4 slots
+ *                              is overkill but cheap.
+ *
+ * Per-frame state:
+ *   vk_alias_count           : number of dispatches
+ *                              queued this frame.
+ *   vk_alias_calls           : per-dispatch push-constant
+ *                              snapshots.
+ *   vk_alias_vertex_cursor   : monotonic write offset
+ *                              into the vertex pool
+ *                              (in verts, not bytes).
+ *   vk_alias_triangle_cursor : monotonic write offset
+ *                              into the triangle pool
+ *                              (in triangles).
+ *   vk_alias_skin_count      : number of skin slots used
+ *                              this frame.
+ *   vk_alias_skin_cache      : per-frame skin pointer ->
+ *                              slot offset cache.
+ *   vk_alias_cmap_count      : same for colormap.
+ *   vk_alias_cmap_cache      : same for colormap.
+ *
+ * Caps are sized for typical scenes:
+ *   - 256 dispatches/frame (mix of per-triangle clipped
+ *     and per-model unclipped calls; vanilla Quake never
+ *     hits this).
+ *   - 8192 verts/frame (40 visible entities * average 200
+ *     vert/model).
+ *   - 8192 tris/frame (same).
+ *   - 16 unique skins/frame.
+ *   - 4 unique colormaps/frame.
+ *
+ * Overflow is silent: the offending dispatch is dropped
+ * (the affected entity-or-triangle goes unrendered for
+ * that frame).  Acceptable for a libretro core; better
+ * than asserting.
+ */
+#define VK_ALIAS_MAX_PER_FRAME       256u
+#define VK_ALIAS_VERT_POOL_VERTS    8192u
+#define VK_ALIAS_VERT_BYTES         24u
+#define VK_ALIAS_VERT_POOL_BYTES    (VK_ALIAS_VERT_POOL_VERTS * VK_ALIAS_VERT_BYTES)
+#define VK_ALIAS_TRI_POOL_TRIS      8192u
+#define VK_ALIAS_TRI_BYTES          12u
+#define VK_ALIAS_TRI_POOL_BYTES     (VK_ALIAS_TRI_POOL_TRIS * VK_ALIAS_TRI_BYTES)
+#define VK_ALIAS_SKIN_SLOTS         16u
+#define VK_ALIAS_SKIN_SLOT_BYTES    131072u  /* 128 KiB */
+#define VK_ALIAS_SKIN_POOL_BYTES    (VK_ALIAS_SKIN_SLOTS * VK_ALIAS_SKIN_SLOT_BYTES)
+#define VK_ALIAS_CMAP_SLOTS         4u
+#define VK_ALIAS_CMAP_SLOT_BYTES    16384u   /* 64 * 256, host_colormap size */
+#define VK_ALIAS_CMAP_POOL_BYTES    (VK_ALIAS_CMAP_SLOTS * VK_ALIAS_CMAP_SLOT_BYTES)
+
+struct vk_alias_vert {
+    int32_t v[6];   /* u, v, s, t, l, 1/z (24 bytes, std430 stride) */
+};
+
+struct vk_alias_tri {
+    int32_t a;
+    int32_t b;
+    int32_t c;
+};
+
+struct vk_alias_pc {
+    int32_t bbox[4];           /* x_min, y_min, x_max, y_max */
+    int32_t dispatch_info[4];  /* vert_off, tri_off, tri_count, skin_off */
+    int32_t skin_info[4];      /* skin_w, skin_h, cmap_off, _pad */
+};
+
+struct vk_alias_slot_cache_entry {
+    const void *ptr;
+    uint32_t    offset;
+    uint32_t    width;
+    uint32_t    height;
+};
+
+static VkBuffer               vk_alias_vertex_buffer;
+static VkDeviceMemory         vk_alias_vertex_memory;
+static void                  *vk_alias_vertex_ptr;
+static VkBuffer               vk_alias_triangle_buffer;
+static VkDeviceMemory         vk_alias_triangle_memory;
+static void                  *vk_alias_triangle_ptr;
+static VkBuffer               vk_alias_skin_buffer;
+static VkDeviceMemory         vk_alias_skin_memory;
+static void                  *vk_alias_skin_ptr;
+static VkBuffer               vk_alias_colormap_buffer;
+static VkDeviceMemory         vk_alias_colormap_memory;
+static void                  *vk_alias_colormap_ptr;
+static VkShaderModule         vk_alias_cs_module;
+static VkPipelineLayout       vk_alias_pipeline_layout;
+static VkPipeline             vk_alias_pipeline;
+static VkDescriptorSetLayout  vk_alias_dsl;
+static VkDescriptorPool       vk_alias_pool;
+static VkDescriptorSet        vk_alias_set;
+static uint32_t               vk_alias_count;
+static uint32_t               vk_alias_vertex_cursor;
+static uint32_t               vk_alias_triangle_cursor;
+static uint32_t               vk_alias_skin_count;
+static uint32_t               vk_alias_cmap_count;
+static struct vk_alias_pc     vk_alias_calls[VK_ALIAS_MAX_PER_FRAME];
+static struct vk_alias_slot_cache_entry vk_alias_skin_cache[VK_ALIAS_SKIN_SLOTS];
+static struct vk_alias_slot_cache_entry vk_alias_cmap_cache[VK_ALIAS_CMAP_SLOTS];
 
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
@@ -3624,6 +3782,331 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
+     * Phase 5b-06: GPU compute alias-model rasterizer
+     * resources.
+     *
+     * Order:
+     *   1. Four host-mapped SSBOs (vertex / triangle /
+     *      skin / colormap pools).
+     *   2. vk_alias_cs_module from compiled SPIR-V.
+     *   3. 6-binding DSL (2 storage images + 4 SSBOs).
+     *   4. Pool + set + UpdateDescriptorSets.
+     *   5. Pipeline layout (48 B push constants) +
+     *      compute pipeline.
+     */
+    {
+        VkBufferCreateInfo            av_ci, at_ci, as_ci, ac_ci;
+        VkMemoryRequirements          av_req, at_req, as_req, ac_req;
+        VkMemoryAllocateInfo          av_ai, at_ai, as_ai, ac_ai;
+        VkShaderModuleCreateInfo      a_sm_ci;
+        VkDescriptorSetLayoutBinding  a_bindings[6];
+        VkDescriptorSetLayoutCreateInfo a_dsl_ci;
+        VkDescriptorPoolSize          a_pool_sizes[2];
+        VkDescriptorPoolCreateInfo    a_pool_ci;
+        VkDescriptorSetAllocateInfo   a_set_alloc;
+        VkDescriptorImageInfo         a_img_info[2];
+        VkDescriptorBufferInfo        a_buf_info[4];
+        VkWriteDescriptorSet          a_writes[6];
+        VkPushConstantRange           a_push_range;
+        VkPipelineLayoutCreateInfo    a_pl_ci;
+        VkComputePipelineCreateInfo   a_cp_ci;
+        VkPipelineShaderStageCreateInfo a_cs_stage;
+        VkBuffer                     *bufs[4];
+        VkDeviceMemory               *mems[4];
+        void                        **ptrs[4];
+        VkDeviceSize                  sizes[4];
+        const char                   *names[4];
+        VkBufferCreateInfo           *cis[4];
+        VkMemoryRequirements         *reqs[4];
+        VkMemoryAllocateInfo         *ais[4];
+        uint32_t                      mt;
+        int                           bi;
+
+        bufs[0]  = &vk_alias_vertex_buffer;
+        bufs[1]  = &vk_alias_triangle_buffer;
+        bufs[2]  = &vk_alias_skin_buffer;
+        bufs[3]  = &vk_alias_colormap_buffer;
+        mems[0]  = &vk_alias_vertex_memory;
+        mems[1]  = &vk_alias_triangle_memory;
+        mems[2]  = &vk_alias_skin_memory;
+        mems[3]  = &vk_alias_colormap_memory;
+        ptrs[0]  = &vk_alias_vertex_ptr;
+        ptrs[1]  = &vk_alias_triangle_ptr;
+        ptrs[2]  = &vk_alias_skin_ptr;
+        ptrs[3]  = &vk_alias_colormap_ptr;
+        sizes[0] = VK_ALIAS_VERT_POOL_BYTES;
+        sizes[1] = VK_ALIAS_TRI_POOL_BYTES;
+        sizes[2] = VK_ALIAS_SKIN_POOL_BYTES;
+        sizes[3] = VK_ALIAS_CMAP_POOL_BYTES;
+        names[0] = "alias vertex";
+        names[1] = "alias triangle";
+        names[2] = "alias skin";
+        names[3] = "alias colormap";
+        cis[0]   = &av_ci;
+        cis[1]   = &at_ci;
+        cis[2]   = &as_ci;
+        cis[3]   = &ac_ci;
+        reqs[0]  = &av_req;
+        reqs[1]  = &at_req;
+        reqs[2]  = &as_req;
+        reqs[3]  = &ac_req;
+        ais[0]   = &av_ai;
+        ais[1]   = &at_ai;
+        ais[2]   = &as_ai;
+        ais[3]   = &ac_ai;
+
+        /* 1. Four host-mapped SSBOs.  Loop the same
+         * Create -> GetReqs -> Alloc -> Bind -> Map
+         * sequence for each. */
+        for (bi = 0; bi < 4; bi++) {
+            memset(cis[bi], 0, sizeof(VkBufferCreateInfo));
+            cis[bi]->sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            cis[bi]->size        = sizes[bi];
+            cis[bi]->usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            cis[bi]->sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            r = vk_fn.CreateBuffer(vk_device, cis[bi], NULL, bufs[bi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateBuffer (%s) failed (%d)\n",
+                           names[bi], (int)r);
+                return false;
+            }
+
+            vk_fn.GetBufferMemoryRequirements(vk_device, *bufs[bi], reqs[bi]);
+            mt = backend_vk_find_memory_type(
+                reqs[bi]->memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+              | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if (mt == UINT32_MAX) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: no HOST_VISIBLE|COHERENT memory for %s\n",
+                           names[bi]);
+                return false;
+            }
+
+            memset(ais[bi], 0, sizeof(VkMemoryAllocateInfo));
+            ais[bi]->sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            ais[bi]->allocationSize  = reqs[bi]->size;
+            ais[bi]->memoryTypeIndex = mt;
+
+            r = vk_fn.AllocateMemory(vk_device, ais[bi], NULL, mems[bi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateMemory (%s) failed (%d)\n",
+                           names[bi], (int)r);
+                return false;
+            }
+
+            r = vk_fn.BindBufferMemory(vk_device, *bufs[bi], *mems[bi], 0);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: BindBufferMemory (%s) failed (%d)\n",
+                           names[bi], (int)r);
+                return false;
+            }
+
+            r = vk_fn.MapMemory(vk_device, *mems[bi], 0, VK_WHOLE_SIZE,
+                                0, ptrs[bi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: MapMemory (%s) failed (%d)\n",
+                           names[bi], (int)r);
+                return false;
+            }
+        }
+
+        /* 2. Shader module. */
+        memset(&a_sm_ci, 0, sizeof(a_sm_ci));
+        a_sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        a_sm_ci.codeSize = spv_alias_cs_size;
+        a_sm_ci.pCode    = spv_alias_cs;
+
+        r = vk_fn.CreateShaderModule(vk_device, &a_sm_ci, NULL,
+                                     &vk_alias_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateShaderModule (alias) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 3. DSL: 2 storage images + 4 SSBOs. */
+        memset(&a_bindings, 0, sizeof(a_bindings));
+        a_bindings[0].binding         = 0;
+        a_bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        a_bindings[0].descriptorCount = 1;
+        a_bindings[0].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_bindings[1].binding         = 1;
+        a_bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        a_bindings[1].descriptorCount = 1;
+        a_bindings[1].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_bindings[2].binding         = 2;
+        a_bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_bindings[2].descriptorCount = 1;
+        a_bindings[2].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_bindings[3].binding         = 3;
+        a_bindings[3].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_bindings[3].descriptorCount = 1;
+        a_bindings[3].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_bindings[4].binding         = 4;
+        a_bindings[4].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_bindings[4].descriptorCount = 1;
+        a_bindings[4].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_bindings[5].binding         = 5;
+        a_bindings[5].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_bindings[5].descriptorCount = 1;
+        a_bindings[5].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        memset(&a_dsl_ci, 0, sizeof(a_dsl_ci));
+        a_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        a_dsl_ci.bindingCount = 6;
+        a_dsl_ci.pBindings    = a_bindings;
+
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &a_dsl_ci, NULL,
+                                            &vk_alias_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorSetLayout (alias) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 4. Pool + set. */
+        memset(&a_pool_sizes, 0, sizeof(a_pool_sizes));
+        a_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        a_pool_sizes[0].descriptorCount = 2;
+        a_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_pool_sizes[1].descriptorCount = 4;
+
+        memset(&a_pool_ci, 0, sizeof(a_pool_ci));
+        a_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        a_pool_ci.maxSets       = 1;
+        a_pool_ci.poolSizeCount = 2;
+        a_pool_ci.pPoolSizes    = a_pool_sizes;
+
+        r = vk_fn.CreateDescriptorPool(vk_device, &a_pool_ci, NULL,
+                                       &vk_alias_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorPool (alias) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&a_set_alloc, 0, sizeof(a_set_alloc));
+        a_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        a_set_alloc.descriptorPool     = vk_alias_pool;
+        a_set_alloc.descriptorSetCount = 1;
+        a_set_alloc.pSetLayouts        = &vk_alias_dsl;
+
+        r = vk_fn.AllocateDescriptorSets(vk_device, &a_set_alloc, &vk_alias_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets (alias) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* Update set: 2 image bindings + 4 SSBO bindings. */
+        memset(&a_img_info, 0, sizeof(a_img_info));
+        a_img_info[0].imageView   = vk_texture_view;
+        a_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        a_img_info[1].imageView   = vk_zbuffer_view;
+        a_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        memset(&a_buf_info, 0, sizeof(a_buf_info));
+        a_buf_info[0].buffer = vk_alias_vertex_buffer;
+        a_buf_info[0].offset = 0;
+        a_buf_info[0].range  = VK_WHOLE_SIZE;
+        a_buf_info[1].buffer = vk_alias_triangle_buffer;
+        a_buf_info[1].offset = 0;
+        a_buf_info[1].range  = VK_WHOLE_SIZE;
+        a_buf_info[2].buffer = vk_alias_skin_buffer;
+        a_buf_info[2].offset = 0;
+        a_buf_info[2].range  = VK_WHOLE_SIZE;
+        a_buf_info[3].buffer = vk_alias_colormap_buffer;
+        a_buf_info[3].offset = 0;
+        a_buf_info[3].range  = VK_WHOLE_SIZE;
+
+        memset(&a_writes, 0, sizeof(a_writes));
+        for (bi = 0; bi < 6; bi++) {
+            a_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            a_writes[bi].dstSet          = vk_alias_set;
+            a_writes[bi].dstBinding      = (uint32_t)bi;
+            a_writes[bi].descriptorCount = 1;
+        }
+        a_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        a_writes[0].pImageInfo     = &a_img_info[0];
+        a_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        a_writes[1].pImageInfo     = &a_img_info[1];
+        a_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_writes[2].pBufferInfo    = &a_buf_info[0];
+        a_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_writes[3].pBufferInfo    = &a_buf_info[1];
+        a_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_writes[4].pBufferInfo    = &a_buf_info[2];
+        a_writes[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        a_writes[5].pBufferInfo    = &a_buf_info[3];
+
+        vk_fn.UpdateDescriptorSets(vk_device, 6, a_writes, 0, NULL);
+
+        /* 5. Pipeline layout + pipeline. */
+        memset(&a_push_range, 0, sizeof(a_push_range));
+        a_push_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_push_range.offset     = 0;
+        a_push_range.size       = sizeof(struct vk_alias_pc);
+
+        memset(&a_pl_ci, 0, sizeof(a_pl_ci));
+        a_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        a_pl_ci.setLayoutCount         = 1;
+        a_pl_ci.pSetLayouts            = &vk_alias_dsl;
+        a_pl_ci.pushConstantRangeCount = 1;
+        a_pl_ci.pPushConstantRanges    = &a_push_range;
+
+        r = vk_fn.CreatePipelineLayout(vk_device, &a_pl_ci, NULL,
+                                       &vk_alias_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreatePipelineLayout (alias) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&a_cs_stage, 0, sizeof(a_cs_stage));
+        a_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        a_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        a_cs_stage.module = vk_alias_cs_module;
+        a_cs_stage.pName  = "main";
+
+        memset(&a_cp_ci, 0, sizeof(a_cp_ci));
+        a_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        a_cp_ci.stage  = a_cs_stage;
+        a_cp_ci.layout = vk_alias_pipeline_layout;
+
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE,
+                                         1, &a_cp_ci, NULL,
+                                         &vk_alias_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateComputePipelines (alias) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+    }
+
+    /* ---------------------------------------------------------
      * Command pool + buffer.  RESET_COMMAND_BUFFER_BIT lets
      * vkBeginCommandBuffer implicitly reset the buffer at the
      * top of every per-frame recording (Phase 4e);
@@ -3778,6 +4261,87 @@ backend_vk_destroy_resources(void)
      * queue), which is what we want at teardown. */
     if (vk_fn.DeviceWaitIdle && vk_device != VK_NULL_HANDLE)
         vk_fn.DeviceWaitIdle(vk_device);
+
+    /* Phase 5b-06 alias pipeline / resources teardown.
+     * Reverse-create order.  Alias was created after
+     * sprite (which is below); destruction is the
+     * mirror order. */
+    if (vk_alias_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_alias_pipeline, NULL);
+        vk_alias_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_alias_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_alias_pipeline_layout, NULL);
+        vk_alias_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_alias_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_alias_pool, NULL);
+        vk_alias_pool = VK_NULL_HANDLE;
+        vk_alias_set  = VK_NULL_HANDLE;
+    }
+    if (vk_alias_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device, vk_alias_dsl, NULL);
+        vk_alias_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_alias_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_alias_cs_module, NULL);
+        vk_alias_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_alias_colormap_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_alias_colormap_buffer, NULL);
+        vk_alias_colormap_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_alias_colormap_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_alias_colormap_memory, NULL);
+        vk_alias_colormap_memory = VK_NULL_HANDLE;
+        vk_alias_colormap_ptr    = NULL;
+    }
+    if (vk_alias_skin_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_alias_skin_buffer, NULL);
+        vk_alias_skin_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_alias_skin_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_alias_skin_memory, NULL);
+        vk_alias_skin_memory = VK_NULL_HANDLE;
+        vk_alias_skin_ptr    = NULL;
+    }
+    if (vk_alias_triangle_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_alias_triangle_buffer, NULL);
+        vk_alias_triangle_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_alias_triangle_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_alias_triangle_memory, NULL);
+        vk_alias_triangle_memory = VK_NULL_HANDLE;
+        vk_alias_triangle_ptr    = NULL;
+    }
+    if (vk_alias_vertex_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_alias_vertex_buffer, NULL);
+        vk_alias_vertex_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_alias_vertex_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_alias_vertex_memory, NULL);
+        vk_alias_vertex_memory = VK_NULL_HANDLE;
+        vk_alias_vertex_ptr    = NULL;
+    }
+    vk_alias_count           = 0;
+    vk_alias_vertex_cursor   = 0;
+    vk_alias_triangle_cursor = 0;
+    vk_alias_skin_count      = 0;
+    vk_alias_cmap_count      = 0;
 
     /* Phase 5b-05 sprite pipeline / resources teardown.
      * Reverse-create order. */
@@ -5651,6 +6215,242 @@ backend_vk_dispatch_3d_sprite_impl(const rhi_sprite_vert_t *verts,
 #endif
 }
 
+/*
+ * Phase 5b-06: stage an alias-model dispatch for the
+ * frame.
+ *
+ * Vtable entry called by D_PolysetDraw (replacing its
+ * D_DrawNonSubdiv / D_DrawSubdiv span generation).
+ *
+ * Caller passes:
+ *   - verts: a finalvert_t-shaped per-vertex array
+ *     (rhi_alias_vert_t has the exact same layout, so
+ *     the caller passes (const rhi_alias_vert_t *)
+ *     r_affinetridesc.pfinalverts).  Only v[0..5] is
+ *     read; flags / reserved / n[] are unused on this
+ *     side (the SW raster needs them for the Phong path,
+ *     not the flat one we GPU-port).
+ *   - tris: an mtriangle_t-shaped triangle-index array
+ *     (same layout-match story as verts).
+ *   - skin / skin_w / skin_h: skin pixel data + dims
+ *     (pointer is used as the skin-pool cache key).
+ *   - colormap: 64 x 256 LUT pointer.  Almost always
+ *     host_colormap unmodified; cached by pointer.
+ *
+ * The host side stages the data, resolves cache lookups,
+ * computes the screen-space bbox from the participating
+ * vertices, and appends to vk_alias_calls[].  The actual
+ * compute dispatch is emitted later in record_frame.
+ *
+ * Pool exhaustion is silent: an over-cap call drops
+ * (whole entity-or-triangle goes unrendered for the
+ * frame).  Skin / colormap pool exhaustion likewise.
+ * Quake's typical scenes never get close to any of these
+ * caps; the caps are sized to accommodate a few extreme
+ * cases (Shambler vs full party) without hitting them.
+ */
+/* The two slot-allocator helpers below live in the
+ * Vulkan-only conditional block: they're called only
+ * from backend_vk_dispatch_3d_alias_impl's
+ * RHI_HAVE_VULKAN branch.  Wrapping them in the same
+ * #ifdef avoids `unused function` warnings in the no-
+ * Vulkan build (which compiles this file to provide
+ * only the SW-mode-equivalent stubs). */
+#ifdef RHI_HAVE_VULKAN
+static uint32_t
+backend_vk_alias_skin_slot(const void *skin_ptr, int skin_w, int skin_h,
+                           size_t skin_bytes)
+{
+    uint32_t i, slot;
+
+    /* Cache lookup -- linear probe.  16-slot cache;
+     * lookup cost negligible vs the dispatch overhead. */
+    for (i = 0; i < vk_alias_skin_count; i++) {
+        if (vk_alias_skin_cache[i].ptr == skin_ptr)
+            return vk_alias_skin_cache[i].offset;
+    }
+
+    /* Miss: allocate new slot. */
+    if (vk_alias_skin_count >= VK_ALIAS_SKIN_SLOTS)
+        return UINT32_MAX;
+    if (skin_bytes > VK_ALIAS_SKIN_SLOT_BYTES)
+        return UINT32_MAX;
+
+    slot = vk_alias_skin_count * VK_ALIAS_SKIN_SLOT_BYTES;
+    memcpy((byte *)vk_alias_skin_ptr + slot, skin_ptr, skin_bytes);
+
+    vk_alias_skin_cache[vk_alias_skin_count].ptr    = skin_ptr;
+    vk_alias_skin_cache[vk_alias_skin_count].offset = slot;
+    vk_alias_skin_cache[vk_alias_skin_count].width  = (uint32_t)skin_w;
+    vk_alias_skin_cache[vk_alias_skin_count].height = (uint32_t)skin_h;
+    vk_alias_skin_count++;
+    return slot;
+}
+
+static uint32_t
+backend_vk_alias_cmap_slot(const void *cmap_ptr)
+{
+    uint32_t i, slot;
+
+    for (i = 0; i < vk_alias_cmap_count; i++) {
+        if (vk_alias_cmap_cache[i].ptr == cmap_ptr)
+            return vk_alias_cmap_cache[i].offset;
+    }
+
+    if (vk_alias_cmap_count >= VK_ALIAS_CMAP_SLOTS)
+        return UINT32_MAX;
+
+    slot = vk_alias_cmap_count * VK_ALIAS_CMAP_SLOT_BYTES;
+    memcpy((byte *)vk_alias_colormap_ptr + slot, cmap_ptr,
+           VK_ALIAS_CMAP_SLOT_BYTES);
+
+    vk_alias_cmap_cache[vk_alias_cmap_count].ptr    = cmap_ptr;
+    vk_alias_cmap_cache[vk_alias_cmap_count].offset = slot;
+    vk_alias_cmap_count++;
+    return slot;
+}
+#endif /* RHI_HAVE_VULKAN */
+
+static void
+backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
+                                  int                      num_verts,
+                                  const rhi_alias_tri_t   *tris,
+                                  int                      num_tris,
+                                  const byte              *skin,
+                                  int                      skin_w,
+                                  int                      skin_h,
+                                  const byte              *colormap)
+{
+#ifdef RHI_HAVE_VULKAN
+    struct vk_alias_vert *dst_v;
+    struct vk_alias_tri  *dst_t;
+    uint32_t  v_off, t_off, skin_off, cmap_off;
+    int       i;
+    int       bb_x_min, bb_y_min, bb_x_max, bb_y_max;
+    int       all_min_x, all_min_y, all_max_x, all_max_y;
+    size_t    skin_bytes;
+
+    if (!vk_resources_ready
+     || !vk_alias_vertex_ptr || !vk_alias_triangle_ptr
+     || !vk_alias_skin_ptr   || !vk_alias_colormap_ptr)
+        return;
+
+    if (vk_alias_count >= VK_ALIAS_MAX_PER_FRAME)
+        return;
+    if (num_verts <= 0 || num_tris <= 0)
+        return;
+    if (vk_alias_vertex_cursor + (uint32_t)num_verts
+            > VK_ALIAS_VERT_POOL_VERTS)
+        return;
+    if (vk_alias_triangle_cursor + (uint32_t)num_tris
+            > VK_ALIAS_TRI_POOL_TRIS)
+        return;
+
+    /* Resolve / upload skin. */
+    skin_bytes = (size_t)skin_w * (size_t)skin_h;
+    skin_off   = backend_vk_alias_skin_slot(skin, skin_w, skin_h, skin_bytes);
+    if (skin_off == UINT32_MAX)
+        return;
+
+    /* Resolve / upload colormap. */
+    cmap_off = backend_vk_alias_cmap_slot(colormap);
+    if (cmap_off == UINT32_MAX)
+        return;
+
+    /* Stage vertices: copy just the v[0..5] portion of
+     * each finalvert_t into the 24-byte packed pool
+     * entry.  This is the inverse of finalvert_t's
+     * layout: caller passes the whole 44-byte struct, we
+     * extract the leading 6 ints. */
+    v_off = vk_alias_vertex_cursor;
+    dst_v = (struct vk_alias_vert *)vk_alias_vertex_ptr + v_off;
+    for (i = 0; i < num_verts; i++) {
+        dst_v[i].v[0] = verts[i].v[0];
+        dst_v[i].v[1] = verts[i].v[1];
+        dst_v[i].v[2] = verts[i].v[2];
+        dst_v[i].v[3] = verts[i].v[3];
+        dst_v[i].v[4] = verts[i].v[4];
+        dst_v[i].v[5] = verts[i].v[5];
+    }
+
+    /* Stage triangles: just the vertindex[] portion. */
+    t_off = vk_alias_triangle_cursor;
+    dst_t = (struct vk_alias_tri *)vk_alias_triangle_ptr + t_off;
+    for (i = 0; i < num_tris; i++) {
+        dst_t[i].a = tris[i].vertindex[0];
+        dst_t[i].b = tris[i].vertindex[1];
+        dst_t[i].c = tris[i].vertindex[2];
+    }
+
+    /* Compute bbox over the vertices actually referenced
+     * by this call's triangles.  An entity's finalvert
+     * array can contain off-screen verts that aren't
+     * touched by this triangle subset (e.g. the partially-
+     * clipped path passes the whole entity's verts but
+     * only one triangle's indices); using only the
+     * referenced ones gives a tighter dispatch. */
+    all_min_x = all_min_y =  0x7fffffff;
+    all_max_x = all_max_y = -0x7fffffff;
+    for (i = 0; i < num_tris; i++) {
+        int idx;
+        int j;
+
+        for (j = 0; j < 3; j++) {
+            idx = tris[i].vertindex[j];
+            if (idx < 0 || idx >= num_verts)
+                continue;
+            if (verts[idx].v[0] < all_min_x) all_min_x = verts[idx].v[0];
+            if (verts[idx].v[0] > all_max_x) all_max_x = verts[idx].v[0];
+            if (verts[idx].v[1] < all_min_y) all_min_y = verts[idx].v[1];
+            if (verts[idx].v[1] > all_max_y) all_max_y = verts[idx].v[1];
+        }
+    }
+
+    if (all_min_x > all_max_x || all_min_y > all_max_y)
+        return;  /* No valid triangles. */
+
+    bb_x_min = all_min_x;
+    bb_y_min = all_min_y;
+    bb_x_max = all_max_x + 1;
+    bb_y_max = all_max_y + 1;
+
+    if (bb_x_min < 0)            bb_x_min = 0;
+    if (bb_y_min < 0)            bb_y_min = 0;
+    if (bb_x_max > (int)width)   bb_x_max = (int)width;
+    if (bb_y_max > (int)height)  bb_y_max = (int)height;
+
+    if (bb_x_max <= bb_x_min || bb_y_max <= bb_y_min)
+        return;
+
+    /* Build push constants. */
+    {
+        struct vk_alias_pc *pc = &vk_alias_calls[vk_alias_count];
+
+        pc->bbox[0]          = bb_x_min;
+        pc->bbox[1]          = bb_y_min;
+        pc->bbox[2]          = bb_x_max;
+        pc->bbox[3]          = bb_y_max;
+
+        pc->dispatch_info[0] = (int32_t)v_off;
+        pc->dispatch_info[1] = (int32_t)t_off;
+        pc->dispatch_info[2] = num_tris;
+        pc->dispatch_info[3] = (int32_t)skin_off;
+
+        pc->skin_info[0]     = skin_w;
+        pc->skin_info[1]     = skin_h;
+        pc->skin_info[2]     = (int32_t)cmap_off;
+        pc->skin_info[3]     = 0;
+    }
+
+    vk_alias_vertex_cursor   += (uint32_t)num_verts;
+    vk_alias_triangle_cursor += (uint32_t)num_tris;
+    vk_alias_count++;
+#else
+    (void)verts; (void)num_verts; (void)tris; (void)num_tris;
+    (void)skin; (void)skin_w; (void)skin_h; (void)colormap;
+#endif
+}
+
 static void
 backend_vk_shutdown(void)
 {
@@ -5889,22 +6689,24 @@ backend_vk_record_frame(void)
     uint32_t                  group_count_y;
     qboolean                  particles_active;
     qboolean                  sprites_active;
+    qboolean                  alias_active;
     qboolean                  zbuf_active;
     VkResult                  r;
 
-    /* Phase 5b-02 + 5b-05: latch all per-frame compute-3D
-     * activity flags.  The implementation reads them in
-     * multiple places below; pinning to locals avoids
-     * mid-record mutation if a future change adds a path
-     * that touches the globals.
+    /* Phase 5b-02 + 5b-05 + 5b-06: latch all per-frame
+     * compute-3D activity flags.  The implementation
+     * reads them in multiple places below; pinning to
+     * locals avoids mid-record mutation if a future
+     * change adds a path that touches the globals.
      *
-     * zbuf_active = particles_active || sprites_active --
-     * both subsystems Z-test against vk_zbuffer, so the
-     * d_pzbuffer upload + GENERAL transition fire when
-     * either is pending. */
+     * zbuf_active = particles || sprites || alias --
+     * all three subsystems Z-test against vk_zbuffer,
+     * so the d_pzbuffer upload + GENERAL transition
+     * fire when any is pending. */
     particles_active = vk_pending_particle_count > 0;
     sprites_active   = vk_sprite_count > 0;
-    zbuf_active      = particles_active || sprites_active;
+    alias_active     = vk_alias_count > 0;
+    zbuf_active      = particles_active || sprites_active || alias_active;
 
     memset(&begin_info, 0, sizeof(begin_info));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -6146,6 +6948,57 @@ backend_vk_record_frame(void)
                  * pixels outside the polygon. */
                 bb_w = (uint32_t)(spc->bbox[2] - spc->bbox[0]);
                 bb_h = (uint32_t)(spc->bbox[3] - spc->bbox[1]);
+
+                vk_fn.CmdDispatch(vk_cmd_buffer,
+                                  (bb_w + 7u) / 8u,
+                                  (bb_h + 7u) / 8u,
+                                  1);
+            }
+        }
+
+        if (alias_active) {
+            /* Alias-model dispatches (Phase 5b-06).  Same
+             * shape as the sprite loop: bind pipeline +
+             * set once, then per-call push constants +
+             * dispatch.  No intra-loop barriers -- the
+             * atomicMax Z-test handles inter-dispatch
+             * overlap (closer Z wins regardless of order).
+             *
+             * Order vs particles + sprites is arbitrary
+             * for the same reason: atomicMax-based Z-test
+             * means dispatch order doesn't change visual
+             * outcome when multiple subsystems touch the
+             * same pixel.  Putting alias after sprite is
+             * just a stylistic choice (matches the SW
+             * call order in R_DrawEntitiesOnList ->
+             * R_DrawParticles where alias-via-
+             * D_PolysetDraw comes from R_AliasDrawModel
+             * earlier in the entity walk than sprite-via-
+             * R_DrawSprite). */
+            uint32_t ai;
+
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_alias_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_alias_pipeline_layout,
+                                        0,
+                                        1, &vk_alias_set,
+                                        0, NULL);
+
+            for (ai = 0; ai < vk_alias_count; ai++) {
+                const struct vk_alias_pc *apc = &vk_alias_calls[ai];
+                uint32_t bb_w, bb_h;
+
+                vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                       vk_alias_pipeline_layout,
+                                       VK_SHADER_STAGE_COMPUTE_BIT,
+                                       0, sizeof(*apc),
+                                       apc);
+
+                bb_w = (uint32_t)(apc->bbox[2] - apc->bbox[0]);
+                bb_h = (uint32_t)(apc->bbox[3] - apc->bbox[1]);
 
                 vk_fn.CmdDispatch(vk_cmd_buffer,
                                   (bb_w + 7u) / 8u,
@@ -6397,6 +7250,14 @@ backend_vk_record_frame(void)
     vk_sprite_count         = 0;
     vk_sprite_vertex_cursor = 0;
 
+    /* Phase 5b-06: reset the alias render list + caches.
+     * Next frame's D_PolysetDraw calls repopulate. */
+    vk_alias_count           = 0;
+    vk_alias_vertex_cursor   = 0;
+    vk_alias_triangle_cursor = 0;
+    vk_alias_skin_count      = 0;
+    vk_alias_cmap_count      = 0;
+
     return true;
 }
 #endif
@@ -6419,16 +7280,19 @@ backend_vk_end_frame(void)
      * come after this. */
     backend_vk_upload_vid_buffer();
 
-    /* Phase 5b-02 + 5b-05: if any compute-3D dispatch
-     * (particles or sprites) was staged this frame, push
-     * d_pzbuffer into the GPU-side zbuffer staging buffer
-     * so record_frame can CopyBufferToImage it into
-     * vk_zbuffer.  Conditional because the upload is
-     * ~8 MiB at 1080p (R32_UINT after Phase 5b-04) --
-     * worth skipping on frames with no GPU 3D activity
-     * (the staging buffer's previous contents are
-     * irrelevant; nothing reads them). */
-    if (vk_pending_particle_count > 0 || vk_sprite_count > 0)
+    /* Phase 5b-02 + 5b-05 + 5b-06: if any compute-3D
+     * dispatch (particles, sprites, or alias) was staged
+     * this frame, push d_pzbuffer into the GPU-side
+     * zbuffer staging buffer so record_frame can
+     * CopyBufferToImage it into vk_zbuffer.  Conditional
+     * because the upload is ~8 MiB at 1080p (R32_UINT
+     * after Phase 5b-04) -- worth skipping on frames
+     * with no GPU 3D activity (the staging buffer's
+     * previous contents are irrelevant; nothing reads
+     * them). */
+    if (vk_pending_particle_count > 0
+     || vk_sprite_count > 0
+     || vk_alias_count > 0)
         backend_vk_upload_zbuffer();
 
     /* Fresh per-frame command-buffer recording.  Phase 4e
@@ -6501,5 +7365,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_queue_2d_fade_screen_entry,
     backend_vk_dispatch_3d_particles_impl,
     backend_vk_dispatch_3d_warp_screen_impl,
-    backend_vk_dispatch_3d_sprite_impl
+    backend_vk_dispatch_3d_sprite_impl,
+    backend_vk_dispatch_3d_alias_impl
 };

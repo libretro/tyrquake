@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "r_local.h"
 #include "d_local.h"
+#include "rhi.h"
 
 /* TODO: put in span spilling to shrink list size */
 /* !!! if this is changed, it must be changed in d_polysa.s too !!! */
@@ -215,6 +216,110 @@ D_PolysetDraw(void)
 
    a_spans = (spanpackage_t *)
       (((uintptr_t)&spans[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
+
+   /* Phase 5b-06: if the active backend exposes a GPU
+    * alias dispatch and compute rendering is enabled,
+    * compact the triangle batch (per-triangle clipped
+    * calls reference only 3 verts out of an entity-sized
+    * finalvert array; the per-model unclipped call
+    * references most of them) into a contiguous vertex
+    * subset + remapped triangle indices and ship it to
+    * the backend.  This keeps the GPU vertex pool small
+    * even when an entity fires hundreds of per-triangle
+    * D_PolysetDraw calls due to partial clipping.
+    *
+    * Static scratch buffers sized for the largest stock
+    * Quake alias model (Shambler: ~400 tris, ~200
+    * verts).  Hexen 2 / mods with bigger models that
+    * exceed these caps fall through to SW.
+    *
+    * The intercept handles ANY drawtype.  Quake's
+    * drawtype != 0 setting triggers the subdivided
+    * affine raster (D_DrawSubdiv) instead of plain
+    * D_DrawNonSubdiv, but the subdivision is just a
+    * means to bound affine error within a triangle's
+    * span -- our per-pixel barycentric interpolation
+    * does that implicitly per pixel, so the GPU path
+    * is correct (and slightly more accurate than
+    * D_DrawSubdiv) for both. */
+   if (g_rhi
+       && g_rhi->dispatch_3d_alias
+       && g_rhi_compute_rendering
+       && r_affinetridesc.numtriangles >= 1
+       && r_affinetridesc.pfinalverts
+       && r_affinetridesc.ptriangles
+       && r_affinetridesc.pskin
+       && acolormap) {
+      enum { D_ALIAS_GPU_MAX_VERTS = 1024,
+             D_ALIAS_GPU_MAX_TRIS  = 2048 };
+      static int             idx_remap[D_ALIAS_GPU_MAX_VERTS];
+      static rhi_alias_vert_t compact_verts[D_ALIAS_GPU_MAX_VERTS];
+      static rhi_alias_tri_t  compact_tris[D_ALIAS_GPU_MAX_TRIS];
+      const finalvert_t *pfv = r_affinetridesc.pfinalverts;
+      const mtriangle_t *ptr = r_affinetridesc.ptriangles;
+      int                ntri = r_affinetridesc.numtriangles;
+      int                i, j, new_v_count = 0;
+      int                ok = 1;
+
+      if (ntri > (int)D_ALIAS_GPU_MAX_TRIS)
+         ok = 0;
+
+      if (ok) {
+         /* Initialise remap to "unseen" for this call.
+          * Cost is one memset per call (4 KiB at int
+          * width); cheap vs the dispatch overhead. */
+         for (i = 0; i < (int)D_ALIAS_GPU_MAX_VERTS; i++)
+            idx_remap[i] = -1;
+
+         for (i = 0; i < ntri && ok; i++) {
+            for (j = 0; j < 3; j++) {
+               int orig = ptr[i].vertindex[j];
+               int mapped;
+
+               if (orig < 0 || orig >= (int)D_ALIAS_GPU_MAX_VERTS) {
+                  ok = 0;
+                  break;
+               }
+
+               if (idx_remap[orig] < 0) {
+                  if (new_v_count >= (int)D_ALIAS_GPU_MAX_VERTS) {
+                     ok = 0;
+                     break;
+                  }
+                  idx_remap[orig] = new_v_count;
+                  /* Copy the whole 44-byte finalvert_t.
+                   * rhi_alias_vert_t has the same layout
+                   * so this is a direct struct copy; the
+                   * backend reads only v[0..5]. */
+                  memcpy(&compact_verts[new_v_count],
+                         &pfv[orig],
+                         sizeof(rhi_alias_vert_t));
+                  new_v_count++;
+               }
+               mapped = idx_remap[orig];
+
+               compact_tris[i].vertindex[j] = mapped;
+            }
+            compact_tris[i].facesfront = ptr[i].facesfront;
+         }
+      }
+
+      if (ok && new_v_count >= 3) {
+         g_rhi->dispatch_3d_alias(
+            compact_verts,
+            new_v_count,
+            compact_tris,
+            ntri,
+            (const byte *)r_affinetridesc.pskin,
+            r_affinetridesc.skinwidth,
+            r_affinetridesc.skinheight,
+            (const byte *)acolormap);
+         return;
+      }
+      /* Fall through to SW if compaction failed (model
+       * exceeded scratch buffer caps, or referenced a
+       * vertex index past our remap-table size). */
+   }
 
    if (r_affinetridesc.drawtype)
       D_DrawSubdiv();

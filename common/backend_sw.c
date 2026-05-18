@@ -96,5 +96,6 @@ const render_backend_t g_rhi_backend_sw = {
     NULL,               /* queue_2d_fade_screen:          same (Draw_FadeScreen stays SW) */
     NULL,               /* dispatch_3d_particles:         SW renders particles via D_DrawParticle */
     NULL,               /* dispatch_3d_warp_screen:       SW renders warp via D_WarpScreen */
-    NULL                /* dispatch_3d_sprite:            SW renders sprites via D_SpriteDrawSpans */
+    NULL,               /* dispatch_3d_sprite:            SW renders sprites via D_SpriteDrawSpans */
+    NULL                /* dispatch_3d_alias:             SW renders alias via D_PolysetDrawSpans8 */
 };

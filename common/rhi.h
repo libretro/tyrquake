@@ -45,6 +45,32 @@ typedef struct rhi_sprite_vert_s {
     float zi;       /* 1/z */
 } rhi_sprite_vert_t;
 
+/* Alias-model vertex passed to dispatch_3d_alias.
+ * Layout matches d_iface.h's finalvert_t exactly (same
+ * six leading int fields + the flags/reserved/n padding
+ * that the SW raster uses).  Callers pass an array of
+ * finalvert_t via cast without per-vertex repacking;
+ * only the first six ints (the v[] array) are read by
+ * the backend. */
+typedef struct rhi_alias_vert_s {
+    int32_t v[6];      /* u, v, s, t, l, 1/z -- the only fields read */
+    int32_t flags;     /* matches finalvert_t.flags     -- ignored */
+    float   reserved;  /* matches finalvert_t.reserved  -- ignored */
+    float   n[3];      /* matches finalvert_t.n[3]      -- ignored */
+} rhi_alias_vert_t;
+
+/* Alias-model triangle passed to dispatch_3d_alias.
+ * Layout matches model.h's mtriangle_t exactly.  Only
+ * vertindex[] is read; facesfront is ignored by the
+ * backend (the SW raster used it to swap the
+ * skintable lookup for back-facing tris; the GPU port
+ * folds that into the CPU's already-set skintable
+ * coordinates in r_alias.c). */
+typedef struct rhi_alias_tri_s {
+    int32_t facesfront;   /* matches mtriangle_t.facesfront -- ignored */
+    int32_t vertindex[3]; /* matches mtriangle_t.vertindex[3] */
+} rhi_alias_tri_t;
+
 typedef enum {
     RHI_BACKEND_NONE = 0,
     RHI_BACKEND_SOFTWARE,
@@ -403,6 +429,48 @@ typedef struct render_backend_s {
                                    int                      tex_width,
                                    int                      tex_height,
                                    int                      transparent_idx);
+
+    /* 3D alias-model compute dispatch (Phase 5b-06).  GPU
+     * port of D_PolysetDraw / D_PolysetDrawSpans8: the
+     * CPU side (R_AliasDrawModel + R_AliasPreparePoints
+     * + R_AliasClipTriangle) does the entity-pose
+     * interpolation, vertex transform, projection, per-
+     * vertex lighting, frustum clip, and back-face cull,
+     * producing a finalvert_t-shaped per-vertex array
+     * (u, v, s, t, l, 1/z all 16.16 fixed-point) and an
+     * mtriangle_t-shaped index list.  D_PolysetDraw
+     * intercepts at function entry and routes here
+     * instead of generating spans / invoking the SW
+     * raster.
+     *
+     * Each call corresponds to ONE compute dispatch.  The
+     * SW path can invoke D_PolysetDraw either per-
+     * triangle (the partially-unclipped path in
+     * R_AliasDrawModel; numtriangles == 1) or per-model
+     * (the fully-unclipped fast path; numtriangles ==
+     * pahdr->numtris).  Both shapes route through this
+     * entry; the backend stages them into per-frame pools
+     * and records one CmdDispatch per call.
+     *
+     * The backend deduplicates skin uploads within a
+     * frame by pointer (the same entity's skin shared
+     * across its many per-triangle calls hits the cache
+     * after the first call) and does the same for the
+     * colormap (which is almost always host_colormap
+     * unmodified, so the cache hits trivially after the
+     * first call).
+     *
+     * NULL on SW backend / SW-only build.  When NULL,
+     * D_PolysetDraw runs the original D_DrawNonSubdiv /
+     * D_DrawSubdiv span generator unchanged. */
+    void     (*dispatch_3d_alias)(const rhi_alias_vert_t  *verts,
+                                  int                       num_verts,
+                                  const rhi_alias_tri_t   *tris,
+                                  int                       num_tris,
+                                  const byte               *skin,
+                                  int                       skin_width,
+                                  int                       skin_height,
+                                  const byte               *colormap);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every
