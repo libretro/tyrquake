@@ -557,6 +557,37 @@ void Con_DrawConsole(int lines)
    if (lines <= 0)
       return;
 
+   /* When the menu is open M_Draw is about to call
+    * Draw_ConsoleBackground(vid.height) and a chain of
+    * M_DrawTransPic / M_DrawPic / Draw_FadeScreen that
+    * cover everything we'd lay down here.  Skipping the
+    * body is a benign optimization on the SW path (a
+    * couple hundred small memcpys avoided per frame while
+    * the console scrolls past during the open-the-menu-
+    * early window) and a correctness fix on the Vulkan
+    * path.  The Phase 4o Draw_Character intercept queues
+    * each glyph as an overlay quad; the SW
+    * Draw_ConsoleBackground that M_Draw issues right
+    * after us writes vid.buffer directly (no intercept,
+    * just a memcpy of the conback pic over the whole
+    * screen) so it covers the SW conback / chars in
+    * vid.buffer, but it can't reach into the overlay
+    * queue to mask out the already-queued char quads.
+    * Those quads then render on top of the compute-shaded
+    * vid.buffer the menu just painted, and the user sees
+    * console text bleeding through the main-menu items.
+    * Returning here keeps the overlay queue free of the
+    * console glyphs in the first place.
+    *
+    * (When more SW-direct paths -- Draw_FadeScreen,
+    * Draw_Fill, Draw_ConsoleBackground itself -- get
+    * Vulkan intercepts in a future phase, this kind of
+    * vid.buffer-vs-overlay-queue ordering bug will go
+    * away wholesale; for now, suppressing at the source
+    * is the cheapest correct fix.) */
+   if (key_dest == key_menu)
+      return;
+
    /* draw the background */
    Draw_ConsoleBackground(lines);
 
