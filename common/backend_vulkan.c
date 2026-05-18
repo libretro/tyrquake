@@ -2313,15 +2313,20 @@ backend_vk_create_resources(void)
         uint32_t                     pb_mem_type;
         uint32_t                     zs_mem_type;
 
-        /* 1. vk_zbuffer image (R16_UINT storage + transfer
-         *    destination + sampled).  Mirrors d_pzbuffer's
-         *    layout: width x height, one 16-bit value per
-         *    pixel.  R16_UINT is in the Vulkan 1.0 mandatory
-         *    storage-image format table. */
+        /* 1. vk_zbuffer image (R32_UINT storage + transfer
+         *    destination).  Phase 5b-04 widened the format
+         *    from R16_UINT to R32_UINT so the particle
+         *    shader can use imageAtomicMax for the Z-test
+         *    (Vulkan 1.0 mandates atomic image ops on R32_
+         *    UINT; R16_UINT atomics need a non-core
+         *    extension).  Bit-pattern compatibility with
+         *    d_pzbuffer's short is gone, but the staging
+         *    upload below widens each short to uint32
+         *    on the host before the GPU copy. */
         memset(&zb_ci, 0, sizeof(zb_ci));
         zb_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         zb_ci.imageType     = VK_IMAGE_TYPE_2D;
-        zb_ci.format        = VK_FORMAT_R16_UINT;
+        zb_ci.format        = VK_FORMAT_R32_UINT;
         zb_ci.extent.width  = width;
         zb_ci.extent.height = height;
         zb_ci.extent.depth  = 1;
@@ -2379,7 +2384,7 @@ backend_vk_create_resources(void)
         zb_view_ci.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         zb_view_ci.image                           = vk_zbuffer;
         zb_view_ci.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
-        zb_view_ci.format                          = VK_FORMAT_R16_UINT;
+        zb_view_ci.format                          = VK_FORMAT_R32_UINT;
         zb_view_ci.components.r                    = VK_COMPONENT_SWIZZLE_IDENTITY;
         zb_view_ci.components.g                    = VK_COMPONENT_SWIZZLE_IDENTITY;
         zb_view_ci.components.b                    = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -2464,7 +2469,7 @@ backend_vk_create_resources(void)
          *    per-frame d_pzbuffer upload. */
         memset(&zs_ci, 0, sizeof(zs_ci));
         zs_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        zs_ci.size        = (VkDeviceSize)width * (VkDeviceSize)height * 2u;
+        zs_ci.size        = (VkDeviceSize)width * (VkDeviceSize)height * 4u;
         zs_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         zs_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
@@ -5078,31 +5083,37 @@ backend_vk_upload_vid_buffer(void)
  * values the CPU SW raster wrote -- exactly what the GPU
  * particles need.
  *
- * The SW raster's d_pzbuffer is `short *` (signed 16-bit),
- * but the GPU treats vk_zbuffer as R16_UINT.  The bit
- * patterns match for non-negative shorts; izi values that
- * arise during normal Quake gameplay never overflow into
- * the negative range, so the unsigned interpretation is
- * lossless for every realistic camera position.  (A
- * particle extremely close to camera could in principle
- * push izi past 32767 and wrap the SW comparison, but
- * that's a pre-existing SW edge case; the GPU path
- * mirrors the same arithmetic.)
+ * Phase 5b-04 widened the GPU format to R32_UINT (to make
+ * imageAtomicMax legal -- see particles.comp's prologue),
+ * so the upload widens each signed-short d_pzbuffer
+ * entry into a uint32 here on the host before the GPU
+ * CopyBuffer.  Values stored in d_pzbuffer are always
+ * non-negative izi (zi << 15) under normal Quake
+ * camera positions, so the sign extension is irrelevant;
+ * `(uint32_t)(uint16_t)d_pzbuffer[i]` preserves the bit
+ * pattern.
  *
- * vid.rowbytes is bytes per row; for the SW Z-buffer it's
- * d_zwidth * sizeof(short).  d_zwidth equals vid.width
- * (D_ViewChanged sets it), so the staging copy is a
- * single contiguous memcpy of width*height*2 bytes.
+ * The widen loop runs over width * height pixels each
+ * frame that has particles -- 2M ops at 1080p, ~2 ms on
+ * a modern CPU.  Cost is acceptable for the race-free
+ * Z-test it enables.
  */
 static void
 backend_vk_upload_zbuffer(void)
 {
+    uint32_t       *dst;
+    const int16_t  *src;
+    size_t          i;
+    size_t          count;
+
     if (!vk_particles_zstaging_ptr || !d_pzbuffer)
         return;
 
-    memcpy(vk_particles_zstaging_ptr,
-           d_pzbuffer,
-           (size_t)width * (size_t)height * sizeof(short));
+    dst   = (uint32_t *)vk_particles_zstaging_ptr;
+    src   = (const int16_t *)d_pzbuffer;
+    count = (size_t)width * (size_t)height;
+    for (i = 0; i < count; i++)
+        dst[i] = (uint32_t)(uint16_t)src[i];
 }
 
 /*

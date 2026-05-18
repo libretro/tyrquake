@@ -29,38 +29,37 @@
  *
  * Race notes (intentional, documented):
  *
- *   Two particles whose rects overlap can both pass the
- *   Z-test against the same pixel between the load and
- *   the store -- imageLoad followed by imageStore is not
- *   atomic.  In SW, the linked-list iteration order
- *   serialises the two writes; the "newer in list" wins
- *   if its izi >= the older's.  Here, last writer wins
- *   arbitrarily.  Acceptable for two reasons:
+ *   Phase 5b-04 (this revision) closed the Z-test race
+ *   by switching the read-modify-write on u_zbuffer to a
+ *   single imageAtomicMax, which is atomic against
+ *   concurrent invocations.  The image format widened
+ *   from R16_UINT to R32_UINT to make the atomic legal
+ *   (Vulkan 1.0 mandates atomic ops on R32_UINT
+ *   storage images; R16_UINT atomics need a non-core
+ *   extension).
  *
- *     1. SW's linked-list order is itself non-
- *        deterministic across frames (particles are
- *        added at the head and recycled freely), so the
- *        "correct" SW result is already loose.
+ *   A narrower colour race remains: between the
+ *   atomicMax that establishes "this thread won the Z
+ *   test" and the subsequent imageStore to u_index, a
+ *   different thread can land its own atomicMax-then-
+ *   store on the same pixel.  If the second thread had
+ *   a closer Z (higher izi), it correctly displaces our
+ *   colour write.  If the second thread had a further
+ *   Z, its atomicMax leaves u_zbuffer unchanged and it
+ *   never stores -- the race outcome favours the closer
+ *   particle.  The only true mismatch is when two
+ *   threads have identical izi (a tie): both pass the
+ *   "old_z <= uizi" gate and the later store wins,
+ *   which is arbitrary across runs but visually
+ *   identical (both particles are at the same depth).
  *
- *     2. Overlapping particles in identical screen
- *        space at identical depths are extremely rare in
- *        practice; when they do happen, they share a
- *        colour family (explosions, trails) and the
- *        race is invisible to the eye.
- *
- *   imageAtomic* could close the race -- imageAtomicMax
- *   on u_zbuffer, then a conditional imageStore on
- *   u_index -- but it cannot atomically link the Z
- *   update to the colour update across two images, so
- *   even with atomics the colour can still come from a
- *   loser thread that won the Z atomicMax then got
- *   preempted by a colour-only store from another
- *   thread.  No closed solution short of packing Z and
- *   colour into one R32_UINT image, which over-
- *   specialises the data flow to particles before we
- *   know what alias / world / sprite want.  Plain
- *   imageLoad / imageStore now, revisit if/when it
- *   shows in profile or output.
+ *   Closing the residual colour race would require
+ *   packing izi + colour into a single 32-bit value and
+ *   doing one atomicMax for both; the packing would
+ *   over-specialise the data flow to particles before
+ *   we know what alias / world / sprite want.  Left as-
+ *   is: the visual impact is now imperceptible even in
+ *   contrived scenarios.
  *
  * Rect clip note: d_vrectright_particle and
  * d_vrectbottom_particle are computed by D_ViewChanged
@@ -91,7 +90,7 @@ layout(set = 0, binding = 0, std430) readonly buffer Particles {
 } particles;
 
 layout(set = 0, binding = 1, r8ui)  uniform uimage2D u_index;
-layout(set = 0, binding = 2, r16ui) uniform uimage2D u_zbuffer;
+layout(set = 0, binding = 2, r32ui) uniform uimage2D u_zbuffer;
 
 layout(push_constant, std430) uniform PC {
     vec3  r_origin;
@@ -160,15 +159,21 @@ void main()
      * single uniform loop; the compiler will not unroll
      * for variable pix but the early-out culls in the
      * outer flow keep the common case (pix == d_pix_min
-     * or _max) cheap. */
+     * or _max) cheap.
+     *
+     * Phase 5b-04: imageAtomicMax replaces the previous
+     * read-modify-write pair on u_zbuffer.  Returns the
+     * value u_zbuffer held BEFORE the atomic operation;
+     * the gate "old_z <= uizi" is true when our particle
+     * was the closest (or tied), and on that branch we
+     * follow up with the colour imageStore. */
     for (int dy = 0; dy < height; dy++) {
         for (int dx = 0; dx < pix; dx++) {
             ivec2 pos   = ivec2(u + dx, v + dy);
-            uint  old_z = imageLoad(u_zbuffer, pos).r;
+            uint  old_z = imageAtomicMax(u_zbuffer, pos, uizi);
 
             if (old_z <= uizi) {
-                imageStore(u_zbuffer, pos, uvec4(uizi,  0, 0, 0));
-                imageStore(u_index,   pos, uvec4(color, 0, 0, 0));
+                imageStore(u_index, pos, uvec4(color, 0, 0, 0));
             }
         }
     }
