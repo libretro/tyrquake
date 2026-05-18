@@ -649,6 +649,49 @@ static qboolean               vk_warp_active;
 static struct vk_warp_pc      vk_warp_push;
 
 /* --------------------------------------------------------
+ * Phase 5b-07a: GPU compute sky raster resources.
+ *
+ * Two storage images (vk_sky_front_image, vk_sky_back_image,
+ * R8_UINT 128x128 each) hold the two Quake sky layers:
+ * front (masked overlay, palette index 0 = transparent) and
+ * back (opaque underlay).  Populated via notify_sky_texture
+ * from R_InitSky at level load -- the call can predate
+ * resources_ready, so the data is first parked in the CPU
+ * cache (vk_sky_cache_front / vk_sky_cache_back) and the
+ * vk_sky_upload_pending flag is set; the per-frame
+ * record_frame setup performs the actual CmdCopyBufferToImage
+ * the first time it sees both resources_ready and pending.
+ *
+ * vk_sky_staging is a small persistent host-visible buffer
+ * sized for both layers back-to-back (2 * 128 * 128 = 32 KiB).
+ * Re-uploaded only when the level's sky texture changes;
+ * across context resets the CPU cache survives so
+ * destroy_resources / create_resources cycles automatically
+ * re-push without R_InitSky needing to re-fire.
+ *
+ * Consumed by sky.comp in commit 3 of this phase; commit 1
+ * stands the resources up only.  Until commit 3 lands the
+ * images sit at GENERAL layout with valid contents but
+ * unbound to any pipeline. */
+#define VK_SKY_TEXEL_W            128u
+#define VK_SKY_TEXEL_H            128u
+#define VK_SKY_LAYER_BYTES        (VK_SKY_TEXEL_W * VK_SKY_TEXEL_H)
+#define VK_SKY_STAGING_BYTES      (VK_SKY_LAYER_BYTES * 2u)
+static VkImage                vk_sky_front_image;
+static VkDeviceMemory         vk_sky_front_memory;
+static VkImageView            vk_sky_front_view;
+static VkImage                vk_sky_back_image;
+static VkDeviceMemory         vk_sky_back_memory;
+static VkImageView            vk_sky_back_view;
+static VkBuffer               vk_sky_staging;
+static VkDeviceMemory         vk_sky_staging_memory;
+static void                  *vk_sky_staging_ptr;
+static byte                   vk_sky_cache_front[VK_SKY_LAYER_BYTES];
+static byte                   vk_sky_cache_back[VK_SKY_LAYER_BYTES];
+static qboolean               vk_sky_cache_populated;
+static qboolean               vk_sky_upload_pending;
+
+/* --------------------------------------------------------
  * Phase 5b-05: GPU compute sprite rasterizer resources.
  *
  * Mirrors the particle pipeline's shape (one compute
@@ -4329,6 +4372,200 @@ backend_vk_create_resources(void)
         vk_warp_table_staging_memory  = VK_NULL_HANDLE;
     }
 
+    /* Phase 5b-07a step 1: sky texture storage.  Stands up
+     * two R8_UINT 128x128 storage images (front masked
+     * overlay + back opaque underlay) and a 32 KiB
+     * host-coherent staging buffer kept permanently mapped
+     * for cheap re-upload on level change.
+     *
+     * No initial data upload here -- if R_InitSky already
+     * fired (the common case: level loaded before context
+     * stood up) vk_sky_cache_populated is true and we just
+     * re-arm vk_sky_upload_pending so record_frame picks it
+     * up on first run.  If R_InitSky hasn't fired yet
+     * (rare; happens if Quake decides to switch sky textures
+     * mid-game) the next R_InitSky call sets pending
+     * directly.  Either way the upload itself lives in
+     * record_frame, sharing the per-frame command buffer.
+     *
+     * Consumed by sky.comp in Phase 5b-07a commit 3; commits
+     * 1 and 2 leave these images at GENERAL layout with valid
+     * contents but no pipeline bound to them yet. */
+    {
+        VkImageCreateInfo       sk_ci;
+        VkMemoryRequirements    sk_mem_req;
+        VkMemoryAllocateInfo    sk_mem_ai;
+        VkImageViewCreateInfo   sk_view_ci;
+        VkBufferCreateInfo      ss_ci;
+        VkMemoryRequirements    ss_mem_req;
+        VkMemoryAllocateInfo    ss_mem_ai;
+        uint32_t                sk_mem_type;
+        uint32_t                ss_mem_type;
+        int                     pass;
+
+        /* Two iterations: pass 0 = front, pass 1 = back.
+         * The two images are configurationally identical;
+         * loop avoids 80 lines of paste. */
+        for (pass = 0; pass < 2; pass++) {
+            VkImage        *img_p   = (pass == 0) ? &vk_sky_front_image
+                                                  : &vk_sky_back_image;
+            VkDeviceMemory *mem_p   = (pass == 0) ? &vk_sky_front_memory
+                                                  : &vk_sky_back_memory;
+            VkImageView    *view_p  = (pass == 0) ? &vk_sky_front_view
+                                                  : &vk_sky_back_view;
+            const char     *label   = (pass == 0) ? "sky-front" : "sky-back";
+
+            memset(&sk_ci, 0, sizeof(sk_ci));
+            sk_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            sk_ci.imageType     = VK_IMAGE_TYPE_2D;
+            sk_ci.format        = VK_FORMAT_R8_UINT;
+            sk_ci.extent.width  = VK_SKY_TEXEL_W;
+            sk_ci.extent.height = VK_SKY_TEXEL_H;
+            sk_ci.extent.depth  = 1;
+            sk_ci.mipLevels     = 1;
+            sk_ci.arrayLayers   = 1;
+            sk_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
+            sk_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
+            /* STORAGE for imageLoad from sky.comp (commit 3),
+             * TRANSFER_DST for the per-frame staging copy. */
+            sk_ci.usage         = VK_IMAGE_USAGE_STORAGE_BIT
+                                | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            sk_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+            sk_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            r = vk_fn.CreateImage(vk_device, &sk_ci, NULL, img_p);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateImage (%s) failed (%d)\n",
+                           label, (int)r);
+                return false;
+            }
+
+            vk_fn.GetImageMemoryRequirements(vk_device, *img_p, &sk_mem_req);
+            sk_mem_type = backend_vk_find_memory_type(sk_mem_req.memoryTypeBits,
+                                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (sk_mem_type == 0xFFFFFFFFu) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: no DEVICE_LOCAL memory type for %s\n",
+                           label);
+                return false;
+            }
+
+            memset(&sk_mem_ai, 0, sizeof(sk_mem_ai));
+            sk_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            sk_mem_ai.allocationSize  = sk_mem_req.size;
+            sk_mem_ai.memoryTypeIndex = sk_mem_type;
+
+            r = vk_fn.AllocateMemory(vk_device, &sk_mem_ai, NULL, mem_p);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateMemory (%s) failed (%d)\n",
+                           label, (int)r);
+                return false;
+            }
+
+            r = vk_fn.BindImageMemory(vk_device, *img_p, *mem_p, 0);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: BindImageMemory (%s) failed (%d)\n",
+                           label, (int)r);
+                return false;
+            }
+
+            memset(&sk_view_ci, 0, sizeof(sk_view_ci));
+            sk_view_ci.sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            sk_view_ci.image        = *img_p;
+            sk_view_ci.viewType     = VK_IMAGE_VIEW_TYPE_2D;
+            sk_view_ci.format       = VK_FORMAT_R8_UINT;
+            sk_view_ci.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            sk_view_ci.subresourceRange.baseMipLevel   = 0;
+            sk_view_ci.subresourceRange.levelCount     = 1;
+            sk_view_ci.subresourceRange.baseArrayLayer = 0;
+            sk_view_ci.subresourceRange.layerCount     = 1;
+
+            r = vk_fn.CreateImageView(vk_device, &sk_view_ci, NULL, view_p);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateImageView (%s) failed (%d)\n",
+                           label, (int)r);
+                return false;
+            }
+        }
+
+        /* Sky staging buffer: 32 KiB host-visible host-
+         * coherent, permanently mapped.  Lives for the
+         * duration of vk_resources_ready (unlike the warp
+         * table staging which is a one-shot).  Re-used on
+         * every sky upload (rare: per-level). */
+        memset(&ss_ci, 0, sizeof(ss_ci));
+        ss_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        ss_ci.size        = VK_SKY_STAGING_BYTES;
+        ss_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        ss_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &ss_ci, NULL, &vk_sky_staging);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (sky staging) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device, vk_sky_staging, &ss_mem_req);
+        ss_mem_type = backend_vk_find_memory_type(ss_mem_req.memoryTypeBits,
+                                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                                                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (ss_mem_type == 0xFFFFFFFFu) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory type for sky staging\n");
+            return false;
+        }
+
+        memset(&ss_mem_ai, 0, sizeof(ss_mem_ai));
+        ss_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ss_mem_ai.allocationSize  = ss_mem_req.size;
+        ss_mem_ai.memoryTypeIndex = ss_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &ss_mem_ai, NULL,
+                                 &vk_sky_staging_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (sky staging) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, vk_sky_staging,
+                                   vk_sky_staging_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (sky staging) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        r = vk_fn.MapMemory(vk_device, vk_sky_staging_memory,
+                            0, VK_WHOLE_SIZE, 0, &vk_sky_staging_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: MapMemory (sky staging) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* Re-arm pending if we already have data from a
+         * pre-context-reset R_InitSky.  The first record_frame
+         * after this point will perform the upload. */
+        if (vk_sky_cache_populated)
+            vk_sky_upload_pending = true;
+    }
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
@@ -4544,6 +4781,72 @@ backend_vk_destroy_resources(void)
         vk_warp_table_memory = VK_NULL_HANDLE;
     }
     vk_warp_active = false;
+
+    /* Phase 5b-07a step 1: sky textures + staging.
+     *
+     * Reverse-create order: unmap+destroy staging buffer
+     * first, then images / memory / views.  Mapped memory
+     * is implicitly unmapped by FreeMemory but we Unmap
+     * explicitly for symmetry with the MapMemory in create
+     * and to make the lifetime obvious.
+     *
+     * CPU caches (vk_sky_cache_front, vk_sky_cache_back,
+     * vk_sky_cache_populated) deliberately survive
+     * destroy_resources.  They live in BSS / static storage,
+     * outliving every Vulkan handle; on the next
+     * create_resources the cache is still populated and
+     * vk_sky_upload_pending gets re-armed so record_frame
+     * re-pushes the data to the freshly-created images
+     * without R_InitSky needing to re-fire from the engine
+     * side.  We do clear vk_sky_upload_pending here since
+     * the staging buffer it would target is gone -- create
+     * will set it again. */
+    if (vk_sky_staging_memory != VK_NULL_HANDLE && vk_sky_staging_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_sky_staging_memory);
+        vk_sky_staging_ptr = NULL;
+    }
+    if (vk_sky_staging != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_sky_staging, NULL);
+        vk_sky_staging = VK_NULL_HANDLE;
+    }
+    if (vk_sky_staging_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sky_staging_memory, NULL);
+        vk_sky_staging_memory = VK_NULL_HANDLE;
+    }
+    if (vk_sky_back_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_sky_back_view, NULL);
+        vk_sky_back_view = VK_NULL_HANDLE;
+    }
+    if (vk_sky_back_image != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_sky_back_image, NULL);
+        vk_sky_back_image = VK_NULL_HANDLE;
+    }
+    if (vk_sky_back_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sky_back_memory, NULL);
+        vk_sky_back_memory = VK_NULL_HANDLE;
+    }
+    if (vk_sky_front_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_sky_front_view, NULL);
+        vk_sky_front_view = VK_NULL_HANDLE;
+    }
+    if (vk_sky_front_image != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_sky_front_image, NULL);
+        vk_sky_front_image = VK_NULL_HANDLE;
+    }
+    if (vk_sky_front_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sky_front_memory, NULL);
+        vk_sky_front_memory = VK_NULL_HANDLE;
+    }
+    vk_sky_upload_pending = false;
 
     /* Phase 5b-02 particle pipeline / resources teardown.
      * Reverse-create order; pool destruction implicitly
@@ -6911,6 +7214,113 @@ backend_vk_record_frame(void)
         return false;
     }
 
+    /* Phase 5b-07a step 1: sky texture upload.  Conditional
+     * on vk_sky_upload_pending: notify_sky_texture set it on
+     * the most recent R_InitSky call (level load, rare) and
+     * the upload itself is deferred here so it shares the
+     * per-frame command buffer.  CPU cache is filled at notify
+     * time; we memcpy it into the persistent host-coherent
+     * vk_sky_staging buffer, then issue UNDEFINED -> TRANSFER_
+     * DST for both images, copy staging -> image x2, then
+     * transition both to GENERAL so the (Phase 5b-07a commit
+     * 3) sky.comp dispatch can imageLoad from them later in
+     * the same command buffer.
+     *
+     * The two images can share a single CmdPipelineBarrier
+     * (same source/dest stage masks, same layout transition);
+     * the two CmdCopyBufferToImage calls have to be separate
+     * because each targets a different image. */
+    if (vk_sky_upload_pending && vk_sky_staging_ptr) {
+        VkImageMemoryBarrier sky_barriers[2];
+        VkBufferImageCopy    sky_copy;
+
+        /* Stage the cached bytes.  vk_sky_cache_front sits at
+         * [0, VK_SKY_LAYER_BYTES); vk_sky_cache_back at
+         * [VK_SKY_LAYER_BYTES, 2 * VK_SKY_LAYER_BYTES).
+         * HOST_COHERENT memory means no Flush is needed; the
+         * next CmdCopyBufferToImage's TRANSFER stage will see
+         * the new bytes once submit happens. */
+        memcpy((byte *)vk_sky_staging_ptr,
+               vk_sky_cache_front,
+               VK_SKY_LAYER_BYTES);
+        memcpy((byte *)vk_sky_staging_ptr + VK_SKY_LAYER_BYTES,
+               vk_sky_cache_back,
+               VK_SKY_LAYER_BYTES);
+
+        memset(sky_barriers, 0, sizeof(sky_barriers));
+        sky_barriers[0].sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        sky_barriers[0].srcAccessMask                   = 0;
+        sky_barriers[0].dstAccessMask                   = VK_ACCESS_TRANSFER_WRITE_BIT;
+        sky_barriers[0].oldLayout                       = VK_IMAGE_LAYOUT_UNDEFINED;
+        sky_barriers[0].newLayout                       = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        sky_barriers[0].srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        sky_barriers[0].dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        sky_barriers[0].image                           = vk_sky_front_image;
+        sky_barriers[0].subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        sky_barriers[0].subresourceRange.baseMipLevel   = 0;
+        sky_barriers[0].subresourceRange.levelCount     = 1;
+        sky_barriers[0].subresourceRange.baseArrayLayer = 0;
+        sky_barriers[0].subresourceRange.layerCount     = 1;
+        sky_barriers[1]       = sky_barriers[0];
+        sky_barriers[1].image = vk_sky_back_image;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 2, sky_barriers);
+
+        memset(&sky_copy, 0, sizeof(sky_copy));
+        sky_copy.bufferOffset                    = 0;
+        sky_copy.bufferRowLength                 = 0;  /* tightly packed */
+        sky_copy.bufferImageHeight               = 0;
+        sky_copy.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        sky_copy.imageSubresource.mipLevel       = 0;
+        sky_copy.imageSubresource.baseArrayLayer = 0;
+        sky_copy.imageSubresource.layerCount     = 1;
+        sky_copy.imageExtent.width               = VK_SKY_TEXEL_W;
+        sky_copy.imageExtent.height              = VK_SKY_TEXEL_H;
+        sky_copy.imageExtent.depth               = 1;
+
+        vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                                   vk_sky_staging,
+                                   vk_sky_front_image,
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                   1, &sky_copy);
+
+        sky_copy.bufferOffset = VK_SKY_LAYER_BYTES;
+        vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                                   vk_sky_staging,
+                                   vk_sky_back_image,
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                   1, &sky_copy);
+
+        /* TRANSFER_DST -> GENERAL.  STORAGE images consumed
+         * by sky.comp via imageLoad must be GENERAL (UNIFORM_
+         * READ would only allow read; GENERAL allows
+         * imageLoad which is the path the shader uses). */
+        sky_barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        sky_barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sky_barriers[0].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        sky_barriers[0].newLayout     = VK_IMAGE_LAYOUT_GENERAL;
+        sky_barriers[1].srcAccessMask = sky_barriers[0].srcAccessMask;
+        sky_barriers[1].dstAccessMask = sky_barriers[0].dstAccessMask;
+        sky_barriers[1].oldLayout     = sky_barriers[0].oldLayout;
+        sky_barriers[1].newLayout     = sky_barriers[0].newLayout;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 2, sky_barriers);
+
+        vk_sky_upload_pending = false;
+    }
+
     /* Textures + (when particles active) zbuffer:
      * UNDEFINED -> TRANSFER_DST_OPTIMAL in a single
      * CmdPipelineBarrier.  UNDEFINED-as-discard is the
@@ -7628,6 +8038,65 @@ backend_vk_notify_cache_invalidate(const void *data, int size)
 #endif
 }
 
+/*
+ * Phase 5b-07a: cache the sky texture and flag it for upload
+ * on the next record_frame.
+ *
+ * Called from R_InitSky in r_sky.c at level load.  The
+ * source pointers index INTO a 256-wide texture (256x128,
+ * the Quake sky format), where the LEFT 128 columns are
+ * the front masked-overlay layer and the RIGHT 128 columns
+ * are the back opaque layer.  r_sky.c hands us the two
+ * column-pair-sized pointers (`front` at offset 0, `back`
+ * at offset 128 into the same row); each row therefore
+ * advances by 256 bytes in the source, but our GPU images
+ * are tightly packed 128x128, so the per-row memcpy
+ * compresses the stride.
+ *
+ * Upload itself is deferred to record_frame for three
+ * reasons.  First, R_InitSky runs during retro_load_game
+ * which is BEFORE the Vulkan context stands up
+ * (create_resources hasn't run yet) -- no command pool /
+ * command buffer / images exist to do the work on.  Second,
+ * folding the upload into the per-frame command stream
+ * shares vk_cmd_buffer's BeginCommandBuffer / submit cycle
+ * (no separate one-shot CB, no extra QueueSubmit/WaitIdle
+ * pair).  Third, after a context reset the CPU cache
+ * survives and the create_resources path can re-arm
+ * pending without R_InitSky needing to re-fire from the
+ * engine side -- the per-frame upload picks it up
+ * automatically.
+ *
+ * Always defined (no outer #ifdef on the symbol itself) so
+ * the unconditional g_rhi_backend_vk vtable entry below can
+ * reference it whether or not RHI_HAVE_VULKAN is on; the
+ * body's internal guard makes the function a no-op in the
+ * non-Vulkan build, mirroring the notify_cache_invalidate
+ * pattern above.
+ */
+static void
+backend_vk_notify_sky_texture(const byte *front, const byte *back)
+{
+#ifdef RHI_HAVE_VULKAN
+    unsigned row;
+    if (!front || !back)
+        return;
+    for (row = 0; row < VK_SKY_TEXEL_H; row++) {
+        memcpy(vk_sky_cache_front + (size_t)row * VK_SKY_TEXEL_W,
+               front + (size_t)row * 256,
+               VK_SKY_TEXEL_W);
+        memcpy(vk_sky_cache_back  + (size_t)row * VK_SKY_TEXEL_W,
+               back  + (size_t)row * 256,
+               VK_SKY_TEXEL_W);
+    }
+    vk_sky_cache_populated = true;
+    vk_sky_upload_pending  = true;
+#else
+    (void)front;
+    (void)back;
+#endif
+}
+
 const render_backend_t g_rhi_backend_vk = {
     "vulkan",
     RHI_BACKEND_VULKAN,
@@ -7647,5 +8116,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_dispatch_3d_warp_screen_impl,
     backend_vk_dispatch_3d_sprite_impl,
     backend_vk_dispatch_3d_alias_impl,
-    backend_vk_notify_cache_invalidate
+    backend_vk_notify_cache_invalidate,
+    backend_vk_notify_sky_texture
 };

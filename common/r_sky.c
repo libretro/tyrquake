@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "r_local.h"
 #include "d_local.h"
+#include "rhi.h"
 
 
 int iskyspeed = 8;
@@ -46,6 +47,19 @@ void R_InitSky (texture_t *mt)
 
    skyoverlay = (byte *)mt + mt->offsets[0]; /* Manoel Kasimier - smooth sky */
    skyunderlay = skyoverlay+128; /* Manoel Kasimier - smooth sky */
+
+   /* Phase 5b-07a: push the sky texture to the backend.  The
+    * Vulkan backend caches the data and uploads it to a pair
+    * of 128x128 R8_UINT storage images that sky.comp samples
+    * (the SW backend's hook is NULL -- skyoverlay /
+    * skyunderlay are all it needs, since d_sky.c reads them
+    * directly).  Called from model.c at level load whenever
+    * a sky surface texture is encountered; the same texture
+    * stays live for the whole level, so this fires once per
+    * level (twice on the rare maps with multiple sky
+    * textures -- the last one wins, matching SW). */
+   if (g_rhi && g_rhi->notify_sky_texture)
+       g_rhi->notify_sky_texture(skyoverlay, skyunderlay);
 }
 
 /*

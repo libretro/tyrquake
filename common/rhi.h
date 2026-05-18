@@ -490,6 +490,24 @@ typedef struct render_backend_s {
      * are stood up.  Safe to call with size <= 0 (the renderer
      * returns without scanning). */
     void     (*notify_cache_invalidate)(const void *data, int size);
+
+    /* Phase 5b-07a: sky texture push (called from R_InitSky at
+     * level load -- one-shot per level, not per-frame).  The
+     * Quake sky texture is 256x128 with the LEFT 128 columns
+     * holding the front (masked overlay) layer and the RIGHT
+     * 128 columns holding the back (opaque) layer; both
+     * `front` and `back` are pointers INTO that 256-wide
+     * texture, so each row in the source advances by 256
+     * bytes but each GPU image is a tightly-packed 128x128.
+     * Backend caches the data on CPU and uploads it on the
+     * next record_frame (the call can predate resources_ready,
+     * since R_InitSky runs during retro_load_game before the
+     * Vulkan context stands up).
+     *
+     * NULL on the SW backend (skyoverlay / skyunderlay
+     * globals in d_sky.c already point at the live texture
+     * cache, which is all the SW renderer needs). */
+    void     (*notify_sky_texture)(const byte *front, const byte *back);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

@@ -98,5 +98,6 @@ const render_backend_t g_rhi_backend_sw = {
     NULL,               /* dispatch_3d_warp_screen:       SW renders warp via D_WarpScreen */
     NULL,               /* dispatch_3d_sprite:            SW renders sprites via D_SpriteDrawSpans */
     NULL,               /* dispatch_3d_alias:             SW renders alias via D_PolysetDrawSpans8 */
-    NULL                /* notify_cache_invalidate:       SW has no GPU-side pointer cache to invalidate */
+    NULL,               /* notify_cache_invalidate:       SW has no GPU-side pointer cache to invalidate */
+    NULL                /* notify_sky_texture:            SW reads skyoverlay/skyunderlay globals directly */
 };
