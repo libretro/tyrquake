@@ -252,12 +252,37 @@ D_PolysetDraw(void)
        && acolormap) {
       enum { D_ALIAS_GPU_MAX_VERTS = 1024,
              D_ALIAS_GPU_MAX_TRIS  = 2048 };
-      static int             idx_remap[D_ALIAS_GPU_MAX_VERTS];
+      /* Two remap tables.  An on-seam vertex referenced
+       * by both a facesfront=true and a facesfront=false
+       * triangle in the same dispatch needs two compacted
+       * entries: one using the original s coordinate (for
+       * the front-skin-half triangle), one with seamfixup
+       * X16 added to v[2] (for the back-skin-half
+       * triangle).  Other vertices share a single entry
+       * via idx_remap_front.  Worst-case duplication is
+       * the seam vertex count of the model, well under
+       * 2x; D_ALIAS_GPU_MAX_VERTS = 1024 covers it.
+       *
+       * The companion SW path applies the same fixup
+       * inline per triangle (d_polyse.c D_DrawNonSubdiv,
+       * lines 481-488: r_p[i][2] += seamfixupX16 when
+       * !facesfront && (flags & ALIAS_ONSEAM)).  Doing it
+       * at compaction time is the natural place for the
+       * GPU port -- it's a per-(vertex, triangle-side)
+       * adjustment that the shader can't recover without
+       * carrying flags + facesfront through the dispatch
+       * record.  Without this, every facesfront=false
+       * triangle samples the front half of the skin and
+       * renders with garbled UVs across the visible
+       * back-skin geometry. */
+      static int             idx_remap_front[D_ALIAS_GPU_MAX_VERTS];
+      static int             idx_remap_back[D_ALIAS_GPU_MAX_VERTS];
       static rhi_alias_vert_t compact_verts[D_ALIAS_GPU_MAX_VERTS];
       static rhi_alias_tri_t  compact_tris[D_ALIAS_GPU_MAX_TRIS];
       const finalvert_t *pfv = r_affinetridesc.pfinalverts;
       const mtriangle_t *ptr = r_affinetridesc.ptriangles;
       int                ntri = r_affinetridesc.numtriangles;
+      int                seamfixup = r_affinetridesc.seamfixupX16;
       int                i, j, new_v_count = 0;
       int                ok = 1;
 
@@ -265,28 +290,54 @@ D_PolysetDraw(void)
          ok = 0;
 
       if (ok) {
-         /* Initialise remap to "unseen" for this call.
-          * Cost is one memset per call (4 KiB at int
-          * width); cheap vs the dispatch overhead. */
-         for (i = 0; i < (int)D_ALIAS_GPU_MAX_VERTS; i++)
-            idx_remap[i] = -1;
+         /* Initialise both remap tables to "unseen" for
+          * this call.  Cost is two memsets per call (8
+          * KiB at int width); cheap vs the dispatch
+          * overhead. */
+         for (i = 0; i < (int)D_ALIAS_GPU_MAX_VERTS; i++) {
+            idx_remap_front[i] = -1;
+            idx_remap_back[i]  = -1;
+         }
 
          for (i = 0; i < ntri && ok; i++) {
+            int facesfront = ptr[i].facesfront;
+
             for (j = 0; j < 3; j++) {
                int orig = ptr[i].vertindex[j];
-               int mapped;
+               int *remap;
+               int  adjust;
 
                if (orig < 0 || orig >= (int)D_ALIAS_GPU_MAX_VERTS) {
                   ok = 0;
                   break;
                }
 
-               if (idx_remap[orig] < 0) {
+               /* Pick the remap table + s adjustment:
+                *   facesfront=true   -> shared front entry, no adjust
+                *   facesfront=false && ONSEAM -> back entry, +seamfixupX16
+                *   facesfront=false && !ONSEAM -> shared front entry, no adjust
+                *
+                * The clipped path (R_AliasClipTriangle)
+                * already applied the fixup to its local
+                * fv stack before calling D_PolysetDraw,
+                * and cleared flags afterwards, so when
+                * those calls reach us the ONSEAM check
+                * below sees flags=0 and we don't double-
+                * adjust. */
+               if (!facesfront && (pfv[orig].flags & ALIAS_ONSEAM)) {
+                  remap  = idx_remap_back;
+                  adjust = seamfixup;
+               } else {
+                  remap  = idx_remap_front;
+                  adjust = 0;
+               }
+
+               if (remap[orig] < 0) {
                   if (new_v_count >= (int)D_ALIAS_GPU_MAX_VERTS) {
                      ok = 0;
                      break;
                   }
-                  idx_remap[orig] = new_v_count;
+                  remap[orig] = new_v_count;
                   /* Copy the whole 44-byte finalvert_t.
                    * rhi_alias_vert_t has the same layout
                    * so this is a direct struct copy; the
@@ -294,13 +345,13 @@ D_PolysetDraw(void)
                   memcpy(&compact_verts[new_v_count],
                          &pfv[orig],
                          sizeof(rhi_alias_vert_t));
+                  compact_verts[new_v_count].v[2] += adjust;
                   new_v_count++;
                }
-               mapped = idx_remap[orig];
 
-               compact_tris[i].vertindex[j] = mapped;
+               compact_tris[i].vertindex[j] = remap[orig];
             }
-            compact_tris[i].facesfront = ptr[i].facesfront;
+            compact_tris[i].facesfront = facesfront;
          }
       }
 
