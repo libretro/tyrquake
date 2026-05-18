@@ -460,23 +460,10 @@ typedef struct render_backend_s {
      * unmodified, so the cache hits trivially after the
      * first call).
      *
-     * Returns non-zero on a successful queue, zero if the
-     * dispatch was dropped (per-frame cap exhausted, pool
-     * overflow, skin / cmap slot pressure, off-screen
-     * bbox, etc.).  The intercept in d_polyse.c falls
-     * through to the SW raster path on a zero return so
-     * the entity stays visible even when the GPU side has
-     * already used its budget for the frame -- partial-
-     * GPU / partial-SW rendering of one entity composites
-     * cleanly because SW writes to d_viewbuffer and
-     * d_pzbuffer before record_frame uploads them to
-     * vk_texture / vk_zbuffer, and the GPU dispatches
-     * Z-test against the resulting state.
-     *
      * NULL on SW backend / SW-only build.  When NULL,
      * D_PolysetDraw runs the original D_DrawNonSubdiv /
      * D_DrawSubdiv span generator unchanged. */
-    int      (*dispatch_3d_alias)(const rhi_alias_vert_t  *verts,
+    void     (*dispatch_3d_alias)(const rhi_alias_vert_t  *verts,
                                   int                       num_verts,
                                   const rhi_alias_tri_t   *tris,
                                   int                       num_tris,

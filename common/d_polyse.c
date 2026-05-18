@@ -305,41 +305,16 @@ D_PolysetDraw(void)
       }
 
       if (ok && new_v_count >= 3) {
-         if (g_rhi->dispatch_3d_alias(
-                compact_verts,
-                new_v_count,
-                compact_tris,
-                ntri,
-                (const byte *)r_affinetridesc.pskin,
-                r_affinetridesc.skinwidth,
-                r_affinetridesc.skinheight,
-                (const byte *)acolormap)) {
-            return;
-         }
-         /* Dispatch returned 0 -- backend dropped the
-          * call (per-frame cap exhausted, vert / tri pool
-          * overflow, skin or cmap slot pressure, bbox
-          * entirely off-screen, etc.).  Fall through to
-          * the SW span generator so the entity stays
-          * visible.  Quake's R_AliasPreparePoints clip
-          * path issues one D_PolysetDraw per triangle for
-          * partially-clipped entities (and the viewmodel,
-          * always close enough to camera to be z-clipped,
-          * is one such entity every frame); a single
-          * entity at the screen edge can ask for hundreds
-          * of dispatches and overflow VK_ALIAS_MAX_PER_
-          * FRAME by itself, leaving any later alias entity
-          * (typically the viewmodel, since R_DrawViewModel
-          * runs after R_DrawEntitiesOnList) entirely
-          * invisible if we returned unconditionally.  The
-          * GPU writes that did go through composite
-          * correctly with the SW writes the fallback
-          * produces: SW writes to d_viewbuffer and
-          * d_pzbuffer here, those buffers are uploaded to
-          * vk_texture / vk_zbuffer at the start of
-          * record_frame, and the GPU dispatches that
-          * already accepted in this frame ran Z-tests
-          * against the resulting state. */
+         g_rhi->dispatch_3d_alias(
+            compact_verts,
+            new_v_count,
+            compact_tris,
+            ntri,
+            (const byte *)r_affinetridesc.pskin,
+            r_affinetridesc.skinwidth,
+            r_affinetridesc.skinheight,
+            (const byte *)acolormap);
+         return;
       }
       /* Fall through to SW if compaction failed (model
        * exceeded scratch buffer caps, or referenced a

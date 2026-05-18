@@ -6311,7 +6311,7 @@ backend_vk_alias_cmap_slot(const void *cmap_ptr)
 }
 #endif /* RHI_HAVE_VULKAN */
 
-static int
+static void
 backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
                                   int                      num_verts,
                                   const rhi_alias_tri_t   *tris,
@@ -6333,29 +6333,29 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
     if (!vk_resources_ready
      || !vk_alias_vertex_ptr || !vk_alias_triangle_ptr
      || !vk_alias_skin_ptr   || !vk_alias_colormap_ptr)
-        return 0;
+        return;
 
     if (vk_alias_count >= VK_ALIAS_MAX_PER_FRAME)
-        return 0;
+        return;
     if (num_verts <= 0 || num_tris <= 0)
-        return 0;
+        return;
     if (vk_alias_vertex_cursor + (uint32_t)num_verts
             > VK_ALIAS_VERT_POOL_VERTS)
-        return 0;
+        return;
     if (vk_alias_triangle_cursor + (uint32_t)num_tris
             > VK_ALIAS_TRI_POOL_TRIS)
-        return 0;
+        return;
 
     /* Resolve / upload skin. */
     skin_bytes = (size_t)skin_w * (size_t)skin_h;
     skin_off   = backend_vk_alias_skin_slot(skin, skin_w, skin_h, skin_bytes);
     if (skin_off == UINT32_MAX)
-        return 0;
+        return;
 
     /* Resolve / upload colormap. */
     cmap_off = backend_vk_alias_cmap_slot(colormap);
     if (cmap_off == UINT32_MAX)
-        return 0;
+        return;
 
     /* Stage vertices: copy just the v[0..5] portion of
      * each finalvert_t into the 24-byte packed pool
@@ -6407,7 +6407,7 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
     }
 
     if (all_min_x > all_max_x || all_min_y > all_max_y)
-        return 0;  /* No valid triangles. */
+        return;  /* No valid triangles. */
 
     bb_x_min = all_min_x;
     bb_y_min = all_min_y;
@@ -6420,7 +6420,7 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
     if (bb_y_max > (int)height)  bb_y_max = (int)height;
 
     if (bb_x_max <= bb_x_min || bb_y_max <= bb_y_min)
-        return 0;
+        return;
 
     /* Build push constants. */
     {
@@ -6445,11 +6445,9 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
     vk_alias_vertex_cursor   += (uint32_t)num_verts;
     vk_alias_triangle_cursor += (uint32_t)num_tris;
     vk_alias_count++;
-    return 1;
 #else
     (void)verts; (void)num_verts; (void)tris; (void)num_tris;
     (void)skin; (void)skin_w; (void)skin_h; (void)colormap;
-    return 0;
 #endif
 }
 

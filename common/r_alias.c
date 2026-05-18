@@ -445,23 +445,64 @@ R_AliasPreparePoints(aliashdr_t *pahdr, finalvert_t *pfinalverts,
 /**/
     r_affinetridesc.numtriangles = 1;
 
-    ptri = (mtriangle_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->triangles);
-    for (i = 0; i < pahdr->numtris; i++, ptri++) {
-	pfv[0] = &pfinalverts[ptri->vertindex[0]];
-	pfv[1] = &pfinalverts[ptri->vertindex[1]];
-	pfv[2] = &pfinalverts[ptri->vertindex[2]];
+    /* Two passes over the entity's triangles.  The first
+     * pass partitions: fully-clipped triangles are
+     * skipped, partially-clipped triangles dispatch
+     * immediately via R_AliasClipTriangle (each clip-and-
+     * fan produces its own local pfinalverts and can't be
+     * batched against the entity's pfinalverts), and
+     * totally-unclipped triangles are appended to a per-
+     * frame scratch list.  The second pass dispatches all
+     * unclipped triangles in one D_PolysetDraw call.
+     *
+     * The old code issued one D_PolysetDraw per triangle
+     * unconditionally, which is a wash in pure SW (the
+     * span generator's per-call overhead is small) but
+     * destroys the GPU compute backend: one Vulkan
+     * dispatch per triangle on a partially-clipped entity
+     * runs the per-pixel barycentric over a 1-triangle
+     * loop, hundreds of times per entity, and the
+     * viewmodel (always close enough to camera to
+     * straddle ALIAS_Z_CLIP_PLANE) hits this every frame.
+     * Batching collapses those hundreds of dispatches to
+     * one per entity for the unclipped majority of the
+     * mesh; the partially-clipped triangles -- typically
+     * a handful per entity -- still dispatch individually
+     * since their post-clip fan vertices live on
+     * R_AliasClipTriangle's stack.
+     *
+     * The static scratch is sized to
+     * MAXALIASTRIS_RUNTIME to cover entities that have
+     * been grown by r_polysubdiv at load time. */
+    {
+        static mtriangle_t batched[MAXALIASTRIS_RUNTIME];
+        int batched_count = 0;
 
-	if (pfv[0]->flags & pfv[1]->flags & pfv[2]->
-	    flags & (ALIAS_XY_CLIP_MASK | ALIAS_Z_CLIP))
-	    continue;		/* completely clipped */
+        ptri = (mtriangle_t *)((byte *)pahdr + SW_Aliashdr(pahdr)->triangles);
+        for (i = 0; i < pahdr->numtris; i++, ptri++) {
+            pfv[0] = &pfinalverts[ptri->vertindex[0]];
+            pfv[1] = &pfinalverts[ptri->vertindex[1]];
+            pfv[2] = &pfinalverts[ptri->vertindex[2]];
 
-	if (!((pfv[0]->flags | pfv[1]->flags | pfv[2]->flags) & (ALIAS_XY_CLIP_MASK | ALIAS_Z_CLIP))) {	/* totally unclipped */
-	    r_affinetridesc.pfinalverts = pfinalverts;
-	    r_affinetridesc.ptriangles = ptri;
-	    D_PolysetDraw();
-	} else {		/* partially clipped */
-	    R_AliasClipTriangle(ptri, pfinalverts, pauxverts);
-	}
+            if (pfv[0]->flags & pfv[1]->flags & pfv[2]->flags
+                & (ALIAS_XY_CLIP_MASK | ALIAS_Z_CLIP))
+                continue;		/* completely clipped */
+
+            if (!((pfv[0]->flags | pfv[1]->flags | pfv[2]->flags)
+                  & (ALIAS_XY_CLIP_MASK | ALIAS_Z_CLIP))) {
+                /* totally unclipped: append to batch */
+                batched[batched_count++] = *ptri;
+            } else {		/* partially clipped */
+                R_AliasClipTriangle(ptri, pfinalverts, pauxverts);
+            }
+        }
+
+        if (batched_count > 0) {
+            r_affinetridesc.numtriangles = batched_count;
+            r_affinetridesc.pfinalverts  = pfinalverts;
+            r_affinetridesc.ptriangles   = batched;
+            D_PolysetDraw();
+        }
     }
 }
 
