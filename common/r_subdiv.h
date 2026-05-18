@@ -37,31 +37,56 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /*
  * Per-pass subdivision multiplies the source mesh size by ~4x for
  * triangles and ~3x for vertices in the limit (V_after = V + E,
- * E ~= 1.5 F for a closed mesh).  The runtime caps below cap each
- * subdivided model at roughly 3.6 MB of Hunk image (8192 trivertx
- * poses * ~100 frames + 16384 tris + 8192 stverts).  At the original
- * cap of 32768 / 65536 a single max-sized model could reach 14 MB,
- * which on the default 32 MB libretro heap was enough to push
- * Cache_AllocPadded into Sys_Error("out of memory") once several
- * subdivided monsters became visible.  The new caps also reclaim
- * ~400 KB of BSS from the MAXALIASVERTS_RUNTIME-sized static
- * working buffers in r_alias.c.
+ * E ~= 1.5 F for a closed mesh).  The runtime cap controls how big a
+ * subdivided mesh we're willing to materialise into the model's Hunk
+ * image; if a requested pass would overshoot it, SubdivOnePass refuses
+ * and R_SubdivideAliasMesh keeps the prior pass's result.
+ *
+ * Two caps coexist, picked at model load time based on the active
+ * RHI compute path:
+ *
+ * - SW cap (8192 verts / 16384 tris): for the legacy software-only
+ *   path.  Caps a single max-sized model at ~3.6 MB of Hunk image.
+ *   At the original Quake caps (32768 / 65536) a single max-sized
+ *   model could reach 14 MB, which on the default 32 MB libretro heap
+ *   was enough to push Cache_AllocPadded into Sys_Error("out of
+ *   memory") once several subdivided monsters became visible.  This
+ *   cap reproduces the SW-only working behaviour byte-for-byte.
+ *
+ * - RHI cap (65536 verts / 131072 tris): for the Vulkan compute path.
+ *   The GPU-side dispatch absorbs the larger mesh without per-frame
+ *   CPU rasterisation cost (the SW raster's spans-and-edges cost
+ *   grew quadratically with triangle count for large models;
+ *   alias.comp's per-pixel barycentric cost grows only with screen
+ *   coverage).  At the higher cap the user-facing r_polysubdiv slider
+ *   genuinely takes effect at all three levels for mid-size monsters
+ *   (~500 source verts) and at levels 1-2 for max-size source meshes.
  *
  * Practical effect on the user-facing setting:
- *   - 3 passes still works on small models (player.mdl head, weapon
- *     barrels, projectile sprites).
- *   - Mid-size models (most monsters at ~500 verts) cap at 2 passes;
- *     R_SubdivideAliasMesh drops the third pass and returns the
- *     2-pass result.
- *   - Max-sized source meshes cap at 1 pass.
+ *   - SW path:  3 passes on small models (~150 source verts), 2 on
+ *               mid-size (~500), 1 on max-size (~2000).
+ *   - RHI path: 3 passes on small + mid-size, 1-2 on max-size.
  *
  * The cap-fallback in R_SubdivideAliasMesh tries passes one at a
  * time so a model that overshoots at pass N still keeps the result
  * of pass N-1; you never end up with an unsubdivided model just
  * because you asked for one pass too many.
+ *
+ * MAXALIASVERTS_RUNTIME / MAXALIASTRIS_RUNTIME below resolve to the
+ * RHI cap (the max of the two), so the static working buffers in
+ * r_alias.c (shadow_screen[], batched[], etc.) are always large
+ * enough to hold a model loaded under either cap regime.  The cost
+ * is BSS only -- per-frame loops iterate numverts / numtris (the
+ * model's actual values), so the SW path pays no per-frame cost
+ * from the larger buffers.
  */
-#define MAXALIASVERTS_RUNTIME 8192
-#define MAXALIASTRIS_RUNTIME  16384
+#define MAXALIASVERTS_RUNTIME_SW   8192
+#define MAXALIASTRIS_RUNTIME_SW   16384
+#define MAXALIASVERTS_RUNTIME_RHI 65536
+#define MAXALIASTRIS_RUNTIME_RHI 131072
+
+#define MAXALIASVERTS_RUNTIME MAXALIASVERTS_RUNTIME_RHI
+#define MAXALIASTRIS_RUNTIME  MAXALIASTRIS_RUNTIME_RHI
 
 /* User-controlled subdivision level cvar (0..R_POLYSUBDIV_MAX_PASSES). */
 extern cvar_t r_polysubdiv;

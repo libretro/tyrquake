@@ -108,6 +108,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "modelgen.h"
 #include "qtypes.h"
 #include "r_subdiv.h"
+#include "rhi.h"
 #include "sys.h"
 
 cvar_t r_polysubdiv = { "r_polysubdiv", "0", true };
@@ -547,10 +548,29 @@ SubdivOnePass(int *numverts_io, int *numtris_io, int numposes, int skinwidth,
     new_nv = nv + num_edges;
     new_nt = nt * 4;
 
-    /* Cap enforcement: the caller picks how to react (try fewer
-     * passes), so just refuse here. */
-    if (new_nv > MAXALIASVERTS_RUNTIME || new_nt > MAXALIASTRIS_RUNTIME)
-	goto fail;
+    /* Cap enforcement: pick the active cap from g_rhi_compute_rendering.
+     * The RHI compute path can absorb a larger mesh -- alias.comp's
+     * per-pixel barycentric cost grows only with screen coverage, not
+     * triangle count -- so models loaded under RHI use the higher cap
+     * (65536 / 131072).  Pure-SW sessions stay on the original
+     * 8192 / 16384, which is the level the libretro 32 MB hunk and
+     * the SW raster's spans-and-edges inner-loop cost were tuned for.
+     *
+     * The caller (R_SubdivideAliasMesh) reacts to a refusal by trying
+     * fewer passes, so this is a soft cap; just signal "this pass is
+     * too big" and let the per-pass loop fall back. */
+    {
+	int max_verts, max_tris;
+	if (g_rhi_compute_rendering) {
+	    max_verts = MAXALIASVERTS_RUNTIME_RHI;
+	    max_tris  = MAXALIASTRIS_RUNTIME_RHI;
+	} else {
+	    max_verts = MAXALIASVERTS_RUNTIME_SW;
+	    max_tris  = MAXALIASTRIS_RUNTIME_SW;
+	}
+	if (new_nv > max_verts || new_nt > max_tris)
+	    goto fail;
+    }
 
     /* stverts: copy old, then synthesize one new entry per unique
      * edge.  The midpoint's onseam flag and s coordinate are
