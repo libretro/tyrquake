@@ -2899,6 +2899,211 @@ backend_vk_queue_2d_pic_translate_scaled(int x, int y,
 }
 
 /*
+ * backend_vk_queue_2d_fill -- Phase 4t Draw_Fill
+ * intercept body.
+ *
+ * Caches one 1x1 R8 slot per distinct palette colour
+ * seen.  Slot's single byte is the palette index `c`;
+ * the existing overlay FS samples that index out of
+ * the slot, looks it up in the shared palette
+ * texture, and writes the resulting RGBA to the
+ * swapchain.  That reproduces the SW path's
+ * `dest[u] = c` byte-for-byte.
+ *
+ * Key is the address of color_slot_markers[c]; each
+ * of the 256 array bytes has a distinct address so
+ * the per-colour cache key is unique without
+ * colliding with any qpic_t pointer or other sentinel
+ * (e.g. &draw_chars for the conchars atlas).
+ *
+ * Defensive note: a fill with c == 255 would land in
+ * a slot whose single byte is 255, which the overlay
+ * FS would discard -- the rect would render fully
+ * transparent.  Quake never calls Draw_Fill with c ==
+ * 255 (255 is the palette transparency marker the
+ * pic-blit paths use, never a fill colour), so this
+ * is academic, but worth being aware of.
+ */
+static void
+backend_vk_queue_2d_fill(int x, int y, int w, int h, int c)
+{
+    /* 256-byte sentinel array: each byte's address
+     * uniquely identifies one palette colour. */
+    static const char    color_slot_markers[256];
+    const void          *key;
+    uint8_t              cb;
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+
+    if (!vk_resources_ready || w <= 0 || h <= 0)
+        return;
+    if (c < 0 || c > 255)
+        return;
+
+    cb  = (uint8_t)c;
+    key = (const void *)&color_slot_markers[cb];
+
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == key) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX)
+            return;
+
+        if (!backend_vk_begin_uploads())
+            return;
+        if (!backend_vk_upload_pic_slot(slot_idx, 1, 1, &cb)) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        if (!backend_vk_end_uploads()) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        vk_overlay_slots[slot_idx].key = key;
+    }
+
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = (float)(2.0  * (double)x       / (double)width  - 1.0);
+    draw->y0       = (float)(2.0  * (double)y       / (double)height - 1.0);
+    draw->x1       = (float)(2.0  * (double)(x + w) / (double)width  - 1.0);
+    draw->y1       = (float)(2.0  * (double)(y + h) / (double)height - 1.0);
+    draw->u0       = 0.0f;
+    draw->v0       = 0.0f;
+    draw->u1       = 1.0f;
+    draw->v1       = 1.0f;
+}
+
+/*
+ * backend_vk_queue_2d_fade_screen -- Phase 4t
+ * Draw_FadeScreen intercept body.
+ *
+ * The SW path writes byte 0 (palette index 0 == black)
+ * to 3 of every 4 pixels in a 4x2 checkerboard pattern,
+ * leaving the 4th pixel (the world / HUD underneath)
+ * unchanged.  The preserved pixels are at
+ * (x, y) where (x & 3) == ((y & 1) << 1):
+ *
+ *   y=0 (t=0): x%4 == 0 preserved  ->  X . . . X . . .
+ *   y=1 (t=2): x%4 == 2 preserved  ->  . . X . . . X .
+ *
+ * Implementation: stage a single full-screen mask slot
+ * (vid.width x vid.height bytes) where:
+ *
+ *   mask[y][x] = ((x & 3) == ((y & 1) << 1)) ? 255 : 0
+ *
+ * 255 -> overlay FS discards -> compute-pass world /
+ *        Sbar pic backgrounds underneath show through.
+ * 0   -> palette[0] == black -> opaque black pixel.
+ *
+ * The full-screen mask is 1920*1080 = ~2 MiB at Lib's
+ * setup, which fits within vk_staging_size
+ * (vid.width * vid.height + VK_PALETTE_BYTES).  Mask
+ * generation runs once, on the first Draw_FadeScreen
+ * call, and the slot survives for the run lifetime.
+ *
+ * A REPEAT-sampler 4x2 tile would be 2 MiB smaller but
+ * needs a separate sampler -- not worth the complexity
+ * for a one-shot upload.
+ */
+static void
+backend_vk_queue_2d_fade_screen(void)
+{
+    static const char    fade_screen_marker;
+    const void          *key = &fade_screen_marker;
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+
+    if (!vk_resources_ready || width == 0 || height == 0)
+        return;
+
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == key) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        uint8_t  *mask;
+        unsigned  x, y;
+        size_t    n;
+
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX)
+            return;
+
+        n    = (size_t)width * (size_t)height;
+        mask = (uint8_t *)malloc(n);
+        if (!mask)
+            return;
+
+        for (y = 0; y < height; y++) {
+            unsigned t = (y & 1u) << 1u;
+            uint8_t *row = mask + (size_t)y * (size_t)width;
+            for (x = 0; x < width; x++)
+                row[x] = ((x & 3u) == t) ? (uint8_t)255 : (uint8_t)0;
+        }
+
+        if (!backend_vk_begin_uploads()) {
+            free(mask);
+            return;
+        }
+        if (!backend_vk_upload_pic_slot(slot_idx, width, height, mask)) {
+            free(mask);
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        if (!backend_vk_end_uploads()) {
+            free(mask);
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        free(mask);
+        vk_overlay_slots[slot_idx].key = key;
+    }
+
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = -1.0f;
+    draw->y0       = -1.0f;
+    draw->x1       =  1.0f;
+    draw->y1       =  1.0f;
+    draw->u0       = 0.0f;
+    draw->v0       = 0.0f;
+    draw->u1       = 1.0f;
+    draw->v1       = 1.0f;
+}
+
+/*
  * backend_vk_queue_2d_char -- Phase 4o Draw_Character /
  * Draw_String intercept body.
  *
@@ -3239,6 +3444,32 @@ backend_vk_queue_2d_pic_translate_scaled_entry(int x, int y,
     backend_vk_queue_2d_pic_translate_scaled(x, y, pic, translation, scale);
 #else
     (void)x; (void)y; (void)pic; (void)translation; (void)scale;
+#endif
+}
+
+/*
+ * Vtable entry point for queue_2d_fill.  Same #ifdef
+ * pattern.
+ */
+static void
+backend_vk_queue_2d_fill_entry(int x, int y, int w, int h, int c)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_fill(x, y, w, h, c);
+#else
+    (void)x; (void)y; (void)w; (void)h; (void)c;
+#endif
+}
+
+/*
+ * Vtable entry point for queue_2d_fade_screen.  Same
+ * #ifdef pattern.
+ */
+static void
+backend_vk_queue_2d_fade_screen_entry(void)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_fade_screen();
 #endif
 }
 
@@ -3733,5 +3964,7 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_queue_2d_char_entry,
     backend_vk_queue_2d_pic_scaled_entry,
     backend_vk_queue_2d_console_background_entry,
-    backend_vk_queue_2d_pic_translate_scaled_entry
+    backend_vk_queue_2d_pic_translate_scaled_entry,
+    backend_vk_queue_2d_fill_entry,
+    backend_vk_queue_2d_fade_screen_entry
 };

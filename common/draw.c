@@ -1064,6 +1064,15 @@ void Draw_Fill(int x, int y, int w, int h, int c)
 	return;
     }
 
+    /* Phase 4t: forward to the backend's solid-color
+     * intercept when non-NULL.  See queue_2d_fill in
+     * rhi.h for semantics.  When NULL (SW backend),
+     * fall through to the original vid.buffer loop. */
+    if (g_rhi && g_rhi->queue_2d_fill) {
+	g_rhi->queue_2d_fill(x, y, w, h, c);
+	return;
+    }
+
     {
 	dest = vid.buffer + y * vid.rowbytes + x;
 	for (v = 0; v < h; v++, dest += vid.rowbytes)
@@ -1083,6 +1092,16 @@ Draw_FadeScreen
 void Draw_FadeScreen(void)
 {
    int x, y;
+
+   /* Phase 4t: forward to the backend's full-screen
+    * checkerboard-fade intercept when non-NULL.  See
+    * queue_2d_fade_screen in rhi.h.  When NULL (SW
+    * backend), fall through to the original vid.buffer
+    * checkerboard write. */
+   if (g_rhi && g_rhi->queue_2d_fade_screen) {
+      g_rhi->queue_2d_fade_screen();
+      return;
+   }
 
    for (y = 0; y < vid.height; y++)
    {

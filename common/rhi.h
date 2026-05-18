@@ -216,6 +216,60 @@ typedef struct render_backend_s {
                                               const qpic_t *pic,
                                               const byte *translation,
                                               int scale);
+
+    /* 2D solid-color fill intercept (Phase 4t).  The
+     * last single-byte 2D path.  Used for multiplayer
+     * scoreboard team-colour swatches (Sbar_DrawFrags
+     * in sbar.c paints a small filled rectangle per
+     * player with their top / bottom palette indices)
+     * and a handful of HUD bits that draw a flat
+     * rectangle of one palette colour.  SW path writes
+     * vid.buffer directly with a tight `for (v) for
+     * (u) dest[u] = c` loop.
+     *
+     * `c` is a palette index in [0, 255].  The
+     * backend caches one 1x1 slot per distinct colour
+     * value seen and queues an overlay quad
+     * referencing it -- the slot's single byte goes
+     * through the existing palette-lookup path in the
+     * overlay FS so the rendered colour matches the
+     * SW write byte-for-byte.  At 256 possible
+     * colours there's a theoretical worst case of
+     * 256 slots, but Quake in practice uses a
+     * handful (the 14 team colours, plus a few HUD
+     * tints); well within OVERLAY_SLOT_MAX = 128.
+     *
+     * NULL on SW backend / SW-only build.  Draw_Fill
+     * falls through to its SW path. */
+    void     (*queue_2d_fill)(int x, int y, int w, int h, int c);
+
+    /* 2D fade-screen intercept (Phase 4t).  The other
+     * last 2D path.  Draw_FadeScreen is what M_Draw
+     * calls when scr_con_current == 0 and the menu is
+     * up -- it writes byte 0 (palette index 0 ==
+     * black) to 3 of every 4 pixels in a 4x2
+     * checkerboard pattern, preserving the 4th pixel
+     * (the world / HUD visible underneath) so the
+     * world dims behind the menu.  SW path writes
+     * vid.buffer directly.
+     *
+     * Backend stages a full-screen mask slot at
+     * vid.width x vid.height bytes (~2 MiB at
+     * 1920x1080, fits within vk_staging_size which is
+     * vid.width * vid.height + VK_PALETTE_BYTES).
+     * Mask content: 255 (overlay FS discards) at the
+     * preserved positions, 0 (black) elsewhere.
+     * Quadded full-screen at (0,0) -> (vid.width,
+     * vid.height) with full UV -- CLAMP_TO_EDGE
+     * sampler is fine because UV stays in [0, 1].
+     * Lazy-uploaded on first call, kept for the run
+     * lifetime; the mask depends only on vid.width /
+     * vid.height which don't change post-init in the
+     * libretro core.
+     *
+     * NULL on SW backend / SW-only build.  Draw_FadeScreen
+     * falls through to its SW path. */
+    void     (*queue_2d_fade_screen)(void);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every
