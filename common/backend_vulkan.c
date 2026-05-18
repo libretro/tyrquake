@@ -3498,21 +3498,46 @@ backend_vk_draw_view(const refdef_t *rd)
 {
     (void)rd;
 #ifdef RHI_HAVE_VULKAN
-    /* Phase 4d: dispatch into the SW rasterizer.  R_RenderView
-     * fills vid.buffer with 8bpp palette-indexed pixels for the
-     * 3D world view.  The 2D HUD / console / status bar are
-     * composited into the same buffer by the caller chain
-     * (SCR_UpdateScreen -> Sbar_Draw / SCR_DrawConsole / etc.)
-     * after V_RenderView returns.  By the time
-     * backend_vk_end_frame runs, vid.buffer contains a fully
-     * composited frame ready for upload.
+    /* Phase 5 scaffolding: branch on the user's compute-
+     * vs-graphics preference.  Both branches currently
+     * fall through to the existing CPU SW rasterizer
+     * (R_RenderView fills vid.buffer; the per-frame
+     * compute palette-upload path in backend_vk_end_frame
+     * turns that into the swapchain image).  Subsequent
+     * commits replace each branch with its real
+     * implementation:
      *
-     * Phase 4e+ replaces R_RenderView with Vulkan-native
-     * geometry recording.  The 2D path follows; when both are
-     * migrated this function records geometry directly into
-     * vk_cmd_buffer and vid.buffer goes unused for the Vulkan
-     * path. */
-    R_RenderView();
+     *   compute branch  (Phase 5b+):
+     *     GPU compute dispatches that port the SW
+     *     rasterizer line-for-line (per-span affine
+     *     texturing, surface cache, alias edge stepping
+     *     -- the d_*.c / r_*.c hot loops translated into
+     *     GLSL).  Writes directly into the same
+     *     vid.buffer GPU image the compute palette path
+     *     reads, so end_frame's downstream stages don't
+     *     need to know which branch produced the pixels.
+     *
+     *   graphics branch (Phase 5a):
+     *     Vulkan graphics pipelines for world surfaces,
+     *     alias / brush / sprite models, sky, liquids,
+     *     particles, shadows.  Renders to a colour +
+     *     depth attachment pair sized to the user's
+     *     `tyrquake_resolution`; the compute palette
+     *     stage either reads from a different source or
+     *     becomes a no-op when this branch owns the
+     *     output (tbd, depending on how the colour
+     *     attachment's format ends up plumbed). */
+    if (g_rhi_compute_rendering) {
+        /* Phase 5b: compute rasterizer.  Placeholder --
+         * still runs the CPU rasterizer until the GLSL
+         * port lands. */
+        R_RenderView();
+    } else {
+        /* Phase 5a: graphics pipelines.  Placeholder --
+         * still runs the CPU rasterizer until the
+         * pipelines land. */
+        R_RenderView();
+    }
 #endif
 }
 

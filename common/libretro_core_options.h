@@ -40,6 +40,17 @@ struct retro_core_option_definition option_defs_us[] = {
       "auto"
    },
    {
+      "tyrquake_compute_rendering",
+      "Compute rendering (restart)",
+      "On HW renderer backends that support compute shaders (Vulkan today, future D3D12 / GL 4.3+ / Metal), render the 3D view via a GPU port of Quake's software rasterizer (spans, affine textures, surface cache, alias edge stepping). Output is pixel-identical to the Software renderer but offloaded from CPU to GPU -- much faster at the higher 'Internal resolution' settings. When disabled, the HW backend uses traditional graphics pipelines with hardware rasterization, depth buffer and texture filtering (different visual: cleaner edges, filtered textures). Has no effect when the Software renderer is selected, or on HW backends that don't support compute. Requires a restart.",
+      {
+         { "enabled",  "Enabled"  },
+         { "disabled", "Disabled" },
+         { NULL, NULL },
+      },
+      "enabled"
+   },
+   {
       "tyrquake_resolution",
       "Internal resolution (restart)",
       "Configure the resolution. Requires a restart.",

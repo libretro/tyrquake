@@ -291,6 +291,43 @@ extern const render_backend_t *g_rhi;
 extern const render_backend_t g_rhi_backend_sw;
 extern const render_backend_t g_rhi_backend_vk;
 
+/* User preference: render the 3D view via GPU compute
+ * shaders that port Quake's SW rasterizer line-for-line
+ * (Phase 5 onward), rather than via traditional graphics
+ * pipelines.  Generic across HW backends -- any backend
+ * with compute support (Vulkan today, future D3D12 / GL
+ * 4.3+ / Metal) should honor this; backends without
+ * compute (SW, hypothetical future GL 3.x / D3D9 /
+ * D3D11) ignore it.  Set by the libretro layer from the
+ * `tyrquake_compute_rendering` core option; read by each
+ * backend's init / draw_view as appropriate.
+ *
+ * Semantics when honored:
+ *
+ *   enabled  -> The backend's draw_view runs Quake's SW
+ *               rasterizer in a GPU compute shader,
+ *               writing the same per-span affine-textured
+ *               surface-cached palette-indexed pixels the
+ *               CPU SW rasterizer would write to
+ *               vid.buffer, but at GPU speed.  Output is
+ *               pixel-identical to the SW renderer at the
+ *               same resolution (`tyrquake_resolution`).
+ *
+ *   disabled -> The backend's draw_view records the 3D
+ *               view via traditional Vulkan / D3D12 / GL /
+ *               Metal graphics pipelines with hardware
+ *               rasterization, depth buffer, texture
+ *               filtering, etc.  Visually different from
+ *               SW (cleaner edges, filtered textures) but
+ *               can be faster still.
+ *
+ * Default is `enabled` -- matches the existing Vulkan-
+ * backend behaviour (which runs R_RenderView on the CPU
+ * and gives SW-look output) more closely than the
+ * graphics path, and lines up with Lib's preference
+ * statement that compute is the marquee mode. */
+extern qboolean g_rhi_compute_rendering;
+
 /* Backend-selection entry point, called from retro_load_game
  * after update_variables() has populated the core option
  * cache.  Reads the 'tyrquake_renderer' option and picks a

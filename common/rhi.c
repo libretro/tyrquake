@@ -30,6 +30,25 @@
 
 const render_backend_t *g_rhi = NULL;
 
+/* User preference (Phase 5 scaffolding) for the 3D-
+ * rendering path on backends that support compute
+ * shaders.  Default is `true` (Quake-on-compute, SW-look
+ * via GPU) -- the libretro layer overwrites this from
+ * the `tyrquake_compute_rendering` core option at
+ * startup / update.  Read by individual backends in
+ * their init / draw_view paths; backends without
+ * compute support simply ignore it.
+ *
+ * Note: this is a *preference*, not a capability flag.
+ * Future code that wants to know whether the active
+ * backend actually honors the request should query the
+ * backend rather than read this directly (no such
+ * query exists yet -- the scaffolding lands the
+ * preference; capability reporting comes when the
+ * second compute-capable backend lands and there's
+ * something to disambiguate). */
+qboolean g_rhi_compute_rendering = true;
+
 /* environ_cb / log_cb are owned by libretro.c.  Same extern
  * pattern menu.c uses for environ_cb.  log_cb is the
  * libretro frontend's logger; using it (rather than

@@ -885,6 +885,27 @@ static void update_variables(bool startup)
       retro_set_rumble_touch(0, 0.0f);
    }
 
+   /* Phase 5 scaffolding: read the user's compute-vs-
+    * graphics preference for the 3D view.  Marked as
+    * requires-restart in the core-options manifest --
+    * subsequent re-reads here (when the user toggles
+    * the option mid-run) update the global but the
+    * backend's already-allocated resources aren't torn
+    * down, so the active session keeps the path it
+    * stood up at retro_load_game time.  The global is
+    * declared in rhi.h and defaults to `true` if this
+    * read fails or returns an unknown value. */
+   var.key = "tyrquake_compute_rendering";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (strcmp(var.value, "disabled") == 0)
+         g_rhi_compute_rendering = false;
+      else
+         g_rhi_compute_rendering = true;
+   }
+
    var.key = "tyrquake_invert_y_axis";
    var.value = NULL;
 
