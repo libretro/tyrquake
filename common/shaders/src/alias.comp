@@ -202,7 +202,65 @@ void main()
 
     bool hit = false;
     float iv2 = 0.0, iv3 = 0.0, iv4 = 0.0, iv5 = 0.0;
+    float best_v5 = -1.0e30;
 
+    /* Per-pixel, walk the dispatch's triangle list and
+     * pick the triangle with the highest interpolated 1/z
+     * (= closest to camera).
+     *
+     * SW Quake's D_PolysetDrawSpans8 doesn't need this
+     * search: it rasterises each triangle in mesh order
+     * directly into d_viewbuffer / d_pzbuffer, and its
+     * per-pixel test `if ((lzi >> 16) >= *lpz) { write
+     * pixel; *lpz = lzi >> 16; }` is what resolves multi-
+     * triangle overlap -- whichever triangle wins the z-
+     * test last is the one visible.  An alias model whose
+     * 3D pose puts one front-facing triangle behind
+     * another front-facing triangle (e.g. a dead enemy
+     * collapsed face-down with an arm draped over the
+     * torso, or any geometry that folds onto itself --
+     * pretty common at death frames) relies on that per-
+     * triangle z-test to keep the closer triangle on top.
+     *
+     * Our compute path can't lean on that.  vk_zbuffer's
+     * atomicMax is the right mechanism between dispatches
+     * (one entity vs. another) and between subsystems
+     * (alias vs. particle vs. sprite vs. world), but
+     * within a single dispatch every invocation that
+     * lands on a given pixel executes in parallel and
+     * sees the same pre-dispatch vk_zbuffer state.  We
+     * have to do the within-entity ordering ourselves,
+     * here, before the atomic.
+     *
+     * An earlier iteration of this shader broke on first-
+     * hit and emitted that triangle's (uvs, light, z)
+     * unconditionally.  That worked for entities whose
+     * front-facing triangles don't overlap in screen
+     * space (the common case: a standing monster viewed
+     * from outside its silhouette, where each pixel is
+     * covered by exactly one front-facing triangle).
+     * Death poses break the assumption -- arm and torso
+     * fold into the same screen region, both pass the
+     * front-face test, and whichever sat earlier in mesh
+     * order won regardless of depth.  The visible result
+     * was the farther triangle's UVs and lighting
+     * stamped over the closer one in arm-over-torso
+     * regions, plus -- because the farther triangle's
+     * lower z then went into the atomicMax -- a torch
+     * sprite or world surface behind the body
+     * occasionally winning the inter-dispatch z-test and
+     * bleeding through what should have been an opaque
+     * model.
+     *
+     * Iterating every triangle and keeping the highest
+     * v5 (= 1/z, larger is closer) is the literal
+     * translation of SW's per-pixel resolution and the
+     * minimum correct behaviour.  Cost: t_count edge-
+     * tests per pixel without the early break.  For a
+     * stock Quake monster (~200 tris) on a typical
+     * bounding-box footprint this lands within the same
+     * order of magnitude as the SW spans-and-edges
+     * inner loop the shader replaced. */
     for (int ti = 0; ti < t_count; ti++) {
         AliasTri tri = tris.t[t_off + ti];
         AliasVert va = verts.v[v_off + tri.a];
@@ -239,19 +297,7 @@ void main()
          *
          * Cull when area <= 0 (back-facing or degenerate).
          * The inside test for area > 0 then uses all w_i
-         * non-negative.  This matters for alias models
-         * because the back-side (hidden) triangles share
-         * screen positions with the front-side visible
-         * ones but project with different (often farther)
-         * Z; without the cull, a back-side triangle
-         * iterated before its front-facing counterpart
-         * would be the "first hit" for the pixel and
-         * stamp its (wrong) data, including UVs into the
-         * front half of the skin where the geometry
-         * actually wants the back half -- visible as the
-         * garbled-texture enemies and missing viewmodel
-         * symptoms reported after the previous attempt at
-         * this fix had the sign inverted. */
+         * non-negative. */
         if (area <= 0)
             continue;
 
@@ -264,12 +310,19 @@ void main()
         float b1 = float(w1) * ia;
         float b2 = float(w2) * ia;
 
+        float cand_v5 = b0 * float(va.v5)
+                      + b1 * float(vb.v5)
+                      + b2 * float(vc.v5);
+
+        if (cand_v5 <= best_v5)
+            continue;
+
+        best_v5 = cand_v5;
         iv2 = b0 * float(va.v2) + b1 * float(vb.v2) + b2 * float(vc.v2);
         iv3 = b0 * float(va.v3) + b1 * float(vb.v3) + b2 * float(vc.v3);
         iv4 = b0 * float(va.v4) + b1 * float(vb.v4) + b2 * float(vc.v4);
-        iv5 = b0 * float(va.v5) + b1 * float(vb.v5) + b2 * float(vc.v5);
+        iv5 = cand_v5;
         hit = true;
-        break;
     }
 
     if (!hit)
