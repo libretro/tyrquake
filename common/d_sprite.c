@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_local.h"
 #include "quakedef.h"
 #include "render.h"
+#include "rhi.h"
 
 static int sprite_height;
 static int minindex, maxindex;
@@ -386,6 +387,32 @@ D_DrawSprite(void)
     * which also had a precedence bug — the +1 was outside the
     * multiplication and only added one byte instead of one element. */
    static sspan_t spans[MAXHEIGHT + 1];
+
+   /* Phase 5b-05: if the active backend exposes a GPU
+    * sprite dispatch and compute rendering is enabled,
+    * hand off the already-projected polygon
+    * (r_spritedesc.pverts has nump 3..8 vertices with
+    * u, v, s, t, zi -- exactly the rhi_sprite_vert_t
+    * layout) and skip the CPU span generation +
+    * D_SpriteDrawSpans entirely.
+    *
+    * The transparent index is hard-coded 255 in stock
+    * Quake (TRANSPARENT_COLOR; matches the SW path's
+    * `if (btemp != 255)` test in D_SpriteDrawSpans). */
+   if (g_rhi
+       && g_rhi->dispatch_3d_sprite
+       && g_rhi_compute_rendering
+       && r_spritedesc.nump >= 3
+       && r_spritedesc.pspriteframe) {
+      g_rhi->dispatch_3d_sprite(
+         (const rhi_sprite_vert_t *)r_spritedesc.pverts,
+         r_spritedesc.nump,
+         (const byte *)&r_spritedesc.pspriteframe->rdata[0],
+         r_spritedesc.pspriteframe->width,
+         r_spritedesc.pspriteframe->height,
+         255);
+      return;
+   }
 
    /* find the top and bottom vertices, and make sure there's at least one scan to */
    /* draw */

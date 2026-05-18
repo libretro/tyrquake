@@ -207,6 +207,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/overlay_quad_fs.h"
 #include "shaders/generated/spv/particles_cs.h"
 #include "shaders/generated/spv/warpscreen_cs.h"
+#include "shaders/generated/spv/sprite_cs.h"
 #include "d_iface.h"      /* particle_t -- the GPU compute particle
                            * rasterizer walks the active linked list
                            * via this typedef.  Also TURB_CYCLE for
@@ -621,6 +622,139 @@ static VkDescriptorPool       vk_warp_pool;
 static VkDescriptorSet        vk_warp_set;
 static qboolean               vk_warp_active;
 static struct vk_warp_pc      vk_warp_push;
+
+/* --------------------------------------------------------
+ * Phase 5b-05: GPU compute sprite rasterizer resources.
+ *
+ * Mirrors the particle pipeline's shape (one compute
+ * dispatch per primitive, atomicMax Z-test, palette-index
+ * writes into vk_texture) but for textured-polygon
+ * sprites instead of point splats.  Reuses vk_zbuffer +
+ * the d_pzbuffer upload path the particle dispatch built
+ * (Phase 5b-02 + 5b-04), so when both sprites and
+ * particles fire in the same frame the zbuffer upload
+ * happens exactly once.
+ *
+ * Per-frame data flow:
+ *
+ *   D_DrawSprite (CPU, d_sprite.c)
+ *     -> g_rhi->dispatch_3d_sprite(...)
+ *        -> backend_vk_dispatch_3d_sprite_impl
+ *           - Appends nump verts to vk_sprite_vertex_pool
+ *             (host-mapped).
+ *           - Copies the sprite frame's pixel bytes
+ *             into the next free slot of vk_sprite_
+ *             texture_pool (host-mapped, slot-allocated
+ *             round-robin within the frame).
+ *           - Computes the screen-space bbox + push-
+ *             constant block; appends to
+ *             vk_sprite_calls[vk_sprite_count++].
+ *
+ *   backend_vk_record_frame (CPU)
+ *     - Emits the zbuffer upload + GENERAL transitions if
+ *       any 3D compute dispatch (particles OR sprites) is
+ *       pending.
+ *     - Particle dispatch (if any).
+ *     - Per-sprite dispatch loop: bind the sprite pipeline
+ *       + set once, then for each queued sprite push its
+ *       constants + dispatch.  No intra-loop barriers
+ *       between sprites -- each operates on a disjoint
+ *       (well, sometimes overlapping) bbox of vk_texture +
+ *       vk_zbuffer, and the atomicMax Z-test handles
+ *       overlap correctly across dispatches the same way
+ *       it does within a single dispatch.
+ *     - vk_texture GENERAL -> SHADER_READ_ONLY, then
+ *       palette / warp dispatch as before.
+ *
+ * Resources:
+ *   vk_sprite_vertex_buffer  : host-mapped SSBO of
+ *                              VK_SPRITE_VERT_POOL_VERTS
+ *                              SpriteVert records (32
+ *                              sprites * 8 max verts).
+ *   vk_sprite_texture_buffer : host-mapped SSBO of palette
+ *                              indices, addressable as
+ *                              packed uint slots in
+ *                              std430.  VK_SPRITE_TEX_
+ *                              POOL_SLOTS slots * VK_
+ *                              SPRITE_TEX_POOL_SLOT_BYTES
+ *                              bytes; each sprite frame
+ *                              gets one slot per frame.
+ *   vk_sprite_cs_module      : compiled SPIR-V for
+ *                              sprite.comp.
+ *   vk_sprite_dsl            : 4-binding DSL (u_index +
+ *                              u_zbuffer storage images,
+ *                              vertex SSBO, texture SSBO;
+ *                              all COMPUTE).
+ *   vk_sprite_pool / _set    : descriptor pool + the
+ *                              single set; bindings 0/1
+ *                              point at vk_texture +
+ *                              vk_zbuffer views in
+ *                              GENERAL layout, bindings
+ *                              2/3 at the vertex /
+ *                              texture SSBO handles.
+ *   vk_sprite_pipeline_layout: DSL + 48 B push constants
+ *                              (struct vk_sprite_pc).
+ *   vk_sprite_pipeline       : compute pipeline.
+ *
+ * Per-frame state:
+ *   vk_sprite_count          : number of sprites queued
+ *                              this frame.  Read by
+ *                              record_frame, reset to 0
+ *                              at end of recording.
+ *   vk_sprite_calls          : per-sprite push-constants
+ *                              snapshot, indexed
+ *                              [0..vk_sprite_count).
+ *   vk_sprite_vertex_cursor  : monotonic write offset
+ *                              into the vertex pool
+ *                              within the frame.  Reset
+ *                              at end of recording.
+ *
+ * Pool sizing is conservative.  Typical Quake scenes
+ * render 0..5 sprites per frame in vanilla gameplay;
+ * 32 is generous headroom.  Sprite frames in stock
+ * Quake top out around 64x64 (4 KiB); the 16 KiB slot
+ * size covers up to 128x128 with room to spare and
+ * keeps the pool a tidy 512 KiB total.
+ */
+#define VK_SPRITE_MAX_PER_FRAME       32u
+#define VK_SPRITE_MAX_VERTS_PER       8u
+#define VK_SPRITE_VERT_POOL_VERTS    (VK_SPRITE_MAX_PER_FRAME * VK_SPRITE_MAX_VERTS_PER)
+#define VK_SPRITE_VERT_BYTES         32u   /* sizeof(struct vk_sprite_vert) */
+#define VK_SPRITE_VERT_POOL_BYTES    (VK_SPRITE_VERT_POOL_VERTS * VK_SPRITE_VERT_BYTES)
+#define VK_SPRITE_TEX_POOL_SLOT_BYTES 16384u
+#define VK_SPRITE_TEX_POOL_BYTES     (VK_SPRITE_MAX_PER_FRAME * VK_SPRITE_TEX_POOL_SLOT_BYTES)
+
+struct vk_sprite_vert {
+    float    u, v;
+    float    inv_z;
+    float    s_over_z;
+    float    t_over_z;
+    float    _pad0;
+    float    _pad1;
+    float    _pad2;
+};
+
+struct vk_sprite_pc {
+    int32_t  bbox[4];           /* x_min, y_min, x_max, y_max (exclusive) */
+    int32_t  dispatch_info[4];  /* vertex_offset, nump, tex_offset, tex_width */
+    int32_t  tex_info[4];       /* tex_height, transparent_idx, _pad, _pad */
+};
+
+static VkBuffer               vk_sprite_vertex_buffer;
+static VkDeviceMemory         vk_sprite_vertex_memory;
+static void                  *vk_sprite_vertex_ptr;
+static VkBuffer               vk_sprite_texture_buffer;
+static VkDeviceMemory         vk_sprite_texture_memory;
+static void                  *vk_sprite_texture_ptr;
+static VkShaderModule         vk_sprite_cs_module;
+static VkPipelineLayout       vk_sprite_pipeline_layout;
+static VkPipeline             vk_sprite_pipeline;
+static VkDescriptorSetLayout  vk_sprite_dsl;
+static VkDescriptorPool       vk_sprite_pool;
+static VkDescriptorSet        vk_sprite_set;
+static uint32_t               vk_sprite_count;
+static uint32_t               vk_sprite_vertex_cursor;
+static struct vk_sprite_pc    vk_sprite_calls[VK_SPRITE_MAX_PER_FRAME];
 
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
@@ -3144,6 +3278,352 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
+     * Phase 5b-05: GPU compute sprite rasterizer resources.
+     *
+     * Order:
+     *   1. vk_sprite_vertex_buffer (host-mapped SSBO).
+     *   2. vk_sprite_texture_buffer (host-mapped SSBO).
+     *   3. vk_sprite_cs_module.
+     *   4. vk_sprite_dsl (4 bindings: 2 storage images, 2 SSBOs).
+     *   5. vk_sprite_pool + AllocateDescriptorSets ->
+     *      vk_sprite_set.
+     *   6. UpdateDescriptorSets with the four handles.
+     *   7. vk_sprite_pipeline_layout (DSL + 48 B push
+     *      constants).
+     *   8. CreateComputePipelines -> vk_sprite_pipeline.
+     */
+    {
+        VkBufferCreateInfo            sv_ci;
+        VkMemoryRequirements          sv_mem_req;
+        VkMemoryAllocateInfo          sv_mem_ai;
+        VkBufferCreateInfo            st_ci;
+        VkMemoryRequirements          st_mem_req;
+        VkMemoryAllocateInfo          st_mem_ai;
+        VkShaderModuleCreateInfo      ssm_ci;
+        VkDescriptorSetLayoutBinding  s_dsl_bindings[4];
+        VkDescriptorSetLayoutCreateInfo s_dsl_ci;
+        VkDescriptorPoolSize          s_pool_sizes[2];
+        VkDescriptorPoolCreateInfo    s_pool_ci;
+        VkDescriptorSetAllocateInfo   s_set_alloc;
+        VkDescriptorImageInfo         s_img_info[2];
+        VkDescriptorBufferInfo        s_buf_info[2];
+        VkWriteDescriptorSet          s_writes[4];
+        VkPushConstantRange           s_push_range;
+        VkPipelineLayoutCreateInfo    s_pl_ci;
+        VkComputePipelineCreateInfo   s_cp_ci;
+        VkPipelineShaderStageCreateInfo s_cs_stage;
+        uint32_t                      sv_mem_type;
+        uint32_t                      st_mem_type;
+
+        /* 1. Vertex SSBO. */
+        memset(&sv_ci, 0, sizeof(sv_ci));
+        sv_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        sv_ci.size        = VK_SPRITE_VERT_POOL_BYTES;
+        sv_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        sv_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &sv_ci, NULL,
+                               &vk_sprite_vertex_buffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (sprite vertex SSBO) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device,
+                                          vk_sprite_vertex_buffer, &sv_mem_req);
+        sv_mem_type = backend_vk_find_memory_type(
+            sv_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (sv_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for sprite verts\n");
+            return false;
+        }
+
+        memset(&sv_mem_ai, 0, sizeof(sv_mem_ai));
+        sv_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        sv_mem_ai.allocationSize  = sv_mem_req.size;
+        sv_mem_ai.memoryTypeIndex = sv_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &sv_mem_ai, NULL,
+                                 &vk_sprite_vertex_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (sprite verts) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, vk_sprite_vertex_buffer,
+                                   vk_sprite_vertex_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (sprite verts) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.MapMemory(vk_device, vk_sprite_vertex_memory,
+                            0, VK_WHOLE_SIZE, 0, &vk_sprite_vertex_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: MapMemory (sprite verts) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 2. Texture SSBO. */
+        memset(&st_ci, 0, sizeof(st_ci));
+        st_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        st_ci.size        = VK_SPRITE_TEX_POOL_BYTES;
+        st_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        st_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &st_ci, NULL,
+                               &vk_sprite_texture_buffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (sprite texture SSBO) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device,
+                                          vk_sprite_texture_buffer, &st_mem_req);
+        st_mem_type = backend_vk_find_memory_type(
+            st_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (st_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for sprite tex\n");
+            return false;
+        }
+
+        memset(&st_mem_ai, 0, sizeof(st_mem_ai));
+        st_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        st_mem_ai.allocationSize  = st_mem_req.size;
+        st_mem_ai.memoryTypeIndex = st_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &st_mem_ai, NULL,
+                                 &vk_sprite_texture_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (sprite tex) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, vk_sprite_texture_buffer,
+                                   vk_sprite_texture_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (sprite tex) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.MapMemory(vk_device, vk_sprite_texture_memory,
+                            0, VK_WHOLE_SIZE, 0, &vk_sprite_texture_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: MapMemory (sprite tex) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 3. Shader module. */
+        memset(&ssm_ci, 0, sizeof(ssm_ci));
+        ssm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        ssm_ci.codeSize = spv_sprite_cs_size;
+        ssm_ci.pCode    = spv_sprite_cs;
+
+        r = vk_fn.CreateShaderModule(vk_device, &ssm_ci, NULL,
+                                     &vk_sprite_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateShaderModule (sprite) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 4. DSL. */
+        memset(&s_dsl_bindings, 0, sizeof(s_dsl_bindings));
+        s_dsl_bindings[0].binding         = 0;
+        s_dsl_bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        s_dsl_bindings[0].descriptorCount = 1;
+        s_dsl_bindings[0].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        s_dsl_bindings[1].binding         = 1;
+        s_dsl_bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        s_dsl_bindings[1].descriptorCount = 1;
+        s_dsl_bindings[1].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        s_dsl_bindings[2].binding         = 2;
+        s_dsl_bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        s_dsl_bindings[2].descriptorCount = 1;
+        s_dsl_bindings[2].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        s_dsl_bindings[3].binding         = 3;
+        s_dsl_bindings[3].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        s_dsl_bindings[3].descriptorCount = 1;
+        s_dsl_bindings[3].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        memset(&s_dsl_ci, 0, sizeof(s_dsl_ci));
+        s_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        s_dsl_ci.bindingCount = 4;
+        s_dsl_ci.pBindings    = s_dsl_bindings;
+
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &s_dsl_ci, NULL,
+                                            &vk_sprite_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorSetLayout (sprite) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 5. Pool + set. */
+        memset(&s_pool_sizes, 0, sizeof(s_pool_sizes));
+        s_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        s_pool_sizes[0].descriptorCount = 2;
+        s_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        s_pool_sizes[1].descriptorCount = 2;
+
+        memset(&s_pool_ci, 0, sizeof(s_pool_ci));
+        s_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        s_pool_ci.maxSets       = 1;
+        s_pool_ci.poolSizeCount = 2;
+        s_pool_ci.pPoolSizes    = s_pool_sizes;
+
+        r = vk_fn.CreateDescriptorPool(vk_device, &s_pool_ci, NULL,
+                                       &vk_sprite_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorPool (sprite) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&s_set_alloc, 0, sizeof(s_set_alloc));
+        s_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        s_set_alloc.descriptorPool     = vk_sprite_pool;
+        s_set_alloc.descriptorSetCount = 1;
+        s_set_alloc.pSetLayouts        = &vk_sprite_dsl;
+
+        r = vk_fn.AllocateDescriptorSets(vk_device, &s_set_alloc, &vk_sprite_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets (sprite) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 6. Update set bindings. */
+        memset(&s_img_info, 0, sizeof(s_img_info));
+        s_img_info[0].sampler     = VK_NULL_HANDLE;
+        s_img_info[0].imageView   = vk_texture_view;
+        s_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        s_img_info[1].sampler     = VK_NULL_HANDLE;
+        s_img_info[1].imageView   = vk_zbuffer_view;
+        s_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        memset(&s_buf_info, 0, sizeof(s_buf_info));
+        s_buf_info[0].buffer = vk_sprite_vertex_buffer;
+        s_buf_info[0].offset = 0;
+        s_buf_info[0].range  = VK_WHOLE_SIZE;
+        s_buf_info[1].buffer = vk_sprite_texture_buffer;
+        s_buf_info[1].offset = 0;
+        s_buf_info[1].range  = VK_WHOLE_SIZE;
+
+        memset(&s_writes, 0, sizeof(s_writes));
+        s_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        s_writes[0].dstSet          = vk_sprite_set;
+        s_writes[0].dstBinding      = 0;
+        s_writes[0].descriptorCount = 1;
+        s_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        s_writes[0].pImageInfo      = &s_img_info[0];
+        s_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        s_writes[1].dstSet          = vk_sprite_set;
+        s_writes[1].dstBinding      = 1;
+        s_writes[1].descriptorCount = 1;
+        s_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        s_writes[1].pImageInfo      = &s_img_info[1];
+        s_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        s_writes[2].dstSet          = vk_sprite_set;
+        s_writes[2].dstBinding      = 2;
+        s_writes[2].descriptorCount = 1;
+        s_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        s_writes[2].pBufferInfo     = &s_buf_info[0];
+        s_writes[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        s_writes[3].dstSet          = vk_sprite_set;
+        s_writes[3].dstBinding      = 3;
+        s_writes[3].descriptorCount = 1;
+        s_writes[3].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        s_writes[3].pBufferInfo     = &s_buf_info[1];
+
+        vk_fn.UpdateDescriptorSets(vk_device, 4, s_writes, 0, NULL);
+
+        /* 7. Pipeline layout. */
+        memset(&s_push_range, 0, sizeof(s_push_range));
+        s_push_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        s_push_range.offset     = 0;
+        s_push_range.size       = sizeof(struct vk_sprite_pc);
+
+        memset(&s_pl_ci, 0, sizeof(s_pl_ci));
+        s_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        s_pl_ci.setLayoutCount         = 1;
+        s_pl_ci.pSetLayouts            = &vk_sprite_dsl;
+        s_pl_ci.pushConstantRangeCount = 1;
+        s_pl_ci.pPushConstantRanges    = &s_push_range;
+
+        r = vk_fn.CreatePipelineLayout(vk_device, &s_pl_ci, NULL,
+                                       &vk_sprite_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreatePipelineLayout (sprite) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 8. Compute pipeline. */
+        memset(&s_cs_stage, 0, sizeof(s_cs_stage));
+        s_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        s_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        s_cs_stage.module = vk_sprite_cs_module;
+        s_cs_stage.pName  = "main";
+
+        memset(&s_cp_ci, 0, sizeof(s_cp_ci));
+        s_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        s_cp_ci.stage  = s_cs_stage;
+        s_cp_ci.layout = vk_sprite_pipeline_layout;
+
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE,
+                                         1, &s_cp_ci, NULL,
+                                         &vk_sprite_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateComputePipelines (sprite) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+    }
+
+    /* ---------------------------------------------------------
      * Command pool + buffer.  RESET_COMMAND_BUFFER_BIT lets
      * vkBeginCommandBuffer implicitly reset the buffer at the
      * top of every per-frame recording (Phase 4e);
@@ -3298,6 +3778,60 @@ backend_vk_destroy_resources(void)
      * queue), which is what we want at teardown. */
     if (vk_fn.DeviceWaitIdle && vk_device != VK_NULL_HANDLE)
         vk_fn.DeviceWaitIdle(vk_device);
+
+    /* Phase 5b-05 sprite pipeline / resources teardown.
+     * Reverse-create order. */
+    if (vk_sprite_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_sprite_pipeline, NULL);
+        vk_sprite_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_sprite_pipeline_layout, NULL);
+        vk_sprite_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_sprite_pool, NULL);
+        vk_sprite_pool = VK_NULL_HANDLE;
+        vk_sprite_set  = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device, vk_sprite_dsl, NULL);
+        vk_sprite_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_sprite_cs_module, NULL);
+        vk_sprite_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_texture_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_sprite_texture_buffer, NULL);
+        vk_sprite_texture_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_texture_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sprite_texture_memory, NULL);
+        vk_sprite_texture_memory = VK_NULL_HANDLE;
+        vk_sprite_texture_ptr    = NULL;
+    }
+    if (vk_sprite_vertex_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_sprite_vertex_buffer, NULL);
+        vk_sprite_vertex_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_sprite_vertex_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sprite_vertex_memory, NULL);
+        vk_sprite_vertex_memory = VK_NULL_HANDLE;
+        vk_sprite_vertex_ptr    = NULL;
+    }
+    vk_sprite_count         = 0;
+    vk_sprite_vertex_cursor = 0;
 
     /* Phase 5b-03 warp pipeline / resources teardown.
      * Reverse-create order; pool destruction implicitly
@@ -4950,6 +5484,173 @@ backend_vk_dispatch_3d_warp_screen_impl(void)
 #endif
 }
 
+/*
+ * Phase 5b-05: stage a sprite dispatch for the frame.
+ *
+ * Vtable entry called by D_DrawSprite (replacing its
+ * span generation + D_SpriteDrawSpans).  Takes the
+ * already-clipped + already-projected screen-space
+ * vertices, the sprite's pixel data + dimensions, and
+ * the transparent palette index (255 in stock Quake).
+ *
+ * Side-effects (host-only -- the GPU compute dispatch is
+ * emitted later in record_frame):
+ *
+ *   - Append nump verts to vk_sprite_vertex_pool (host-
+ *     mapped SSBO).
+ *   - Append the sprite's pixel bytes to the next free
+ *     slot of vk_sprite_texture_pool.
+ *   - Compute the screen-space bounding box from the
+ *     vertex positions; the compute dispatch dimensions
+ *     itself off the bbox to avoid wasting workgroup
+ *     invocations on pixels outside the polygon.
+ *   - Append the push-constants block to
+ *     vk_sprite_calls[vk_sprite_count++].
+ *
+ * Pool exhaustion is silent: if either the vertex pool
+ * or the sprite-count cap is hit, the sprite is dropped.
+ * Quake's typical scene never gets close to either cap
+ * so this is an acceptable failure mode -- silent drop
+ * is preferable to assertion in a libretro core.
+ *
+ * Texture size cap: VK_SPRITE_TEX_POOL_SLOT_BYTES
+ * (16 KiB, fits 128x128 sprites).  Sprites larger than
+ * the slot are dropped.  Stock Quake's largest sprites
+ * are 64x64; the cap is generous headroom.
+ */
+static void
+backend_vk_dispatch_3d_sprite_impl(const rhi_sprite_vert_t *verts,
+                                   int                      nump,
+                                   const byte              *texdata,
+                                   int                      tex_width,
+                                   int                      tex_height,
+                                   int                      transparent_idx)
+{
+#ifdef RHI_HAVE_VULKAN
+    struct vk_sprite_vert *dst_verts;
+    uint32_t  v_off;
+    uint32_t  t_off;
+    int       i;
+    float     u_min, v_min, u_max, v_max;
+    int       bb_x_min, bb_y_min, bb_x_max, bb_y_max;
+    size_t    tex_bytes;
+
+    if (!vk_resources_ready || !vk_sprite_vertex_ptr || !vk_sprite_texture_ptr)
+        return;
+
+    /* Cap on number of sprites per frame. */
+    if (vk_sprite_count >= VK_SPRITE_MAX_PER_FRAME)
+        return;
+
+    /* Bounded vertex count.  Frustum clipping of a 4-
+     * vertex quad against the 4 view planes produces at
+     * most 4 + 4 = 8 vertices in the worst case, which
+     * is exactly what VK_SPRITE_MAX_VERTS_PER allows.
+     * Degenerate-low (< 3) means a zero-area polygon
+     * that R_SetupAndDrawSprite would have rejected;
+     * skip defensively. */
+    if (nump < 3 || (uint32_t)nump > VK_SPRITE_MAX_VERTS_PER)
+        return;
+
+    /* Texture-pool slot check. */
+    tex_bytes = (size_t)tex_width * (size_t)tex_height;
+    if (tex_bytes > VK_SPRITE_TEX_POOL_SLOT_BYTES)
+        return;
+
+    /* Vertex-pool capacity check (defensive; with the
+     * per-frame cap above this can't actually overflow). */
+    if (vk_sprite_vertex_cursor + (uint32_t)nump
+            > VK_SPRITE_VERT_POOL_VERTS)
+        return;
+
+    /* Stage vertices.  rhi_sprite_vert_t layout matches
+     * emitpoint_t (5 floats: u, v, s, t, zi); we reorder
+     * into the shader's std430 SpriteVert struct (u, v,
+     * inv_z, s_over_z, t_over_z) and compute s/z, t/z on
+     * the fly.  The reorder + multiplication are cheaper
+     * than a struct cast plus an extra shader pass to
+     * normalise. */
+    v_off     = vk_sprite_vertex_cursor;
+    dst_verts = (struct vk_sprite_vert *)vk_sprite_vertex_ptr;
+
+    u_min = u_max = verts[0].u;
+    v_min = v_max = verts[0].v;
+    for (i = 0; i < nump; i++) {
+        struct vk_sprite_vert *d = &dst_verts[v_off + (uint32_t)i];
+
+        d->u        = verts[i].u;
+        d->v        = verts[i].v;
+        d->inv_z    = verts[i].zi;
+        d->s_over_z = verts[i].s * verts[i].zi;
+        d->t_over_z = verts[i].t * verts[i].zi;
+        d->_pad0    = 0.0f;
+        d->_pad1    = 0.0f;
+        d->_pad2    = 0.0f;
+
+        if (verts[i].u < u_min) u_min = verts[i].u;
+        if (verts[i].u > u_max) u_max = verts[i].u;
+        if (verts[i].v < v_min) v_min = verts[i].v;
+        if (verts[i].v > v_max) v_max = verts[i].v;
+    }
+
+    /* Inclusive-min, exclusive-max integer bbox.  Clamp
+     * to the rendered framebuffer; the shader does its
+     * own bbox check against this clamped rect. */
+    bb_x_min = (int)u_min;
+    bb_y_min = (int)v_min;
+    bb_x_max = (int)u_max + 1;
+    bb_y_max = (int)v_max + 1;
+
+    if (bb_x_min < 0)            bb_x_min = 0;
+    if (bb_y_min < 0)            bb_y_min = 0;
+    if (bb_x_max > (int)width)   bb_x_max = (int)width;
+    if (bb_y_max > (int)height)  bb_y_max = (int)height;
+
+    if (bb_x_max <= bb_x_min || bb_y_max <= bb_y_min)
+        return;  /* Off-screen / degenerate. */
+
+    /* Stage texture into the next pool slot.  Round-
+     * robin slot allocation within the frame: slot
+     * index == sprite index.  Caller-side texdata pointer
+     * caching could share slots across frames for
+     * identical sprite frames, but the per-frame cost of
+     * a memcpy(<= 16 KiB) is microseconds; not worth
+     * complicating the bookkeeping for. */
+    t_off = vk_sprite_count * VK_SPRITE_TEX_POOL_SLOT_BYTES;
+    memcpy((byte *)vk_sprite_texture_ptr + t_off, texdata, tex_bytes);
+
+    /* Build the push-constant block. */
+    {
+        struct vk_sprite_pc *pc = &vk_sprite_calls[vk_sprite_count];
+
+        pc->bbox[0]          = bb_x_min;
+        pc->bbox[1]          = bb_y_min;
+        pc->bbox[2]          = bb_x_max;
+        pc->bbox[3]          = bb_y_max;
+
+        pc->dispatch_info[0] = (int32_t)v_off;
+        pc->dispatch_info[1] = nump;
+        pc->dispatch_info[2] = (int32_t)t_off;
+        pc->dispatch_info[3] = tex_width;
+
+        pc->tex_info[0]      = tex_height;
+        pc->tex_info[1]      = transparent_idx;
+        pc->tex_info[2]      = 0;
+        pc->tex_info[3]      = 0;
+    }
+
+    vk_sprite_vertex_cursor += (uint32_t)nump;
+    vk_sprite_count++;
+#else
+    (void)verts;
+    (void)nump;
+    (void)texdata;
+    (void)tex_width;
+    (void)tex_height;
+    (void)transparent_idx;
+#endif
+}
+
 static void
 backend_vk_shutdown(void)
 {
@@ -5187,15 +5888,23 @@ backend_vk_record_frame(void)
     uint32_t                  group_count_x;
     uint32_t                  group_count_y;
     qboolean                  particles_active;
+    qboolean                  sprites_active;
+    qboolean                  zbuf_active;
     VkResult                  r;
 
-    /* Phase 5b-02: latch the dispatch count for this
-     * record.  The implementation reads vk_pending_
-     * particle_count multiple times below; pinning it
-     * to a local avoids any chance of mid-record
-     * mutation if a future change adds a path that
-     * touches the global. */
+    /* Phase 5b-02 + 5b-05: latch all per-frame compute-3D
+     * activity flags.  The implementation reads them in
+     * multiple places below; pinning to locals avoids
+     * mid-record mutation if a future change adds a path
+     * that touches the globals.
+     *
+     * zbuf_active = particles_active || sprites_active --
+     * both subsystems Z-test against vk_zbuffer, so the
+     * d_pzbuffer upload + GENERAL transition fire when
+     * either is pending. */
     particles_active = vk_pending_particle_count > 0;
+    sprites_active   = vk_sprite_count > 0;
+    zbuf_active      = particles_active || sprites_active;
 
     memset(&begin_info, 0, sizeof(begin_info));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -5240,7 +5949,7 @@ backend_vk_record_frame(void)
                              0,
                              0, NULL,
                              0, NULL,
-                             particles_active ? 3 : 2, barriers);
+                             zbuf_active ? 3 : 2, barriers);
 
     /* Index texture: bytes [0, width*height) of staging at
      * the start of vk_texture.  Palette texture: bytes
@@ -5286,7 +5995,14 @@ backend_vk_record_frame(void)
      * d_pzbuffer (staged earlier in end_frame) into the
      * GPU vk_zbuffer.  Same TRANSFER_DST_OPTIMAL layout
      * the barrier above prepared. */
-    if (particles_active) {
+    /* Phase 5b-02: when particles are active, also copy
+     * d_pzbuffer (staged earlier in end_frame) into the
+     * GPU vk_zbuffer.  Same TRANSFER_DST_OPTIMAL layout
+     * the barrier above prepared.  Phase 5b-05 widens
+     * the gate to zbuf_active so sprites trigger the
+     * upload too (the d_pzbuffer staging is shared
+     * between the two subsystems). */
+    if (zbuf_active) {
         memset(&zb_region, 0, sizeof(zb_region));
         zb_region.bufferOffset                    = 0;
         zb_region.bufferRowLength                 = 0;
@@ -5306,12 +6022,12 @@ backend_vk_record_frame(void)
                                    1, &zb_region);
     }
 
-    if (particles_active) {
-        /* Phase 5b-02 particle dispatch path.
+    if (zbuf_active) {
+        /* Phase 5b-02 + 5b-05 compute-3D dispatch path.
          *
          * Post-copy layout transitions:
          *   vk_texture        : TRANSFER_DST -> GENERAL
-         *                       (compute shader will
+         *                       (compute shaders will
          *                       imageStore into it)
          *   vk_palette_texture: TRANSFER_DST -> SHADER_
          *                       READ_ONLY (read by the
@@ -5319,14 +6035,15 @@ backend_vk_record_frame(void)
          *                       compute dispatch
          *                       unchanged)
          *   vk_zbuffer        : TRANSFER_DST -> GENERAL
-         *                       (compute shader will
-         *                       imageLoad + imageStore
-         *                       for Z-test)
+         *                       (compute shaders will
+         *                       imageLoad + imageStore /
+         *                       imageAtomicMax for the
+         *                       Z-test)
          *
          * All three batched in one CmdPipelineBarrier
          * with dstStage = COMPUTE_SHADER (the next
-         * consumer for all three is the particles
-         * dispatch). */
+         * consumer for all three is the particle and / or
+         * sprite dispatches). */
         barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT
                                   | VK_ACCESS_SHADER_WRITE_BIT;
@@ -5355,42 +6072,101 @@ backend_vk_record_frame(void)
                                  0, NULL,
                                  3, barriers);
 
-        /* Particles dispatch.  One workgroup invocation
-         * per particle; local_size_x = 64 (declared in
-         * particles.comp), so dispatch ceil(count/64)
-         * workgroups.  The in-shader pid >= count early-
-         * out handles the tail. */
-        vk_fn.CmdBindPipeline(vk_cmd_buffer,
-                              VK_PIPELINE_BIND_POINT_COMPUTE,
-                              vk_particles_pipeline);
-        vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
-                                    VK_PIPELINE_BIND_POINT_COMPUTE,
-                                    vk_particles_pipeline_layout,
-                                    0,
-                                    1, &vk_particles_set,
-                                    0, NULL);
-        vk_fn.CmdPushConstants(vk_cmd_buffer,
-                               vk_particles_pipeline_layout,
-                               VK_SHADER_STAGE_COMPUTE_BIT,
-                               0, sizeof(vk_particles_push),
-                               &vk_particles_push);
-        vk_fn.CmdDispatch(vk_cmd_buffer,
-                          (vk_pending_particle_count + 63u) / 64u,
-                          1, 1);
+        if (particles_active) {
+            /* Particles dispatch (Phase 5b-02).  One
+             * workgroup invocation per particle; local_
+             * size_x = 64 (declared in particles.comp),
+             * so dispatch ceil(count/64) workgroups.  The
+             * in-shader pid >= count early-out handles
+             * the tail. */
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_particles_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_particles_pipeline_layout,
+                                        0,
+                                        1, &vk_particles_set,
+                                        0, NULL);
+            vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                   vk_particles_pipeline_layout,
+                                   VK_SHADER_STAGE_COMPUTE_BIT,
+                                   0, sizeof(vk_particles_push),
+                                   &vk_particles_push);
+            vk_fn.CmdDispatch(vk_cmd_buffer,
+                              (vk_pending_particle_count + 63u) / 64u,
+                              1, 1);
+        }
 
-        /* After the particle dispatch, vk_texture is in
+        if (sprites_active) {
+            /* Sprite dispatches (Phase 5b-05).  Bind the
+             * pipeline + set once, then per-sprite: push
+             * its constants and dispatch with workgroup
+             * dimensions derived from the bbox.  No
+             * barrier between sprites -- they operate on
+             * possibly-overlapping bbox rects of
+             * vk_texture + vk_zbuffer, and the
+             * imageAtomicMax Z-test correctly handles
+             * inter-dispatch overlap the same way it does
+             * intra-dispatch overlap (with the residual
+             * colour race documented in particles.comp's
+             * prologue, applicable here too).
+             *
+             * Particles before sprites is arbitrary --
+             * the atomicMax-based Z-test means dispatch
+             * order doesn't change visual outcome when
+             * both touch the same pixel; the closer Z
+             * wins regardless. */
+            uint32_t si;
+
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_sprite_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_sprite_pipeline_layout,
+                                        0,
+                                        1, &vk_sprite_set,
+                                        0, NULL);
+
+            for (si = 0; si < vk_sprite_count; si++) {
+                const struct vk_sprite_pc *spc = &vk_sprite_calls[si];
+                uint32_t bb_w, bb_h;
+
+                vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                       vk_sprite_pipeline_layout,
+                                       VK_SHADER_STAGE_COMPUTE_BIT,
+                                       0, sizeof(*spc),
+                                       spc);
+
+                /* Workgroup size 8x8 (declared in sprite.
+                 * comp); dispatch ceil(bbox_w/8) x
+                 * ceil(bbox_h/8) workgroups.  In-shader
+                 * bbox check culls the tail and any
+                 * pixels outside the polygon. */
+                bb_w = (uint32_t)(spc->bbox[2] - spc->bbox[0]);
+                bb_h = (uint32_t)(spc->bbox[3] - spc->bbox[1]);
+
+                vk_fn.CmdDispatch(vk_cmd_buffer,
+                                  (bb_w + 7u) / 8u,
+                                  (bb_h + 7u) / 8u,
+                                  1);
+            }
+        }
+
+        /* After the compute dispatches, vk_texture is in
          * GENERAL.  The downstream palette compute
          * dispatch reads it as a sampled image (the
          * existing pipeline binds vk_texture_view via
          * descriptor set 0 binding 0 with imageLayout =
          * SHADER_READ_ONLY_OPTIMAL).  Transition GENERAL
          * -> SHADER_READ_ONLY_OPTIMAL, with srcStage =
-         * dstStage = COMPUTE_SHADER so the particle
-         * dispatch's writes flush before the palette
+         * dstStage = COMPUTE_SHADER so the compute-3D
+         * dispatches' writes flush before the palette
          * dispatch's reads.  srcAccess = SHADER_WRITE
-         * (what the particle dispatch did); dstAccess =
-         * SHADER_READ (what the palette dispatch will
-         * do). */
+         * (what the compute-3D dispatches did);
+         * dstAccess = SHADER_READ (what the palette
+         * dispatch will do). */
         memset(&barriers[0], 0, sizeof(barriers[0]));
         barriers[0].sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barriers[0].srcAccessMask                   = VK_ACCESS_SHADER_WRITE_BIT;
@@ -5616,6 +6392,11 @@ backend_vk_record_frame(void)
      * screen if the view is still in water. */
     vk_warp_active = false;
 
+    /* Phase 5b-05: reset the sprite render list.  Next
+     * frame's D_DrawSprite calls repopulate it. */
+    vk_sprite_count         = 0;
+    vk_sprite_vertex_cursor = 0;
+
     return true;
 }
 #endif
@@ -5638,14 +6419,16 @@ backend_vk_end_frame(void)
      * come after this. */
     backend_vk_upload_vid_buffer();
 
-    /* Phase 5b-02: if a particle dispatch was staged this
-     * frame, also push d_pzbuffer into the GPU-side zbuffer
-     * staging buffer so record_frame can CopyBufferToImage
-     * it into vk_zbuffer.  Conditional because the upload
-     * is ~4 MiB at 1080p -- worth skipping on frames with
-     * no GPU particles (the staging buffer's previous
-     * contents are irrelevant; nothing reads them). */
-    if (vk_pending_particle_count > 0)
+    /* Phase 5b-02 + 5b-05: if any compute-3D dispatch
+     * (particles or sprites) was staged this frame, push
+     * d_pzbuffer into the GPU-side zbuffer staging buffer
+     * so record_frame can CopyBufferToImage it into
+     * vk_zbuffer.  Conditional because the upload is
+     * ~8 MiB at 1080p (R32_UINT after Phase 5b-04) --
+     * worth skipping on frames with no GPU 3D activity
+     * (the staging buffer's previous contents are
+     * irrelevant; nothing reads them). */
+    if (vk_pending_particle_count > 0 || vk_sprite_count > 0)
         backend_vk_upload_zbuffer();
 
     /* Fresh per-frame command-buffer recording.  Phase 4e
@@ -5717,5 +6500,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_queue_2d_fill_entry,
     backend_vk_queue_2d_fade_screen_entry,
     backend_vk_dispatch_3d_particles_impl,
-    backend_vk_dispatch_3d_warp_screen_impl
+    backend_vk_dispatch_3d_warp_screen_impl,
+    backend_vk_dispatch_3d_sprite_impl
 };

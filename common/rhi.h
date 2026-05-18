@@ -35,6 +35,16 @@
  * this header. */
 struct particle_s;
 
+/* Sprite vertex passed to dispatch_3d_sprite.  Layout
+ * matches d_iface.h's emitpoint_t exactly (same 5 floats
+ * in the same order) so callers can pass an emitpoint_t
+ * array directly without per-vertex repacking. */
+typedef struct rhi_sprite_vert_s {
+    float u, v;     /* screen-space pixel position */
+    float s, t;     /* texture coordinates, already in pixels */
+    float zi;       /* 1/z */
+} rhi_sprite_vert_t;
+
 typedef enum {
     RHI_BACKEND_NONE = 0,
     RHI_BACKEND_SOFTWARE,
@@ -357,6 +367,42 @@ typedef struct render_backend_s {
      * R_RenderView's r_dowarp branch runs CPU
      * D_WarpScreen unchanged. */
     void     (*dispatch_3d_warp_screen)(void);
+
+    /* 3D sprite compute dispatch (Phase 5b-05).  GPU port
+     * of D_SpriteDrawSpans: the CPU side (R_DrawSprite +
+     * R_SetupAndDrawSprite) handles the backface cull,
+     * worldspace polygon assembly, frustum clip,
+     * viewspace transform, and projection, producing a
+     * convex polygon of 3..8 screen-space vertices with
+     * (u, v, s, t, 1/z) per vertex.  D_DrawSprite calls
+     * this entry instead of generating spans + invoking
+     * D_SpriteDrawSpans, handing over the vertex list,
+     * vertex count, sprite-frame pixel data + dimensions,
+     * and transparent-byte index (255 in stock Quake).
+     *
+     * The backend stages the vertex list + frame pixels
+     * into GPU-visible pools and records a per-sprite
+     * compute dispatch as part of the per-frame command
+     * buffer (similar to dispatch_3d_particles but with
+     * a textured-polygon rasterizer instead of point
+     * splats).  The dispatch writes palette indices into
+     * the same compute target the existing palette pass
+     * reads (vk_texture on the Vulkan backend) and Z-tests
+     * via imageAtomicMax against the same vk_zbuffer the
+     * particle dispatch uses (the per-frame d_pzbuffer
+     * upload is shared between the two subsystems).
+     *
+     * NULL on SW backend / SW-only build.  When NULL,
+     * D_DrawSprite runs the original CPU SW span
+     * rasterizer (D_SpriteCalculateGradients +
+     * D_SpriteScanLeftEdge + D_SpriteScanRightEdge +
+     * D_SpriteDrawSpans) unchanged. */
+    void     (*dispatch_3d_sprite)(const rhi_sprite_vert_t *verts,
+                                   int                      nump,
+                                   const byte              *texdata,
+                                   int                      tex_width,
+                                   int                      tex_height,
+                                   int                      transparent_idx);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every
