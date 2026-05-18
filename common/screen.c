@@ -192,6 +192,15 @@ SCR_DrawNet(void)
    if (cls.demoplayback)
       return;
 
+   /* Same hazard as Sbar_Draw / Con_DrawConsole: when the menu is
+    * up, M_Draw covers vid.buffer but can't reach into the Vulkan
+    * overlay queue, and Draw_PicScaled below routes through the
+    * Phase 4k intercept.  The net-pic blip then renders on top of
+    * the menu pics' transparent regions instead of being hidden
+    * behind the menu backdrop the SW path produces.  Skip. */
+   if (key_dest == key_menu)
+      return;
+
    {
       int scale = SCR_GetUIScale();
       Draw_PicScaled(scr_vrect.x + 64 * scale, scr_vrect.y, scr_net, scale);

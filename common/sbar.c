@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cmd.h"
 #include "common.h"
 #include "draw.h"
+#include "keys.h"
 #include "menu.h"
 #include "protocol.h"
 #include "quakedef.h"
@@ -842,6 +843,27 @@ Sbar_Draw(void)
 
     if (scr_con_current == vid.height)
 	return;			/* console is full screen */
+
+    /* Same architectural hazard as Con_DrawConsole at console.c::
+     * Con_DrawConsole (Phase 4o-fixup): when the menu is up, M_Draw
+     * is about to cover the screen with Draw_ConsoleBackground(vid
+     * .height) or Draw_FadeScreen.  On the SW path those writes
+     * land in vid.buffer and cover the HUD pics / digits Sbar_Draw
+     * would have laid down there; the result is the menu-only
+     * picture the user expects.  On the Vulkan path the Phase 4k /
+     * 4o intercepts route every Sbar_DrawPic / Sbar_Number /
+     * Draw_CharacterScaled into the per-frame overlay queue, but
+     * Draw_ConsoleBackground writes vid.buffer directly (no
+     * intercept) and so can't reach into the queue to mask out
+     * what we just pushed.  The HUD pics and ammo digits then
+     * render on top of the menu pics' transparent regions (gfx/
+     * mainmenu.lmp is mostly transparent) and bleed through.
+     *
+     * Suppress at the source, same as Con_DrawConsole.  Saves the
+     * per-frame Sbar_Draw cost while the menu is up too, on both
+     * backends. */
+    if (key_dest == key_menu)
+	return;
 
     if (sb_updates >= vid.numpages)
 	return;
