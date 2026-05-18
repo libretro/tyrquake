@@ -1,0 +1,235 @@
+/*
+ * GPU compute port of the turb-surface rasterizer (Phase
+ * 5b-07b).  GPU port of d_scan.c::Turbulent8 + ::D_DrawTurbu-
+ * lent8Span -- the per-pixel sintable-warped texture sampler
+ * the SW renderer runs against an espan_t list for every
+ * SURF_DRAWTURB surface in r_edge.c's pass loop.
+ *
+ * Scope: single-pass opaque only.  The translucent (alpha <
+ * 1.0) and pass-2-z-test paths fall back to the SW raster --
+ * the host gates entry to this shader on (r_renderpass != 2)
+ * AND (r_turb_alpha == 255) AND (r_turb_blendmode == 0), so
+ * this shader does not implement the Bayer stipple or the
+ * per-pixel z-test branches in D_DrawTurbulent8Span.  Z-write
+ * is unconditional, matching the SW single-pass code path.
+ *
+ * The SW raster walks a linked list of horizontal pixel spans
+ * (espan_t {u, v, count}) one surface at a time and for each
+ * pixel performs:
+ *
+ *   (1) Perspective-correct screen-to-world UV:
+ *         sdivz = sdivzorigin + v*sdivzstepv + u*sdivzstepu
+ *         tdivz = tdivzorigin + v*tdivzstepv + u*tdivzstepu
+ *         zi    = ziorigin    + v*zistepv    + u*zistepu
+ *         z     = 0x10000 / zi       (16.16 fixed-point)
+ *         s     = int(sdivz * z) + sadjust
+ *         t     = int(tdivz * z) + tadjust
+ *         clamp s to [0, bbextents]
+ *         clamp t to [0, bbextentt]
+ *
+ *       The SW path subdivides into 16-pixel runs with affine
+ *       UV inside each run and recomputes the perspective at
+ *       run boundaries.  We compute the full perspective at
+ *       every pixel: ~one fdiv per pixel is cheap on modern
+ *       GPUs, and the parallel-by-pixel mapping makes the SW
+ *       loop's affine subdivision pointless here.
+ *
+ *   (2) Sintable warp on the truncated integer UV.  The SW
+ *       path indexes a 16.16-fixed-point sintable[2*TURB_-
+ *       CYCLE] at base = cl.time * TURB_SPEED & (TURB_CYCLE-1)
+ *       and adds sintable[base + (t>>16) & (TURB_CYCLE-1)]
+ *       to s before extracting the texel column.  We compute
+ *       the same warp inline (TURB_SURF_AMP + sin(i*2pi/
+ *       TURB_CYCLE)*TURB_SURF_AMP) -- no sintable upload
+ *       needed.  The result is identical within rounding.
+ *         sturb = (s + turb(t & (TURB_CYCLE-1))) & (TURB_TEX_SIZE-1)
+ *         tturb = (t + turb(s & (TURB_CYCLE-1))) & (TURB_TEX_SIZE-1)
+ *
+ *   (3) Texel fetch from the surface's 64x64 mip-0 texture.
+ *       The host has uploaded each visible turb surface's
+ *       cacheblock into a tile of u_turb_textures (a 2D atlas
+ *       64 wide and 64*VK_TURB_TEX_SLOTS tall).  u_tex_slot
+ *       (push constant) is the row offset into the atlas for
+ *       this surface.
+ *         palette_idx = imageLoad(u_turb_textures,
+ *                                 ivec2(sturb,
+ *                                       tturb + u_tex_slot*64))
+ *
+ *   (4) Write palette_idx into u_output (vk_texture), and
+ *       write the per-pixel 1/z into u_zbuffer (vk_zbuffer)
+ *       so closer alias / particle / sprite geometry correctly
+ *       wins the atomicMax-Z race in their compute paths.
+ *
+ *       Unlike sky.comp, this shader writes the actual per-
+ *       pixel 1/z (not the far-Z sentinel 0) because turb
+ *       surfaces are at finite distance and we want closer
+ *       geometry behind a water surface to lose, exactly as
+ *       the SW Turbulent8 path does via D_DrawZSpans in
+ *       single-pass mode.  Z fixed-point format matches
+ *       D_DrawZSpans' (int)(zi * 0x8000 * 0x10000) and the
+ *       atomicMax-Z compare in the other compute paths.
+ *
+ * Dispatch shape:
+ *
+ * One CmdDispatch per turb surface (the host iterates the
+ * frame's collected surfaces in record_frame).  Each dispatch
+ * covers the surface's pixel bounding box -- ceil(bbox_w/8) x
+ * ceil(bbox_h/8) workgroups of 8x8 invocations.  Pixels not
+ * inside any of this surface's spans early-out via the per-
+ * row span bucket lookup (same scheme as sky.comp).
+ *
+ * Descriptor set layout (matches the host's vk_turb_dsl
+ * exactly):
+ *   set = 0, binding = 0:  r8ui  writeonly  u_output       (vk_texture)
+ *   set = 0, binding = 1:  r8ui  readonly   u_turb_textures (atlas)
+ *   set = 0, binding = 2:  std430 SSBO      TurbRows
+ *   set = 0, binding = 3:  std430 SSBO      TurbSpans
+ *   set = 0, binding = 4:  r32ui writeonly  u_zbuffer      (vk_zbuffer)
+ *
+ * Push constants (96 bytes, fits in the spec's guaranteed
+ * 128-byte budget):
+ *   bbox  : uvec4 (min_x, min_y, w, h)
+ *   range : uvec4 (rows_first, phase, spans_first, tex_slot)
+ *   grad0 : vec4  (sdivzorigin, sdivzstepu, sdivzstepv, _pad)
+ *   grad1 : vec4  (tdivzorigin, tdivzstepu, tdivzstepv, _pad)
+ *   grad2 : vec4  (ziorigin,    zistepu,    zistepv,    _pad)
+ *   adj   : ivec4 (sadjust, tadjust, bbextents, bbextentt)
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (C) 2026 The libretro team
+ */
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, r8ui) uniform writeonly uimage2D u_output;
+layout(set = 0, binding = 1, r8ui) uniform readonly  uimage2D u_turb_textures;
+
+/* Per-scanline span list metadata, scoped to this surface's
+ * row range via rows_first / rows_count push-constant fields.
+ * rows[i] = (first, count) indexing into spans[]. */
+layout(set = 0, binding = 2, std430) readonly buffer TurbRows {
+    uvec2 rows[];
+};
+
+/* Flat (u, count) pairs, scoped to this surface via spans_-
+ * first and the per-row indices in rows[]. */
+layout(set = 0, binding = 3, std430) readonly buffer TurbSpans {
+    uvec2 spans[];
+};
+
+layout(set = 0, binding = 4, r32ui) uniform writeonly uimage2D u_zbuffer;
+
+layout(push_constant) uniform PushConsts {
+    uvec4 u_bbox;      /* min_x, min_y, w, h */
+    uvec4 u_range;     /* rows_first, phase, spans_first, tex_slot */
+    vec4  u_grad0;     /* sdivz: origin, stepu, stepv, _pad */
+    vec4  u_grad1;     /* tdivz: origin, stepu, stepv, _pad */
+    vec4  u_grad2;     /* zi:    origin, stepu, stepv, _pad */
+    ivec4 u_adj;       /* sadjust, tadjust, bbextents, bbextentt */
+};
+
+/* TURB constants -- matches d_iface.h's TURB_TEX_SIZE = 64
+ * and TURB_CYCLE = 128, and r_local.h's TURB_SURF_AMP =
+ * 8*0x10000 (so in pixel-space float we use 8.0). */
+const int   TURB_TEX_SIZE = 64;
+const int   TURB_CYCLE    = 128;
+const float TURB_SURF_AMP = 8.0;
+const float TURB_TWO_PI   = 6.28318530718;
+
+/* Sintable warp offset, in pixels.  SW path:
+ *   sintable[i] = TURB_SURF_AMP + sin(i*2pi/TURB_CYCLE)*TURB_SURF_AMP
+ * (in 16.16 fixed-point).  We compute the same in pixel-space
+ * float; (s + warp) >> 16 in the SW path corresponds to
+ * int(s + warp) here. */
+float turb_warp(int i)
+{
+    float a = float(i & (TURB_CYCLE - 1)) * TURB_TWO_PI
+              / float(TURB_CYCLE);
+    return TURB_SURF_AMP + sin(a) * TURB_SURF_AMP;
+}
+
+void main()
+{
+    ivec2 local = ivec2(gl_GlobalInvocationID.xy);
+    if (uint(local.x) >= u_bbox.z || uint(local.y) >= u_bbox.w)
+        return;
+
+    ivec2 pos = ivec2(int(u_bbox.x) + local.x,
+                      int(u_bbox.y) + local.y);
+
+    /* Row bucket lookup, scoped to this surface's row range
+     * via rows_first.  bbox.h already bounds local.y so we
+     * don't need a separate rows_count -- the .y slot of
+     * u_range carries the sintable phase instead. */
+    uint  row_idx = u_range.x + uint(local.y);
+    uvec2 rinfo   = rows[row_idx];
+    uint  first   = u_range.z + rinfo.x;
+    uint  cnt     = rinfo.y;
+    bool  inside  = false;
+    uint  i;
+    for (i = 0u; i < cnt; i++) {
+        uvec2 span = spans[first + i];
+        if (uint(pos.x) >= span.x && uint(pos.x) < span.x + span.y) {
+            inside = true;
+            break;
+        }
+    }
+    if (!inside)
+        return;
+
+    /* Perspective-correct UV at this pixel.  Matches SW
+     * Turbulent8's per-pixel head-of-span block, with the
+     * 16-pixel affine subdivision unrolled away. */
+    float du = float(pos.x);
+    float dv = float(pos.y);
+    float sdivz = u_grad0.x + dv * u_grad0.z + du * u_grad0.y;
+    float tdivz = u_grad1.x + dv * u_grad1.z + du * u_grad1.y;
+    float zi    = u_grad2.x + dv * u_grad2.z + du * u_grad2.y;
+
+    /* z = 0x10000 / zi.  SW uses fixed-point but the integer
+     * cast below works equivalently on pixel-space floats. */
+    float z = 65536.0 / zi;
+
+    int s_int = int(sdivz * z) + u_adj.x;
+    int t_int = int(tdivz * z) + u_adj.y;
+
+    /* Clamp to surface UV extents.  Matches SW lines:
+     *   if (r_turb_s > bbextents) r_turb_s = bbextents;
+     *   else if (r_turb_s < 0)    r_turb_s = 0;  (etc.)  */
+    if (s_int > u_adj.z) s_int = u_adj.z;
+    else if (s_int < 0)  s_int = 0;
+    if (t_int > u_adj.w) t_int = u_adj.w;
+    else if (t_int < 0)  t_int = 0;
+
+    /* Sintable warp.  SW indexes sintable at base+(s>>16)&127
+     * and base+(t>>16)&127; in pixel-space the >>16 is gone
+     * and we drop directly into the cycle modulo. */
+    int s_pix = s_int >> 16;
+    int t_pix = t_int >> 16;
+    float warp_s = turb_warp(int(u_range.y) + t_pix);
+    float warp_t = turb_warp(int(u_range.y) + s_pix);
+
+    int sturb = (s_pix + int(warp_s)) & (TURB_TEX_SIZE - 1);
+    int tturb = (t_pix + int(warp_t)) & (TURB_TEX_SIZE - 1);
+
+    /* Atlas fetch: this surface's 64x64 tile starts at
+     * y = tex_slot * 64. */
+    int slot = int(u_range.w);
+    uint palette_idx = imageLoad(u_turb_textures,
+                                 ivec2(sturb,
+                                       tturb + slot * TURB_TEX_SIZE)).r;
+
+    imageStore(u_output, pos, uvec4(palette_idx, 0u, 0u, 0u));
+
+    /* Per-pixel 1/z written in the same 16.16-shifted-by-15
+     * fixed-point representation D_DrawZSpans / the atomicMax-
+     * Z compare paths use.  SW does:
+     *   izi = (int)(zi * 0x8000 * 0x10000)
+     *   pdest[i] = (short)(izi >> 16)
+     * which is zi * 0x8000 truncated.  Our vk_zbuffer is
+     * R32_UINT (widened in Phase 5b-04 for atomicMax compat)
+     * so we keep the full 32-bit range. */
+    uint izi = uint(int(zi * 32768.0 * 65536.0));
+    imageStore(u_zbuffer, pos, uvec4(izi, 0u, 0u, 0u));
+}

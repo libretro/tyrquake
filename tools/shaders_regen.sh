@@ -105,5 +105,6 @@ regen_shader comp warpscreen       cs
 regen_shader comp sprite           cs
 regen_shader comp alias            cs
 regen_shader comp sky              cs
+regen_shader comp turb             cs
 
 echo "done."

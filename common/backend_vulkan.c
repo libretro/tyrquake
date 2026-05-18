@@ -216,6 +216,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/sprite_cs.h"
 #include "shaders/generated/spv/alias_cs.h"
 #include "shaders/generated/spv/sky_cs.h"
+#include "shaders/generated/spv/turb_cs.h"
 #include "d_iface.h"      /* particle_t -- the GPU compute particle
                            * rasterizer walks the active linked list
                            * via this typedef.  Also TURB_CYCLE for
@@ -787,6 +788,90 @@ static VkDescriptorPool       vk_sky_pool;
 static VkDescriptorSet        vk_sky_set;
 static VkPipelineLayout       vk_sky_pipeline_layout;
 static VkPipeline             vk_sky_pipeline;
+
+/* --------------------------------------------------------
+ * Phase 5b-07b: GPU compute turb (water/slime/lava) raster.
+ *
+ * Per-surface dispatch with push-constant gradient.  d_edge.c
+ * calls dispatch_3d_turb_surface(spans_head, grad, texture,
+ * phase) once per SURF_DRAWTURB surface that hits the simple
+ * single-pass opaque branch (the common default with no
+ * r_liquidblend / r_wateralpha tweaks).  Backend per surface:
+ *   - resolves the cacheblock pointer to an atlas slot (per-
+ *     frame pointer-keyed cache, VK_TURB_TEX_SLOTS = 32
+ *     unique textures, dedups across the frame's surfaces and
+ *     uploads the 64x64 mip-0 once per slot per frame).
+ *   - walks the espan_t list, packs (u, count) into vk_turb_-
+ *     spans at the current span_head, bucket-by-row counts +
+ *     prefix-sums into vk_turb_rows scoped to the surface's
+ *     row range.
+ *   - records a per-surface entry (bbox, rows_first,
+ *     spans_first, tex_slot, phase, gradient).
+ * In record_frame we upload any pending atlas slots and emit
+ * one CmdDispatch per collected surface, push-constant-driven.
+ *
+ * Reuses vk_zbuffer (R32_UINT, atomicMax target shared with
+ * the alias / particle / sprite compute paths).  turb.comp
+ * writes per-pixel 1/z directly -- unlike sky's "infinity"
+ * sentinel -- so closer geometry behind a water surface
+ * correctly loses the atomicMax race.  Mirrors the SW single-
+ * pass mode's D_DrawZSpans semantics. */
+#define VK_TURB_MAX_SURFACES    256u
+#define VK_TURB_TEX_SLOTS       32u      /* unique 64x64 atlases per frame */
+#define VK_TURB_TEX_SIZE        64u
+#define VK_TURB_SLOT_BYTES      (VK_TURB_TEX_SIZE * VK_TURB_TEX_SIZE)
+#define VK_TURB_ATLAS_BYTES     (VK_TURB_SLOT_BYTES * VK_TURB_TEX_SLOTS)
+#define VK_TURB_MAX_ROWS        16384u   /* sum of bbox_h across surfaces */
+#define VK_TURB_MAX_SPANS       8192u
+#define VK_TURB_ROW_BYTES       (VK_TURB_MAX_ROWS  * 2u * sizeof(uint32_t))
+#define VK_TURB_SPAN_BYTES      (VK_TURB_MAX_SPANS * 2u * sizeof(uint32_t))
+
+struct vk_turb_surface {
+    uint32_t bbox_min_x;
+    uint32_t bbox_min_y;
+    uint32_t bbox_w;
+    uint32_t bbox_h;
+    uint32_t rows_first;
+    uint32_t spans_first;
+    uint32_t tex_slot;
+    int32_t  phase;
+    rhi_turb_gradient_t grad;
+};
+
+struct vk_turb_tex_cache_entry {
+    const void *ptr;
+    uint32_t    slot;
+};
+
+static struct vk_turb_surface       vk_turb_surfaces[VK_TURB_MAX_SURFACES];
+static unsigned                     vk_turb_surface_count;
+static unsigned                     vk_turb_rows_used;
+static unsigned                     vk_turb_spans_used;
+static struct vk_turb_tex_cache_entry vk_turb_tex_cache[VK_TURB_TEX_SLOTS];
+static unsigned                     vk_turb_tex_count;
+static unsigned                     vk_turb_tex_upload_first;
+static unsigned                     vk_turb_tex_upload_last;
+
+static VkImage                vk_turb_atlas_image;
+static VkDeviceMemory         vk_turb_atlas_memory;
+static VkImageView            vk_turb_atlas_view;
+static VkBuffer               vk_turb_atlas_staging;
+static VkDeviceMemory         vk_turb_atlas_staging_memory;
+static void                  *vk_turb_atlas_staging_ptr;
+
+static VkBuffer               vk_turb_rows_buffer;
+static VkDeviceMemory         vk_turb_rows_memory;
+static void                  *vk_turb_rows_ptr;
+static VkBuffer               vk_turb_spans_buffer;
+static VkDeviceMemory         vk_turb_spans_memory;
+static void                  *vk_turb_spans_ptr;
+
+static VkShaderModule         vk_turb_cs_module;
+static VkDescriptorSetLayout  vk_turb_dsl;
+static VkDescriptorPool       vk_turb_pool;
+static VkDescriptorSet        vk_turb_set;
+static VkPipelineLayout       vk_turb_pipeline_layout;
+static VkPipeline             vk_turb_pipeline;
 
 /* --------------------------------------------------------
  * Phase 5b-05: GPU compute sprite rasterizer resources.
@@ -4963,6 +5048,311 @@ backend_vk_create_resources(void)
         }
     }
 
+    /* Phase 5b-07b: GPU compute turb-surface raster resources.
+     * Atlas image (per-frame texture dedup), three host-mapped
+     * buffers (rows + spans + atlas staging), shader, DSL +
+     * pool + set, push-constant-driven pipeline layout +
+     * pipeline.  All conditional on this block running once at
+     * create_resources -- record_frame just uses what's here. */
+    {
+        VkImageCreateInfo            tu_ci;
+        VkMemoryRequirements         tu_mem_req;
+        VkMemoryAllocateInfo         tu_mem_ai;
+        VkImageViewCreateInfo        tu_view_ci;
+        VkBufferCreateInfo           tu_buf_ci[4];   /* staging, rows, spans, plus 1 spare */
+        VkMemoryRequirements         tu_buf_mem_req;
+        VkMemoryAllocateInfo         tu_buf_mem_ai;
+        VkShaderModuleCreateInfo     tu_sm_ci;
+        VkDescriptorSetLayoutBinding tu_dsl_bindings[5];
+        VkDescriptorSetLayoutCreateInfo tu_dsl_ci;
+        VkDescriptorPoolSize         tu_pool_sizes[2];
+        VkDescriptorPoolCreateInfo   tu_pool_ci;
+        VkDescriptorSetAllocateInfo  tu_set_alloc;
+        VkDescriptorImageInfo        tu_img_info[3];
+        VkDescriptorBufferInfo       tu_buf_info[2];
+        VkWriteDescriptorSet         tu_writes[5];
+        VkPipelineLayoutCreateInfo   tu_pl_ci;
+        VkPushConstantRange          tu_pcr;
+        VkPipelineShaderStageCreateInfo tu_cs_stage;
+        VkComputePipelineCreateInfo  tu_cp_ci;
+        uint32_t                     tu_mem_type;
+        int                          bi;
+
+        /* Atlas storage image: 64 wide x 64*VK_TURB_TEX_SLOTS
+         * tall (R8_UINT, palette-index storage), GENERAL
+         * layout after the first record_frame transition. */
+        memset(&tu_ci, 0, sizeof(tu_ci));
+        tu_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        tu_ci.imageType     = VK_IMAGE_TYPE_2D;
+        tu_ci.format        = VK_FORMAT_R8_UINT;
+        tu_ci.extent.width  = VK_TURB_TEX_SIZE;
+        tu_ci.extent.height = VK_TURB_TEX_SIZE * VK_TURB_TEX_SLOTS;
+        tu_ci.extent.depth  = 1;
+        tu_ci.mipLevels     = 1;
+        tu_ci.arrayLayers   = 1;
+        tu_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
+        tu_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        tu_ci.usage         = VK_IMAGE_USAGE_STORAGE_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        tu_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        tu_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        r = vk_fn.CreateImage(vk_device, &tu_ci, NULL, &vk_turb_atlas_image);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateImage (turb atlas) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        vk_fn.GetImageMemoryRequirements(vk_device, vk_turb_atlas_image,
+                                         &tu_mem_req);
+        tu_mem_type = backend_vk_find_memory_type(tu_mem_req.memoryTypeBits,
+                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (tu_mem_type == UINT32_MAX) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: no DEVICE_LOCAL memory type for turb atlas\n");
+            return false;
+        }
+        memset(&tu_mem_ai, 0, sizeof(tu_mem_ai));
+        tu_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        tu_mem_ai.allocationSize  = tu_mem_req.size;
+        tu_mem_ai.memoryTypeIndex = tu_mem_type;
+        r = vk_fn.AllocateMemory(vk_device, &tu_mem_ai, NULL,
+                                 &vk_turb_atlas_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: AllocateMemory (turb atlas) failed (%d)\n", (int)r);
+            return false;
+        }
+        vk_fn.BindImageMemory(vk_device, vk_turb_atlas_image,
+                              vk_turb_atlas_memory, 0);
+
+        memset(&tu_view_ci, 0, sizeof(tu_view_ci));
+        tu_view_ci.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        tu_view_ci.image    = vk_turb_atlas_image;
+        tu_view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        tu_view_ci.format   = VK_FORMAT_R8_UINT;
+        tu_view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        tu_view_ci.subresourceRange.levelCount = 1;
+        tu_view_ci.subresourceRange.layerCount = 1;
+        r = vk_fn.CreateImageView(vk_device, &tu_view_ci, NULL,
+                                  &vk_turb_atlas_view);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateImageView (turb atlas) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* Three permanently-mapped HOST_VISIBLE | HOST_COHERENT
+         * buffers: atlas staging (128 KiB), rows SSBO (128 KiB),
+         * spans SSBO (64 KiB).  Created in a loop to share the
+         * memory-type lookup and the bind/map sequence. */
+        memset(tu_buf_ci, 0, sizeof(tu_buf_ci));
+        tu_buf_ci[0].sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        tu_buf_ci[0].size  = VK_TURB_ATLAS_BYTES;
+        tu_buf_ci[0].usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        tu_buf_ci[0].sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        tu_buf_ci[1].sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        tu_buf_ci[1].size  = VK_TURB_ROW_BYTES;
+        tu_buf_ci[1].usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        tu_buf_ci[1].sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        tu_buf_ci[2].sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        tu_buf_ci[2].size  = VK_TURB_SPAN_BYTES;
+        tu_buf_ci[2].usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        tu_buf_ci[2].sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        {
+            VkBuffer       *buf_handles[3] = { &vk_turb_atlas_staging,
+                                                &vk_turb_rows_buffer,
+                                                &vk_turb_spans_buffer };
+            VkDeviceMemory *mem_handles[3] = { &vk_turb_atlas_staging_memory,
+                                                &vk_turb_rows_memory,
+                                                &vk_turb_spans_memory };
+            void          **ptr_handles[3] = { &vk_turb_atlas_staging_ptr,
+                                                &vk_turb_rows_ptr,
+                                                &vk_turb_spans_ptr };
+            int pass;
+            for (pass = 0; pass < 3; pass++) {
+                r = vk_fn.CreateBuffer(vk_device, &tu_buf_ci[pass], NULL,
+                                       buf_handles[pass]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: CreateBuffer (turb pass=%d) failed (%d)\n",
+                        pass, (int)r);
+                    return false;
+                }
+                vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                  *buf_handles[pass],
+                                                  &tu_buf_mem_req);
+                tu_mem_type = backend_vk_find_memory_type(
+                    tu_buf_mem_req.memoryTypeBits,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                    | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (tu_mem_type == UINT32_MAX) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: no HOST_VISIBLE memory for turb pass=%d\n",
+                        pass);
+                    return false;
+                }
+                memset(&tu_buf_mem_ai, 0, sizeof(tu_buf_mem_ai));
+                tu_buf_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                tu_buf_mem_ai.allocationSize  = tu_buf_mem_req.size;
+                tu_buf_mem_ai.memoryTypeIndex = tu_mem_type;
+                r = vk_fn.AllocateMemory(vk_device, &tu_buf_mem_ai, NULL,
+                                         mem_handles[pass]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: AllocateMemory (turb pass=%d) failed (%d)\n",
+                        pass, (int)r);
+                    return false;
+                }
+                vk_fn.BindBufferMemory(vk_device, *buf_handles[pass],
+                                       *mem_handles[pass], 0);
+                vk_fn.MapMemory(vk_device, *mem_handles[pass], 0,
+                                tu_buf_ci[pass].size, 0, ptr_handles[pass]);
+            }
+        }
+
+        /* Shader module. */
+        memset(&tu_sm_ci, 0, sizeof(tu_sm_ci));
+        tu_sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        tu_sm_ci.codeSize = sizeof(spv_turb_cs);
+        tu_sm_ci.pCode    = spv_turb_cs;
+        r = vk_fn.CreateShaderModule(vk_device, &tu_sm_ci, NULL,
+                                     &vk_turb_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateShaderModule (turb) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* DSL: 5 bindings (u_output, u_turb_textures, TurbRows,
+         * TurbSpans, u_zbuffer), all COMPUTE. */
+        memset(tu_dsl_bindings, 0, sizeof(tu_dsl_bindings));
+        for (bi = 0; bi < 5; bi++) {
+            tu_dsl_bindings[bi].binding         = (uint32_t)bi;
+            tu_dsl_bindings[bi].descriptorCount = 1;
+            tu_dsl_bindings[bi].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        }
+        tu_dsl_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        tu_dsl_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        tu_dsl_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        tu_dsl_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        tu_dsl_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        memset(&tu_dsl_ci, 0, sizeof(tu_dsl_ci));
+        tu_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        tu_dsl_ci.bindingCount = 5;
+        tu_dsl_ci.pBindings    = tu_dsl_bindings;
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &tu_dsl_ci, NULL,
+                                            &vk_turb_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateDescriptorSetLayout (turb) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* Pool: 3 storage images + 2 storage buffers. */
+        memset(tu_pool_sizes, 0, sizeof(tu_pool_sizes));
+        tu_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        tu_pool_sizes[0].descriptorCount = 3;
+        tu_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        tu_pool_sizes[1].descriptorCount = 2;
+        memset(&tu_pool_ci, 0, sizeof(tu_pool_ci));
+        tu_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        tu_pool_ci.maxSets       = 1;
+        tu_pool_ci.poolSizeCount = 2;
+        tu_pool_ci.pPoolSizes    = tu_pool_sizes;
+        r = vk_fn.CreateDescriptorPool(vk_device, &tu_pool_ci, NULL,
+                                       &vk_turb_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateDescriptorPool (turb) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(&tu_set_alloc, 0, sizeof(tu_set_alloc));
+        tu_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        tu_set_alloc.descriptorPool     = vk_turb_pool;
+        tu_set_alloc.descriptorSetCount = 1;
+        tu_set_alloc.pSetLayouts        = &vk_turb_dsl;
+        r = vk_fn.AllocateDescriptorSets(vk_device, &tu_set_alloc, &vk_turb_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: AllocateDescriptorSets (turb) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(tu_img_info, 0, sizeof(tu_img_info));
+        tu_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        tu_img_info[0].imageView   = vk_texture_view;
+        tu_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        tu_img_info[1].imageView   = vk_turb_atlas_view;
+        tu_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        tu_img_info[2].imageView   = vk_zbuffer_view;
+        memset(tu_buf_info, 0, sizeof(tu_buf_info));
+        tu_buf_info[0].buffer = vk_turb_rows_buffer;
+        tu_buf_info[0].range  = VK_TURB_ROW_BYTES;
+        tu_buf_info[1].buffer = vk_turb_spans_buffer;
+        tu_buf_info[1].range  = VK_TURB_SPAN_BYTES;
+
+        memset(tu_writes, 0, sizeof(tu_writes));
+        for (bi = 0; bi < 5; bi++) {
+            tu_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            tu_writes[bi].dstSet          = vk_turb_set;
+            tu_writes[bi].dstBinding      = (uint32_t)bi;
+            tu_writes[bi].descriptorCount = 1;
+        }
+        tu_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        tu_writes[0].pImageInfo     = &tu_img_info[0];
+        tu_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        tu_writes[1].pImageInfo     = &tu_img_info[1];
+        tu_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        tu_writes[2].pBufferInfo    = &tu_buf_info[0];
+        tu_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        tu_writes[3].pBufferInfo    = &tu_buf_info[1];
+        tu_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        tu_writes[4].pImageInfo     = &tu_img_info[2];
+
+        vk_fn.UpdateDescriptorSets(vk_device, 5, tu_writes, 0, NULL);
+
+        /* Pipeline layout: 1 set + 84-byte push-constant block
+         * (compute stage only).  See turb.comp for the field
+         * layout. */
+        memset(&tu_pcr, 0, sizeof(tu_pcr));
+        tu_pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        tu_pcr.offset     = 0;
+        tu_pcr.size       = 96;   /* 4*16 + 3*16 + 16 + 4 + 12 padding, rounded up */
+        memset(&tu_pl_ci, 0, sizeof(tu_pl_ci));
+        tu_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        tu_pl_ci.setLayoutCount         = 1;
+        tu_pl_ci.pSetLayouts            = &vk_turb_dsl;
+        tu_pl_ci.pushConstantRangeCount = 1;
+        tu_pl_ci.pPushConstantRanges    = &tu_pcr;
+        r = vk_fn.CreatePipelineLayout(vk_device, &tu_pl_ci, NULL,
+                                       &vk_turb_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreatePipelineLayout (turb) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(&tu_cs_stage, 0, sizeof(tu_cs_stage));
+        tu_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        tu_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        tu_cs_stage.module = vk_turb_cs_module;
+        tu_cs_stage.pName  = "main";
+        memset(&tu_cp_ci, 0, sizeof(tu_cp_ci));
+        tu_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        tu_cp_ci.stage  = tu_cs_stage;
+        tu_cp_ci.layout = vk_turb_pipeline_layout;
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE, 1,
+                                         &tu_cp_ci, NULL, &vk_turb_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateComputePipelines (turb) failed (%d)\n", (int)r);
+            return false;
+        }
+    }
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
@@ -5254,6 +5644,104 @@ backend_vk_destroy_resources(void)
      * handle.  vk_sky_collected* state lives in BSS and
      * survives; it's reset at the start of each frame in
      * record_frame's sky-dispatch path anyway. */
+    /* Phase 5b-07b turb teardown (reverse-create order).
+     * Pool destruction implicitly frees vk_turb_set; just
+     * null the handle.  Per-frame state in vk_turb_surfaces
+     * etc. lives in BSS and is reset at begin_frame anyway. */
+    if (vk_turb_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_turb_pipeline, NULL);
+        vk_turb_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_turb_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_turb_pipeline_layout, NULL);
+        vk_turb_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_turb_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_turb_pool, NULL);
+        vk_turb_pool = VK_NULL_HANDLE;
+        vk_turb_set  = VK_NULL_HANDLE;
+    }
+    if (vk_turb_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device, vk_turb_dsl, NULL);
+        vk_turb_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_turb_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_turb_cs_module, NULL);
+        vk_turb_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_turb_spans_memory != VK_NULL_HANDLE && vk_turb_spans_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_turb_spans_memory);
+        vk_turb_spans_ptr = NULL;
+    }
+    if (vk_turb_spans_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_turb_spans_buffer, NULL);
+        vk_turb_spans_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_turb_spans_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_turb_spans_memory, NULL);
+        vk_turb_spans_memory = VK_NULL_HANDLE;
+    }
+    if (vk_turb_rows_memory != VK_NULL_HANDLE && vk_turb_rows_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_turb_rows_memory);
+        vk_turb_rows_ptr = NULL;
+    }
+    if (vk_turb_rows_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_turb_rows_buffer, NULL);
+        vk_turb_rows_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_turb_rows_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_turb_rows_memory, NULL);
+        vk_turb_rows_memory = VK_NULL_HANDLE;
+    }
+    if (vk_turb_atlas_staging_memory != VK_NULL_HANDLE && vk_turb_atlas_staging_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_turb_atlas_staging_memory);
+        vk_turb_atlas_staging_ptr = NULL;
+    }
+    if (vk_turb_atlas_staging != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_turb_atlas_staging, NULL);
+        vk_turb_atlas_staging = VK_NULL_HANDLE;
+    }
+    if (vk_turb_atlas_staging_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_turb_atlas_staging_memory, NULL);
+        vk_turb_atlas_staging_memory = VK_NULL_HANDLE;
+    }
+    if (vk_turb_atlas_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_turb_atlas_view, NULL);
+        vk_turb_atlas_view = VK_NULL_HANDLE;
+    }
+    if (vk_turb_atlas_image != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_turb_atlas_image, NULL);
+        vk_turb_atlas_image = VK_NULL_HANDLE;
+    }
+    if (vk_turb_atlas_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_turb_atlas_memory, NULL);
+        vk_turb_atlas_memory = VK_NULL_HANDLE;
+    }
+    vk_turb_surface_count   = 0;
+    vk_turb_rows_used       = 0;
+    vk_turb_spans_used      = 0;
+    vk_turb_tex_count       = 0;
+    vk_turb_tex_upload_first= 0;
+    vk_turb_tex_upload_last = 0;
+
     if (vk_sky_pipeline != VK_NULL_HANDLE) {
         if (vk_fn.DestroyPipeline)
             vk_fn.DestroyPipeline(vk_device, vk_sky_pipeline, NULL);
@@ -8082,6 +8570,168 @@ backend_vk_record_frame(void)
                                      0, NULL);
         }
 
+        /* Phase 5b-07b: turb compute dispatches.  Runs after
+         * sky (so water/lava overwrites sky pixels at sky+
+         * water overlap, fixing the latent pass-2 stipple
+         * artefact from Phase 5b-07a) and before alias /
+         * particle / sprite (so those passes' atomicMax-Z
+         * tests against vk_zbuffer see turb's actual per-
+         * pixel 1/z and closer-geometry correctly wins).
+         *
+         * Per surface: bind the pipeline once, then for each
+         * collected surface push constants + CmdDispatch over
+         * its bbox.  Atlas image upload is one CmdCopyBuffer-
+         * ToImage covering [0, vk_turb_tex_count) slots --
+         * the cache resets every frame so all in-use slots
+         * are fresh and need re-upload, but the staging
+         * buffer is permanently mapped so the actual data
+         * write happened in dispatch_3d_turb_surface (CPU
+         * memcpy into the mapped pointer at slot offset). */
+        if (vk_turb_surface_count > 0) {
+            VkImageMemoryBarrier ta_bar0, ta_bar1;
+            VkBufferImageCopy    ta_copy;
+            VkMemoryBarrier      tu_mem_bar;
+            unsigned             si;
+
+            /* Atlas image: UNDEFINED (first frame) or GENERAL
+             * (subsequent frames) -> TRANSFER_DST.  Use
+             * UNDEFINED as oldLayout: Vulkan permits this
+             * "discard previous contents" transition from any
+             * actual current layout, and that's exactly what
+             * we want -- the staging buffer carries fresh data
+             * for every slot in [0, vk_turb_tex_count). */
+            memset(&ta_bar0, 0, sizeof(ta_bar0));
+            ta_bar0.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            ta_bar0.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            ta_bar0.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            ta_bar0.oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            ta_bar0.newLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            ta_bar0.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ta_bar0.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ta_bar0.image         = vk_turb_atlas_image;
+            ta_bar0.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            ta_bar0.subresourceRange.levelCount = 1;
+            ta_bar0.subresourceRange.layerCount = 1;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                     0,
+                                     0, NULL,
+                                     0, NULL,
+                                     1, &ta_bar0);
+
+            memset(&ta_copy, 0, sizeof(ta_copy));
+            ta_copy.bufferOffset      = 0;
+            ta_copy.bufferRowLength   = 0;  /* tightly packed */
+            ta_copy.bufferImageHeight = 0;
+            ta_copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            ta_copy.imageSubresource.layerCount = 1;
+            ta_copy.imageOffset.x = 0;
+            ta_copy.imageOffset.y = 0;
+            ta_copy.imageOffset.z = 0;
+            ta_copy.imageExtent.width  = VK_TURB_TEX_SIZE;
+            ta_copy.imageExtent.height = VK_TURB_TEX_SIZE * vk_turb_tex_count;
+            ta_copy.imageExtent.depth  = 1;
+            vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                                       vk_turb_atlas_staging,
+                                       vk_turb_atlas_image,
+                                       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                       1, &ta_copy);
+
+            memset(&ta_bar1, 0, sizeof(ta_bar1));
+            ta_bar1.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            ta_bar1.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            ta_bar1.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            ta_bar1.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            ta_bar1.newLayout     = VK_IMAGE_LAYOUT_GENERAL;
+            ta_bar1.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ta_bar1.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ta_bar1.image         = vk_turb_atlas_image;
+            ta_bar1.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            ta_bar1.subresourceRange.levelCount = 1;
+            ta_bar1.subresourceRange.layerCount = 1;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     0, NULL,
+                                     0, NULL,
+                                     1, &ta_bar1);
+
+            /* Bind pipeline + set once; loop pushes per-surface
+             * constants and dispatches.  Push constant layout
+             * matches turb.comp's PushConsts block exactly (96
+             * bytes, std430-ish: 6 x 16-byte vec/uvec/ivec). */
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_turb_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_turb_pipeline_layout,
+                                        0,
+                                        1, &vk_turb_set,
+                                        0, NULL);
+            for (si = 0; si < vk_turb_surface_count; si++) {
+                const struct vk_turb_surface *surf = &vk_turb_surfaces[si];
+                struct {
+                    uint32_t bbox[4];
+                    uint32_t range[4];
+                    float    grad0[4];
+                    float    grad1[4];
+                    float    grad2[4];
+                    int32_t  adj[4];
+                } push;
+                push.bbox[0]  = surf->bbox_min_x;
+                push.bbox[1]  = surf->bbox_min_y;
+                push.bbox[2]  = surf->bbox_w;
+                push.bbox[3]  = surf->bbox_h;
+                push.range[0] = surf->rows_first;
+                push.range[1] = (uint32_t)surf->phase;
+                push.range[2] = surf->spans_first;
+                push.range[3] = surf->tex_slot;
+                push.grad0[0] = surf->grad.sdivzorigin;
+                push.grad0[1] = surf->grad.sdivzstepu;
+                push.grad0[2] = surf->grad.sdivzstepv;
+                push.grad0[3] = 0.0f;
+                push.grad1[0] = surf->grad.tdivzorigin;
+                push.grad1[1] = surf->grad.tdivzstepu;
+                push.grad1[2] = surf->grad.tdivzstepv;
+                push.grad1[3] = 0.0f;
+                push.grad2[0] = surf->grad.ziorigin;
+                push.grad2[1] = surf->grad.zistepu;
+                push.grad2[2] = surf->grad.zistepv;
+                push.grad2[3] = 0.0f;
+                push.adj[0]   = surf->grad.sadjust;
+                push.adj[1]   = surf->grad.tadjust;
+                push.adj[2]   = surf->grad.bbextents;
+                push.adj[3]   = surf->grad.bbextentt;
+                vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                       vk_turb_pipeline_layout,
+                                       VK_SHADER_STAGE_COMPUTE_BIT,
+                                       0, sizeof(push), &push);
+                vk_fn.CmdDispatch(vk_cmd_buffer,
+                                  (surf->bbox_w + 7u) / 8u,
+                                  (surf->bbox_h + 7u) / 8u,
+                                  1);
+            }
+
+            /* Serialise turb's vk_texture / vk_zbuffer writes
+             * against the downstream alias / particle / sprite
+             * dispatches, same pattern as sky's barrier above. */
+            memset(&tu_mem_bar, 0, sizeof(tu_mem_bar));
+            tu_mem_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            tu_mem_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            tu_mem_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                     | VK_ACCESS_SHADER_WRITE_BIT;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     1, &tu_mem_bar,
+                                     0, NULL,
+                                     0, NULL);
+        }
+
         if (particles_active) {
             /* Particles dispatch (Phase 5b-02).  One
              * workgroup invocation per particle; local_
@@ -8513,6 +9163,22 @@ backend_vk_record_frame(void)
      * via dispatch_3d_sky_span on every SURF_DRAWSKY span. */
     vk_sky_collected_count = 0;
 
+    /* Phase 5b-07b: reset the turb per-frame collector +
+     * texture pointer cache + upload window.  Texture data
+     * stays in the atlas image; the cache reset just forces
+     * re-resolution next frame, with hits returning the same
+     * slot for the same cacheblock pointer (textures are
+     * Hunk-allocated and stable for the level, so the second
+     * frame's cache fills with the same {ptr -> slot}
+     * mapping in dispatch order until the level ends and a
+     * destroy/create cycle resets everything anyway). */
+    vk_turb_surface_count    = 0;
+    vk_turb_rows_used        = 0;
+    vk_turb_spans_used       = 0;
+    vk_turb_tex_count        = 0;
+    vk_turb_tex_upload_first = 0;
+    vk_turb_tex_upload_last  = 0;
+
     return true;
 }
 #endif
@@ -8763,6 +9429,178 @@ backend_vk_dispatch_3d_sky_span(int u, int v, int count)
 #endif
 }
 
+/*
+ * backend_vk_dispatch_3d_turb_surface -- Phase 5b-07b
+ *
+ * Called from d_edge.c's SURF_DRAWTURB branch once per
+ * compute-eligible surface (single-pass opaque case).
+ * Resolves the surface's texture to an atlas slot (per-frame
+ * pointer-keyed cache + on-demand upload), walks the espan_t
+ * list to collect spans + bucket-by-row, and records a
+ * per-surface entry that record_frame consumes.
+ *
+ * Per-frame state (vk_turb_surfaces, vk_turb_rows_used,
+ * vk_turb_spans_used, vk_turb_tex_count) is reset at
+ * begin_frame.  All append operations bail silently when
+ * their respective MAX is reached -- the surface falls off
+ * the GPU path with no fallback into SW (the host's branch
+ * has already committed to compute).  This is conservative
+ * but matches sky's behaviour.  Bumping the MAX_* constants
+ * costs only BSS; the buffers are sized accordingly.
+ *
+ * Always defined for the unconditional vtable; body guarded
+ * by RHI_HAVE_VULKAN.
+ */
+static void
+backend_vk_dispatch_3d_turb_surface(const void *spans_head,
+                                    const rhi_turb_gradient_t *grad,
+                                    const byte *texture,
+                                    int turb_phase)
+{
+#ifdef RHI_HAVE_VULKAN
+    const espan_t *p;
+    struct vk_turb_surface *surf;
+    uint32_t  tex_slot;
+    unsigned  i;
+    int       bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y;
+    unsigned  num_spans, bbox_w, bbox_h;
+    unsigned  rows_first, spans_first;
+    uint32_t *row_entries;
+    uint32_t *span_entries;
+
+    if (!vk_resources_ready || !spans_head || !grad || !texture)
+        return;
+    if (vk_turb_surface_count >= VK_TURB_MAX_SURFACES)
+        return;
+
+    /* Pointer-keyed texture cache lookup.  Same shape as the
+     * alias skin cache: linear probe, miss = allocate new slot
+     * + memcpy 4 KiB (64x64) into the staging buffer at slot
+     * offset.  Track the staging range that needs CmdCopy-
+     * BufferToImage in record_frame via the upload window. */
+    tex_slot = UINT32_MAX;
+    for (i = 0; i < vk_turb_tex_count; i++) {
+        if (vk_turb_tex_cache[i].ptr == (const void *)texture) {
+            tex_slot = vk_turb_tex_cache[i].slot;
+            break;
+        }
+    }
+    if (tex_slot == UINT32_MAX) {
+        if (vk_turb_tex_count >= VK_TURB_TEX_SLOTS)
+            return;
+        tex_slot = vk_turb_tex_count;
+        vk_turb_tex_cache[vk_turb_tex_count].ptr  = (const void *)texture;
+        vk_turb_tex_cache[vk_turb_tex_count].slot = tex_slot;
+        vk_turb_tex_count++;
+        if (vk_turb_atlas_staging_ptr) {
+            memcpy((byte *)vk_turb_atlas_staging_ptr
+                       + tex_slot * VK_TURB_SLOT_BYTES,
+                   texture, VK_TURB_SLOT_BYTES);
+        }
+        /* Extend the upload window.  CmdCopyBufferToImage in
+         * record_frame copies [upload_first, upload_last). */
+        if (vk_turb_tex_upload_last == vk_turb_tex_upload_first) {
+            /* Window empty -- seed. */
+            vk_turb_tex_upload_first = tex_slot;
+            vk_turb_tex_upload_last  = tex_slot + 1;
+        } else if (tex_slot + 1 > vk_turb_tex_upload_last) {
+            vk_turb_tex_upload_last  = tex_slot + 1;
+        }
+    }
+
+    /* Walk spans: count, compute bbox.  Drop the surface if
+     * we can't fit all its spans in the global span pool. */
+    num_spans  = 0;
+    bbox_min_x = INT32_MAX;
+    bbox_min_y = INT32_MAX;
+    bbox_max_x = INT32_MIN;
+    bbox_max_y = INT32_MIN;
+    for (p = (const espan_t *)spans_head; p; p = p->pnext) {
+        if (p->count <= 0)
+            continue;
+        if (p->u            < bbox_min_x) bbox_min_x = p->u;
+        if (p->v            < bbox_min_y) bbox_min_y = p->v;
+        if (p->u + p->count > bbox_max_x) bbox_max_x = p->u + p->count;
+        if (p->v + 1        > bbox_max_y) bbox_max_y = p->v + 1;
+        num_spans++;
+    }
+    if (num_spans == 0)
+        return;
+    if (vk_turb_spans_used + num_spans > VK_TURB_MAX_SPANS)
+        return;
+    bbox_w = (unsigned)(bbox_max_x - bbox_min_x);
+    bbox_h = (unsigned)(bbox_max_y - bbox_min_y);
+    if (vk_turb_rows_used + bbox_h > VK_TURB_MAX_ROWS)
+        return;
+
+    rows_first  = vk_turb_rows_used;
+    spans_first = vk_turb_spans_used;
+    row_entries  = (uint32_t *)vk_turb_rows_ptr  + 2 * rows_first;
+    span_entries = (uint32_t *)vk_turb_spans_ptr + 2 * spans_first;
+
+    /* Pass 1: zero per-row counts. */
+    for (i = 0; i < bbox_h; i++) {
+        row_entries[2 * i + 0] = 0;
+        row_entries[2 * i + 1] = 0;
+    }
+    /* Pass 2: per-row count.  rinfo.y holds the count temp-
+     * orarily; rinfo.x stays 0 to be the prefix-sum target
+     * in pass 3. */
+    for (p = (const espan_t *)spans_head; p; p = p->pnext) {
+        unsigned row;
+        if (p->count <= 0)
+            continue;
+        row = (unsigned)(p->v - bbox_min_y);
+        row_entries[2 * row + 1]++;
+    }
+    /* Pass 3: prefix-sum into rinfo.x, reset rinfo.y to 0 for
+     * the placement pass.  rows[i].x ends up as the "first
+     * span index, relative to spans_first" for row i. */
+    {
+        uint32_t running = 0;
+        for (i = 0; i < bbox_h; i++) {
+            uint32_t c = row_entries[2 * i + 1];
+            row_entries[2 * i + 0] = running;
+            row_entries[2 * i + 1] = 0;
+            running += c;
+        }
+    }
+    /* Pass 4: place each span at rows[row].x + rows[row].y++,
+     * then bump rows[row].y so subsequent spans on the same
+     * row get the next slot. */
+    for (p = (const espan_t *)spans_head; p; p = p->pnext) {
+        unsigned row, slot;
+        if (p->count <= 0)
+            continue;
+        row  = (unsigned)(p->v - bbox_min_y);
+        slot = row_entries[2 * row + 0] + row_entries[2 * row + 1];
+        span_entries[2 * slot + 0] = (uint32_t)p->u;
+        span_entries[2 * slot + 1] = (uint32_t)p->count;
+        row_entries[2 * row + 1]++;
+    }
+
+    /* Record the per-surface entry. */
+    surf = &vk_turb_surfaces[vk_turb_surface_count++];
+    surf->bbox_min_x  = (uint32_t)bbox_min_x;
+    surf->bbox_min_y  = (uint32_t)bbox_min_y;
+    surf->bbox_w      = bbox_w;
+    surf->bbox_h      = bbox_h;
+    surf->rows_first  = rows_first;
+    surf->spans_first = spans_first;
+    surf->tex_slot    = tex_slot;
+    surf->phase       = turb_phase;
+    surf->grad        = *grad;
+
+    vk_turb_rows_used  += bbox_h;
+    vk_turb_spans_used += num_spans;
+#else
+    (void)spans_head;
+    (void)grad;
+    (void)texture;
+    (void)turb_phase;
+#endif
+}
+
 const render_backend_t g_rhi_backend_vk = {
     "vulkan",
     RHI_BACKEND_VULKAN,
@@ -8784,5 +9622,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_dispatch_3d_alias_impl,
     backend_vk_notify_cache_invalidate,
     backend_vk_notify_sky_texture,
-    backend_vk_dispatch_3d_sky_span
+    backend_vk_dispatch_3d_sky_span,
+    backend_vk_dispatch_3d_turb_surface
 };

@@ -71,6 +71,23 @@ typedef struct rhi_alias_tri_s {
     int32_t vertindex[3]; /* matches mtriangle_t.vertindex[3] */
 } rhi_alias_tri_t;
 
+/* Phase 5b-07b: per-surface turb (water/slime/lava/teleporter)
+ * gradient state passed to dispatch_3d_turb_surface.  Mirrors
+ * the SW raster's per-surface globals (d_sdivzorigin / stepu /
+ * stepv, d_tdivzorigin / stepu / stepv, d_ziorigin / stepu /
+ * stepv, sadjust, tadjust, bbextents, bbextentt) that
+ * D_CalcGradients populates from the surface's plane + texinfo
+ * before Turbulent8 walks the span list.  The backend reads
+ * these directly on the dispatch call -- no need to forward
+ * the globals into per-frame storage at d_vars.c. */
+typedef struct rhi_turb_gradient_s {
+    float sdivzorigin, sdivzstepu, sdivzstepv;
+    float tdivzorigin, tdivzstepu, tdivzstepv;
+    float ziorigin,    zistepu,    zistepv;
+    int32_t sadjust, tadjust;
+    int32_t bbextents, bbextentt;
+} rhi_turb_gradient_t;
+
 typedef enum {
     RHI_BACKEND_NONE = 0,
     RHI_BACKEND_SOFTWARE,
@@ -529,6 +546,43 @@ typedef struct render_backend_s {
      * handles it inline; d_edge.c falls back when this
      * entry is missing). */
     void     (*dispatch_3d_sky_span)(int u, int v, int count);
+
+    /* Phase 5b-07b: per-surface turb dispatch.  Called from
+     * d_edge.c's SURF_DRAWTURB branch in the single-pass-
+     * opaque case (r_renderpass != 2 AND r_turb_alpha == 255
+     * AND r_turb_blendmode == 0), after D_CalcGradients has
+     * filled the per-surface gradient globals.
+     *
+     * Parameters:
+     *   spans_head    The surface's espan_t linked list head
+     *                 (defined in d_iface.h, opaque to the RHI
+     *                 layer).  Backend casts to espan_t * and
+     *                 walks via ->pnext until NULL.
+     *   grad          Per-surface gradient + UV bounds.
+     *   texture       Pointer to the surface's 64x64 mip-0
+     *                 texture (cacheblock = texinfo->texture +
+     *                 texture->offsets[0]).  Backend caches by
+     *                 pointer; the texture data is Hunk-Alloced
+     *                 and stable for the level.
+     *   turb_phase    sintable offset for this frame: (int)
+     *                 (cl.time * TURB_SPEED) & (TURB_CYCLE-1).
+     *
+     * Backend collects per-surface dispatches across the frame
+     * and records one CmdDispatch (turb.comp) per surface in
+     * record_frame.  turb.comp reproduces D_DrawTurbulent8Span's
+     * vanilla opaque path: per-pixel screen->world UV, sintable
+     * warp, palette-indexed texture lookup, output to vk_texture
+     * + Z=0 to vk_zbuffer (same far-Z sentinel as sky).  The
+     * translucent (alpha < 1.0) and pass-2-z-test paths fall
+     * back to the SW raster -- the if-conditions at the call
+     * site only enter this branch when the simple opaque case
+     * applies.
+     *
+     * NULL on the SW backend. */
+    void     (*dispatch_3d_turb_surface)(const void *spans_head,
+                                         const rhi_turb_gradient_t *grad,
+                                         const byte *texture,
+                                         int turb_phase);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

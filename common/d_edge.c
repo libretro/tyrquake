@@ -342,23 +342,91 @@ void D_DrawSurfaces(void)
          }
 
          D_CalcGradients(pface);
-         Turbulent8(s->spans);
-         /* Z-write semantics:
-          *   - Single-pass mode (pass 0): write z so alias models
-          *     behind opaque liquid are occluded normally.
-          *   - Pass 1 of two-pass: SURF_DRAWTURB is filtered out
-          *     before reaching here, so this case can't happen.
-          *   - Pass 2 of two-pass: NEVER write z.  Pass 1 already
-          *     wrote the opaque world's z-buffer; we want to
-          *     preserve those depths so alias models drawn between
-          *     passes (R_DrawEntitiesOnList runs after pass 1's
-          *     R_EdgeDrawing) z-test correctly against opaque
-          *     world.  Writing liquid z over wall z would corrupt
-          *     the buffer at pixels where liquid lost the z-test
-          *     (D_DrawZSpans writes every pixel in the span
-          *     regardless of compare result). */
-         if (!liquids_translucent && r_renderpass != 2)
-            D_DrawZSpans(s->spans);
+         /* Phase 5b-07b: route the single-pass-opaque turb
+          * case to GPU compute when the RHI exposes a turb
+          * dispatch entry.  Conditions for the compute path:
+          *
+          *   - Not pass-2 of two-pass mode (r_renderpass!=2):
+          *     pass-2 needs the per-pixel z-test in the SW
+          *     raster's stipple branch, which turb.comp does
+          *     not implement.  Falling through to SW preserves
+          *     correct translucent behaviour.
+          *
+          *   - r_turb_alpha == 255 AND r_turb_blendmode == 0:
+          *     opaque path with no Bayer stipple.  This is
+          *     vanilla single-pass mode (r_liquidblend = 0,
+          *     all liquid alpha = 1.0) or any liquid whose
+          *     own alpha snapped to opaque above.
+          *
+          * On the compute branch we also memset d_pzbuffer at
+          * each span to 0 (same "infinity" sentinel sky.comp
+          * uses for vk_zbuffer), so the SW pass-2 translucent
+          * raster -- if it runs later this frame on OTHER
+          * liquid surfaces with translucent alpha -- doesn't
+          * read stale d_pzbuffer at compute-rendered turb
+          * pixels.  In practice the same liquid type tends
+          * to be either all opaque or all translucent, so
+          * the per-frame mix is rare; this clear is cheap
+          * insurance.
+          *
+          * SW-only mode (no RHI / vtable entry NULL) is
+          * unaffected -- the else-branch runs Turbulent8 +
+          * D_DrawZSpans exactly as before. */
+         if (g_rhi && g_rhi->dispatch_3d_turb_surface
+             && r_renderpass != 2
+             && r_turb_alpha == 255
+             && r_turb_blendmode == 0)
+         {
+            rhi_turb_gradient_t grad;
+            const espan_t *p;
+            int phase;
+
+            grad.sdivzorigin = d_sdivzorigin;
+            grad.sdivzstepu  = d_sdivzstepu;
+            grad.sdivzstepv  = d_sdivzstepv;
+            grad.tdivzorigin = d_tdivzorigin;
+            grad.tdivzstepu  = d_tdivzstepu;
+            grad.tdivzstepv  = d_tdivzstepv;
+            grad.ziorigin    = d_ziorigin;
+            grad.zistepu     = d_zistepu;
+            grad.zistepv     = d_zistepv;
+            grad.sadjust     = (int32_t)sadjust;
+            grad.tadjust     = (int32_t)tadjust;
+            grad.bbextents   = (int32_t)bbextents;
+            grad.bbextentt   = (int32_t)bbextentt;
+
+            phase = (int)(cl.time * TURB_SPEED) & (TURB_CYCLE - 1);
+
+            g_rhi->dispatch_3d_turb_surface(s->spans, &grad,
+                                            (const byte *)cacheblock,
+                                            phase);
+
+            for (p = s->spans; p; p = p->pnext)
+               memset(d_pzbuffer + (size_t)d_zwidth * (size_t)p->v
+                      + (size_t)p->u,
+                      0,
+                      (size_t)p->count * sizeof(short));
+         }
+         else
+         {
+            Turbulent8(s->spans);
+            /* Z-write semantics:
+             *   - Single-pass mode (pass 0): write z so alias models
+             *     behind opaque liquid are occluded normally.
+             *   - Pass 1 of two-pass: SURF_DRAWTURB is filtered out
+             *     before reaching here, so this case can't happen.
+             *   - Pass 2 of two-pass: NEVER write z.  Pass 1 already
+             *     wrote the opaque world's z-buffer; we want to
+             *     preserve those depths so alias models drawn between
+             *     passes (R_DrawEntitiesOnList runs after pass 1's
+             *     R_EdgeDrawing) z-test correctly against opaque
+             *     world.  Writing liquid z over wall z would corrupt
+             *     the buffer at pixels where liquid lost the z-test
+             *     (D_DrawZSpans writes every pixel in the span
+             *     regardless of compare result). */
+            if (!liquids_translucent && r_renderpass != 2)
+               D_DrawZSpans(s->spans);
+         }
 
          if (s->insubmodel)
          {
