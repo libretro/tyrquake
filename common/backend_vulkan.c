@@ -6957,24 +6957,48 @@ backend_vk_record_frame(void)
         }
 
         if (alias_active) {
-            /* Alias-model dispatches (Phase 5b-06).  Same
-             * shape as the sprite loop: bind pipeline +
-             * set once, then per-call push constants +
-             * dispatch.  No intra-loop barriers -- the
-             * atomicMax Z-test handles inter-dispatch
-             * overlap (closer Z wins regardless of order).
+            /* Alias-model dispatches (Phase 5b-06).  Each
+             * dispatch runs imageAtomicMax(z) then a
+             * conditional imageStore(color) -- the
+             * atomicMax is globally atomic but the store
+             * that follows isn't.  Without a barrier
+             * between consecutive dispatches, the GPU
+             * schedules them concurrently and two
+             * invocations at the same pixel can both
+             * decide to write (each having read its
+             * old-Z before the other's atomicMax was
+             * visible) -- the later store then wins
+             * regardless of Z order.  In a typical scene
+             * this surfaces when a distant alias entity
+             * (e.g. a torch flame attached to a wall)
+             * overlaps a nearer one (e.g. a monster
+             * standing in front of it): the flame's
+             * imageStore can win and bleed in front of
+             * the monster.
              *
-             * Order vs particles + sprites is arbitrary
-             * for the same reason: atomicMax-based Z-test
-             * means dispatch order doesn't change visual
-             * outcome when multiple subsystems touch the
-             * same pixel.  Putting alias after sprite is
-             * just a stylistic choice (matches the SW
-             * call order in R_DrawEntitiesOnList ->
-             * R_DrawParticles where alias-via-
-             * D_PolysetDraw comes from R_AliasDrawModel
-             * earlier in the entity walk than sprite-via-
-             * R_DrawSprite). */
+             * Insert a SHADER_WRITE -> SHADER_READ |
+             * SHADER_WRITE memory barrier between each
+             * pair of consecutive dispatches.  Cost is
+             * one VkMemoryBarrier per dispatch; with the
+             * batching change in 795c2c5 the per-frame
+             * dispatch count is small (one batched call
+             * per entity plus a handful for clipped
+             * fans), so the barrier overhead is
+             * negligible against the dispatch work
+             * itself.
+             *
+             * Order vs particles + sprites: those
+             * subsystems have the same store-after-
+             * atomicMax pattern but typically issue ONE
+             * combined dispatch each, so they can't race
+             * with themselves; cross-subsystem races
+             * (particle vs alias at the same pixel) are
+             * possible but rare in practice -- the
+             * particle and sprite footprints are tiny
+             * and they're additive bright effects where
+             * a one-frame Z hiccup is hard to see.
+             * Cross-subsystem barriers can be added if
+             * the artefact ever shows up. */
             uint32_t ai;
 
             vk_fn.CmdBindPipeline(vk_cmd_buffer,
@@ -7004,6 +7028,24 @@ backend_vk_record_frame(void)
                                   (bb_w + 7u) / 8u,
                                   (bb_h + 7u) / 8u,
                                   1);
+
+                if (ai + 1u < vk_alias_count) {
+                    VkMemoryBarrier mb;
+
+                    memset(&mb, 0, sizeof(mb));
+                    mb.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+                    mb.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+                    mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                     | VK_ACCESS_SHADER_WRITE_BIT;
+
+                    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                             0,
+                                             1, &mb,
+                                             0, NULL,
+                                             0, NULL);
+                }
             }
         }
 
