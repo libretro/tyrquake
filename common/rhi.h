@@ -97,6 +97,44 @@ typedef struct render_backend_s {
      * transparent" semantics (different from the pic
      * path's "byte 255 means transparent"). */
     void     (*queue_2d_char)(int x, int y, int num, int scale);
+
+    /* 2D scaled-pic intercept (Phase 4q).  Same role as
+     * queue_2d_pic but for the scale > 1 path of
+     * Draw_PicScaled / Draw_TransPicScaled.  Before this
+     * intercept those functions ran a triple-nested
+     * memcpy loop (`for (v) for (u) for (sx)`) that
+     * stretched the pic into vid.buffer at scale*scale
+     * cost per source pixel -- expensive in CPU and a
+     * quality hit because the result then went through
+     * the compute upscale, while scale == 1 pics handed
+     * off to queue_2d_pic rendered crisply via the
+     * overlay shader.  This intercept unifies the path:
+     * everything 2D goes through the overlay queue at
+     * native resolution, vid.buffer holds only the 3D
+     * view (and whatever SW-direct paths still remain --
+     * Draw_TransPicTranslateScaled for the multiplayer
+     * color preview, Draw_Fill, Draw_FadeScreen,
+     * Draw_ConsoleBackground).
+     *
+     * x, y are screen-space (the post-scaling pixel
+     * coords already computed by the caller, same as
+     * the SW path used as the dest base).  pic is the
+     * hunk-allocated qpic_t whose pointer keys the
+     * slot cache the same way queue_2d_pic uses it.
+     * scale is the integer multiplier; the resulting
+     * on-screen rect is (pic->width * scale) x
+     * (pic->height * scale).  When non-NULL,
+     * Draw_PicScaled / Draw_TransPicScaled forward and
+     * return -- no SW write.  When NULL (SW backend),
+     * the SW stretched-memcpy runs unchanged.
+     *
+     * The overlay fragment shader's byte-255 discard
+     * handles both opaque (Draw_PicScaled, no 255 in
+     * pic data) and transparent (Draw_TransPicScaled,
+     * uses TRANSPARENT_COLOR == 255) callers without
+     * needing a separate transparent variant. */
+    void     (*queue_2d_pic_scaled)(int x, int y,
+                                    const qpic_t *pic, int scale);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

@@ -87,6 +87,7 @@ const render_backend_t g_rhi_backend_sw = {
     backend_sw_begin_frame,
     backend_sw_draw_view,
     backend_sw_end_frame,
-    NULL,               /* queue_2d_pic:  SW falls through to vid.buffer memcpy */
-    NULL                /* queue_2d_char: same */
+    NULL,               /* queue_2d_pic:        SW falls through to vid.buffer memcpy */
+    NULL,               /* queue_2d_char:       same */
+    NULL                /* queue_2d_pic_scaled: same (scale > 1 stretched-memcpy stays SW) */
 };

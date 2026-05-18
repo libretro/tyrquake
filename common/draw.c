@@ -609,6 +609,18 @@ Draw_PicScaled(int x, int y, const qpic_t *pic, int scale)
     if (x < 0 || y < 0 || x + dw > (int)vid.width || y + dh > (int)vid.height)
 	return;
 
+    /* Phase 4q: forward the scale > 1 path to the
+     * overlay queue when a backend implements it,
+     * skipping the stretched-memcpy SW write below.
+     * Backends without the entry (SW backend, NULL
+     * field) keep the original behaviour.  scale == 1
+     * was already handled by the Draw_Pic branch
+     * above, which routes through queue_2d_pic. */
+    if (g_rhi && g_rhi->queue_2d_pic_scaled) {
+	g_rhi->queue_2d_pic_scaled(x, y, pic, scale);
+	return;
+    }
+
     source = pic->data;
     dest = vid.buffer + y * vid.rowbytes + x;
 
@@ -651,6 +663,15 @@ Draw_TransPicScaled(int x, int y, const qpic_t *pic, int scale)
 
     if (x < 0 || y < 0 || x + dw > (int)vid.width || y + dh > (int)vid.height)
 	return;
+
+    /* Phase 4q: same intercept as Draw_PicScaled above.
+     * The overlay FS byte-255 discard reproduces the
+     * `if (b != TRANSPARENT_COLOR) ...` SW skip for
+     * free (TRANSPARENT_COLOR == 255). */
+    if (g_rhi && g_rhi->queue_2d_pic_scaled) {
+	g_rhi->queue_2d_pic_scaled(x, y, pic, scale);
+	return;
+    }
 
     source = pic->data;
     dest = vid.buffer + y * vid.rowbytes + x;

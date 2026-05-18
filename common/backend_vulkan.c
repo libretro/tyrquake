@@ -2517,6 +2517,113 @@ backend_vk_queue_2d_pic(int x, int y, const qpic_t *pic)
 }
 
 /*
+ * backend_vk_queue_2d_pic_scaled -- Phase 4q scale > 1
+ * Draw_PicScaled / Draw_TransPicScaled intercept body.
+ *
+ * Identical cache / upload / queue-append logic as
+ * backend_vk_queue_2d_pic above; the only difference is
+ * that the on-screen rect uses (pw * scale) x (ph *
+ * scale) so the scaled pic fills the right physical
+ * pixels.  Sampling stays at full UV (0,0)-(1,1) -- the
+ * overlay sampler's GPU-side filtering produces the
+ * stretched result the SW `for (sy) for (sx) replicate
+ * byte` loop produces in CPU.  (GL_NEAREST sampling
+ * matches the SW byte-replicate exactly; if the slot
+ * sampler ends up filtering linearly the edges will be
+ * softer than the SW stretch, which the user would
+ * notice on HUD digit-pic boundaries.  The existing
+ * slot creation in backend_vk_upload_pic_slot uses
+ * VK_FILTER_NEAREST -- see the sampler creation there
+ * -- so we're aligned.)
+ *
+ * For Draw_TransPicScaled the overlay FS discards on
+ * byte 255 (== TRANSPARENT_COLOR), which produces the
+ * `if (b != TRANSPARENT_COLOR) ...` skip the SW path
+ * performs per-pixel.  Same discard handles
+ * Draw_PicScaled correctly too because opaque pics
+ * (the gfx lmp set used at scale > 1: sb_sbar,
+ * sb_ibar, qplaque, ttl_main, mainmenu, the face
+ * pics) don't contain byte 255 in their palette
+ * indices.
+ */
+static void
+backend_vk_queue_2d_pic_scaled(int x, int y,
+                               const qpic_t *pic, int scale)
+{
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+    int                  pw, ph;
+    int                  dw, dh;
+
+    if (!vk_resources_ready || !pic)
+        return;
+    if (scale < 1)
+        scale = 1;
+
+    pw = pic->width;
+    ph = pic->height;
+    if (pw <= 0 || ph <= 0)
+        return;
+
+    dw = pw * scale;
+    dh = ph * scale;
+
+    /* Cache lookup keyed by pic pointer.  Identical to
+     * queue_2d_pic: scale doesn't affect the cached
+     * pixels, only the on-screen rect, so two calls
+     * with different scales for the same pic share the
+     * same slot. */
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == (const void *)pic) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX)
+            return;
+
+        if (!backend_vk_begin_uploads())
+            return;
+        if (!backend_vk_upload_pic_slot(slot_idx,
+                                        (unsigned)pw, (unsigned)ph,
+                                        pic->data)) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        if (!backend_vk_end_uploads()) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        vk_overlay_slots[slot_idx].key = (const void *)pic;
+    }
+
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = (float)(2.0  * (double)x        / (double)width  - 1.0);
+    draw->y0       = (float)(2.0  * (double)y        / (double)height - 1.0);
+    draw->x1       = (float)(2.0  * (double)(x + dw) / (double)width  - 1.0);
+    draw->y1       = (float)(2.0  * (double)(y + dh) / (double)height - 1.0);
+    draw->u0       = 0.0f;
+    draw->v0       = 0.0f;
+    draw->u1       = 1.0f;
+    draw->v1       = 1.0f;
+}
+
+/*
  * backend_vk_queue_2d_char -- Phase 4o Draw_Character /
  * Draw_String intercept body.
  *
@@ -2692,6 +2799,21 @@ backend_vk_queue_2d_char_entry(int x, int y, int num, int scale)
     backend_vk_queue_2d_char(x, y, num, scale);
 #else
     (void)x; (void)y; (void)num; (void)scale;
+#endif
+}
+
+/*
+ * Vtable entry point for queue_2d_pic_scaled.  Same
+ * #ifdef pattern.
+ */
+static void
+backend_vk_queue_2d_pic_scaled_entry(int x, int y,
+                                     const qpic_t *pic, int scale)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_pic_scaled(x, y, pic, scale);
+#else
+    (void)x; (void)y; (void)pic; (void)scale;
 #endif
 }
 
@@ -3183,5 +3305,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_draw_view,
     backend_vk_end_frame,
     backend_vk_queue_2d_pic_entry,
-    backend_vk_queue_2d_char_entry
+    backend_vk_queue_2d_char_entry,
+    backend_vk_queue_2d_pic_scaled_entry
 };
