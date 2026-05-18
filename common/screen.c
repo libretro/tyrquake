@@ -675,9 +675,53 @@ SCR_UpdateScreen(void)
     */
 
    if (scr_fullupdate++ < vid.numpages) {
-      /* clear the entire screen */
+      /* Phase 4n: tile only the wood-grain border strips
+       * around the 3D viewport, not the full screen.
+       * Phase 4m bumped vid.numpages high so this branch
+       * runs every frame; the original full-screen
+       * Draw_TileClear painted ~1.2 MB at 1280x960 only
+       * to have R_RenderView immediately overwrite the
+       * 3D viewport pixels and Sbar_Draw immediately
+       * overwrite the status-bar strip.  The pixels that
+       * actually need the tile are the ones outside the
+       * 3D viewport (scr_vrect) -- paint just those.  At
+       * scr_viewsize 100 (default, viewport spans full
+       * width and stops above the status bar) the
+       * top/left/right strips collapse to zero-width and
+       * only the below-viewport strip remains; at smaller
+       * viewsizes the left/right/top strips kick in.
+       *
+       * scr_vrect is valid here: SCR_CalcRefdef has
+       * already run at line 670 because vid.recalc_refdef
+       * triggers on the first frame via old_fov /
+       * old_viewsize being zero-initialised and not
+       * matching the cvar defaults.  After SCR_CalcRefdef
+       * the rect describes a viewport that is fully on-
+       * screen (R_SetVrect clamps), so the below
+       * comparisons against vid.width / vid.height are
+       * sound. */
+      int right_x;
+      int below_y;
+
       scr_copyeverything = 1;
-      Draw_TileClear(0, 0, vid.width, vid.height);
+
+      if (scr_vrect.y > 0)
+         Draw_TileClear(0, 0, vid.width, scr_vrect.y);
+
+      if (scr_vrect.x > 0)
+         Draw_TileClear(0, scr_vrect.y,
+                        scr_vrect.x, scr_vrect.height);
+
+      right_x = scr_vrect.x + scr_vrect.width;
+      if (right_x < vid.width)
+         Draw_TileClear(right_x, scr_vrect.y,
+                        vid.width - right_x, scr_vrect.height);
+
+      below_y = scr_vrect.y + scr_vrect.height;
+      if (below_y < vid.height)
+         Draw_TileClear(0, below_y,
+                        vid.width, vid.height - below_y);
+
       Sbar_Changed();
    }
    pconupdate = NULL;
