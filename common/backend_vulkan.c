@@ -850,11 +850,37 @@ static struct vk_sprite_pc    vk_sprite_calls[VK_SPRITE_MAX_PER_FRAME];
  * that frame).  Acceptable for a libretro core; better
  * than asserting.
  */
-#define VK_ALIAS_MAX_PER_FRAME       256u
-#define VK_ALIAS_VERT_POOL_VERTS    8192u
+/* Per-frame caps.  Sized for the worst case Quake throws at the
+ * alias path: a viewmodel close enough to camera to straddle the
+ * z-clip plane AND the bottom screen edge during the bob cycle.
+ * Each non-trivial-accept triangle of such an entity can produce
+ * a Sutherland-Hodgman fan of up to ~5 sub-triangles (one per
+ * crossed clip plane), and R_AliasClipTriangle dispatches each
+ * fan triangle as its own D_PolysetDraw -> dispatch_3d_alias
+ * call.  A heavily-clipped viewmodel can ask for 200-500 of
+ * these by itself, on top of every other on-screen entity, so
+ * the cap has to comfortably exceed any plausible sum.  The
+ * previous 256 was just enough at a static gun pose and dropped
+ * the gun's bottom triangles -- whichever clipped-fan dispatches
+ * came after vk_alias_count hit the cap -- once the bob cycle
+ * pushed the gun lower.  8192 leaves ~30x headroom over a single
+ * heavily-clipped viewmodel, plenty for any scene.
+ *
+ * VERT/TRI pool capacities track the dispatch cap: at one fan-
+ * triangle per dispatch (3 verts, 1 tri) the worst case sits
+ * around 25k verts / 8k tris, and at one batched-call per entity
+ * (~150 verts / ~200 tris each) modest entity counts add a few
+ * thousand of each.  32k / 16k covers both regimes with margin.
+ *
+ * Memory cost above the previous caps: push-constant array 12 ->
+ * 384 KiB, vertex pool 192 -> 768 KiB, triangle pool 96 -> 192
+ * KiB.  ~1.2 MiB extra BSS, well inside the libretro core's
+ * working set. */
+#define VK_ALIAS_MAX_PER_FRAME      8192u
+#define VK_ALIAS_VERT_POOL_VERTS   32768u
 #define VK_ALIAS_VERT_BYTES         24u
 #define VK_ALIAS_VERT_POOL_BYTES    (VK_ALIAS_VERT_POOL_VERTS * VK_ALIAS_VERT_BYTES)
-#define VK_ALIAS_TRI_POOL_TRIS      8192u
+#define VK_ALIAS_TRI_POOL_TRIS     16384u
 #define VK_ALIAS_TRI_BYTES          12u
 #define VK_ALIAS_TRI_POOL_BYTES     (VK_ALIAS_TRI_POOL_TRIS * VK_ALIAS_TRI_BYTES)
 #define VK_ALIAS_SKIN_SLOTS         16u
