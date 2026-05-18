@@ -853,6 +853,24 @@ Draw_ConsoleBackground(int lines)
     /* hack the version number directly into the pic */
     Draw_ConbackString(conback, stringify(TYR_VERSION));
 
+    /* Phase 4p: if a backend implements the console-
+     * background intercept (Vulkan: queue_2d_console_
+     * background queues a stretched-bottom-portion quad
+     * to the overlay queue, ordered after any prior 2D
+     * pushes so it correctly covers Sbar HUD entries
+     * etc.), forward and skip the SW write below.  The
+     * intercept must be called *after* Draw_ConbackString
+     * above so the cached upload captures the
+     * version-stamped pixels.  When no backend
+     * implements the intercept (SW-only builds, SW
+     * backend selected), the field stays NULL and
+     * Draw_ConsoleBackground falls through to its
+     * original memcpy-into-vid.buffer behaviour. */
+    if (g_rhi && g_rhi->queue_2d_console_background) {
+	g_rhi->queue_2d_console_background(lines, conback);
+	return;
+    }
+
     /* draw the pic */
     {
 	dest = vid.conbuffer;

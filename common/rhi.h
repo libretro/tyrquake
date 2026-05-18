@@ -97,6 +97,31 @@ typedef struct render_backend_s {
      * transparent" semantics (different from the pic
      * path's "byte 255 means transparent"). */
     void     (*queue_2d_char)(int x, int y, int num, int scale);
+
+    /* 2D console-background intercept (Phase 4p).
+     * Draw_ConsoleBackground is the one place in the SW
+     * 2D pipeline that writes vid.buffer directly with a
+     * stretched-bottom-portion sample of a pic
+     * (gfx/conback.lmp) rather than through Draw_Pic.
+     * Phase 4l / 4o left it on the SW path, which broke
+     * the queue-ordering contract when the console (or
+     * the M_Draw backdrop, which calls the same function)
+     * was supposed to cover overlay entries from earlier
+     * 2D pushes -- the SW write lands in vid.buffer but
+     * can't reach the overlay queue, so Sbar HUD digits
+     * etc. render on top of what should be a covering
+     * backdrop.
+     *
+     * `lines` is the on-screen height of the backdrop
+     * (the scr_con_current value the SW path uses).  The
+     * backend stretches the bottom `lines / vid.height`
+     * fraction of the pic up to a (vid.width, lines) on-
+     * screen rect, queued after any earlier overlay
+     * pushes so it covers them.  Caller passes the pre-
+     * Draw_ConbackString-modified conback (version-
+     * string baked in) so the cache captures the right
+     * pixels on first upload. */
+    void     (*queue_2d_console_background)(int lines, const qpic_t *pic);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every
