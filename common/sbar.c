@@ -603,16 +603,51 @@ Sbar_DrawInventory(void)
 	    }
 	}
     }
-/* ammo counts */
-    for (i = 0; i < 4; i++) {
-	snprintf(num, sizeof(num), "%3i", cl.stats[STAT_SHELLS + i]);
-	if (num[0] != ' ')
-	    Sbar_DrawCharacter((6 * i + 1) * 8 - 2, -24, 18 + num[0] - '0');
-	if (num[1] != ' ')
-	    Sbar_DrawCharacter((6 * i + 2) * 8 - 2, -24, 18 + num[1] - '0');
-	if (num[2] != ' ')
-	    Sbar_DrawCharacter((6 * i + 3) * 8 - 2, -24, 18 + num[2] - '0');
+/* ammo counts.  Skip the loop when the console covers
+ * the inventory ammo-digit row in vid.buffer (the row
+ * lives at logical y = -24, i.e., physical y = vid.height
+ * - 48*scale for the digit top, spanning 8*scale pixels).
+ * On the SW path the digits would land in vid.buffer
+ * and then be overwritten by the conback that
+ * SCR_DrawConsole queues right after Sbar_Draw -- a pure
+ * CPU savings here.  On the Vulkan path it's the actual
+ * fix: Sbar_DrawCharacter routes through Draw_Character
+ * Scaled, which Phase 4o intercepts to the overlay
+ * queue at every scale.  The conback in vid.buffer
+ * (Draw_ConsoleBackground writes vid.buffer directly,
+ * no intercept) can't reach into the overlay queue to
+ * mask out the digit quads, so the '25 0 0 0' text
+ * renders on top of what the SW renderer shows as a
+ * clean console cover.  Match SW visually by source-
+ * suppressing.
+ *
+ * Threshold: skip the moment any part of the digit row
+ * enters the console-covered area.  scr_con_current
+ * holds the on-screen height of the console (top is at
+ * y = 0, bottom at scr_con_current).  Sbar_DrawCharacter
+ * computes physical y as `y * scale + vid.height -
+ * SBAR_HEIGHT * scale`, so at logical y = -24 the digit
+ * row top sits at vid.height - (24 + SBAR_HEIGHT) *
+ * scale.  The row enters the covered area when
+ * scr_con_current exceeds that top.  At smaller
+ * scr_con_current the digits sit below the console and
+ * must draw normally; at the threshold or above SW
+ * shows them fully covered and we skip to match. */
+{
+    int scale    = SCR_GetUIScale();
+    int ammo_top = (int)vid.height - (24 + SBAR_HEIGHT) * scale;
+    if ((int)scr_con_current <= ammo_top) {
+	for (i = 0; i < 4; i++) {
+	    snprintf(num, sizeof(num), "%3i", cl.stats[STAT_SHELLS + i]);
+	    if (num[0] != ' ')
+		Sbar_DrawCharacter((6 * i + 1) * 8 - 2, -24, 18 + num[0] - '0');
+	    if (num[1] != ' ')
+		Sbar_DrawCharacter((6 * i + 2) * 8 - 2, -24, 18 + num[1] - '0');
+	    if (num[2] != ' ')
+		Sbar_DrawCharacter((6 * i + 3) * 8 - 2, -24, 18 + num[2] - '0');
+	}
     }
+}
 
     flashon = 0;
     /* items */
