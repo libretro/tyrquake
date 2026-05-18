@@ -131,11 +131,18 @@ uint sample_palette(int byte_off)
 
 void main()
 {
-    ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+    /* Dispatch is sized to ceil(bbox_w/8) x ceil(bbox_h/8)
+     * workgroups, so gl_GlobalInvocationID covers
+     * [0, bbox_w) x [0, bbox_h) in local terms.  Add the
+     * bbox origin to get the actual screen-pixel
+     * coordinate.  Threads in the last workgroup whose
+     * local index lands past the bbox's right or bottom
+     * edge get culled by the >= check below. */
+    ivec2 pos = ivec2(pc.bbox.xy) + ivec2(gl_GlobalInvocationID.xy);
 
-    /* Bounding-box reject.  bbox.zw is exclusive max. */
-    if (pos.x < pc.bbox.x || pos.x >= pc.bbox.z
-     || pos.y < pc.bbox.y || pos.y >= pc.bbox.w)
+    /* Bbox reject (upper bound only; the offset above
+     * guarantees pos >= bbox.xy by construction). */
+    if (pos.x >= pc.bbox.z || pos.y >= pc.bbox.w)
         return;
 
     int   v_off  = pc.dispatch_info.x;
