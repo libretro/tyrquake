@@ -297,29 +297,33 @@ cshift_t cshift_water = { {130, 80, 50}, 128 };
 cshift_t cshift_slime = { {0, 25, 5}, 150 };
 cshift_t cshift_lava = { {255, 80, 0}, 150 };
 
-cvar_t v_gamma = { "gamma", "0.95", true };
-cvar_t v_contrast = { "contrast", "1.0", true };
+cvar_t v_gamma      = { "gamma",      "0.95", true };
+cvar_t v_brightness = { "brightness", "0.0",  true };
+cvar_t v_contrast   = { "contrast",   "1.0",  true };
 
 byte gammatable[256];		/* palette is sent through this; folds
-				 * contrast + gamma into a single LUT,
-				 * applied per channel by V_UpdatePalette */
+				 * brightness + contrast + gamma into a
+				 * single LUT, applied per channel by
+				 * V_UpdatePalette */
 
-/* Build the combined contrast+gamma LUT.  Contrast scales each
- * channel about the 128 midpoint (out = (in - 128) * c + 128,
- * clamped), then gamma applies the perceptual curve on top.
- * Ordering matches the usual image-processing convention
- * (linear-space tonal scaling before perceptual gamma) and
- * keeps the c==1 / g==1 cases identity.  Both knobs land in
- * the same table so V_UpdatePalette's per-channel lookups
- * pick up both transforms without an extra pass, and the
- * VID_SetPalette downstream feeds the result into both
- * d_8to16table (SW present) and d_8to24table_shifted (Vulkan
- * compose) -- so contrast tracks gamma to every backend. */
-static void BuildGammaTable(float g, float c)
+/* Build the combined brightness + contrast + gamma LUT.  Order is
+ * the standard image-pipeline one:
+ *   1. Brightness shifts the whole curve (out = in + b*255).
+ *   2. Contrast scales each channel about the 128 midpoint
+ *      (out = (in - 128) * c + 128, clamped).
+ *   3. Gamma applies the perceptual non-linear curve on top.
+ * The b == 0 && c == 1 && g == 1 case is exact identity (early-out
+ * fast path).  All three knobs land in the same gammatable[] so
+ * V_UpdatePalette's per-channel lookups pick up every transform
+ * without an extra pass, and VID_SetPalette downstream feeds the
+ * result into both d_8to16table (SW present) and
+ * d_8to24table_shifted (Vulkan compose) -- the triad reaches every
+ * backend with no per-backend changes. */
+static void BuildGammaTable(float g, float c, float b)
 {
    int i;
 
-   if (g == 1.0f && c == 1.0f)
+   if (g == 1.0f && c == 1.0f && b == 0.0f)
    {
       for (i = 0; i < 256; i++)
          gammatable[i] = i;
@@ -328,9 +332,10 @@ static void BuildGammaTable(float g, float c)
 
    for (i = 0; i < 256; i++)
    {
-      float x = ((float)i - 128.0f) * c + 128.0f;
+      float x = (float)i + b * 255.0f;
       int inf;
 
+      x = (x - 128.0f) * c + 128.0f;
       if (x < 0.0f)   x = 0.0f;
       if (x > 255.0f) x = 255.0f;
 
@@ -348,16 +353,19 @@ V_CheckGamma
 */
 static qboolean V_CheckGamma(void)
 {
-   static float oldgammavalue    = -1.0f;
-   static float oldcontrastvalue = -1.0f;
+   static float oldgammavalue      = -1.0f;
+   static float oldcontrastvalue   = -1.0f;
+   static float oldbrightnessvalue = -2.0f;	/* outside any legal range */
 
-   if (v_gamma.value    == oldgammavalue
-    && v_contrast.value == oldcontrastvalue)
+   if (v_gamma.value      == oldgammavalue
+    && v_contrast.value   == oldcontrastvalue
+    && v_brightness.value == oldbrightnessvalue)
       return false;
-   oldgammavalue    = v_gamma.value;
-   oldcontrastvalue = v_contrast.value;
+   oldgammavalue      = v_gamma.value;
+   oldcontrastvalue   = v_contrast.value;
+   oldbrightnessvalue = v_brightness.value;
 
-   BuildGammaTable(v_gamma.value, v_contrast.value);
+   BuildGammaTable(v_gamma.value, v_contrast.value, v_brightness.value);
    vid.recalc_refdef = 1;	/* force a surface cache flush */
 
    return true;
@@ -1043,7 +1051,8 @@ void V_Init(void)
    Cvar_RegisterVariable(&v_kickroll);
    Cvar_RegisterVariable(&v_kickpitch);
 
-   BuildGammaTable(1.0f, 1.0f);	/* no gamma / no contrast yet */
+   BuildGammaTable(1.0f, 1.0f, 0.0f);	/* no gamma / contrast / brightness yet */
    Cvar_RegisterVariable(&v_gamma);
    Cvar_RegisterVariable(&v_contrast);
+   Cvar_RegisterVariable(&v_brightness);
 }

@@ -1105,7 +1105,7 @@ M_OptionsInput_Key(int k)
 /* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 18
+#define	OPTIONSVIDEO_ITEMS 19
 
 static int optionsvideo_cursor;
 
@@ -1141,7 +1141,22 @@ M_OptionsVideo_AdjustSliders(int dir)
              v_gamma.value = 1;
           Cvar_SetValue("gamma", v_gamma.value);
           break;
-       case 2:			/* contrast */
+       case 2:			/* brightness */
+          /* Range [-0.5, +0.5] in 0.05 steps, centred on 0.0
+           * (vanilla, no shift).  Shifts every palette entry
+           * by b*255 byte-counts before contrast and gamma
+           * apply; the LUT is rebuilt by V_CheckGamma and
+           * reaches both d_8to16table (SW) and
+           * d_8to24table_shifted (Vulkan) the same way gamma
+           * and contrast do. */
+          v_brightness.value += dir * 0.05;
+          if (v_brightness.value < -0.5)
+             v_brightness.value = -0.5;
+          if (v_brightness.value >  0.5)
+             v_brightness.value =  0.5;
+          Cvar_SetValue("brightness", v_brightness.value);
+          break;
+       case 3:			/* contrast */
           /* Range [0.5, 1.5] in 0.05 steps, centred on 1.0
            * (vanilla, no change).  view.c's V_CheckGamma
            * folds this into the same gammatable lookup
@@ -1157,27 +1172,27 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("contrast", v_contrast.value);
           break;
 
-       case 4:			/* _windowed_mouse */
+       case 5:			/* _windowed_mouse */
           Cvar_SetValue("_windowed_mouse", !_windowed_mouse.value);
           break;
-       case 5:
+       case 6:
           cvar = Cvar_FindVar("dither_filter");
           Cvar_SetValue("dither_filter", cvar->value ? 0.0f : 1.0f);
           D_SetupFrame();
           break;
-       case 6:
+       case 7:
           cvar = Cvar_FindVar("d_mipscale");
           Cvar_SetValue("d_mipscale", cvar->value ? 0.0f : 1.0f);
           break;
-       case 7:
+       case 8:
           cvar = Cvar_FindVar("r_lerpmodels");
           Cvar_SetValue("r_lerpmodels", cvar->value ? 0.0f : 1.0f);
           break;
-       case 8:
+       case 9:
           cvar = Cvar_FindVar("r_lerpmove");
           Cvar_SetValue("r_lerpmove", cvar->value ? 0.0f : 1.0f);
           break;
-       case 9: {
+       case 10: {
           /* Tri-state: 0 = off, 1 = Phong, 2 = Phong + specular.
            * Arrow keys cycle the value; dir is +1 for right,
            * -1 for left. */
@@ -1189,19 +1204,19 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_phongshading", (float)v);
           break;
        }
-       case 10:
+       case 11:
           cvar = Cvar_FindVar("r_coloredlight");
           Cvar_SetValue("r_coloredlight", cvar->value ? 0.0f : 1.0f);
           break;
-       case 11:
+       case 12:
           cvar = Cvar_FindVar("r_lightdither");
           Cvar_SetValue("r_lightdither", cvar->value ? 0.0f : 1.0f);
           break;
-       case 12:
+       case 13:
           cvar = Cvar_FindVar("r_shadows");
           Cvar_SetValue("r_shadows", cvar->value ? 0.0f : 1.0f);
           break;
-       case 13: {
+       case 14: {
           /* Cycle r_liquidblend through 0 = Off, 1 = Stipple.
            * Future modes (colormap-blend etc) would extend the
            * upper bound; for now wrap at 1. */
@@ -1213,7 +1228,7 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_liquidblend", (float)v);
           break;
        }
-       case 14: {
+       case 15: {
           /* Slide r_wateralpha in 0.05 increments.
            * Range [0.10, 0.90]:
            *   - Below 0.10 the dither is so sparse the liquid
@@ -1237,7 +1252,7 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_wateralpha", v);
           break;
        }
-       case 15: {
+       case 16: {
           float v;
           cvar = Cvar_FindVar("r_lavaalpha");
           v = cvar->value + dir * 0.05f;
@@ -1246,7 +1261,7 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_lavaalpha", v);
           break;
        }
-       case 16: {
+       case 17: {
           float v;
           cvar = Cvar_FindVar("r_slimealpha");
           v = cvar->value + dir * 0.05f;
@@ -1255,7 +1270,7 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_slimealpha", v);
           break;
        }
-       case 17: {
+       case 18: {
           /* Polygon subdivision: cycle 0..R_POLYSUBDIV_MAX_PASSES.
            * The cvar callback (R_PolySubdivChanged) clamps and
            * flushes the alias model cache, so the change is visible
@@ -1292,38 +1307,47 @@ M_OptionsVideo_Draw(void)
     r = (1.0 - v_gamma.value) / 0.5;
     M_DrawSlider(220, 40, r);
 
+    /* Brightness: range [-0.5, +0.5] centred on 0.0 (vanilla).
+     * Slider sweep is (v + 0.5) / 1.0 so -0.5 is left, 0.0 is
+     * mid, +0.5 is right.  Folded into gammatable[] alongside
+     * gamma and contrast; reaches every backend through the
+     * VID_SetPalette palette LUTs. */
+    M_Print(16, 48, "          Brightness");
+    r = (v_brightness.value + 0.5f) / 1.0f;
+    M_DrawSlider(220, 48, r);
+
     /* Contrast: range [0.5, 1.5] centred on 1.0 (vanilla).
      * Slider sweep is (v - 0.5) / 1.0 so 0.5 is left, 1.0 is
      * mid, 1.5 is right.  Folded into gammatable[] in
      * view.c's V_CheckGamma; reaches both SW and Vulkan
      * via VID_SetPalette's twin LUTs. */
-    M_Print(16, 48, "          Contrast");
+    M_Print(16, 56, "          Contrast");
     r = (v_contrast.value - 0.5f) / 1.0f;
-    M_DrawSlider(220, 48, r);
+    M_DrawSlider(220, 56, r);
 
     if (vid_menudrawfn)
-	M_Print(16, 56, "         Video Options");
+	M_Print(16, 64, "         Video Options");
 
     if (!VID_IsFullScreen()) {
-       M_Print(16, 64, "             Use Mouse");
-       M_DrawCheckbox(220, 64, _windowed_mouse.value);
+       M_Print(16, 72, "             Use Mouse");
+       M_DrawCheckbox(220, 72, _windowed_mouse.value);
     }
 
     cvar = Cvar_FindVar("dither_filter");
-    M_Print(16, 72, "      Dither Filtering");
-	M_DrawCheckbox(220, 72, cvar->value);
+    M_Print(16, 80, "      Dither Filtering");
+	M_DrawCheckbox(220, 80, cvar->value);
 
     cvar = Cvar_FindVar("d_mipscale");
-    M_Print(16, 80, "      Level of Detail");
-    M_DrawCheckbox(220, 80, cvar->value);
+    M_Print(16, 88, "      Level of Detail");
+    M_DrawCheckbox(220, 88, cvar->value);
 
     cvar = Cvar_FindVar("r_lerpmodels");
-    M_Print(16, 88, "      Smooth Animation");
-    M_DrawCheckbox(220, 88, cvar->value);
+    M_Print(16, 96, "      Smooth Animation");
+    M_DrawCheckbox(220, 96, cvar->value);
     
     cvar = Cvar_FindVar("r_lerpmove");
-    M_Print(16, 96, "      Smooth Movement");
-    M_DrawCheckbox(220, 96, cvar->value);
+    M_Print(16, 104, "      Smooth Movement");
+    M_DrawCheckbox(220, 104, cvar->value);
 
     /* Phong shading is tri-state: 0 = off, 1 = Phong, 2 = Phong +
      * specular highlights.  Show the state name instead of a
@@ -1338,21 +1362,21 @@ M_OptionsVideo_Draw(void)
        phong_v = (int)cvar->value;
        if (phong_v < 0) phong_v = 0;
        if (phong_v > 2) phong_v = 2;
-       M_Print(16, 104, "        Phong Shading");
-       M_Print(220, 104, phong_state_names[phong_v]);
+       M_Print(16, 112, "        Phong Shading");
+       M_Print(220, 112, phong_state_names[phong_v]);
     }
 
     cvar = Cvar_FindVar("r_coloredlight");
-    M_Print(16, 112, "    Colored Lighting");
-    M_DrawCheckbox(220, 112, cvar->value);
-
-    cvar = Cvar_FindVar("r_lightdither");
-    M_Print(16, 120, "      Light Dither");
+    M_Print(16, 120, "    Colored Lighting");
     M_DrawCheckbox(220, 120, cvar->value);
 
-    cvar = Cvar_FindVar("r_shadows");
-    M_Print(16, 128, "             Shadows");
+    cvar = Cvar_FindVar("r_lightdither");
+    M_Print(16, 128, "      Light Dither");
     M_DrawCheckbox(220, 128, cvar->value);
+
+    cvar = Cvar_FindVar("r_shadows");
+    M_Print(16, 136, "             Shadows");
+    M_DrawCheckbox(220, 136, cvar->value);
 
     /* Liquid blend mode is a cycling text widget (currently
      * 0 = Off, 1 = Stipple).  Reserved values 2+ for future
@@ -1364,8 +1388,8 @@ M_OptionsVideo_Draw(void)
 	blend_v = (int)cvar->value;
 	if (blend_v < 0) blend_v = 0;
 	if (blend_v > 1) blend_v = 1;
-	M_Print(16, 136, "         Liquid Blend");
-	M_Print(220, 136, blend_state_names[blend_v]);
+	M_Print(16, 144, "         Liquid Blend");
+	M_Print(220, 144, blend_state_names[blend_v]);
     }
 
     /* Per-liquid alpha sliders.  The cvar's stipple-useful range
@@ -1384,18 +1408,18 @@ M_OptionsVideo_Draw(void)
 
 	cvar = Cvar_FindVar("r_wateralpha");
 	v = (cvar->value - lo) / (hi - lo);
-	M_Print(16, 144, "         Water Alpha");
-	M_DrawSlider(220, 144, v);
+	M_Print(16, 152, "         Water Alpha");
+	M_DrawSlider(220, 152, v);
 
 	cvar = Cvar_FindVar("r_lavaalpha");
 	v = (cvar->value - lo) / (hi - lo);
-	M_Print(16, 152, "          Lava Alpha");
-	M_DrawSlider(220, 152, v);
+	M_Print(16, 160, "          Lava Alpha");
+	M_DrawSlider(220, 160, v);
 
 	cvar = Cvar_FindVar("r_slimealpha");
 	v = (cvar->value - lo) / (hi - lo);
-	M_Print(16, 160, "         Slime Alpha");
-	M_DrawSlider(220, 160, v);
+	M_Print(16, 168, "         Slime Alpha");
+	M_DrawSlider(220, 168, v);
     }
 
     /* Polygon Subdivision: cycling text widget showing the current
@@ -1417,8 +1441,8 @@ M_OptionsVideo_Draw(void)
 	sub_v = (int)cvar->value;
 	if (sub_v < 0) sub_v = 0;
 	if (sub_v > R_POLYSUBDIV_MAX_PASSES) sub_v = R_POLYSUBDIV_MAX_PASSES;
-	M_Print(16, 168, "   Polygon Subdivision");
-	M_Print(220, 168, subdiv_state_names[sub_v]);
+	M_Print(16, 176, "   Polygon Subdivision");
+	M_Print(220, 176, subdiv_state_names[sub_v]);
     }
 
 /* cursor */
@@ -1441,7 +1465,7 @@ M_OptionsVideo_Key(int k)
     case K_ENTER:
 	m_entersound = true;
 	switch (optionsvideo_cursor) {
-	case 3:
+	case 4:
 	    M_Menu_Video_f();
 	    break;
 	default:
@@ -1477,26 +1501,26 @@ M_OptionsVideo_Key(int k)
 	break;
     }
 
-    /* Skip the Video Options row (cursor 3) when no per-platform
+    /* Skip the Video Options row (cursor 4) when no per-platform
      * video menu is wired up -- libretro never sets vid_menudrawfn.
-     * Skip the Use Mouse row (cursor 4) when running fullscreen
+     * Skip the Use Mouse row (cursor 5) when running fullscreen
      * (always true under libretro since the frontend owns the
-     * window).  Indices bumped by one vs vanilla after the
-     * Contrast row was inserted at cursor 2. */
-    if (optionsvideo_cursor == 3 && !vid_menudrawfn) {
+     * window).  Indices bumped by one vs the contrast-only insert
+     * after the Brightness row was added at cursor 2. */
+    if (optionsvideo_cursor == 4 && !vid_menudrawfn) {
 	if (k == K_UPARROW)
-	    optionsvideo_cursor = 2;
+	    optionsvideo_cursor = 3;
 	else
-	    optionsvideo_cursor = 4;
+	    optionsvideo_cursor = 5;
     }
-    if ((optionsvideo_cursor == 4) && VID_IsFullScreen()) {
+    if ((optionsvideo_cursor == 5) && VID_IsFullScreen()) {
 	if (k == K_UPARROW) {
 	    if (!vid_menudrawfn)
-		optionsvideo_cursor = 2;
-	    else
 		optionsvideo_cursor = 3;
+	    else
+		optionsvideo_cursor = 4;
 	} else
-      optionsvideo_cursor = 5;
+      optionsvideo_cursor = 6;
     }
 }
 
