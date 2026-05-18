@@ -508,6 +508,27 @@ typedef struct render_backend_s {
      * globals in d_sky.c already point at the live texture
      * cache, which is all the SW renderer needs). */
     void     (*notify_sky_texture)(const byte *front, const byte *back);
+
+    /* Phase 5b-07a: queue one sky span for GPU compute
+     * dispatch.  Called from d_edge.c's SURF_DRAWSKY branch
+     * once per espan_t in the surface's linked list, with
+     * the screen-space pixel position (u, v) and run length
+     * (count).
+     *
+     * Backend collects spans across the whole frame and
+     * dispatches a single CmdDispatch (sky.comp) at
+     * record_frame, with the per-pixel work bucketed by
+     * scanline for efficient per-pixel span-list lookup
+     * inside the shader.  Sky.comp writes palette indices
+     * to vk_texture; the existing FS compose stage then
+     * samples through vk_palette_texture so sky pixels
+     * pick up gamma / contrast / brightness uniformly with
+     * the rest of the scene.
+     *
+     * NULL on the SW backend (D_DrawSkyScans8 in d_sky.c
+     * handles it inline; d_edge.c falls back when this
+     * entry is missing). */
+    void     (*dispatch_3d_sky_span)(int u, int v, int count);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

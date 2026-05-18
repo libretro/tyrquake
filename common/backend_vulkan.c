@@ -193,6 +193,12 @@
                            * dedicated slot to back Draw_Character /
                            * Draw_String. */
 
+extern float skytime;       /* r_sky.c -- modulo'd cl.time-derived
+                             * cycle; D_DrawSkyScans8 multiplies it
+                             * by skyspeed/skyspeed2 inside the SW
+                             * raster, our compute sky does the same
+                             * inside backend_vk_record_sky_dispatch */
+extern float skyspeed, skyspeed2;
 extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
                                    * dispatches into the SW rasterizer
                                    * for Phase 4d.  The real geometry
@@ -209,6 +215,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/warpscreen_cs.h"
 #include "shaders/generated/spv/sprite_cs.h"
 #include "shaders/generated/spv/alias_cs.h"
+#include "shaders/generated/spv/sky_cs.h"
 #include "d_iface.h"      /* particle_t -- the GPU compute particle
                            * rasterizer walks the active linked list
                            * via this typedef.  Also TURB_CYCLE for
@@ -690,6 +697,96 @@ static byte                   vk_sky_cache_front[VK_SKY_LAYER_BYTES];
 static byte                   vk_sky_cache_back[VK_SKY_LAYER_BYTES];
 static qboolean               vk_sky_cache_populated;
 static qboolean               vk_sky_upload_pending;
+
+/* --------------------------------------------------------
+ * Phase 5b-07a step 2 + 3: GPU compute sky raster pipeline.
+ *
+ * Per-frame the SW pass-1 surface scan in d_edge.c calls
+ * dispatch_3d_sky_span(u, v, count) once for each espan_t
+ * belonging to a SURF_DRAWSKY surface.  We accumulate them
+ * into vk_sky_collected[] (CPU array of u16 / u16 / u16
+ * triples) and track the screen-space bbox as we go.  At
+ * record_frame, if any spans were collected, we bucket the
+ * span list by scanline -- giving the shader an O(spans-on-
+ * this-row) per-pixel scan instead of O(total-spans) -- and
+ * upload three buffers to the GPU:
+ *
+ *   - vk_sky_ubo:    view-direction parameters and the bbox
+ *                    (std140; 96 bytes).
+ *   - vk_sky_rows:   per-row (first_span_idx, span_count)
+ *                    pairs (std430 SSBO; uvec2 * vid.height).
+ *   - vk_sky_spans:  flat (u, count) pairs sorted by row
+ *                    (std430 SSBO; uvec2 * span_count).
+ *
+ * All three buffers are HOST_VISIBLE | HOST_COHERENT and
+ * permanently mapped; the per-frame upload is just three
+ * memcpys into mapped pointers followed by one CmdDispatch.
+ * Sky textures live in vk_sky_front_view / vk_sky_back_view
+ * from step 1, bound through the same descriptor set as
+ * sampled storage images.
+ *
+ * Dispatch shape: 8x8 workgroups covering the screen-space
+ * bbox; per-invocation the shader does the per-row bucket
+ * lookup, the SW point-in-poly test against the bucket's
+ * span list, and (on hit) the SW sphere-projection +
+ * two-layer texel lookup, writing palette indices into
+ * vk_texture.  The shader is sky.comp; see comments there
+ * for the per-pixel math correspondence with d_sky.c::D_-
+ * DrawSkyScans8. */
+#define VK_SKY_MAX_SPANS     8192u
+#define VK_SKY_MAX_ROWS      2048u   /* vid.height ceiling */
+#define VK_SKY_SPAN_BYTES    (VK_SKY_MAX_SPANS * 2u * sizeof(uint32_t))
+#define VK_SKY_ROW_BYTES     (VK_SKY_MAX_ROWS  * 2u * sizeof(uint32_t))
+#define VK_SKY_UBO_BYTES     96u
+
+struct vk_sky_collected_span {
+    uint16_t u;
+    uint16_t v;
+    uint16_t count;
+    uint16_t _pad;
+};
+
+struct vk_sky_ubo {
+    float    vpn[3];        float _pad0;
+    float    vright[3];     float _pad1;
+    float    vup[3];        float _pad2;
+    float    xcenter;
+    float    ycenter;
+    float    xscale;
+    float    yscale;
+    float    timespeed1;
+    float    timespeed2;
+    uint32_t bbox_min_x;
+    uint32_t bbox_min_y;
+    uint32_t bbox_w;
+    uint32_t bbox_h;
+    uint32_t _pad3;
+    uint32_t _pad4;
+};
+
+static struct vk_sky_collected_span vk_sky_collected[VK_SKY_MAX_SPANS];
+static unsigned               vk_sky_collected_count;
+static int                    vk_sky_bbox_min_x;
+static int                    vk_sky_bbox_min_y;
+static int                    vk_sky_bbox_max_x;
+static int                    vk_sky_bbox_max_y;
+
+static VkBuffer               vk_sky_ubo_buffer;
+static VkDeviceMemory         vk_sky_ubo_memory;
+static void                  *vk_sky_ubo_ptr;
+static VkBuffer               vk_sky_spans_buffer;
+static VkDeviceMemory         vk_sky_spans_memory;
+static void                  *vk_sky_spans_ptr;
+static VkBuffer               vk_sky_rows_buffer;
+static VkDeviceMemory         vk_sky_rows_memory;
+static void                  *vk_sky_rows_ptr;
+
+static VkShaderModule         vk_sky_cs_module;
+static VkDescriptorSetLayout  vk_sky_dsl;
+static VkDescriptorPool       vk_sky_pool;
+static VkDescriptorSet        vk_sky_set;
+static VkPipelineLayout       vk_sky_pipeline_layout;
+static VkPipeline             vk_sky_pipeline;
 
 /* --------------------------------------------------------
  * Phase 5b-05: GPU compute sprite rasterizer resources.
@@ -4566,6 +4663,297 @@ backend_vk_create_resources(void)
             vk_sky_upload_pending = true;
     }
 
+    /* Phase 5b-07a step 2 + 3: sky compute pipeline.
+     *
+     * Three host-visible host-coherent buffers (UBO, rows
+     * SSBO, spans SSBO) permanently mapped for cheap per-
+     * frame writes from the bucket-by-row pass in record_-
+     * frame.  The shader (sky_cs) plus its DSL / pool / set
+     * / pipeline_layout / pipeline mirror the alias-compute
+     * shape from Phase 5b-06 but with 6 bindings (2 storage
+     * images for the sky atlases on top of the output / UBO /
+     * 2 SSBOs alias uses): u_output (vk_texture), u_sky_-
+     * front, u_sky_back, SkyUbo, SkyRows, SkySpans.
+     *
+     * No push constants -- the bbox + all view-direction
+     * parameters travel through the UBO since they change
+     * each frame anyway.
+     *
+     * On any failure inside this block we return false; the
+     * caller (rhi.c via backend_vk_context_reset) unwinds
+     * via destroy_resources which is null-handle-safe. */
+    {
+        VkBufferCreateInfo            sb_ci;
+        VkMemoryRequirements          sb_mem_req;
+        VkMemoryAllocateInfo          sb_mem_ai;
+        VkShaderModuleCreateInfo      sk_sm_ci;
+        VkDescriptorSetLayoutBinding  sk_dsl_bindings[6];
+        VkDescriptorSetLayoutCreateInfo sk_dsl_ci;
+        VkDescriptorPoolSize          sk_pool_sizes[3];
+        VkDescriptorPoolCreateInfo    sk_pool_ci;
+        VkDescriptorSetAllocateInfo   sk_set_alloc;
+        VkDescriptorImageInfo         sk_img_info[3];
+        VkDescriptorBufferInfo        sk_buf_info[3];
+        VkWriteDescriptorSet          sk_writes[6];
+        VkPipelineLayoutCreateInfo    sk_pl_ci;
+        VkComputePipelineCreateInfo   sk_cp_ci;
+        VkPipelineShaderStageCreateInfo sk_cs_stage;
+        uint32_t                      sb_mem_type;
+        int                           bi;
+        int                           pass;
+
+        /* 1. Three host-visible storage / uniform buffers.
+         *    Iteration order: UBO (binding 3), rows SSBO
+         *    (binding 4), spans SSBO (binding 5).  All three
+         *    are HOST_VISIBLE | HOST_COHERENT and stay mapped
+         *    for the duration of vk_resources_ready, so each
+         *    per-frame upload is just a memcpy into the
+         *    mapped pointer (no Flush needed, no Begin /
+         *    EndMappedRange calls). */
+        for (pass = 0; pass < 3; pass++) {
+            VkBuffer        *buf_p = (pass == 0) ? &vk_sky_ubo_buffer
+                                  : (pass == 1) ? &vk_sky_rows_buffer
+                                                : &vk_sky_spans_buffer;
+            VkDeviceMemory  *mem_p = (pass == 0) ? &vk_sky_ubo_memory
+                                  : (pass == 1) ? &vk_sky_rows_memory
+                                                : &vk_sky_spans_memory;
+            void           **ptr_p = (pass == 0) ? &vk_sky_ubo_ptr
+                                  : (pass == 1) ? &vk_sky_rows_ptr
+                                                : &vk_sky_spans_ptr;
+            VkDeviceSize     sz    = (pass == 0) ? (VkDeviceSize)VK_SKY_UBO_BYTES
+                                  : (pass == 1) ? (VkDeviceSize)VK_SKY_ROW_BYTES
+                                                : (VkDeviceSize)VK_SKY_SPAN_BYTES;
+            VkBufferUsageFlags usage = (pass == 0)
+                                       ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+                                       : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            const char      *label = (pass == 0) ? "sky-ubo"
+                                  : (pass == 1) ? "sky-rows"
+                                                : "sky-spans";
+
+            memset(&sb_ci, 0, sizeof(sb_ci));
+            sb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            sb_ci.size        = sz;
+            sb_ci.usage       = usage;
+            sb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            r = vk_fn.CreateBuffer(vk_device, &sb_ci, NULL, buf_p);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateBuffer (%s) failed (%d)\n", label, (int)r);
+                return false;
+            }
+
+            vk_fn.GetBufferMemoryRequirements(vk_device, *buf_p, &sb_mem_req);
+            sb_mem_type = backend_vk_find_memory_type(sb_mem_req.memoryTypeBits,
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                                                     | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if (sb_mem_type == 0xFFFFFFFFu) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory type for %s\n",
+                           label);
+                return false;
+            }
+
+            memset(&sb_mem_ai, 0, sizeof(sb_mem_ai));
+            sb_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            sb_mem_ai.allocationSize  = sb_mem_req.size;
+            sb_mem_ai.memoryTypeIndex = sb_mem_type;
+
+            r = vk_fn.AllocateMemory(vk_device, &sb_mem_ai, NULL, mem_p);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateMemory (%s) failed (%d)\n", label, (int)r);
+                return false;
+            }
+
+            r = vk_fn.BindBufferMemory(vk_device, *buf_p, *mem_p, 0);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: BindBufferMemory (%s) failed (%d)\n", label, (int)r);
+                return false;
+            }
+
+            r = vk_fn.MapMemory(vk_device, *mem_p, 0, VK_WHOLE_SIZE, 0, ptr_p);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: MapMemory (%s) failed (%d)\n", label, (int)r);
+                return false;
+            }
+        }
+
+        /* 2. Shader module from precompiled SPIR-V. */
+        memset(&sk_sm_ci, 0, sizeof(sk_sm_ci));
+        sk_sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        sk_sm_ci.codeSize = sizeof(spv_sky_cs);
+        sk_sm_ci.pCode    = spv_sky_cs;
+
+        r = vk_fn.CreateShaderModule(vk_device, &sk_sm_ci, NULL,
+                                     &vk_sky_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateShaderModule (sky.comp) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 3. Descriptor set layout: 6 bindings, all COMPUTE. */
+        memset(sk_dsl_bindings, 0, sizeof(sk_dsl_bindings));
+        for (bi = 0; bi < 6; bi++) {
+            sk_dsl_bindings[bi].binding         = (uint32_t)bi;
+            sk_dsl_bindings[bi].descriptorCount = 1;
+            sk_dsl_bindings[bi].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        }
+        sk_dsl_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; /* u_output */
+        sk_dsl_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; /* u_sky_front */
+        sk_dsl_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; /* u_sky_back */
+        sk_dsl_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;/* SkyUbo */
+        sk_dsl_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;/* SkyRows */
+        sk_dsl_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;/* SkySpans */
+
+        memset(&sk_dsl_ci, 0, sizeof(sk_dsl_ci));
+        sk_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        sk_dsl_ci.bindingCount = 6;
+        sk_dsl_ci.pBindings    = sk_dsl_bindings;
+
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &sk_dsl_ci, NULL,
+                                            &vk_sky_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorSetLayout (sky) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 4. Descriptor pool sized for the single set we
+         *    allocate below.  Three pool sizes: 3 storage
+         *    images, 1 UBO, 2 storage buffers. */
+        memset(sk_pool_sizes, 0, sizeof(sk_pool_sizes));
+        sk_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        sk_pool_sizes[0].descriptorCount = 3;
+        sk_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        sk_pool_sizes[1].descriptorCount = 1;
+        sk_pool_sizes[2].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        sk_pool_sizes[2].descriptorCount = 2;
+
+        memset(&sk_pool_ci, 0, sizeof(sk_pool_ci));
+        sk_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        sk_pool_ci.maxSets       = 1;
+        sk_pool_ci.poolSizeCount = 3;
+        sk_pool_ci.pPoolSizes    = sk_pool_sizes;
+
+        r = vk_fn.CreateDescriptorPool(vk_device, &sk_pool_ci, NULL,
+                                       &vk_sky_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorPool (sky) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(&sk_set_alloc, 0, sizeof(sk_set_alloc));
+        sk_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        sk_set_alloc.descriptorPool     = vk_sky_pool;
+        sk_set_alloc.descriptorSetCount = 1;
+        sk_set_alloc.pSetLayouts        = &vk_sky_dsl;
+
+        r = vk_fn.AllocateDescriptorSets(vk_device, &sk_set_alloc, &vk_sky_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets (sky) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 5. Bind the 6 descriptors.  Output image is
+         *    vk_image_view (the storage view of vk_texture
+         *    that compute paths write to via imageStore); sky
+         *    atlases are vk_sky_front_view / vk_sky_back_view
+         *    from step 1; the three buffers are the just-
+         *    created host-visible UBO + SSBOs. */
+        memset(sk_img_info, 0, sizeof(sk_img_info));
+        sk_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        sk_img_info[0].imageView   = vk_image_view;
+        sk_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        sk_img_info[1].imageView   = vk_sky_front_view;
+        sk_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        sk_img_info[2].imageView   = vk_sky_back_view;
+
+        memset(sk_buf_info, 0, sizeof(sk_buf_info));
+        sk_buf_info[0].buffer = vk_sky_ubo_buffer;
+        sk_buf_info[0].offset = 0;
+        sk_buf_info[0].range  = VK_WHOLE_SIZE;
+        sk_buf_info[1].buffer = vk_sky_rows_buffer;
+        sk_buf_info[1].offset = 0;
+        sk_buf_info[1].range  = VK_WHOLE_SIZE;
+        sk_buf_info[2].buffer = vk_sky_spans_buffer;
+        sk_buf_info[2].offset = 0;
+        sk_buf_info[2].range  = VK_WHOLE_SIZE;
+
+        memset(sk_writes, 0, sizeof(sk_writes));
+        for (bi = 0; bi < 6; bi++) {
+            sk_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            sk_writes[bi].dstSet          = vk_sky_set;
+            sk_writes[bi].dstBinding      = (uint32_t)bi;
+            sk_writes[bi].descriptorCount = 1;
+        }
+        sk_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        sk_writes[0].pImageInfo     = &sk_img_info[0];
+        sk_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        sk_writes[1].pImageInfo     = &sk_img_info[1];
+        sk_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        sk_writes[2].pImageInfo     = &sk_img_info[2];
+        sk_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        sk_writes[3].pBufferInfo    = &sk_buf_info[0];
+        sk_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        sk_writes[4].pBufferInfo    = &sk_buf_info[1];
+        sk_writes[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        sk_writes[5].pBufferInfo    = &sk_buf_info[2];
+
+        vk_fn.UpdateDescriptorSets(vk_device, 6, sk_writes, 0, NULL);
+
+        /* 6. Pipeline layout (no push constants -- everything
+         *    in the UBO) + compute pipeline. */
+        memset(&sk_pl_ci, 0, sizeof(sk_pl_ci));
+        sk_pl_ci.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        sk_pl_ci.setLayoutCount = 1;
+        sk_pl_ci.pSetLayouts    = &vk_sky_dsl;
+
+        r = vk_fn.CreatePipelineLayout(vk_device, &sk_pl_ci, NULL,
+                                       &vk_sky_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreatePipelineLayout (sky) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(&sk_cs_stage, 0, sizeof(sk_cs_stage));
+        sk_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        sk_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        sk_cs_stage.module = vk_sky_cs_module;
+        sk_cs_stage.pName  = "main";
+
+        memset(&sk_cp_ci, 0, sizeof(sk_cp_ci));
+        sk_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        sk_cp_ci.stage  = sk_cs_stage;
+        sk_cp_ci.layout = vk_sky_pipeline_layout;
+
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE,
+                                         1, &sk_cp_ci, NULL,
+                                         &vk_sky_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateComputePipelines (sky) failed (%d)\n", (int)r);
+            return false;
+        }
+    }
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
@@ -4847,6 +5235,89 @@ backend_vk_destroy_resources(void)
         vk_sky_front_memory = VK_NULL_HANDLE;
     }
     vk_sky_upload_pending = false;
+
+    /* Phase 5b-07a step 2 + 3: sky compute pipeline +
+     * mapped buffers.  Reverse-create order.  UnmapMemory
+     * before FreeMemory for symmetry with the MapMemory in
+     * create (and to make the lifetime obvious; FreeMemory
+     * implicitly unmaps anyway).  Pool destruction
+     * implicitly frees vk_sky_set so we just null its
+     * handle.  vk_sky_collected* state lives in BSS and
+     * survives; it's reset at the start of each frame in
+     * record_frame's sky-dispatch path anyway. */
+    if (vk_sky_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_sky_pipeline, NULL);
+        vk_sky_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_sky_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_sky_pipeline_layout, NULL);
+        vk_sky_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_sky_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_sky_pool, NULL);
+        vk_sky_pool = VK_NULL_HANDLE;
+        vk_sky_set  = VK_NULL_HANDLE;
+    }
+    if (vk_sky_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device, vk_sky_dsl, NULL);
+        vk_sky_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_sky_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_sky_cs_module, NULL);
+        vk_sky_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_sky_spans_memory != VK_NULL_HANDLE && vk_sky_spans_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_sky_spans_memory);
+        vk_sky_spans_ptr = NULL;
+    }
+    if (vk_sky_spans_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_sky_spans_buffer, NULL);
+        vk_sky_spans_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_sky_spans_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sky_spans_memory, NULL);
+        vk_sky_spans_memory = VK_NULL_HANDLE;
+    }
+    if (vk_sky_rows_memory != VK_NULL_HANDLE && vk_sky_rows_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_sky_rows_memory);
+        vk_sky_rows_ptr = NULL;
+    }
+    if (vk_sky_rows_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_sky_rows_buffer, NULL);
+        vk_sky_rows_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_sky_rows_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sky_rows_memory, NULL);
+        vk_sky_rows_memory = VK_NULL_HANDLE;
+    }
+    if (vk_sky_ubo_memory != VK_NULL_HANDLE && vk_sky_ubo_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_sky_ubo_memory);
+        vk_sky_ubo_ptr = NULL;
+    }
+    if (vk_sky_ubo_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_sky_ubo_buffer, NULL);
+        vk_sky_ubo_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_sky_ubo_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_sky_ubo_memory, NULL);
+        vk_sky_ubo_memory = VK_NULL_HANDLE;
+    }
+    vk_sky_collected_count = 0;
 
     /* Phase 5b-02 particle pipeline / resources teardown.
      * Reverse-create order; pool destruction implicitly
@@ -7476,6 +7947,132 @@ backend_vk_record_frame(void)
                                  0, NULL,
                                  3, barriers);
 
+        /* Phase 5b-07a step 3: sky compute dispatch.
+         *
+         * Runs BEFORE the alias / particle / sprite dispatches
+         * so when those later passes Z-test against vk_zbuffer
+         * (which holds sky's far Z at sky pixels, deposited by
+         * the SW D_DrawZSpans path that still runs in d_edge.c
+         * for SURF_DRAWSKY) and atomicMax wins (alias is
+         * closer), their imageStore correctly overwrites sky's
+         * color at those pixels.
+         *
+         * A SHADER_WRITE -> SHADER_WRITE memory barrier
+         * follows the dispatch to serialise vk_texture writes
+         * against the subsequent compute passes -- without it
+         * the GPU is free to schedule sky and (e.g.) alias
+         * concurrently, racing on the shared output image. */
+        if (vk_sky_collected_count > 0 && vk_sky_ubo_ptr) {
+            struct vk_sky_ubo *ubo  = (struct vk_sky_ubo *)vk_sky_ubo_ptr;
+            uint32_t          *rows = (uint32_t *)vk_sky_rows_ptr;
+            uint32_t          *sp   = (uint32_t *)vk_sky_spans_ptr;
+            VkMemoryBarrier    sky_mem_bar;
+            unsigned           si;
+            int                v;
+            uint32_t           running;
+            uint32_t           bbox_w, bbox_h;
+
+            /* Bucket spans by scanline.  Two passes.  Pass 1
+             * counts per row (storing in the .y slot of each
+             * (first, count) pair).  Pass 2 prefix-sums the
+             * counts into .x and resets .y for placement.
+             * Pass 3 places each span at rows[v].x + rows[v].y
+             * and increments .y so it doubles as a write
+             * cursor; .y ends up holding the final count, as
+             * the shader expects. */
+            for (v = vk_sky_bbox_min_y; v < vk_sky_bbox_max_y; v++) {
+                rows[2 * v]     = 0;
+                rows[2 * v + 1] = 0;
+            }
+            for (si = 0; si < vk_sky_collected_count; si++) {
+                int row = vk_sky_collected[si].v;
+                rows[2 * row + 1]++;
+            }
+            running = 0;
+            for (v = vk_sky_bbox_min_y; v < vk_sky_bbox_max_y; v++) {
+                uint32_t cnt = rows[2 * v + 1];
+                rows[2 * v]     = running;
+                rows[2 * v + 1] = 0;
+                running += cnt;
+            }
+            for (si = 0; si < vk_sky_collected_count; si++) {
+                int      row    = vk_sky_collected[si].v;
+                uint32_t pos    = rows[2 * row] + rows[2 * row + 1];
+                sp[2 * pos]     = vk_sky_collected[si].u;
+                sp[2 * pos + 1] = vk_sky_collected[si].count;
+                rows[2 * row + 1]++;
+            }
+
+            /* Fill the UBO.  std140 layout: vec3 + pad fp32,
+             * 3 times; then 8 fp32 fields; then 6 u32 fields.
+             * struct vk_sky_ubo's C layout matches. */
+            memset(ubo, 0, sizeof(*ubo));
+            ubo->vpn[0]      = vpn[0];
+            ubo->vpn[1]      = vpn[1];
+            ubo->vpn[2]      = vpn[2];
+            ubo->vright[0]   = vright[0];
+            ubo->vright[1]   = vright[1];
+            ubo->vright[2]   = vright[2];
+            ubo->vup[0]      = vup[0];
+            ubo->vup[1]      = vup[1];
+            ubo->vup[2]      = vup[2];
+            ubo->xcenter    = xcenter;
+            ubo->ycenter    = ycenter;
+            ubo->xscale     = xscale;
+            ubo->yscale     = yscale;
+            ubo->timespeed1 = skytime * skyspeed;
+            ubo->timespeed2 = ubo->timespeed1 * 2.0f;
+            bbox_w = (uint32_t)(vk_sky_bbox_max_x - vk_sky_bbox_min_x);
+            bbox_h = (uint32_t)(vk_sky_bbox_max_y - vk_sky_bbox_min_y);
+            ubo->bbox_min_x = (uint32_t)vk_sky_bbox_min_x;
+            ubo->bbox_min_y = (uint32_t)vk_sky_bbox_min_y;
+            ubo->bbox_w     = bbox_w;
+            ubo->bbox_h     = bbox_h;
+
+            /* Dispatch one workgroup per 8x8 tile of the
+             * bbox.  Per-row span list lookup inside the
+             * shader filters pixels not claimed by any sky
+             * span; the heavy per-pixel sphere-projection
+             * runs only at hits. */
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_sky_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_sky_pipeline_layout,
+                                        0,
+                                        1, &vk_sky_set,
+                                        0, NULL);
+            vk_fn.CmdDispatch(vk_cmd_buffer,
+                              (bbox_w + 7u) / 8u,
+                              (bbox_h + 7u) / 8u,
+                              1);
+
+            /* Serialise sky's vk_texture writes against the
+             * downstream alias / particle / sprite dispatches.
+             * Without this barrier the GPU is free to
+             * schedule those passes concurrently with sky;
+             * since they all write vk_texture (sky
+             * unconditionally, the others atomicMax-gated)
+             * and the closer-geometry write must land AFTER
+             * sky's at any overlapping pixel, the
+             * SHADER_WRITE -> SHADER_WRITE barrier is
+             * required for correctness. */
+            memset(&sky_mem_bar, 0, sizeof(sky_mem_bar));
+            sky_mem_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            sky_mem_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            sky_mem_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                      | VK_ACCESS_SHADER_WRITE_BIT;
+
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     1, &sky_mem_bar,
+                                     0, NULL,
+                                     0, NULL);
+        }
+
         if (particles_active) {
             /* Particles dispatch (Phase 5b-02).  One
              * workgroup invocation per particle; local_
@@ -7902,6 +8499,11 @@ backend_vk_record_frame(void)
     vk_alias_skin_count      = 0;
     vk_alias_cmap_count      = 0;
 
+    /* Phase 5b-07a step 2: reset the sky span collector.
+     * Next frame's d_edge.c::D_DrawSurfaces will repopulate
+     * via dispatch_3d_sky_span on every SURF_DRAWSKY span. */
+    vk_sky_collected_count = 0;
+
     return true;
 }
 #endif
@@ -8097,6 +8699,61 @@ backend_vk_notify_sky_texture(const byte *front, const byte *back)
 #endif
 }
 
+/*
+ * backend_vk_dispatch_3d_sky_span -- Phase 5b-07a step 2
+ *
+ * Called from d_edge.c's SURF_DRAWSKY branch once per
+ * espan_t.  Appends to vk_sky_collected[] and grows the
+ * screen-space bbox.  The actual GPU work happens in
+ * record_frame: bucket-by-row, upload to mapped buffers,
+ * CmdDispatch sky.comp.  Drops silently when the table
+ * is full (VK_SKY_MAX_SPANS = 8192 is enough for any
+ * realistic Quake frame; a typical level has a few hundred
+ * sky spans).  Drops silently when resources aren't ready
+ * (pre-context-reset state).
+ *
+ * Always defined so the unconditional vtable can reference
+ * it; the body is a no-op without RHI_HAVE_VULKAN.
+ */
+static void
+backend_vk_dispatch_3d_sky_span(int u, int v, int count)
+{
+#ifdef RHI_HAVE_VULKAN
+    struct vk_sky_collected_span *entry;
+
+    if (!vk_resources_ready || count <= 0)
+        return;
+    if (vk_sky_collected_count >= VK_SKY_MAX_SPANS)
+        return;
+    if (v < 0 || v >= (int)VK_SKY_MAX_ROWS)
+        return;
+
+    entry = &vk_sky_collected[vk_sky_collected_count++];
+    entry->u     = (uint16_t)u;
+    entry->v     = (uint16_t)v;
+    entry->count = (uint16_t)count;
+
+    /* Grow the bbox.  vk_sky_collected_count == 1 is the
+     * first-span case where we seed the bbox; subsequent
+     * spans expand it. */
+    if (vk_sky_collected_count == 1) {
+        vk_sky_bbox_min_x = u;
+        vk_sky_bbox_max_x = u + count;
+        vk_sky_bbox_min_y = v;
+        vk_sky_bbox_max_y = v + 1;
+    } else {
+        if (u < vk_sky_bbox_min_x)         vk_sky_bbox_min_x = u;
+        if (u + count > vk_sky_bbox_max_x) vk_sky_bbox_max_x = u + count;
+        if (v < vk_sky_bbox_min_y)         vk_sky_bbox_min_y = v;
+        if (v + 1 > vk_sky_bbox_max_y)     vk_sky_bbox_max_y = v + 1;
+    }
+#else
+    (void)u;
+    (void)v;
+    (void)count;
+#endif
+}
+
 const render_backend_t g_rhi_backend_vk = {
     "vulkan",
     RHI_BACKEND_VULKAN,
@@ -8117,5 +8774,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_dispatch_3d_sprite_impl,
     backend_vk_dispatch_3d_alias_impl,
     backend_vk_notify_cache_invalidate,
-    backend_vk_notify_sky_texture
+    backend_vk_notify_sky_texture,
+    backend_vk_dispatch_3d_sky_span
 };

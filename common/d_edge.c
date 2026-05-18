@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "d_local.h"
 #include "quakedef.h"
 #include "r_local.h"
+#include "rhi.h"
 
 #include "client.h"
 
@@ -174,7 +175,30 @@ void D_DrawSurfaces(void)
 
       if (s->flags & SURF_DRAWSKY)
       {
-         D_DrawSkyScans8(s->spans);
+         /* Phase 5b-07a: when the RHI exposes a sky-span
+          * dispatch entry, queue each span for GPU compute
+          * raster.  The SW D_DrawSkyScans8 is skipped in
+          * that branch -- sky.comp writes directly into
+          * vk_texture at end_frame, overwriting whatever
+          * vid.buffer's sky pixels held (which is fine
+          * because nothing else reads vid.buffer at those
+          * pixels in the RHI compose path).
+          *
+          * D_DrawZSpans below always runs so d_pzbuffer
+          * still holds the sky's far-Z values; the alias /
+          * particle / sprite compute paths Z-test against
+          * the uploaded vk_zbuffer and correctly win over
+          * sky pixels for closer geometry. */
+         if (g_rhi && g_rhi->dispatch_3d_sky_span)
+         {
+            const espan_t *p;
+            for (p = s->spans; p; p = p->pnext)
+               g_rhi->dispatch_3d_sky_span(p->u, p->v, p->count);
+         }
+         else
+         {
+            D_DrawSkyScans8(s->spans);
+         }
          D_DrawZSpans(s->spans);
       }
       else if (s->flags & SURF_DRAWBACKGROUND)
