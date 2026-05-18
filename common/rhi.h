@@ -135,6 +135,40 @@ typedef struct render_backend_s {
      * needing a separate transparent variant. */
     void     (*queue_2d_pic_scaled)(int x, int y,
                                     const qpic_t *pic, int scale);
+
+    /* 2D console-background intercept (Phase 4r,
+     * originally tried as Phase 4p / 67c8f47 and reverted
+     * because at that time the scale > 1 pic path still
+     * SW-wrote vid.buffer; M_Draw's menu pics landed
+     * there and the conback overlay quad covered them.
+     * After Phase 4q above moves the scale > 1 path into
+     * the overlay queue too, the intercept becomes safe:
+     * M_Draw queues conback then menu pics, so the
+     * conback lands underneath them in queue order and
+     * the menu pics correctly draw on top).
+     *
+     * Draw_ConsoleBackground is the one place in the SW
+     * 2D pipeline that writes vid.buffer directly with a
+     * stretched-bottom-portion sample of a pic
+     * (gfx/conback.lmp) rather than through Draw_Pic /
+     * Draw_PicScaled.  Phase 4l / 4o / 4q left it on the
+     * SW path; this entry routes it through the overlay
+     * queue too.
+     *
+     * `lines` is the on-screen height of the backdrop
+     * (the scr_con_current value the SW path uses).  The
+     * backend stretches the bottom `lines / vid.height`
+     * fraction of the pic up to a (vid.width, lines)
+     * on-screen rect, queued in call order so earlier
+     * overlay pushes (Sbar HUD entries from
+     * Sbar_Draw, etc.) are covered, and later overlay
+     * pushes (console text chars from Con_DrawConsole's
+     * character loop, menu pics from M_Draw) correctly
+     * draw on top.  Caller passes the pre-
+     * Draw_ConbackString-modified conback (version-
+     * string baked in) so the cache captures the right
+     * pixels on first upload. */
+    void     (*queue_2d_console_background)(int lines, const qpic_t *pic);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

@@ -874,6 +874,27 @@ Draw_ConsoleBackground(int lines)
     /* hack the version number directly into the pic */
     Draw_ConbackString(conback, stringify(TYR_VERSION));
 
+    /* Phase 4r (re-attempt of 67c8f47 / Phase 4p, see
+     * 02c3181 for the revert and 8a9268d / Phase 4q for
+     * the unblocking scale > 1 pic intercept): forward
+     * to the backend's overlay-queue intercept when
+     * non-NULL.  The intercept queues a stretched-
+     * bottom-portion quad after any prior 2D pushes so
+     * earlier overlay entries (Sbar HUD pics / digits,
+     * etc.) are covered, and later overlay pushes
+     * (console-text characters from Con_DrawConsole's
+     * character loop, menu pics from M_Draw) correctly
+     * draw on top.  Must be called *after*
+     * Draw_ConbackString above so the cached upload
+     * captures the version-stamped pixels.  When the
+     * field is NULL (SW backend, SW-only build),
+     * Draw_ConsoleBackground falls through to its
+     * original memcpy-into-vid.buffer behaviour. */
+    if (g_rhi && g_rhi->queue_2d_console_background) {
+	g_rhi->queue_2d_console_background(lines, conback);
+	return;
+    }
+
     /* draw the pic */
     {
 	dest = vid.conbuffer;

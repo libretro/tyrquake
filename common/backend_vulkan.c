@@ -2769,6 +2769,125 @@ backend_vk_queue_2d_char(int x, int y, int num, int scale)
     draw->u1       = (float)(col + 1)   / 16.0f;
     draw->v1       = (float)(row + 1)   / 16.0f;
 }
+
+/*
+ * backend_vk_queue_2d_console_background -- Phase 4r
+ * (re-attempt of 67c8f47 / Phase 4p) Draw_Console
+ * Background intercept body.
+ *
+ * The original Phase 4p attempt landed and was reverted
+ * (02c3181) because at that time M_DrawPic / M_Draw
+ * TransPic at scale > 1 still SW-wrote menu pics into
+ * vid.buffer; queuing the conback as an overlay quad
+ * then covered the menu pics in vid.buffer instead of
+ * sitting underneath them in queue order.  Phase 4q
+ * (8a9268d) routes scale > 1 pics through the overlay
+ * queue, which fixes the ordering: M_Draw now queues
+ * conback first then the menu pics, and the menu pics
+ * correctly draw on top of the conback as overlay
+ * entries.  The implementation here is otherwise
+ * unchanged from 67c8f47.
+ *
+ * The SW Draw_ConsoleBackground stretches the gfx/conback
+ * .lmp pic vertically to fit (vid.width, lines), sampling
+ * the bottom `lines / vid.height` fraction of the source.
+ * The relevant SW math:
+ *
+ *   for (y = 0; y < lines; y++)
+ *     v = (vid.conheight - lines + y) * conback->height
+ *         / vid.conheight;
+ *
+ * so as y sweeps [0, lines) the source v sweeps
+ * [(vid.conheight - lines) * conback->height / vid.conheight,
+ *  ~conback->height).  Normalised to [0, 1] UV that's
+ *
+ *   v0 = (vid.height - lines) / vid.height
+ *   v1 = 1.0
+ *
+ * which is what we set on the overlay quad below.  At
+ * lines == vid.height (full-screen console, the
+ * con_forcedup case in screen.c::SCR_SetUpToDrawConsole)
+ * v0 collapses to 0 and the whole pic is sampled.
+ *
+ * Caching is keyed by the pic pointer (Draw_CachePic
+ * returns a stable hunk pointer; same convention queue_2d
+ * _pic uses for HUD / menu pics).  Caller already ran
+ * Draw_ConbackString before the intercept, so the cached
+ * upload captures the TYR_VERSION text baked into the
+ * pic.  TYR_VERSION is constant per run, so the cached
+ * version stays accurate across all subsequent frames.
+ */
+static void
+backend_vk_queue_2d_console_background(int lines, const qpic_t *pic)
+{
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+    int                  pw, ph;
+    float                v0;
+
+    if (!vk_resources_ready || !pic || lines <= 0)
+        return;
+
+    pw = pic->width;
+    ph = pic->height;
+    if (pw <= 0 || ph <= 0)
+        return;
+
+    /* Cache lookup -- same linear scan keyed by pic
+     * pointer that queue_2d_pic uses. */
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == (const void *)pic) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX)
+            return;
+
+        if (!backend_vk_begin_uploads())
+            return;
+        if (!backend_vk_upload_pic_slot(slot_idx,
+                                        (unsigned)pw, (unsigned)ph,
+                                        pic->data)) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        if (!backend_vk_end_uploads()) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        vk_overlay_slots[slot_idx].key = (const void *)pic;
+    }
+
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    if (lines > (int)height)
+        lines = (int)height;
+    v0 = (float)((int)height - lines) / (float)height;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = -1.0f;
+    draw->y0       = -1.0f;
+    draw->x1       =  1.0f;
+    draw->y1       = (float)(2.0 * (double)lines / (double)height - 1.0);
+    draw->u0       = 0.0f;
+    draw->v0       = v0;
+    draw->u1       = 1.0f;
+    draw->v1       = 1.0f;
+}
 #endif /* RHI_HAVE_VULKAN */
 
 /*
@@ -2814,6 +2933,20 @@ backend_vk_queue_2d_pic_scaled_entry(int x, int y,
     backend_vk_queue_2d_pic_scaled(x, y, pic, scale);
 #else
     (void)x; (void)y; (void)pic; (void)scale;
+#endif
+}
+
+/*
+ * Vtable entry point for queue_2d_console_background.
+ * Same #ifdef pattern as the entries above.
+ */
+static void
+backend_vk_queue_2d_console_background_entry(int lines, const qpic_t *pic)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_console_background(lines, pic);
+#else
+    (void)lines; (void)pic;
 #endif
 }
 
@@ -3306,5 +3439,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_end_frame,
     backend_vk_queue_2d_pic_entry,
     backend_vk_queue_2d_char_entry,
-    backend_vk_queue_2d_pic_scaled_entry
+    backend_vk_queue_2d_pic_scaled_entry,
+    backend_vk_queue_2d_console_background_entry
 };
