@@ -298,14 +298,28 @@ cshift_t cshift_slime = { {0, 25, 5}, 150 };
 cshift_t cshift_lava = { {255, 80, 0}, 150 };
 
 cvar_t v_gamma = { "gamma", "0.95", true };
+cvar_t v_contrast = { "contrast", "1.0", true };
 
-byte gammatable[256];		/* palette is sent through this */
+byte gammatable[256];		/* palette is sent through this; folds
+				 * contrast + gamma into a single LUT,
+				 * applied per channel by V_UpdatePalette */
 
-static void BuildGammaTable(float g)
+/* Build the combined contrast+gamma LUT.  Contrast scales each
+ * channel about the 128 midpoint (out = (in - 128) * c + 128,
+ * clamped), then gamma applies the perceptual curve on top.
+ * Ordering matches the usual image-processing convention
+ * (linear-space tonal scaling before perceptual gamma) and
+ * keeps the c==1 / g==1 cases identity.  Both knobs land in
+ * the same table so V_UpdatePalette's per-channel lookups
+ * pick up both transforms without an extra pass, and the
+ * VID_SetPalette downstream feeds the result into both
+ * d_8to16table (SW present) and d_8to24table_shifted (Vulkan
+ * compose) -- so contrast tracks gamma to every backend. */
+static void BuildGammaTable(float g, float c)
 {
    int i;
 
-   if (g == 1.0)
+   if (g == 1.0f && c == 1.0f)
    {
       for (i = 0; i < 256; i++)
          gammatable[i] = i;
@@ -314,12 +328,16 @@ static void BuildGammaTable(float g)
 
    for (i = 0; i < 256; i++)
    {
-      int inf = 255 * powf((i + 0.5) / 255.5, g) + 0.5;
-      if (inf < 0)
-         inf = 0;
-      if (inf > 255)
-         inf = 255;
-      gammatable[i] = inf;
+      float x = ((float)i - 128.0f) * c + 128.0f;
+      int inf;
+
+      if (x < 0.0f)   x = 0.0f;
+      if (x > 255.0f) x = 255.0f;
+
+      inf = (int)(255.0f * powf((x + 0.5f) / 255.5f, g) + 0.5f);
+      if (inf < 0)   inf = 0;
+      if (inf > 255) inf = 255;
+      gammatable[i] = (byte)inf;
    }
 }
 
@@ -330,13 +348,16 @@ V_CheckGamma
 */
 static qboolean V_CheckGamma(void)
 {
-   static float oldgammavalue;
+   static float oldgammavalue    = -1.0f;
+   static float oldcontrastvalue = -1.0f;
 
-   if (v_gamma.value == oldgammavalue)
+   if (v_gamma.value    == oldgammavalue
+    && v_contrast.value == oldcontrastvalue)
       return false;
-   oldgammavalue = v_gamma.value;
+   oldgammavalue    = v_gamma.value;
+   oldcontrastvalue = v_contrast.value;
 
-   BuildGammaTable(v_gamma.value);
+   BuildGammaTable(v_gamma.value, v_contrast.value);
    vid.recalc_refdef = 1;	/* force a surface cache flush */
 
    return true;
@@ -1022,6 +1043,7 @@ void V_Init(void)
    Cvar_RegisterVariable(&v_kickroll);
    Cvar_RegisterVariable(&v_kickpitch);
 
-   BuildGammaTable(1.0);	/* no gamma yet */
+   BuildGammaTable(1.0f, 1.0f);	/* no gamma / no contrast yet */
    Cvar_RegisterVariable(&v_gamma);
+   Cvar_RegisterVariable(&v_contrast);
 }
