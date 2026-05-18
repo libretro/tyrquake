@@ -69,7 +69,17 @@
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-layout(set = 0, binding = 0) uniform sampler2D            u_index;
+/* Phase 5b-01: u_index switched from sampler2D (R8_UNORM,
+ * normalised-float read) to usampler2D (R8_UINT, integer
+ * read).  vk_texture's format change to R8_UINT was
+ * required to add VK_IMAGE_USAGE_STORAGE_BIT to the
+ * texture so future compute dispatches (particles, alias
+ * model rasterizer, world surface rasterizer, etc.) can
+ * write palette indices into it directly.  R8_UNORM is
+ * not in Vulkan 1.0's mandatory STORAGE format table;
+ * R8_UINT is.  Visual output is identical: the palette
+ * lookup picks the same byte either way. */
+layout(set = 0, binding = 0) uniform usampler2D           u_index;
 layout(set = 0, binding = 1) uniform sampler2D            u_palette;
 layout(set = 0, binding = 2, rgba8) uniform writeonly image2D u_output;
 
@@ -81,8 +91,8 @@ void main()
     if (pos.x >= outSize.x || pos.y >= outSize.y)
         return;
 
-    float idx = texelFetch(u_index, pos, 0).r;
-    vec3  rgb = texture(u_palette, vec2(idx, 0.5)).rgb;
+    uint idx  = texelFetch(u_index,   pos, 0).r;
+    vec3 rgb  = texelFetch(u_palette, ivec2(int(idx), 0), 0).rgb;
 
     imageStore(u_output, pos, vec4(rgb, 1.0));
 }

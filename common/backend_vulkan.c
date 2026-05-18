@@ -353,7 +353,11 @@ static size_t               vk_overlay_upload_offset;
  * the palette index) instead of R8G8B8A8_UNORM.
  * vk_palette_texture is the 256x1 RGBA8 lookup the compute
  * shader indexes into using vk_texture's value as the U
- * coordinate.
+ * coordinate.  (Phase 5b-01 then promoted vk_texture to
+ * R8_UINT + STORAGE_BIT so compute SW raster ports can
+ * imageStore palette indices directly; see the format-
+ * choice rationale at the vk_texture CreateImage call
+ * site.)
  *
  * Phase 4g: the descriptor set grows from 2 bindings to 3.
  * Binding 2 is a writeonly STORAGE_IMAGE pointing at
@@ -1229,21 +1233,36 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
-     * Source index texture for the fragment shader to sample
-     * from.  Sized 1:1 with the SW framebuffer (width x
-     * height), R8_UNORM (one byte per pixel, raw palette
+     * Source index texture for the palette compute shader to
+     * sample from.  Sized 1:1 with the SW framebuffer (width x
+     * height), R8_UINT (one byte per pixel, raw palette
      * index from vid.buffer).  OPTIMAL tiling, DEVICE_LOCAL
      * memory.  Usage covers the data path we need:
-     * TRANSFER_DST for the upload, SAMPLED for the fragment-
-     * shader read.  No MUTABLE_FORMAT flag; no STORAGE_BIT
-     * either -- R8_UNORM's storage support is not in the
-     * Vulkan 1.0 mandatory format table and the natural
-     * compute use case for this texture is a read, not a
-     * write. */
+     * TRANSFER_DST for the CPU-side upload from vid.buffer
+     * (still the producer when compute_rendering is off, and
+     * the producer of the unported CPU stages when on),
+     * SAMPLED for the palette compute shader's read, and
+     * STORAGE so the Phase 5b compute SW rasterizer ports
+     * (particles, alias, brush, sprite, sky, liquids, world
+     * surfaces) can imageStore palette indices directly.
+     *
+     * Phase 5b-01 switched the format R8_UNORM -> R8_UINT
+     * specifically to satisfy the STORAGE requirement:
+     * Vulkan 1.0's mandatory format-support table requires
+     * R8_UINT (and R8_SINT) to support storage-image use
+     * unconditionally on every implementation; R8_UNORM is
+     * optional for storage and a portable backend can't
+     * assume it.  The format change is functionally
+     * invisible -- vk_texture holds 8-bit palette indices
+     * either way, and the palette compute shader was
+     * updated in lockstep (sampler2D -> usampler2D, integer
+     * texelFetch return) to consume the new format.  No
+     * MUTABLE_FORMAT flag needed because every consumer
+     * now agrees on the integer interpretation. */
     memset(&image_ci, 0, sizeof(image_ci));
     image_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_ci.imageType     = VK_IMAGE_TYPE_2D;
-    image_ci.format        = VK_FORMAT_R8_UNORM;
+    image_ci.format        = VK_FORMAT_R8_UINT;
     image_ci.extent.width  = width;
     image_ci.extent.height = height;
     image_ci.extent.depth  = 1;
@@ -1252,7 +1271,8 @@ backend_vk_create_resources(void)
     image_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
     image_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
     image_ci.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                           | VK_IMAGE_USAGE_SAMPLED_BIT;
+                           | VK_IMAGE_USAGE_SAMPLED_BIT
+                           | VK_IMAGE_USAGE_STORAGE_BIT;
     image_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
     image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -1301,7 +1321,7 @@ backend_vk_create_resources(void)
     view_ci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     view_ci.image            = vk_texture;
     view_ci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
-    view_ci.format           = VK_FORMAT_R8_UNORM;
+    view_ci.format           = VK_FORMAT_R8_UINT;
     view_ci.components.r     = VK_COMPONENT_SWIZZLE_IDENTITY;
     view_ci.components.g     = VK_COMPONENT_SWIZZLE_IDENTITY;
     view_ci.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -1322,12 +1342,12 @@ backend_vk_create_resources(void)
 
     /* ---------------------------------------------------------
      * Palette texture.  256x1 R8G8B8A8_UNORM, one texel per
-     * palette entry.  The FS samples this with NEAREST
-     * filtering at u = idx (the R8_UNORM index value, which
-     * arrives as the float idx/255).  Verified mapping:
-     * floor((idx/255) * 256) == idx for every idx in
-     * [0, 255], so the texel boundary maps exactly to the
-     * palette entry without off-by-one. */
+     * palette entry.  The palette compute shader fetches
+     * this with texelFetch at u = idx (the R8_UINT index
+     * value, which arrives as a uint in [0, 255] after the
+     * Phase 5b-01 format change).  texelFetch with the
+     * integer coord lands directly on the palette entry --
+     * no normalised-coord rounding to worry about. */
     memset(&image_ci, 0, sizeof(image_ci));
     image_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_ci.imageType     = VK_IMAGE_TYPE_2D;
