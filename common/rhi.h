@@ -80,6 +80,23 @@ typedef struct render_backend_s {
      * FS discards on it, so the same intercept handles
      * Draw_TransPic correctly without a separate entry. */
     void     (*queue_2d_pic)(int x, int y, const qpic_t *pic);
+
+    /* 2D character intercept (Phase 4o).  Backends that
+     * render console / menu / HUD text natively populate
+     * this; SW backend leaves it NULL and Draw_Character /
+     * Draw_CharacterScaled fall through to their original
+     * memcpy-into-vid.buffer paths.  When non-NULL the
+     * call replaces the SW path the same way queue_2d_pic
+     * does for pics: forward + return; no SW write.
+     *
+     * x, y are screen-space; num is the character index in
+     * the 16x16 conchars atlas (after & 255); scale is the
+     * on-screen pixel scale, where the drawn rect is
+     * (8 * scale) x (8 * scale).  The backend is
+     * responsible for handling conchars's "byte 0 means
+     * transparent" semantics (different from the pic
+     * path's "byte 255 means transparent"). */
+    void     (*queue_2d_char)(int x, int y, int num, int scale);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

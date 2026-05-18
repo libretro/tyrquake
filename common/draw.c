@@ -245,6 +245,20 @@ void Draw_Character(int x, int y, int num)
     if (num < 0 || num > 255)
 	return;
 
+    /* Phase 4o: if the active backend implements a
+     * Draw_Character intercept (Vulkan: queue_2d_char
+     * pushes one quad sampling the conchars atlas at
+     * the right sub-UV), forward and skip the SW
+     * memcpy-into-vid.buffer below.  When no backend
+     * implements the intercept (SW-only builds, SW
+     * backend selected), the field stays NULL and
+     * Draw_Character falls through to its original
+     * behaviour. */
+    if (g_rhi && g_rhi->queue_2d_char) {
+	g_rhi->queue_2d_char(x, y, num, 1);
+	return;
+    }
+
     row = num >> 4;
     col = num & 15;
     source = draw_chars + (row << 10) + (col << 3);
@@ -729,6 +743,12 @@ Draw_CharacterScaled(int x, int y, int num, int scale)
 	x + 8 * scale > (int)vid.width ||
 	y + 8 * scale > (int)vid.height)
 	return;
+
+    /* Phase 4o: see Draw_Character intercept above. */
+    if (g_rhi && g_rhi->queue_2d_char) {
+	g_rhi->queue_2d_char(x, y, num, scale);
+	return;
+    }
 
     row = num >> 4;
     col = num & 15;

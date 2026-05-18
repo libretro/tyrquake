@@ -188,6 +188,10 @@
                            * RGBA palette that tracks damage / quad /
                            * underwater shifts) for the palette
                            * texture upload. */
+#include "draw.h"         /* draw_chars -- the 128x128 conchars atlas
+                           * Phase 4o queue_2d_char uploads into a
+                           * dedicated slot to back Draw_Character /
+                           * Draw_String. */
 
 extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
                                    * dispatches into the SW rasterizer
@@ -290,7 +294,13 @@ static VkPipeline       vk_compute_pipeline;
  * the shared begin_uploads / upload_pic_slot /
  * end_uploads helper trio. */
 #define OVERLAY_SLOT_MAX 128   /* room for HUD + menu pics; Phase 4j uses 3 */
-#define OVERLAY_DRAW_MAX 256   /* per-frame draw cap; Phase 4j uses 3 */
+#define OVERLAY_DRAW_MAX 4096  /* per-frame draw cap; bumped from 256 in
+                                * Phase 4o because Draw_Character / Draw_String
+                                * intercepts can push thousands of entries when
+                                * the console is open at high resolution (every
+                                * visible character is one entry).  At 4096
+                                * entries the VB is 4096 * 4 * 16 = 256 KB --
+                                * still trivial. */
 
 struct overlay_slot {
     VkImage         image;
@@ -299,8 +309,9 @@ struct overlay_slot {
     VkDescriptorSet descriptor_set;
     unsigned        width;
     unsigned        height;
-    const void     *key;     /* cache key: qpic_t pointer the slot caches;
-                              * NULL == unpopulated */
+    const void     *key;     /* cache key: qpic_t pointer for pic slots, or
+                              * &draw_chars for the conchars slot, or NULL for
+                              * an empty slot */
 };
 
 struct overlay_draw {
@@ -309,6 +320,14 @@ struct overlay_draw {
     float    y0;   /* NDC top-left y */
     float    x1;   /* NDC bottom-right x */
     float    y1;   /* NDC bottom-right y */
+    /* Sub-UV control (Phase 4o).  pic draws set (0, 0)-(1, 1)
+     * to sample the whole slot texture; character draws set
+     * (col/16, row/16)-((col+1)/16, (row+1)/16) to pick one
+     * 8x8 cell out of the 128x128 conchars atlas. */
+    float    u0;
+    float    v0;
+    float    u1;
+    float    v1;
 };
 
 static VkShaderModule       vk_overlay_vs_module;
@@ -2352,10 +2371,14 @@ backend_vk_fill_overlay_vb(void)
 
     for (di = 0; di < vk_overlay_draw_count; di++) {
         const struct overlay_draw *d = &vk_overlay_draws[di];
-        dst[ 0] = d->x0; dst[ 1] = d->y1; dst[ 2] = 0.0f; dst[ 3] = 1.0f;
-        dst[ 4] = d->x1; dst[ 5] = d->y1; dst[ 6] = 1.0f; dst[ 7] = 1.0f;
-        dst[ 8] = d->x0; dst[ 9] = d->y0; dst[10] = 0.0f; dst[11] = 0.0f;
-        dst[12] = d->x1; dst[13] = d->y0; dst[14] = 1.0f; dst[15] = 0.0f;
+        /* bottom-left  */
+        dst[ 0] = d->x0; dst[ 1] = d->y1; dst[ 2] = d->u0; dst[ 3] = d->v1;
+        /* bottom-right */
+        dst[ 4] = d->x1; dst[ 5] = d->y1; dst[ 6] = d->u1; dst[ 7] = d->v1;
+        /* top-left     */
+        dst[ 8] = d->x0; dst[ 9] = d->y0; dst[10] = d->u0; dst[11] = d->v0;
+        /* top-right    */
+        dst[12] = d->x1; dst[13] = d->y0; dst[14] = d->u1; dst[15] = d->v0;
         dst += 16;
     }
 }
@@ -2486,6 +2509,158 @@ backend_vk_queue_2d_pic(int x, int y, const qpic_t *pic)
     draw->y0       = (float)(2.0  * (double)y        / (double)height - 1.0);
     draw->x1       = (float)(2.0  * (double)(x + pw) / (double)width  - 1.0);
     draw->y1       = (float)(2.0  * (double)(y + ph) / (double)height - 1.0);
+    /* Pic draws sample the whole slot. */
+    draw->u0       = 0.0f;
+    draw->v0       = 0.0f;
+    draw->u1       = 1.0f;
+    draw->v1       = 1.0f;
+}
+
+/*
+ * backend_vk_queue_2d_char -- Phase 4o Draw_Character /
+ * Draw_String intercept body.
+ *
+ * The conchars atlas is one 128x128 image (16x16 cells of
+ * 8x8 chars) that backs every visible character in
+ * console / menu / scoreboard / centerstring / finale
+ * text.  We cache it in exactly one overlay slot keyed by
+ * the address of the global draw_chars pointer (stable
+ * for the process lifetime, distinct from any qpic_t
+ * pointer so it never collides with pic-slot keys).
+ *
+ * Transparency handling
+ * =====================
+ * The conchars atlas uses palette byte 0 as its
+ * transparency marker (Draw_Character only writes
+ * source[i] when source[i] != 0).  That conflicts with
+ * the pic / TransPic intercept, which uses byte 255
+ * (TRANSPARENT_COLOR) as transparency and whose
+ * overlay_quad.frag discards on idx > 254.5 / 255.
+ *
+ * Rather than introduce a second pipeline / shader or a
+ * push-constant, we remap byte 0 to byte 255 during the
+ * one-time upload of draw_chars into the slot.  After
+ * remap, the existing discard catches the formerly-zero
+ * pixels.  This is safe iff conchars does not contain
+ * byte 255 as a legitimate (non-transparent) palette
+ * index -- if it did, those pixels would be incorrectly
+ * discarded.  We scan during upload and log a warning if
+ * we observe any byte-255 in the source data; if Lib
+ * ever sees that warning fire in practice, the proper
+ * fix is a push-constant transparency key or a second
+ * pipeline.  In the standard Quake conchars the count is
+ * zero.
+ */
+static void
+backend_vk_queue_2d_char(int x, int y, int num, int scale)
+{
+    /* Sentinel key: address of the global draw_chars
+     * pointer.  Stable for process lifetime; distinct
+     * from every qpic_t pointer (it lives in .data /
+     * .bss rather than the hunk allocator that hands
+     * out qpic_t storage). */
+    static const void *const conchars_key =
+        (const void *)&draw_chars;
+
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+    int                  row, col;
+    int                  w, h;
+
+    if (!vk_resources_ready || !draw_chars)
+        return;
+    if (scale < 1)
+        scale = 1;
+
+    num &= 255;
+
+    /* Cache lookup by the conchars sentinel. */
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == conchars_key) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        /* First call: find a free slot, remap byte 0
+         * -> byte 255 into a scratch buffer, upload. */
+        uint8_t *remapped;
+        size_t   i;
+        size_t   b255_count = 0;
+        qboolean ok;
+
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX)
+            return;
+
+        remapped = (uint8_t *)malloc(128u * 128u);
+        if (!remapped)
+            return;
+        for (i = 0; i < 128u * 128u; i++) {
+            byte b = draw_chars[i];
+            if (b == 0)
+                remapped[i] = 255;
+            else
+                remapped[i] = b;
+            if (b == 255)
+                b255_count++;
+        }
+        if (b255_count && log_cb)
+            log_cb(RETRO_LOG_WARN,
+                   "rhi-vk: conchars contains %u byte-255 pixels; "
+                   "those will be incorrectly discarded as transparent. "
+                   "Expect visual artefacts in console / menu text. "
+                   "(If you see this, push-constant transparency is the "
+                   "right next step.)\n",
+                   (unsigned)b255_count);
+
+        ok = backend_vk_begin_uploads();
+        if (ok)
+            ok = backend_vk_upload_pic_slot(slot_idx,
+                                            128u, 128u, remapped);
+        if (ok)
+            ok = backend_vk_end_uploads();
+        free(remapped);
+        if (!ok) {
+            /* Partial upload may have created some
+             * resources; clear key so the slot is
+             * treated as empty next time and the
+             * destroy_resources loop tears down what's
+             * there. */
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        vk_overlay_slots[slot_idx].key = conchars_key;
+    }
+
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    w   = 8 * scale;
+    h   = 8 * scale;
+    row = num >> 4;
+    col = num & 15;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = (float)(2.0  * (double)x       / (double)width  - 1.0);
+    draw->y0       = (float)(2.0  * (double)y       / (double)height - 1.0);
+    draw->x1       = (float)(2.0  * (double)(x + w) / (double)width  - 1.0);
+    draw->y1       = (float)(2.0  * (double)(y + h) / (double)height - 1.0);
+    /* Sub-UV: pick one 8x8 cell out of the 16x16 atlas. */
+    draw->u0       = (float)col         / 16.0f;
+    draw->v0       = (float)row         / 16.0f;
+    draw->u1       = (float)(col + 1)   / 16.0f;
+    draw->v1       = (float)(row + 1)   / 16.0f;
 }
 #endif /* RHI_HAVE_VULKAN */
 
@@ -2502,6 +2677,21 @@ backend_vk_queue_2d_pic_entry(int x, int y, const qpic_t *pic)
     backend_vk_queue_2d_pic(x, y, pic);
 #else
     (void)x; (void)y; (void)pic;
+#endif
+}
+
+/*
+ * Vtable entry point for queue_2d_char.  Same #ifdef
+ * pattern as the pic entry above: always defined so the
+ * vtable links, body no-ops in SW-only builds.
+ */
+static void
+backend_vk_queue_2d_char_entry(int x, int y, int num, int scale)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_char(x, y, num, scale);
+#else
+    (void)x; (void)y; (void)num; (void)scale;
 #endif
 }
 
@@ -2992,5 +3182,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_begin_frame,
     backend_vk_draw_view,
     backend_vk_end_frame,
-    backend_vk_queue_2d_pic_entry
+    backend_vk_queue_2d_pic_entry,
+    backend_vk_queue_2d_char_entry
 };
