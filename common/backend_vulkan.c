@@ -4870,14 +4870,18 @@ backend_vk_create_resources(void)
         }
 
         /* 5. Bind the 6 descriptors.  Output image is
-         *    vk_image_view (the storage view of vk_texture
-         *    that compute paths write to via imageStore); sky
-         *    atlases are vk_sky_front_view / vk_sky_back_view
-         *    from step 1; the three buffers are the just-
-         *    created host-visible UBO + SSBOs. */
+         *    vk_texture_view -- the R8_UINT storage view of
+         *    vk_texture that the other compute paths
+         *    (particles / sprites / alias) also imageStore
+         *    into; the R8G8B8A8_UNORM vk_image_view is the
+         *    final compose target and would format-mismatch
+         *    the shader's `r8ui` qualifier.  Sky atlases are
+         *    vk_sky_front_view / vk_sky_back_view from step
+         *    1; the three buffers are the just-created
+         *    host-visible UBO + SSBOs. */
         memset(sk_img_info, 0, sizeof(sk_img_info));
         sk_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-        sk_img_info[0].imageView   = vk_image_view;
+        sk_img_info[0].imageView   = vk_texture_view;
         sk_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         sk_img_info[1].imageView   = vk_sky_front_view;
         sk_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
