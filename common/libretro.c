@@ -103,6 +103,36 @@ static bool libretro_supports_bitmasks = false;
 #define DEFAULT_MEMSIZE_MB 32
 #endif
 
+#ifdef RHI_HAVE_VULKAN
+/* Phase 5b-06 follow-up (root-cause side): widen the Quake hunk
+ * for builds that can stand up the GPU compute renderer.  The
+ * extra pressure relative to a SW-only build comes from:
+ *
+ *   - Alias subdiv caches.  r_polysubdiv 3 keeps three
+ *     concurrent mesh resolutions per alias model in the cache
+ *     -- around 10 MiB peak across a typical Quake level, which
+ *     against a 32 MiB hunk meant constant Cache_FreeLow churn
+ *     and the qplaque-stripes corruption (since fixed source-
+ *     side by 4f5a634's invalidate-on-Cache_Free hook).  More
+ *     headroom keeps that pressure off the critical path.
+ *   - Sky-texture atlas pair per level (~32 KiB, tiny but
+ *     additive).
+ *   - Misc compute-side cached data (alias skin uploads, etc.;
+ *     tens of KiB).
+ *
+ * 64 MiB is a 2x bump on the PC default and gives ~30 MiB
+ * headroom over the worst-case 3-pass alias resident set.  SW-
+ * only builds (no RHI_HAVE_VULKAN) keep their previous footprint
+ * -- important on platforms that track per-core memory (the Wii /
+ * Xbox / GameCube defaults above stay at 8 / 24 / 32 MiB
+ * regardless).  The RHI is a compile-time switch: a Vulkan-
+ * capable build running its SW fallback (frontend without Vulkan
+ * support, or user-selected) still gets the bigger pool, which
+ * is benign -- Cache_FreeLow just fires less often. */
+#undef  DEFAULT_MEMSIZE_MB
+#define DEFAULT_MEMSIZE_MB 64
+#endif
+
 /* Use 44.1 kHz by default (matches CD
  * audio tracks) */
 #define AUDIO_SAMPLERATE_DEFAULT 44100
