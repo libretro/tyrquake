@@ -25,6 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "d_iface.h"
 #include "r_local.h"
+#include "rhi.h"        /* g_rhi / g_rhi_compute_rendering -- when
+                         * the active backend exposes a GPU
+                         * particle dispatch and compute rendering
+                         * is enabled, R_DrawParticles routes
+                         * through it and skips the CPU SW
+                         * D_DrawParticle loop (Phase 5b-02). */
 
 #define MAX_PARTICLES		2048	/* default max # of particles at one */
 					/*  time */
@@ -712,6 +718,24 @@ void R_DrawParticles(void)
    VectorScale(vright, xscaleshrink, r_pright);
    VectorScale(vup, yscaleshrink, r_pup);
    VectorCopy(vpn, r_ppn);
+
+   /* Phase 5b-02: GPU compute particle rasterizer.  When
+    * the active RHI backend exposes a dispatch entry AND
+    * the user has compute rendering enabled, hand the
+    * active linked-list head over and skip the CPU SW
+    * for-loop entirely -- the backend stages the particles
+    * for a GPU dispatch that runs as part of the per-frame
+    * command buffer in end_frame.  The VectorScale /
+    * VectorCopy above must still happen before the
+    * dispatch call so the SW raster state the backend
+    * snapshots (r_pright / r_pup / r_ppn) reflects this
+    * frame's camera. */
+   if (g_rhi && g_rhi->dispatch_3d_particles
+            && g_rhi_compute_rendering) {
+      g_rhi->dispatch_3d_particles(active_particles);
+      D_EndParticles();
+      return;
+   }
 
    for (p = active_particles; p; p = p->next)
       D_DrawParticle(p);

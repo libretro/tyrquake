@@ -29,6 +29,12 @@
 #include "render.h"   /* for refdef_t */
 #include "wad.h"      /* for qpic_t (queue_2d_pic) */
 
+/* Forward declaration so the dispatch_3d_particles vtable
+ * entry can be typed without dragging d_iface.h (which
+ * pulls in cvar.h / mathlib.h, more than rhi.h needs) into
+ * this header. */
+struct particle_s;
+
 typedef enum {
     RHI_BACKEND_NONE = 0,
     RHI_BACKEND_SOFTWARE,
@@ -270,6 +276,44 @@ typedef struct render_backend_s {
      * NULL on SW backend / SW-only build.  Draw_FadeScreen
      * falls through to its SW path. */
     void     (*queue_2d_fade_screen)(void);
+
+    /* 3D particle compute dispatch (Phase 5b-02).  GPU
+     * port of D_DrawParticle: backend stages the active
+     * particle list into a GPU SSBO, snapshots the
+     * relevant CPU SW raster state into push constants
+     * (r_origin / r_pright / r_pup / r_ppn / xcenter /
+     * ycenter / d_pix_* / d_vrect*_particle /
+     * d_y_aspect_shift), and records a compute dispatch
+     * that runs the particle rasterizer one workgroup
+     * invocation per particle.  Output is palette-
+     * indexed pixels written into the same compute-
+     * writable target the existing palette compute
+     * pass reads (vk_texture on the Vulkan backend),
+     * Z-tested against a GPU side-channel of d_pzbuffer
+     * uploaded once per frame ahead of the dispatch.
+     *
+     * `head` is the head of the active_particles linked
+     * list (the same pointer R_DrawParticles iterates
+     * via p = p->next).  Backends walk the list internally,
+     * capping at whatever their GPU buffer can hold; any
+     * overflow is silently dropped (no realloc -- the
+     * backend's particle buffer is fixed-size at init,
+     * dimensioned to a comfortable upper bound on Quake's
+     * typical particle counts).
+     *
+     * Called from R_DrawParticles when both
+     * g_rhi_compute_rendering is true and the active
+     * backend exposes this entry; on that branch the SW
+     * for-loop over D_DrawParticle is skipped -- particles
+     * render entirely on the GPU.  When the entry is NULL
+     * (SW backend, or HW backend without compute support)
+     * or compute_rendering is disabled, R_DrawParticles
+     * runs its original CPU SW path unchanged.
+     *
+     * NULL on SW backend / SW-only build.  Stays NULL on
+     * any HW backend that doesn't (yet) implement compute
+     * particle rasterization. */
+    void     (*dispatch_3d_particles)(struct particle_s *head);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

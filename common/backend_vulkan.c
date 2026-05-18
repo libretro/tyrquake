@@ -205,6 +205,17 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/textured_palette_cs.h"
 #include "shaders/generated/spv/overlay_quad_vs.h"
 #include "shaders/generated/spv/overlay_quad_fs.h"
+#include "shaders/generated/spv/particles_cs.h"
+#include "d_iface.h"      /* particle_t -- the GPU compute particle
+                           * rasterizer walks the active linked list
+                           * via this typedef. */
+#include "d_local.h"      /* d_pzbuffer / d_pix_* / d_vrect*_particle /
+                           * d_y_aspect_shift -- the SW raster state
+                           * the particle compute shader's push
+                           * constants snapshot. */
+#include "r_local.h"      /* xcenter, ycenter, r_origin -- the rest
+                           * of the SW raster state the particle
+                           * compute shader snapshots. */
 #include <string.h>
 
 extern retro_environment_t    environ_cb;
@@ -405,6 +416,110 @@ static VkDescriptorSet        vk_descriptor_set;
 #define VK_PALETTE_TEXELS  256u
 #define VK_PALETTE_BYTES   (VK_PALETTE_TEXELS * 4u)
 
+/* --------------------------------------------------------
+ * Phase 5b-02: GPU compute particle rasterizer resources.
+ *
+ * vk_zbuffer is the GPU side of d_pzbuffer.  R16_UINT
+ * storage image (matches the SW path's `short *` Z values
+ * bit-for-bit; the Z-test only ever compares non-negative
+ * izi values so unsigned read works), sized to width x
+ * height.  Filled from a host-visible staging buffer
+ * (vk_particles_zstaging) once per frame ahead of the
+ * particle dispatch, so the dispatch's Z-tests see the
+ * world / alias / brush Z values the CPU SW raster left
+ * in d_pzbuffer.  No need to read this back to the CPU --
+ * subsequent CPU stages don't depend on whatever the
+ * particle pass wrote to the GPU copy.
+ *
+ * vk_particles_buffer is an SSBO holding up to
+ * VK_PARTICLES_MAX records of struct vk_gpu_particle (vec3
+ * origin + uint colour, 16 bytes each).  Host-visible +
+ * host-coherent so backend_vk_dispatch_3d_particles can
+ * memcpy directly with no Flush.  Capacity sized
+ * generously above Quake's typical active count (default
+ * MAX_PARTICLES is 2048; the cmdline can raise
+ * r_numparticles arbitrarily but actual active particles
+ * rarely exceed a few hundred in normal gameplay).
+ * Overflow is silently truncated -- a degenerate scene
+ * with thousands of simultaneous particles is a glitch
+ * worth accepting over wasting hundreds of MiB on a worst-
+ * case allocation.
+ *
+ * vk_particles_zstaging is the host-visible staging
+ * buffer for d_pzbuffer uploads.  Separate from
+ * vk_staging_buffer (which is sized for the vid.buffer
+ * index data + the 1 KiB palette, no room for the 2-byte-
+ * per-pixel zbuffer) -- simpler than retrofitting the
+ * existing buffer layout.  Sized to width * height * 2.
+ *
+ * vk_particles_cs_module / vk_particles_pipeline_layout /
+ * vk_particles_pipeline are the compute pipeline objects
+ * for the particles.comp shader.  Layout: a 3-binding DSL
+ * (SSBO at binding 0, vk_texture as storage image at
+ * binding 1, vk_zbuffer as storage image at binding 2) +
+ * a 96-byte push-constant block (struct vk_particles_pc).
+ *
+ * vk_particles_dsl / vk_particles_pool / vk_particles_set
+ * are the particle pipeline's descriptor objects.
+ * Separate pool from vk_descriptor_pool because the
+ * binding layouts differ; sharing would complicate the
+ * pool sizing.  Allocated once at create_resources,
+ * updated once with the final image views / SSBO handle.
+ *
+ * vk_pending_particle_count is the per-frame staging
+ * count.  Set by backend_vk_dispatch_3d_particles; read
+ * by backend_vk_record_frame to decide whether to emit
+ * the particle dispatch + barrier sequence; reset to
+ * zero after every record.  When zero, record_frame
+ * follows the original (no-particle) path -- no zbuffer
+ * upload, no GENERAL transitions on vk_texture, no
+ * dispatch.  Avoids paying for the extra ~4 MiB upload
+ * + extra barriers on frames without particles. */
+#define VK_PARTICLES_MAX   8192u
+#define VK_PARTICLES_BYTES (VK_PARTICLES_MAX * 16u)
+
+struct vk_gpu_particle {
+    float    origin[3];
+    uint32_t color;
+};
+
+struct vk_particles_pc {
+    float    r_origin[3];
+    float    xcenter;
+    float    r_pright[3];
+    float    ycenter;
+    float    r_pup[3];
+    int32_t  d_y_aspect_shift;
+    float    r_ppn[3];
+    int32_t  d_pix_shift;
+    int32_t  d_vrectx;
+    int32_t  d_vrecty;
+    int32_t  d_vrectright_particle;
+    int32_t  d_vrectbottom_particle;
+    int32_t  d_pix_min;
+    int32_t  d_pix_max;
+    uint32_t particle_count;
+    uint32_t _pad;
+};
+
+static VkImage                vk_zbuffer;
+static VkDeviceMemory         vk_zbuffer_memory;
+static VkImageView            vk_zbuffer_view;
+static VkBuffer               vk_particles_buffer;
+static VkDeviceMemory         vk_particles_memory;
+static void                  *vk_particles_ptr;
+static VkBuffer               vk_particles_zstaging;
+static VkDeviceMemory         vk_particles_zstaging_memory;
+static void                  *vk_particles_zstaging_ptr;
+static VkShaderModule         vk_particles_cs_module;
+static VkPipelineLayout       vk_particles_pipeline_layout;
+static VkPipeline             vk_particles_pipeline;
+static VkDescriptorSetLayout  vk_particles_dsl;
+static VkDescriptorPool       vk_particles_pool;
+static VkDescriptorSet        vk_particles_set;
+static uint32_t               vk_pending_particle_count;
+static struct vk_particles_pc vk_particles_push;
+
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
  * VkImageViewCreateInfo is what the frontend uses to know
@@ -491,6 +606,7 @@ static struct {
     PFN_vkResetCommandBuffer              ResetCommandBuffer;
     PFN_vkCmdCopyBufferToImage            CmdCopyBufferToImage;
     PFN_vkCmdBindDescriptorSets           CmdBindDescriptorSets;
+    PFN_vkCmdPushConstants                CmdPushConstants;
 } vk_fn;
 
 /* The retro_hw_render_callback we register with the frontend.
@@ -2047,6 +2163,439 @@ backend_vk_create_resources(void)
      * at teardown implicitly unmaps. */
 
     /* ---------------------------------------------------------
+     * Phase 5b-02: GPU compute particle rasterizer resources.
+     *
+     * Order:
+     *   1. vk_zbuffer image + memory + view.
+     *   2. vk_particles_buffer (SSBO) + memory + map.
+     *   3. vk_particles_zstaging (host-visible staging for
+     *      d_pzbuffer uploads) + memory + map.
+     *   4. vk_particles_cs_module from the precompiled SPIR-V.
+     *   5. vk_particles_dsl (3-binding layout: SSBO + 2 storage
+     *      images).
+     *   6. vk_particles_pool + AllocateDescriptorSets ->
+     *      vk_particles_set.
+     *   7. UpdateDescriptorSets with the buffer + view handles.
+     *   8. vk_particles_pipeline_layout (DSL + 96 B push constants).
+     *   9. CreateComputePipelines -> vk_particles_pipeline.
+     *
+     * Each step on failure jumps to the function's "return
+     * false" path; destroy_resources unwinds whatever got
+     * built. */
+    {
+        VkImageCreateInfo            zb_ci;
+        VkMemoryRequirements         zb_mem_req;
+        VkMemoryAllocateInfo         zb_mem_ai;
+        VkImageViewCreateInfo        zb_view_ci;
+        VkBufferCreateInfo           pb_ci;
+        VkMemoryRequirements         pb_mem_req;
+        VkMemoryAllocateInfo         pb_mem_ai;
+        VkBufferCreateInfo           zs_ci;
+        VkMemoryRequirements         zs_mem_req;
+        VkMemoryAllocateInfo         zs_mem_ai;
+        VkShaderModuleCreateInfo     psm_ci;
+        VkDescriptorSetLayoutBinding p_dsl_bindings[3];
+        VkDescriptorSetLayoutCreateInfo p_dsl_ci;
+        VkDescriptorPoolSize         p_pool_sizes[2];
+        VkDescriptorPoolCreateInfo   p_pool_ci;
+        VkDescriptorSetAllocateInfo  p_set_alloc;
+        VkDescriptorBufferInfo       p_buf_info;
+        VkDescriptorImageInfo        p_img_info[2];
+        VkWriteDescriptorSet         p_writes[3];
+        VkPushConstantRange          p_push_range;
+        VkPipelineLayoutCreateInfo   p_pl_ci;
+        VkComputePipelineCreateInfo  p_cp_ci;
+        VkPipelineShaderStageCreateInfo p_cs_stage;
+        uint32_t                     zb_mem_type;
+        uint32_t                     pb_mem_type;
+        uint32_t                     zs_mem_type;
+
+        /* 1. vk_zbuffer image (R16_UINT storage + transfer
+         *    destination + sampled).  Mirrors d_pzbuffer's
+         *    layout: width x height, one 16-bit value per
+         *    pixel.  R16_UINT is in the Vulkan 1.0 mandatory
+         *    storage-image format table. */
+        memset(&zb_ci, 0, sizeof(zb_ci));
+        zb_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        zb_ci.imageType     = VK_IMAGE_TYPE_2D;
+        zb_ci.format        = VK_FORMAT_R16_UINT;
+        zb_ci.extent.width  = width;
+        zb_ci.extent.height = height;
+        zb_ci.extent.depth  = 1;
+        zb_ci.mipLevels     = 1;
+        zb_ci.arrayLayers   = 1;
+        zb_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
+        zb_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        zb_ci.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                            | VK_IMAGE_USAGE_STORAGE_BIT;
+        zb_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        zb_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        r = vk_fn.CreateImage(vk_device, &zb_ci, NULL, &vk_zbuffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateImage (zbuffer) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(&zb_mem_req, 0, sizeof(zb_mem_req));
+        vk_fn.GetImageMemoryRequirements(vk_device, vk_zbuffer, &zb_mem_req);
+        zb_mem_type = backend_vk_find_memory_type(
+            zb_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (zb_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no DEVICE_LOCAL memory type for zbuffer\n");
+            return false;
+        }
+
+        memset(&zb_mem_ai, 0, sizeof(zb_mem_ai));
+        zb_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        zb_mem_ai.allocationSize  = zb_mem_req.size;
+        zb_mem_ai.memoryTypeIndex = zb_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &zb_mem_ai, NULL, &vk_zbuffer_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (zbuffer) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindImageMemory(vk_device, vk_zbuffer, vk_zbuffer_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindImageMemory (zbuffer) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        memset(&zb_view_ci, 0, sizeof(zb_view_ci));
+        zb_view_ci.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        zb_view_ci.image                           = vk_zbuffer;
+        zb_view_ci.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+        zb_view_ci.format                          = VK_FORMAT_R16_UINT;
+        zb_view_ci.components.r                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        zb_view_ci.components.g                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        zb_view_ci.components.b                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        zb_view_ci.components.a                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+        zb_view_ci.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        zb_view_ci.subresourceRange.baseMipLevel   = 0;
+        zb_view_ci.subresourceRange.levelCount     = 1;
+        zb_view_ci.subresourceRange.baseArrayLayer = 0;
+        zb_view_ci.subresourceRange.layerCount     = 1;
+
+        r = vk_fn.CreateImageView(vk_device, &zb_view_ci, NULL, &vk_zbuffer_view);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateImageView (zbuffer) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 2. vk_particles_buffer (SSBO).  Host-visible +
+         *    coherent so dispatch_3d_particles can memcpy
+         *    GpuParticle records directly with no Flush. */
+        memset(&pb_ci, 0, sizeof(pb_ci));
+        pb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        pb_ci.size        = VK_PARTICLES_BYTES;
+        pb_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        pb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &pb_ci, NULL, &vk_particles_buffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (particles SSBO) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device,
+                                          vk_particles_buffer, &pb_mem_req);
+        pb_mem_type = backend_vk_find_memory_type(
+            pb_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (pb_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for particles\n");
+            return false;
+        }
+
+        memset(&pb_mem_ai, 0, sizeof(pb_mem_ai));
+        pb_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        pb_mem_ai.allocationSize  = pb_mem_req.size;
+        pb_mem_ai.memoryTypeIndex = pb_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &pb_mem_ai, NULL, &vk_particles_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (particles) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, vk_particles_buffer,
+                                   vk_particles_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (particles) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        r = vk_fn.MapMemory(vk_device, vk_particles_memory,
+                            0, VK_WHOLE_SIZE, 0, &vk_particles_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: MapMemory (particles) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 3. vk_particles_zstaging.  Host-visible buffer
+         *    sized to width*height*sizeof(uint16_t) for the
+         *    per-frame d_pzbuffer upload. */
+        memset(&zs_ci, 0, sizeof(zs_ci));
+        zs_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        zs_ci.size        = (VkDeviceSize)width * (VkDeviceSize)height * 2u;
+        zs_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        zs_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &zs_ci, NULL, &vk_particles_zstaging);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (zbuffer staging) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device,
+                                          vk_particles_zstaging, &zs_mem_req);
+        zs_mem_type = backend_vk_find_memory_type(
+            zs_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (zs_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for zbuffer staging\n");
+            return false;
+        }
+
+        memset(&zs_mem_ai, 0, sizeof(zs_mem_ai));
+        zs_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        zs_mem_ai.allocationSize  = zs_mem_req.size;
+        zs_mem_ai.memoryTypeIndex = zs_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &zs_mem_ai, NULL,
+                                 &vk_particles_zstaging_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (zbuffer staging) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, vk_particles_zstaging,
+                                   vk_particles_zstaging_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (zbuffer staging) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.MapMemory(vk_device, vk_particles_zstaging_memory,
+                            0, VK_WHOLE_SIZE, 0, &vk_particles_zstaging_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: MapMemory (zbuffer staging) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* 4. Shader module from precompiled SPIR-V. */
+        memset(&psm_ci, 0, sizeof(psm_ci));
+        psm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        psm_ci.codeSize = spv_particles_cs_size;
+        psm_ci.pCode    = spv_particles_cs;
+
+        r = vk_fn.CreateShaderModule(vk_device, &psm_ci, NULL,
+                                     &vk_particles_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateShaderModule (particles) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 5. Descriptor set layout: SSBO + 2 storage images,
+         *    all COMPUTE-only.  Distinct from vk_descriptor_
+         *    set_layout (which is for the palette compute) --
+         *    different bindings, different types. */
+        memset(&p_dsl_bindings, 0, sizeof(p_dsl_bindings));
+        p_dsl_bindings[0].binding         = 0;
+        p_dsl_bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        p_dsl_bindings[0].descriptorCount = 1;
+        p_dsl_bindings[0].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        p_dsl_bindings[1].binding         = 1;
+        p_dsl_bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        p_dsl_bindings[1].descriptorCount = 1;
+        p_dsl_bindings[1].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        p_dsl_bindings[2].binding         = 2;
+        p_dsl_bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        p_dsl_bindings[2].descriptorCount = 1;
+        p_dsl_bindings[2].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        memset(&p_dsl_ci, 0, sizeof(p_dsl_ci));
+        p_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        p_dsl_ci.bindingCount = 3;
+        p_dsl_ci.pBindings    = p_dsl_bindings;
+
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &p_dsl_ci, NULL,
+                                            &vk_particles_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorSetLayout (particles) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 6. Descriptor pool + set allocation. */
+        memset(&p_pool_sizes, 0, sizeof(p_pool_sizes));
+        p_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        p_pool_sizes[0].descriptorCount = 1;
+        p_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        p_pool_sizes[1].descriptorCount = 2;
+
+        memset(&p_pool_ci, 0, sizeof(p_pool_ci));
+        p_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        p_pool_ci.maxSets       = 1;
+        p_pool_ci.poolSizeCount = 2;
+        p_pool_ci.pPoolSizes    = p_pool_sizes;
+
+        r = vk_fn.CreateDescriptorPool(vk_device, &p_pool_ci, NULL,
+                                       &vk_particles_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorPool (particles) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&p_set_alloc, 0, sizeof(p_set_alloc));
+        p_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        p_set_alloc.descriptorPool     = vk_particles_pool;
+        p_set_alloc.descriptorSetCount = 1;
+        p_set_alloc.pSetLayouts        = &vk_particles_dsl;
+
+        r = vk_fn.AllocateDescriptorSets(vk_device, &p_set_alloc,
+                                         &vk_particles_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets (particles) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 7. Update the set with handles.  Storage images
+         *    use imageLayout = GENERAL because that's the
+         *    layout they'll be in during the dispatch
+         *    (record_frame transitions them there before
+         *    binding this set). */
+        memset(&p_buf_info, 0, sizeof(p_buf_info));
+        p_buf_info.buffer = vk_particles_buffer;
+        p_buf_info.offset = 0;
+        p_buf_info.range  = VK_WHOLE_SIZE;
+
+        memset(&p_img_info, 0, sizeof(p_img_info));
+        p_img_info[0].sampler     = VK_NULL_HANDLE;
+        p_img_info[0].imageView   = vk_texture_view;
+        p_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        p_img_info[1].sampler     = VK_NULL_HANDLE;
+        p_img_info[1].imageView   = vk_zbuffer_view;
+        p_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        memset(&p_writes, 0, sizeof(p_writes));
+        p_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        p_writes[0].dstSet          = vk_particles_set;
+        p_writes[0].dstBinding      = 0;
+        p_writes[0].descriptorCount = 1;
+        p_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        p_writes[0].pBufferInfo     = &p_buf_info;
+        p_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        p_writes[1].dstSet          = vk_particles_set;
+        p_writes[1].dstBinding      = 1;
+        p_writes[1].descriptorCount = 1;
+        p_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        p_writes[1].pImageInfo      = &p_img_info[0];
+        p_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        p_writes[2].dstSet          = vk_particles_set;
+        p_writes[2].dstBinding      = 2;
+        p_writes[2].descriptorCount = 1;
+        p_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        p_writes[2].pImageInfo      = &p_img_info[1];
+
+        vk_fn.UpdateDescriptorSets(vk_device, 3, p_writes, 0, NULL);
+
+        /* 8. Pipeline layout: DSL + push constants. */
+        memset(&p_push_range, 0, sizeof(p_push_range));
+        p_push_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        p_push_range.offset     = 0;
+        p_push_range.size       = sizeof(struct vk_particles_pc);
+
+        memset(&p_pl_ci, 0, sizeof(p_pl_ci));
+        p_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        p_pl_ci.setLayoutCount         = 1;
+        p_pl_ci.pSetLayouts            = &vk_particles_dsl;
+        p_pl_ci.pushConstantRangeCount = 1;
+        p_pl_ci.pPushConstantRanges    = &p_push_range;
+
+        r = vk_fn.CreatePipelineLayout(vk_device, &p_pl_ci, NULL,
+                                       &vk_particles_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreatePipelineLayout (particles) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 9. Compute pipeline. */
+        memset(&p_cs_stage, 0, sizeof(p_cs_stage));
+        p_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        p_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        p_cs_stage.module = vk_particles_cs_module;
+        p_cs_stage.pName  = "main";
+
+        memset(&p_cp_ci, 0, sizeof(p_cp_ci));
+        p_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        p_cp_ci.stage  = p_cs_stage;
+        p_cp_ci.layout = vk_particles_pipeline_layout;
+
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE,
+                                         1, &p_cp_ci, NULL,
+                                         &vk_particles_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateComputePipelines (particles) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+    }
+
+    /* ---------------------------------------------------------
      * Command pool + buffer.  RESET_COMMAND_BUFFER_BIT lets
      * vkBeginCommandBuffer implicitly reset the buffer at the
      * top of every per-frame recording (Phase 4e);
@@ -2111,6 +2660,78 @@ backend_vk_destroy_resources(void)
      * queue), which is what we want at teardown. */
     if (vk_fn.DeviceWaitIdle && vk_device != VK_NULL_HANDLE)
         vk_fn.DeviceWaitIdle(vk_device);
+
+    /* Phase 5b-02 particle pipeline / resources teardown.
+     * Reverse-create order; pool destruction implicitly
+     * frees vk_particles_set.  Mapped memory is implicitly
+     * unmapped by FreeMemory. */
+    if (vk_particles_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_particles_pipeline, NULL);
+        vk_particles_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_particles_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_particles_pipeline_layout, NULL);
+        vk_particles_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_particles_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_particles_pool, NULL);
+        vk_particles_pool = VK_NULL_HANDLE;
+        vk_particles_set  = VK_NULL_HANDLE;
+    }
+    if (vk_particles_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device,
+                                             vk_particles_dsl, NULL);
+        vk_particles_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_particles_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device,
+                                      vk_particles_cs_module, NULL);
+        vk_particles_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_particles_zstaging != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_particles_zstaging, NULL);
+        vk_particles_zstaging = VK_NULL_HANDLE;
+    }
+    if (vk_particles_zstaging_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_particles_zstaging_memory, NULL);
+        vk_particles_zstaging_memory = VK_NULL_HANDLE;
+        vk_particles_zstaging_ptr    = NULL;
+    }
+    if (vk_particles_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_particles_buffer, NULL);
+        vk_particles_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_particles_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_particles_memory, NULL);
+        vk_particles_memory = VK_NULL_HANDLE;
+        vk_particles_ptr    = NULL;
+    }
+    if (vk_zbuffer_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_zbuffer_view, NULL);
+        vk_zbuffer_view = VK_NULL_HANDLE;
+    }
+    if (vk_zbuffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_zbuffer, NULL);
+        vk_zbuffer = VK_NULL_HANDLE;
+    }
+    if (vk_zbuffer_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_zbuffer_memory, NULL);
+        vk_zbuffer_memory = VK_NULL_HANDLE;
+    }
+    vk_pending_particle_count = 0;
 
     if (vk_cmd_pool != VK_NULL_HANDLE) {
         /* DestroyCommandPool frees every buffer allocated
@@ -2385,6 +3006,7 @@ backend_vk_load_fn(void)
         LOAD_DEV(ResetCommandBuffer);
         LOAD_DEV(CmdCopyBufferToImage);
         LOAD_DEV(CmdBindDescriptorSets);
+        LOAD_DEV(CmdPushConstants);
         #undef LOAD_DEV
     }
 }
@@ -3493,6 +4115,103 @@ backend_vk_queue_2d_fade_screen_entry(void)
 #endif
 }
 
+/*
+ * Phase 5b-02: stage the active particle list for the
+ * frame's GPU dispatch.
+ *
+ * Vtable entry called by R_DrawParticles when
+ * g_rhi_compute_rendering is true and this entry is non-
+ * NULL.  Walks the linked list, builds a flat array of
+ * struct vk_gpu_particle records in the host-mapped
+ * vk_particles_buffer, snapshots the SW raster state into
+ * vk_particles_push, and sets vk_pending_particle_count.
+ * record_frame later sees the non-zero count and emits
+ * the dispatch + barrier sequence.
+ *
+ * Caps at VK_PARTICLES_MAX records.  Overflow particles
+ * (beyond the cap) are silently dropped -- preferable to
+ * a runtime allocation or a hard failure mode.  Quake's
+ * default MAX_PARTICLES is 2048; the cap of 8192 leaves
+ * 4x headroom even in pathological cases.
+ *
+ * The push-constants snapshot has to happen here (not in
+ * record_frame) because record_frame runs in end_frame
+ * after retro_run's input handling, possibly after the
+ * world / camera have moved on -- the CPU SW raster
+ * state at dispatch-stage time is what the shader's
+ * arithmetic must match, so we capture it at the moment
+ * R_DrawParticles called us.
+ *
+ * Defined at file scope outside the big #ifdef
+ * RHI_HAVE_VULKAN body block (same #ifdef pattern as the
+ * queue_2d_*_entry functions above): the vtable
+ * references this name unconditionally so it must
+ * resolve in the SW-only build too.  The body is a no-op
+ * in that build.
+ */
+static void
+backend_vk_dispatch_3d_particles_impl(struct particle_s *head)
+{
+#ifdef RHI_HAVE_VULKAN
+    struct vk_gpu_particle *dst;
+    struct particle_s      *p;
+    uint32_t                count;
+
+    if (!vk_resources_ready || !vk_particles_ptr)
+        return;
+
+    dst   = (struct vk_gpu_particle *)vk_particles_ptr;
+    count = 0;
+    for (p = head; p && count < VK_PARTICLES_MAX; p = p->next) {
+        dst[count].origin[0] = p->org[0];
+        dst[count].origin[1] = p->org[1];
+        dst[count].origin[2] = p->org[2];
+        /* particle_t::color is a float for legacy reasons --
+         * the SW path casts to byte at draw time
+         * (pdest[0] = pparticle->color).  Cast here to
+         * preserve the same truncation semantics. */
+        dst[count].color = (uint32_t)(uint8_t)p->color;
+        count++;
+    }
+
+    if (count == 0)
+        return;
+
+    /* Snapshot push constants.  These globals can change
+     * between now (mid-R_RenderView on the CPU) and the
+     * command-buffer record in end_frame, so we capture
+     * them by value. */
+    memset(&vk_particles_push, 0, sizeof(vk_particles_push));
+    vk_particles_push.r_origin[0] = r_origin[0];
+    vk_particles_push.r_origin[1] = r_origin[1];
+    vk_particles_push.r_origin[2] = r_origin[2];
+    vk_particles_push.xcenter     = xcenter;
+    vk_particles_push.r_pright[0] = r_pright[0];
+    vk_particles_push.r_pright[1] = r_pright[1];
+    vk_particles_push.r_pright[2] = r_pright[2];
+    vk_particles_push.ycenter     = ycenter;
+    vk_particles_push.r_pup[0]    = r_pup[0];
+    vk_particles_push.r_pup[1]    = r_pup[1];
+    vk_particles_push.r_pup[2]    = r_pup[2];
+    vk_particles_push.d_y_aspect_shift = d_y_aspect_shift;
+    vk_particles_push.r_ppn[0]    = r_ppn[0];
+    vk_particles_push.r_ppn[1]    = r_ppn[1];
+    vk_particles_push.r_ppn[2]    = r_ppn[2];
+    vk_particles_push.d_pix_shift = d_pix_shift;
+    vk_particles_push.d_vrectx               = d_vrectx;
+    vk_particles_push.d_vrecty               = d_vrecty;
+    vk_particles_push.d_vrectright_particle  = d_vrectright_particle;
+    vk_particles_push.d_vrectbottom_particle = d_vrectbottom_particle;
+    vk_particles_push.d_pix_min              = d_pix_min;
+    vk_particles_push.d_pix_max              = d_pix_max;
+    vk_particles_push.particle_count         = count;
+
+    vk_pending_particle_count = count;
+#else
+    (void)head;
+#endif
+}
+
 static void
 backend_vk_shutdown(void)
 {
@@ -3614,6 +4333,46 @@ backend_vk_upload_vid_buffer(void)
 }
 
 /*
+ * Phase 5b-02: stage d_pzbuffer into the host-visible
+ * vk_particles_zstaging buffer so the per-frame command
+ * recording can CopyBufferToImage it into vk_zbuffer.
+ *
+ * Called from backend_vk_end_frame only when
+ * vk_pending_particle_count > 0 (i.e. there's a particle
+ * dispatch waiting that needs the Z values to test
+ * against).  At end_frame time, R_RenderView has finished
+ * and d_pzbuffer holds the world / alias / brush Z
+ * values the CPU SW raster wrote -- exactly what the GPU
+ * particles need.
+ *
+ * The SW raster's d_pzbuffer is `short *` (signed 16-bit),
+ * but the GPU treats vk_zbuffer as R16_UINT.  The bit
+ * patterns match for non-negative shorts; izi values that
+ * arise during normal Quake gameplay never overflow into
+ * the negative range, so the unsigned interpretation is
+ * lossless for every realistic camera position.  (A
+ * particle extremely close to camera could in principle
+ * push izi past 32767 and wrap the SW comparison, but
+ * that's a pre-existing SW edge case; the GPU path
+ * mirrors the same arithmetic.)
+ *
+ * vid.rowbytes is bytes per row; for the SW Z-buffer it's
+ * d_zwidth * sizeof(short).  d_zwidth equals vid.width
+ * (D_ViewChanged sets it), so the staging copy is a
+ * single contiguous memcpy of width*height*2 bytes.
+ */
+static void
+backend_vk_upload_zbuffer(void)
+{
+    if (!vk_particles_zstaging_ptr || !d_pzbuffer)
+        return;
+
+    memcpy(vk_particles_zstaging_ptr,
+           d_pzbuffer,
+           (size_t)width * (size_t)height * sizeof(short));
+}
+
+/*
  * Record the per-frame command buffer.  Called by end_frame
  * after the host-side staging upload.  Sequence (Phase 4g):
  *
@@ -3675,14 +4434,24 @@ static qboolean
 backend_vk_record_frame(void)
 {
     VkCommandBufferBeginInfo  begin_info;
-    VkImageMemoryBarrier      barriers[2];
+    VkImageMemoryBarrier      barriers[3];
     VkImageMemoryBarrier      image_barrier;
     VkBufferImageCopy         regions[2];
+    VkBufferImageCopy         zb_region;
     VkRenderPassBeginInfo     rpbi;
     VkDeviceSize              vb_offset;
     uint32_t                  group_count_x;
     uint32_t                  group_count_y;
+    qboolean                  particles_active;
     VkResult                  r;
+
+    /* Phase 5b-02: latch the dispatch count for this
+     * record.  The implementation reads vk_pending_
+     * particle_count multiple times below; pinning it
+     * to a local avoids any chance of mid-record
+     * mutation if a future change adds a path that
+     * touches the global. */
+    particles_active = vk_pending_particle_count > 0;
 
     memset(&begin_info, 0, sizeof(begin_info));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -3695,11 +4464,13 @@ backend_vk_record_frame(void)
         return false;
     }
 
-    /* Both textures: UNDEFINED -> TRANSFER_DST_OPTIMAL in a
-     * single CmdPipelineBarrier.  UNDEFINED-as-discard is the
-     * right old layout for both the first frame and every
-     * frame thereafter; we overwrite the entire image content
-     * in the CmdCopyBufferToImage that follows. */
+    /* Textures + (when particles active) zbuffer:
+     * UNDEFINED -> TRANSFER_DST_OPTIMAL in a single
+     * CmdPipelineBarrier.  UNDEFINED-as-discard is the
+     * right old layout for the textures (whole content
+     * overwritten by the copies below) and for the
+     * zbuffer (whole content overwritten by the zbuffer
+     * staging copy). */
     memset(&barriers, 0, sizeof(barriers));
     barriers[0].sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barriers[0].srcAccessMask                   = 0;
@@ -3716,6 +4487,8 @@ backend_vk_record_frame(void)
     barriers[0].subresourceRange.layerCount     = 1;
     barriers[1]       = barriers[0];
     barriers[1].image = vk_palette_texture;
+    barriers[2]       = barriers[0];
+    barriers[2].image = vk_zbuffer;
 
     vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -3723,7 +4496,7 @@ backend_vk_record_frame(void)
                              0,
                              0, NULL,
                              0, NULL,
-                             2, barriers);
+                             particles_active ? 3 : 2, barriers);
 
     /* Index texture: bytes [0, width*height) of staging at
      * the start of vk_texture.  Palette texture: bytes
@@ -3765,26 +4538,160 @@ backend_vk_record_frame(void)
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &regions[1]);
 
-    /* Both textures: TRANSFER_DST -> SHADER_READ_ONLY in a
-     * single CmdPipelineBarrier.  dstStage = COMPUTE_SHADER
-     * (was FRAGMENT_SHADER in Phase 4f) -- the consumer is
-     * now the compute dispatch below. */
-    barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    barriers[0].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barriers[0].newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    barriers[1].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barriers[1].newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    /* Phase 5b-02: when particles are active, also copy
+     * d_pzbuffer (staged earlier in end_frame) into the
+     * GPU vk_zbuffer.  Same TRANSFER_DST_OPTIMAL layout
+     * the barrier above prepared. */
+    if (particles_active) {
+        memset(&zb_region, 0, sizeof(zb_region));
+        zb_region.bufferOffset                    = 0;
+        zb_region.bufferRowLength                 = 0;
+        zb_region.bufferImageHeight               = 0;
+        zb_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        zb_region.imageSubresource.mipLevel       = 0;
+        zb_region.imageSubresource.baseArrayLayer = 0;
+        zb_region.imageSubresource.layerCount     = 1;
+        zb_region.imageExtent.width               = width;
+        zb_region.imageExtent.height              = height;
+        zb_region.imageExtent.depth               = 1;
 
-    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                             VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                             0,
-                             0, NULL,
-                             0, NULL,
-                             2, barriers);
+        vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                                   vk_particles_zstaging,
+                                   vk_zbuffer,
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                   1, &zb_region);
+    }
+
+    if (particles_active) {
+        /* Phase 5b-02 particle dispatch path.
+         *
+         * Post-copy layout transitions:
+         *   vk_texture        : TRANSFER_DST -> GENERAL
+         *                       (compute shader will
+         *                       imageStore into it)
+         *   vk_palette_texture: TRANSFER_DST -> SHADER_
+         *                       READ_ONLY (read by the
+         *                       downstream palette
+         *                       compute dispatch
+         *                       unchanged)
+         *   vk_zbuffer        : TRANSFER_DST -> GENERAL
+         *                       (compute shader will
+         *                       imageLoad + imageStore
+         *                       for Z-test)
+         *
+         * All three batched in one CmdPipelineBarrier
+         * with dstStage = COMPUTE_SHADER (the next
+         * consumer for all three is the particles
+         * dispatch). */
+        barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                  | VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[0].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barriers[0].newLayout     = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[0].image         = vk_texture;
+
+        barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barriers[1].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barriers[1].newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barriers[1].image         = vk_palette_texture;
+
+        barriers[2].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[2].dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                  | VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[2].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barriers[2].newLayout     = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[2].image         = vk_zbuffer;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 3, barriers);
+
+        /* Particles dispatch.  One workgroup invocation
+         * per particle; local_size_x = 64 (declared in
+         * particles.comp), so dispatch ceil(count/64)
+         * workgroups.  The in-shader pid >= count early-
+         * out handles the tail. */
+        vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                              VK_PIPELINE_BIND_POINT_COMPUTE,
+                              vk_particles_pipeline);
+        vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                    VK_PIPELINE_BIND_POINT_COMPUTE,
+                                    vk_particles_pipeline_layout,
+                                    0,
+                                    1, &vk_particles_set,
+                                    0, NULL);
+        vk_fn.CmdPushConstants(vk_cmd_buffer,
+                               vk_particles_pipeline_layout,
+                               VK_SHADER_STAGE_COMPUTE_BIT,
+                               0, sizeof(vk_particles_push),
+                               &vk_particles_push);
+        vk_fn.CmdDispatch(vk_cmd_buffer,
+                          (vk_pending_particle_count + 63u) / 64u,
+                          1, 1);
+
+        /* After the particle dispatch, vk_texture is in
+         * GENERAL.  The downstream palette compute
+         * dispatch reads it as a sampled image (the
+         * existing pipeline binds vk_texture_view via
+         * descriptor set 0 binding 0 with imageLayout =
+         * SHADER_READ_ONLY_OPTIMAL).  Transition GENERAL
+         * -> SHADER_READ_ONLY_OPTIMAL, with srcStage =
+         * dstStage = COMPUTE_SHADER so the particle
+         * dispatch's writes flush before the palette
+         * dispatch's reads.  srcAccess = SHADER_WRITE
+         * (what the particle dispatch did); dstAccess =
+         * SHADER_READ (what the palette dispatch will
+         * do). */
+        memset(&barriers[0], 0, sizeof(barriers[0]));
+        barriers[0].sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barriers[0].srcAccessMask                   = VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[0].dstAccessMask                   = VK_ACCESS_SHADER_READ_BIT;
+        barriers[0].oldLayout                       = VK_IMAGE_LAYOUT_GENERAL;
+        barriers[0].newLayout                       = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barriers[0].srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].image                           = vk_texture;
+        barriers[0].subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        barriers[0].subresourceRange.baseMipLevel   = 0;
+        barriers[0].subresourceRange.levelCount     = 1;
+        barriers[0].subresourceRange.baseArrayLayer = 0;
+        barriers[0].subresourceRange.layerCount     = 1;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 1, barriers);
+    } else {
+        /* No-particles fast path: both textures
+         * TRANSFER_DST -> SHADER_READ_ONLY directly.
+         * dstStage = COMPUTE_SHADER (was FRAGMENT_SHADER
+         * in Phase 4f) -- the consumer is now the
+         * compute dispatch below. */
+        barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barriers[0].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barriers[0].newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barriers[1].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barriers[1].newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 2, barriers);
+    }
 
     /* Render target: UNDEFINED -> GENERAL.  UNDEFINED-as-
      * discard because the compute dispatch will write
@@ -3922,6 +4829,13 @@ backend_vk_record_frame(void)
      * destroy_resources. */
     vk_overlay_draw_count = 0;
 
+    /* Phase 5b-02: reset the particle dispatch count now
+     * that the command buffer has captured the dispatch.
+     * Next frame's R_DrawParticles will repopulate it if
+     * GPU particles run again; otherwise the no-particles
+     * fast path takes over. */
+    vk_pending_particle_count = 0;
+
     return true;
 }
 #endif
@@ -3943,6 +4857,16 @@ backend_vk_end_frame(void)
      * and submit (which actually reads through the handle)
      * come after this. */
     backend_vk_upload_vid_buffer();
+
+    /* Phase 5b-02: if a particle dispatch was staged this
+     * frame, also push d_pzbuffer into the GPU-side zbuffer
+     * staging buffer so record_frame can CopyBufferToImage
+     * it into vk_zbuffer.  Conditional because the upload
+     * is ~4 MiB at 1080p -- worth skipping on frames with
+     * no GPU particles (the staging buffer's previous
+     * contents are irrelevant; nothing reads them). */
+    if (vk_pending_particle_count > 0)
+        backend_vk_upload_zbuffer();
 
     /* Fresh per-frame command-buffer recording.  Phase 4e
      * lifted this out of create_resources so subsequent
@@ -4011,5 +4935,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_queue_2d_console_background_entry,
     backend_vk_queue_2d_pic_translate_scaled_entry,
     backend_vk_queue_2d_fill_entry,
-    backend_vk_queue_2d_fade_screen_entry
+    backend_vk_queue_2d_fade_screen_entry,
+    backend_vk_dispatch_3d_particles_impl
 };
