@@ -80,12 +80,13 @@
  *
  * Descriptor set layout (matches the host's
  * vk_sky_dsl exactly):
- *   set = 0, binding = 0:  r8ui writeonly  u_output      (vk_texture)
- *   set = 0, binding = 1:  r8ui readonly   u_sky_front   (128x128)
- *   set = 0, binding = 2:  r8ui readonly   u_sky_back    (128x128)
- *   set = 0, binding = 3:  std140 UBO      SkyUbo
- *   set = 0, binding = 4:  std430 SSBO     SkyRows
- *   set = 0, binding = 5:  std430 SSBO     SkySpans
+ *   set = 0, binding = 0:  r8ui  writeonly  u_output      (vk_texture)
+ *   set = 0, binding = 1:  r8ui  readonly   u_sky_front   (128x128)
+ *   set = 0, binding = 2:  r8ui  readonly   u_sky_back    (128x128)
+ *   set = 0, binding = 3:  std140 UBO       SkyUbo
+ *   set = 0, binding = 4:  std430 SSBO      SkyRows
+ *   set = 0, binding = 5:  std430 SSBO      SkySpans
+ *   set = 0, binding = 6:  r32ui writeonly  u_zbuffer     (vk_zbuffer)
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 The libretro team
@@ -97,7 +98,6 @@ layout(local_size_x = 8, local_size_y = 8) in;
 layout(set = 0, binding = 0, r8ui) uniform writeonly uimage2D u_output;
 layout(set = 0, binding = 1, r8ui) uniform readonly  uimage2D u_sky_front;
 layout(set = 0, binding = 2, r8ui) uniform readonly  uimage2D u_sky_back;
-
 /* Per-frame view + bbox parameters.  std140 layout: vec3
  * occupies 16 bytes (one vec4 slot) so the explicit _pad
  * floats line up the next fp32 onto a 16-byte boundary,
@@ -133,6 +133,21 @@ layout(set = 0, binding = 4, std430) readonly buffer SkyRows {
 layout(set = 0, binding = 5, std430) readonly buffer SkySpans {
     uvec2 spans[];
 };
+
+/* vk_zbuffer (R32_UINT storage view shared with alias /
+ * particle / sprite compute paths).  We unconditionally
+ * imageStore the far-Z constant 0 at every sky pixel so
+ * the downstream Z-tested compute passes (atomicMax-
+ * against this buffer) correctly see "infinity" at sky
+ * locations and any closer geometry wins.  Lets d_edge.c
+ * skip its SW D_DrawZSpans call for SURF_DRAWSKY -- sky
+ * is the only world-surface case that doesn't need its
+ * actual per-pixel 1/z, since (a) all visible geometry
+ * is closer than sky and (b) the only SW reader of the
+ * sky pixel's d_pzbuffer entry is the pass-2 translucent
+ * raster, where the sky+water overlap case is too rare
+ * to chase. */
+layout(set = 0, binding = 6, r32ui) uniform writeonly uimage2D u_zbuffer;
 
 /* 6 * (SKYSIZE/2 - 1) = 6 * 63.  Matches d_sky.c::D_Sky_uv_-
  * To_st's 6*(SKYSIZE/2-1) coefficient exactly. */
@@ -208,4 +223,18 @@ void main()
     uint final = (front != 0u) ? front : back;
 
     imageStore(u_output, pos, uvec4(final, 0u, 0u, 0u));
+
+    /* Sky's far-Z = 0 in the 16.16-fixed-point-shifted-by-
+     * 15 representation vk_zbuffer holds.  The SW path's
+     * D_DrawZSpans would write the actual per-pixel 1/z of
+     * the sky surface plane (a small positive integer); we
+     * write 0 instead because (a) downstream atomicMax-Z
+     * tests in alias / particle / sprite compute always
+     * have alias_z / particle_z / sprite_z > 0 (any finite-
+     * distance geometry has a non-zero 1/z), so 0 acts as
+     * the correct "infinity" sentinel, and (b) using a
+     * constant lets us skip passing per-surface Z parameters
+     * (d_zistepu, d_zistepv, d_ziorigin) through the
+     * dispatch_3d_sky_span boundary. */
+    imageStore(u_zbuffer, pos, uvec4(0u, 0u, 0u, 0u));
 }

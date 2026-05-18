@@ -184,11 +184,19 @@ void D_DrawSurfaces(void)
           * because nothing else reads vid.buffer at those
           * pixels in the RHI compose path).
           *
-          * D_DrawZSpans below always runs so d_pzbuffer
-          * still holds the sky's far-Z values; the alias /
-          * particle / sprite compute paths Z-test against
-          * the uploaded vk_zbuffer and correctly win over
-          * sky pixels for closer geometry. */
+          * Sky compute also imageStores Z=0 (the "infinity"
+          * sentinel for the atomicMax Z-test) directly into
+          * vk_zbuffer at each sky pixel, so the SW D_Draw-
+          * ZSpans call below is unneeded on this branch --
+          * vk_zbuffer ends up with the right values for the
+          * downstream alias / particle / sprite compute Z-
+          * tests without any per-pixel CPU work for the sky
+          * surface plane.  d_pzbuffer at sky pixels keeps
+          * whatever stale value the previous frame left
+          * there; the only SW reader of those entries is
+          * the pass-2 translucent raster, where the rare
+          * sky+water overlap can mis-stipple, an acceptable
+          * trade for skipping per-pixel sky Z work entirely. */
          if (g_rhi && g_rhi->dispatch_3d_sky_span)
          {
             const espan_t *p;
@@ -198,8 +206,8 @@ void D_DrawSurfaces(void)
          else
          {
             D_DrawSkyScans8(s->spans);
+            D_DrawZSpans(s->spans);
          }
-         D_DrawZSpans(s->spans);
       }
       else if (s->flags & SURF_DRAWBACKGROUND)
       {

@@ -4687,14 +4687,14 @@ backend_vk_create_resources(void)
         VkMemoryRequirements          sb_mem_req;
         VkMemoryAllocateInfo          sb_mem_ai;
         VkShaderModuleCreateInfo      sk_sm_ci;
-        VkDescriptorSetLayoutBinding  sk_dsl_bindings[6];
+        VkDescriptorSetLayoutBinding  sk_dsl_bindings[7];
         VkDescriptorSetLayoutCreateInfo sk_dsl_ci;
         VkDescriptorPoolSize          sk_pool_sizes[3];
         VkDescriptorPoolCreateInfo    sk_pool_ci;
         VkDescriptorSetAllocateInfo   sk_set_alloc;
-        VkDescriptorImageInfo         sk_img_info[3];
+        VkDescriptorImageInfo         sk_img_info[4];
         VkDescriptorBufferInfo        sk_buf_info[3];
-        VkWriteDescriptorSet          sk_writes[6];
+        VkWriteDescriptorSet          sk_writes[7];
         VkPipelineLayoutCreateInfo    sk_pl_ci;
         VkComputePipelineCreateInfo   sk_cp_ci;
         VkPipelineShaderStageCreateInfo sk_cs_stage;
@@ -4801,9 +4801,9 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* 3. Descriptor set layout: 6 bindings, all COMPUTE. */
+        /* 3. Descriptor set layout: 7 bindings, all COMPUTE. */
         memset(sk_dsl_bindings, 0, sizeof(sk_dsl_bindings));
-        for (bi = 0; bi < 6; bi++) {
+        for (bi = 0; bi < 7; bi++) {
             sk_dsl_bindings[bi].binding         = (uint32_t)bi;
             sk_dsl_bindings[bi].descriptorCount = 1;
             sk_dsl_bindings[bi].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -4814,10 +4814,11 @@ backend_vk_create_resources(void)
         sk_dsl_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;/* SkyUbo */
         sk_dsl_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;/* SkyRows */
         sk_dsl_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;/* SkySpans */
+        sk_dsl_bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; /* u_zbuffer */
 
         memset(&sk_dsl_ci, 0, sizeof(sk_dsl_ci));
         sk_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        sk_dsl_ci.bindingCount = 6;
+        sk_dsl_ci.bindingCount = 7;
         sk_dsl_ci.pBindings    = sk_dsl_bindings;
 
         r = vk_fn.CreateDescriptorSetLayout(vk_device, &sk_dsl_ci, NULL,
@@ -4830,11 +4831,11 @@ backend_vk_create_resources(void)
         }
 
         /* 4. Descriptor pool sized for the single set we
-         *    allocate below.  Three pool sizes: 3 storage
+         *    allocate below.  Three pool sizes: 4 storage
          *    images, 1 UBO, 2 storage buffers. */
         memset(sk_pool_sizes, 0, sizeof(sk_pool_sizes));
         sk_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        sk_pool_sizes[0].descriptorCount = 3;
+        sk_pool_sizes[0].descriptorCount = 4;
         sk_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         sk_pool_sizes[1].descriptorCount = 1;
         sk_pool_sizes[2].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -4886,6 +4887,8 @@ backend_vk_create_resources(void)
         sk_img_info[1].imageView   = vk_sky_front_view;
         sk_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         sk_img_info[2].imageView   = vk_sky_back_view;
+        sk_img_info[3].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        sk_img_info[3].imageView   = vk_zbuffer_view;
 
         memset(sk_buf_info, 0, sizeof(sk_buf_info));
         sk_buf_info[0].buffer = vk_sky_ubo_buffer;
@@ -4899,7 +4902,7 @@ backend_vk_create_resources(void)
         sk_buf_info[2].range  = VK_WHOLE_SIZE;
 
         memset(sk_writes, 0, sizeof(sk_writes));
-        for (bi = 0; bi < 6; bi++) {
+        for (bi = 0; bi < 7; bi++) {
             sk_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             sk_writes[bi].dstSet          = vk_sky_set;
             sk_writes[bi].dstBinding      = (uint32_t)bi;
@@ -4917,8 +4920,10 @@ backend_vk_create_resources(void)
         sk_writes[4].pBufferInfo    = &sk_buf_info[1];
         sk_writes[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         sk_writes[5].pBufferInfo    = &sk_buf_info[2];
+        sk_writes[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        sk_writes[6].pImageInfo     = &sk_img_info[3];
 
-        vk_fn.UpdateDescriptorSets(vk_device, 6, sk_writes, 0, NULL);
+        vk_fn.UpdateDescriptorSets(vk_device, 7, sk_writes, 0, NULL);
 
         /* 6. Pipeline layout (no push constants -- everything
          *    in the UBO) + compute pipeline. */
