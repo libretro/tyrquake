@@ -1545,12 +1545,25 @@ D_DrawShadowTriangle(const float v0[2], const float v1[2], const float v2[2],
     y_mid = (int)p1[1];
     y_bot = (int)p2[1];
 
-    if (y_bot < 0 || y_top >= vid.height) return;
+    /* Clip Y to the 3D viewport (r_refdef.vrect), not the full
+     * framebuffer.  The shadow rasterizer used to clamp to
+     * [0, vid.height) and [0, screenwidth), which lets a long
+     * shadow that projects past the bottom of the viewport keep
+     * darkening pixels in the status-bar strip vid.buffer holds
+     * below it -- visible as a moving silhouette over the static
+     * HUD backdrop.  r_refdef.vrectbottom is exclusive (== vrect.y
+     * + vrect.height, from r_main.c::R_ViewChanged), so the last
+     * valid row is vrectbottom - 1; same for vrectright on the X
+     * axis below. */
+    if (y_bot < r_refdef.vrect.y || y_top >= r_refdef.vrectbottom)
+        return;
 
     y_clamp_top = y_top;
     y_clamp_bot = y_bot;
-    if (y_clamp_top < 0)             y_clamp_top = 0;
-    if (y_clamp_bot >= vid.height)   y_clamp_bot = vid.height - 1;
+    if (y_clamp_top < r_refdef.vrect.y)
+        y_clamp_top = r_refdef.vrect.y;
+    if (y_clamp_bot >= r_refdef.vrectbottom)
+        y_clamp_bot = r_refdef.vrectbottom - 1;
     if (y_clamp_top > y_clamp_bot)   return;
 
     yspan02 = p2[1] - p0[1];
@@ -1607,8 +1620,11 @@ D_DrawShadowTriangle(const float v0[2], const float v1[2], const float v2[2],
 	    dz_dx  = (x_a - x_b > 1.0f) ? (z_a - z_b) / (x_a - x_b) : 0.0f;
 	}
 
-	if (xl < 0)            { z_left += dz_dx * (float)(0 - xl); xl = 0; }
-	if (xr >= screenwidth) xr = screenwidth - 1;
+	if (xl < r_refdef.vrect.x) {
+	    z_left += dz_dx * (float)(r_refdef.vrect.x - xl);
+	    xl = r_refdef.vrect.x;
+	}
+	if (xr >= r_refdef.vrectright) xr = r_refdef.vrectright - 1;
 	if (xl > xr)           continue;
 
 	{
