@@ -314,6 +314,49 @@ typedef struct render_backend_s {
      * any HW backend that doesn't (yet) implement compute
      * particle rasterization. */
     void     (*dispatch_3d_particles)(struct particle_s *head);
+
+    /* 3D water-warp compute dispatch (Phase 5b-03).  GPU
+     * port of D_WarpScreen: when the active backend
+     * exposes this entry and g_rhi_compute_rendering is
+     * true, R_SetupFrame suppresses r_dowarp (so the SW
+     * raster renders the 3D view at full resolution into
+     * vid.buffer, not into the downscaled r_warpbuffer),
+     * and R_RenderView calls this entry at the point it
+     * would have called D_WarpScreen.  The backend
+     * records a fused warp + palette-mapping compute
+     * dispatch that replaces this frame's regular
+     * palette compute pass; the warp shader samples the
+     * just-uploaded vk_texture with per-pixel sin
+     * offsets (intsintable[(phase + pixel_coord) & 255])
+     * and writes the palette-mapped RGBA result to the
+     * swapchain image.
+     *
+     * The GPU warp runs at the full render resolution,
+     * not the downscaled r_warpbuffer resolution the SW
+     * path uses.  The SW downscale exists to keep the
+     * per-pixel sin warp tractable on a CPU at high
+     * output resolutions (the r_waterwarp_scale cvar
+     * defaults to 0.5, halving each axis); the
+     * downscale is a workaround, not a feature, and
+     * compute hardware doesn't need it.  Full-res GPU
+     * warp keeps the underlying render's detail intact.
+     *
+     * No arguments: the backend reads cl.time (for the
+     * sin phase), scr_vrect (for the warpable region's
+     * bounds), and the precomputed intsintable[]
+     * (uploaded once at backend init from R_InitTurb's
+     * output) directly.  All of those globals are at
+     * their final values for this frame by the time
+     * R_RenderView reaches its end-of-view warp call
+     * site.
+     *
+     * NULL on SW backend / SW-only build.  When NULL,
+     * R_SetupFrame falls through to its original
+     * r_dowarp computation (sets the flag based on
+     * water content + r_waterwarp cvar), and
+     * R_RenderView's r_dowarp branch runs CPU
+     * D_WarpScreen unchanged. */
+    void     (*dispatch_3d_warp_screen)(void);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

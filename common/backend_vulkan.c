@@ -206,16 +206,26 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/overlay_quad_vs.h"
 #include "shaders/generated/spv/overlay_quad_fs.h"
 #include "shaders/generated/spv/particles_cs.h"
+#include "shaders/generated/spv/warpscreen_cs.h"
 #include "d_iface.h"      /* particle_t -- the GPU compute particle
                            * rasterizer walks the active linked list
-                           * via this typedef. */
+                           * via this typedef.  Also TURB_CYCLE for
+                           * the warp shader's phase modulus. */
 #include "d_local.h"      /* d_pzbuffer / d_pix_* / d_vrect*_particle /
                            * d_y_aspect_shift -- the SW raster state
                            * the particle compute shader's push
                            * constants snapshot. */
 #include "r_local.h"      /* xcenter, ycenter, r_origin -- the rest
                            * of the SW raster state the particle
-                           * compute shader snapshots. */
+                           * compute shader snapshots.  Plus scr_vrect
+                           * (transitively via screen.h) for the warp
+                           * shader's bounds. */
+#include "r_shared.h"     /* intsintable[] -- the sin lookup table the
+                           * warp shader uploads once at init. */
+#include "screen.h"       /* scr_vrect -- the rectangle the warp
+                           * dispatch's push constants snapshot each
+                           * frame. */
+#include "client.h"       /* cl -- cl.time drives the warp phase. */
 #include <string.h>
 
 extern retro_environment_t    environ_cb;
@@ -520,6 +530,98 @@ static VkDescriptorSet        vk_particles_set;
 static uint32_t               vk_pending_particle_count;
 static struct vk_particles_pc vk_particles_push;
 
+/* --------------------------------------------------------
+ * Phase 5b-03: GPU compute water-warp resources.
+ *
+ * Fused warp + palette-mapping compute pipeline that
+ * replaces the regular palette dispatch (vk_compute_
+ * pipeline) on frames where the player's view leaf is in
+ * water.  Reads u_index (vk_texture, the just-uploaded
+ * vid.buffer + any particle dispatch writes), samples it
+ * with a per-pixel sin offset from intsintable, palette-
+ * maps the sampled byte through u_palette, and writes
+ * the RGBA result directly to u_output (vk_image, the
+ * frame's final swapchain image).  Single dispatch per
+ * frame -- no intermediate vk_texture_warped buffer
+ * needed because the warp and palette steps are fused
+ * into one shader.
+ *
+ * Resources:
+ *   vk_warp_table_buffer  : UBO holding the 256-entry
+ *                           intsintable[] from R_InitTurb,
+ *                           uploaded ONCE at backend init
+ *                           (the table only depends on
+ *                           TURB_SCREEN_AMP and TURB_CYCLE,
+ *                           neither of which change).
+ *                           std140-packed as 64 ivec4s.
+ *   vk_warp_table_memory  : DEVICE_LOCAL backing memory
+ *                           for vk_warp_table_buffer
+ *                           (uploaded via a one-shot
+ *                           CopyBuffer at init time).
+ *   vk_warp_cs_module     : compiled SPIR-V for
+ *                           warpscreen.comp.
+ *   vk_warp_dsl           : 4-binding DSL (matches the
+ *                           palette compute's 3-binding
+ *                           DSL plus binding 3 for the
+ *                           sin table UBO).
+ *   vk_warp_pool          : descriptor pool, 1 set
+ *                           sized for the four bindings.
+ *   vk_warp_set           : the allocated descriptor set;
+ *                           bindings 0-2 point at the
+ *                           same handles vk_descriptor_set
+ *                           does (vk_texture / vk_palette
+ *                           _texture / vk_image), binding
+ *                           3 at vk_warp_table_buffer.
+ *   vk_warp_pipeline_layout : DSL + 32 B push constants.
+ *   vk_warp_pipeline      : the compute pipeline.
+ *
+ * Per-frame state:
+ *   vk_warp_active        : set by backend_vk_dispatch_3d_
+ *                           warp_screen_impl, read by
+ *                           record_frame to choose between
+ *                           the regular palette dispatch
+ *                           and the warp+palette dispatch.
+ *                           Reset to false at end of
+ *                           record_frame.
+ *   vk_warp_push          : push-constant snapshot at
+ *                           dispatch-stage time
+ *                           (phase / scr_vrect bounds);
+ *                           record_frame pushes this
+ *                           verbatim.
+ */
+#define VK_WARP_TABLE_SIZE  (2u * 128u)              /* TURB_TABLE_SIZE */
+#define VK_WARP_TABLE_BYTES (16u * 64u)              /* 64 ivec4 slots */
+
+struct vk_warp_pc {
+    int32_t phase;
+    int32_t scr_x;
+    int32_t scr_y;
+    int32_t scr_w;
+    int32_t scr_h;
+    int32_t _pad0;
+    int32_t _pad1;
+    int32_t _pad2;
+};
+
+static VkBuffer               vk_warp_table_buffer;
+static VkDeviceMemory         vk_warp_table_memory;
+/* Temporary handles used between the warp pipeline
+ * setup block and the post-cmd-pool upload block in
+ * create_resources.  Held in file-static scope only so
+ * the two blocks can communicate; the upload destroys
+ * them before create_resources returns.  Outside
+ * create_resources they're always VK_NULL_HANDLE. */
+static VkBuffer               vk_warp_table_staging;
+static VkDeviceMemory         vk_warp_table_staging_memory;
+static VkShaderModule         vk_warp_cs_module;
+static VkPipelineLayout       vk_warp_pipeline_layout;
+static VkPipeline             vk_warp_pipeline;
+static VkDescriptorSetLayout  vk_warp_dsl;
+static VkDescriptorPool       vk_warp_pool;
+static VkDescriptorSet        vk_warp_set;
+static qboolean               vk_warp_active;
+static struct vk_warp_pc      vk_warp_push;
+
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
  * VkImageViewCreateInfo is what the frontend uses to know
@@ -607,6 +709,7 @@ static struct {
     PFN_vkCmdCopyBufferToImage            CmdCopyBufferToImage;
     PFN_vkCmdBindDescriptorSets           CmdBindDescriptorSets;
     PFN_vkCmdPushConstants                CmdPushConstants;
+    PFN_vkCmdCopyBuffer                   CmdCopyBuffer;
 } vk_fn;
 
 /* The retro_hw_render_callback we register with the frontend.
@@ -2596,6 +2699,446 @@ backend_vk_create_resources(void)
     }
 
     /* ---------------------------------------------------------
+     * Phase 5b-03: GPU compute water-warp resources.
+     *
+     * Order:
+     *   1. vk_warp_table_buffer (UBO, DEVICE_LOCAL).
+     *   2. Stage and upload intsintable into it via a one-shot
+     *      host-visible buffer + CmdCopyBuffer in a one-time
+     *      command submission.
+     *   3. vk_warp_cs_module from precompiled SPIR-V.
+     *   4. vk_warp_dsl (4 bindings: 2 sampled, 1 storage, 1 UBO).
+     *   5. vk_warp_pool + AllocateDescriptorSets -> vk_warp_set.
+     *   6. UpdateDescriptorSets with the four handles
+     *      (vk_texture_view sampled, vk_palette_texture_view
+     *      sampled, vk_image_view storage, vk_warp_table_buffer
+     *      UBO).
+     *   7. vk_warp_pipeline_layout (DSL + 32 B push constants).
+     *   8. CreateComputePipelines -> vk_warp_pipeline.
+     */
+    {
+        VkBufferCreateInfo            wt_ci;
+        VkMemoryRequirements          wt_mem_req;
+        VkMemoryAllocateInfo          wt_mem_ai;
+        VkBufferCreateInfo            ws_ci;
+        VkMemoryRequirements          ws_mem_req;
+        VkMemoryAllocateInfo          ws_mem_ai;
+        VkBuffer                      wt_staging;
+        VkDeviceMemory                wt_staging_memory;
+        void                         *wt_staging_ptr;
+        VkCommandBuffer               wt_upload_cmd;
+        VkCommandBufferAllocateInfo   wt_cmd_alloc;
+        VkCommandBufferBeginInfo      wt_begin;
+        VkBufferCopy                  wt_copy;
+        VkSubmitInfo                  wt_si;
+        VkShaderModuleCreateInfo      wsm_ci;
+        VkDescriptorSetLayoutBinding  w_dsl_bindings[4];
+        VkDescriptorSetLayoutCreateInfo w_dsl_ci;
+        VkDescriptorPoolSize          w_pool_sizes[3];
+        VkDescriptorPoolCreateInfo    w_pool_ci;
+        VkDescriptorSetAllocateInfo   w_set_alloc;
+        VkDescriptorImageInfo         w_img_info[3];
+        VkDescriptorBufferInfo        w_buf_info;
+        VkWriteDescriptorSet          w_writes[4];
+        VkPushConstantRange           w_push_range;
+        VkPipelineLayoutCreateInfo    w_pl_ci;
+        VkComputePipelineCreateInfo   w_cp_ci;
+        VkPipelineShaderStageCreateInfo w_cs_stage;
+        uint32_t                      wt_mem_type;
+        uint32_t                      ws_mem_type;
+        int                           si;
+
+        /* 1. vk_warp_table_buffer: UBO sized for 64 ivec4
+         *    slots (4 bytes/lane * 4 lanes/slot * 64 slots
+         *    = 1 KiB).  TRANSFER_DST so the one-shot
+         *    upload can write to it.  DEVICE_LOCAL because
+         *    it's read every frame by the warp dispatch
+         *    and never modified by the host after init. */
+        memset(&wt_ci, 0, sizeof(wt_ci));
+        wt_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        wt_ci.size        = VK_WARP_TABLE_BYTES;
+        wt_ci.usage       = VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                          | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        wt_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &wt_ci, NULL,
+                               &vk_warp_table_buffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (warp table UBO) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device, vk_warp_table_buffer,
+                                          &wt_mem_req);
+        wt_mem_type = backend_vk_find_memory_type(
+            wt_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (wt_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no DEVICE_LOCAL memory for warp table UBO\n");
+            return false;
+        }
+
+        memset(&wt_mem_ai, 0, sizeof(wt_mem_ai));
+        wt_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        wt_mem_ai.allocationSize  = wt_mem_req.size;
+        wt_mem_ai.memoryTypeIndex = wt_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &wt_mem_ai, NULL,
+                                 &vk_warp_table_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (warp table UBO) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, vk_warp_table_buffer,
+                                   vk_warp_table_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (warp table UBO) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        /* 2. Stage + upload intsintable via a one-shot
+         *    HOST_VISIBLE buffer + CmdCopyBuffer.  The
+         *    table is 256 ints from R_InitTurb (which has
+         *    already run by this point -- R_Init is called
+         *    from libretro's retro_load_game ahead of the
+         *    backend's context_reset).  Pack as 64 ivec4
+         *    slots to match the shader's std140 layout
+         *    (each int occupies its own 16-byte slot in
+         *    std140; we pack 4 ints per slot using ivec4).
+         */
+        memset(&ws_ci, 0, sizeof(ws_ci));
+        ws_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        ws_ci.size        = VK_WARP_TABLE_BYTES;
+        ws_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        ws_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        r = vk_fn.CreateBuffer(vk_device, &ws_ci, NULL, &wt_staging);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateBuffer (warp table staging) failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        vk_fn.GetBufferMemoryRequirements(vk_device, wt_staging, &ws_mem_req);
+        ws_mem_type = backend_vk_find_memory_type(
+            ws_mem_req.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (ws_mem_type == UINT32_MAX) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for warp staging\n");
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        memset(&ws_mem_ai, 0, sizeof(ws_mem_ai));
+        ws_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ws_mem_ai.allocationSize  = ws_mem_req.size;
+        ws_mem_ai.memoryTypeIndex = ws_mem_type;
+
+        r = vk_fn.AllocateMemory(vk_device, &ws_mem_ai, NULL, &wt_staging_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateMemory (warp table staging) failed (%d)\n",
+                       (int)r);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        r = vk_fn.BindBufferMemory(vk_device, wt_staging, wt_staging_memory, 0);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: BindBufferMemory (warp table staging) failed (%d)\n",
+                       (int)r);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        r = vk_fn.MapMemory(vk_device, wt_staging_memory,
+                            0, VK_WHOLE_SIZE, 0, &wt_staging_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: MapMemory (warp table staging) failed (%d)\n",
+                       (int)r);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        /* Pack intsintable (256 ints) into 64 ivec4 slots.
+         * Slot i holds entries [4i .. 4i+3].  std140 layout
+         * in the shader matches: ivec4 packed[64] is 64
+         * 16-byte slots, each containing four int lanes. */
+        {
+            int32_t *slot = (int32_t *)wt_staging_ptr;
+            for (si = 0; si < (int)VK_WARP_TABLE_SIZE; si++)
+                slot[si] = (int32_t)intsintable[si];
+        }
+
+        /* Allocate a one-shot command buffer to issue the
+         * CopyBuffer (we already have vk_cmd_pool from up
+         * above? -- no, vk_cmd_pool is created below this
+         * block.  We need our own short-lived pool here,
+         * or we can hand-roll the command buffer with a
+         * temporary pool.  Simplest: create a temporary
+         * single-use pool that's destroyed immediately
+         * after submit + WaitIdle).
+         *
+         * Actually vk_cmd_pool IS created below, after
+         * this block -- which means it doesn't exist yet
+         * when we get here.  Defer the upload: write the
+         * staging bytes here, but issue the copy at the
+         * end of create_resources after vk_cmd_pool is
+         * up.  That's what the next sub-block below does. */
+
+        /* 3. Shader module. */
+        memset(&wsm_ci, 0, sizeof(wsm_ci));
+        wsm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        wsm_ci.codeSize = spv_warpscreen_cs_size;
+        wsm_ci.pCode    = spv_warpscreen_cs;
+
+        r = vk_fn.CreateShaderModule(vk_device, &wsm_ci, NULL,
+                                     &vk_warp_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateShaderModule (warp) failed (%d)\n",
+                       (int)r);
+            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        /* 4. Descriptor set layout: 4 bindings, all
+         *    COMPUTE-only.  Bindings 0-2 mirror the
+         *    palette compute's set; binding 3 is the
+         *    sin-table UBO. */
+        memset(&w_dsl_bindings, 0, sizeof(w_dsl_bindings));
+        w_dsl_bindings[0].binding         = 0;
+        w_dsl_bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w_dsl_bindings[0].descriptorCount = 1;
+        w_dsl_bindings[0].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        w_dsl_bindings[1].binding         = 1;
+        w_dsl_bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w_dsl_bindings[1].descriptorCount = 1;
+        w_dsl_bindings[1].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        w_dsl_bindings[2].binding         = 2;
+        w_dsl_bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        w_dsl_bindings[2].descriptorCount = 1;
+        w_dsl_bindings[2].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        w_dsl_bindings[3].binding         = 3;
+        w_dsl_bindings[3].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        w_dsl_bindings[3].descriptorCount = 1;
+        w_dsl_bindings[3].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        memset(&w_dsl_ci, 0, sizeof(w_dsl_ci));
+        w_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        w_dsl_ci.bindingCount = 4;
+        w_dsl_ci.pBindings    = w_dsl_bindings;
+
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &w_dsl_ci, NULL,
+                                            &vk_warp_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorSetLayout (warp) failed (%d)\n",
+                       (int)r);
+            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        /* 5. Pool + set allocation. */
+        memset(&w_pool_sizes, 0, sizeof(w_pool_sizes));
+        w_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w_pool_sizes[0].descriptorCount = 2;
+        w_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        w_pool_sizes[1].descriptorCount = 1;
+        w_pool_sizes[2].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        w_pool_sizes[2].descriptorCount = 1;
+
+        memset(&w_pool_ci, 0, sizeof(w_pool_ci));
+        w_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        w_pool_ci.maxSets       = 1;
+        w_pool_ci.poolSizeCount = 3;
+        w_pool_ci.pPoolSizes    = w_pool_sizes;
+
+        r = vk_fn.CreateDescriptorPool(vk_device, &w_pool_ci, NULL,
+                                       &vk_warp_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateDescriptorPool (warp) failed (%d)\n",
+                       (int)r);
+            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        memset(&w_set_alloc, 0, sizeof(w_set_alloc));
+        w_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        w_set_alloc.descriptorPool     = vk_warp_pool;
+        w_set_alloc.descriptorSetCount = 1;
+        w_set_alloc.pSetLayouts        = &vk_warp_dsl;
+
+        r = vk_fn.AllocateDescriptorSets(vk_device, &w_set_alloc, &vk_warp_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets (warp) failed (%d)\n",
+                       (int)r);
+            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        /* 6. Update set bindings.  vk_texture sampled via
+         *    SHADER_READ_ONLY (the regular palette layout
+         *    transition leaves it there; ditto vk_palette_
+         *    texture).  vk_image storage via GENERAL.  The
+         *    UBO uses the buffer info union member. */
+        memset(&w_img_info, 0, sizeof(w_img_info));
+        w_img_info[0].sampler     = vk_sampler;
+        w_img_info[0].imageView   = vk_texture_view;
+        w_img_info[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        w_img_info[1].sampler     = vk_sampler;
+        w_img_info[1].imageView   = vk_palette_texture_view;
+        w_img_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        w_img_info[2].sampler     = VK_NULL_HANDLE;
+        w_img_info[2].imageView   = vk_image_view;
+        w_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        memset(&w_buf_info, 0, sizeof(w_buf_info));
+        w_buf_info.buffer = vk_warp_table_buffer;
+        w_buf_info.offset = 0;
+        w_buf_info.range  = VK_WHOLE_SIZE;
+
+        memset(&w_writes, 0, sizeof(w_writes));
+        w_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w_writes[0].dstSet          = vk_warp_set;
+        w_writes[0].dstBinding      = 0;
+        w_writes[0].descriptorCount = 1;
+        w_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w_writes[0].pImageInfo      = &w_img_info[0];
+        w_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w_writes[1].dstSet          = vk_warp_set;
+        w_writes[1].dstBinding      = 1;
+        w_writes[1].descriptorCount = 1;
+        w_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w_writes[1].pImageInfo      = &w_img_info[1];
+        w_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w_writes[2].dstSet          = vk_warp_set;
+        w_writes[2].dstBinding      = 2;
+        w_writes[2].descriptorCount = 1;
+        w_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        w_writes[2].pImageInfo      = &w_img_info[2];
+        w_writes[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w_writes[3].dstSet          = vk_warp_set;
+        w_writes[3].dstBinding      = 3;
+        w_writes[3].descriptorCount = 1;
+        w_writes[3].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        w_writes[3].pBufferInfo     = &w_buf_info;
+
+        vk_fn.UpdateDescriptorSets(vk_device, 4, w_writes, 0, NULL);
+
+        /* 7. Pipeline layout. */
+        memset(&w_push_range, 0, sizeof(w_push_range));
+        w_push_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        w_push_range.offset     = 0;
+        w_push_range.size       = sizeof(struct vk_warp_pc);
+
+        memset(&w_pl_ci, 0, sizeof(w_pl_ci));
+        w_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        w_pl_ci.setLayoutCount         = 1;
+        w_pl_ci.pSetLayouts            = &vk_warp_dsl;
+        w_pl_ci.pushConstantRangeCount = 1;
+        w_pl_ci.pPushConstantRanges    = &w_push_range;
+
+        r = vk_fn.CreatePipelineLayout(vk_device, &w_pl_ci, NULL,
+                                       &vk_warp_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreatePipelineLayout (warp) failed (%d)\n",
+                       (int)r);
+            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        /* 8. Compute pipeline. */
+        memset(&w_cs_stage, 0, sizeof(w_cs_stage));
+        w_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        w_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        w_cs_stage.module = vk_warp_cs_module;
+        w_cs_stage.pName  = "main";
+
+        memset(&w_cp_ci, 0, sizeof(w_cp_ci));
+        w_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        w_cp_ci.stage  = w_cs_stage;
+        w_cp_ci.layout = vk_warp_pipeline_layout;
+
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE,
+                                         1, &w_cp_ci, NULL,
+                                         &vk_warp_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: CreateComputePipelines (warp) failed (%d)\n",
+                       (int)r);
+            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+            return false;
+        }
+
+        /* Stash staging handles in file-static scope so
+         * the post-cmd-pool block below can issue the
+         * one-shot copy + tear them down.  Use simple
+         * leak-style locals: we'll free them at the end
+         * of create_resources after the upload is done. */
+        (void)wt_upload_cmd;
+        (void)wt_cmd_alloc;
+        (void)wt_begin;
+        (void)wt_copy;
+        (void)wt_si;
+
+        /* Move the staging handles to a temporary holding
+         * spot via file-static globals -- this is a
+         * one-shot upload, so don't bother with a full
+         * struct; cast through static dummies that the
+         * post-cmd-pool sub-block reads.  Keeping the
+         * upload deferred avoids needing a second cmd
+         * pool here. */
+        vk_warp_table_staging         = wt_staging;
+        vk_warp_table_staging_memory  = wt_staging_memory;
+    }
+
+    /* ---------------------------------------------------------
      * Command pool + buffer.  RESET_COMMAND_BUFFER_BIT lets
      * vkBeginCommandBuffer implicitly reset the buffer at the
      * top of every per-frame recording (Phase 4e);
@@ -2633,6 +3176,96 @@ backend_vk_create_resources(void)
      * implicit reset that vkBeginCommandBuffer does when the
      * pool was created with RESET_COMMAND_BUFFER_BIT. */
 
+    /* Phase 5b-03: one-shot upload of intsintable into
+     * vk_warp_table_buffer (DEVICE_LOCAL).  Uses
+     * vk_cmd_buffer (just allocated above) for a single-
+     * use CopyBuffer + QueueWaitIdle, then frees the
+     * staging buffer.  The table doesn't change after
+     * R_InitTurb so this is a once-per-context-reset
+     * cost. */
+    if (vk_warp_table_staging != VK_NULL_HANDLE) {
+        VkCommandBufferBeginInfo wt_begin;
+        VkBufferCopy             wt_copy;
+        VkSubmitInfo             wt_si;
+        VkBufferMemoryBarrier    wt_bar;
+
+        memset(&wt_begin, 0, sizeof(wt_begin));
+        wt_begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        wt_begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        r = vk_fn.BeginCommandBuffer(vk_cmd_buffer, &wt_begin);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: warp-table upload BeginCommandBuffer failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&wt_copy, 0, sizeof(wt_copy));
+        wt_copy.size = VK_WARP_TABLE_BYTES;
+
+        vk_fn.CmdCopyBuffer(vk_cmd_buffer,
+                            vk_warp_table_staging,
+                            vk_warp_table_buffer,
+                            1, &wt_copy);
+
+        /* TRANSFER_WRITE -> UNIFORM_READ for the UBO so
+         * the first frame's warp dispatch sees the data
+         * coherently.  Buffer barrier so the table-
+         * specific dependency is clear; alternative would
+         * be a global memory barrier. */
+        memset(&wt_bar, 0, sizeof(wt_bar));
+        wt_bar.sType               = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        wt_bar.srcAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT;
+        wt_bar.dstAccessMask       = VK_ACCESS_UNIFORM_READ_BIT;
+        wt_bar.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        wt_bar.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        wt_bar.buffer              = vk_warp_table_buffer;
+        wt_bar.offset              = 0;
+        wt_bar.size                = VK_WARP_TABLE_BYTES;
+
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 1, &wt_bar,
+                                 0, NULL);
+
+        r = vk_fn.EndCommandBuffer(vk_cmd_buffer);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: warp-table upload EndCommandBuffer failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        memset(&wt_si, 0, sizeof(wt_si));
+        wt_si.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        wt_si.commandBufferCount = 1;
+        wt_si.pCommandBuffers    = &vk_cmd_buffer;
+
+        r = vk_fn.QueueSubmit(vk_queue, 1, &wt_si, VK_NULL_HANDLE);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: warp-table upload QueueSubmit failed (%d)\n",
+                       (int)r);
+            return false;
+        }
+
+        vk_fn.QueueWaitIdle(vk_queue);
+
+        /* Staging buffer's job is done; free it.  Mapped
+         * memory is implicitly unmapped by FreeMemory. */
+        vk_fn.UnmapMemory(vk_device, vk_warp_table_staging_memory);
+        vk_fn.DestroyBuffer(vk_device, vk_warp_table_staging, NULL);
+        vk_fn.FreeMemory(vk_device, vk_warp_table_staging_memory, NULL);
+        vk_warp_table_staging         = VK_NULL_HANDLE;
+        vk_warp_table_staging_memory  = VK_NULL_HANDLE;
+    }
 
     vk_resources_ready = true;
     if (log_cb)
@@ -2660,6 +3293,60 @@ backend_vk_destroy_resources(void)
      * queue), which is what we want at teardown. */
     if (vk_fn.DeviceWaitIdle && vk_device != VK_NULL_HANDLE)
         vk_fn.DeviceWaitIdle(vk_device);
+
+    /* Phase 5b-03 warp pipeline / resources teardown.
+     * Reverse-create order; pool destruction implicitly
+     * frees vk_warp_set.  The staging buffer / memory
+     * pair, if non-NULL, is leftover state from a failed
+     * create_resources -- destroy them too. */
+    if (vk_warp_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_warp_pipeline, NULL);
+        vk_warp_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_warp_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_warp_pipeline_layout, NULL);
+        vk_warp_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_warp_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_warp_pool, NULL);
+        vk_warp_pool = VK_NULL_HANDLE;
+        vk_warp_set  = VK_NULL_HANDLE;
+    }
+    if (vk_warp_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device, vk_warp_dsl, NULL);
+        vk_warp_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_warp_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_warp_cs_module, NULL);
+        vk_warp_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_warp_table_staging != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_warp_table_staging, NULL);
+        vk_warp_table_staging = VK_NULL_HANDLE;
+    }
+    if (vk_warp_table_staging_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_warp_table_staging_memory, NULL);
+        vk_warp_table_staging_memory = VK_NULL_HANDLE;
+    }
+    if (vk_warp_table_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_warp_table_buffer, NULL);
+        vk_warp_table_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_warp_table_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_warp_table_memory, NULL);
+        vk_warp_table_memory = VK_NULL_HANDLE;
+    }
+    vk_warp_active = false;
 
     /* Phase 5b-02 particle pipeline / resources teardown.
      * Reverse-create order; pool destruction implicitly
@@ -3007,6 +3694,7 @@ backend_vk_load_fn(void)
         LOAD_DEV(CmdCopyBufferToImage);
         LOAD_DEV(CmdBindDescriptorSets);
         LOAD_DEV(CmdPushConstants);
+        LOAD_DEV(CmdCopyBuffer);
         #undef LOAD_DEV
     }
 }
@@ -4212,6 +4900,51 @@ backend_vk_dispatch_3d_particles_impl(struct particle_s *head)
 #endif
 }
 
+/*
+ * Phase 5b-03: stage a water-warp dispatch for the
+ * frame.
+ *
+ * Vtable entry called by R_RenderView at the point it
+ * would have called D_WarpScreen (replacing the CPU
+ * warp).  Snapshots the current warp phase ((cl.time *
+ * TURB_SPEED) & 127) and the scr_vrect bounds into
+ * vk_warp_push, sets vk_warp_active true.  record_frame
+ * sees the flag and dispatches the fused warp+palette
+ * compute shader instead of the regular palette compute.
+ *
+ * No GPU work happens here -- this just records "we want
+ * a warp this frame" -- the actual compute dispatch
+ * appears later in the per-frame command buffer.
+ *
+ * Defined outside the big #ifdef RHI_HAVE_VULKAN body
+ * block because the vtable references this name
+ * unconditionally; body is a no-op in the SW-only build.
+ */
+static void
+backend_vk_dispatch_3d_warp_screen_impl(void)
+{
+#ifdef RHI_HAVE_VULKAN
+    int phase;
+
+    if (!vk_resources_ready)
+        return;
+
+    /* TURB_SPEED == 20, TURB_CYCLE == 128.  phase wraps
+     * at TURB_CYCLE; turb[i] index ranges 0..127, which
+     * combined with the +i offset (also 0..127) keeps
+     * the intsintable[] access in [0, 255]. */
+    phase = (int)(cl.time * 20.0) & 127;
+
+    vk_warp_push.phase = phase;
+    vk_warp_push.scr_x = scr_vrect.x;
+    vk_warp_push.scr_y = scr_vrect.y;
+    vk_warp_push.scr_w = scr_vrect.width;
+    vk_warp_push.scr_h = scr_vrect.height;
+
+    vk_warp_active = true;
+#endif
+}
+
 static void
 backend_vk_shutdown(void)
 {
@@ -4725,16 +5458,47 @@ backend_vk_record_frame(void)
      * the shader); dispatch ceil(width/16) x ceil(height/16)
      * workgroups so we cover the whole image, with the
      * shader's bounds check handling the overshoot when
-     * width or height isn't a multiple of 16. */
-    vk_fn.CmdBindPipeline(vk_cmd_buffer,
-                          VK_PIPELINE_BIND_POINT_COMPUTE,
-                          vk_compute_pipeline);
-    vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
-                                VK_PIPELINE_BIND_POINT_COMPUTE,
-                                vk_pipeline_layout,
-                                0,                /* firstSet */
-                                1, &vk_descriptor_set,
-                                0, NULL);          /* no dynamic offsets */
+     * width or height isn't a multiple of 16.
+     *
+     * Phase 5b-03: when vk_warp_active, dispatch the fused
+     * warp + palette pipeline instead of the regular
+     * palette pipeline.  Same workgroup layout, same
+     * dispatch grid, same image-layout requirements
+     * (vk_texture SHADER_READ_ONLY, vk_palette_texture
+     * SHADER_READ_ONLY, vk_image GENERAL) -- the only
+     * differences are the pipeline / pipeline-layout /
+     * descriptor-set handles and the additional push-
+     * constants payload (phase + scr_vrect bounds).  The
+     * warp pipeline reads its sin-table UBO as binding 3
+     * of its own descriptor set; nothing to coordinate
+     * with the rest of the frame's barrier sequence
+     * (UBO reads don't need a layout transition). */
+    if (vk_warp_active) {
+        vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                              VK_PIPELINE_BIND_POINT_COMPUTE,
+                              vk_warp_pipeline);
+        vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                    VK_PIPELINE_BIND_POINT_COMPUTE,
+                                    vk_warp_pipeline_layout,
+                                    0,
+                                    1, &vk_warp_set,
+                                    0, NULL);
+        vk_fn.CmdPushConstants(vk_cmd_buffer,
+                               vk_warp_pipeline_layout,
+                               VK_SHADER_STAGE_COMPUTE_BIT,
+                               0, sizeof(vk_warp_push),
+                               &vk_warp_push);
+    } else {
+        vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                              VK_PIPELINE_BIND_POINT_COMPUTE,
+                              vk_compute_pipeline);
+        vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                    VK_PIPELINE_BIND_POINT_COMPUTE,
+                                    vk_pipeline_layout,
+                                    0,                /* firstSet */
+                                    1, &vk_descriptor_set,
+                                    0, NULL);          /* no dynamic offsets */
+    }
 
     group_count_x = (width  + 15u) / 16u;
     group_count_y = (height + 15u) / 16u;
@@ -4836,6 +5600,11 @@ backend_vk_record_frame(void)
      * fast path takes over. */
     vk_pending_particle_count = 0;
 
+    /* Phase 5b-03: reset the warp flag too.  Next frame's
+     * R_RenderView will re-set it via dispatch_3d_warp_
+     * screen if the view is still in water. */
+    vk_warp_active = false;
+
     return true;
 }
 #endif
@@ -4936,5 +5705,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_queue_2d_pic_translate_scaled_entry,
     backend_vk_queue_2d_fill_entry,
     backend_vk_queue_2d_fade_screen_entry,
-    backend_vk_dispatch_3d_particles_impl
+    backend_vk_dispatch_3d_particles_impl,
+    backend_vk_dispatch_3d_warp_screen_impl
 };

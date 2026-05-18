@@ -30,6 +30,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "sound.h"
 #include "sys.h"
 #include "view.h"
+#include "rhi.h"      /* g_rhi / g_rhi_compute_rendering /
+                       * dispatch_3d_warp_screen -- when GPU warp is
+                       * active R_RenderView calls it instead of
+                       * D_WarpScreen (Phase 5b-03). */
 
 void *colormap;
 int r_numallocatededges;
@@ -1386,6 +1390,18 @@ R_RenderView(void)
 
     if (r_dowarp)
 	D_WarpScreen();
+    else if (g_rhi && g_rhi->dispatch_3d_warp_screen
+                   && g_rhi_compute_rendering
+                   && r_waterwarp.value
+                   && (r_viewleaf->contents <= CONTENTS_WATER))
+	/* Phase 5b-03: GPU compute warp.  R_SetupFrame
+	 * suppressed r_dowarp so the SW raster ran at full
+	 * resolution into vid.buffer; the backend takes
+	 * over here, snapshotting cl.time / scr_vrect into
+	 * its push-constant block and dispatching a fused
+	 * warp + palette compute pass that replaces this
+	 * frame's regular palette dispatch. */
+	g_rhi->dispatch_3d_warp_screen();
 
     V_SetContentsColor(r_viewleaf->contents);
 

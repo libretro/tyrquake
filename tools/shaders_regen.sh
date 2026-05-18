@@ -101,5 +101,6 @@ regen_shader comp textured_palette cs
 regen_shader vert overlay_quad     vs
 regen_shader frag overlay_quad     fs
 regen_shader comp particles        cs
+regen_shader comp warpscreen       cs
 
 echo "done."

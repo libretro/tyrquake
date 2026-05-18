@@ -29,6 +29,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "host.h"
 #include "server.h"
 #include "sys.h"
+#include "rhi.h"          /* g_rhi / g_rhi_compute_rendering -- when the
+                           * active backend exposes a GPU warp dispatch
+                           * and compute rendering is enabled,
+                           * R_SetupFrame suppresses the SW r_dowarp
+                           * flag so the SW raster doesn't render to
+                           * r_warpbuffer at downscaled resolution; the
+                           * backend handles the warp at full
+                           * resolution from vk_texture (Phase 5b-03). */
 
 /*
 ===============
@@ -230,6 +238,25 @@ R_SetupFrame(void)
 
     r_dowarpold = r_dowarp;
     r_dowarp = r_waterwarp.value && (r_viewleaf->contents <= CONTENTS_WATER);
+
+    /* Phase 5b-03: when the active backend can dispatch the
+     * water warp on the GPU and the user has compute
+     * rendering enabled, suppress the SW warp flag.  Effect
+     * on the SW raster: it renders the 3D view at full
+     * vid.width x vid.height into vid.buffer (instead of at
+     * the downscaled r_waterwarp_scale resolution into
+     * r_warpbuffer), then the backend's GPU warp dispatch
+     * samples vk_texture at full resolution with the sin
+     * offsets that D_WarpScreen would have applied on the
+     * CPU.  R_RenderView's "if (r_dowarp) D_WarpScreen()"
+     * call site doesn't fire because r_dowarp is now
+     * false on this path; the GPU dispatch happens in the
+     * mirroring "else if" added there in this commit. */
+    if (r_dowarp
+            && g_rhi && g_rhi->dispatch_3d_warp_screen
+            && g_rhi_compute_rendering) {
+        r_dowarp = false;
+    }
 
     /* If we're entering water, recompute the per-frame warp render-rect
      * cap from the active resolution and r_waterwarp_scale. The runtime
