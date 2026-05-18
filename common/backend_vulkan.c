@@ -5014,10 +5014,32 @@ backend_vk_queue_2d_pic(int x, int y, const qpic_t *pic)
      * The qpic_t pointer is the key.  Slots with
      * key == NULL are empty.  OVERLAY_SLOT_MAX is small
      * enough (128) that the scan is microseconds even
-     * called many times per frame. */
+     * called many times per frame.
+     *
+     * Phase 5b-06 follow-up: also require width/height
+     * to match.  After r_polysubdiv bumps, alias models
+     * grow up to ~10 MB each in the Hunk cache, which
+     * triggers Cache_FreeLow / Cache_Move on the menu
+     * gfx LMPs sharing the cache.  When Draw_CachePic
+     * reloads an evicted pic the Hunk allocator can
+     * hand back the *same* address a previously evicted
+     * (different) pic occupied, so vk_overlay_slots[].key
+     * collides.  The stale slot was created at the
+     * other pic's dimensions; reusing it draws the old
+     * pixels stretched across the new pic's quad --
+     * Lib screenshot 5b-06: qplaque area replaced by
+     * vertical stretched-stripe garbage when subdiv
+     * stepped 2 -> 3.  Requiring dims to match falls
+     * through to "allocate new slot" on a collision.
+     * The stale slot stays occupied (we don't destroy
+     * its GPU resources inline; safer to let
+     * destroy_resources clean it up at backend
+     * teardown) but won't be matched again. */
     slot_idx = OVERLAY_SLOT_MAX;
     for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
-        if (vk_overlay_slots[si].key == (const void *)pic) {
+        if (vk_overlay_slots[si].key == (const void *)pic
+            && vk_overlay_slots[si].width  == (unsigned)pw
+            && vk_overlay_slots[si].height == (unsigned)ph) {
             slot_idx = si;
             break;
         }
@@ -5146,14 +5168,20 @@ backend_vk_queue_2d_pic_scaled(int x, int y,
     dw = pw * scale;
     dh = ph * scale;
 
-    /* Cache lookup keyed by pic pointer.  Identical to
-     * queue_2d_pic: scale doesn't affect the cached
-     * pixels, only the on-screen rect, so two calls
-     * with different scales for the same pic share the
-     * same slot. */
+    /* Cache lookup keyed by pic pointer + dimensions.
+     * Scale doesn't affect the cached pixels, only the
+     * on-screen rect, so two calls with different
+     * scales for the same pic share the same slot.
+     *
+     * Phase 5b-06 follow-up: dimensions are part of the
+     * key to defeat Hunk-address reuse across cache
+     * evictions.  See backend_vk_queue_2d_pic above for
+     * the long comment; same fix applies here. */
     slot_idx = OVERLAY_SLOT_MAX;
     for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
-        if (vk_overlay_slots[si].key == (const void *)pic) {
+        if (vk_overlay_slots[si].key == (const void *)pic
+            && vk_overlay_slots[si].width  == (unsigned)pw
+            && vk_overlay_slots[si].height == (unsigned)ph) {
             slot_idx = si;
             break;
         }
@@ -5774,10 +5802,13 @@ backend_vk_queue_2d_console_background(int lines, const qpic_t *pic)
         return;
 
     /* Cache lookup -- same linear scan keyed by pic
-     * pointer that queue_2d_pic uses. */
+     * pointer + dimensions that queue_2d_pic uses (see
+     * Phase 5b-06 long comment there for the rationale). */
     slot_idx = OVERLAY_SLOT_MAX;
     for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
-        if (vk_overlay_slots[si].key == (const void *)pic) {
+        if (vk_overlay_slots[si].key == (const void *)pic
+            && vk_overlay_slots[si].width  == (unsigned)pw
+            && vk_overlay_slots[si].height == (unsigned)ph) {
             slot_idx = si;
             break;
         }
