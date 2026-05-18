@@ -169,6 +169,53 @@ typedef struct render_backend_s {
      * string baked in) so the cache captures the right
      * pixels on first upload. */
     void     (*queue_2d_console_background)(int lines, const qpic_t *pic);
+
+    /* 2D translated scaled-pic intercept (Phase 4s).
+     * Handles the one caller of Draw_TransPicTranslate
+     * Scaled left as 'out of scope' by Phase 4q: the
+     * multiplayer Setup menu's player-model colour
+     * preview (M_DrawTransPicTranslate in menu.c, the
+     * only non-scale-1 caller of Draw_TransPicTranslate
+     * Scaled).  Phase 4q routed the rest of the menu
+     * pics through the overlay queue, and Phase 4r
+     * routed Draw_ConsoleBackground (the menu backdrop)
+     * through too; the player-preview pic, still SW-
+     * writing vid.buffer, then gets covered by the
+     * conback overlay quad at composite time and never
+     * shows.
+     *
+     * The translation table modifies the source bytes
+     * before sampling (re-maps the TOP_RANGE / BOTTOM_
+     * RANGE palette windows so the player sprite picks
+     * up the user-selected shirt / pants colours).
+     * Because the pic data and translation table both
+     * vary per call (the same pic stays at the same
+     * qpic_t pointer but its visible pixels change as
+     * the user navigates the colour picker), the
+     * normal slot-cache invariant 'cached pixels match
+     * the qpic_t key' doesn't hold.
+     *
+     * Backends should dedicate one slot to this caller
+     * (sentinel key distinct from any qpic_t and from
+     * the conchars key &draw_chars), translate the
+     * source bytes through `translation` into a
+     * scratch buffer (preserving byte 255 == TRANSPARENT
+     * _COLOR so the overlay FS discard works the same
+     * as for Draw_TransPicScaled), and on each call
+     * either upload to the dedicated slot on the
+     * first call or refresh its pixels in place on
+     * subsequent calls.  Queued overlay quad uses
+     * the (pic->width * scale, pic->height * scale)
+     * on-screen rect, full UV, same as queue_2d_pic_
+     * scaled.
+     *
+     * NULL on SW backend / SW-only build -- the SW
+     * stretched-memcpy-with-per-byte-translation loop
+     * in Draw_TransPicTranslateScaled runs unchanged. */
+    void     (*queue_2d_pic_translate_scaled)(int x, int y,
+                                              const qpic_t *pic,
+                                              const byte *translation,
+                                              int scale);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

@@ -848,6 +848,124 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     return true;
 }
 
+/*
+ * backend_vk_refresh_pic_slot -- re-upload the pixel
+ * contents of an already-allocated slot in place.
+ *
+ * backend_vk_upload_pic_slot above creates a fresh slot
+ * (image, memory, view, descriptor set) and uploads the
+ * initial pixels.  That's wrong for the player-colour
+ * preview's translated pic, which has constant
+ * dimensions but pixel contents that change every time
+ * the user navigates the colour picker -- we'd either
+ * tear down and re-create the slot every frame (leaks
+ * descriptor sets because the pool isn't flagged
+ * FREE_DESCRIPTOR_SET_BIT), or refresh in place.  This
+ * helper does the in-place refresh.
+ *
+ * Assumes the slot already exists (image, view,
+ * descriptor set bound) and its current layout is
+ * SHADER_READ_ONLY_OPTIMAL (the layout
+ * backend_vk_upload_pic_slot leaves it in).  Restores
+ * that layout at the end so subsequent overlay draws
+ * sample correctly.  Width / height match the slot's
+ * existing dimensions; caller is responsible for
+ * passing a `data` buffer of the right size.
+ *
+ * Must be called inside a backend_vk_begin_uploads /
+ * end_uploads pair, same as the upload helper.
+ */
+static qboolean
+backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
+{
+    struct overlay_slot  *slot;
+    VkImageMemoryBarrier  barrier;
+    VkBufferImageCopy     region;
+    size_t                bytes;
+
+    if (slot_idx >= OVERLAY_SLOT_MAX) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: refresh_pic_slot: slot_idx %u >= %d\n",
+                   slot_idx, OVERLAY_SLOT_MAX);
+        return false;
+    }
+    slot = &vk_overlay_slots[slot_idx];
+    if (slot->image == VK_NULL_HANDLE) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: refresh_pic_slot: slot %u empty\n",
+                   slot_idx);
+        return false;
+    }
+
+    bytes = (size_t)slot->width * (size_t)slot->height;
+    if (vk_overlay_upload_offset + bytes > vk_staging_size) {
+        if (log_cb)
+            log_cb(RETRO_LOG_ERROR,
+                   "rhi-vk: refresh_pic_slot: staging overflow "
+                   "(offset %llu + %llu > %llu)\n",
+                   (unsigned long long)vk_overlay_upload_offset,
+                   (unsigned long long)bytes,
+                   (unsigned long long)vk_staging_size);
+        return false;
+    }
+
+    /* SHADER_READ_ONLY_OPTIMAL -> TRANSFER_DST_OPTIMAL */
+    memset(&barrier, 0, sizeof(barrier));
+    barrier.sType                       = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcAccessMask               = VK_ACCESS_SHADER_READ_BIT;
+    barrier.dstAccessMask               = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.oldLayout                   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.newLayout                   = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image                       = slot->image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.layerCount = 1;
+
+    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             0,
+                             0, NULL, 0, NULL,
+                             1, &barrier);
+
+    /* Staging copy + image copy */
+    memcpy((uint8_t *)vk_staging_ptr + vk_overlay_upload_offset, data, bytes);
+
+    memset(&region, 0, sizeof(region));
+    region.bufferOffset                = vk_overlay_upload_offset;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.layerCount = 1;
+    region.imageExtent.width           = slot->width;
+    region.imageExtent.height          = slot->height;
+    region.imageExtent.depth           = 1;
+
+    vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                               vk_staging_buffer,
+                               slot->image,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               1, &region);
+
+    /* TRANSFER_DST_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL */
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             0,
+                             0, NULL, 0, NULL,
+                             1, &barrier);
+
+    vk_overlay_upload_offset += bytes;
+    return true;
+}
+
 static qboolean
 backend_vk_end_uploads(void)
 {
@@ -2624,6 +2742,163 @@ backend_vk_queue_2d_pic_scaled(int x, int y,
 }
 
 /*
+ * backend_vk_queue_2d_pic_translate_scaled -- Phase 4s
+ * Draw_TransPicTranslateScaled intercept body.
+ *
+ * Quake's multiplayer Setup menu has the user pick a
+ * shirt and pants colour and previews the result by
+ * rendering the gfx/menuplyr.lmp player sprite with a
+ * 256-byte translation table applied per pixel (the
+ * table re-maps the TOP_RANGE and BOTTOM_RANGE palette
+ * windows to the user's chosen colours; everything
+ * else passes through unchanged).  M_BuildTranslation
+ * Table in menu.c builds the table from the current
+ * setup_top / setup_bottom values; M_DrawTransPic
+ * Translate calls Draw_TransPicTranslateScaled with
+ * the table and pic each frame.
+ *
+ * Because the pic data and the translation are both
+ * inputs, the cached slot pixels can't be keyed by
+ * qpic_t pointer the way queue_2d_pic does -- two
+ * frames in a row with different setup_top values
+ * need different pixels in the slot.  This function
+ * dedicates one slot to the translated pic via a
+ * sentinel key (distinct from any qpic_t pointer and
+ * from the conchars &draw_chars sentinel), allocates
+ * it on the first call, and refreshes its pixels
+ * in place on every subsequent call via
+ * backend_vk_refresh_pic_slot.  Re-creating the slot
+ * each frame would leak descriptor sets -- the pool
+ * doesn't have VK_DESCRIPTOR_POOL_CREATE_FREE_
+ * DESCRIPTOR_SET_BIT.
+ *
+ * Translation is done in CPU: walk pic->data, apply
+ * translation[b] per byte, into a stack scratch buffer
+ * sized to MAX_TRANSLATE_BYTES (large enough for any
+ * plausible single qpic_t; menuplyr.lmp is ~64x80 =
+ * 5120 bytes, the cap is much higher).  Byte 255 stays
+ * 255 (M_BuildTranslationTable initialises the table
+ * with identityTable, then only overwrites TOP_RANGE
+ * and BOTTOM_RANGE -- both far from 255), so the
+ * overlay FS discard-on-255 path handles transparency
+ * the same way it does for Draw_TransPicScaled.
+ */
+#define MAX_TRANSLATE_BYTES 65536
+
+static void
+backend_vk_queue_2d_pic_translate_scaled(int x, int y,
+                                         const qpic_t *pic,
+                                         const byte *translation,
+                                         int scale)
+{
+    /* Sentinel object: address is unique to this
+     * function, used as the slot cache key.  Distinct
+     * from any qpic_t pointer and from &draw_chars. */
+    static const char    translate_slot_marker;
+    const void          *key = &translate_slot_marker;
+
+    unsigned             slot_idx;
+    unsigned             si;
+    struct overlay_draw *draw;
+    int                  pw, ph, dw, dh;
+    int                  i, n;
+    uint8_t              translated[MAX_TRANSLATE_BYTES];
+
+    if (!vk_resources_ready || !pic || !translation)
+        return;
+    if (scale < 1)
+        scale = 1;
+
+    pw = pic->width;
+    ph = pic->height;
+    if (pw <= 0 || ph <= 0)
+        return;
+
+    n = pw * ph;
+    if (n > MAX_TRANSLATE_BYTES) {
+        /* Defensive: never expected to fire (menuplyr is
+         * tiny).  Caller's SW fallback would have been
+         * dropped anyway; if a future caller pushes a
+         * huge pic through here, expand the cap. */
+        if (log_cb)
+            log_cb(RETRO_LOG_WARN,
+                   "rhi-vk: queue_2d_pic_translate_scaled: "
+                   "pic %dx%d (%d bytes) exceeds scratch cap (%d)\n",
+                   pw, ph, n, MAX_TRANSLATE_BYTES);
+        return;
+    }
+
+    dw = pw * scale;
+    dh = ph * scale;
+
+    /* Translate */
+    for (i = 0; i < n; i++)
+        translated[i] = translation[pic->data[i]];
+
+    /* Slot lookup by sentinel key. */
+    slot_idx = OVERLAY_SLOT_MAX;
+    for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+        if (vk_overlay_slots[si].key == key) {
+            slot_idx = si;
+            break;
+        }
+    }
+
+    if (slot_idx == OVERLAY_SLOT_MAX) {
+        /* First call: allocate slot + upload via the
+         * standard path. */
+        for (si = 0; si < OVERLAY_SLOT_MAX; si++) {
+            if (vk_overlay_slots[si].key == NULL &&
+                vk_overlay_slots[si].image == VK_NULL_HANDLE) {
+                slot_idx = si;
+                break;
+            }
+        }
+        if (slot_idx == OVERLAY_SLOT_MAX)
+            return;
+
+        if (!backend_vk_begin_uploads())
+            return;
+        if (!backend_vk_upload_pic_slot(slot_idx,
+                                        (unsigned)pw, (unsigned)ph,
+                                        translated)) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        if (!backend_vk_end_uploads()) {
+            vk_overlay_slots[slot_idx].key = NULL;
+            return;
+        }
+        vk_overlay_slots[slot_idx].key = key;
+    } else {
+        /* Subsequent call: refresh pixels in place.
+         * Slot dimensions are guaranteed to match pic
+         * dimensions because menuplyr.lmp is the only
+         * caller and never changes size between calls. */
+        if (!backend_vk_begin_uploads())
+            return;
+        if (!backend_vk_refresh_pic_slot(slot_idx, translated))
+            return;
+        if (!backend_vk_end_uploads())
+            return;
+    }
+
+    if (vk_overlay_draw_count >= OVERLAY_DRAW_MAX)
+        return;
+
+    draw           = &vk_overlay_draws[vk_overlay_draw_count++];
+    draw->slot_idx = slot_idx;
+    draw->x0       = (float)(2.0  * (double)x        / (double)width  - 1.0);
+    draw->y0       = (float)(2.0  * (double)y        / (double)height - 1.0);
+    draw->x1       = (float)(2.0  * (double)(x + dw) / (double)width  - 1.0);
+    draw->y1       = (float)(2.0  * (double)(y + dh) / (double)height - 1.0);
+    draw->u0       = 0.0f;
+    draw->v0       = 0.0f;
+    draw->u1       = 1.0f;
+    draw->v1       = 1.0f;
+}
+
+/*
  * backend_vk_queue_2d_char -- Phase 4o Draw_Character /
  * Draw_String intercept body.
  *
@@ -2947,6 +3222,23 @@ backend_vk_queue_2d_console_background_entry(int lines, const qpic_t *pic)
     backend_vk_queue_2d_console_background(lines, pic);
 #else
     (void)lines; (void)pic;
+#endif
+}
+
+/*
+ * Vtable entry point for queue_2d_pic_translate_scaled.
+ * Same #ifdef pattern.
+ */
+static void
+backend_vk_queue_2d_pic_translate_scaled_entry(int x, int y,
+                                               const qpic_t *pic,
+                                               const byte *translation,
+                                               int scale)
+{
+#ifdef RHI_HAVE_VULKAN
+    backend_vk_queue_2d_pic_translate_scaled(x, y, pic, translation, scale);
+#else
+    (void)x; (void)y; (void)pic; (void)translation; (void)scale;
 #endif
 }
 
@@ -3440,5 +3732,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_queue_2d_pic_entry,
     backend_vk_queue_2d_char_entry,
     backend_vk_queue_2d_pic_scaled_entry,
-    backend_vk_queue_2d_console_background_entry
+    backend_vk_queue_2d_console_background_entry,
+    backend_vk_queue_2d_pic_translate_scaled_entry
 };

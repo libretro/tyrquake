@@ -719,6 +719,18 @@ Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
     if (x < 0 || y < 0 || x + dw > (int)vid.width || y + dh > (int)vid.height)
 	return;
 
+    /* Phase 4s: forward the scale > 1 translated path to
+     * the overlay queue when a backend implements it.
+     * The intercept handles the per-pixel translation
+     * (CPU-side, into a scratch buffer) before queuing.
+     * Skip the SW stretched-memcpy-with-translation
+     * loop below.  Backends without the entry (SW
+     * backend, NULL field) fall through. */
+    if (g_rhi && g_rhi->queue_2d_pic_translate_scaled) {
+	g_rhi->queue_2d_pic_translate_scaled(x, y, pic, translation, scale);
+	return;
+    }
+
     source = pic->data;
     dest = vid.buffer + y * vid.rowbytes + x;
 
