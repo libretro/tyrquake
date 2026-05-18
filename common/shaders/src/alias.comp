@@ -226,24 +226,36 @@ void main()
          *     if (d_xdenom >= 0) continue;
          *
          * which is the signed 2x area in screen space with
-         * y-down convention.  SW keeps only screen-CW
-         * triangles (d_xdenom < 0 = area < 0 here).  This
-         * matters for alias models because the back-side
-         * (hidden) triangles share screen positions with
-         * the front-side visible ones but project with
-         * different (often farther) Z; without the cull,
-         * a back-side triangle iterated before its front-
-         * facing counterpart would be the "first hit" for
-         * the pixel and stamp its (wrong) data, including
-         * a Z that can fail the world-Z test when the
-         * model is in front of nearby world geometry --
-         * producing both scattered holes inside the model
-         * (back-facing won, Z lost to world) and, in the
-         * worst case, whole-model invisibility. */
-        if (area >= 0)
+         * y-down convention.  SW keeps d_xdenom < 0
+         * (screen-CW = visible front-facing).  Our edge()
+         * computes (b - a) x (c - a), which is the
+         * NEGATION of SW's d_xdenom for the same vertex
+         * order -- so SW's d_xdenom < 0 corresponds to our
+         * area > 0.  Worked example with screen-CW
+         * triangle a=(0,0), b=(10,0), c=(5,10):
+         *
+         *     SW d_xdenom = -100  (< 0, kept)
+         *     our area    = +100  (> 0, kept here)
+         *
+         * Cull when area <= 0 (back-facing or degenerate).
+         * The inside test for area > 0 then uses all w_i
+         * non-negative.  This matters for alias models
+         * because the back-side (hidden) triangles share
+         * screen positions with the front-side visible
+         * ones but project with different (often farther)
+         * Z; without the cull, a back-side triangle
+         * iterated before its front-facing counterpart
+         * would be the "first hit" for the pixel and
+         * stamp its (wrong) data, including UVs into the
+         * front half of the skin where the geometry
+         * actually wants the back half -- visible as the
+         * garbled-texture enemies and missing viewmodel
+         * symptoms reported after the previous attempt at
+         * this fix had the sign inverted. */
+        if (area <= 0)
             continue;
 
-        bool inside = (w0 <= 0 && w1 <= 0 && w2 <= 0);
+        bool inside = (w0 >= 0 && w1 >= 0 && w2 >= 0);
         if (!inside)
             continue;
 
