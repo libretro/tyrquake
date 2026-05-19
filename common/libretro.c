@@ -1025,6 +1025,23 @@ void retro_run(void)
       has_set_username = true;
    }
 
+   /* HW backend per-frame acquire.  The Vulkan backend
+    * uses this to rotate its N-slot ring (waits on the
+    * rotated-to slot's done_fence + resets it, reassigns
+    * vk_cmd_buffer to that slot's CB).  SW backend's
+    * begin_frame is a no-op.  This MUST run before
+    * Host_Frame: draw_view inside Host_Frame writes into
+    * the slot's host-visible mapped SSBOs (alias /
+    * sprite / particles / turb / sky dispatch builders)
+    * and the slot identity is set by begin_frame.
+    * Without this call vk_active_slot stays at 0 forever
+    * and the N-buffering does nothing -- which was fine
+    * pre-step-3b (end_frame's QueueWaitIdle was the real
+    * sync) but breaks cross-frame correctness now that
+    * the wait is gone. */
+   if (g_rhi && g_rhi->kind != RHI_BACKEND_SOFTWARE && g_rhi->begin_frame)
+      g_rhi->begin_frame();
+
    perf_timing_section_begin(PERF_SECTION_RENDERVIEW);
    Host_Frame(1.0 / framerate);
    perf_timing_section_end(PERF_SECTION_RENDERVIEW);
