@@ -431,9 +431,16 @@ static VkShaderModule       vk_overlay_fs_module;
 static VkRenderPass         vk_overlay_render_pass;
 static VkFramebuffer        vk_overlay_framebuffer;
 static VkPipeline           vk_overlay_pipeline;
-static VkBuffer             vk_overlay_vertex_buffer;
-static VkDeviceMemory       vk_overlay_vertex_memory;
-static void                *vk_overlay_vertex_ptr;
+/* Phase 5b-08 step 2e: overlay vertex buffer ring-buffered.
+ * backend_vk_fill_overlay_vb writes the per-frame 2D draw
+ * list into this VkBuffer on the CPU side; record_frame's
+ * CmdBindVertexBuffers + CmdDraw consume it from the GPU.
+ * With QueueWaitIdle gone (step 3), frame N+1's fill could
+ * race frame N's still-in-flight reads if this were
+ * single-instance. */
+static VkBuffer             vk_overlay_vertex_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory       vk_overlay_vertex_memory[VK_FRAME_RING_DEPTH];
+static void                *vk_overlay_vertex_ptr[VK_FRAME_RING_DEPTH];
 static struct overlay_slot  vk_overlay_slots[OVERLAY_SLOT_MAX];
 static struct overlay_draw  vk_overlay_draws[OVERLAY_DRAW_MAX];
 static unsigned             vk_overlay_draw_count;
@@ -3028,69 +3035,83 @@ backend_vk_create_resources(void)
      * intercept fills it with as many quads as the SW
      * 2D drawing path requested that frame); for now
      * it's static and written once. */
-    memset(&ov_vb_ci, 0, sizeof(ov_vb_ci));
-    ov_vb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    ov_vb_ci.size        = OVERLAY_DRAW_MAX * 4 * 16;
-                                     /* OVERLAY_DRAW_MAX quads *
-                                      * 4 verts/quad * 16 bytes/vert
-                                      * (vec2 pos + vec2 uv) */
-    ov_vb_ci.usage       = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    ov_vb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    /* Phase 5b-08 step 2e: ring-buffered overlay vertex
+     * buffer.  N slots created in a single per-slot loop;
+     * each gets its own buffer / memory / persistent
+     * mapping. */
+    {
+        unsigned ovsi;
+        for (ovsi = 0; ovsi < VK_FRAME_RING_DEPTH; ovsi++) {
+            memset(&ov_vb_ci, 0, sizeof(ov_vb_ci));
+            ov_vb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            ov_vb_ci.size        = OVERLAY_DRAW_MAX * 4 * 16;
+                                             /* OVERLAY_DRAW_MAX quads *
+                                              * 4 verts/quad * 16 bytes/vert
+                                              * (vec2 pos + vec2 uv) */
+            ov_vb_ci.usage       = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            ov_vb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    r = vk_fn.CreateBuffer(vk_device, &ov_vb_ci, NULL, &vk_overlay_vertex_buffer);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: CreateBuffer (overlay vertex) failed (%d)\n", (int)r);
-        return false;
-    }
+            r = vk_fn.CreateBuffer(vk_device, &ov_vb_ci, NULL, &vk_overlay_vertex_buffer[ovsi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateBuffer (overlay vertex slot %u) failed (%d)\n",
+                           ovsi, (int)r);
+                return false;
+            }
 
-    vk_fn.GetBufferMemoryRequirements(vk_device,
-                                      vk_overlay_vertex_buffer,
-                                      &ov_vb_mem_req);
+            vk_fn.GetBufferMemoryRequirements(vk_device,
+                                              vk_overlay_vertex_buffer[ovsi],
+                                              &ov_vb_mem_req);
 
-    mem_type = backend_vk_find_memory_type(
-        ov_vb_mem_req.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-      | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (mem_type == 0xFFFFFFFFu) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: no HOST_VISIBLE | HOST_COHERENT memory for overlay vertex buffer\n");
-        return false;
-    }
+            mem_type = backend_vk_find_memory_type(
+                ov_vb_mem_req.memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+              | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if (mem_type == 0xFFFFFFFFu) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: no HOST_VISIBLE | HOST_COHERENT memory for overlay vertex slot %u\n",
+                           ovsi);
+                return false;
+            }
 
-    memset(&ov_vb_alloc, 0, sizeof(ov_vb_alloc));
-    ov_vb_alloc.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    ov_vb_alloc.allocationSize  = ov_vb_mem_req.size;
-    ov_vb_alloc.memoryTypeIndex = mem_type;
+            memset(&ov_vb_alloc, 0, sizeof(ov_vb_alloc));
+            ov_vb_alloc.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            ov_vb_alloc.allocationSize  = ov_vb_mem_req.size;
+            ov_vb_alloc.memoryTypeIndex = mem_type;
 
-    r = vk_fn.AllocateMemory(vk_device, &ov_vb_alloc, NULL,
-                             &vk_overlay_vertex_memory);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: AllocateMemory (overlay vertex) failed (%d)\n", (int)r);
-        return false;
-    }
+            r = vk_fn.AllocateMemory(vk_device, &ov_vb_alloc, NULL,
+                                     &vk_overlay_vertex_memory[ovsi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateMemory (overlay vertex slot %u) failed (%d)\n",
+                           ovsi, (int)r);
+                return false;
+            }
 
-    r = vk_fn.BindBufferMemory(vk_device, vk_overlay_vertex_buffer,
-                               vk_overlay_vertex_memory, 0);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: BindBufferMemory (overlay vertex) failed (%d)\n", (int)r);
-        return false;
-    }
+            r = vk_fn.BindBufferMemory(vk_device, vk_overlay_vertex_buffer[ovsi],
+                                       vk_overlay_vertex_memory[ovsi], 0);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: BindBufferMemory (overlay vertex slot %u) failed (%d)\n",
+                           ovsi, (int)r);
+                return false;
+            }
 
-    vk_overlay_vertex_ptr = NULL;
-    r = vk_fn.MapMemory(vk_device, vk_overlay_vertex_memory, 0,
-                        ov_vb_ci.size, 0, &vk_overlay_vertex_ptr);
-    if (r != VK_SUCCESS || !vk_overlay_vertex_ptr) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: MapMemory (overlay vertex) failed (%d)\n", (int)r);
-        return false;
+            vk_overlay_vertex_ptr[ovsi] = NULL;
+            r = vk_fn.MapMemory(vk_device, vk_overlay_vertex_memory[ovsi], 0,
+                                ov_vb_ci.size, 0, &vk_overlay_vertex_ptr[ovsi]);
+            if (r != VK_SUCCESS || !vk_overlay_vertex_ptr[ovsi]) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: MapMemory (overlay vertex slot %u) failed (%d)\n",
+                           ovsi, (int)r);
+                return false;
+            }
+        }
     }
     /* Buffer contents are written below after the demo
      * draw list is populated; the persistent mapping
@@ -6830,15 +6851,22 @@ backend_vk_destroy_resources(void)
      * modules; the framebuffer references the overlay
      * render pass + vk_image_view; the vertex buffer
      * stands alone. */
-    if (vk_overlay_vertex_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_overlay_vertex_buffer, NULL);
-        vk_overlay_vertex_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_overlay_vertex_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_overlay_vertex_memory, NULL);
-        vk_overlay_vertex_memory = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 2e: N× overlay vertex teardown. */
+    {
+        unsigned ovsi;
+        for (ovsi = 0; ovsi < VK_FRAME_RING_DEPTH; ovsi++) {
+            if (vk_overlay_vertex_buffer[ovsi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_overlay_vertex_buffer[ovsi], NULL);
+                vk_overlay_vertex_buffer[ovsi] = VK_NULL_HANDLE;
+            }
+            if (vk_overlay_vertex_memory[ovsi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_overlay_vertex_memory[ovsi], NULL);
+                vk_overlay_vertex_memory[ovsi] = VK_NULL_HANDLE;
+            }
+            vk_overlay_vertex_ptr[ovsi] = NULL;
+        }
     }
     if (vk_overlay_pipeline != VK_NULL_HANDLE) {
         if (vk_fn.DestroyPipeline)
@@ -7126,7 +7154,7 @@ backend_vk_context_destroy(void)
 static void
 backend_vk_fill_overlay_vb(void)
 {
-    float   *dst = (float *)vk_overlay_vertex_ptr;
+    float   *dst = (float *)vk_overlay_vertex_ptr[vk_active_slot];
     unsigned di;
 
     for (di = 0; di < vk_overlay_draw_count; di++) {
@@ -10169,7 +10197,7 @@ backend_vk_record_frame(void)
     vb_offset = 0;
     vk_fn.CmdBindVertexBuffers(vk_cmd_buffer,
                                0,                          /* firstBinding */
-                               1, &vk_overlay_vertex_buffer,
+                               1, &vk_overlay_vertex_buffer[vk_active_slot],
                                &vb_offset);
     {
         unsigned di;
