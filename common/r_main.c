@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "cmd.h"
 #include "console.h"
+#include "perf_timing.h"
 #include "quakedef.h"
 #include "r_local.h"
 #include "r_subdiv.h"
@@ -317,6 +318,11 @@ R_Init(void)
     Cvar_RegisterVariable(&r_lerpmove);
     Cvar_RegisterVariable(&r_lockpvs);
     Cvar_RegisterVariable(&r_lockfrustum);
+
+    /* perf_timing module owns its own cvar (r_perf), but
+     * registers it from the same R_Init hook so all r_*
+     * cvars come up together. */
+    perf_timing_register_cvars();
 
     Cvar_RegisterVariable(&r_fullbright);
 

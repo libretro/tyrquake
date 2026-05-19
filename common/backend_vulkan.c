@@ -181,6 +181,7 @@
  */
 
 #include "rhi.h"
+#include "perf_timing.h"
 #include "vid.h"          /* viddef_t vid, d_8to24table_shifted --
                            * Phase 4d needs vid.buffer for the per-
                            * frame index upload; Phase 4f reads
@@ -9696,10 +9697,38 @@ backend_vk_end_frame(void)
      * A failure here means we can't submit a coherent
      * frame -- bail and let retro_run's dupe path keep the
      * display going. */
-    if (!backend_vk_record_frame())
+    perf_timing_section_begin(PERF_SECTION_RECORD_FRAME);
+    if (!backend_vk_record_frame()) {
+        perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
         return;
+    }
+    perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
+
+    /* Snapshot per-frame work counters BEFORE submit (so the
+     * SUBMIT_PRESENT section time isn't contaminated by this
+     * trivially-cheap counter update, and so a submit failure
+     * downstream doesn't bias the counters by suppressing
+     * this update on the next iteration). */
+    perf_timing_counter_add(PERF_COUNTER_PARTICLES,      (uint64_t)vk_pending_particle_count);
+    perf_timing_counter_add(PERF_COUNTER_SPRITES,        (uint64_t)vk_sprite_count);
+    perf_timing_counter_add(PERF_COUNTER_ALIAS_ENTITIES, (uint64_t)vk_alias_count);
+    perf_timing_counter_add(PERF_COUNTER_TURB_SURFACES,  (uint64_t)vk_turb_surface_count);
+    perf_timing_counter_add(PERF_COUNTER_DISPATCHES,
+                            (uint64_t)(vk_pending_particle_count
+                                     + vk_sprite_count
+                                     + vk_alias_count
+                                     + vk_turb_surface_count));
+    perf_timing_counter_add(PERF_COUNTER_VID_BUFFER_BYTES,
+                            (uint64_t)(width * height));
+    if (vk_pending_particle_count > 0
+     || vk_sprite_count > 0
+     || vk_alias_count > 0
+     || vk_turb_surface_count > 0)
+        perf_timing_counter_add(PERF_COUNTER_ZBUF_UPLOAD_BYTES,
+                                (uint64_t)(width * height * 4));
 
     /* Submit the just-recorded command buffer. */
+    perf_timing_section_begin(PERF_SECTION_SUBMIT_PRESENT);
     memset(&si, 0, sizeof(si));
     si.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.commandBufferCount = 1;
@@ -9709,6 +9738,7 @@ backend_vk_end_frame(void)
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR, "rhi-vk: QueueSubmit failed (%d)\n", (int)r);
+        perf_timing_section_end(PERF_SECTION_SUBMIT_PRESENT);
         return;
     }
 
@@ -9739,6 +9769,7 @@ backend_vk_end_frame(void)
     if (video_cb)
         video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
     did_flip = true;
+    perf_timing_section_end(PERF_SECTION_SUBMIT_PRESENT);
 #endif
 }
 

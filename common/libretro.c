@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "compat/strl.h"
 #include "libretro.h"
 #include "libretro_core_options.h"
+#include "perf_timing.h"
 #include "rhi.h"
 #include <retro_miscellaneous.h>
 #include <file/file_path.h>
@@ -1012,6 +1013,8 @@ void retro_run(void)
 {
    bool updated = false;
 
+   perf_timing_section_begin(PERF_SECTION_FRAME);
+
    did_flip = false;
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
@@ -1022,7 +1025,9 @@ void retro_run(void)
       has_set_username = true;
    }
 
+   perf_timing_section_begin(PERF_SECTION_RENDERVIEW);
    Host_Frame(1.0 / framerate);
+   perf_timing_section_end(PERF_SECTION_RENDERVIEW);
 
    if (rumble_touch_counter > -1)
    {
@@ -1033,7 +1038,10 @@ void retro_run(void)
    }
 
    if (shutdown_core)
+   {
+      perf_timing_section_end(PERF_SECTION_FRAME);
       return;
+   }
 
    /* HW backends present their frame here.  draw_view (called
     * during Host_Frame's SCR_UpdateScreen) recorded the per-
@@ -1059,6 +1067,9 @@ void retro_run(void)
    if (cls.state == ca_active)
       CL_DecayLights();
    audio_step();
+
+   perf_timing_section_end(PERF_SECTION_FRAME);
+   perf_timing_end_frame();
 }
 
 static void extract_directory(char *out_dir, const char *in_dir, size_t size)

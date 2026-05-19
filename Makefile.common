@@ -89,6 +89,7 @@ SOURCES_C :=  \
 	$(CORE_DIR)/common/screen.c \
 	$(CORE_DIR)/common/shell.c \
 	$(CORE_DIR)/common/surf_atlas.c \
+	$(CORE_DIR)/common/perf_timing.c \
 	$(CORE_DIR)/common/bgmusic.c \
 	$(CORE_DIR)/common/snd_codec.c \
 	$(CORE_DIR)/common/snd_flac.c \
