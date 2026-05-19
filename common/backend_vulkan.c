@@ -786,9 +786,14 @@ static VkImageView            vk_sky_front_view;
 static VkImage                vk_sky_back_image;
 static VkDeviceMemory         vk_sky_back_memory;
 static VkImageView            vk_sky_back_view;
-static VkBuffer               vk_sky_staging;
-static VkDeviceMemory         vk_sky_staging_memory;
-static void                  *vk_sky_staging_ptr;
+/* Phase 5b-08 step 2d: sky_staging ring-buffered.  Used
+ * primarily on level loads (sky front/back atlas upload)
+ * but ring-buffered so that two back-to-back uploads
+ * across a frame boundary don't race once QueueWaitIdle
+ * is removed in step 3. */
+static VkBuffer               vk_sky_staging[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_sky_staging_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_sky_staging_ptr[VK_FRAME_RING_DEPTH];
 static byte                   vk_sky_cache_front[VK_SKY_LAYER_BYTES];
 static byte                   vk_sky_cache_back[VK_SKY_LAYER_BYTES];
 static qboolean               vk_sky_cache_populated;
@@ -867,20 +872,28 @@ static int                    vk_sky_bbox_min_y;
 static int                    vk_sky_bbox_max_x;
 static int                    vk_sky_bbox_max_y;
 
-static VkBuffer               vk_sky_ubo_buffer;
-static VkDeviceMemory         vk_sky_ubo_memory;
-static void                  *vk_sky_ubo_ptr;
-static VkBuffer               vk_sky_spans_buffer;
-static VkDeviceMemory         vk_sky_spans_memory;
-static void                  *vk_sky_spans_ptr;
-static VkBuffer               vk_sky_rows_buffer;
-static VkDeviceMemory         vk_sky_rows_memory;
-static void                  *vk_sky_rows_ptr;
+/* Phase 5b-08 step 2d: sky UBO + spans + rows are ring-
+ * buffered.  All three are written by the dispatch
+ * builder (record_frame's pre-dispatch CPU pass) and
+ * read by the compute dispatch. */
+static VkBuffer               vk_sky_ubo_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_sky_ubo_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_sky_ubo_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_sky_spans_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_sky_spans_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_sky_spans_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_sky_rows_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_sky_rows_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_sky_rows_ptr[VK_FRAME_RING_DEPTH];
 
 static VkShaderModule         vk_sky_cs_module;
 static VkDescriptorSetLayout  vk_sky_dsl;
 static VkDescriptorPool       vk_sky_pool;
-static VkDescriptorSet        vk_sky_set;
+/* Phase 5b-08 step 2d: N descriptor sets, one per slot.
+ * Bindings 0/1/2/6 (storage images vk_texture / sky_front /
+ * sky_back / vk_zbuffer) shared; bindings 3/4/5 (UBO + two
+ * SSBOs) differ per slot. */
+static VkDescriptorSet        vk_sky_set[VK_FRAME_RING_DEPTH];
 static VkPipelineLayout       vk_sky_pipeline_layout;
 static VkPipeline             vk_sky_pipeline;
 
@@ -952,21 +965,36 @@ static unsigned                     vk_turb_tex_upload_last;
 static VkImage                vk_turb_atlas_image;
 static VkDeviceMemory         vk_turb_atlas_memory;
 static VkImageView            vk_turb_atlas_view;
-static VkBuffer               vk_turb_atlas_staging;
-static VkDeviceMemory         vk_turb_atlas_staging_memory;
-static void                  *vk_turb_atlas_staging_ptr;
+/* Phase 5b-08 step 2d: turb atlas staging ring-buffered.
+ * Per-frame writes (texture slot uploads) on the CPU
+ * side; record_frame CmdCopyBufferToImage's into the
+ * single-instance atlas image, which is layout-
+ * transitioned by per-frame barriers (the image itself
+ * doesn't need ring-buffering thanks to queue-order
+ * execution + transition barriers, but the staging
+ * does since the CPU writes happen during dispatch
+ * setup). */
+static VkBuffer               vk_turb_atlas_staging[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_turb_atlas_staging_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_turb_atlas_staging_ptr[VK_FRAME_RING_DEPTH];
 
-static VkBuffer               vk_turb_rows_buffer;
-static VkDeviceMemory         vk_turb_rows_memory;
-static void                  *vk_turb_rows_ptr;
-static VkBuffer               vk_turb_spans_buffer;
-static VkDeviceMemory         vk_turb_spans_memory;
-static void                  *vk_turb_spans_ptr;
+/* Phase 5b-08 step 2d: turb rows + spans SSBOs ring-
+ * buffered.  Written by dispatch_3d_turb_surface (CPU)
+ * each frame, read by the compute dispatch. */
+static VkBuffer               vk_turb_rows_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_turb_rows_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_turb_rows_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_turb_spans_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_turb_spans_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_turb_spans_ptr[VK_FRAME_RING_DEPTH];
 
 static VkShaderModule         vk_turb_cs_module;
 static VkDescriptorSetLayout  vk_turb_dsl;
 static VkDescriptorPool       vk_turb_pool;
-static VkDescriptorSet        vk_turb_set;
+/* Phase 5b-08 step 2d: N descriptor sets, one per slot.
+ * Bindings 0/1/4 (storage images: vk_texture / turb_atlas
+ * / vk_zbuffer) shared; bindings 2/3 (two SSBOs) per slot. */
+static VkDescriptorSet        vk_turb_set[VK_FRAME_RING_DEPTH];
 static VkPipelineLayout       vk_turb_pipeline_layout;
 static VkPipeline             vk_turb_pipeline;
 
@@ -5054,62 +5082,73 @@ backend_vk_create_resources(void)
          * coherent, permanently mapped.  Lives for the
          * duration of vk_resources_ready (unlike the warp
          * table staging which is a one-shot).  Re-used on
-         * every sky upload (rare: per-level). */
-        memset(&ss_ci, 0, sizeof(ss_ci));
-        ss_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        ss_ci.size        = VK_SKY_STAGING_BYTES;
-        ss_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        ss_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+         * every sky upload (rare: per-level).  Phase 5b-08
+         * step 2d: ring-buffered. */
+        {
+            unsigned skssi;
+            for (skssi = 0; skssi < VK_FRAME_RING_DEPTH; skssi++) {
+                memset(&ss_ci, 0, sizeof(ss_ci));
+                ss_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                ss_ci.size        = VK_SKY_STAGING_BYTES;
+                ss_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                ss_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        r = vk_fn.CreateBuffer(vk_device, &ss_ci, NULL, &vk_sky_staging);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: CreateBuffer (sky staging) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.CreateBuffer(vk_device, &ss_ci, NULL, &vk_sky_staging[skssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: CreateBuffer (sky staging slot %u) failed (%d)\n",
+                               skssi, (int)r);
+                    return false;
+                }
 
-        vk_fn.GetBufferMemoryRequirements(vk_device, vk_sky_staging, &ss_mem_req);
-        ss_mem_type = backend_vk_find_memory_type(ss_mem_req.memoryTypeBits,
-                                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                                                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (ss_mem_type == 0xFFFFFFFFu) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory type for sky staging\n");
-            return false;
-        }
+                vk_fn.GetBufferMemoryRequirements(vk_device, vk_sky_staging[skssi], &ss_mem_req);
+                ss_mem_type = backend_vk_find_memory_type(ss_mem_req.memoryTypeBits,
+                                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                                                          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (ss_mem_type == 0xFFFFFFFFu) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory type for sky staging slot %u\n",
+                               skssi);
+                    return false;
+                }
 
-        memset(&ss_mem_ai, 0, sizeof(ss_mem_ai));
-        ss_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        ss_mem_ai.allocationSize  = ss_mem_req.size;
-        ss_mem_ai.memoryTypeIndex = ss_mem_type;
+                memset(&ss_mem_ai, 0, sizeof(ss_mem_ai));
+                ss_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                ss_mem_ai.allocationSize  = ss_mem_req.size;
+                ss_mem_ai.memoryTypeIndex = ss_mem_type;
 
-        r = vk_fn.AllocateMemory(vk_device, &ss_mem_ai, NULL,
-                                 &vk_sky_staging_memory);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateMemory (sky staging) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.AllocateMemory(vk_device, &ss_mem_ai, NULL,
+                                         &vk_sky_staging_memory[skssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: AllocateMemory (sky staging slot %u) failed (%d)\n",
+                               skssi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.BindBufferMemory(vk_device, vk_sky_staging,
-                                   vk_sky_staging_memory, 0);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: BindBufferMemory (sky staging) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.BindBufferMemory(vk_device, vk_sky_staging[skssi],
+                                           vk_sky_staging_memory[skssi], 0);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: BindBufferMemory (sky staging slot %u) failed (%d)\n",
+                               skssi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.MapMemory(vk_device, vk_sky_staging_memory,
-                            0, VK_WHOLE_SIZE, 0, &vk_sky_staging_ptr);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: MapMemory (sky staging) failed (%d)\n", (int)r);
-            return false;
+                r = vk_fn.MapMemory(vk_device, vk_sky_staging_memory[skssi],
+                                    0, VK_WHOLE_SIZE, 0, &vk_sky_staging_ptr[skssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: MapMemory (sky staging slot %u) failed (%d)\n",
+                               skssi, (int)r);
+                    return false;
+                }
+            }
         }
 
         /* Re-arm pending if we already have data from a
@@ -5149,8 +5188,9 @@ backend_vk_create_resources(void)
         VkDescriptorPoolCreateInfo    sk_pool_ci;
         VkDescriptorSetAllocateInfo   sk_set_alloc;
         VkDescriptorImageInfo         sk_img_info[4];
-        VkDescriptorBufferInfo        sk_buf_info[3];
-        VkWriteDescriptorSet          sk_writes[7];
+        /* Phase 5b-08 step 2d: per-slot buf-infos + 7*N
+         * writes are declared inside the per-slot update
+         * scope further down. */
         VkPipelineLayoutCreateInfo    sk_pl_ci;
         VkComputePipelineCreateInfo   sk_cp_ci;
         VkPipelineShaderStageCreateInfo sk_cs_stage;
@@ -5166,16 +5206,24 @@ backend_vk_create_resources(void)
          *    per-frame upload is just a memcpy into the
          *    mapped pointer (no Flush needed, no Begin /
          *    EndMappedRange calls). */
+        /* Phase 5b-08 step 2d: outer per-slot loop, inner
+         * 3-pass loop targets that slot's UBO / rows /
+         * spans triple.  The pass selector chooses which
+         * slot-array to write into via the active slot
+         * index. */
+        {
+            unsigned sksi;
+            for (sksi = 0; sksi < VK_FRAME_RING_DEPTH; sksi++) {
         for (pass = 0; pass < 3; pass++) {
-            VkBuffer        *buf_p = (pass == 0) ? &vk_sky_ubo_buffer
-                                  : (pass == 1) ? &vk_sky_rows_buffer
-                                                : &vk_sky_spans_buffer;
-            VkDeviceMemory  *mem_p = (pass == 0) ? &vk_sky_ubo_memory
-                                  : (pass == 1) ? &vk_sky_rows_memory
-                                                : &vk_sky_spans_memory;
-            void           **ptr_p = (pass == 0) ? &vk_sky_ubo_ptr
-                                  : (pass == 1) ? &vk_sky_rows_ptr
-                                                : &vk_sky_spans_ptr;
+            VkBuffer        *buf_p = (pass == 0) ? &vk_sky_ubo_buffer[sksi]
+                                  : (pass == 1) ? &vk_sky_rows_buffer[sksi]
+                                                : &vk_sky_spans_buffer[sksi];
+            VkDeviceMemory  *mem_p = (pass == 0) ? &vk_sky_ubo_memory[sksi]
+                                  : (pass == 1) ? &vk_sky_rows_memory[sksi]
+                                                : &vk_sky_spans_memory[sksi];
+            void           **ptr_p = (pass == 0) ? &vk_sky_ubo_ptr[sksi]
+                                  : (pass == 1) ? &vk_sky_rows_ptr[sksi]
+                                                : &vk_sky_spans_ptr[sksi];
             VkDeviceSize     sz    = (pass == 0) ? (VkDeviceSize)VK_SKY_UBO_BYTES
                                   : (pass == 1) ? (VkDeviceSize)VK_SKY_ROW_BYTES
                                                 : (VkDeviceSize)VK_SKY_SPAN_BYTES;
@@ -5196,7 +5244,7 @@ backend_vk_create_resources(void)
             if (r != VK_SUCCESS) {
                 if (log_cb)
                     log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: CreateBuffer (%s) failed (%d)\n", label, (int)r);
+                           "rhi-vk: CreateBuffer (%s slot %u) failed (%d)\n", label, sksi, (int)r);
                 return false;
             }
 
@@ -5207,8 +5255,8 @@ backend_vk_create_resources(void)
             if (sb_mem_type == 0xFFFFFFFFu) {
                 if (log_cb)
                     log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory type for %s\n",
-                           label);
+                           "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory type for %s slot %u\n",
+                           label, sksi);
                 return false;
             }
 
@@ -5221,7 +5269,7 @@ backend_vk_create_resources(void)
             if (r != VK_SUCCESS) {
                 if (log_cb)
                     log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: AllocateMemory (%s) failed (%d)\n", label, (int)r);
+                           "rhi-vk: AllocateMemory (%s slot %u) failed (%d)\n", label, sksi, (int)r);
                 return false;
             }
 
@@ -5229,7 +5277,7 @@ backend_vk_create_resources(void)
             if (r != VK_SUCCESS) {
                 if (log_cb)
                     log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: BindBufferMemory (%s) failed (%d)\n", label, (int)r);
+                           "rhi-vk: BindBufferMemory (%s slot %u) failed (%d)\n", label, sksi, (int)r);
                 return false;
             }
 
@@ -5237,9 +5285,11 @@ backend_vk_create_resources(void)
             if (r != VK_SUCCESS) {
                 if (log_cb)
                     log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: MapMemory (%s) failed (%d)\n", label, (int)r);
+                           "rhi-vk: MapMemory (%s slot %u) failed (%d)\n", label, sksi, (int)r);
                 return false;
             }
+        }
+            } /* end outer per-slot loop (Phase 5b-08 step 2d) */
         }
 
         /* 2. Shader module from precompiled SPIR-V. */
@@ -5286,20 +5336,21 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* 4. Descriptor pool sized for the single set we
-         *    allocate below.  Three pool sizes: 4 storage
-         *    images, 1 UBO, 2 storage buffers. */
+        /* 4. Descriptor pool sized for N sets.  Phase 5b-08
+         *    step 2d: per-slot DS pattern.  Three pool
+         *    sizes scaled by N: 4 storage images, 1 UBO, 2
+         *    storage buffers per set. */
         memset(sk_pool_sizes, 0, sizeof(sk_pool_sizes));
         sk_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        sk_pool_sizes[0].descriptorCount = 4;
+        sk_pool_sizes[0].descriptorCount = 4u * VK_FRAME_RING_DEPTH;
         sk_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        sk_pool_sizes[1].descriptorCount = 1;
+        sk_pool_sizes[1].descriptorCount = 1u * VK_FRAME_RING_DEPTH;
         sk_pool_sizes[2].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        sk_pool_sizes[2].descriptorCount = 2;
+        sk_pool_sizes[2].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
 
         memset(&sk_pool_ci, 0, sizeof(sk_pool_ci));
         sk_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        sk_pool_ci.maxSets       = 1;
+        sk_pool_ci.maxSets       = VK_FRAME_RING_DEPTH;
         sk_pool_ci.poolSizeCount = 3;
         sk_pool_ci.pPoolSizes    = sk_pool_sizes;
 
@@ -5312,30 +5363,32 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        memset(&sk_set_alloc, 0, sizeof(sk_set_alloc));
-        sk_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        sk_set_alloc.descriptorPool     = vk_sky_pool;
-        sk_set_alloc.descriptorSetCount = 1;
-        sk_set_alloc.pSetLayouts        = &vk_sky_dsl;
+        {
+            VkDescriptorSetLayout sk_layouts[VK_FRAME_RING_DEPTH];
+            unsigned              sksi;
+            for (sksi = 0; sksi < VK_FRAME_RING_DEPTH; sksi++)
+                sk_layouts[sksi] = vk_sky_dsl;
 
-        r = vk_fn.AllocateDescriptorSets(vk_device, &sk_set_alloc, &vk_sky_set);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateDescriptorSets (sky) failed (%d)\n", (int)r);
-            return false;
+            memset(&sk_set_alloc, 0, sizeof(sk_set_alloc));
+            sk_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            sk_set_alloc.descriptorPool     = vk_sky_pool;
+            sk_set_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+            sk_set_alloc.pSetLayouts        = sk_layouts;
+
+            r = vk_fn.AllocateDescriptorSets(vk_device, &sk_set_alloc, vk_sky_set);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateDescriptorSets (sky) failed (%d)\n", (int)r);
+                return false;
+            }
         }
 
-        /* 5. Bind the 6 descriptors.  Output image is
-         *    vk_texture_view -- the R8_UINT storage view of
-         *    vk_texture that the other compute paths
-         *    (particles / sprites / alias) also imageStore
-         *    into; the R8G8B8A8_UNORM vk_image_view is the
-         *    final compose target and would format-mismatch
-         *    the shader's `r8ui` qualifier.  Sky atlases are
-         *    vk_sky_front_view / vk_sky_back_view from step
-         *    1; the three buffers are the just-created
-         *    host-visible UBO + SSBOs. */
+        /* 5. Bind the 7 descriptors per set, N sets total
+         *    = 7*N writes.  Shared image bindings (0/1/2/6)
+         *    target the single-instance views; per-slot
+         *    buffer bindings (3/4/5) target this slot's
+         *    UBO + rows + spans. */
         memset(sk_img_info, 0, sizeof(sk_img_info));
         sk_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         sk_img_info[0].imageView   = vk_texture_view;
@@ -5346,40 +5399,86 @@ backend_vk_create_resources(void)
         sk_img_info[3].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         sk_img_info[3].imageView   = vk_zbuffer_view;
 
-        memset(sk_buf_info, 0, sizeof(sk_buf_info));
-        sk_buf_info[0].buffer = vk_sky_ubo_buffer;
-        sk_buf_info[0].offset = 0;
-        sk_buf_info[0].range  = VK_WHOLE_SIZE;
-        sk_buf_info[1].buffer = vk_sky_rows_buffer;
-        sk_buf_info[1].offset = 0;
-        sk_buf_info[1].range  = VK_WHOLE_SIZE;
-        sk_buf_info[2].buffer = vk_sky_spans_buffer;
-        sk_buf_info[2].offset = 0;
-        sk_buf_info[2].range  = VK_WHOLE_SIZE;
+        {
+            VkDescriptorBufferInfo sk_buf_infos[3 * VK_FRAME_RING_DEPTH];
+            VkWriteDescriptorSet   sk_all_writes[7 * VK_FRAME_RING_DEPTH];
+            unsigned               sksi;
+            unsigned               wi = 0;
 
-        memset(sk_writes, 0, sizeof(sk_writes));
-        for (bi = 0; bi < 7; bi++) {
-            sk_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            sk_writes[bi].dstSet          = vk_sky_set;
-            sk_writes[bi].dstBinding      = (uint32_t)bi;
-            sk_writes[bi].descriptorCount = 1;
+            memset(sk_buf_infos, 0, sizeof(sk_buf_infos));
+            memset(sk_all_writes, 0, sizeof(sk_all_writes));
+
+            for (sksi = 0; sksi < VK_FRAME_RING_DEPTH; sksi++) {
+                sk_buf_infos[sksi * 3 + 0].buffer = vk_sky_ubo_buffer[sksi];
+                sk_buf_infos[sksi * 3 + 0].offset = 0;
+                sk_buf_infos[sksi * 3 + 0].range  = VK_WHOLE_SIZE;
+                sk_buf_infos[sksi * 3 + 1].buffer = vk_sky_rows_buffer[sksi];
+                sk_buf_infos[sksi * 3 + 1].offset = 0;
+                sk_buf_infos[sksi * 3 + 1].range  = VK_WHOLE_SIZE;
+                sk_buf_infos[sksi * 3 + 2].buffer = vk_sky_spans_buffer[sksi];
+                sk_buf_infos[sksi * 3 + 2].offset = 0;
+                sk_buf_infos[sksi * 3 + 2].range  = VK_WHOLE_SIZE;
+
+                /* Binding 0: STORAGE_IMAGE (vk_texture_view). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 0;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sk_all_writes[wi].pImageInfo      = &sk_img_info[0];
+                wi++;
+                /* Binding 1: STORAGE_IMAGE (sky_front). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 1;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sk_all_writes[wi].pImageInfo      = &sk_img_info[1];
+                wi++;
+                /* Binding 2: STORAGE_IMAGE (sky_back). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 2;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sk_all_writes[wi].pImageInfo      = &sk_img_info[2];
+                wi++;
+                /* Binding 3: UNIFORM_BUFFER (sky_ubo). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 3;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                sk_all_writes[wi].pBufferInfo     = &sk_buf_infos[sksi * 3 + 0];
+                wi++;
+                /* Binding 4: STORAGE_BUFFER (sky_rows). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 4;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                sk_all_writes[wi].pBufferInfo     = &sk_buf_infos[sksi * 3 + 1];
+                wi++;
+                /* Binding 5: STORAGE_BUFFER (sky_spans). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 5;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                sk_all_writes[wi].pBufferInfo     = &sk_buf_infos[sksi * 3 + 2];
+                wi++;
+                /* Binding 6: STORAGE_IMAGE (vk_zbuffer_view). */
+                sk_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                sk_all_writes[wi].dstSet          = vk_sky_set[sksi];
+                sk_all_writes[wi].dstBinding      = 6;
+                sk_all_writes[wi].descriptorCount = 1;
+                sk_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sk_all_writes[wi].pImageInfo      = &sk_img_info[3];
+                wi++;
+            }
+
+            vk_fn.UpdateDescriptorSets(vk_device, wi, sk_all_writes, 0, NULL);
         }
-        sk_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        sk_writes[0].pImageInfo     = &sk_img_info[0];
-        sk_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        sk_writes[1].pImageInfo     = &sk_img_info[1];
-        sk_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        sk_writes[2].pImageInfo     = &sk_img_info[2];
-        sk_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        sk_writes[3].pBufferInfo    = &sk_buf_info[0];
-        sk_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        sk_writes[4].pBufferInfo    = &sk_buf_info[1];
-        sk_writes[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        sk_writes[5].pBufferInfo    = &sk_buf_info[2];
-        sk_writes[6].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        sk_writes[6].pImageInfo     = &sk_img_info[3];
-
-        vk_fn.UpdateDescriptorSets(vk_device, 7, sk_writes, 0, NULL);
 
         /* 6. Pipeline layout (no push constants -- everything
          *    in the UBO) + compute pipeline. */
@@ -5440,8 +5539,9 @@ backend_vk_create_resources(void)
         VkDescriptorPoolCreateInfo   tu_pool_ci;
         VkDescriptorSetAllocateInfo  tu_set_alloc;
         VkDescriptorImageInfo        tu_img_info[3];
-        VkDescriptorBufferInfo       tu_buf_info[2];
-        VkWriteDescriptorSet         tu_writes[5];
+        /* Phase 5b-08 step 2d: per-slot buf-infos + 5*N
+         * writes are declared inside the per-slot update
+         * scope further down. */
         VkPipelineLayoutCreateInfo   tu_pl_ci;
         VkPushConstantRange          tu_pcr;
         VkPipelineShaderStageCreateInfo tu_cs_stage;
@@ -5532,54 +5632,57 @@ backend_vk_create_resources(void)
         tu_buf_ci[2].sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         {
-            VkBuffer       *buf_handles[3] = { &vk_turb_atlas_staging,
-                                                &vk_turb_rows_buffer,
-                                                &vk_turb_spans_buffer };
-            VkDeviceMemory *mem_handles[3] = { &vk_turb_atlas_staging_memory,
-                                                &vk_turb_rows_memory,
-                                                &vk_turb_spans_memory };
-            void          **ptr_handles[3] = { &vk_turb_atlas_staging_ptr,
-                                                &vk_turb_rows_ptr,
-                                                &vk_turb_spans_ptr };
-            int pass;
-            for (pass = 0; pass < 3; pass++) {
-                r = vk_fn.CreateBuffer(vk_device, &tu_buf_ci[pass], NULL,
-                                       buf_handles[pass]);
-                if (r != VK_SUCCESS) {
-                    if (log_cb) log_cb(RETRO_LOG_ERROR,
-                        "rhi-vk: CreateBuffer (turb pass=%d) failed (%d)\n",
-                        pass, (int)r);
-                    return false;
+            unsigned tusi;
+            for (tusi = 0; tusi < VK_FRAME_RING_DEPTH; tusi++) {
+                VkBuffer       *buf_handles[3] = { &vk_turb_atlas_staging[tusi],
+                                                    &vk_turb_rows_buffer[tusi],
+                                                    &vk_turb_spans_buffer[tusi] };
+                VkDeviceMemory *mem_handles[3] = { &vk_turb_atlas_staging_memory[tusi],
+                                                    &vk_turb_rows_memory[tusi],
+                                                    &vk_turb_spans_memory[tusi] };
+                void          **ptr_handles[3] = { &vk_turb_atlas_staging_ptr[tusi],
+                                                    &vk_turb_rows_ptr[tusi],
+                                                    &vk_turb_spans_ptr[tusi] };
+                int pass;
+                for (pass = 0; pass < 3; pass++) {
+                    r = vk_fn.CreateBuffer(vk_device, &tu_buf_ci[pass], NULL,
+                                           buf_handles[pass]);
+                    if (r != VK_SUCCESS) {
+                        if (log_cb) log_cb(RETRO_LOG_ERROR,
+                            "rhi-vk: CreateBuffer (turb pass=%d slot %u) failed (%d)\n",
+                            pass, tusi, (int)r);
+                        return false;
+                    }
+                    vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                      *buf_handles[pass],
+                                                      &tu_buf_mem_req);
+                    tu_mem_type = backend_vk_find_memory_type(
+                        tu_buf_mem_req.memoryTypeBits,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                    if (tu_mem_type == UINT32_MAX) {
+                        if (log_cb) log_cb(RETRO_LOG_ERROR,
+                            "rhi-vk: no HOST_VISIBLE memory for turb pass=%d slot %u\n",
+                            pass, tusi);
+                        return false;
+                    }
+                    memset(&tu_buf_mem_ai, 0, sizeof(tu_buf_mem_ai));
+                    tu_buf_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                    tu_buf_mem_ai.allocationSize  = tu_buf_mem_req.size;
+                    tu_buf_mem_ai.memoryTypeIndex = tu_mem_type;
+                    r = vk_fn.AllocateMemory(vk_device, &tu_buf_mem_ai, NULL,
+                                             mem_handles[pass]);
+                    if (r != VK_SUCCESS) {
+                        if (log_cb) log_cb(RETRO_LOG_ERROR,
+                            "rhi-vk: AllocateMemory (turb pass=%d slot %u) failed (%d)\n",
+                            pass, tusi, (int)r);
+                        return false;
+                    }
+                    vk_fn.BindBufferMemory(vk_device, *buf_handles[pass],
+                                           *mem_handles[pass], 0);
+                    vk_fn.MapMemory(vk_device, *mem_handles[pass], 0,
+                                    tu_buf_ci[pass].size, 0, ptr_handles[pass]);
                 }
-                vk_fn.GetBufferMemoryRequirements(vk_device,
-                                                  *buf_handles[pass],
-                                                  &tu_buf_mem_req);
-                tu_mem_type = backend_vk_find_memory_type(
-                    tu_buf_mem_req.memoryTypeBits,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-                if (tu_mem_type == UINT32_MAX) {
-                    if (log_cb) log_cb(RETRO_LOG_ERROR,
-                        "rhi-vk: no HOST_VISIBLE memory for turb pass=%d\n",
-                        pass);
-                    return false;
-                }
-                memset(&tu_buf_mem_ai, 0, sizeof(tu_buf_mem_ai));
-                tu_buf_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-                tu_buf_mem_ai.allocationSize  = tu_buf_mem_req.size;
-                tu_buf_mem_ai.memoryTypeIndex = tu_mem_type;
-                r = vk_fn.AllocateMemory(vk_device, &tu_buf_mem_ai, NULL,
-                                         mem_handles[pass]);
-                if (r != VK_SUCCESS) {
-                    if (log_cb) log_cb(RETRO_LOG_ERROR,
-                        "rhi-vk: AllocateMemory (turb pass=%d) failed (%d)\n",
-                        pass, (int)r);
-                    return false;
-                }
-                vk_fn.BindBufferMemory(vk_device, *buf_handles[pass],
-                                       *mem_handles[pass], 0);
-                vk_fn.MapMemory(vk_device, *mem_handles[pass], 0,
-                                tu_buf_ci[pass].size, 0, ptr_handles[pass]);
             }
         }
 
@@ -5621,15 +5724,16 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* Pool: 3 storage images + 2 storage buffers. */
+        /* Pool: 3 storage images + 2 storage buffers per
+         * set; N sets total. */
         memset(tu_pool_sizes, 0, sizeof(tu_pool_sizes));
         tu_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        tu_pool_sizes[0].descriptorCount = 3;
+        tu_pool_sizes[0].descriptorCount = 3u * VK_FRAME_RING_DEPTH;
         tu_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        tu_pool_sizes[1].descriptorCount = 2;
+        tu_pool_sizes[1].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
         memset(&tu_pool_ci, 0, sizeof(tu_pool_ci));
         tu_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        tu_pool_ci.maxSets       = 1;
+        tu_pool_ci.maxSets       = VK_FRAME_RING_DEPTH;
         tu_pool_ci.poolSizeCount = 2;
         tu_pool_ci.pPoolSizes    = tu_pool_sizes;
         r = vk_fn.CreateDescriptorPool(vk_device, &tu_pool_ci, NULL,
@@ -5640,16 +5744,23 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        memset(&tu_set_alloc, 0, sizeof(tu_set_alloc));
-        tu_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        tu_set_alloc.descriptorPool     = vk_turb_pool;
-        tu_set_alloc.descriptorSetCount = 1;
-        tu_set_alloc.pSetLayouts        = &vk_turb_dsl;
-        r = vk_fn.AllocateDescriptorSets(vk_device, &tu_set_alloc, &vk_turb_set);
-        if (r != VK_SUCCESS) {
-            if (log_cb) log_cb(RETRO_LOG_ERROR,
-                "rhi-vk: AllocateDescriptorSets (turb) failed (%d)\n", (int)r);
-            return false;
+        {
+            VkDescriptorSetLayout tu_layouts[VK_FRAME_RING_DEPTH];
+            unsigned              tusi;
+            for (tusi = 0; tusi < VK_FRAME_RING_DEPTH; tusi++)
+                tu_layouts[tusi] = vk_turb_dsl;
+
+            memset(&tu_set_alloc, 0, sizeof(tu_set_alloc));
+            tu_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            tu_set_alloc.descriptorPool     = vk_turb_pool;
+            tu_set_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+            tu_set_alloc.pSetLayouts        = tu_layouts;
+            r = vk_fn.AllocateDescriptorSets(vk_device, &tu_set_alloc, vk_turb_set);
+            if (r != VK_SUCCESS) {
+                if (log_cb) log_cb(RETRO_LOG_ERROR,
+                    "rhi-vk: AllocateDescriptorSets (turb) failed (%d)\n", (int)r);
+                return false;
+            }
         }
 
         memset(tu_img_info, 0, sizeof(tu_img_info));
@@ -5659,31 +5770,66 @@ backend_vk_create_resources(void)
         tu_img_info[1].imageView   = vk_turb_atlas_view;
         tu_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         tu_img_info[2].imageView   = vk_zbuffer_view;
-        memset(tu_buf_info, 0, sizeof(tu_buf_info));
-        tu_buf_info[0].buffer = vk_turb_rows_buffer;
-        tu_buf_info[0].range  = VK_TURB_ROW_BYTES;
-        tu_buf_info[1].buffer = vk_turb_spans_buffer;
-        tu_buf_info[1].range  = VK_TURB_SPAN_BYTES;
 
-        memset(tu_writes, 0, sizeof(tu_writes));
-        for (bi = 0; bi < 5; bi++) {
-            tu_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            tu_writes[bi].dstSet          = vk_turb_set;
-            tu_writes[bi].dstBinding      = (uint32_t)bi;
-            tu_writes[bi].descriptorCount = 1;
+        {
+            VkDescriptorBufferInfo tu_buf_infos[2 * VK_FRAME_RING_DEPTH];
+            VkWriteDescriptorSet   tu_all_writes[5 * VK_FRAME_RING_DEPTH];
+            unsigned               tusi;
+            unsigned               wi = 0;
+
+            memset(tu_buf_infos, 0, sizeof(tu_buf_infos));
+            memset(tu_all_writes, 0, sizeof(tu_all_writes));
+
+            for (tusi = 0; tusi < VK_FRAME_RING_DEPTH; tusi++) {
+                tu_buf_infos[tusi * 2 + 0].buffer = vk_turb_rows_buffer[tusi];
+                tu_buf_infos[tusi * 2 + 0].range  = VK_TURB_ROW_BYTES;
+                tu_buf_infos[tusi * 2 + 1].buffer = vk_turb_spans_buffer[tusi];
+                tu_buf_infos[tusi * 2 + 1].range  = VK_TURB_SPAN_BYTES;
+
+                /* Binding 0: STORAGE_IMAGE (vk_texture_view). */
+                tu_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                tu_all_writes[wi].dstSet          = vk_turb_set[tusi];
+                tu_all_writes[wi].dstBinding      = 0;
+                tu_all_writes[wi].descriptorCount = 1;
+                tu_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                tu_all_writes[wi].pImageInfo      = &tu_img_info[0];
+                wi++;
+                /* Binding 1: STORAGE_IMAGE (turb_atlas). */
+                tu_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                tu_all_writes[wi].dstSet          = vk_turb_set[tusi];
+                tu_all_writes[wi].dstBinding      = 1;
+                tu_all_writes[wi].descriptorCount = 1;
+                tu_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                tu_all_writes[wi].pImageInfo      = &tu_img_info[1];
+                wi++;
+                /* Binding 2: STORAGE_BUFFER (turb_rows). */
+                tu_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                tu_all_writes[wi].dstSet          = vk_turb_set[tusi];
+                tu_all_writes[wi].dstBinding      = 2;
+                tu_all_writes[wi].descriptorCount = 1;
+                tu_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                tu_all_writes[wi].pBufferInfo     = &tu_buf_infos[tusi * 2 + 0];
+                wi++;
+                /* Binding 3: STORAGE_BUFFER (turb_spans). */
+                tu_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                tu_all_writes[wi].dstSet          = vk_turb_set[tusi];
+                tu_all_writes[wi].dstBinding      = 3;
+                tu_all_writes[wi].descriptorCount = 1;
+                tu_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                tu_all_writes[wi].pBufferInfo     = &tu_buf_infos[tusi * 2 + 1];
+                wi++;
+                /* Binding 4: STORAGE_IMAGE (zbuffer). */
+                tu_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                tu_all_writes[wi].dstSet          = vk_turb_set[tusi];
+                tu_all_writes[wi].dstBinding      = 4;
+                tu_all_writes[wi].descriptorCount = 1;
+                tu_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                tu_all_writes[wi].pImageInfo      = &tu_img_info[2];
+                wi++;
+            }
+
+            vk_fn.UpdateDescriptorSets(vk_device, wi, tu_all_writes, 0, NULL);
         }
-        tu_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        tu_writes[0].pImageInfo     = &tu_img_info[0];
-        tu_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        tu_writes[1].pImageInfo     = &tu_img_info[1];
-        tu_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        tu_writes[2].pBufferInfo    = &tu_buf_info[0];
-        tu_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        tu_writes[3].pBufferInfo    = &tu_buf_info[1];
-        tu_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        tu_writes[4].pImageInfo     = &tu_img_info[2];
-
-        vk_fn.UpdateDescriptorSets(vk_device, 5, tu_writes, 0, NULL);
 
         /* Pipeline layout: 1 set + 84-byte push-constant block
          * (compute stage only).  See turb.comp for the field
@@ -6168,20 +6314,27 @@ backend_vk_destroy_resources(void)
      * side.  We do clear vk_sky_upload_pending here since
      * the staging buffer it would target is gone -- create
      * will set it again. */
-    if (vk_sky_staging_memory != VK_NULL_HANDLE && vk_sky_staging_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_sky_staging_memory);
-        vk_sky_staging_ptr = NULL;
-    }
-    if (vk_sky_staging != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_sky_staging, NULL);
-        vk_sky_staging = VK_NULL_HANDLE;
-    }
-    if (vk_sky_staging_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_sky_staging_memory, NULL);
-        vk_sky_staging_memory = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 2d: N× sky_staging teardown. */
+    {
+        unsigned skssi;
+        for (skssi = 0; skssi < VK_FRAME_RING_DEPTH; skssi++) {
+            if (vk_sky_staging_memory[skssi] != VK_NULL_HANDLE
+                && vk_sky_staging_ptr[skssi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_sky_staging_memory[skssi]);
+                vk_sky_staging_ptr[skssi] = NULL;
+            }
+            if (vk_sky_staging[skssi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_sky_staging[skssi], NULL);
+                vk_sky_staging[skssi] = VK_NULL_HANDLE;
+            }
+            if (vk_sky_staging_memory[skssi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_sky_staging_memory[skssi], NULL);
+                vk_sky_staging_memory[skssi] = VK_NULL_HANDLE;
+            }
+        }
     }
     if (vk_sky_back_view != VK_NULL_HANDLE) {
         if (vk_fn.DestroyImageView)
@@ -6243,7 +6396,11 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_turb_pool, NULL);
         vk_turb_pool = VK_NULL_HANDLE;
-        vk_turb_set  = VK_NULL_HANDLE;
+        {
+            unsigned tusi;
+            for (tusi = 0; tusi < VK_FRAME_RING_DEPTH; tusi++)
+                vk_turb_set[tusi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_turb_dsl != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -6255,50 +6412,62 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroyShaderModule(vk_device, vk_turb_cs_module, NULL);
         vk_turb_cs_module = VK_NULL_HANDLE;
     }
-    if (vk_turb_spans_memory != VK_NULL_HANDLE && vk_turb_spans_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_turb_spans_memory);
-        vk_turb_spans_ptr = NULL;
-    }
-    if (vk_turb_spans_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_turb_spans_buffer, NULL);
-        vk_turb_spans_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_turb_spans_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_turb_spans_memory, NULL);
-        vk_turb_spans_memory = VK_NULL_HANDLE;
-    }
-    if (vk_turb_rows_memory != VK_NULL_HANDLE && vk_turb_rows_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_turb_rows_memory);
-        vk_turb_rows_ptr = NULL;
-    }
-    if (vk_turb_rows_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_turb_rows_buffer, NULL);
-        vk_turb_rows_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_turb_rows_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_turb_rows_memory, NULL);
-        vk_turb_rows_memory = VK_NULL_HANDLE;
-    }
-    if (vk_turb_atlas_staging_memory != VK_NULL_HANDLE && vk_turb_atlas_staging_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_turb_atlas_staging_memory);
-        vk_turb_atlas_staging_ptr = NULL;
-    }
-    if (vk_turb_atlas_staging != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_turb_atlas_staging, NULL);
-        vk_turb_atlas_staging = VK_NULL_HANDLE;
-    }
-    if (vk_turb_atlas_staging_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_turb_atlas_staging_memory, NULL);
-        vk_turb_atlas_staging_memory = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 2d: N× turb spans/rows/atlas-staging
+     * teardown. */
+    {
+        unsigned tusi;
+        for (tusi = 0; tusi < VK_FRAME_RING_DEPTH; tusi++) {
+            if (vk_turb_spans_memory[tusi] != VK_NULL_HANDLE
+                && vk_turb_spans_ptr[tusi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_turb_spans_memory[tusi]);
+                vk_turb_spans_ptr[tusi] = NULL;
+            }
+            if (vk_turb_spans_buffer[tusi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_turb_spans_buffer[tusi], NULL);
+                vk_turb_spans_buffer[tusi] = VK_NULL_HANDLE;
+            }
+            if (vk_turb_spans_memory[tusi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_turb_spans_memory[tusi], NULL);
+                vk_turb_spans_memory[tusi] = VK_NULL_HANDLE;
+            }
+
+            if (vk_turb_rows_memory[tusi] != VK_NULL_HANDLE
+                && vk_turb_rows_ptr[tusi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_turb_rows_memory[tusi]);
+                vk_turb_rows_ptr[tusi] = NULL;
+            }
+            if (vk_turb_rows_buffer[tusi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_turb_rows_buffer[tusi], NULL);
+                vk_turb_rows_buffer[tusi] = VK_NULL_HANDLE;
+            }
+            if (vk_turb_rows_memory[tusi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_turb_rows_memory[tusi], NULL);
+                vk_turb_rows_memory[tusi] = VK_NULL_HANDLE;
+            }
+
+            if (vk_turb_atlas_staging_memory[tusi] != VK_NULL_HANDLE
+                && vk_turb_atlas_staging_ptr[tusi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_turb_atlas_staging_memory[tusi]);
+                vk_turb_atlas_staging_ptr[tusi] = NULL;
+            }
+            if (vk_turb_atlas_staging[tusi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_turb_atlas_staging[tusi], NULL);
+                vk_turb_atlas_staging[tusi] = VK_NULL_HANDLE;
+            }
+            if (vk_turb_atlas_staging_memory[tusi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_turb_atlas_staging_memory[tusi], NULL);
+                vk_turb_atlas_staging_memory[tusi] = VK_NULL_HANDLE;
+            }
+        }
     }
     if (vk_turb_atlas_view != VK_NULL_HANDLE) {
         if (vk_fn.DestroyImageView)
@@ -6379,7 +6548,11 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_sky_pool, NULL);
         vk_sky_pool = VK_NULL_HANDLE;
-        vk_sky_set  = VK_NULL_HANDLE;
+        {
+            unsigned sksi;
+            for (sksi = 0; sksi < VK_FRAME_RING_DEPTH; sksi++)
+                vk_sky_set[sksi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_sky_dsl != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -6391,50 +6564,61 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroyShaderModule(vk_device, vk_sky_cs_module, NULL);
         vk_sky_cs_module = VK_NULL_HANDLE;
     }
-    if (vk_sky_spans_memory != VK_NULL_HANDLE && vk_sky_spans_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_sky_spans_memory);
-        vk_sky_spans_ptr = NULL;
-    }
-    if (vk_sky_spans_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_sky_spans_buffer, NULL);
-        vk_sky_spans_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_sky_spans_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_sky_spans_memory, NULL);
-        vk_sky_spans_memory = VK_NULL_HANDLE;
-    }
-    if (vk_sky_rows_memory != VK_NULL_HANDLE && vk_sky_rows_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_sky_rows_memory);
-        vk_sky_rows_ptr = NULL;
-    }
-    if (vk_sky_rows_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_sky_rows_buffer, NULL);
-        vk_sky_rows_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_sky_rows_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_sky_rows_memory, NULL);
-        vk_sky_rows_memory = VK_NULL_HANDLE;
-    }
-    if (vk_sky_ubo_memory != VK_NULL_HANDLE && vk_sky_ubo_ptr) {
-        if (vk_fn.UnmapMemory)
-            vk_fn.UnmapMemory(vk_device, vk_sky_ubo_memory);
-        vk_sky_ubo_ptr = NULL;
-    }
-    if (vk_sky_ubo_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_sky_ubo_buffer, NULL);
-        vk_sky_ubo_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_sky_ubo_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_sky_ubo_memory, NULL);
-        vk_sky_ubo_memory = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 2d: N× sky ubo/rows/spans teardown. */
+    {
+        unsigned sksi;
+        for (sksi = 0; sksi < VK_FRAME_RING_DEPTH; sksi++) {
+            if (vk_sky_spans_memory[sksi] != VK_NULL_HANDLE
+                && vk_sky_spans_ptr[sksi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_sky_spans_memory[sksi]);
+                vk_sky_spans_ptr[sksi] = NULL;
+            }
+            if (vk_sky_spans_buffer[sksi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_sky_spans_buffer[sksi], NULL);
+                vk_sky_spans_buffer[sksi] = VK_NULL_HANDLE;
+            }
+            if (vk_sky_spans_memory[sksi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_sky_spans_memory[sksi], NULL);
+                vk_sky_spans_memory[sksi] = VK_NULL_HANDLE;
+            }
+
+            if (vk_sky_rows_memory[sksi] != VK_NULL_HANDLE
+                && vk_sky_rows_ptr[sksi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_sky_rows_memory[sksi]);
+                vk_sky_rows_ptr[sksi] = NULL;
+            }
+            if (vk_sky_rows_buffer[sksi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_sky_rows_buffer[sksi], NULL);
+                vk_sky_rows_buffer[sksi] = VK_NULL_HANDLE;
+            }
+            if (vk_sky_rows_memory[sksi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_sky_rows_memory[sksi], NULL);
+                vk_sky_rows_memory[sksi] = VK_NULL_HANDLE;
+            }
+
+            if (vk_sky_ubo_memory[sksi] != VK_NULL_HANDLE
+                && vk_sky_ubo_ptr[sksi]) {
+                if (vk_fn.UnmapMemory)
+                    vk_fn.UnmapMemory(vk_device, vk_sky_ubo_memory[sksi]);
+                vk_sky_ubo_ptr[sksi] = NULL;
+            }
+            if (vk_sky_ubo_buffer[sksi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_sky_ubo_buffer[sksi], NULL);
+                vk_sky_ubo_buffer[sksi] = VK_NULL_HANDLE;
+            }
+            if (vk_sky_ubo_memory[sksi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_sky_ubo_memory[sksi], NULL);
+                vk_sky_ubo_memory[sksi] = VK_NULL_HANDLE;
+            }
+        }
     }
     vk_sky_collected_count = 0;
 
@@ -8931,7 +9115,7 @@ backend_vk_record_frame(void)
      * (same source/dest stage masks, same layout transition);
      * the two CmdCopyBufferToImage calls have to be separate
      * because each targets a different image. */
-    if (vk_sky_upload_pending && vk_sky_staging_ptr) {
+    if (vk_sky_upload_pending && vk_sky_staging_ptr[vk_active_slot]) {
         VkImageMemoryBarrier sky_barriers[2];
         VkBufferImageCopy    sky_copy;
 
@@ -8941,10 +9125,10 @@ backend_vk_record_frame(void)
          * HOST_COHERENT memory means no Flush is needed; the
          * next CmdCopyBufferToImage's TRANSFER stage will see
          * the new bytes once submit happens. */
-        memcpy((byte *)vk_sky_staging_ptr,
+        memcpy((byte *)vk_sky_staging_ptr[vk_active_slot],
                vk_sky_cache_front,
                VK_SKY_LAYER_BYTES);
-        memcpy((byte *)vk_sky_staging_ptr + VK_SKY_LAYER_BYTES,
+        memcpy((byte *)vk_sky_staging_ptr[vk_active_slot] + VK_SKY_LAYER_BYTES,
                vk_sky_cache_back,
                VK_SKY_LAYER_BYTES);
 
@@ -8986,14 +9170,14 @@ backend_vk_record_frame(void)
         sky_copy.imageExtent.depth               = 1;
 
         vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                                   vk_sky_staging,
+                                   vk_sky_staging[vk_active_slot],
                                    vk_sky_front_image,
                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                    1, &sky_copy);
 
         sky_copy.bufferOffset = VK_SKY_LAYER_BYTES;
         vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                                   vk_sky_staging,
+                                   vk_sky_staging[vk_active_slot],
                                    vk_sky_back_image,
                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                    1, &sky_copy);
@@ -9192,10 +9376,10 @@ backend_vk_record_frame(void)
          * against the subsequent compute passes -- without it
          * the GPU is free to schedule sky and (e.g.) alias
          * concurrently, racing on the shared output image. */
-        if (vk_sky_collected_count > 0 && vk_sky_ubo_ptr) {
-            struct vk_sky_ubo *ubo  = (struct vk_sky_ubo *)vk_sky_ubo_ptr;
-            uint32_t          *rows = (uint32_t *)vk_sky_rows_ptr;
-            uint32_t          *sp   = (uint32_t *)vk_sky_spans_ptr;
+        if (vk_sky_collected_count > 0 && vk_sky_ubo_ptr[vk_active_slot]) {
+            struct vk_sky_ubo *ubo  = (struct vk_sky_ubo *)vk_sky_ubo_ptr[vk_active_slot];
+            uint32_t          *rows = (uint32_t *)vk_sky_rows_ptr[vk_active_slot];
+            uint32_t          *sp   = (uint32_t *)vk_sky_spans_ptr[vk_active_slot];
             VkMemoryBarrier    sky_mem_bar;
             unsigned           si;
             int                v;
@@ -9271,7 +9455,7 @@ backend_vk_record_frame(void)
                                         VK_PIPELINE_BIND_POINT_COMPUTE,
                                         vk_sky_pipeline_layout,
                                         0,
-                                        1, &vk_sky_set,
+                                        1, &vk_sky_set[vk_active_slot],
                                         0, NULL);
             vk_fn.CmdDispatch(vk_cmd_buffer,
                               (bbox_w + 7u) / 8u,
@@ -9383,7 +9567,7 @@ backend_vk_record_frame(void)
             ta_copy.imageExtent.height = VK_TURB_TEX_SIZE * vk_turb_tex_count;
             ta_copy.imageExtent.depth  = 1;
             vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                                       vk_turb_atlas_staging,
+                                       vk_turb_atlas_staging[vk_active_slot],
                                        vk_turb_atlas_image,
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                        1, &ta_copy);
@@ -9419,7 +9603,7 @@ backend_vk_record_frame(void)
                                             VK_PIPELINE_BIND_POINT_COMPUTE,
                                             vk_turb_pipeline_layout,
                                             0,
-                                            1, &vk_turb_set,
+                                            1, &vk_turb_set[vk_active_slot],
                                             0, NULL);
                 for (si = 0; si < vk_turb_surface_count; si++) {
                     const struct vk_turb_surface *surf = &vk_turb_surfaces[si];
@@ -9728,7 +9912,7 @@ backend_vk_record_frame(void)
                                         VK_PIPELINE_BIND_POINT_COMPUTE,
                                         vk_turb_pipeline_layout,
                                         0,
-                                        1, &vk_turb_set,
+                                        1, &vk_turb_set[vk_active_slot],
                                         0, NULL);
             for (si = 0; si < vk_turb_surface_count; si++) {
                 const struct vk_turb_surface *surf = &vk_turb_surfaces[si];
@@ -10440,8 +10624,8 @@ backend_vk_dispatch_3d_turb_surface(const void *spans_head,
         vk_turb_tex_cache[vk_turb_tex_count].ptr  = (const void *)texture;
         vk_turb_tex_cache[vk_turb_tex_count].slot = tex_slot;
         vk_turb_tex_count++;
-        if (vk_turb_atlas_staging_ptr) {
-            memcpy((byte *)vk_turb_atlas_staging_ptr
+        if (vk_turb_atlas_staging_ptr[vk_active_slot]) {
+            memcpy((byte *)vk_turb_atlas_staging_ptr[vk_active_slot]
                        + tex_slot * VK_TURB_SLOT_BYTES,
                    texture, VK_TURB_SLOT_BYTES);
         }
@@ -10483,8 +10667,8 @@ backend_vk_dispatch_3d_turb_surface(const void *spans_head,
 
     rows_first  = vk_turb_rows_used;
     spans_first = vk_turb_spans_used;
-    row_entries  = (uint32_t *)vk_turb_rows_ptr  + 2 * rows_first;
-    span_entries = (uint32_t *)vk_turb_spans_ptr + 2 * spans_first;
+    row_entries  = (uint32_t *)vk_turb_rows_ptr[vk_active_slot]  + 2 * rows_first;
+    span_entries = (uint32_t *)vk_turb_spans_ptr[vk_active_slot] + 2 * spans_first;
 
     /* Pass 1: zero per-row counts. */
     for (i = 0; i < bbox_h; i++) {
