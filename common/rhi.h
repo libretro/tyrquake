@@ -88,23 +88,6 @@ typedef struct rhi_turb_gradient_s {
     int32_t bbextents, bbextentt;
 } rhi_turb_gradient_t;
 
-/* Phase 5b-07a: per-surface brush gradient state passed to
- * dispatch_3d_brush_surface.  Identical layout to
- * rhi_turb_gradient_t -- both turb (warp-sampled mip-0 64x64)
- * and brush (perspective-affine sampled mip-N surface cache)
- * raster the same underlying span list with the same
- * D_CalcGradients output, just sample differently.  Kept as a
- * distinct typedef so call sites read at the type level and so
- * a future divergence (e.g. brush adding a half-pixel offset
- * for upsampling) doesn't require touching the turb struct. */
-typedef struct rhi_brush_gradient_s {
-    float sdivzorigin, sdivzstepu, sdivzstepv;
-    float tdivzorigin, tdivzstepu, tdivzstepv;
-    float ziorigin,    zistepu,    zistepv;
-    int32_t sadjust, tadjust;
-    int32_t bbextents, bbextentt;
-} rhi_brush_gradient_t;
-
 typedef enum {
     RHI_BACKEND_NONE = 0,
     RHI_BACKEND_SOFTWARE,
@@ -620,59 +603,6 @@ typedef struct render_backend_s {
                                          int turb_phase,
                                          int alpha,
                                          int is_pass2);
-
-    /* Phase 5b-07a step 3: dispatch the opaque brush surface
-     * compute raster for one msurface_t.  Mirrors the
-     * dispatch_3d_turb_surface contract but consumes the
-     * surfcache_t composite (already lit + mipped + palette-
-     * indexed by D_CacheSurface + R_DrawSurface, byte-identical
-     * to what SW D_DrawSpans8 walks) and routes it through the
-     * brush atlas the backend stood up in Phase 5b-07a step 2.
-     *
-     *   spans_head     espan_t * for this surface, same pointer
-     *                  as SW D_DrawSpans(s->spans).
-     *   grad           D_CalcGradients output snapshot for this
-     *                  surface.  bbextents / bbextentt carry the
-     *                  16.16 cache-extent ceiling; the shader
-     *                  clamps to these to keep texel reads inside
-     *                  the cacheblock.
-     *   cacheblock     surfcache_t.data -- the pre-lit composite
-     *                  the brush dispatch streams into the atlas
-     *                  via a HOST_VISIBLE staging buffer.
-     *   cachewidth     surfcache_t.width.  Used both for the
-     *                  per-row staging stride and as the surface's
-     *                  atlas-rect width.
-     *   cacheheight    surfcache_t.height.  Surface's atlas-rect
-     *                  height.  surfcache_t.height is documented
-     *                  as DEBUG-only in d_local.h, but the field
-     *                  is always populated by D_CacheSurface; the
-     *                  atlas allocator needs an authoritative
-     *                  height to pick a strip and carve the rect.
-     *   miplevel       0..3.  Forwarded for diagnostics; the
-     *                  shader doesn't read it (mip selection is
-     *                  baked into cacheblock by D_CacheSurface).
-     *   cache_key      surfcache_t * -- opaque LRU key into
-     *                  surf_atlas.  Stable across frames while
-     *                  the SW surface cache holds the slot; if
-     *                  the SW heap reclaims the slot for another
-     *                  surface, the caller invalidates via its
-     *                  own bookkeeping.
-     *
-     * The backend may hard-fail an individual surface (atlas
-     * full + every entry in-use this frame; staging-buffer
-     * exhaustion; row / span buffer exhaustion) and signal that
-     * by returning 0.  The caller falls through to SW raster
-     * for that surface in that case.  Return value 1 = dispatch
-     * queued; the SW raster's D_DrawSpans is skipped.
-     *
-     * NULL on the SW backend. */
-    int      (*dispatch_3d_brush_surface)(const void *spans_head,
-                                          const rhi_brush_gradient_t *grad,
-                                          const byte *cacheblock,
-                                          int cachewidth,
-                                          int cacheheight,
-                                          int miplevel,
-                                          const void *cache_key);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

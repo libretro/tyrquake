@@ -532,83 +532,8 @@ void D_DrawSurfaces(void)
          cachewidth = pcurrentcache->width;
 
          D_CalcGradients(pface);
-
-         /* Phase 5b-07a step 3: route opaque brush raster
-          * through the compute backend when a brush dispatch
-          * entry is published.  The GPU path consumes the
-          * same espan list, the same D_CalcGradients output
-          * just computed, and the same D_CacheSurface
-          * composite the SW path would have walked -- the
-          * pixel-equivalent contract is the SW reference, and
-          * brush.comp's perspective-correct UV + atomicMax Z
-          * scheme matches D_DrawSpans + D_DrawZSpans up to
-          * floating-point rounding.
-          *
-          * On hard failure inside the dispatch (atlas
-          * exhausted with every entry in-use this frame;
-          * row / span / upload-window pool exhausted; cache
-          * dimensions exceed the largest strip) the backend
-          * returns 0 and we fall through to D_DrawSpans +
-          * D_DrawZSpans for this one surface only -- the
-          * other surfaces in the frame keep using the GPU
-          * path.  This is the per-surface fallback Q3 picked
-          * for the compute tier; a future tier-0 backend
-          * might choose a different policy (whole-frame
-          * fallback to SW) but that's a per-backend choice,
-          * not a brush-intercept choice.
-          *
-          * Z semantics.  On GPU-dispatch success we memset
-          * d_pzbuffer to 0 at brush spans (NOT D_DrawZSpans
-          * which writes the SW-computed Z values).  The
-          * d_pzbuffer upload then propagates those zeros to
-          * vk_zbuffer, and brush.comp's atomicMax against the
-          * 0 sentinel always wins, writing the GPU-computed
-          * Z + color.  Mirrors the single-pass turb scheme
-          * (sky's spans memset to 0 above, and turb's
-          * pass-1 memset to 0).  The memset replaces the
-          * SW Z write entirely -- avoids the FP-rounding
-          * race that would suppress brush color writes at
-          * pixels where SW and compute Z disagree by 1
-          * unit. */
-         {
-            int brush_dispatched = 0;
-            if (g_rhi && g_rhi->dispatch_3d_brush_surface) {
-               rhi_brush_gradient_t brush_grad;
-               brush_grad.sdivzorigin = d_sdivzorigin;
-               brush_grad.sdivzstepu  = d_sdivzstepu;
-               brush_grad.sdivzstepv  = d_sdivzstepv;
-               brush_grad.tdivzorigin = d_tdivzorigin;
-               brush_grad.tdivzstepu  = d_tdivzstepu;
-               brush_grad.tdivzstepv  = d_tdivzstepv;
-               brush_grad.ziorigin    = d_ziorigin;
-               brush_grad.zistepu     = d_zistepu;
-               brush_grad.zistepv     = d_zistepv;
-               brush_grad.sadjust     = sadjust;
-               brush_grad.tadjust     = tadjust;
-               brush_grad.bbextents   = bbextents;
-               brush_grad.bbextentt   = bbextentt;
-               brush_dispatched = g_rhi->dispatch_3d_brush_surface(
-                  s->spans,
-                  &brush_grad,
-                  (const byte *)cacheblock,
-                  (int)cachewidth,
-                  (int)pcurrentcache->height,
-                  miplevel,
-                  pcurrentcache);
-            }
-            if (brush_dispatched) {
-               const espan_t *p;
-               for (p = s->spans; p; p = p->pnext) {
-                  memset(d_pzbuffer + (size_t)d_zwidth * (size_t)p->v
-                         + (size_t)p->u,
-                         0,
-                         (size_t)p->count * sizeof(short));
-               }
-            } else {
-               D_DrawSpans(s->spans);
-               D_DrawZSpans(s->spans);
-            }
-         }
+         D_DrawSpans(s->spans);
+         D_DrawZSpans(s->spans);
 
          if (s->insubmodel)
          {

@@ -101,6 +101,5 @@ const render_backend_t g_rhi_backend_sw = {
     NULL,               /* notify_cache_invalidate:       SW has no GPU-side pointer cache to invalidate */
     NULL,               /* notify_sky_texture:            SW reads skyoverlay/skyunderlay globals directly */
     NULL,               /* dispatch_3d_sky_span:          SW renders sky via D_DrawSkyScans8 in d_edge.c */
-    NULL,               /* dispatch_3d_turb_surface:      SW renders turb via Turbulent8 in d_edge.c */
-    NULL                /* dispatch_3d_brush_surface:     SW renders brush via D_DrawSpans in d_edge.c */
+    NULL                /* dispatch_3d_turb_surface:      SW renders turb via Turbulent8 in d_edge.c */
 };
