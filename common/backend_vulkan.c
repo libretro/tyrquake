@@ -8155,23 +8155,32 @@ backend_vk_record_frame(void)
     qboolean                  particles_active;
     qboolean                  sprites_active;
     qboolean                  alias_active;
+    qboolean                  turb_active;
     qboolean                  zbuf_active;
     VkResult                  r;
 
-    /* Phase 5b-02 + 5b-05 + 5b-06: latch all per-frame
-     * compute-3D activity flags.  The implementation
+    /* Phase 5b-02 + 5b-05 + 5b-06 + 5b-07b: latch all per-
+     * frame compute-3D activity flags.  The implementation
      * reads them in multiple places below; pinning to
      * locals avoids mid-record mutation if a future
      * change adds a path that touches the globals.
      *
-     * zbuf_active = particles || sprites || alias --
-     * all three subsystems Z-test against vk_zbuffer,
-     * so the d_pzbuffer upload + GENERAL transition
-     * fire when any is pending. */
+     * zbuf_active = particles || sprites || alias || turb --
+     * all four subsystems interact with vk_zbuffer (the
+     * first three Z-test, single-pass turb also writes Z,
+     * pass-2 turb Z-tests), so the d_pzbuffer upload +
+     * layout transition + GENERAL transition fire when
+     * any is pending.  Missing turb here was the cause of
+     * pass-2 turb reading stale Z (slipgate posts /
+     * crucified-zombie sprites bleeding through walls in
+     * the Quake start map when no monsters or particles
+     * were in view to set the other flags). */
     particles_active = vk_pending_particle_count > 0;
     sprites_active   = vk_sprite_count > 0;
     alias_active     = vk_alias_count > 0;
-    zbuf_active      = particles_active || sprites_active || alias_active;
+    turb_active      = vk_turb_surface_count > 0;
+    zbuf_active      = particles_active || sprites_active
+                    || alias_active     || turb_active;
 
     memset(&begin_info, 0, sizeof(begin_info));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -9355,19 +9364,31 @@ backend_vk_end_frame(void)
      * come after this. */
     backend_vk_upload_vid_buffer();
 
-    /* Phase 5b-02 + 5b-05 + 5b-06: if any compute-3D
-     * dispatch (particles, sprites, or alias) was staged
-     * this frame, push d_pzbuffer into the GPU-side
+    /* Phase 5b-02 + 5b-05 + 5b-06 + 5b-07b: if any compute-
+     * 3D dispatch (particles, sprites, alias, or turb) was
+     * staged this frame, push d_pzbuffer into the GPU-side
      * zbuffer staging buffer so record_frame can
      * CopyBufferToImage it into vk_zbuffer.  Conditional
      * because the upload is ~8 MiB at 1080p (R32_UINT
      * after Phase 5b-04) -- worth skipping on frames
      * with no GPU 3D activity (the staging buffer's
      * previous contents are irrelevant; nothing reads
-     * them). */
+     * them).
+     *
+     * Turb is in this gate even though single-pass turb
+     * doesn't read existing Z: the GPU-side gate
+     * (zbuf_active in record_frame) needs to fire to do
+     * the vk_zbuffer layout transition that single-pass
+     * turb's imageStore depends on, and both gates must
+     * agree -- if record_frame transitions vk_zbuffer to
+     * GENERAL and then CopyBufferToImage's, the host
+     * staging needs fresh content too.  Pass-2 turb needs
+     * the actual SW pass-1 wall Z values uploaded so its
+     * imageLoad-based z-test sees the wall depths. */
     if (vk_pending_particle_count > 0
      || vk_sprite_count > 0
-     || vk_alias_count > 0)
+     || vk_alias_count > 0
+     || vk_turb_surface_count > 0)
         backend_vk_upload_zbuffer();
 
     /* Fresh per-frame command-buffer recording.  Phase 4e
