@@ -500,10 +500,28 @@ static VkImageView            vk_texture_view;
 static VkImage                vk_palette_texture;
 static VkDeviceMemory         vk_palette_texture_memory;
 static VkImageView            vk_palette_texture_view;
-static VkBuffer               vk_staging_buffer;
-static VkDeviceMemory         vk_staging_memory;
+/* Phase 5b-08 step 2a: vid.buffer staging is now ring-
+ * buffered (one slot per frame context) so that, once
+ * QueueWaitIdle is removed in step 3, frame N+1's CPU
+ * memcpy of vid.buffer into the staging region can run
+ * while frame N's GPU is still doing its
+ * CmdCopyBufferToImage from frame N's staging.  Without
+ * this, the CPU write and the GPU read would race on the
+ * same memory.
+ *
+ * vk_staging_size remains scalar -- every slot is the
+ * same size (width*height + palette bytes).
+ *
+ * The mid-frame one-shot upload helpers (begin_uploads
+ * / upload_pic_slot / end_uploads) target the ACTIVE
+ * slot's staging via vk_staging_ptr[vk_active_slot]
+ * because they reuse the staging buffer that the
+ * per-frame upload also uses, and they execute
+ * synchronously within the active frame. */
+static VkBuffer               vk_staging_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_staging_memory[VK_FRAME_RING_DEPTH];
 static VkDeviceSize           vk_staging_size;
-static void                  *vk_staging_ptr;
+static void                  *vk_staging_ptr[VK_FRAME_RING_DEPTH];
 static VkDescriptorSetLayout  vk_descriptor_set_layout;
 static VkDescriptorPool       vk_descriptor_pool;
 static VkDescriptorSet        vk_descriptor_set;
@@ -607,9 +625,17 @@ static VkImageView            vk_zbuffer_view;
 static VkBuffer               vk_particles_buffer;
 static VkDeviceMemory         vk_particles_memory;
 static void                  *vk_particles_ptr;
-static VkBuffer               vk_particles_zstaging;
-static VkDeviceMemory         vk_particles_zstaging_memory;
-static void                  *vk_particles_zstaging_ptr;
+/* Phase 5b-08 step 2a: zbuf staging is ring-buffered for
+ * the same reason as vid.buffer staging -- once
+ * QueueWaitIdle is removed, frame N+1's CPU memcpy of
+ * d_pzbuffer must not race with frame N's GPU still
+ * reading from its staging.  Size is identical across
+ * slots (set by backend_vk_resize_zstaging when the
+ * viewport size changes); only the buffer/memory/ptr
+ * triple is ringed. */
+static VkBuffer               vk_particles_zstaging[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_particles_zstaging_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_particles_zstaging_ptr[VK_FRAME_RING_DEPTH];
 static VkShaderModule         vk_particles_cs_module;
 static VkPipelineLayout       vk_particles_pipeline_layout;
 static VkPipeline             vk_particles_pipeline;
@@ -1751,8 +1777,10 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
 
     /* Copy the pic into the staging buffer at the running
      * offset, then record barrier + copy + barrier into
-     * the open command buffer. */
-    memcpy((uint8_t *)vk_staging_ptr + vk_overlay_upload_offset, data, bytes);
+     * the open command buffer.  Uses the active ring
+     * slot's staging since the one-shot upload happens
+     * inside the active frame's CB recording. */
+    memcpy((uint8_t *)vk_staging_ptr[vk_active_slot] + vk_overlay_upload_offset, data, bytes);
 
     memset(&barrier, 0, sizeof(barrier));
     barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1783,7 +1811,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     region.imageExtent.depth               = 1;
 
     vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                               vk_staging_buffer,
+                               vk_staging_buffer[vk_active_slot],
                                slot->image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &region);
@@ -1890,8 +1918,10 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
                              0, NULL, 0, NULL,
                              1, &barrier);
 
-    /* Staging copy + image copy */
-    memcpy((uint8_t *)vk_staging_ptr + vk_overlay_upload_offset, data, bytes);
+    /* Staging copy + image copy.  Uses the active ring
+     * slot's staging since the one-shot upload happens
+     * inside the active frame's CB recording. */
+    memcpy((uint8_t *)vk_staging_ptr[vk_active_slot] + vk_overlay_upload_offset, data, bytes);
 
     memset(&region, 0, sizeof(region));
     region.bufferOffset                = vk_overlay_upload_offset;
@@ -1902,7 +1932,7 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
     region.imageExtent.depth           = 1;
 
     vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                               vk_staging_buffer,
+                               vk_staging_buffer[vk_active_slot],
                                slot->image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &region);
@@ -2397,69 +2427,79 @@ backend_vk_create_resources(void)
     vk_staging_size = (VkDeviceSize)width * (VkDeviceSize)height
                     + (VkDeviceSize)VK_PALETTE_BYTES;
 
-    memset(&buf_ci, 0, sizeof(buf_ci));
-    buf_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buf_ci.size        = vk_staging_size;
-    buf_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    buf_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    /* Phase 5b-08 step 2a: ring-buffered staging.  Create N
+     * identical slots; each frame writes into and reads
+     * from its own slot via vk_staging_*[vk_active_slot]. */
+    {
+        unsigned si;
+        for (si = 0; si < VK_FRAME_RING_DEPTH; si++) {
+            memset(&buf_ci, 0, sizeof(buf_ci));
+            buf_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            buf_ci.size        = vk_staging_size;
+            buf_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            buf_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    r = vk_fn.CreateBuffer(vk_device, &buf_ci, NULL, &vk_staging_buffer);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateBuffer (staging) failed (%d)\n", (int)r);
-        return false;
+            r = vk_fn.CreateBuffer(vk_device, &buf_ci, NULL, &vk_staging_buffer[si]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateBuffer (staging slot %u) failed (%d)\n",
+                           si, (int)r);
+                return false;
+            }
+
+            memset(&mem_req, 0, sizeof(mem_req));
+            vk_fn.GetBufferMemoryRequirements(vk_device, vk_staging_buffer[si], &mem_req);
+
+            mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
+                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                                                 | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            if (mem_type == 0xFFFFFFFFu) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory for staging slot %u\n",
+                           si);
+                return false;
+            }
+
+            memset(&alloc_info, 0, sizeof(alloc_info));
+            alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            alloc_info.allocationSize  = mem_req.size;
+            alloc_info.memoryTypeIndex = mem_type;
+
+            r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL, &vk_staging_memory[si]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateMemory (staging slot %u) failed (%d)\n", si, (int)r);
+                return false;
+            }
+
+            r = vk_fn.BindBufferMemory(vk_device, vk_staging_buffer[si],
+                                       vk_staging_memory[si], 0);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: BindBufferMemory (staging slot %u) failed (%d)\n", si, (int)r);
+                return false;
+            }
+
+            vk_staging_ptr[si] = NULL;
+            r = vk_fn.MapMemory(vk_device, vk_staging_memory[si], 0,
+                                VK_WHOLE_SIZE, 0, &vk_staging_ptr[si]);
+            if (r != VK_SUCCESS || !vk_staging_ptr[si]) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: MapMemory (staging slot %u) failed (%d)\n", si, (int)r);
+                return false;
+            }
+
+            /* Zero the staging buffer so the very first
+             * CmdCopyBufferToImage doesn't sample
+             * uninitialised host memory before the first
+             * per-frame upload writes into it. */
+            memset(vk_staging_ptr[si], 0, (size_t)vk_staging_size);
+        }
     }
-
-    memset(&mem_req, 0, sizeof(mem_req));
-    vk_fn.GetBufferMemoryRequirements(vk_device, vk_staging_buffer, &mem_req);
-
-    mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
-                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                                         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (mem_type == 0xFFFFFFFFu) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: no HOST_VISIBLE|HOST_COHERENT memory for staging\n");
-        return false;
-    }
-
-    memset(&alloc_info, 0, sizeof(alloc_info));
-    alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.allocationSize  = mem_req.size;
-    alloc_info.memoryTypeIndex = mem_type;
-
-    r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL, &vk_staging_memory);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: AllocateMemory (staging) failed (%d)\n", (int)r);
-        return false;
-    }
-
-    r = vk_fn.BindBufferMemory(vk_device, vk_staging_buffer,
-                               vk_staging_memory, 0);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: BindBufferMemory (staging) failed (%d)\n", (int)r);
-        return false;
-    }
-
-    vk_staging_ptr = NULL;
-    r = vk_fn.MapMemory(vk_device, vk_staging_memory, 0,
-                        VK_WHOLE_SIZE, 0, &vk_staging_ptr);
-    if (r != VK_SUCCESS || !vk_staging_ptr) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: MapMemory (staging) failed (%d)\n", (int)r);
-        return false;
-    }
-
-    /* Zero the staging buffer so the very first frame's
-     * CmdCopyBufferToImage doesn't sample uninitialised host
-     * memory before backend_vk_end_frame's first per-frame
-     * upload runs.  Cheap one-time cost. */
-    memset(vk_staging_ptr, 0, (size_t)vk_staging_size);
 
     /* ---------------------------------------------------------
      * Descriptor set layout (Phase 4g).  Three bindings,
@@ -3200,67 +3240,76 @@ backend_vk_create_resources(void)
         }
 
         /* 3. vk_particles_zstaging.  Host-visible buffer
-         *    sized to width*height*sizeof(uint16_t) for the
-         *    per-frame d_pzbuffer upload. */
-        memset(&zs_ci, 0, sizeof(zs_ci));
-        zs_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        zs_ci.size        = (VkDeviceSize)width * (VkDeviceSize)height * 4u;
-        zs_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        zs_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+         *    sized to width*height*sizeof(uint32_t) for the
+         *    per-frame d_pzbuffer upload.  Phase 5b-08
+         *    step 2a: ring-buffered. */
+        {
+            unsigned zsi;
+            for (zsi = 0; zsi < VK_FRAME_RING_DEPTH; zsi++) {
+                memset(&zs_ci, 0, sizeof(zs_ci));
+                zs_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                zs_ci.size        = (VkDeviceSize)width * (VkDeviceSize)height * 4u;
+                zs_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                zs_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        r = vk_fn.CreateBuffer(vk_device, &zs_ci, NULL, &vk_particles_zstaging);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: CreateBuffer (zbuffer staging) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.CreateBuffer(vk_device, &zs_ci, NULL, &vk_particles_zstaging[zsi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: CreateBuffer (zbuffer staging slot %u) failed (%d)\n",
+                               zsi, (int)r);
+                    return false;
+                }
 
-        vk_fn.GetBufferMemoryRequirements(vk_device,
-                                          vk_particles_zstaging, &zs_mem_req);
-        zs_mem_type = backend_vk_find_memory_type(
-            zs_mem_req.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (zs_mem_type == UINT32_MAX) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for zbuffer staging\n");
-            return false;
-        }
+                vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                  vk_particles_zstaging[zsi], &zs_mem_req);
+                zs_mem_type = backend_vk_find_memory_type(
+                    zs_mem_req.memoryTypeBits,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (zs_mem_type == UINT32_MAX) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: no HOST_VISIBLE|COHERENT memory for zbuffer staging slot %u\n",
+                               zsi);
+                    return false;
+                }
 
-        memset(&zs_mem_ai, 0, sizeof(zs_mem_ai));
-        zs_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        zs_mem_ai.allocationSize  = zs_mem_req.size;
-        zs_mem_ai.memoryTypeIndex = zs_mem_type;
+                memset(&zs_mem_ai, 0, sizeof(zs_mem_ai));
+                zs_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                zs_mem_ai.allocationSize  = zs_mem_req.size;
+                zs_mem_ai.memoryTypeIndex = zs_mem_type;
 
-        r = vk_fn.AllocateMemory(vk_device, &zs_mem_ai, NULL,
-                                 &vk_particles_zstaging_memory);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateMemory (zbuffer staging) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.AllocateMemory(vk_device, &zs_mem_ai, NULL,
+                                         &vk_particles_zstaging_memory[zsi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: AllocateMemory (zbuffer staging slot %u) failed (%d)\n",
+                               zsi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.BindBufferMemory(vk_device, vk_particles_zstaging,
-                                   vk_particles_zstaging_memory, 0);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: BindBufferMemory (zbuffer staging) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.BindBufferMemory(vk_device, vk_particles_zstaging[zsi],
+                                           vk_particles_zstaging_memory[zsi], 0);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: BindBufferMemory (zbuffer staging slot %u) failed (%d)\n",
+                               zsi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.MapMemory(vk_device, vk_particles_zstaging_memory,
-                            0, VK_WHOLE_SIZE, 0, &vk_particles_zstaging_ptr);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: MapMemory (zbuffer staging) failed (%d)\n", (int)r);
-            return false;
+                r = vk_fn.MapMemory(vk_device, vk_particles_zstaging_memory[zsi],
+                                    0, VK_WHOLE_SIZE, 0, &vk_particles_zstaging_ptr[zsi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: MapMemory (zbuffer staging slot %u) failed (%d)\n",
+                               zsi, (int)r);
+                    return false;
+                }
+            }
         }
 
         /* 4. Shader module from precompiled SPIR-V. */
@@ -6237,16 +6286,26 @@ backend_vk_destroy_resources(void)
                                       vk_particles_cs_module, NULL);
         vk_particles_cs_module = VK_NULL_HANDLE;
     }
-    if (vk_particles_zstaging != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_particles_zstaging, NULL);
-        vk_particles_zstaging = VK_NULL_HANDLE;
-    }
-    if (vk_particles_zstaging_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_particles_zstaging_memory, NULL);
-        vk_particles_zstaging_memory = VK_NULL_HANDLE;
-        vk_particles_zstaging_ptr    = NULL;
+    /* Phase 5b-08 step 2a: ring-buffered zbuf staging
+     * teardown.  Same pattern as vid.buffer staging --
+     * vkFreeMemory implicitly unmaps the persistent
+     * mapping; zero each slot's ptr to NULL-deref a
+     * stale dereference instead of use-after-freeing. */
+    {
+        unsigned zsi;
+        for (zsi = 0; zsi < VK_FRAME_RING_DEPTH; zsi++) {
+            if (vk_particles_zstaging[zsi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_particles_zstaging[zsi], NULL);
+                vk_particles_zstaging[zsi] = VK_NULL_HANDLE;
+            }
+            if (vk_particles_zstaging_memory[zsi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_particles_zstaging_memory[zsi], NULL);
+                vk_particles_zstaging_memory[zsi] = VK_NULL_HANDLE;
+            }
+            vk_particles_zstaging_ptr[zsi] = NULL;
+        }
     }
     if (vk_particles_buffer != VK_NULL_HANDLE) {
         if (vk_fn.DestroyBuffer)
@@ -6322,22 +6381,28 @@ backend_vk_destroy_resources(void)
                                              vk_descriptor_set_layout, NULL);
         vk_descriptor_set_layout = VK_NULL_HANDLE;
     }
-    if (vk_staging_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_staging_buffer, NULL);
-        vk_staging_buffer = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 2a: ring-buffered staging teardown.
+     * vkFreeMemory implicitly unmaps any persistent mapping
+     * for that allocation; no UnmapMemory needed.  Zero
+     * each slot's ptr so a stale-pointer dereference after
+     * teardown would be a NULL deref rather than a
+     * use-after-free on freed device memory. */
+    {
+        unsigned si;
+        for (si = 0; si < VK_FRAME_RING_DEPTH; si++) {
+            if (vk_staging_buffer[si] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_staging_buffer[si], NULL);
+                vk_staging_buffer[si] = VK_NULL_HANDLE;
+            }
+            if (vk_staging_memory[si] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_staging_memory[si], NULL);
+                vk_staging_memory[si] = VK_NULL_HANDLE;
+            }
+            vk_staging_ptr[si] = NULL;
+        }
     }
-    if (vk_staging_memory != VK_NULL_HANDLE) {
-        /* vkFreeMemory implicitly unmaps any persistent
-         * mapping; no UnmapMemory needed.  Zero
-         * vk_staging_ptr so a stale-pointer dereference
-         * after teardown would be a NULL deref rather than
-         * a use-after-free on freed device memory. */
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_staging_memory, NULL);
-        vk_staging_memory = VK_NULL_HANDLE;
-    }
-    vk_staging_ptr  = NULL;
     vk_staging_size = 0;
     if (vk_texture_view != VK_NULL_HANDLE) {
         if (vk_fn.DestroyImageView)
@@ -8477,10 +8542,10 @@ backend_vk_upload_vid_buffer(void)
     uint8_t *pal_dst;
     uint32_t y;
 
-    if (!vk_staging_ptr || !vid.buffer)
+    if (!vk_staging_ptr[vk_active_slot] || !vid.buffer)
         return;
 
-    idx_dst = (uint8_t *)vk_staging_ptr;
+    idx_dst = (uint8_t *)vk_staging_ptr[vk_active_slot];
     for (y = 0; y < height; y++) {
         const uint8_t *srow = (const uint8_t *)vid.buffer
                             + (size_t)y * (size_t)vid.rowbytes;
@@ -8527,10 +8592,10 @@ backend_vk_upload_zbuffer(void)
     size_t          i;
     size_t          count;
 
-    if (!vk_particles_zstaging_ptr || !d_pzbuffer)
+    if (!vk_particles_zstaging_ptr[vk_active_slot] || !d_pzbuffer)
         return;
 
-    dst   = (uint32_t *)vk_particles_zstaging_ptr;
+    dst   = (uint32_t *)vk_particles_zstaging_ptr[vk_active_slot];
     src   = (const int16_t *)d_pzbuffer;
     count = (size_t)width * (size_t)height;
     for (i = 0; i < count; i++)
@@ -8806,7 +8871,7 @@ backend_vk_record_frame(void)
     regions[0].imageExtent.depth               = 1;
 
     vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                               vk_staging_buffer,
+                               vk_staging_buffer[vk_active_slot],
                                vk_texture,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &regions[0]);
@@ -8824,7 +8889,7 @@ backend_vk_record_frame(void)
     regions[1].imageExtent.depth               = 1;
 
     vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                               vk_staging_buffer,
+                               vk_staging_buffer[vk_active_slot],
                                vk_palette_texture,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &regions[1]);
@@ -8854,7 +8919,7 @@ backend_vk_record_frame(void)
         zb_region.imageExtent.depth               = 1;
 
         vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                                   vk_particles_zstaging,
+                                   vk_particles_zstaging[vk_active_slot],
                                    vk_zbuffer,
                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                    1, &zb_region);
