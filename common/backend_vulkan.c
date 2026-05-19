@@ -9737,7 +9737,9 @@ backend_vk_end_frame(void)
     si.commandBufferCount = 1;
     si.pCommandBuffers    = &vk_cmd_buffer;
 
+    perf_timing_section_begin(PERF_SECTION_QUEUE_SUBMIT);
     r = vk_fn.QueueSubmit(vk_queue, 1, &si, VK_NULL_HANDLE);
+    perf_timing_section_end(PERF_SECTION_QUEUE_SUBMIT);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR, "rhi-vk: QueueSubmit failed (%d)\n", (int)r);
@@ -9752,7 +9754,9 @@ backend_vk_end_frame(void)
      * and throttles the GPU to one frame at a time -- a
      * future phase introduces a fence-based ring so the
      * GPU can run ahead. */
+    perf_timing_section_begin(PERF_SECTION_QUEUE_WAIT_IDLE);
     vk_fn.QueueWaitIdle(vk_queue);
+    perf_timing_section_end(PERF_SECTION_QUEUE_WAIT_IDLE);
 
     /* Hand the image to the frontend.  src_queue_family
      * matches the queue we submitted from, so no ownership
@@ -9760,17 +9764,21 @@ backend_vk_end_frame(void)
      * src_queue_family == queue_index, no transfer
      * occurs).  Zero semaphores -- the QueueWaitIdle above
      * already ensures the image is fully written. */
+    perf_timing_section_begin(PERF_SECTION_SET_IMAGE);
     vk_iface->set_image(vk_iface->handle,
                         &vk_retro_image,
                         0, NULL,
                         vk_queue_family);
+    perf_timing_section_end(PERF_SECTION_SET_IMAGE);
 
     /* Tell the frontend a HW frame is ready.  The data
      * pointer is the magic value RETRO_HW_FRAME_BUFFER_VALID;
      * pitch is 0 (not meaningful for HW frames).  did_flip
      * suppresses retro_run's dupe-NULL-frame path. */
+    perf_timing_section_begin(PERF_SECTION_VIDEO_CB);
     if (video_cb)
         video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
+    perf_timing_section_end(PERF_SECTION_VIDEO_CB);
     did_flip = true;
     perf_timing_section_end(PERF_SECTION_SUBMIT_PRESENT);
 #endif
