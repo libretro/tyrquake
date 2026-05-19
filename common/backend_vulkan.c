@@ -9061,9 +9061,20 @@ backend_vk_begin_frame(void)
      * ring stays consistent. */
     if (vk_resources_ready) {
         vk_active_slot = (vk_active_slot + 1) % VK_FRAME_RING_DEPTH;
+        /* Phase 5b-08 step 3c diagnostic: reuse the now-
+         * empty QUEUE_WAIT_IDLE perf section to time the
+         * fence wait.  Pre-3b qw measured end_frame's
+         * QueueWaitIdle; post-3b that's gone, so the
+         * section is reusable for begin_frame's
+         * WaitForFences.  Tells us whether the fence wait
+         * is the source of the 3.78 ms regression that
+         * showed up in RENDER.  Cheap to leave in; the
+         * counter is otherwise idle. */
+        perf_timing_section_begin(PERF_SECTION_QUEUE_WAIT_IDLE);
         vk_fn.WaitForFences(vk_device, 1,
                             &vk_frame_ctx[vk_active_slot].done_fence,
                             VK_TRUE, UINT64_MAX);
+        perf_timing_section_end(PERF_SECTION_QUEUE_WAIT_IDLE);
         vk_fn.ResetFences(vk_device, 1,
                           &vk_frame_ctx[vk_active_slot].done_fence);
         vk_cmd_buffer = vk_frame_ctx[vk_active_slot].cmd_buffer;
