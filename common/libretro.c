@@ -1083,7 +1083,9 @@ void retro_run(void)
     * skip-path. */
    if (cls.state == ca_active)
       CL_DecayLights();
+   perf_timing_section_begin(PERF_SECTION_AUDIO);
    audio_step();
+   perf_timing_section_end(PERF_SECTION_AUDIO);
 
    perf_timing_section_end(PERF_SECTION_FRAME);
    perf_timing_end_frame();

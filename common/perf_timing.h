@@ -48,6 +48,17 @@ enum {
    PERF_SECTION_HOST_PT,          /* RENDERVIEW sub: CL_RunParticles
                                    * (particle physics update; runs after
                                    * SCR_UpdateScreen) */
+   PERF_SECTION_UPLOAD_VID,       /* FRAME sub (not in RENDERVIEW): host
+                                   * -> staging memcpy of vid.buffer; runs
+                                   * in end_frame between RENDERVIEW end and
+                                   * RECORD_FRAME begin */
+   PERF_SECTION_UPLOAD_ZBUF,      /* FRAME sub (not in RENDERVIEW): host
+                                   * -> staging memcpy of d_pzbuffer;
+                                   * conditional on 3D-dispatch activity;
+                                   * same location as UPLOAD_VID */
+   PERF_SECTION_AUDIO,            /* FRAME sub (not in RENDERVIEW): mixer
+                                   * run via audio_step in libretro.c
+                                   * AFTER end_frame returns */
    PERF_SECTION_RECORD_FRAME,     /* backend's command-buffer recording */
    PERF_SECTION_SUBMIT_PRESENT,   /* submit + wait + set_image + video_cb */
    PERF_SECTION_QUEUE_SUBMIT,     /* SUBMIT_PRESENT sub: vkQueueSubmit only */

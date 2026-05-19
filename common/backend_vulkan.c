@@ -10557,7 +10557,9 @@ backend_vk_end_frame(void)
      * (which references the buffer handle, not its bytes)
      * and submit (which actually reads through the handle)
      * come after this. */
+    perf_timing_section_begin(PERF_SECTION_UPLOAD_VID);
     backend_vk_upload_vid_buffer();
+    perf_timing_section_end(PERF_SECTION_UPLOAD_VID);
 
     /* Phase 5b-02 + 5b-05 + 5b-06 + 5b-07b: if any compute-
      * 3D dispatch (particles, sprites, alias, or turb) was
@@ -10583,8 +10585,11 @@ backend_vk_end_frame(void)
     if (vk_pending_particle_count > 0
      || vk_sprite_count > 0
      || vk_alias_count > 0
-     || vk_turb_surface_count > 0)
+     || vk_turb_surface_count > 0) {
+        perf_timing_section_begin(PERF_SECTION_UPLOAD_ZBUF);
         backend_vk_upload_zbuffer();
+        perf_timing_section_end(PERF_SECTION_UPLOAD_ZBUF);
+    }
 
     /* Fresh per-frame command-buffer recording.  Phase 4e
      * lifted this out of create_resources so subsequent

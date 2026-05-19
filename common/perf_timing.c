@@ -124,6 +124,9 @@ perf_timing_end_frame(void)
    double host_rv_ms_avg;
    double host_2d_ms_avg;
    double host_pt_ms_avg;
+   double upload_vid_ms_avg;
+   double upload_zbuf_ms_avg;
+   double audio_ms_avg;
    double record_ms_avg;
    double submit_ms_avg;
    double qsubmit_ms_avg;
@@ -166,6 +169,9 @@ perf_timing_end_frame(void)
    host_rv_ms_avg = section_accum_usec[PERF_SECTION_HOST_RV]        / 1000.0 / (double)fc;
    host_2d_ms_avg = section_accum_usec[PERF_SECTION_HOST_2D]        / 1000.0 / (double)fc;
    host_pt_ms_avg = section_accum_usec[PERF_SECTION_HOST_PT]        / 1000.0 / (double)fc;
+   upload_vid_ms_avg  = section_accum_usec[PERF_SECTION_UPLOAD_VID]  / 1000.0 / (double)fc;
+   upload_zbuf_ms_avg = section_accum_usec[PERF_SECTION_UPLOAD_ZBUF] / 1000.0 / (double)fc;
+   audio_ms_avg       = section_accum_usec[PERF_SECTION_AUDIO]       / 1000.0 / (double)fc;
    record_ms_avg  = section_accum_usec[PERF_SECTION_RECORD_FRAME]   / 1000.0 / (double)fc;
    submit_ms_avg  = section_accum_usec[PERF_SECTION_SUBMIT_PRESENT] / 1000.0 / (double)fc;
    qsubmit_ms_avg = section_accum_usec[PERF_SECTION_QUEUE_SUBMIT]      / 1000.0 / (double)fc;
@@ -175,16 +181,19 @@ perf_timing_end_frame(void)
 
    Con_Printf("PERF [%u frames %.1fms]: %.1f FPS (%.2fms) | "
               "frame %.2f render %.2f (rv %.2f 2d %.2f pt %.2f) "
+              "upload (vb %.2f zb %.2f) "
               "record %.2f submit %.2f "
-              "(qs %.2f si %.2f vc %.2f) bw %.2f | "
+              "(qs %.2f si %.2f vc %.2f) audio %.2f bw %.2f | "
               "brush=%llu turb=%llu alias=%llu particles=%llu "
               "sprites=%llu dispatches=%llu vidbuf=%llu zbufup=%llu\n",
               (unsigned)fc, window_ms,
               fps, frame_ms_avg,
               frame_ms_avg, render_ms_avg,
               host_rv_ms_avg, host_2d_ms_avg, host_pt_ms_avg,
+              upload_vid_ms_avg, upload_zbuf_ms_avg,
               record_ms_avg, submit_ms_avg,
-              qsubmit_ms_avg, setimg_ms_avg, vidcb_ms_avg, bwait_ms_avg,
+              qsubmit_ms_avg, setimg_ms_avg, vidcb_ms_avg,
+              audio_ms_avg, bwait_ms_avg,
               (unsigned long long)(counter_accum[PERF_COUNTER_BRUSH_SURFACES]   / fc),
               (unsigned long long)(counter_accum[PERF_COUNTER_TURB_SURFACES]    / fc),
               (unsigned long long)(counter_accum[PERF_COUNTER_ALIAS_ENTITIES]   / fc),
