@@ -1141,18 +1141,27 @@ struct vk_sprite_pc {
     int32_t  tex_info[4];       /* tex_height, transparent_idx, _pad, _pad */
 };
 
-static VkBuffer               vk_sprite_vertex_buffer;
-static VkDeviceMemory         vk_sprite_vertex_memory;
-static void                  *vk_sprite_vertex_ptr;
-static VkBuffer               vk_sprite_texture_buffer;
-static VkDeviceMemory         vk_sprite_texture_memory;
-static void                  *vk_sprite_texture_ptr;
+/* Phase 5b-08 step 2c: sprite SSBOs are ring-buffered.
+ * dispatch_3d_sprite memcpys per-sprite vertex + texture
+ * data into the active slot's pair each frame; the
+ * dispatch reads from the same slot's SSBOs via that
+ * slot's descriptor set. */
+static VkBuffer               vk_sprite_vertex_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_sprite_vertex_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_sprite_vertex_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_sprite_texture_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_sprite_texture_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_sprite_texture_ptr[VK_FRAME_RING_DEPTH];
 static VkShaderModule         vk_sprite_cs_module;
 static VkPipelineLayout       vk_sprite_pipeline_layout;
 static VkPipeline             vk_sprite_pipeline;
 static VkDescriptorSetLayout  vk_sprite_dsl;
 static VkDescriptorPool       vk_sprite_pool;
-static VkDescriptorSet        vk_sprite_set;
+/* Phase 5b-08 step 2c: N descriptor sets, one per ring
+ * slot.  Bindings 0+1 (vk_texture_view, vk_zbuffer_view)
+ * are shared across slots; bindings 2+3 (the two SSBOs)
+ * differ per slot. */
+static VkDescriptorSet        vk_sprite_set[VK_FRAME_RING_DEPTH];
 static uint32_t               vk_sprite_count;
 static uint32_t               vk_sprite_vertex_cursor;
 static struct vk_sprite_pc    vk_sprite_calls[VK_SPRITE_MAX_PER_FRAME];
@@ -1313,24 +1322,33 @@ struct vk_alias_slot_cache_entry {
     uint32_t    height;
 };
 
-static VkBuffer               vk_alias_vertex_buffer;
-static VkDeviceMemory         vk_alias_vertex_memory;
-static void                  *vk_alias_vertex_ptr;
-static VkBuffer               vk_alias_triangle_buffer;
-static VkDeviceMemory         vk_alias_triangle_memory;
-static void                  *vk_alias_triangle_ptr;
-static VkBuffer               vk_alias_skin_buffer;
-static VkDeviceMemory         vk_alias_skin_memory;
-static void                  *vk_alias_skin_ptr;
-static VkBuffer               vk_alias_colormap_buffer;
-static VkDeviceMemory         vk_alias_colormap_memory;
-static void                  *vk_alias_colormap_ptr;
+/* Phase 5b-08 step 2c: alias SSBOs are ring-buffered.
+ * The four host-mapped pools (vertex, triangle, skin,
+ * colormap) are written by dispatch_3d_alias each frame
+ * (and by the upload-skin / upload-colormap helpers at
+ * material change), read by the dispatch through the
+ * active slot's descriptor set. */
+static VkBuffer               vk_alias_vertex_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_alias_vertex_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_alias_vertex_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_alias_triangle_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_alias_triangle_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_alias_triangle_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_alias_skin_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_alias_skin_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_alias_skin_ptr[VK_FRAME_RING_DEPTH];
+static VkBuffer               vk_alias_colormap_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_alias_colormap_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_alias_colormap_ptr[VK_FRAME_RING_DEPTH];
 static VkShaderModule         vk_alias_cs_module;
 static VkPipelineLayout       vk_alias_pipeline_layout;
 static VkPipeline             vk_alias_pipeline;
 static VkDescriptorSetLayout  vk_alias_dsl;
 static VkDescriptorPool       vk_alias_pool;
-static VkDescriptorSet        vk_alias_set;
+/* Phase 5b-08 step 2c: N descriptor sets per ring slot.
+ * Bindings 0+1 (storage images) shared, 2+3+4+5 (SSBOs)
+ * per-slot. */
+static VkDescriptorSet        vk_alias_set[VK_FRAME_RING_DEPTH];
 static uint32_t               vk_alias_count;
 static uint32_t               vk_alias_vertex_cursor;
 static uint32_t               vk_alias_triangle_cursor;
@@ -4016,8 +4034,9 @@ backend_vk_create_resources(void)
         VkDescriptorPoolCreateInfo    s_pool_ci;
         VkDescriptorSetAllocateInfo   s_set_alloc;
         VkDescriptorImageInfo         s_img_info[2];
-        VkDescriptorBufferInfo        s_buf_info[2];
-        VkWriteDescriptorSet          s_writes[4];
+        /* Phase 5b-08 step 2c: per-slot SSBO buf-infos and
+         * 4*N writes are declared inside the per-slot
+         * update scope further down. */
         VkPushConstantRange           s_push_range;
         VkPipelineLayoutCreateInfo    s_pl_ci;
         VkComputePipelineCreateInfo   s_cp_ci;
@@ -4025,132 +4044,144 @@ backend_vk_create_resources(void)
         uint32_t                      sv_mem_type;
         uint32_t                      st_mem_type;
 
-        /* 1. Vertex SSBO. */
-        memset(&sv_ci, 0, sizeof(sv_ci));
-        sv_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        sv_ci.size        = VK_SPRITE_VERT_POOL_BYTES;
-        sv_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        sv_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        /* 1. Vertex SSBO + 2. Texture SSBO.  Phase 5b-08
+         * step 2c: ring-buffered, both pairs created in
+         * the same per-slot loop so the
+         * mem-type-select / alloc / bind / map dance
+         * runs once per slot. */
+        {
+            unsigned ssi;
+            for (ssi = 0; ssi < VK_FRAME_RING_DEPTH; ssi++) {
+                memset(&sv_ci, 0, sizeof(sv_ci));
+                sv_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                sv_ci.size        = VK_SPRITE_VERT_POOL_BYTES;
+                sv_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                sv_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        r = vk_fn.CreateBuffer(vk_device, &sv_ci, NULL,
-                               &vk_sprite_vertex_buffer);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: CreateBuffer (sprite vertex SSBO) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.CreateBuffer(vk_device, &sv_ci, NULL,
+                                       &vk_sprite_vertex_buffer[ssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: CreateBuffer (sprite vertex SSBO slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        vk_fn.GetBufferMemoryRequirements(vk_device,
-                                          vk_sprite_vertex_buffer, &sv_mem_req);
-        sv_mem_type = backend_vk_find_memory_type(
-            sv_mem_req.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (sv_mem_type == UINT32_MAX) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for sprite verts\n");
-            return false;
-        }
+                vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                  vk_sprite_vertex_buffer[ssi], &sv_mem_req);
+                sv_mem_type = backend_vk_find_memory_type(
+                    sv_mem_req.memoryTypeBits,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (sv_mem_type == UINT32_MAX) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: no HOST_VISIBLE|COHERENT memory for sprite verts slot %u\n",
+                               ssi);
+                    return false;
+                }
 
-        memset(&sv_mem_ai, 0, sizeof(sv_mem_ai));
-        sv_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        sv_mem_ai.allocationSize  = sv_mem_req.size;
-        sv_mem_ai.memoryTypeIndex = sv_mem_type;
+                memset(&sv_mem_ai, 0, sizeof(sv_mem_ai));
+                sv_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                sv_mem_ai.allocationSize  = sv_mem_req.size;
+                sv_mem_ai.memoryTypeIndex = sv_mem_type;
 
-        r = vk_fn.AllocateMemory(vk_device, &sv_mem_ai, NULL,
-                                 &vk_sprite_vertex_memory);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateMemory (sprite verts) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.AllocateMemory(vk_device, &sv_mem_ai, NULL,
+                                         &vk_sprite_vertex_memory[ssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: AllocateMemory (sprite verts slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.BindBufferMemory(vk_device, vk_sprite_vertex_buffer,
-                                   vk_sprite_vertex_memory, 0);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: BindBufferMemory (sprite verts) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.BindBufferMemory(vk_device, vk_sprite_vertex_buffer[ssi],
+                                           vk_sprite_vertex_memory[ssi], 0);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: BindBufferMemory (sprite verts slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.MapMemory(vk_device, vk_sprite_vertex_memory,
-                            0, VK_WHOLE_SIZE, 0, &vk_sprite_vertex_ptr);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: MapMemory (sprite verts) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.MapMemory(vk_device, vk_sprite_vertex_memory[ssi],
+                                    0, VK_WHOLE_SIZE, 0, &vk_sprite_vertex_ptr[ssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: MapMemory (sprite verts slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        /* 2. Texture SSBO. */
-        memset(&st_ci, 0, sizeof(st_ci));
-        st_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        st_ci.size        = VK_SPRITE_TEX_POOL_BYTES;
-        st_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        st_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+                memset(&st_ci, 0, sizeof(st_ci));
+                st_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                st_ci.size        = VK_SPRITE_TEX_POOL_BYTES;
+                st_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                st_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        r = vk_fn.CreateBuffer(vk_device, &st_ci, NULL,
-                               &vk_sprite_texture_buffer);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: CreateBuffer (sprite texture SSBO) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.CreateBuffer(vk_device, &st_ci, NULL,
+                                       &vk_sprite_texture_buffer[ssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: CreateBuffer (sprite texture SSBO slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        vk_fn.GetBufferMemoryRequirements(vk_device,
-                                          vk_sprite_texture_buffer, &st_mem_req);
-        st_mem_type = backend_vk_find_memory_type(
-            st_mem_req.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (st_mem_type == UINT32_MAX) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for sprite tex\n");
-            return false;
-        }
+                vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                  vk_sprite_texture_buffer[ssi], &st_mem_req);
+                st_mem_type = backend_vk_find_memory_type(
+                    st_mem_req.memoryTypeBits,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (st_mem_type == UINT32_MAX) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: no HOST_VISIBLE|COHERENT memory for sprite tex slot %u\n",
+                               ssi);
+                    return false;
+                }
 
-        memset(&st_mem_ai, 0, sizeof(st_mem_ai));
-        st_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        st_mem_ai.allocationSize  = st_mem_req.size;
-        st_mem_ai.memoryTypeIndex = st_mem_type;
+                memset(&st_mem_ai, 0, sizeof(st_mem_ai));
+                st_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                st_mem_ai.allocationSize  = st_mem_req.size;
+                st_mem_ai.memoryTypeIndex = st_mem_type;
 
-        r = vk_fn.AllocateMemory(vk_device, &st_mem_ai, NULL,
-                                 &vk_sprite_texture_memory);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateMemory (sprite tex) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.AllocateMemory(vk_device, &st_mem_ai, NULL,
+                                         &vk_sprite_texture_memory[ssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: AllocateMemory (sprite tex slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.BindBufferMemory(vk_device, vk_sprite_texture_buffer,
-                                   vk_sprite_texture_memory, 0);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: BindBufferMemory (sprite tex) failed (%d)\n",
-                       (int)r);
-            return false;
-        }
+                r = vk_fn.BindBufferMemory(vk_device, vk_sprite_texture_buffer[ssi],
+                                           vk_sprite_texture_memory[ssi], 0);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: BindBufferMemory (sprite tex slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.MapMemory(vk_device, vk_sprite_texture_memory,
-                            0, VK_WHOLE_SIZE, 0, &vk_sprite_texture_ptr);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: MapMemory (sprite tex) failed (%d)\n", (int)r);
-            return false;
+                r = vk_fn.MapMemory(vk_device, vk_sprite_texture_memory[ssi],
+                                    0, VK_WHOLE_SIZE, 0, &vk_sprite_texture_ptr[ssi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: MapMemory (sprite tex slot %u) failed (%d)\n",
+                               ssi, (int)r);
+                    return false;
+                }
+            }
         }
 
         /* 3. Shader module. */
@@ -4203,16 +4234,18 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* 5. Pool + set. */
+        /* 5. Pool + N sets.  Phase 5b-08 step 2c: pool
+         *    sized for N sets, AllocateDescriptorSets
+         *    pulls all N out in one call. */
         memset(&s_pool_sizes, 0, sizeof(s_pool_sizes));
         s_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        s_pool_sizes[0].descriptorCount = 2;
+        s_pool_sizes[0].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
         s_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        s_pool_sizes[1].descriptorCount = 2;
+        s_pool_sizes[1].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
 
         memset(&s_pool_ci, 0, sizeof(s_pool_ci));
         s_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        s_pool_ci.maxSets       = 1;
+        s_pool_ci.maxSets       = VK_FRAME_RING_DEPTH;
         s_pool_ci.poolSizeCount = 2;
         s_pool_ci.pPoolSizes    = s_pool_sizes;
 
@@ -4226,22 +4259,32 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        memset(&s_set_alloc, 0, sizeof(s_set_alloc));
-        s_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        s_set_alloc.descriptorPool     = vk_sprite_pool;
-        s_set_alloc.descriptorSetCount = 1;
-        s_set_alloc.pSetLayouts        = &vk_sprite_dsl;
+        {
+            VkDescriptorSetLayout s_layouts[VK_FRAME_RING_DEPTH];
+            unsigned              ssi;
+            for (ssi = 0; ssi < VK_FRAME_RING_DEPTH; ssi++)
+                s_layouts[ssi] = vk_sprite_dsl;
 
-        r = vk_fn.AllocateDescriptorSets(vk_device, &s_set_alloc, &vk_sprite_set);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateDescriptorSets (sprite) failed (%d)\n",
-                       (int)r);
-            return false;
+            memset(&s_set_alloc, 0, sizeof(s_set_alloc));
+            s_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            s_set_alloc.descriptorPool     = vk_sprite_pool;
+            s_set_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+            s_set_alloc.pSetLayouts        = s_layouts;
+
+            r = vk_fn.AllocateDescriptorSets(vk_device, &s_set_alloc, vk_sprite_set);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateDescriptorSets (sprite) failed (%d)\n",
+                           (int)r);
+                return false;
+            }
         }
 
-        /* 6. Update set bindings. */
+        /* 6. Update set bindings.  Shared image bindings
+         *    (0+1) reference the single-instance views;
+         *    per-slot SSBO bindings (2+3) reference the
+         *    matching slot's buffer.  4*N writes total. */
         memset(&s_img_info, 0, sizeof(s_img_info));
         s_img_info[0].sampler     = VK_NULL_HANDLE;
         s_img_info[0].imageView   = vk_texture_view;
@@ -4250,41 +4293,55 @@ backend_vk_create_resources(void)
         s_img_info[1].imageView   = vk_zbuffer_view;
         s_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-        memset(&s_buf_info, 0, sizeof(s_buf_info));
-        s_buf_info[0].buffer = vk_sprite_vertex_buffer;
-        s_buf_info[0].offset = 0;
-        s_buf_info[0].range  = VK_WHOLE_SIZE;
-        s_buf_info[1].buffer = vk_sprite_texture_buffer;
-        s_buf_info[1].offset = 0;
-        s_buf_info[1].range  = VK_WHOLE_SIZE;
+        {
+            VkDescriptorBufferInfo s_buf_infos[2 * VK_FRAME_RING_DEPTH];
+            VkWriteDescriptorSet   s_all_writes[4 * VK_FRAME_RING_DEPTH];
+            unsigned               ssi;
+            unsigned               wi = 0;
 
-        memset(&s_writes, 0, sizeof(s_writes));
-        s_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        s_writes[0].dstSet          = vk_sprite_set;
-        s_writes[0].dstBinding      = 0;
-        s_writes[0].descriptorCount = 1;
-        s_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        s_writes[0].pImageInfo      = &s_img_info[0];
-        s_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        s_writes[1].dstSet          = vk_sprite_set;
-        s_writes[1].dstBinding      = 1;
-        s_writes[1].descriptorCount = 1;
-        s_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        s_writes[1].pImageInfo      = &s_img_info[1];
-        s_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        s_writes[2].dstSet          = vk_sprite_set;
-        s_writes[2].dstBinding      = 2;
-        s_writes[2].descriptorCount = 1;
-        s_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        s_writes[2].pBufferInfo     = &s_buf_info[0];
-        s_writes[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        s_writes[3].dstSet          = vk_sprite_set;
-        s_writes[3].dstBinding      = 3;
-        s_writes[3].descriptorCount = 1;
-        s_writes[3].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        s_writes[3].pBufferInfo     = &s_buf_info[1];
+            memset(s_buf_infos, 0, sizeof(s_buf_infos));
+            memset(s_all_writes, 0, sizeof(s_all_writes));
 
-        vk_fn.UpdateDescriptorSets(vk_device, 4, s_writes, 0, NULL);
+            for (ssi = 0; ssi < VK_FRAME_RING_DEPTH; ssi++) {
+                s_buf_infos[ssi * 2 + 0].buffer = vk_sprite_vertex_buffer[ssi];
+                s_buf_infos[ssi * 2 + 0].offset = 0;
+                s_buf_infos[ssi * 2 + 0].range  = VK_WHOLE_SIZE;
+                s_buf_infos[ssi * 2 + 1].buffer = vk_sprite_texture_buffer[ssi];
+                s_buf_infos[ssi * 2 + 1].offset = 0;
+                s_buf_infos[ssi * 2 + 1].range  = VK_WHOLE_SIZE;
+
+                s_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                s_all_writes[wi].dstSet          = vk_sprite_set[ssi];
+                s_all_writes[wi].dstBinding      = 0;
+                s_all_writes[wi].descriptorCount = 1;
+                s_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                s_all_writes[wi].pImageInfo      = &s_img_info[0];
+                wi++;
+                s_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                s_all_writes[wi].dstSet          = vk_sprite_set[ssi];
+                s_all_writes[wi].dstBinding      = 1;
+                s_all_writes[wi].descriptorCount = 1;
+                s_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                s_all_writes[wi].pImageInfo      = &s_img_info[1];
+                wi++;
+                s_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                s_all_writes[wi].dstSet          = vk_sprite_set[ssi];
+                s_all_writes[wi].dstBinding      = 2;
+                s_all_writes[wi].descriptorCount = 1;
+                s_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                s_all_writes[wi].pBufferInfo     = &s_buf_infos[ssi * 2 + 0];
+                wi++;
+                s_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                s_all_writes[wi].dstSet          = vk_sprite_set[ssi];
+                s_all_writes[wi].dstBinding      = 3;
+                s_all_writes[wi].descriptorCount = 1;
+                s_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                s_all_writes[wi].pBufferInfo     = &s_buf_infos[ssi * 2 + 1];
+                wi++;
+            }
+
+            vk_fn.UpdateDescriptorSets(vk_device, wi, s_all_writes, 0, NULL);
+        }
 
         /* 7. Pipeline layout. */
         memset(&s_push_range, 0, sizeof(s_push_range));
@@ -4357,8 +4414,9 @@ backend_vk_create_resources(void)
         VkDescriptorPoolCreateInfo    a_pool_ci;
         VkDescriptorSetAllocateInfo   a_set_alloc;
         VkDescriptorImageInfo         a_img_info[2];
-        VkDescriptorBufferInfo        a_buf_info[4];
-        VkWriteDescriptorSet          a_writes[6];
+        /* Phase 5b-08 step 2c: per-slot SSBO buf-infos and
+         * 6*N writes are declared inside the per-slot
+         * update scope further down. */
         VkPushConstantRange           a_push_range;
         VkPipelineLayoutCreateInfo    a_pl_ci;
         VkComputePipelineCreateInfo   a_cp_ci;
@@ -4374,18 +4432,13 @@ backend_vk_create_resources(void)
         uint32_t                      mt;
         int                           bi;
 
-        bufs[0]  = &vk_alias_vertex_buffer;
-        bufs[1]  = &vk_alias_triangle_buffer;
-        bufs[2]  = &vk_alias_skin_buffer;
-        bufs[3]  = &vk_alias_colormap_buffer;
-        mems[0]  = &vk_alias_vertex_memory;
-        mems[1]  = &vk_alias_triangle_memory;
-        mems[2]  = &vk_alias_skin_memory;
-        mems[3]  = &vk_alias_colormap_memory;
-        ptrs[0]  = &vk_alias_vertex_ptr;
-        ptrs[1]  = &vk_alias_triangle_ptr;
-        ptrs[2]  = &vk_alias_skin_ptr;
-        ptrs[3]  = &vk_alias_colormap_ptr;
+        /* 1. Four host-mapped SSBOs.  Phase 5b-08 step 2c:
+         * ring-buffered.  Outer loop iterates ring slots;
+         * inner loop iterates the four buffer kinds.
+         * Pointers in bufs[] / mems[] / ptrs[] are
+         * rebound to the active slot's storage each pass
+         * so the inner loop body is unchanged from
+         * pre-ring code. */
         sizes[0] = VK_ALIAS_VERT_POOL_BYTES;
         sizes[1] = VK_ALIAS_TRI_POOL_BYTES;
         sizes[2] = VK_ALIAS_SKIN_POOL_BYTES;
@@ -4407,69 +4460,84 @@ backend_vk_create_resources(void)
         ais[2]   = &as_ai;
         ais[3]   = &ac_ai;
 
-        /* 1. Four host-mapped SSBOs.  Loop the same
-         * Create -> GetReqs -> Alloc -> Bind -> Map
-         * sequence for each. */
-        for (bi = 0; bi < 4; bi++) {
-            memset(cis[bi], 0, sizeof(VkBufferCreateInfo));
-            cis[bi]->sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            cis[bi]->size        = sizes[bi];
-            cis[bi]->usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-            cis[bi]->sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        {
+            unsigned asi;
+            for (asi = 0; asi < VK_FRAME_RING_DEPTH; asi++) {
+                bufs[0]  = &vk_alias_vertex_buffer[asi];
+                bufs[1]  = &vk_alias_triangle_buffer[asi];
+                bufs[2]  = &vk_alias_skin_buffer[asi];
+                bufs[3]  = &vk_alias_colormap_buffer[asi];
+                mems[0]  = &vk_alias_vertex_memory[asi];
+                mems[1]  = &vk_alias_triangle_memory[asi];
+                mems[2]  = &vk_alias_skin_memory[asi];
+                mems[3]  = &vk_alias_colormap_memory[asi];
+                ptrs[0]  = &vk_alias_vertex_ptr[asi];
+                ptrs[1]  = &vk_alias_triangle_ptr[asi];
+                ptrs[2]  = &vk_alias_skin_ptr[asi];
+                ptrs[3]  = &vk_alias_colormap_ptr[asi];
 
-            r = vk_fn.CreateBuffer(vk_device, cis[bi], NULL, bufs[bi]);
-            if (r != VK_SUCCESS) {
-                if (log_cb)
-                    log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: CreateBuffer (%s) failed (%d)\n",
-                           names[bi], (int)r);
-                return false;
-            }
+                for (bi = 0; bi < 4; bi++) {
+                    memset(cis[bi], 0, sizeof(VkBufferCreateInfo));
+                    cis[bi]->sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                    cis[bi]->size        = sizes[bi];
+                    cis[bi]->usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                    cis[bi]->sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-            vk_fn.GetBufferMemoryRequirements(vk_device, *bufs[bi], reqs[bi]);
-            mt = backend_vk_find_memory_type(
-                reqs[bi]->memoryTypeBits,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-              | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            if (mt == UINT32_MAX) {
-                if (log_cb)
-                    log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: no HOST_VISIBLE|COHERENT memory for %s\n",
-                           names[bi]);
-                return false;
-            }
+                    r = vk_fn.CreateBuffer(vk_device, cis[bi], NULL, bufs[bi]);
+                    if (r != VK_SUCCESS) {
+                        if (log_cb)
+                            log_cb(RETRO_LOG_ERROR,
+                                   "rhi-vk: CreateBuffer (%s slot %u) failed (%d)\n",
+                                   names[bi], asi, (int)r);
+                        return false;
+                    }
 
-            memset(ais[bi], 0, sizeof(VkMemoryAllocateInfo));
-            ais[bi]->sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            ais[bi]->allocationSize  = reqs[bi]->size;
-            ais[bi]->memoryTypeIndex = mt;
+                    vk_fn.GetBufferMemoryRequirements(vk_device, *bufs[bi], reqs[bi]);
+                    mt = backend_vk_find_memory_type(
+                        reqs[bi]->memoryTypeBits,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                      | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                    if (mt == UINT32_MAX) {
+                        if (log_cb)
+                            log_cb(RETRO_LOG_ERROR,
+                                   "rhi-vk: no HOST_VISIBLE|COHERENT memory for %s slot %u\n",
+                                   names[bi], asi);
+                        return false;
+                    }
 
-            r = vk_fn.AllocateMemory(vk_device, ais[bi], NULL, mems[bi]);
-            if (r != VK_SUCCESS) {
-                if (log_cb)
-                    log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: AllocateMemory (%s) failed (%d)\n",
-                           names[bi], (int)r);
-                return false;
-            }
+                    memset(ais[bi], 0, sizeof(VkMemoryAllocateInfo));
+                    ais[bi]->sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                    ais[bi]->allocationSize  = reqs[bi]->size;
+                    ais[bi]->memoryTypeIndex = mt;
 
-            r = vk_fn.BindBufferMemory(vk_device, *bufs[bi], *mems[bi], 0);
-            if (r != VK_SUCCESS) {
-                if (log_cb)
-                    log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: BindBufferMemory (%s) failed (%d)\n",
-                           names[bi], (int)r);
-                return false;
-            }
+                    r = vk_fn.AllocateMemory(vk_device, ais[bi], NULL, mems[bi]);
+                    if (r != VK_SUCCESS) {
+                        if (log_cb)
+                            log_cb(RETRO_LOG_ERROR,
+                                   "rhi-vk: AllocateMemory (%s slot %u) failed (%d)\n",
+                                   names[bi], asi, (int)r);
+                        return false;
+                    }
 
-            r = vk_fn.MapMemory(vk_device, *mems[bi], 0, VK_WHOLE_SIZE,
-                                0, ptrs[bi]);
-            if (r != VK_SUCCESS) {
-                if (log_cb)
-                    log_cb(RETRO_LOG_ERROR,
-                           "rhi-vk: MapMemory (%s) failed (%d)\n",
-                           names[bi], (int)r);
-                return false;
+                    r = vk_fn.BindBufferMemory(vk_device, *bufs[bi], *mems[bi], 0);
+                    if (r != VK_SUCCESS) {
+                        if (log_cb)
+                            log_cb(RETRO_LOG_ERROR,
+                                   "rhi-vk: BindBufferMemory (%s slot %u) failed (%d)\n",
+                                   names[bi], asi, (int)r);
+                        return false;
+                    }
+
+                    r = vk_fn.MapMemory(vk_device, *mems[bi], 0, VK_WHOLE_SIZE,
+                                        0, ptrs[bi]);
+                    if (r != VK_SUCCESS) {
+                        if (log_cb)
+                            log_cb(RETRO_LOG_ERROR,
+                                   "rhi-vk: MapMemory (%s slot %u) failed (%d)\n",
+                                   names[bi], asi, (int)r);
+                        return false;
+                    }
+                }
             }
         }
 
@@ -4531,16 +4599,16 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* 4. Pool + set. */
+        /* 4. Pool + N sets.  Phase 5b-08 step 2c. */
         memset(&a_pool_sizes, 0, sizeof(a_pool_sizes));
         a_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        a_pool_sizes[0].descriptorCount = 2;
+        a_pool_sizes[0].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
         a_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        a_pool_sizes[1].descriptorCount = 4;
+        a_pool_sizes[1].descriptorCount = 4u * VK_FRAME_RING_DEPTH;
 
         memset(&a_pool_ci, 0, sizeof(a_pool_ci));
         a_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        a_pool_ci.maxSets       = 1;
+        a_pool_ci.maxSets       = VK_FRAME_RING_DEPTH;
         a_pool_ci.poolSizeCount = 2;
         a_pool_ci.pPoolSizes    = a_pool_sizes;
 
@@ -4554,63 +4622,93 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        memset(&a_set_alloc, 0, sizeof(a_set_alloc));
-        a_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        a_set_alloc.descriptorPool     = vk_alias_pool;
-        a_set_alloc.descriptorSetCount = 1;
-        a_set_alloc.pSetLayouts        = &vk_alias_dsl;
+        {
+            VkDescriptorSetLayout a_layouts[VK_FRAME_RING_DEPTH];
+            unsigned              asi;
+            for (asi = 0; asi < VK_FRAME_RING_DEPTH; asi++)
+                a_layouts[asi] = vk_alias_dsl;
 
-        r = vk_fn.AllocateDescriptorSets(vk_device, &a_set_alloc, &vk_alias_set);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateDescriptorSets (alias) failed (%d)\n",
-                       (int)r);
-            return false;
+            memset(&a_set_alloc, 0, sizeof(a_set_alloc));
+            a_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            a_set_alloc.descriptorPool     = vk_alias_pool;
+            a_set_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+            a_set_alloc.pSetLayouts        = a_layouts;
+
+            r = vk_fn.AllocateDescriptorSets(vk_device, &a_set_alloc, vk_alias_set);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateDescriptorSets (alias) failed (%d)\n",
+                           (int)r);
+                return false;
+            }
         }
 
-        /* Update set: 2 image bindings + 4 SSBO bindings. */
+        /* Update sets: 2 image bindings + 4 SSBO bindings,
+         * times N sets = 6*N writes.  Image bindings (0+1)
+         * are shared across slots; SSBO bindings (2..5)
+         * differ. */
         memset(&a_img_info, 0, sizeof(a_img_info));
         a_img_info[0].imageView   = vk_texture_view;
         a_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         a_img_info[1].imageView   = vk_zbuffer_view;
         a_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-        memset(&a_buf_info, 0, sizeof(a_buf_info));
-        a_buf_info[0].buffer = vk_alias_vertex_buffer;
-        a_buf_info[0].offset = 0;
-        a_buf_info[0].range  = VK_WHOLE_SIZE;
-        a_buf_info[1].buffer = vk_alias_triangle_buffer;
-        a_buf_info[1].offset = 0;
-        a_buf_info[1].range  = VK_WHOLE_SIZE;
-        a_buf_info[2].buffer = vk_alias_skin_buffer;
-        a_buf_info[2].offset = 0;
-        a_buf_info[2].range  = VK_WHOLE_SIZE;
-        a_buf_info[3].buffer = vk_alias_colormap_buffer;
-        a_buf_info[3].offset = 0;
-        a_buf_info[3].range  = VK_WHOLE_SIZE;
+        {
+            VkDescriptorBufferInfo a_buf_infos[4 * VK_FRAME_RING_DEPTH];
+            VkWriteDescriptorSet   a_all_writes[6 * VK_FRAME_RING_DEPTH];
+            unsigned               asi;
+            unsigned               wi = 0;
 
-        memset(&a_writes, 0, sizeof(a_writes));
-        for (bi = 0; bi < 6; bi++) {
-            a_writes[bi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            a_writes[bi].dstSet          = vk_alias_set;
-            a_writes[bi].dstBinding      = (uint32_t)bi;
-            a_writes[bi].descriptorCount = 1;
+            memset(a_buf_infos, 0, sizeof(a_buf_infos));
+            memset(a_all_writes, 0, sizeof(a_all_writes));
+
+            for (asi = 0; asi < VK_FRAME_RING_DEPTH; asi++) {
+                a_buf_infos[asi * 4 + 0].buffer = vk_alias_vertex_buffer[asi];
+                a_buf_infos[asi * 4 + 0].offset = 0;
+                a_buf_infos[asi * 4 + 0].range  = VK_WHOLE_SIZE;
+                a_buf_infos[asi * 4 + 1].buffer = vk_alias_triangle_buffer[asi];
+                a_buf_infos[asi * 4 + 1].offset = 0;
+                a_buf_infos[asi * 4 + 1].range  = VK_WHOLE_SIZE;
+                a_buf_infos[asi * 4 + 2].buffer = vk_alias_skin_buffer[asi];
+                a_buf_infos[asi * 4 + 2].offset = 0;
+                a_buf_infos[asi * 4 + 2].range  = VK_WHOLE_SIZE;
+                a_buf_infos[asi * 4 + 3].buffer = vk_alias_colormap_buffer[asi];
+                a_buf_infos[asi * 4 + 3].offset = 0;
+                a_buf_infos[asi * 4 + 3].range  = VK_WHOLE_SIZE;
+
+                /* Bindings 0+1: storage images, shared. */
+                a_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                a_all_writes[wi].dstSet          = vk_alias_set[asi];
+                a_all_writes[wi].dstBinding      = 0;
+                a_all_writes[wi].descriptorCount = 1;
+                a_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                a_all_writes[wi].pImageInfo      = &a_img_info[0];
+                wi++;
+                a_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                a_all_writes[wi].dstSet          = vk_alias_set[asi];
+                a_all_writes[wi].dstBinding      = 1;
+                a_all_writes[wi].descriptorCount = 1;
+                a_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                a_all_writes[wi].pImageInfo      = &a_img_info[1];
+                wi++;
+                /* Bindings 2..5: SSBOs, per slot. */
+                {
+                    int bbi;
+                    for (bbi = 0; bbi < 4; bbi++) {
+                        a_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        a_all_writes[wi].dstSet          = vk_alias_set[asi];
+                        a_all_writes[wi].dstBinding      = (uint32_t)(2 + bbi);
+                        a_all_writes[wi].descriptorCount = 1;
+                        a_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                        a_all_writes[wi].pBufferInfo     = &a_buf_infos[asi * 4 + bbi];
+                        wi++;
+                    }
+                }
+            }
+
+            vk_fn.UpdateDescriptorSets(vk_device, wi, a_all_writes, 0, NULL);
         }
-        a_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        a_writes[0].pImageInfo     = &a_img_info[0];
-        a_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        a_writes[1].pImageInfo     = &a_img_info[1];
-        a_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        a_writes[2].pBufferInfo    = &a_buf_info[0];
-        a_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        a_writes[3].pBufferInfo    = &a_buf_info[1];
-        a_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        a_writes[4].pBufferInfo    = &a_buf_info[2];
-        a_writes[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        a_writes[5].pBufferInfo    = &a_buf_info[3];
-
-        vk_fn.UpdateDescriptorSets(vk_device, 6, a_writes, 0, NULL);
 
         /* 5. Pipeline layout + pipeline. */
         memset(&a_push_range, 0, sizeof(a_push_range));
@@ -5854,7 +5952,11 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_alias_pool, NULL);
         vk_alias_pool = VK_NULL_HANDLE;
-        vk_alias_set  = VK_NULL_HANDLE;
+        {
+            unsigned asi;
+            for (asi = 0; asi < VK_FRAME_RING_DEPTH; asi++)
+                vk_alias_set[asi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_alias_dsl != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -5866,49 +5968,60 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroyShaderModule(vk_device, vk_alias_cs_module, NULL);
         vk_alias_cs_module = VK_NULL_HANDLE;
     }
-    if (vk_alias_colormap_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_alias_colormap_buffer, NULL);
-        vk_alias_colormap_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_alias_colormap_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_alias_colormap_memory, NULL);
-        vk_alias_colormap_memory = VK_NULL_HANDLE;
-        vk_alias_colormap_ptr    = NULL;
-    }
-    if (vk_alias_skin_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_alias_skin_buffer, NULL);
-        vk_alias_skin_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_alias_skin_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_alias_skin_memory, NULL);
-        vk_alias_skin_memory = VK_NULL_HANDLE;
-        vk_alias_skin_ptr    = NULL;
-    }
-    if (vk_alias_triangle_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_alias_triangle_buffer, NULL);
-        vk_alias_triangle_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_alias_triangle_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_alias_triangle_memory, NULL);
-        vk_alias_triangle_memory = VK_NULL_HANDLE;
-        vk_alias_triangle_ptr    = NULL;
-    }
-    if (vk_alias_vertex_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_alias_vertex_buffer, NULL);
-        vk_alias_vertex_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_alias_vertex_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_alias_vertex_memory, NULL);
-        vk_alias_vertex_memory = VK_NULL_HANDLE;
-        vk_alias_vertex_ptr    = NULL;
+    /* Phase 5b-08 step 2c: ring-buffered alias SSBO
+     * teardown.  Four kinds × N slots; loop inner pattern
+     * matches the create loop. */
+    {
+        unsigned asi;
+        for (asi = 0; asi < VK_FRAME_RING_DEPTH; asi++) {
+            if (vk_alias_colormap_buffer[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_alias_colormap_buffer[asi], NULL);
+                vk_alias_colormap_buffer[asi] = VK_NULL_HANDLE;
+            }
+            if (vk_alias_colormap_memory[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_alias_colormap_memory[asi], NULL);
+                vk_alias_colormap_memory[asi] = VK_NULL_HANDLE;
+            }
+            vk_alias_colormap_ptr[asi] = NULL;
+
+            if (vk_alias_skin_buffer[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_alias_skin_buffer[asi], NULL);
+                vk_alias_skin_buffer[asi] = VK_NULL_HANDLE;
+            }
+            if (vk_alias_skin_memory[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_alias_skin_memory[asi], NULL);
+                vk_alias_skin_memory[asi] = VK_NULL_HANDLE;
+            }
+            vk_alias_skin_ptr[asi] = NULL;
+
+            if (vk_alias_triangle_buffer[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_alias_triangle_buffer[asi], NULL);
+                vk_alias_triangle_buffer[asi] = VK_NULL_HANDLE;
+            }
+            if (vk_alias_triangle_memory[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_alias_triangle_memory[asi], NULL);
+                vk_alias_triangle_memory[asi] = VK_NULL_HANDLE;
+            }
+            vk_alias_triangle_ptr[asi] = NULL;
+
+            if (vk_alias_vertex_buffer[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_alias_vertex_buffer[asi], NULL);
+                vk_alias_vertex_buffer[asi] = VK_NULL_HANDLE;
+            }
+            if (vk_alias_vertex_memory[asi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_alias_vertex_memory[asi], NULL);
+                vk_alias_vertex_memory[asi] = VK_NULL_HANDLE;
+            }
+            vk_alias_vertex_ptr[asi] = NULL;
+        }
     }
     vk_alias_count           = 0;
     vk_alias_vertex_cursor   = 0;
@@ -5933,7 +6046,11 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_sprite_pool, NULL);
         vk_sprite_pool = VK_NULL_HANDLE;
-        vk_sprite_set  = VK_NULL_HANDLE;
+        {
+            unsigned ssi;
+            for (ssi = 0; ssi < VK_FRAME_RING_DEPTH; ssi++)
+                vk_sprite_set[ssi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_sprite_dsl != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -5945,27 +6062,35 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroyShaderModule(vk_device, vk_sprite_cs_module, NULL);
         vk_sprite_cs_module = VK_NULL_HANDLE;
     }
-    if (vk_sprite_texture_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_sprite_texture_buffer, NULL);
-        vk_sprite_texture_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_sprite_texture_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_sprite_texture_memory, NULL);
-        vk_sprite_texture_memory = VK_NULL_HANDLE;
-        vk_sprite_texture_ptr    = NULL;
-    }
-    if (vk_sprite_vertex_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_sprite_vertex_buffer, NULL);
-        vk_sprite_vertex_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_sprite_vertex_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_sprite_vertex_memory, NULL);
-        vk_sprite_vertex_memory = VK_NULL_HANDLE;
-        vk_sprite_vertex_ptr    = NULL;
+    /* Phase 5b-08 step 2c: ring-buffered sprite SSBO
+     * teardown.  Vertex + texture pair × N slots. */
+    {
+        unsigned ssi;
+        for (ssi = 0; ssi < VK_FRAME_RING_DEPTH; ssi++) {
+            if (vk_sprite_texture_buffer[ssi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_sprite_texture_buffer[ssi], NULL);
+                vk_sprite_texture_buffer[ssi] = VK_NULL_HANDLE;
+            }
+            if (vk_sprite_texture_memory[ssi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_sprite_texture_memory[ssi], NULL);
+                vk_sprite_texture_memory[ssi] = VK_NULL_HANDLE;
+            }
+            vk_sprite_texture_ptr[ssi] = NULL;
+
+            if (vk_sprite_vertex_buffer[ssi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_sprite_vertex_buffer[ssi], NULL);
+                vk_sprite_vertex_buffer[ssi] = VK_NULL_HANDLE;
+            }
+            if (vk_sprite_vertex_memory[ssi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_sprite_vertex_memory[ssi], NULL);
+                vk_sprite_vertex_memory[ssi] = VK_NULL_HANDLE;
+            }
+            vk_sprite_vertex_ptr[ssi] = NULL;
+        }
     }
     vk_sprite_count         = 0;
     vk_sprite_vertex_cursor = 0;
@@ -8079,7 +8204,9 @@ backend_vk_dispatch_3d_sprite_impl(const rhi_sprite_vert_t *verts,
     int       bb_x_min, bb_y_min, bb_x_max, bb_y_max;
     size_t    tex_bytes;
 
-    if (!vk_resources_ready || !vk_sprite_vertex_ptr || !vk_sprite_texture_ptr)
+    if (!vk_resources_ready
+     || !vk_sprite_vertex_ptr[vk_active_slot]
+     || !vk_sprite_texture_ptr[vk_active_slot])
         return;
 
     /* Cap on number of sprites per frame. */
@@ -8115,7 +8242,7 @@ backend_vk_dispatch_3d_sprite_impl(const rhi_sprite_vert_t *verts,
      * than a struct cast plus an extra shader pass to
      * normalise. */
     v_off     = vk_sprite_vertex_cursor;
-    dst_verts = (struct vk_sprite_vert *)vk_sprite_vertex_ptr;
+    dst_verts = (struct vk_sprite_vert *)vk_sprite_vertex_ptr[vk_active_slot];
 
     u_min = u_max = verts[0].u;
     v_min = v_max = verts[0].v;
@@ -8161,7 +8288,7 @@ backend_vk_dispatch_3d_sprite_impl(const rhi_sprite_vert_t *verts,
      * a memcpy(<= 16 KiB) is microseconds; not worth
      * complicating the bookkeeping for. */
     t_off = vk_sprite_count * VK_SPRITE_TEX_POOL_SLOT_BYTES;
-    memcpy((byte *)vk_sprite_texture_ptr + t_off, texdata, tex_bytes);
+    memcpy((byte *)vk_sprite_texture_ptr[vk_active_slot] + t_off, texdata, tex_bytes);
 
     /* Build the push-constant block. */
     {
@@ -8257,7 +8384,7 @@ backend_vk_alias_skin_slot(const void *skin_ptr, int skin_w, int skin_h,
         return UINT32_MAX;
 
     slot = vk_alias_skin_count * VK_ALIAS_SKIN_SLOT_BYTES;
-    memcpy((byte *)vk_alias_skin_ptr + slot, skin_ptr, skin_bytes);
+    memcpy((byte *)vk_alias_skin_ptr[vk_active_slot] + slot, skin_ptr, skin_bytes);
 
     vk_alias_skin_cache[vk_alias_skin_count].ptr    = skin_ptr;
     vk_alias_skin_cache[vk_alias_skin_count].offset = slot;
@@ -8281,7 +8408,7 @@ backend_vk_alias_cmap_slot(const void *cmap_ptr)
         return UINT32_MAX;
 
     slot = vk_alias_cmap_count * VK_ALIAS_CMAP_SLOT_BYTES;
-    memcpy((byte *)vk_alias_colormap_ptr + slot, cmap_ptr,
+    memcpy((byte *)vk_alias_colormap_ptr[vk_active_slot] + slot, cmap_ptr,
            VK_ALIAS_CMAP_SLOT_BYTES);
 
     vk_alias_cmap_cache[vk_alias_cmap_count].ptr    = cmap_ptr;
@@ -8311,8 +8438,10 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
     size_t    skin_bytes;
 
     if (!vk_resources_ready
-     || !vk_alias_vertex_ptr || !vk_alias_triangle_ptr
-     || !vk_alias_skin_ptr   || !vk_alias_colormap_ptr)
+     || !vk_alias_vertex_ptr[vk_active_slot]
+     || !vk_alias_triangle_ptr[vk_active_slot]
+     || !vk_alias_skin_ptr[vk_active_slot]
+     || !vk_alias_colormap_ptr[vk_active_slot])
         return;
 
     if (vk_alias_count >= VK_ALIAS_MAX_PER_FRAME)
@@ -8343,7 +8472,7 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
      * layout: caller passes the whole 44-byte struct, we
      * extract the leading 6 ints. */
     v_off = vk_alias_vertex_cursor;
-    dst_v = (struct vk_alias_vert *)vk_alias_vertex_ptr + v_off;
+    dst_v = (struct vk_alias_vert *)vk_alias_vertex_ptr[vk_active_slot] + v_off;
     for (i = 0; i < num_verts; i++) {
         dst_v[i].v[0] = verts[i].v[0];
         dst_v[i].v[1] = verts[i].v[1];
@@ -8355,7 +8484,7 @@ backend_vk_dispatch_3d_alias_impl(const rhi_alias_vert_t *verts,
 
     /* Stage triangles: just the vertindex[] portion. */
     t_off = vk_alias_triangle_cursor;
-    dst_t = (struct vk_alias_tri *)vk_alias_triangle_ptr + t_off;
+    dst_t = (struct vk_alias_tri *)vk_alias_triangle_ptr[vk_active_slot] + t_off;
     for (i = 0; i < num_tris; i++) {
         dst_t[i].a = tris[i].vertindex[0];
         dst_t[i].b = tris[i].vertindex[1];
@@ -9417,7 +9546,7 @@ backend_vk_record_frame(void)
                                         VK_PIPELINE_BIND_POINT_COMPUTE,
                                         vk_sprite_pipeline_layout,
                                         0,
-                                        1, &vk_sprite_set,
+                                        1, &vk_sprite_set[vk_active_slot],
                                         0, NULL);
 
             for (si = 0; si < vk_sprite_count; si++) {
@@ -9497,7 +9626,7 @@ backend_vk_record_frame(void)
                                         VK_PIPELINE_BIND_POINT_COMPUTE,
                                         vk_alias_pipeline_layout,
                                         0,
-                                        1, &vk_alias_set,
+                                        1, &vk_alias_set[vk_active_slot],
                                         0, NULL);
 
             for (ai = 0; ai < vk_alias_count; ai++) {
