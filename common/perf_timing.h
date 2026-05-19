@@ -40,6 +40,14 @@ extern "C" {
 enum {
    PERF_SECTION_FRAME = 0,        /* full retro_run body */
    PERF_SECTION_RENDERVIEW,       /* Host_Frame body (CPU rendering work) */
+   PERF_SECTION_HOST_RV,          /* RENDERVIEW sub: V_RenderView (3D scene
+                                   * -- SW rasterizer + HW dispatch builders) */
+   PERF_SECTION_HOST_2D,          /* RENDERVIEW sub: post-V_RenderView 2D work
+                                   * in SCR_UpdateScreen (Sbar, HUD, console,
+                                   * menu, V_UpdatePalette, VID_Update) */
+   PERF_SECTION_HOST_PT,          /* RENDERVIEW sub: CL_RunParticles
+                                   * (particle physics update; runs after
+                                   * SCR_UpdateScreen) */
    PERF_SECTION_RECORD_FRAME,     /* backend's command-buffer recording */
    PERF_SECTION_SUBMIT_PRESENT,   /* submit + wait + set_image + video_cb */
    PERF_SECTION_QUEUE_SUBMIT,     /* SUBMIT_PRESENT sub: vkQueueSubmit only */

@@ -40,6 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "r_local.h"
 
 #include "host.h"
+#include "perf_timing.h"
 
 /*
 
@@ -737,8 +738,11 @@ SCR_UpdateScreen(void)
    SCR_SetUpToDrawConsole();
    SCR_EraseCenterString();
 
+   perf_timing_section_begin(PERF_SECTION_HOST_RV);
    V_RenderView();
+   perf_timing_section_end(PERF_SECTION_HOST_RV);
 
+   perf_timing_section_begin(PERF_SECTION_HOST_2D);
    if (scr_drawloading) {
       SCR_DrawLoading();
       Sbar_Draw();
@@ -788,6 +792,7 @@ SCR_UpdateScreen(void)
    }
    vrect.pnext = 0;
    VID_Update(&vrect);
+   perf_timing_section_end(PERF_SECTION_HOST_2D);
 }
 
 /* ============================================================================= */

@@ -42,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "r_local.h"
 #include "render.h"
+#include "perf_timing.h"
 
 #include <streams/file_stream.h>
 
@@ -662,7 +663,9 @@ void Host_Frame(float time)
       CL_ReadFromServer();
 
    SCR_UpdateScreen();
+   perf_timing_section_begin(PERF_SECTION_HOST_PT);
    CL_RunParticles();
+   perf_timing_section_end(PERF_SECTION_HOST_PT);
 
    host_framecount++;
 }
