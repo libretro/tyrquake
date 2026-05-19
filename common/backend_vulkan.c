@@ -314,6 +314,16 @@ static VkDeviceMemory   vk_image_memory[VK_FRAME_RING_DEPTH];
 static VkImageView      vk_image_view[VK_FRAME_RING_DEPTH];
 static VkCommandPool    vk_cmd_pool;
 static VkCommandBuffer  vk_cmd_buffer;
+/* Phase 5b-08 step 3b: dedicated one-shot upload fence
+ * for backend_vk_end_uploads.  Pre-3b the upload path
+ * used QueueWaitIdle to drain everything and guarantee
+ * the slot's CB was no longer in pending state before
+ * record_frame's BeginCommandBuffer.  With end_frame's
+ * QueueWaitIdle gone in this commit, that drain would
+ * also wait on prior-frame submits still in flight,
+ * stalling unrelated GPU work.  This fence narrows the
+ * wait to exactly the upload's submit. */
+static VkFence          vk_upload_fence;
 
 /* Phase 5b-08 step 1: per-frame ring infrastructure.
  *
@@ -354,6 +364,12 @@ static VkCommandBuffer  vk_cmd_buffer;
 typedef struct vk_frame_ctx_s {
     VkCommandBuffer cmd_buffer;
     VkFence         done_fence;
+    /* Phase 5b-08 step 3b: render-done semaphore signaled
+     * by end_frame's QueueSubmit and passed to set_image
+     * so the frontend defers its image read until GPU
+     * completion.  Created in create_resources alongside
+     * the slot's fence; destroyed in destroy_resources. */
+    VkSemaphore     render_done_semaphore;
 } vk_frame_ctx_t;
 
 static vk_frame_ctx_t vk_frame_ctx[VK_FRAME_RING_DEPTH];
@@ -1481,6 +1497,17 @@ static struct {
     PFN_vkWaitForFences                   WaitForFences;
     PFN_vkResetFences                     ResetFences;
 
+    /* Phase 5b-08 step 3b: render-done semaphores for the
+     * set_image handoff.  end_frame's QueueSubmit signals
+     * the active slot's render_done_semaphore alongside
+     * the done_fence; set_image passes the semaphore to
+     * the frontend so it defers its image consumption
+     * until GPU completion.  With QueueWaitIdle removed
+     * from end_frame, the begin_frame fence-wait of the
+     * next rotation is the new cross-frame sync. */
+    PFN_vkCreateSemaphore                 CreateSemaphore;
+    PFN_vkDestroySemaphore                DestroySemaphore;
+
     /* Shader / pipeline (Phase 4b for the layout, Phase 4g
      * for compute, Phase 4h for the overlay graphics
      * path).  Render-pass / framebuffer / graphics-
@@ -2079,7 +2106,7 @@ backend_vk_end_uploads(void)
     submit.commandBufferCount = 1;
     submit.pCommandBuffers    = &vk_cmd_buffer;
 
-    r = vk_fn.QueueSubmit(vk_queue, 1, &submit, VK_NULL_HANDLE);
+    r = vk_fn.QueueSubmit(vk_queue, 1, &submit, vk_upload_fence);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
@@ -2088,12 +2115,21 @@ backend_vk_end_uploads(void)
         return false;
     }
 
-    /* Wait for the upload batch to complete before
-     * create_resources lets the frontend start rendering.
-     * vk_cmd_buffer auto-resets on its next
-     * BeginCommandBuffer (pool's
-     * RESET_COMMAND_BUFFER_BIT covers it). */
-    vk_fn.QueueWaitIdle(vk_queue);
+    /* Phase 5b-08 step 3b: wait on the dedicated upload
+     * fence rather than QueueWaitIdle.  The upload's CB
+     * shares the active ring slot's command-buffer handle,
+     * so record_frame's later BeginCommandBuffer on the
+     * same handle requires the upload's pending state to
+     * have cleared.  Fence-based wait scopes that drain to
+     * the upload only, leaving any other in-flight frame
+     * submits (now allowed once end_frame's QueueWaitIdle
+     * is gone) alone.
+     *
+     * Reset for the next end_uploads call; the fence was
+     * created UNSIGNALED so this brings it back to the
+     * starting state. */
+    vk_fn.WaitForFences(vk_device, 1, &vk_upload_fence, VK_TRUE, UINT64_MAX);
+    vk_fn.ResetFences(vk_device, 1, &vk_upload_fence);
     return true;
 }
 
@@ -4979,7 +5015,8 @@ backend_vk_create_resources(void)
         }
 
         for (si = 0; si < VK_FRAME_RING_DEPTH; si++) {
-            VkFenceCreateInfo fi;
+            VkFenceCreateInfo     fi;
+            VkSemaphoreCreateInfo sem_ci;
             memset(&fi, 0, sizeof(fi));
             fi.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             /* SIGNALED so the first time begin_frame waits
@@ -4996,6 +5033,23 @@ backend_vk_create_resources(void)
                            si, (int)r);
                 return false;
             }
+            /* Phase 5b-08 step 3b: render-done semaphore.
+             * Created unsignaled; QueueSubmit in end_frame
+             * signals it, set_image hands it to the
+             * frontend, and the frontend resets it when it
+             * waits.  Binary semaphore (the default; no
+             * VkSemaphoreTypeCreateInfo pNext). */
+            memset(&sem_ci, 0, sizeof(sem_ci));
+            sem_ci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            r = vk_fn.CreateSemaphore(vk_device, &sem_ci, NULL,
+                                      &vk_frame_ctx[si].render_done_semaphore);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateSemaphore (ring slot %u) failed (%d)\n",
+                           si, (int)r);
+                return false;
+            }
             vk_frame_ctx[si].cmd_buffer = cbs[si];
         }
 
@@ -5005,6 +5059,26 @@ backend_vk_create_resources(void)
          * begin_frame will reassign this each frame. */
         vk_cmd_buffer  = vk_frame_ctx[0].cmd_buffer;
         vk_active_slot = 0;
+
+        /* Phase 5b-08 step 3b: dedicated upload-path fence.
+         * Created UNSIGNALED -- end_uploads submits with it
+         * as the signal target, waits on it, then resets.
+         * Single fence is fine because end_uploads is
+         * synchronous (caller waits before returning) so
+         * only one upload submit is ever in flight. */
+        {
+            VkFenceCreateInfo ufi;
+            memset(&ufi, 0, sizeof(ufi));
+            ufi.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            ufi.flags = 0;
+            r = vk_fn.CreateFence(vk_device, &ufi, NULL, &vk_upload_fence);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateFence (upload) failed (%d)\n", (int)r);
+                return false;
+            }
+        }
     }
 
     /* No per-frame recording here -- backend_vk_record_frame
@@ -6874,12 +6948,13 @@ backend_vk_destroy_resources(void)
     vk_pending_particle_count = 0;
 
     if (vk_cmd_pool != VK_NULL_HANDLE) {
-        /* Ring-slot fences first.  The fences live inside
-         * vk_frame_ctx[] and are independent of the command
-         * pool's lifetime; destroy them explicitly.  The CBs
-         * themselves are freed implicitly by the
-         * DestroyCommandPool call below (it frees every
-         * buffer allocated from the pool). */
+        /* Ring-slot fences + render-done semaphores first.
+         * Both live inside vk_frame_ctx[] and are
+         * independent of the command pool's lifetime;
+         * destroy them explicitly.  The CBs themselves are
+         * freed implicitly by the DestroyCommandPool call
+         * below (it frees every buffer allocated from the
+         * pool). */
         {
             unsigned si;
             for (si = 0; si < VK_FRAME_RING_DEPTH; si++) {
@@ -6888,10 +6963,28 @@ backend_vk_destroy_resources(void)
                     vk_fn.DestroyFence(vk_device,
                                        vk_frame_ctx[si].done_fence, NULL);
                 vk_frame_ctx[si].done_fence = VK_NULL_HANDLE;
+                /* Phase 5b-08 step 3b: render-done
+                 * semaphore teardown.  Semaphore must not
+                 * be in flight (signaled but not yet
+                 * waited on) at destroy time; in practice
+                 * destroy_resources is only called at
+                 * context-destroy or context-reset, both
+                 * of which run after the device is idle
+                 * via the surrounding teardown sequence. */
+                if (vk_frame_ctx[si].render_done_semaphore != VK_NULL_HANDLE
+                    && vk_fn.DestroySemaphore)
+                    vk_fn.DestroySemaphore(vk_device,
+                                           vk_frame_ctx[si].render_done_semaphore, NULL);
+                vk_frame_ctx[si].render_done_semaphore = VK_NULL_HANDLE;
                 vk_frame_ctx[si].cmd_buffer = VK_NULL_HANDLE;
             }
             vk_active_slot = 0;
         }
+
+        /* Phase 5b-08 step 3b: upload fence teardown. */
+        if (vk_upload_fence != VK_NULL_HANDLE && vk_fn.DestroyFence)
+            vk_fn.DestroyFence(vk_device, vk_upload_fence, NULL);
+        vk_upload_fence = VK_NULL_HANDLE;
 
         /* DestroyCommandPool frees every buffer allocated
          * from it; no separate FreeCommandBuffers call
@@ -7148,6 +7241,9 @@ backend_vk_load_fn(void)
         LOAD_DEV(DestroyFence);
         LOAD_DEV(WaitForFences);
         LOAD_DEV(ResetFences);
+        /* Phase 5b-08 step 3b: render-done semaphores. */
+        LOAD_DEV(CreateSemaphore);
+        LOAD_DEV(DestroySemaphore);
         /* Phase 4b for shader/pipeline-layout, Phase 4g
          * for the compute pipeline, Phase 4h for the
          * overlay graphics pipeline + render pass +
@@ -10522,18 +10618,21 @@ backend_vk_end_frame(void)
     /* Submit the just-recorded command buffer. */
     perf_timing_section_begin(PERF_SECTION_SUBMIT_PRESENT);
     memset(&si, 0, sizeof(si));
-    si.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.commandBufferCount = 1;
-    si.pCommandBuffers    = &vk_cmd_buffer;
+    si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    si.commandBufferCount   = 1;
+    si.pCommandBuffers      = &vk_cmd_buffer;
+    /* Phase 5b-08 step 3b: signal the active slot's
+     * render-done semaphore so set_image's handoff to the
+     * frontend defers the actual image read until GPU
+     * completion.  Binary semaphore; the frontend's wait
+     * resets it to unsignaled.  Done_fence is also signaled
+     * (pSubmits' fence parameter) so begin_frame's next
+     * rotation back to this slot blocks until the slot's
+     * prior frame's GPU work completes. */
+    si.signalSemaphoreCount = 1;
+    si.pSignalSemaphores    = &vk_frame_ctx[vk_active_slot].render_done_semaphore;
 
     perf_timing_section_begin(PERF_SECTION_QUEUE_SUBMIT);
-    /* Phase 5b-08 step 1: submit with signal-fence pointing
-     * at this slot's done_fence.  In this commit the fence
-     * is the per-slot acquire-time wait target (and is
-     * effectively redundant because QueueWaitIdle below
-     * drains the queue regardless).  Step 3 removes the
-     * QueueWaitIdle and the fence becomes the real
-     * synchronization. */
     r = vk_fn.QueueSubmit(vk_queue, 1, &si,
                           vk_frame_ctx[vk_active_slot].done_fence);
     perf_timing_section_end(PERF_SECTION_QUEUE_SUBMIT);
@@ -10544,27 +10643,30 @@ backend_vk_end_frame(void)
         return;
     }
 
-    /* QueueWaitIdle is the simplest correct synchronisation.
-     * Drains the queue so the image is guaranteed ready by
-     * the time set_image hands it to the frontend; no
-     * semaphores or fences needed.  This is conservative
-     * and throttles the GPU to one frame at a time -- a
-     * future phase introduces a fence-based ring so the
-     * GPU can run ahead. */
+    /* Phase 5b-08 step 3b: QueueWaitIdle removed.
+     * Cross-frame sync is now done by begin_frame's
+     * WaitForFences on the rotated-to slot's done_fence
+     * (which the QueueSubmit above signals).  The
+     * frontend's read of vk_image[vk_active_slot] is
+     * gated by the render_done_semaphore passed to
+     * set_image below, so frame N+1's backend can start
+     * recording its CB while the frontend is still
+     * consuming frame N's image (different slot, different
+     * descriptor set, different framebuffer -- no race). */
     perf_timing_section_begin(PERF_SECTION_QUEUE_WAIT_IDLE);
-    vk_fn.QueueWaitIdle(vk_queue);
     perf_timing_section_end(PERF_SECTION_QUEUE_WAIT_IDLE);
 
     /* Hand the image to the frontend.  src_queue_family
      * matches the queue we submitted from, so no ownership
      * transfer happens (libretro_vulkan.h spec: if
      * src_queue_family == queue_index, no transfer
-     * occurs).  Zero semaphores -- the QueueWaitIdle above
-     * already ensures the image is fully written. */
+     * occurs).  Phase 5b-08 step 3b: pass the active
+     * slot's render-done semaphore so the frontend waits
+     * for GPU completion before consuming the image. */
     perf_timing_section_begin(PERF_SECTION_SET_IMAGE);
     vk_iface->set_image(vk_iface->handle,
                         &vk_retro_image[vk_active_slot],
-                        0, NULL,
+                        1, &vk_frame_ctx[vk_active_slot].render_done_semaphore,
                         vk_queue_family);
     perf_timing_section_end(PERF_SECTION_SET_IMAGE);
 
