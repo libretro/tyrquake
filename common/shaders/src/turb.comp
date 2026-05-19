@@ -257,15 +257,42 @@ void main()
     uint izi = uint(int(zi * 32768.0));
 
     /* Mode dispatch.  is_pass2 == 0 (single-pass opaque):
-     * unconditional write of color + 1/z.  is_pass2 == 1
-     * (two-pass mode, pass 2): z-test against vk_zbuffer,
-     * optional Bayer stipple, write color only on pass,
-     * NEVER write Z. */
+     * atomicMax-based z-test against vk_zbuffer (= SW
+     * pass-1 d_pzbuffer upload).  Lava draws iff its izi
+     * is at least as close as the existing Z; otherwise
+     * a closer SW-rendered surface owns this pixel.
+     * is_pass2 == 1 (two-pass mode, pass 2): z-test
+     * against vk_zbuffer, optional Bayer stipple, write
+     * color only on pass, NEVER write Z.
+     *
+     * Single-pass turb used to do an unconditional
+     * imageStore for both color and Z, relying on the
+     * edge rasterizer's mutual-exclusion guarantee to
+     * keep its writes scoped to lava-visible pixels.
+     * That guarantee turns out to be approximate at
+     * brush boundaries: when a lava brush extends
+     * slightly under a closer floor brush (e.g. the
+     * spawn-hallway floor at the lava-room arch in
+     * start.bsp), the edge raster can emit a span for
+     * the lava surface at a pixel that the closer floor
+     * also has a span for.  In pure SW that resolves
+     * via BSP back-to-front order (the floor paints
+     * over the lava in the same pass), but GPU compute
+     * is deferred to end_frame and runs AFTER all SW
+     * raster, so an unconditional store overpaints the
+     * floor at those shared boundary pixels.  The
+     * atomicMax z-test below mirrors alias.comp's
+     * pattern: write color iff `old <= izi` (we won or
+     * tied the depth race), let the atomic keep the
+     * closer of (existing, izi) in vk_zbuffer for
+     * downstream alias / particle / sprite passes. */
     bool is_pass2 = u_mode.y != 0u;
 
     if (!is_pass2) {
-        imageStore(u_output,  pos, uvec4(palette_idx, 0u, 0u, 0u));
-        imageStore(u_zbuffer, pos, uvec4(izi, 0u, 0u, 0u));
+        uint old = imageAtomicMax(u_zbuffer, pos, izi);
+        if (old > izi)
+            return;
+        imageStore(u_output, pos, uvec4(palette_idx, 0u, 0u, 0u));
         return;
     }
 
