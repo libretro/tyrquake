@@ -217,6 +217,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/alias_cs.h"
 #include "shaders/generated/spv/sky_cs.h"
 #include "shaders/generated/spv/turb_cs.h"
+#include "shaders/generated/spv/brush_cs.h"
 #include "surf_atlas.h"   /* RHI-agnostic brush-atlas allocator;
                            * Phase 5b-07.  The Vulkan backend owns
                            * the VkImage + staging buffer that the
@@ -930,6 +931,68 @@ static VkPipeline             vk_turb_pipeline;
                             *  (size_t)VK_BRUSH_ATLAS_H)
 #define VK_BRUSH_MAX_ENTRIES  512u
 
+/* Per-frame dispatch + buffer caps.  Sized for id1 worst-case
+ * (e500 / e1m7) at 4K with full PVS visibility: ~600 visible
+ * brush surfaces, ~150 KiB combined row+span bandwidth.  Hard-
+ * fail past these caps drops a surface to the SW fallback for
+ * that frame -- correctness preserved, occasional dropped
+ * surface preferred over an unbounded allocation. */
+#define VK_BRUSH_MAX_SURFACES           1024u
+#define VK_BRUSH_MAX_ROWS               32768u
+#define VK_BRUSH_MAX_SPANS              16384u
+#define VK_BRUSH_MAX_UPLOADS_PER_FRAME  512u
+#define VK_BRUSH_ROW_BYTES              (VK_BRUSH_MAX_ROWS  * 2u * sizeof(uint32_t))
+#define VK_BRUSH_SPAN_BYTES             (VK_BRUSH_MAX_SPANS * 2u * sizeof(uint32_t))
+
+/* Tier-0 sizing note (forward-looking for the rasterized
+ * arc, no effect on Vulkan compute).  The dimensions above
+ * are this backend's compute-tier choice.  Tier-0 backends
+ * (GeForce 2 MX, Voodoo3, GL 1.4 / D3D7 / D3D8 minimum-spec
+ * targets) have a much smaller VRAM and texture-size budget
+ * and need to pick different atlas dims + format:
+ *
+ *   GF 2 MX (32 MiB VRAM)    2048^2 RGBA8 = 16 MiB
+ *   Voodoo3  (16 MiB VRAM)   1024^2 RGBA8 =  4 MiB
+ *
+ * The format inflation (R8_UINT -> RGBA8) is required because
+ * pre-shader hardware can't sample R8 + palette LUT in a
+ * fragment program -- the atlas has to hold pre-palettized
+ * RGBA8 with the palette baked at upload time, 4x the memory.
+ * Combined with the smaller dims this brings tier-0 total
+ * atlas cost to 4-16 MiB (vs Vulkan compute's 16 MiB) and
+ * eliminates the 16 MiB host-visible staging buffer (D3D9 /
+ * GL 1.4 LockRect / glTexSubImage2D accept user pointers
+ * directly; staging is a Vulkan-transfer-model artifact, not
+ * a universal cost).
+ *
+ * surf_atlas already takes width/height/strip_desc at create
+ * time -- the allocator module needs no change to support
+ * tier-0 sizing; the rasterized backend's create_resources
+ * just calls surf_atlas_create with smaller numbers. */
+
+struct vk_brush_surface {
+   uint32_t bbox_min_x;
+   uint32_t bbox_min_y;
+   uint32_t bbox_w;
+   uint32_t bbox_h;
+   uint32_t rows_first;
+   uint32_t spans_first;
+   uint32_t slot_x;
+   uint32_t slot_y;
+   rhi_brush_gradient_t grad;
+};
+
+struct vk_brush_upload {
+   uint16_t x, y, w, h;
+};
+
+static struct vk_brush_surface  vk_brush_surfaces[VK_BRUSH_MAX_SURFACES];
+static unsigned                 vk_brush_surface_count;
+static unsigned                 vk_brush_rows_used;
+static unsigned                 vk_brush_spans_used;
+static struct vk_brush_upload   vk_brush_uploads[VK_BRUSH_MAX_UPLOADS_PER_FRAME];
+static unsigned                 vk_brush_upload_count;
+
 static VkImage                vk_brush_atlas_image;
 static VkDeviceMemory         vk_brush_atlas_memory;
 static VkImageView            vk_brush_atlas_view;
@@ -937,6 +1000,20 @@ static VkBuffer               vk_brush_atlas_staging;
 static VkDeviceMemory         vk_brush_atlas_staging_memory;
 static void                  *vk_brush_atlas_staging_ptr;
 static surf_atlas_t          *vk_brush_atlas;
+
+static VkBuffer               vk_brush_rows_buffer;
+static VkDeviceMemory         vk_brush_rows_memory;
+static void                  *vk_brush_rows_ptr;
+static VkBuffer               vk_brush_spans_buffer;
+static VkDeviceMemory         vk_brush_spans_memory;
+static void                  *vk_brush_spans_ptr;
+
+static VkShaderModule         vk_brush_cs_module;
+static VkDescriptorSetLayout  vk_brush_dsl;
+static VkDescriptorPool       vk_brush_pool;
+static VkDescriptorSet        vk_brush_set;
+static VkPipelineLayout       vk_brush_pipeline_layout;
+static VkPipeline             vk_brush_pipeline;
 
 /* --------------------------------------------------------
  * Phase 5b-05: GPU compute sprite rasterizer resources.
@@ -5600,6 +5677,280 @@ backend_vk_create_resources(void)
         }
     }
 
+    /* --------------------------------------------------------
+     * Phase 5b-07a step 3: brush compute pipeline + rows/spans
+     * SSBOs + shader module + descriptor set.
+     *
+     * Same layout shape as the turb pipeline above: a 5-binding
+     * descriptor set (output texture, atlas storage image, rows
+     * SSBO, spans SSBO, zbuffer), a 112-byte push constant
+     * range (the per-surface bbox + range + 3x gradient vec4 +
+     * adjust + slot uvec4), a single compute pipeline at
+     * 8x8 workgroups.  The shader source is common/shaders/src/
+     * brush.comp; the SPV header is committed at common/shaders/
+     * generated/spv/brush_cs.h. */
+    {
+        VkBufferCreateInfo           br_buf_ci[2];
+        VkMemoryRequirements         br_buf_mem_req;
+        VkMemoryAllocateInfo         br_buf_mem_ai;
+        VkShaderModuleCreateInfo     br_sm_ci;
+        VkDescriptorSetLayoutBinding br_dsl_bindings[5];
+        VkDescriptorSetLayoutCreateInfo br_dsl_ci;
+        VkDescriptorPoolSize         br_pool_sizes[2];
+        VkDescriptorPoolCreateInfo   br_pool_ci;
+        VkDescriptorSetAllocateInfo  br_set_alloc;
+        VkDescriptorImageInfo        br_img_info[3];
+        VkDescriptorBufferInfo       br_buf_info[2];
+        VkWriteDescriptorSet         br_writes[5];
+        VkPipelineLayoutCreateInfo   br_pl_ci;
+        VkPushConstantRange          br_pcr;
+        VkPipelineShaderStageCreateInfo br_cs_stage;
+        VkComputePipelineCreateInfo  br_cp_ci;
+        uint32_t                     br_buf_mem_type;
+        int                          br_pass;
+
+        /* Rows + spans SSBOs.  HOST_VISIBLE | HOST_COHERENT
+         * permanently mapped, written by the dispatch site as
+         * it accumulates surfaces and read by the compute
+         * shader at record_frame time. */
+        memset(br_buf_ci, 0, sizeof(br_buf_ci));
+        br_buf_ci[0].sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        br_buf_ci[0].size        = VK_BRUSH_ROW_BYTES;
+        br_buf_ci[0].usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        br_buf_ci[0].sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        br_buf_ci[1].sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        br_buf_ci[1].size        = VK_BRUSH_SPAN_BYTES;
+        br_buf_ci[1].usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        br_buf_ci[1].sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        {
+            VkBuffer       *buf_handles[2] = { &vk_brush_rows_buffer,
+                                                &vk_brush_spans_buffer };
+            VkDeviceMemory *mem_handles[2] = { &vk_brush_rows_memory,
+                                                &vk_brush_spans_memory };
+            void          **ptr_handles[2] = { &vk_brush_rows_ptr,
+                                                &vk_brush_spans_ptr };
+            for (br_pass = 0; br_pass < 2; br_pass++) {
+                r = vk_fn.CreateBuffer(vk_device, &br_buf_ci[br_pass],
+                                       NULL, buf_handles[br_pass]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: CreateBuffer (brush pass %d) failed (%d)\n",
+                        br_pass, (int)r);
+                    return false;
+                }
+                vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                  *buf_handles[br_pass],
+                                                  &br_buf_mem_req);
+                br_buf_mem_type = backend_vk_find_memory_type(
+                    br_buf_mem_req.memoryTypeBits,
+                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                    | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (br_buf_mem_type == UINT32_MAX) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: no HOST_VISIBLE|COHERENT memory type "
+                        "for brush pass %d\n", br_pass);
+                    return false;
+                }
+                memset(&br_buf_mem_ai, 0, sizeof(br_buf_mem_ai));
+                br_buf_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                br_buf_mem_ai.allocationSize  = br_buf_mem_req.size;
+                br_buf_mem_ai.memoryTypeIndex = br_buf_mem_type;
+                r = vk_fn.AllocateMemory(vk_device, &br_buf_mem_ai,
+                                         NULL, mem_handles[br_pass]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: AllocateMemory (brush pass %d) failed (%d)\n",
+                        br_pass, (int)r);
+                    return false;
+                }
+                vk_fn.BindBufferMemory(vk_device, *buf_handles[br_pass],
+                                       *mem_handles[br_pass], 0);
+                r = vk_fn.MapMemory(vk_device, *mem_handles[br_pass],
+                                    0, VK_WHOLE_SIZE, 0,
+                                    ptr_handles[br_pass]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb) log_cb(RETRO_LOG_ERROR,
+                        "rhi-vk: MapMemory (brush pass %d) failed (%d)\n",
+                        br_pass, (int)r);
+                    return false;
+                }
+            }
+        }
+
+        /* Shader module from the committed SPV header. */
+        memset(&br_sm_ci, 0, sizeof(br_sm_ci));
+        br_sm_ci.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        br_sm_ci.codeSize = sizeof(spv_brush_cs);
+        br_sm_ci.pCode    = spv_brush_cs;
+        r = vk_fn.CreateShaderModule(vk_device, &br_sm_ci, NULL,
+                                     &vk_brush_cs_module);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateShaderModule (brush) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* Descriptor set layout: same 5-binding shape as turb. */
+        memset(br_dsl_bindings, 0, sizeof(br_dsl_bindings));
+        br_dsl_bindings[0].binding         = 0;
+        br_dsl_bindings[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_dsl_bindings[0].descriptorCount = 1;
+        br_dsl_bindings[0].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        br_dsl_bindings[1].binding         = 1;
+        br_dsl_bindings[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_dsl_bindings[1].descriptorCount = 1;
+        br_dsl_bindings[1].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        br_dsl_bindings[2].binding         = 2;
+        br_dsl_bindings[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        br_dsl_bindings[2].descriptorCount = 1;
+        br_dsl_bindings[2].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        br_dsl_bindings[3].binding         = 3;
+        br_dsl_bindings[3].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        br_dsl_bindings[3].descriptorCount = 1;
+        br_dsl_bindings[3].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+        br_dsl_bindings[4].binding         = 4;
+        br_dsl_bindings[4].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_dsl_bindings[4].descriptorCount = 1;
+        br_dsl_bindings[4].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        memset(&br_dsl_ci, 0, sizeof(br_dsl_ci));
+        br_dsl_ci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        br_dsl_ci.bindingCount = 5;
+        br_dsl_ci.pBindings    = br_dsl_bindings;
+        r = vk_fn.CreateDescriptorSetLayout(vk_device, &br_dsl_ci,
+                                            NULL, &vk_brush_dsl);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateDescriptorSetLayout (brush) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+
+        /* Descriptor pool sized for one set. */
+        memset(br_pool_sizes, 0, sizeof(br_pool_sizes));
+        br_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_pool_sizes[0].descriptorCount = 3;  /* output, atlas, zbuffer */
+        br_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        br_pool_sizes[1].descriptorCount = 2;  /* rows, spans */
+        memset(&br_pool_ci, 0, sizeof(br_pool_ci));
+        br_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        br_pool_ci.maxSets       = 1;
+        br_pool_ci.poolSizeCount = 2;
+        br_pool_ci.pPoolSizes    = br_pool_sizes;
+        r = vk_fn.CreateDescriptorPool(vk_device, &br_pool_ci, NULL,
+                                       &vk_brush_pool);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateDescriptorPool (brush) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+
+        memset(&br_set_alloc, 0, sizeof(br_set_alloc));
+        br_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        br_set_alloc.descriptorPool     = vk_brush_pool;
+        br_set_alloc.descriptorSetCount = 1;
+        br_set_alloc.pSetLayouts        = &vk_brush_dsl;
+        r = vk_fn.AllocateDescriptorSets(vk_device, &br_set_alloc,
+                                         &vk_brush_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: AllocateDescriptorSets (brush) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+
+        /* Write descriptors.  Output texture is vk_texture (the
+         * R8_UINT compute framebuffer); atlas is vk_brush_atlas_
+         * image; rows + spans are the buffers just created;
+         * zbuffer is the shared vk_zbuffer used by every Phase
+         * 5b compute pass. */
+        memset(br_img_info, 0, sizeof(br_img_info));
+        br_img_info[0].imageView   = vk_texture_view;
+        br_img_info[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        br_img_info[1].imageView   = vk_brush_atlas_view;
+        br_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        br_img_info[2].imageView   = vk_zbuffer_view;
+        br_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+        memset(br_buf_info, 0, sizeof(br_buf_info));
+        br_buf_info[0].buffer = vk_brush_rows_buffer;
+        br_buf_info[0].range  = VK_BRUSH_ROW_BYTES;
+        br_buf_info[1].buffer = vk_brush_spans_buffer;
+        br_buf_info[1].range  = VK_BRUSH_SPAN_BYTES;
+
+        memset(br_writes, 0, sizeof(br_writes));
+        br_writes[0].sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        br_writes[0].dstSet           = vk_brush_set;
+        br_writes[0].dstBinding       = 0;
+        br_writes[0].descriptorCount  = 1;
+        br_writes[0].descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_writes[0].pImageInfo       = &br_img_info[0];
+        br_writes[1].sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        br_writes[1].dstSet           = vk_brush_set;
+        br_writes[1].dstBinding       = 1;
+        br_writes[1].descriptorCount  = 1;
+        br_writes[1].descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_writes[1].pImageInfo       = &br_img_info[1];
+        br_writes[2].sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        br_writes[2].dstSet           = vk_brush_set;
+        br_writes[2].dstBinding       = 2;
+        br_writes[2].descriptorCount  = 1;
+        br_writes[2].descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        br_writes[2].pBufferInfo      = &br_buf_info[0];
+        br_writes[3].sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        br_writes[3].dstSet           = vk_brush_set;
+        br_writes[3].dstBinding       = 3;
+        br_writes[3].descriptorCount  = 1;
+        br_writes[3].descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        br_writes[3].pBufferInfo      = &br_buf_info[1];
+        br_writes[4].sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        br_writes[4].dstSet           = vk_brush_set;
+        br_writes[4].dstBinding       = 4;
+        br_writes[4].descriptorCount  = 1;
+        br_writes[4].descriptorType   = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        br_writes[4].pImageInfo       = &br_img_info[2];
+        vk_fn.UpdateDescriptorSets(vk_device, 5, br_writes, 0, NULL);
+
+        /* Pipeline layout + compute pipeline. */
+        memset(&br_pcr, 0, sizeof(br_pcr));
+        br_pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        br_pcr.offset     = 0;
+        br_pcr.size       = 112;  /* uvec4 + uvec4 + 3xvec4 + ivec4 + uvec4 */
+        memset(&br_pl_ci, 0, sizeof(br_pl_ci));
+        br_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        br_pl_ci.setLayoutCount         = 1;
+        br_pl_ci.pSetLayouts            = &vk_brush_dsl;
+        br_pl_ci.pushConstantRangeCount = 1;
+        br_pl_ci.pPushConstantRanges    = &br_pcr;
+        r = vk_fn.CreatePipelineLayout(vk_device, &br_pl_ci, NULL,
+                                       &vk_brush_pipeline_layout);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreatePipelineLayout (brush) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+
+        memset(&br_cs_stage, 0, sizeof(br_cs_stage));
+        br_cs_stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        br_cs_stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+        br_cs_stage.module = vk_brush_cs_module;
+        br_cs_stage.pName  = "main";
+        memset(&br_cp_ci, 0, sizeof(br_cp_ci));
+        br_cp_ci.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        br_cp_ci.stage  = br_cs_stage;
+        br_cp_ci.layout = vk_brush_pipeline_layout;
+        r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE, 1,
+                                         &br_cp_ci, NULL, &vk_brush_pipeline);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateComputePipelines (brush) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+    }
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
@@ -5989,12 +6340,68 @@ backend_vk_destroy_resources(void)
     vk_turb_tex_upload_first= 0;
     vk_turb_tex_upload_last = 0;
 
-    /* Phase 5b-07 step 2: brush atlas teardown.  Allocator first
-     * (frees its strip free-lists + entry pool); then map / buffer
-     * / memory for staging; then view / image / memory for the
-     * atlas storage image.  Mirrors the create-order in reverse
-     * with the same null-guard pattern as the turb teardown
-     * above. */
+    /* Phase 5b-07 step 2 + step 3: brush atlas + pipeline teardown.
+     * Pipeline + descriptor pool first, then rows/spans buffers,
+     * then the allocator instance, then the atlas image +
+     * staging buffer.  Mirrors create-order in reverse with the
+     * same null-guard pattern as the turb teardown above. */
+    if (vk_brush_pipeline != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipeline)
+            vk_fn.DestroyPipeline(vk_device, vk_brush_pipeline, NULL);
+        vk_brush_pipeline = VK_NULL_HANDLE;
+    }
+    if (vk_brush_pipeline_layout != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyPipelineLayout)
+            vk_fn.DestroyPipelineLayout(vk_device,
+                                        vk_brush_pipeline_layout, NULL);
+        vk_brush_pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (vk_brush_pool != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorPool)
+            vk_fn.DestroyDescriptorPool(vk_device, vk_brush_pool, NULL);
+        vk_brush_pool = VK_NULL_HANDLE;
+        vk_brush_set  = VK_NULL_HANDLE;
+    }
+    if (vk_brush_dsl != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyDescriptorSetLayout)
+            vk_fn.DestroyDescriptorSetLayout(vk_device, vk_brush_dsl, NULL);
+        vk_brush_dsl = VK_NULL_HANDLE;
+    }
+    if (vk_brush_cs_module != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyShaderModule)
+            vk_fn.DestroyShaderModule(vk_device, vk_brush_cs_module, NULL);
+        vk_brush_cs_module = VK_NULL_HANDLE;
+    }
+    if (vk_brush_spans_memory != VK_NULL_HANDLE && vk_brush_spans_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_brush_spans_memory);
+        vk_brush_spans_ptr = NULL;
+    }
+    if (vk_brush_spans_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_brush_spans_buffer, NULL);
+        vk_brush_spans_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_brush_spans_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_brush_spans_memory, NULL);
+        vk_brush_spans_memory = VK_NULL_HANDLE;
+    }
+    if (vk_brush_rows_memory != VK_NULL_HANDLE && vk_brush_rows_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_brush_rows_memory);
+        vk_brush_rows_ptr = NULL;
+    }
+    if (vk_brush_rows_buffer != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_brush_rows_buffer, NULL);
+        vk_brush_rows_buffer = VK_NULL_HANDLE;
+    }
+    if (vk_brush_rows_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_brush_rows_memory, NULL);
+        vk_brush_rows_memory = VK_NULL_HANDLE;
+    }
     if (vk_brush_atlas) {
         surf_atlas_destroy(vk_brush_atlas);
         vk_brush_atlas = NULL;
@@ -6030,6 +6437,10 @@ backend_vk_destroy_resources(void)
             vk_fn.FreeMemory(vk_device, vk_brush_atlas_memory, NULL);
         vk_brush_atlas_memory = VK_NULL_HANDLE;
     }
+    vk_brush_surface_count = 0;
+    vk_brush_rows_used     = 0;
+    vk_brush_spans_used    = 0;
+    vk_brush_upload_count  = 0;
 
     if (vk_sky_pipeline != VK_NULL_HANDLE) {
         if (vk_fn.DestroyPipeline)
@@ -8454,31 +8865,33 @@ backend_vk_record_frame(void)
     qboolean                  sprites_active;
     qboolean                  alias_active;
     qboolean                  turb_active;
+    qboolean                  brush_active;
     qboolean                  zbuf_active;
     VkResult                  r;
 
-    /* Phase 5b-02 + 5b-05 + 5b-06 + 5b-07b: latch all per-
-     * frame compute-3D activity flags.  The implementation
-     * reads them in multiple places below; pinning to
-     * locals avoids mid-record mutation if a future
-     * change adds a path that touches the globals.
+    /* Phase 5b-02 + 5b-05 + 5b-06 + 5b-07b + 5b-07a step 3:
+     * latch all per-frame compute-3D activity flags.  The
+     * implementation reads them in multiple places below;
+     * pinning to locals avoids mid-record mutation if a
+     * future change adds a path that touches the globals.
      *
-     * zbuf_active = particles || sprites || alias || turb --
-     * all four subsystems interact with vk_zbuffer (the
-     * first three Z-test, single-pass turb also writes Z,
-     * pass-2 turb Z-tests), so the d_pzbuffer upload +
-     * layout transition + GENERAL transition fire when
-     * any is pending.  Missing turb here was the cause of
-     * pass-2 turb reading stale Z (slipgate posts /
-     * crucified-zombie sprites bleeding through walls in
-     * the Quake start map when no monsters or particles
-     * were in view to set the other flags). */
+     * zbuf_active = particles || sprites || alias || turb ||
+     * brush -- all five subsystems interact with vk_zbuffer
+     * (the first three Z-test, single-pass turb also writes
+     * Z, pass-2 turb Z-tests, brush atomicMax-writes Z +
+     * color), so the d_pzbuffer upload + layout transition +
+     * GENERAL transition fire when any is pending.  Missing
+     * turb here was the cause of pass-2 turb reading stale
+     * Z; missing brush would have the same shape of bug for
+     * brush surfaces in compute mode. */
     particles_active = vk_pending_particle_count > 0;
     sprites_active   = vk_sprite_count > 0;
     alias_active     = vk_alias_count > 0;
     turb_active      = vk_turb_surface_count > 0;
+    brush_active     = vk_brush_surface_count > 0;
     zbuf_active      = particles_active || sprites_active
-                    || alias_active     || turb_active;
+                    || alias_active     || turb_active
+                    || brush_active;
 
     memset(&begin_info, 0, sizeof(begin_info));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -9068,6 +9481,196 @@ backend_vk_record_frame(void)
              * does the CmdDispatch loop. */
         }
 
+        /* Phase 5b-07a step 3: brush surface compute dispatch.
+         *
+         * Two stages: (1) atlas image upload from staging,
+         * (2) per-surface compute dispatch.  Placed AFTER turb
+         * single-pass and BEFORE particles / sprites / alias
+         * so brush Z is in vk_zbuffer by the time the
+         * Z-testing dispatches downstream read it.
+         *
+         * Atlas upload.  The dispatch site (one call per
+         * brush surface from d_edge.c) wrote pixels into the
+         * staging buffer at each surface's rect offset and
+         * appended a (x,y,w,h) entry to vk_brush_uploads[];
+         * we emit one VkBufferImageCopy per upload entry and
+         * issue a single CmdCopyBufferToImage covering them
+         * all.  bufferRowLength == VK_BRUSH_ATLAS_W treats
+         * the staging buffer as a row-major 4096-wide image
+         * matching the atlas, so bufferOffset =
+         * y*VK_BRUSH_ATLAS_W + x lines up exactly with the
+         * memcpy destination the dispatch site used.
+         *
+         * Z semantics.  d_edge.c memsets d_pzbuffer to 0 at
+         * brush spans whenever GPU dispatch succeeded (see
+         * the SURF_DRAWSPANS branch); the d_pzbuffer upload
+         * above propagates those zeros to vk_zbuffer.
+         * Brush.comp's imageAtomicMax(u_zbuffer, pos, izi)
+         * always wins against the 0 sentinel and writes the
+         * brush surface's Z + color.  This mirrors the
+         * single-pass turb scheme exactly. */
+        if (brush_active) {
+            VkImageMemoryBarrier ba_bar0, ba_bar1;
+            VkMemoryBarrier      brush_mem_bar;
+            VkBufferImageCopy    ba_copies[VK_BRUSH_MAX_UPLOADS_PER_FRAME];
+            unsigned             ui, si;
+
+            /* Atlas image: previous layout (UNDEFINED on the
+             * very first frame, GENERAL after any prior frame)
+             * -> TRANSFER_DST.  UNDEFINED as oldLayout is the
+             * canonical "discard prior contents" idiom; the
+             * staging buffer carries every byte the next
+             * dispatch reads. */
+            memset(&ba_bar0, 0, sizeof(ba_bar0));
+            ba_bar0.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            ba_bar0.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            ba_bar0.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            ba_bar0.oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+            ba_bar0.newLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            ba_bar0.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ba_bar0.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ba_bar0.image         = vk_brush_atlas_image;
+            ba_bar0.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            ba_bar0.subresourceRange.levelCount = 1;
+            ba_bar0.subresourceRange.layerCount = 1;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                     0,
+                                     0, NULL,
+                                     0, NULL,
+                                     1, &ba_bar0);
+
+            /* Build the per-rect copy region list. */
+            memset(ba_copies, 0,
+                   sizeof(ba_copies[0]) * vk_brush_upload_count);
+            for (ui = 0; ui < vk_brush_upload_count; ui++) {
+                const struct vk_brush_upload *u = &vk_brush_uploads[ui];
+                ba_copies[ui].bufferOffset      =
+                      (VkDeviceSize)u->y * VK_BRUSH_ATLAS_W
+                    + (VkDeviceSize)u->x;
+                ba_copies[ui].bufferRowLength   = VK_BRUSH_ATLAS_W;
+                ba_copies[ui].bufferImageHeight = 0;
+                ba_copies[ui].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                ba_copies[ui].imageSubresource.mipLevel   = 0;
+                ba_copies[ui].imageSubresource.baseArrayLayer = 0;
+                ba_copies[ui].imageSubresource.layerCount = 1;
+                ba_copies[ui].imageOffset.x = (int32_t)u->x;
+                ba_copies[ui].imageOffset.y = (int32_t)u->y;
+                ba_copies[ui].imageOffset.z = 0;
+                ba_copies[ui].imageExtent.width  = u->w;
+                ba_copies[ui].imageExtent.height = u->h;
+                ba_copies[ui].imageExtent.depth  = 1;
+            }
+            if (vk_brush_upload_count > 0) {
+                vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
+                                           vk_brush_atlas_staging,
+                                           vk_brush_atlas_image,
+                                           VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                           vk_brush_upload_count,
+                                           ba_copies);
+            }
+
+            /* Atlas image: TRANSFER_DST -> GENERAL for the
+             * compute shader's imageLoad. */
+            memset(&ba_bar1, 0, sizeof(ba_bar1));
+            ba_bar1.sType         = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            ba_bar1.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            ba_bar1.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            ba_bar1.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            ba_bar1.newLayout     = VK_IMAGE_LAYOUT_GENERAL;
+            ba_bar1.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ba_bar1.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            ba_bar1.image         = vk_brush_atlas_image;
+            ba_bar1.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            ba_bar1.subresourceRange.levelCount = 1;
+            ba_bar1.subresourceRange.layerCount = 1;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     0, NULL,
+                                     0, NULL,
+                                     1, &ba_bar1);
+
+            /* Per-surface dispatch loop.  One CmdPushConstants
+             * + CmdDispatch per surface; 8x8 workgroups; bbox
+             * dimensions ceiled to workgroup multiples. */
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_brush_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_brush_pipeline_layout,
+                                        0,
+                                        1, &vk_brush_set,
+                                        0, NULL);
+            for (si = 0; si < vk_brush_surface_count; si++) {
+                const struct vk_brush_surface *surf = &vk_brush_surfaces[si];
+                struct {
+                    uint32_t bbox[4];
+                    uint32_t range[4];
+                    float    grad0[4];
+                    float    grad1[4];
+                    float    grad2[4];
+                    int32_t  adj[4];
+                    uint32_t slot[4];
+                } push;
+                push.bbox[0]  = surf->bbox_min_x;
+                push.bbox[1]  = surf->bbox_min_y;
+                push.bbox[2]  = surf->bbox_w;
+                push.bbox[3]  = surf->bbox_h;
+                push.range[0] = surf->rows_first;
+                push.range[1] = 0;
+                push.range[2] = surf->spans_first;
+                push.range[3] = 0;
+                push.grad0[0] = surf->grad.sdivzorigin;
+                push.grad0[1] = surf->grad.sdivzstepu;
+                push.grad0[2] = surf->grad.sdivzstepv;
+                push.grad0[3] = 0.0f;
+                push.grad1[0] = surf->grad.tdivzorigin;
+                push.grad1[1] = surf->grad.tdivzstepu;
+                push.grad1[2] = surf->grad.tdivzstepv;
+                push.grad1[3] = 0.0f;
+                push.grad2[0] = surf->grad.ziorigin;
+                push.grad2[1] = surf->grad.zistepu;
+                push.grad2[2] = surf->grad.zistepv;
+                push.grad2[3] = 0.0f;
+                push.adj[0]   = surf->grad.sadjust;
+                push.adj[1]   = surf->grad.tadjust;
+                push.adj[2]   = surf->grad.bbextents;
+                push.adj[3]   = surf->grad.bbextentt;
+                push.slot[0]  = surf->slot_x;
+                push.slot[1]  = surf->slot_y;
+                push.slot[2]  = 0;
+                push.slot[3]  = 0;
+                vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                       vk_brush_pipeline_layout,
+                                       VK_SHADER_STAGE_COMPUTE_BIT,
+                                       0, sizeof(push), &push);
+                vk_fn.CmdDispatch(vk_cmd_buffer,
+                                  (surf->bbox_w + 7u) / 8u,
+                                  (surf->bbox_h + 7u) / 8u,
+                                  1);
+            }
+
+            /* Serialise brush's vk_texture / vk_zbuffer writes
+             * against the downstream particle / sprite / alias /
+             * turb dispatches.  Same pattern as sky / turb. */
+            memset(&brush_mem_bar, 0, sizeof(brush_mem_bar));
+            brush_mem_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            brush_mem_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            brush_mem_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                        | VK_ACCESS_SHADER_WRITE_BIT;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     1, &brush_mem_bar,
+                                     0, NULL,
+                                     0, NULL);
+        }
+
         if (particles_active) {
             /* Particles dispatch (Phase 5b-02).  One
              * workgroup invocation per particle; local_
@@ -9640,6 +10243,19 @@ backend_vk_record_frame(void)
     vk_turb_tex_upload_first = 0;
     vk_turb_tex_upload_last  = 0;
 
+    /* Phase 5b-07a step 3: reset brush per-frame state.  The
+     * surf_atlas allocator's content (key->rect map, strip
+     * free-lists) PERSISTS across frames -- surf_atlas_begin_
+     * frame above just advanced the LRU clock, it didn't free
+     * anything.  Only the per-frame accumulators (collected
+     * surfaces, row/span pool write heads, upload-region list)
+     * need to be zeroed; cache hits in the next frame will
+     * reuse the same atlas slots without re-allocation. */
+    vk_brush_surface_count   = 0;
+    vk_brush_rows_used       = 0;
+    vk_brush_spans_used      = 0;
+    vk_brush_upload_count    = 0;
+
     return true;
 }
 #endif
@@ -9686,7 +10302,8 @@ backend_vk_end_frame(void)
     if (vk_pending_particle_count > 0
      || vk_sprite_count > 0
      || vk_alias_count > 0
-     || vk_turb_surface_count > 0)
+     || vk_turb_surface_count > 0
+     || vk_brush_surface_count > 0)
         backend_vk_upload_zbuffer();
 
     /* Fresh per-frame command-buffer recording.  Phase 4e
@@ -10080,6 +10697,221 @@ backend_vk_dispatch_3d_turb_surface(const void *spans_head,
 #endif
 }
 
+/*
+ * backend_vk_dispatch_3d_brush_surface -- Phase 5b-07a step 3
+ *
+ * Called from d_edge.c's SURF_DRAWSPANS branch once per opaque
+ * brush surface (everything not sky, not turb).  Looks up or
+ * allocates an atlas slot for the surface's surfcache_t, streams
+ * the pre-lit composite into staging at the slot offset, walks
+ * the espan_t list to collect spans + bucket-by-row, and records
+ * a per-surface entry that record_frame consumes.
+ *
+ * Return: 1 on success (host's SW D_DrawSpans for this surface
+ * should be SKIPPED), 0 on hard failure (atlas exhausted; row /
+ * span / upload-window pool exhausted; surface dimensions
+ * exceed the largest strip).  On 0, host falls through to
+ * D_DrawSpans as if the GPU path were absent.  Pixel-equivalent
+ * fallback is the contract; the SW reference is the ground
+ * truth.
+ *
+ * Per-frame state (vk_brush_surfaces, vk_brush_rows_used,
+ * vk_brush_spans_used, vk_brush_upload_count) is reset at
+ * begin_frame.  The surf_atlas allocator persists across frames
+ * with its LRU tracking advanced by surf_atlas_begin_frame.
+ *
+ * Upload policy.  Step 3 lazily re-uploads on every cache hit
+ * (the dispatch site always memcpys cacheblock into staging
+ * even when the rect is the same one used last frame and even
+ * when the SW cache contents are unchanged).  This wastes
+ * upload bandwidth proportional to total visible-cacheblock
+ * bytes per frame (typically ~1-10 MiB) on stable scenes but
+ * is unconditionally correct -- any dlight / animation /
+ * lightstyle / pointer-reclaim event regenerates cache contents
+ * and the next dispatch picks them up.  A future optimization
+ * (signature tracking per cache pointer) can skip unchanged-
+ * content uploads; the per-frame cost is small enough on
+ * tier-3 compute that step 3 ships without it.
+ *
+ * Always defined for the unconditional vtable; body guarded
+ * by RHI_HAVE_VULKAN.
+ */
+static int
+backend_vk_dispatch_3d_brush_surface(const void *spans_head,
+                                     const rhi_brush_gradient_t *grad,
+                                     const byte *cacheblock,
+                                     int cachewidth,
+                                     int cacheheight,
+                                     int miplevel,
+                                     const void *cache_key)
+{
+#ifdef RHI_HAVE_VULKAN
+    const espan_t *p;
+    struct vk_brush_surface *surf;
+    surf_atlas_rect_t rect;
+    unsigned  i;
+    int       bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y;
+    unsigned  num_spans, bbox_w, bbox_h;
+    unsigned  rows_first, spans_first;
+    uint32_t *row_entries;
+    uint32_t *span_entries;
+
+    (void)miplevel;
+
+    if (!vk_resources_ready || !spans_head || !grad
+        || !cacheblock || !cache_key || !vk_brush_atlas)
+        return 0;
+    if (cachewidth <= 0 || cacheheight <= 0)
+        return 0;
+    if ((unsigned)cachewidth > VK_BRUSH_ATLAS_W
+        || (unsigned)cacheheight > VK_BRUSH_ATLAS_H)
+        return 0;
+    if (vk_brush_surface_count >= VK_BRUSH_MAX_SURFACES)
+        return 0;
+
+    /* Atlas slot lookup-or-allocate.  Pointer-keyed on the
+     * surfcache_t * so multiple visible-instances of the same
+     * surface within one frame share one slot.  Hard-failure
+     * (rect.w == 0) means atlas is full and every entry is
+     * in-use this frame -- caller falls through to SW. */
+    rect = surf_atlas_get(vk_brush_atlas, cache_key,
+                          (uint16_t)cachewidth,
+                          (uint16_t)cacheheight);
+    if (rect.w == 0)
+        return 0;
+    if (vk_brush_upload_count >= VK_BRUSH_MAX_UPLOADS_PER_FRAME)
+        return 0;
+
+    /* Stream cacheblock into the staging buffer at the slot's
+     * (x, y) offset.  Staging is laid out as a row-major image
+     * matching the atlas, so each cache row's destination starts
+     * at byte offset (rect.y + row) * VK_BRUSH_ATLAS_W + rect.x.
+     *
+     * We re-upload unconditionally (see "Upload policy" above)
+     * -- both for cache hits (atlas slot already has prior
+     * frame's content; SW may have regenerated cacheblock for
+     * dlight / animation / lightstyle in the interim) and for
+     * fresh allocations.  The record_frame CmdCopyBufferToImage
+     * walks the upload window once per frame to flush both
+     * cases through to vk_brush_atlas_image. */
+    if (vk_brush_atlas_staging_ptr) {
+        byte    *dst_base = (byte *)vk_brush_atlas_staging_ptr
+                          + (size_t)rect.y * VK_BRUSH_ATLAS_W
+                          + (size_t)rect.x;
+        const byte *src      = cacheblock;
+        const size_t row_b   = (size_t)cachewidth;
+        const size_t dst_pitch = VK_BRUSH_ATLAS_W;
+        unsigned row;
+        for (row = 0; row < (unsigned)cacheheight; row++) {
+            memcpy(dst_base + (size_t)row * dst_pitch,
+                   src      + (size_t)row * row_b,
+                   row_b);
+        }
+        vk_brush_uploads[vk_brush_upload_count].x = rect.x;
+        vk_brush_uploads[vk_brush_upload_count].y = rect.y;
+        vk_brush_uploads[vk_brush_upload_count].w = rect.w;
+        vk_brush_uploads[vk_brush_upload_count].h = rect.h;
+        vk_brush_upload_count++;
+    }
+
+    /* Walk spans: count, compute bbox.  Identical to the turb
+     * pre-bucket walk -- bbox encloses every espan_t (u..u+count,
+     * v..v+1) so the per-row counts in pass 2 below have a
+     * known scanline range to index. */
+    num_spans  = 0;
+    bbox_min_x = INT32_MAX;
+    bbox_min_y = INT32_MAX;
+    bbox_max_x = INT32_MIN;
+    bbox_max_y = INT32_MIN;
+    for (p = (const espan_t *)spans_head; p; p = p->pnext) {
+        if (p->count <= 0)
+            continue;
+        if (p->u            < bbox_min_x) bbox_min_x = p->u;
+        if (p->v            < bbox_min_y) bbox_min_y = p->v;
+        if (p->u + p->count > bbox_max_x) bbox_max_x = p->u + p->count;
+        if (p->v + 1        > bbox_max_y) bbox_max_y = p->v + 1;
+        num_spans++;
+    }
+    if (num_spans == 0)
+        return 0;
+    if (vk_brush_spans_used + num_spans > VK_BRUSH_MAX_SPANS)
+        return 0;
+    bbox_w = (unsigned)(bbox_max_x - bbox_min_x);
+    bbox_h = (unsigned)(bbox_max_y - bbox_min_y);
+    if (vk_brush_rows_used + bbox_h > VK_BRUSH_MAX_ROWS)
+        return 0;
+
+    rows_first  = vk_brush_rows_used;
+    spans_first = vk_brush_spans_used;
+    row_entries  = (uint32_t *)vk_brush_rows_ptr  + 2 * rows_first;
+    span_entries = (uint32_t *)vk_brush_spans_ptr + 2 * spans_first;
+
+    /* 4-pass row-bucket (same shape as turb dispatch above):
+     *   pass 1: zero per-row counts
+     *   pass 2: per-row count (rinfo.y holds count temporarily)
+     *   pass 3: prefix-sum into rinfo.x; reset rinfo.y = 0
+     *   pass 4: place each span at rows[row].x + rows[row].y++,
+     *           bump rows[row].y */
+    for (i = 0; i < bbox_h; i++) {
+        row_entries[2 * i + 0] = 0;
+        row_entries[2 * i + 1] = 0;
+    }
+    for (p = (const espan_t *)spans_head; p; p = p->pnext) {
+        unsigned row;
+        if (p->count <= 0)
+            continue;
+        row = (unsigned)(p->v - bbox_min_y);
+        row_entries[2 * row + 1]++;
+    }
+    {
+        uint32_t running = 0;
+        for (i = 0; i < bbox_h; i++) {
+            uint32_t c = row_entries[2 * i + 1];
+            row_entries[2 * i + 0] = running;
+            row_entries[2 * i + 1] = 0;
+            running += c;
+        }
+    }
+    for (p = (const espan_t *)spans_head; p; p = p->pnext) {
+        unsigned row, slot;
+        if (p->count <= 0)
+            continue;
+        row  = (unsigned)(p->v - bbox_min_y);
+        slot = row_entries[2 * row + 0] + row_entries[2 * row + 1];
+        span_entries[2 * slot + 0] = (uint32_t)p->u;
+        span_entries[2 * slot + 1] = (uint32_t)p->count;
+        row_entries[2 * row + 1]++;
+    }
+
+    /* Record per-surface entry for record_frame's dispatch
+     * loop.  slot.xy is the atlas pixel offset; the shader
+     * samples at (slot.x + s>>16, slot.y + t>>16). */
+    surf = &vk_brush_surfaces[vk_brush_surface_count++];
+    surf->bbox_min_x  = (uint32_t)bbox_min_x;
+    surf->bbox_min_y  = (uint32_t)bbox_min_y;
+    surf->bbox_w      = bbox_w;
+    surf->bbox_h      = bbox_h;
+    surf->rows_first  = rows_first;
+    surf->spans_first = spans_first;
+    surf->slot_x      = rect.x;
+    surf->slot_y      = rect.y;
+    surf->grad        = *grad;
+
+    vk_brush_rows_used  += bbox_h;
+    vk_brush_spans_used += num_spans;
+    return 1;
+#else
+    (void)spans_head;
+    (void)grad;
+    (void)cacheblock;
+    (void)cachewidth;
+    (void)cacheheight;
+    (void)miplevel;
+    (void)cache_key;
+    return 0;
+#endif
+}
+
 const render_backend_t g_rhi_backend_vk = {
     "vulkan",
     RHI_BACKEND_VULKAN,
@@ -10102,5 +10934,6 @@ const render_backend_t g_rhi_backend_vk = {
     backend_vk_notify_cache_invalidate,
     backend_vk_notify_sky_texture,
     backend_vk_dispatch_3d_sky_span,
-    backend_vk_dispatch_3d_turb_surface
+    backend_vk_dispatch_3d_turb_surface,
+    backend_vk_dispatch_3d_brush_surface
 };
