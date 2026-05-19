@@ -43,7 +43,8 @@ enum {
    PERF_SECTION_RECORD_FRAME,     /* backend's command-buffer recording */
    PERF_SECTION_SUBMIT_PRESENT,   /* submit + wait + set_image + video_cb */
    PERF_SECTION_QUEUE_SUBMIT,     /* SUBMIT_PRESENT sub: vkQueueSubmit only */
-   PERF_SECTION_QUEUE_WAIT_IDLE,  /* SUBMIT_PRESENT sub: vkQueueWaitIdle only */
+   PERF_SECTION_BEGIN_FRAME_WAIT, /* begin_frame fence wait (cross-frame sync;
+                                   * formerly end_frame's vkQueueWaitIdle, dropped at 3b) */
    PERF_SECTION_SET_IMAGE,        /* SUBMIT_PRESENT sub: vk_iface->set_image */
    PERF_SECTION_VIDEO_CB,         /* SUBMIT_PRESENT sub: video_cb */
    PERF_SECTION_COUNT

@@ -124,7 +124,7 @@ perf_timing_end_frame(void)
    double record_ms_avg;
    double submit_ms_avg;
    double qsubmit_ms_avg;
-   double qwait_ms_avg;
+   double bwait_ms_avg;
    double setimg_ms_avg;
    double vidcb_ms_avg;
    uint32_t fc;
@@ -162,20 +162,20 @@ perf_timing_end_frame(void)
    render_ms_avg  = section_accum_usec[PERF_SECTION_RENDERVIEW]     / 1000.0 / (double)fc;
    record_ms_avg  = section_accum_usec[PERF_SECTION_RECORD_FRAME]   / 1000.0 / (double)fc;
    submit_ms_avg  = section_accum_usec[PERF_SECTION_SUBMIT_PRESENT] / 1000.0 / (double)fc;
-   qsubmit_ms_avg = section_accum_usec[PERF_SECTION_QUEUE_SUBMIT]    / 1000.0 / (double)fc;
-   qwait_ms_avg   = section_accum_usec[PERF_SECTION_QUEUE_WAIT_IDLE] / 1000.0 / (double)fc;
+   qsubmit_ms_avg = section_accum_usec[PERF_SECTION_QUEUE_SUBMIT]      / 1000.0 / (double)fc;
+   bwait_ms_avg   = section_accum_usec[PERF_SECTION_BEGIN_FRAME_WAIT]  / 1000.0 / (double)fc;
    setimg_ms_avg  = section_accum_usec[PERF_SECTION_SET_IMAGE]       / 1000.0 / (double)fc;
    vidcb_ms_avg   = section_accum_usec[PERF_SECTION_VIDEO_CB]        / 1000.0 / (double)fc;
 
    Con_Printf("PERF [%u frames %.1fms]: %.1f FPS (%.2fms) | "
               "frame %.2f render %.2f record %.2f submit %.2f "
-              "(qs %.2f qw %.2f si %.2f vc %.2f) | "
+              "(qs %.2f si %.2f vc %.2f) bw %.2f | "
               "brush=%llu turb=%llu alias=%llu particles=%llu "
               "sprites=%llu dispatches=%llu vidbuf=%llu zbufup=%llu\n",
               (unsigned)fc, window_ms,
               fps, frame_ms_avg,
               frame_ms_avg, render_ms_avg, record_ms_avg, submit_ms_avg,
-              qsubmit_ms_avg, qwait_ms_avg, setimg_ms_avg, vidcb_ms_avg,
+              qsubmit_ms_avg, setimg_ms_avg, vidcb_ms_avg, bwait_ms_avg,
               (unsigned long long)(counter_accum[PERF_COUNTER_BRUSH_SURFACES]   / fc),
               (unsigned long long)(counter_accum[PERF_COUNTER_TURB_SURFACES]    / fc),
               (unsigned long long)(counter_accum[PERF_COUNTER_ALIAS_ENTITIES]   / fc),

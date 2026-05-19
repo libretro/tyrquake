@@ -9061,20 +9061,20 @@ backend_vk_begin_frame(void)
      * ring stays consistent. */
     if (vk_resources_ready) {
         vk_active_slot = (vk_active_slot + 1) % VK_FRAME_RING_DEPTH;
-        /* Phase 5b-08 step 3c diagnostic: reuse the now-
-         * empty QUEUE_WAIT_IDLE perf section to time the
-         * fence wait.  Pre-3b qw measured end_frame's
-         * QueueWaitIdle; post-3b that's gone, so the
-         * section is reusable for begin_frame's
-         * WaitForFences.  Tells us whether the fence wait
-         * is the source of the 3.78 ms regression that
-         * showed up in RENDER.  Cheap to leave in; the
-         * counter is otherwise idle. */
-        perf_timing_section_begin(PERF_SECTION_QUEUE_WAIT_IDLE);
+        /* Cross-frame backpressure wait.  After 3b removed
+         * end_frame's QueueWaitIdle, this fence wait is the
+         * only host-side sync the pipeline does.  In a
+         * properly pipelined N=2 ring with CPU outrunning
+         * GPU, this returns instantly because the slot's
+         * prior submission completed two frames ago; if GPU
+         * outruns CPU, this is where CPU yields.  Logged as
+         * "bw" so a regression to the pre-3b 3.71 ms cost is
+         * immediately visible. */
+        perf_timing_section_begin(PERF_SECTION_BEGIN_FRAME_WAIT);
         vk_fn.WaitForFences(vk_device, 1,
                             &vk_frame_ctx[vk_active_slot].done_fence,
                             VK_TRUE, UINT64_MAX);
-        perf_timing_section_end(PERF_SECTION_QUEUE_WAIT_IDLE);
+        perf_timing_section_end(PERF_SECTION_BEGIN_FRAME_WAIT);
         vk_fn.ResetFences(vk_device, 1,
                           &vk_frame_ctx[vk_active_slot].done_fence);
         vk_cmd_buffer = vk_frame_ctx[vk_active_slot].cmd_buffer;
@@ -10654,18 +10654,17 @@ backend_vk_end_frame(void)
         return;
     }
 
-    /* Phase 5b-08 step 3b: QueueWaitIdle removed.
-     * Cross-frame sync is now done by begin_frame's
-     * WaitForFences on the rotated-to slot's done_fence
-     * (which the QueueSubmit above signals).  The
-     * frontend's read of vk_image[vk_active_slot] is
+    /* No host-side wait here.  Cross-frame sync is done by
+     * begin_frame's WaitForFences on the rotated-to slot's
+     * done_fence (which the QueueSubmit above signals).
+     * The frontend's read of vk_image[vk_active_slot] is
      * gated by the render_done_semaphore passed to
      * set_image below, so frame N+1's backend can start
      * recording its CB while the frontend is still
      * consuming frame N's image (different slot, different
-     * descriptor set, different framebuffer -- no race). */
-    perf_timing_section_begin(PERF_SECTION_QUEUE_WAIT_IDLE);
-    perf_timing_section_end(PERF_SECTION_QUEUE_WAIT_IDLE);
+     * descriptor set, different framebuffer -- no race).
+     * Pre-3b this was a QueueWaitIdle drain; perf_timing
+     * tracks the new sync point as "bw" in begin_frame. */
 
     /* Hand the image to the frontend.  src_queue_family
      * matches the queue we submitted from, so no ownership
