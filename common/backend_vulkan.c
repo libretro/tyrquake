@@ -9697,18 +9697,14 @@ backend_vk_end_frame(void)
      * A failure here means we can't submit a coherent
      * frame -- bail and let retro_run's dupe path keep the
      * display going. */
-    perf_timing_section_begin(PERF_SECTION_RECORD_FRAME);
-    if (!backend_vk_record_frame()) {
-        perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
-        return;
-    }
-    perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
 
-    /* Snapshot per-frame work counters BEFORE submit (so the
-     * SUBMIT_PRESENT section time isn't contaminated by this
-     * trivially-cheap counter update, and so a submit failure
-     * downstream doesn't bias the counters by suppressing
-     * this update on the next iteration). */
+    /* Snapshot per-frame work counters BEFORE record_frame,
+     * which consumes the per-entity counts and resets them
+     * to 0 at its tail before returning.  Out of any timed
+     * section so the perf-counter overhead doesn't bias the
+     * RECORD_FRAME or SUBMIT_PRESENT measurements.  The
+     * values are populated by R_RenderView dispatches that
+     * ran inside the prior Host_Frame call. */
     perf_timing_counter_add(PERF_COUNTER_PARTICLES,      (uint64_t)vk_pending_particle_count);
     perf_timing_counter_add(PERF_COUNTER_SPRITES,        (uint64_t)vk_sprite_count);
     perf_timing_counter_add(PERF_COUNTER_ALIAS_ENTITIES, (uint64_t)vk_alias_count);
@@ -9726,6 +9722,13 @@ backend_vk_end_frame(void)
      || vk_turb_surface_count > 0)
         perf_timing_counter_add(PERF_COUNTER_ZBUF_UPLOAD_BYTES,
                                 (uint64_t)(width * height * 4));
+
+    perf_timing_section_begin(PERF_SECTION_RECORD_FRAME);
+    if (!backend_vk_record_frame()) {
+        perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
+        return;
+    }
+    perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
 
     /* Submit the just-recorded command buffer. */
     perf_timing_section_begin(PERF_SECTION_SUBMIT_PRESENT);
