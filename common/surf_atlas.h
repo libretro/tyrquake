@@ -173,12 +173,17 @@ void surf_atlas_begin_frame(surf_atlas_t *a);
  * Lookup or allocate a rect for `key` with content dimensions
  * (w, h).  See surf_atlas_rect_t for return semantics.
  *
- * If an existing entry for `key` is found, its rect is
- * returned with fresh=0 (cache hit) regardless of w/h.
- * Caller should call surf_atlas_evict(key) first if the
- * content dimensions changed (e.g., miplevel change) so the
- * existing slot is freed and a properly-sized fresh one is
- * allocated.
+ * If an existing entry for `key` is found with matching
+ * dimensions, its rect is returned with fresh=0 (cache hit).
+ * If found with DIFFERENT dimensions (the underlying source
+ * was reused for a different surface, or its miplevel changed
+ * and the cache was rebuilt at the same key), the stale entry
+ * is auto-evicted and a fresh rect at the requested dimensions
+ * is allocated -- caller sees rect.fresh=1 in this case and
+ * should treat it as a fresh allocation (re-upload pixels,
+ * etc.).  The auto-eviction is NOT reported in
+ * evicted_keys[]; the caller's response to fresh=1 already
+ * covers any per-key state kept alongside the atlas.
  */
 surf_atlas_rect_t surf_atlas_get(surf_atlas_t *a,
                                  const void   *key,

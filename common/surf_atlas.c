@@ -624,18 +624,34 @@ surf_atlas_get(surf_atlas_t *a,
    if (req_w > a->width)
       return rect;
 
-   /* Hit path: existing entry for this key. */
+   /* Hit path: existing entry for this key.  If its rect's
+    * dimensions match the request, return it as a clean cache
+    * hit (fresh=0).  If they DON'T match, the SW source
+    * underlying this key has been reused for a different
+    * surface (the typical scenario: D_SCAlloc reclaiming a
+    * surfcache_t slot for a different brush surface, or a
+    * miplevel change rebuilding the cache at the same slot)
+    * and the cached rect is stale.  Auto-evict and fall
+    * through to the alloc path so the caller gets a properly-
+    * sized fresh rect.  We don't surface this in evicted_keys
+    * [] -- the caller's response to fresh=1 (re-upload) already
+    * covers any per-key state it kept alongside the atlas. */
    idx = find_entry_by_key(a, key);
    if (idx >= 0) {
       e = &a->entries[idx];
-      e->last_used_frame = a->cur_frame;
-      rect.x     = e->x;
-      rect.y     = e->y;
-      rect.w     = e->w;
-      rect.h     = e->h;
-      rect.fresh = 0;
-      a->stats.get_hits_total++;
-      return rect;
+      if (e->w == req_w && e->h == req_h) {
+         e->last_used_frame = a->cur_frame;
+         rect.x     = e->x;
+         rect.y     = e->y;
+         rect.w     = e->w;
+         rect.h     = e->h;
+         rect.fresh = 0;
+         a->stats.get_hits_total++;
+         return rect;
+      }
+      /* Dim mismatch.  Release the stale entry, fall through. */
+      release_entry(a, idx);
+      a->stats.evictions_total++;
    }
 
    /* Miss: allocate.  Pick the preferred strip. */

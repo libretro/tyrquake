@@ -940,7 +940,16 @@ static VkPipeline             vk_turb_pipeline;
 #define VK_BRUSH_MAX_SURFACES           1024u
 #define VK_BRUSH_MAX_ROWS               32768u
 #define VK_BRUSH_MAX_SPANS              16384u
-#define VK_BRUSH_MAX_UPLOADS_PER_FRAME  512u
+/* MAX_UPLOADS_PER_FRAME tracks MAX_SURFACES.  Step 3's lazy
+ * re-upload policy issues one upload entry per successful
+ * dispatch (every cache hit re-uploads; see the dispatch impl
+ * for the rationale), so the upload window cap and the
+ * surface cap must agree -- a smaller upload cap would force
+ * SW fallback on surfaces past the cap even with the atlas
+ * having room.  When signature-tracking upload-skip lands in
+ * a follow-up phase, MAX_UPLOADS can drop independently to
+ * reflect the smaller per-frame fresh-upload working set. */
+#define VK_BRUSH_MAX_UPLOADS_PER_FRAME  VK_BRUSH_MAX_SURFACES
 #define VK_BRUSH_ROW_BYTES              (VK_BRUSH_MAX_ROWS  * 2u * sizeof(uint32_t))
 #define VK_BRUSH_SPAN_BYTES             (VK_BRUSH_MAX_SPANS * 2u * sizeof(uint32_t))
 
@@ -10759,7 +10768,8 @@ backend_vk_dispatch_3d_brush_surface(const void *spans_head,
     (void)miplevel;
 
     if (!vk_resources_ready || !spans_head || !grad
-        || !cacheblock || !cache_key || !vk_brush_atlas)
+        || !cacheblock || !cache_key || !vk_brush_atlas
+        || !vk_brush_atlas_staging_ptr)
         return 0;
     if (cachewidth <= 0 || cacheheight <= 0)
         return 0;
@@ -10768,18 +10778,29 @@ backend_vk_dispatch_3d_brush_surface(const void *spans_head,
         return 0;
     if (vk_brush_surface_count >= VK_BRUSH_MAX_SURFACES)
         return 0;
+    /* Check upload-window cap BEFORE atlas allocation.  If we
+     * allocate first and then fail here, the atlas slot is
+     * "lost" -- claimed but never populated, and future-frame
+     * cache hits on the same key would render garbage from the
+     * uninitialised atlas region until LRU evicts the entry.
+     * Atlas allocation is meaningful only if we can also
+     * upload, so the two caps gate together. */
+    if (vk_brush_upload_count >= VK_BRUSH_MAX_UPLOADS_PER_FRAME)
+        return 0;
 
     /* Atlas slot lookup-or-allocate.  Pointer-keyed on the
      * surfcache_t * so multiple visible-instances of the same
      * surface within one frame share one slot.  Hard-failure
      * (rect.w == 0) means atlas is full and every entry is
-     * in-use this frame -- caller falls through to SW. */
+     * in-use this frame -- caller falls through to SW.  Note
+     * that surf_atlas auto-evicts cache hits with mismatched
+     * dimensions (D_SCAlloc-reclaim-the-pointer case): in
+     * that scenario rect.fresh is 1 and the new rect has the
+     * requested dims, exactly what the dispatch site needs. */
     rect = surf_atlas_get(vk_brush_atlas, cache_key,
                           (uint16_t)cachewidth,
                           (uint16_t)cacheheight);
     if (rect.w == 0)
-        return 0;
-    if (vk_brush_upload_count >= VK_BRUSH_MAX_UPLOADS_PER_FRAME)
         return 0;
 
     /* Stream cacheblock into the staging buffer at the slot's
@@ -10794,7 +10815,7 @@ backend_vk_dispatch_3d_brush_surface(const void *spans_head,
      * fresh allocations.  The record_frame CmdCopyBufferToImage
      * walks the upload window once per frame to flush both
      * cases through to vk_brush_atlas_image. */
-    if (vk_brush_atlas_staging_ptr) {
+    {
         byte    *dst_base = (byte *)vk_brush_atlas_staging_ptr
                           + (size_t)rect.y * VK_BRUSH_ATLAS_W
                           + (size_t)rect.x;
