@@ -217,6 +217,15 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/alias_cs.h"
 #include "shaders/generated/spv/sky_cs.h"
 #include "shaders/generated/spv/turb_cs.h"
+#include "surf_atlas.h"   /* RHI-agnostic brush-atlas allocator;
+                           * Phase 5b-07.  The Vulkan backend owns
+                           * the VkImage + staging buffer that the
+                           * brush compute dispatch samples / uploads
+                           * to; surf_atlas owns the (key -> rect)
+                           * map and the 2D bin-packing.  The
+                           * allocator instance is constructed in
+                           * backend_vk_create_resources and lives as
+                           * long as the resources do. */
 #include "d_iface.h"      /* particle_t -- the GPU compute particle
                            * rasterizer walks the active linked list
                            * via this typedef.  Also TURB_CYCLE for
@@ -874,6 +883,60 @@ static VkDescriptorPool       vk_turb_pool;
 static VkDescriptorSet        vk_turb_set;
 static VkPipelineLayout       vk_turb_pipeline_layout;
 static VkPipeline             vk_turb_pipeline;
+
+/* --------------------------------------------------------
+ * Phase 5b-07: GPU compute brush-surface rasterizer atlas.
+ *
+ * The brush surface atlas is a single 4096x4096 R8_UINT
+ * storage image holding D_CacheSurface composites (already-
+ * lit texture x lightmap byte buffers, palette indices) for
+ * every brush surface currently in view.  Sized to the
+ * cross-API max-texture floor (D3D9 SM2 / GL 2.x guarantee
+ * 4096, real Vulkan / D3D11+ hardware goes much higher) so
+ * the same atlas dims work unchanged when future rasterized
+ * backends are added.
+ *
+ * Resource layout:
+ *   vk_brush_atlas_image       (R8_UINT, 4096x4096, GENERAL
+ *                              layout after first frame --
+ *                              the compute shader does
+ *                              imageLoad + imageStore via a
+ *                              storage view, no sampler)
+ *   vk_brush_atlas_staging     (HOST_VISIBLE | HOST_COHERENT
+ *                              VkBuffer of VK_BRUSH_ATLAS_BYTES,
+ *                              permanently mapped; the
+ *                              dispatch site memcpy's CPU
+ *                              cacheblock contents directly
+ *                              into here at the rect offset
+ *                              returned by surf_atlas_get,
+ *                              and record_frame issues a
+ *                              CmdCopyBufferToImage that
+ *                              transfers all dirty rects into
+ *                              the storage image in one shot)
+ *   vk_brush_atlas             (surf_atlas_t *, the RHI-
+ *                              agnostic allocator instance --
+ *                              tracks the key->rect map and
+ *                              the strip free-lists; see
+ *                              surf_atlas.h)
+ *
+ * The strip ladder picks small strips (16/32 tall) heavy and
+ * tall strips (256/512) sparse, matching id1 surface-extent
+ * distribution at typical mip levels.  All sizing knobs are
+ * preprocessor constants; rebalance once the brush dispatch
+ * is wired and per-tier utilization stats are available. */
+#define VK_BRUSH_ATLAS_W      4096u
+#define VK_BRUSH_ATLAS_H      4096u
+#define VK_BRUSH_ATLAS_BYTES  ((size_t)VK_BRUSH_ATLAS_W \
+                            *  (size_t)VK_BRUSH_ATLAS_H)
+#define VK_BRUSH_MAX_ENTRIES  512u
+
+static VkImage                vk_brush_atlas_image;
+static VkDeviceMemory         vk_brush_atlas_memory;
+static VkImageView            vk_brush_atlas_view;
+static VkBuffer               vk_brush_atlas_staging;
+static VkDeviceMemory         vk_brush_atlas_staging_memory;
+static void                  *vk_brush_atlas_staging_ptr;
+static surf_atlas_t          *vk_brush_atlas;
 
 /* --------------------------------------------------------
  * Phase 5b-05: GPU compute sprite rasterizer resources.
@@ -5355,6 +5418,188 @@ backend_vk_create_resources(void)
         }
     }
 
+    /* --------------------------------------------------------
+     * Phase 5b-07 step 2: brush surface atlas resources.
+     *
+     * One VkImage of R8_UINT VK_BRUSH_ATLAS_W x VK_BRUSH_ATLAS_H
+     * = 16 MiB.  Used as a storage image by the brush compute
+     * dispatch (imageLoad via a uimage2D view, see brush.comp in
+     * step 3) and as a transfer destination during the per-frame
+     * staging upload.  Initial layout UNDEFINED; record_frame
+     * transitions to TRANSFER_DST during the upload step then
+     * back to GENERAL for the compute dispatch.
+     *
+     * One staging VkBuffer of VK_BRUSH_ATLAS_BYTES = 16 MiB,
+     * host-visible coherent, permanently mapped.  The dispatch
+     * site memcpys cacheblock contents into here at the rect
+     * offset surf_atlas_get returned; record_frame batches all
+     * dirty rects into one CmdCopyBufferToImage.  Note that
+     * Phase 5b-07 step 2 lands the resources only -- without
+     * the brush dispatch wired (step 3) the staging buffer is
+     * never written and the CopyBufferToImage is never emitted.
+     *
+     * The surf_atlas_t instance carries the strip free-lists,
+     * the (key -> rect) cache, and LRU-eviction state.  Strip
+     * ladder is the recommended Quake distribution from
+     * surf_atlas.h: 32 x 16h, 16 x 32h, 16 x 64h, 8 x 128h,
+     * 2 x 256h, 1 x 512h -- summing to VK_BRUSH_ATLAS_H. */
+    {
+        VkImageCreateInfo            ba_ci;
+        VkMemoryRequirements         ba_mem_req;
+        VkMemoryAllocateInfo         ba_mem_ai;
+        VkImageViewCreateInfo        ba_view_ci;
+        VkBufferCreateInfo           ba_buf_ci;
+        VkMemoryRequirements         ba_buf_mem_req;
+        VkMemoryAllocateInfo         ba_buf_mem_ai;
+        uint32_t                     ba_mem_type;
+        uint32_t                     ba_buf_mem_type;
+        surf_atlas_config_t          ba_cfg;
+        static const surf_atlas_strip_desc_t k_brush_strip_desc[] = {
+            {  16, 32 },  /* 512  px */
+            {  32, 16 },  /* 512  px */
+            {  64, 16 },  /* 1024 px */
+            { 128,  8 },  /* 1024 px */
+            { 256,  2 },  /* 512  px */
+            { 512,  1 }   /* 512  px */
+            /* total              4096 px = VK_BRUSH_ATLAS_H */
+        };
+
+        /* Atlas storage image. */
+        memset(&ba_ci, 0, sizeof(ba_ci));
+        ba_ci.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ba_ci.imageType     = VK_IMAGE_TYPE_2D;
+        ba_ci.format        = VK_FORMAT_R8_UINT;
+        ba_ci.extent.width  = VK_BRUSH_ATLAS_W;
+        ba_ci.extent.height = VK_BRUSH_ATLAS_H;
+        ba_ci.extent.depth  = 1;
+        ba_ci.mipLevels     = 1;
+        ba_ci.arrayLayers   = 1;
+        ba_ci.samples       = VK_SAMPLE_COUNT_1_BIT;
+        ba_ci.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        ba_ci.usage         = VK_IMAGE_USAGE_STORAGE_BIT
+                            | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        ba_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        ba_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        r = vk_fn.CreateImage(vk_device, &ba_ci, NULL,
+                              &vk_brush_atlas_image);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateImage (brush atlas) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        vk_fn.GetImageMemoryRequirements(vk_device, vk_brush_atlas_image,
+                                         &ba_mem_req);
+        ba_mem_type = backend_vk_find_memory_type(ba_mem_req.memoryTypeBits,
+                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (ba_mem_type == UINT32_MAX) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: no DEVICE_LOCAL memory type for brush atlas\n");
+            return false;
+        }
+        memset(&ba_mem_ai, 0, sizeof(ba_mem_ai));
+        ba_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ba_mem_ai.allocationSize  = ba_mem_req.size;
+        ba_mem_ai.memoryTypeIndex = ba_mem_type;
+        r = vk_fn.AllocateMemory(vk_device, &ba_mem_ai, NULL,
+                                 &vk_brush_atlas_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: AllocateMemory (brush atlas) failed (%d)\n", (int)r);
+            return false;
+        }
+        vk_fn.BindImageMemory(vk_device, vk_brush_atlas_image,
+                              vk_brush_atlas_memory, 0);
+
+        memset(&ba_view_ci, 0, sizeof(ba_view_ci));
+        ba_view_ci.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        ba_view_ci.image    = vk_brush_atlas_image;
+        ba_view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        ba_view_ci.format   = VK_FORMAT_R8_UINT;
+        ba_view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        ba_view_ci.subresourceRange.levelCount = 1;
+        ba_view_ci.subresourceRange.layerCount = 1;
+        r = vk_fn.CreateImageView(vk_device, &ba_view_ci, NULL,
+                                  &vk_brush_atlas_view);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateImageView (brush atlas) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        /* Staging buffer.  HOST_VISIBLE | HOST_COHERENT,
+         * permanently mapped; the dispatch site writes
+         * directly into the mapped pointer at the rect's
+         * byte offset.  TRANSFER_SRC for the
+         * CmdCopyBufferToImage that ships its contents to
+         * vk_brush_atlas_image. */
+        memset(&ba_buf_ci, 0, sizeof(ba_buf_ci));
+        ba_buf_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        ba_buf_ci.size        = VK_BRUSH_ATLAS_BYTES;
+        ba_buf_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        ba_buf_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        r = vk_fn.CreateBuffer(vk_device, &ba_buf_ci, NULL,
+                               &vk_brush_atlas_staging);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: CreateBuffer (brush atlas staging) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+        vk_fn.GetBufferMemoryRequirements(vk_device,
+                                          vk_brush_atlas_staging,
+                                          &ba_buf_mem_req);
+        ba_buf_mem_type = backend_vk_find_memory_type(
+            ba_buf_mem_req.memoryTypeBits,
+              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (ba_buf_mem_type == UINT32_MAX) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: no HOST_VISIBLE|COHERENT memory type "
+                "for brush atlas staging\n");
+            return false;
+        }
+        memset(&ba_buf_mem_ai, 0, sizeof(ba_buf_mem_ai));
+        ba_buf_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ba_buf_mem_ai.allocationSize  = ba_buf_mem_req.size;
+        ba_buf_mem_ai.memoryTypeIndex = ba_buf_mem_type;
+        r = vk_fn.AllocateMemory(vk_device, &ba_buf_mem_ai, NULL,
+                                 &vk_brush_atlas_staging_memory);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: AllocateMemory (brush atlas staging) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+        vk_fn.BindBufferMemory(vk_device, vk_brush_atlas_staging,
+                               vk_brush_atlas_staging_memory, 0);
+        r = vk_fn.MapMemory(vk_device, vk_brush_atlas_staging_memory,
+                            0, VK_WHOLE_SIZE, 0,
+                            &vk_brush_atlas_staging_ptr);
+        if (r != VK_SUCCESS) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: MapMemory (brush atlas staging) failed (%d)\n",
+                (int)r);
+            return false;
+        }
+
+        /* RHI-agnostic allocator.  Lives at module scope; freed
+         * in backend_vk_destroy_resources. */
+        memset(&ba_cfg, 0, sizeof(ba_cfg));
+        ba_cfg.width            = VK_BRUSH_ATLAS_W;
+        ba_cfg.height           = VK_BRUSH_ATLAS_H;
+        ba_cfg.max_entries      = VK_BRUSH_MAX_ENTRIES;
+        ba_cfg.strip_desc_count = (uint16_t)(sizeof(k_brush_strip_desc)
+                                  / sizeof(k_brush_strip_desc[0]));
+        ba_cfg.strip_desc       = k_brush_strip_desc;
+        vk_brush_atlas = surf_atlas_create(&ba_cfg);
+        if (!vk_brush_atlas) {
+            if (log_cb) log_cb(RETRO_LOG_ERROR,
+                "rhi-vk: surf_atlas_create failed (brush atlas)\n");
+            return false;
+        }
+    }
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
@@ -5743,6 +5988,48 @@ backend_vk_destroy_resources(void)
     vk_turb_tex_count       = 0;
     vk_turb_tex_upload_first= 0;
     vk_turb_tex_upload_last = 0;
+
+    /* Phase 5b-07 step 2: brush atlas teardown.  Allocator first
+     * (frees its strip free-lists + entry pool); then map / buffer
+     * / memory for staging; then view / image / memory for the
+     * atlas storage image.  Mirrors the create-order in reverse
+     * with the same null-guard pattern as the turb teardown
+     * above. */
+    if (vk_brush_atlas) {
+        surf_atlas_destroy(vk_brush_atlas);
+        vk_brush_atlas = NULL;
+    }
+    if (vk_brush_atlas_staging_memory != VK_NULL_HANDLE
+        && vk_brush_atlas_staging_ptr) {
+        if (vk_fn.UnmapMemory)
+            vk_fn.UnmapMemory(vk_device, vk_brush_atlas_staging_memory);
+        vk_brush_atlas_staging_ptr = NULL;
+    }
+    if (vk_brush_atlas_staging != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyBuffer)
+            vk_fn.DestroyBuffer(vk_device, vk_brush_atlas_staging, NULL);
+        vk_brush_atlas_staging = VK_NULL_HANDLE;
+    }
+    if (vk_brush_atlas_staging_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_brush_atlas_staging_memory, NULL);
+        vk_brush_atlas_staging_memory = VK_NULL_HANDLE;
+    }
+    if (vk_brush_atlas_view != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImageView)
+            vk_fn.DestroyImageView(vk_device, vk_brush_atlas_view, NULL);
+        vk_brush_atlas_view = VK_NULL_HANDLE;
+    }
+    if (vk_brush_atlas_image != VK_NULL_HANDLE) {
+        if (vk_fn.DestroyImage)
+            vk_fn.DestroyImage(vk_device, vk_brush_atlas_image, NULL);
+        vk_brush_atlas_image = VK_NULL_HANDLE;
+    }
+    if (vk_brush_atlas_memory != VK_NULL_HANDLE) {
+        if (vk_fn.FreeMemory)
+            vk_fn.FreeMemory(vk_device, vk_brush_atlas_memory, NULL);
+        vk_brush_atlas_memory = VK_NULL_HANDLE;
+    }
 
     if (vk_sky_pipeline != VK_NULL_HANDLE) {
         if (vk_fn.DestroyPipeline)
@@ -7933,6 +8220,17 @@ backend_vk_begin_frame(void)
                 backend_vk_free_overlay_slot(slot);
         }
     }
+
+    /* Phase 5b-07 step 2: advance the brush atlas's LRU clock.
+     * Entries last touched on previous frames become eviction-
+     * eligible for this frame's allocations.  Safe before
+     * resources are ready -- the guard checks the allocator
+     * was constructed (gated on vk_brush_atlas != NULL rather
+     * than vk_resources_ready, since the atlas is created in
+     * the same create_resources path and stays alive until
+     * destroy_resources). */
+    if (vk_brush_atlas)
+        surf_atlas_begin_frame(vk_brush_atlas);
 #endif
 }
 
