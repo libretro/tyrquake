@@ -622,9 +622,16 @@ struct vk_particles_pc {
 static VkImage                vk_zbuffer;
 static VkDeviceMemory         vk_zbuffer_memory;
 static VkImageView            vk_zbuffer_view;
-static VkBuffer               vk_particles_buffer;
-static VkDeviceMemory         vk_particles_memory;
-static void                  *vk_particles_ptr;
+/* Phase 5b-08 step 2b: particles SSBO is ring-buffered.
+ * dispatch_3d_particles memcpys GpuParticle records into
+ * vk_particles_ptr[active_slot] each frame, and the
+ * compute dispatch reads from the same slot via the
+ * descriptor set bound for that slot.  Without N-buffering,
+ * once QueueWaitIdle is removed, frame N+1's CPU memcpy
+ * would race with frame N's GPU read of the SSBO. */
+static VkBuffer               vk_particles_buffer[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory         vk_particles_memory[VK_FRAME_RING_DEPTH];
+static void                  *vk_particles_ptr[VK_FRAME_RING_DEPTH];
 /* Phase 5b-08 step 2a: zbuf staging is ring-buffered for
  * the same reason as vid.buffer staging -- once
  * QueueWaitIdle is removed, frame N+1's CPU memcpy of
@@ -641,7 +648,14 @@ static VkPipelineLayout       vk_particles_pipeline_layout;
 static VkPipeline             vk_particles_pipeline;
 static VkDescriptorSetLayout  vk_particles_dsl;
 static VkDescriptorPool       vk_particles_pool;
-static VkDescriptorSet        vk_particles_set;
+/* Phase 5b-08 step 2b: N descriptor sets, one per ring
+ * slot.  Each set's binding 0 points at the corresponding
+ * vk_particles_buffer[i]; bindings 1 + 2 (vk_texture_view,
+ * vk_zbuffer_view) are shared across slots (those output
+ * images are still single-instance; step 3 N-buffers
+ * vk_texture).  At dispatch time the active slot's set is
+ * bound. */
+static VkDescriptorSet        vk_particles_set[VK_FRAME_RING_DEPTH];
 static uint32_t               vk_pending_particle_count;
 static struct vk_particles_pc vk_particles_push;
 
@@ -3077,9 +3091,12 @@ backend_vk_create_resources(void)
         VkDescriptorPoolSize         p_pool_sizes[2];
         VkDescriptorPoolCreateInfo   p_pool_ci;
         VkDescriptorSetAllocateInfo  p_set_alloc;
-        VkDescriptorBufferInfo       p_buf_info;
+        /* Phase 5b-08 step 2b: p_buf_info / p_writes are now
+         * declared inside the per-slot loop further down
+         * (p_buf_infos[N] / p_all_writes[3*N]) since the
+         * writes are emitted N times -- one set's worth per
+         * slot. */
         VkDescriptorImageInfo        p_img_info[2];
-        VkWriteDescriptorSet         p_writes[3];
         VkPushConstantRange          p_push_range;
         VkPipelineLayoutCreateInfo   p_pl_ci;
         VkComputePipelineCreateInfo  p_cp_ci;
@@ -3180,63 +3197,75 @@ backend_vk_create_resources(void)
 
         /* 2. vk_particles_buffer (SSBO).  Host-visible +
          *    coherent so dispatch_3d_particles can memcpy
-         *    GpuParticle records directly with no Flush. */
-        memset(&pb_ci, 0, sizeof(pb_ci));
-        pb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        pb_ci.size        = VK_PARTICLES_BYTES;
-        pb_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        pb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+         *    GpuParticle records directly with no Flush.
+         *    Phase 5b-08 step 2b: ring-buffered (one SSBO
+         *    per frame slot). */
+        {
+            unsigned psi;
+            for (psi = 0; psi < VK_FRAME_RING_DEPTH; psi++) {
+                memset(&pb_ci, 0, sizeof(pb_ci));
+                pb_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                pb_ci.size        = VK_PARTICLES_BYTES;
+                pb_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                pb_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        r = vk_fn.CreateBuffer(vk_device, &pb_ci, NULL, &vk_particles_buffer);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: CreateBuffer (particles SSBO) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.CreateBuffer(vk_device, &pb_ci, NULL, &vk_particles_buffer[psi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: CreateBuffer (particles SSBO slot %u) failed (%d)\n",
+                               psi, (int)r);
+                    return false;
+                }
 
-        vk_fn.GetBufferMemoryRequirements(vk_device,
-                                          vk_particles_buffer, &pb_mem_req);
-        pb_mem_type = backend_vk_find_memory_type(
-            pb_mem_req.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        if (pb_mem_type == UINT32_MAX) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: no HOST_VISIBLE|COHERENT memory for particles\n");
-            return false;
-        }
+                vk_fn.GetBufferMemoryRequirements(vk_device,
+                                                  vk_particles_buffer[psi], &pb_mem_req);
+                pb_mem_type = backend_vk_find_memory_type(
+                    pb_mem_req.memoryTypeBits,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                if (pb_mem_type == UINT32_MAX) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: no HOST_VISIBLE|COHERENT memory for particles slot %u\n",
+                               psi);
+                    return false;
+                }
 
-        memset(&pb_mem_ai, 0, sizeof(pb_mem_ai));
-        pb_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        pb_mem_ai.allocationSize  = pb_mem_req.size;
-        pb_mem_ai.memoryTypeIndex = pb_mem_type;
+                memset(&pb_mem_ai, 0, sizeof(pb_mem_ai));
+                pb_mem_ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                pb_mem_ai.allocationSize  = pb_mem_req.size;
+                pb_mem_ai.memoryTypeIndex = pb_mem_type;
 
-        r = vk_fn.AllocateMemory(vk_device, &pb_mem_ai, NULL, &vk_particles_memory);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateMemory (particles) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.AllocateMemory(vk_device, &pb_mem_ai, NULL, &vk_particles_memory[psi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: AllocateMemory (particles slot %u) failed (%d)\n",
+                               psi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.BindBufferMemory(vk_device, vk_particles_buffer,
-                                   vk_particles_memory, 0);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: BindBufferMemory (particles) failed (%d)\n", (int)r);
-            return false;
-        }
+                r = vk_fn.BindBufferMemory(vk_device, vk_particles_buffer[psi],
+                                           vk_particles_memory[psi], 0);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: BindBufferMemory (particles slot %u) failed (%d)\n",
+                               psi, (int)r);
+                    return false;
+                }
 
-        r = vk_fn.MapMemory(vk_device, vk_particles_memory,
-                            0, VK_WHOLE_SIZE, 0, &vk_particles_ptr);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: MapMemory (particles) failed (%d)\n", (int)r);
-            return false;
+                r = vk_fn.MapMemory(vk_device, vk_particles_memory[psi],
+                                    0, VK_WHOLE_SIZE, 0, &vk_particles_ptr[psi]);
+                if (r != VK_SUCCESS) {
+                    if (log_cb)
+                        log_cb(RETRO_LOG_ERROR,
+                               "rhi-vk: MapMemory (particles slot %u) failed (%d)\n",
+                               psi, (int)r);
+                    return false;
+                }
+            }
         }
 
         /* 3. vk_particles_zstaging.  Host-visible buffer
@@ -3361,16 +3390,20 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* 6. Descriptor pool + set allocation. */
+        /* 6. Descriptor pool + set allocation.  Phase 5b-08
+         *    step 2b: pool sized for N sets (maxSets = N),
+         *    poolSizes scaled by N so AllocateDescriptorSets
+         *    can pull N sets out of the same pool in one
+         *    call. */
         memset(&p_pool_sizes, 0, sizeof(p_pool_sizes));
         p_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        p_pool_sizes[0].descriptorCount = 1;
+        p_pool_sizes[0].descriptorCount = 1u * VK_FRAME_RING_DEPTH;
         p_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        p_pool_sizes[1].descriptorCount = 2;
+        p_pool_sizes[1].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
 
         memset(&p_pool_ci, 0, sizeof(p_pool_ci));
         p_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        p_pool_ci.maxSets       = 1;
+        p_pool_ci.maxSets       = VK_FRAME_RING_DEPTH;
         p_pool_ci.poolSizeCount = 2;
         p_pool_ci.pPoolSizes    = p_pool_sizes;
 
@@ -3384,32 +3417,41 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        memset(&p_set_alloc, 0, sizeof(p_set_alloc));
-        p_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        p_set_alloc.descriptorPool     = vk_particles_pool;
-        p_set_alloc.descriptorSetCount = 1;
-        p_set_alloc.pSetLayouts        = &vk_particles_dsl;
+        /* AllocateDescriptorSets wants an array of N
+         * layouts (one per requested set), even though all
+         * N share the same layout handle. */
+        {
+            VkDescriptorSetLayout p_layouts[VK_FRAME_RING_DEPTH];
+            unsigned              psi;
+            for (psi = 0; psi < VK_FRAME_RING_DEPTH; psi++)
+                p_layouts[psi] = vk_particles_dsl;
 
-        r = vk_fn.AllocateDescriptorSets(vk_device, &p_set_alloc,
-                                         &vk_particles_set);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateDescriptorSets (particles) failed (%d)\n",
-                       (int)r);
-            return false;
+            memset(&p_set_alloc, 0, sizeof(p_set_alloc));
+            p_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            p_set_alloc.descriptorPool     = vk_particles_pool;
+            p_set_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+            p_set_alloc.pSetLayouts        = p_layouts;
+
+            r = vk_fn.AllocateDescriptorSets(vk_device, &p_set_alloc,
+                                             vk_particles_set);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateDescriptorSets (particles) failed (%d)\n",
+                           (int)r);
+                return false;
+            }
         }
 
-        /* 7. Update the set with handles.  Storage images
-         *    use imageLayout = GENERAL because that's the
+        /* 7. Update each set with handles.  Binding 0
+         *    differs per slot (the SSBO is ring-buffered);
+         *    bindings 1 and 2 (storage images) are shared
+         *    across slots since vk_texture / vk_zbuffer are
+         *    still single-instance.  Storage images use
+         *    imageLayout = GENERAL because that's the
          *    layout they'll be in during the dispatch
          *    (record_frame transitions them there before
          *    binding this set). */
-        memset(&p_buf_info, 0, sizeof(p_buf_info));
-        p_buf_info.buffer = vk_particles_buffer;
-        p_buf_info.offset = 0;
-        p_buf_info.range  = VK_WHOLE_SIZE;
-
         memset(&p_img_info, 0, sizeof(p_img_info));
         p_img_info[0].sampler     = VK_NULL_HANDLE;
         p_img_info[0].imageView   = vk_texture_view;
@@ -3418,27 +3460,45 @@ backend_vk_create_resources(void)
         p_img_info[1].imageView   = vk_zbuffer_view;
         p_img_info[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-        memset(&p_writes, 0, sizeof(p_writes));
-        p_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        p_writes[0].dstSet          = vk_particles_set;
-        p_writes[0].dstBinding      = 0;
-        p_writes[0].descriptorCount = 1;
-        p_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        p_writes[0].pBufferInfo     = &p_buf_info;
-        p_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        p_writes[1].dstSet          = vk_particles_set;
-        p_writes[1].dstBinding      = 1;
-        p_writes[1].descriptorCount = 1;
-        p_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        p_writes[1].pImageInfo      = &p_img_info[0];
-        p_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        p_writes[2].dstSet          = vk_particles_set;
-        p_writes[2].dstBinding      = 2;
-        p_writes[2].descriptorCount = 1;
-        p_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        p_writes[2].pImageInfo      = &p_img_info[1];
+        {
+            VkDescriptorBufferInfo p_buf_infos[VK_FRAME_RING_DEPTH];
+            VkWriteDescriptorSet   p_all_writes[3 * VK_FRAME_RING_DEPTH];
+            unsigned               psi;
+            unsigned               wi = 0;
 
-        vk_fn.UpdateDescriptorSets(vk_device, 3, p_writes, 0, NULL);
+            memset(p_buf_infos, 0, sizeof(p_buf_infos));
+            memset(p_all_writes, 0, sizeof(p_all_writes));
+
+            for (psi = 0; psi < VK_FRAME_RING_DEPTH; psi++) {
+                p_buf_infos[psi].buffer = vk_particles_buffer[psi];
+                p_buf_infos[psi].offset = 0;
+                p_buf_infos[psi].range  = VK_WHOLE_SIZE;
+
+                p_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                p_all_writes[wi].dstSet          = vk_particles_set[psi];
+                p_all_writes[wi].dstBinding      = 0;
+                p_all_writes[wi].descriptorCount = 1;
+                p_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                p_all_writes[wi].pBufferInfo     = &p_buf_infos[psi];
+                wi++;
+                p_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                p_all_writes[wi].dstSet          = vk_particles_set[psi];
+                p_all_writes[wi].dstBinding      = 1;
+                p_all_writes[wi].descriptorCount = 1;
+                p_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                p_all_writes[wi].pImageInfo      = &p_img_info[0];
+                wi++;
+                p_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                p_all_writes[wi].dstSet          = vk_particles_set[psi];
+                p_all_writes[wi].dstBinding      = 2;
+                p_all_writes[wi].descriptorCount = 1;
+                p_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                p_all_writes[wi].pImageInfo      = &p_img_info[1];
+                wi++;
+            }
+
+            vk_fn.UpdateDescriptorSets(vk_device, wi, p_all_writes, 0, NULL);
+        }
 
         /* 8. Pipeline layout: DSL + push constants. */
         memset(&p_push_range, 0, sizeof(p_push_range));
@@ -6272,7 +6332,13 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_particles_pool, NULL);
         vk_particles_pool = VK_NULL_HANDLE;
-        vk_particles_set  = VK_NULL_HANDLE;
+        /* DestroyDescriptorPool implicitly frees every set
+         * allocated from it.  Zero all N entries. */
+        {
+            unsigned psi;
+            for (psi = 0; psi < VK_FRAME_RING_DEPTH; psi++)
+                vk_particles_set[psi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_particles_dsl != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -6307,16 +6373,23 @@ backend_vk_destroy_resources(void)
             vk_particles_zstaging_ptr[zsi] = NULL;
         }
     }
-    if (vk_particles_buffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyBuffer)
-            vk_fn.DestroyBuffer(vk_device, vk_particles_buffer, NULL);
-        vk_particles_buffer = VK_NULL_HANDLE;
-    }
-    if (vk_particles_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_particles_memory, NULL);
-        vk_particles_memory = VK_NULL_HANDLE;
-        vk_particles_ptr    = NULL;
+    /* Phase 5b-08 step 2b: ring-buffered particles SSBO
+     * teardown.  Same per-slot pattern. */
+    {
+        unsigned psi;
+        for (psi = 0; psi < VK_FRAME_RING_DEPTH; psi++) {
+            if (vk_particles_buffer[psi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyBuffer)
+                    vk_fn.DestroyBuffer(vk_device, vk_particles_buffer[psi], NULL);
+                vk_particles_buffer[psi] = VK_NULL_HANDLE;
+            }
+            if (vk_particles_memory[psi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_particles_memory[psi], NULL);
+                vk_particles_memory[psi] = VK_NULL_HANDLE;
+            }
+            vk_particles_ptr[psi] = NULL;
+        }
     }
     if (vk_zbuffer_view != VK_NULL_HANDLE) {
         if (vk_fn.DestroyImageView)
@@ -7855,10 +7928,10 @@ backend_vk_dispatch_3d_particles_impl(struct particle_s *head)
     struct particle_s      *p;
     uint32_t                count;
 
-    if (!vk_resources_ready || !vk_particles_ptr)
+    if (!vk_resources_ready || !vk_particles_ptr[vk_active_slot])
         return;
 
-    dst   = (struct vk_gpu_particle *)vk_particles_ptr;
+    dst   = (struct vk_gpu_particle *)vk_particles_ptr[vk_active_slot];
     count = 0;
     for (p = head; p && count < VK_PARTICLES_MAX; p = p->next) {
         dst[count].origin[0] = p->org[0];
@@ -9304,7 +9377,7 @@ backend_vk_record_frame(void)
                                         VK_PIPELINE_BIND_POINT_COMPUTE,
                                         vk_particles_pipeline_layout,
                                         0,
-                                        1, &vk_particles_set,
+                                        1, &vk_particles_set[vk_active_slot],
                                         0, NULL);
             vk_fn.CmdPushConstants(vk_cmd_buffer,
                                    vk_particles_pipeline_layout,
