@@ -289,9 +289,29 @@ static uint32_t         vk_queue_family;
  * silently no-ops, falling through to the dupe path in
  * retro_run -- the same visual end state as Phase 3b. */
 static qboolean         vk_resources_ready;
-static VkImage          vk_image;
-static VkDeviceMemory   vk_image_memory;
-static VkImageView      vk_image_view;
+/* Phase 5b-08 step 1: ring depth used by ALL N-buffered
+ * arrays below.  Defined here (above the first use) so
+ * every static array decl can reference it.  Full
+ * explanation of the ring design at the
+ * vk_frame_ctx_t declaration further down. */
+#define VK_FRAME_RING_DEPTH 2
+
+/* Phase 5b-08 step 3a: vk_image / _memory / _view ring-
+ * buffered.  vk_image is the R8G8B8A8_UNORM final compose
+ * target the libretro frontend reads via set_image.
+ * Frame N's CB writes to vk_image[slot N]; while the
+ * frontend may still be reading it (the set_image spec
+ * says the image is valid only until video_refresh
+ * returns, but with the step-3b render-done semaphore the
+ * frontend defers its actual read until signal), frame
+ * N+1's CB writes to vk_image[slot N+1] -- a different
+ * image, so no race.  This commit lays down the ring
+ * wiring without flipping behavior; 3b adds the semaphore
+ * handoff and removes QueueWaitIdle so the ring becomes
+ * load-bearing. */
+static VkImage          vk_image[VK_FRAME_RING_DEPTH];
+static VkDeviceMemory   vk_image_memory[VK_FRAME_RING_DEPTH];
+static VkImageView      vk_image_view[VK_FRAME_RING_DEPTH];
 static VkCommandPool    vk_cmd_pool;
 static VkCommandBuffer  vk_cmd_buffer;
 
@@ -330,7 +350,6 @@ static VkCommandBuffer  vk_cmd_buffer;
  * record_frame and the one-shot recording paths reference
  * unchanged; begin_frame sets it to the active slot's CB.
  * The ring slots own the actual VkCommandBuffer handles. */
-#define VK_FRAME_RING_DEPTH 2
 
 typedef struct vk_frame_ctx_s {
     VkCommandBuffer cmd_buffer;
@@ -429,7 +448,9 @@ struct overlay_draw {
 static VkShaderModule       vk_overlay_vs_module;
 static VkShaderModule       vk_overlay_fs_module;
 static VkRenderPass         vk_overlay_render_pass;
-static VkFramebuffer        vk_overlay_framebuffer;
+/* Phase 5b-08 step 3a: ring-buffered overlay framebuffer.
+ * Each slot's framebuffer wraps its slot's vk_image_view. */
+static VkFramebuffer        vk_overlay_framebuffer[VK_FRAME_RING_DEPTH];
 static VkPipeline           vk_overlay_pipeline;
 /* Phase 5b-08 step 2e: overlay vertex buffer ring-buffered.
  * backend_vk_fill_overlay_vb writes the per-frame 2D draw
@@ -531,7 +552,11 @@ static VkDeviceSize           vk_staging_size;
 static void                  *vk_staging_ptr[VK_FRAME_RING_DEPTH];
 static VkDescriptorSetLayout  vk_descriptor_set_layout;
 static VkDescriptorPool       vk_descriptor_pool;
-static VkDescriptorSet        vk_descriptor_set;
+/* Phase 5b-08 step 3a: ring-buffered.  Binding 2 (storage
+ * image u_output) differs per slot because vk_image_view is
+ * now N-buffered.  Bindings 0 + 1 (sampled vk_texture +
+ * vk_palette_texture) are shared across slots. */
+static VkDescriptorSet        vk_descriptor_set[VK_FRAME_RING_DEPTH];
 
 /* Phase 4f staging-buffer layout constants.  The palette is
  * 256 RGBA8 entries = 1 KiB, placed immediately after the
@@ -754,7 +779,11 @@ static VkPipelineLayout       vk_warp_pipeline_layout;
 static VkPipeline             vk_warp_pipeline;
 static VkDescriptorSetLayout  vk_warp_dsl;
 static VkDescriptorPool       vk_warp_pool;
-static VkDescriptorSet        vk_warp_set;
+/* Phase 5b-08 step 3a: ring-buffered.  Binding 2 (storage
+ * image u_output = vk_image_view) differs per slot.
+ * Bindings 0/1/3 (sampled vk_texture, sampled vk_palette_
+ * texture, warp UBO) are shared. */
+static VkDescriptorSet        vk_warp_set[VK_FRAME_RING_DEPTH];
 static qboolean               vk_warp_active;
 static struct vk_warp_pc      vk_warp_push;
 
@@ -1396,8 +1425,12 @@ static struct vk_alias_slot_cache_entry vk_alias_cmap_cache[VK_ALIAS_CMAP_SLOTS]
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
  * VkImageViewCreateInfo is what the frontend uses to know
- * how to sample our image).  Lifetime: until context_destroy. */
-static struct retro_vulkan_image vk_retro_image;
+ * how to sample our image).  Lifetime: until context_destroy.
+ * Phase 5b-08 step 3a: N copies, one per slot; each holds
+ * the slot's image_view and create_info.  end_frame's
+ * set_image call hands the active slot's entry to the
+ * frontend. */
+static struct retro_vulkan_image vk_retro_image[VK_FRAME_RING_DEPTH];
 
 /* Function-pointer table.  Populated at context_reset via
  * the frontend-supplied get_instance_proc_addr /
@@ -1817,7 +1850,12 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     ds_image_infos[1].imageView   = vk_palette_texture_view;
     ds_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     ds_image_infos[2].sampler     = VK_NULL_HANDLE;
-    ds_image_infos[2].imageView   = vk_image_view;
+    /* Phase 5b-08 step 3a: overlay graphics path does NOT
+     * read binding 2 (storage image is a compute-only slot
+     * in the shared DSL).  Bind slot 0's view as a
+     * placeholder to satisfy the DSL; the value is never
+     * sampled. */
+    ds_image_infos[2].imageView   = vk_image_view[0];
     ds_image_infos[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     memset(&ds_writes, 0, sizeof(ds_writes));
@@ -2160,80 +2198,96 @@ backend_vk_create_resources(void)
     image_ci.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
     image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    r = vk_fn.CreateImage(vk_device, &image_ci, NULL, &vk_image);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateImage failed (%d)\n", (int)r);
-        return false;
+    /* Phase 5b-08 step 3a: ring-buffer the render target.
+     * Each slot gets its own VkImage + VkDeviceMemory +
+     * VkImageView + retro_vulkan_image, so frame N+1's
+     * compute write can target a different image than frame
+     * N's still-being-read-by-frontend image once 3b lifts
+     * QueueWaitIdle.  The image_ci itself is identical
+     * across slots, so it's built once outside the loop. */
+    {
+        unsigned imsi;
+        for (imsi = 0; imsi < VK_FRAME_RING_DEPTH; imsi++) {
+            r = vk_fn.CreateImage(vk_device, &image_ci, NULL, &vk_image[imsi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateImage (slot %u) failed (%d)\n",
+                           imsi, (int)r);
+                return false;
+            }
+
+            memset(&mem_req, 0, sizeof(mem_req));
+            vk_fn.GetImageMemoryRequirements(vk_device, vk_image[imsi], &mem_req);
+
+            mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
+                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (mem_type == 0xFFFFFFFFu) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: no device-local memory type for render target slot %u\n",
+                           imsi);
+                return false;
+            }
+
+            memset(&alloc_info, 0, sizeof(alloc_info));
+            alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            alloc_info.allocationSize  = mem_req.size;
+            alloc_info.memoryTypeIndex = mem_type;
+
+            r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL, &vk_image_memory[imsi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateMemory %lu bytes (slot %u) failed (%d)\n",
+                           (unsigned long)mem_req.size, imsi, (int)r);
+                return false;
+            }
+
+            r = vk_fn.BindImageMemory(vk_device, vk_image[imsi], vk_image_memory[imsi], 0);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: BindImageMemory (slot %u) failed (%d)\n",
+                           imsi, (int)r);
+                return false;
+            }
+
+            /* Image view + retro_vulkan_image: per-slot
+             * view_ci because view_ci.image points at the
+             * slot's image.  Each slot's vk_retro_image
+             * holds its own image_view + create_info copy
+             * for the spec-required lifetime. */
+            memset(&view_ci, 0, sizeof(view_ci));
+            view_ci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            view_ci.image            = vk_image[imsi];
+            view_ci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+            view_ci.format           = VK_FORMAT_R8G8B8A8_UNORM;
+            view_ci.components.r     = VK_COMPONENT_SWIZZLE_IDENTITY;
+            view_ci.components.g     = VK_COMPONENT_SWIZZLE_IDENTITY;
+            view_ci.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
+            view_ci.components.a     = VK_COMPONENT_SWIZZLE_IDENTITY;
+            view_ci.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+            view_ci.subresourceRange.baseMipLevel   = 0;
+            view_ci.subresourceRange.levelCount     = 1;
+            view_ci.subresourceRange.baseArrayLayer = 0;
+            view_ci.subresourceRange.layerCount     = 1;
+
+            r = vk_fn.CreateImageView(vk_device, &view_ci, NULL, &vk_image_view[imsi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateImageView (slot %u) failed (%d)\n",
+                           imsi, (int)r);
+                return false;
+            }
+
+            memset(&vk_retro_image[imsi], 0, sizeof(vk_retro_image[imsi]));
+            vk_retro_image[imsi].image_view   = vk_image_view[imsi];
+            vk_retro_image[imsi].image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            vk_retro_image[imsi].create_info  = view_ci;
+        }
     }
-
-    /* Allocate device-local memory and bind it to the image. */
-    memset(&mem_req, 0, sizeof(mem_req));
-    vk_fn.GetImageMemoryRequirements(vk_device, vk_image, &mem_req);
-
-    mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (mem_type == 0xFFFFFFFFu) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: no device-local memory type for render target\n");
-        return false;
-    }
-
-    memset(&alloc_info, 0, sizeof(alloc_info));
-    alloc_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.allocationSize  = mem_req.size;
-    alloc_info.memoryTypeIndex = mem_type;
-
-    r = vk_fn.AllocateMemory(vk_device, &alloc_info, NULL, &vk_image_memory);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: AllocateMemory %lu bytes failed (%d)\n",
-                   (unsigned long)mem_req.size, (int)r);
-        return false;
-    }
-
-    r = vk_fn.BindImageMemory(vk_device, vk_image, vk_image_memory, 0);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi-vk: BindImageMemory failed (%d)\n", (int)r);
-        return false;
-    }
-
-    /* Image view (2D, COLOR aspect).  The view -- and the
-     * create_info we built it from -- both go into the
-     * retro_vulkan_image we hand to set_image.  The libretro
-     * spec says the frontend may reinterpret pNext/format
-     * etc., so the create_info has to outlive the
-     * video_refresh call.  Storing it inside vk_retro_image
-     * (which is file-static) satisfies that lifetime. */
-    memset(&view_ci, 0, sizeof(view_ci));
-    view_ci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_ci.image            = vk_image;
-    view_ci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
-    view_ci.format           = VK_FORMAT_R8G8B8A8_UNORM;
-    view_ci.components.r     = VK_COMPONENT_SWIZZLE_IDENTITY;
-    view_ci.components.g     = VK_COMPONENT_SWIZZLE_IDENTITY;
-    view_ci.components.b     = VK_COMPONENT_SWIZZLE_IDENTITY;
-    view_ci.components.a     = VK_COMPONENT_SWIZZLE_IDENTITY;
-    view_ci.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    view_ci.subresourceRange.baseMipLevel   = 0;
-    view_ci.subresourceRange.levelCount     = 1;
-    view_ci.subresourceRange.baseArrayLayer = 0;
-    view_ci.subresourceRange.layerCount     = 1;
-
-    r = vk_fn.CreateImageView(vk_device, &view_ci, NULL, &vk_image_view);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR, "rhi-vk: CreateImageView failed (%d)\n", (int)r);
-        return false;
-    }
-
-    memset(&vk_retro_image, 0, sizeof(vk_retro_image));
-    vk_retro_image.image_view   = vk_image_view;
-    vk_retro_image.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    vk_retro_image.create_info  = view_ci;
 
     /* ---------------------------------------------------------
      * Compute shader module.  Just the SPIR-V bytecode
@@ -2612,21 +2666,22 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    /* Descriptor pool sized for the compute set plus one
-     * per overlay slot.  Each set needs 2 sampler
-     * descriptors (binding 0 = index, binding 1 =
-     * palette) + 1 storage-image descriptor (binding 2;
-     * overlay sets use a placeholder, but the DSL has
-     * the slot so the pool must account for it). */
+    /* Descriptor pool sized for N compute sets (Phase
+     * 5b-08 step 3a: ring-buffered) plus one per overlay
+     * slot.  The compute path's storage-image binding
+     * (binding 2) needs a per-slot vk_image_view, so each
+     * ring slot gets its own descriptor set.  Each set
+     * needs 2 sampler descriptors + 1 storage-image
+     * descriptor; pool sizes scale accordingly. */
     memset(&dp_sizes, 0, sizeof(dp_sizes));
     dp_sizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    dp_sizes[0].descriptorCount = 2 * (1 + OVERLAY_SLOT_MAX);
+    dp_sizes[0].descriptorCount = 2u * (VK_FRAME_RING_DEPTH + OVERLAY_SLOT_MAX);
     dp_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    dp_sizes[1].descriptorCount = 1 + OVERLAY_SLOT_MAX;
+    dp_sizes[1].descriptorCount = (uint32_t)VK_FRAME_RING_DEPTH + OVERLAY_SLOT_MAX;
 
     memset(&dp_ci, 0, sizeof(dp_ci));
     dp_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    dp_ci.maxSets       = 1 + OVERLAY_SLOT_MAX;
+    dp_ci.maxSets       = (uint32_t)VK_FRAME_RING_DEPTH + OVERLAY_SLOT_MAX;
     dp_ci.poolSizeCount = 2;
     dp_ci.pPoolSizes    = dp_sizes;
 
@@ -2638,18 +2693,25 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    memset(&ds_alloc, 0, sizeof(ds_alloc));
-    ds_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ds_alloc.descriptorPool     = vk_descriptor_pool;
-    ds_alloc.descriptorSetCount = 1;
-    ds_alloc.pSetLayouts        = &vk_descriptor_set_layout;
+    {
+        VkDescriptorSetLayout ds_layouts[VK_FRAME_RING_DEPTH];
+        unsigned              dsi;
+        for (dsi = 0; dsi < VK_FRAME_RING_DEPTH; dsi++)
+            ds_layouts[dsi] = vk_descriptor_set_layout;
 
-    r = vk_fn.AllocateDescriptorSets(vk_device, &ds_alloc, &vk_descriptor_set);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: AllocateDescriptorSets failed (%d)\n", (int)r);
-        return false;
+        memset(&ds_alloc, 0, sizeof(ds_alloc));
+        ds_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        ds_alloc.descriptorPool     = vk_descriptor_pool;
+        ds_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+        ds_alloc.pSetLayouts        = ds_layouts;
+
+        r = vk_fn.AllocateDescriptorSets(vk_device, &ds_alloc, vk_descriptor_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets failed (%d)\n", (int)r);
+            return false;
+        }
     }
     /* Per-slot overlay descriptor sets are allocated
      * lazily by backend_vk_upload_pic_slot when each slot
@@ -2665,8 +2727,12 @@ backend_vk_create_resources(void)
      * SHADER_READ_ONLY_OPTIMAL for the compute reads, and
      * vk_image in GENERAL for the compute write.
      *
-     * Binding 2 has no sampler: storage-image descriptors
-     * sample-less, the shader uses imageStore directly. */
+     * Phase 5b-08 step 3a: bindings 0 + 1 (vk_texture_view
+     * and vk_palette_texture_view) are shared across all
+     * ring slots; binding 2 (vk_image_view) is per-slot.
+     * Bindings 0/1 image_info common; binding 2 has a
+     * per-slot ds_image_view_storage entry that points at
+     * the slot's vk_image_view. */
     memset(&ds_image_infos, 0, sizeof(ds_image_infos));
     ds_image_infos[0].sampler     = vk_sampler;
     ds_image_infos[0].imageView   = vk_texture_view;
@@ -2674,34 +2740,54 @@ backend_vk_create_resources(void)
     ds_image_infos[1].sampler     = vk_sampler;
     ds_image_infos[1].imageView   = vk_palette_texture_view;
     ds_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    ds_image_infos[2].sampler     = VK_NULL_HANDLE;
-    ds_image_infos[2].imageView   = vk_image_view;
-    ds_image_infos[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    /* ds_image_infos[2] (vk_image_view) is set per-slot
+     * inside the loop below. */
 
-    memset(&ds_writes, 0, sizeof(ds_writes));
-    ds_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    ds_writes[0].dstSet          = vk_descriptor_set;
-    ds_writes[0].dstBinding      = 0;
-    ds_writes[0].dstArrayElement = 0;
-    ds_writes[0].descriptorCount = 1;
-    ds_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    ds_writes[0].pImageInfo      = &ds_image_infos[0];
-    ds_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    ds_writes[1].dstSet          = vk_descriptor_set;
-    ds_writes[1].dstBinding      = 1;
-    ds_writes[1].dstArrayElement = 0;
-    ds_writes[1].descriptorCount = 1;
-    ds_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    ds_writes[1].pImageInfo      = &ds_image_infos[1];
-    ds_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    ds_writes[2].dstSet          = vk_descriptor_set;
-    ds_writes[2].dstBinding      = 2;
-    ds_writes[2].dstArrayElement = 0;
-    ds_writes[2].descriptorCount = 1;
-    ds_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    ds_writes[2].pImageInfo      = &ds_image_infos[2];
+    {
+        VkDescriptorImageInfo ds_storage_infos[VK_FRAME_RING_DEPTH];
+        VkWriteDescriptorSet  ds_all_writes[3 * VK_FRAME_RING_DEPTH];
+        unsigned              dsi;
+        unsigned              wi = 0;
 
-    vk_fn.UpdateDescriptorSets(vk_device, 3, ds_writes, 0, NULL);
+        memset(ds_storage_infos, 0, sizeof(ds_storage_infos));
+        memset(ds_all_writes,    0, sizeof(ds_all_writes));
+
+        for (dsi = 0; dsi < VK_FRAME_RING_DEPTH; dsi++) {
+            ds_storage_infos[dsi].sampler     = VK_NULL_HANDLE;
+            ds_storage_infos[dsi].imageView   = vk_image_view[dsi];
+            ds_storage_infos[dsi].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+            /* Binding 0: sampled vk_texture (shared). */
+            ds_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            ds_all_writes[wi].dstSet          = vk_descriptor_set[dsi];
+            ds_all_writes[wi].dstBinding      = 0;
+            ds_all_writes[wi].dstArrayElement = 0;
+            ds_all_writes[wi].descriptorCount = 1;
+            ds_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            ds_all_writes[wi].pImageInfo      = &ds_image_infos[0];
+            wi++;
+            /* Binding 1: sampled vk_palette_texture (shared). */
+            ds_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            ds_all_writes[wi].dstSet          = vk_descriptor_set[dsi];
+            ds_all_writes[wi].dstBinding      = 1;
+            ds_all_writes[wi].dstArrayElement = 0;
+            ds_all_writes[wi].descriptorCount = 1;
+            ds_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            ds_all_writes[wi].pImageInfo      = &ds_image_infos[1];
+            wi++;
+            /* Binding 2: storage vk_image_view (per-slot). */
+            ds_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            ds_all_writes[wi].dstSet          = vk_descriptor_set[dsi];
+            ds_all_writes[wi].dstBinding      = 2;
+            ds_all_writes[wi].dstArrayElement = 0;
+            ds_all_writes[wi].descriptorCount = 1;
+            ds_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            ds_all_writes[wi].pImageInfo      = &ds_storage_infos[dsi];
+            wi++;
+        }
+
+        vk_fn.UpdateDescriptorSets(vk_device, wi, ds_all_writes, 0, NULL);
+    }
 
     /* ---------------------------------------------------------
      * Pipeline layout.  Includes the Phase 4c descriptor set
@@ -2842,25 +2928,34 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    /* Framebuffer.  Wraps the same vk_image_view the
-     * compute dispatch writes to, so the overlay's draws
-     * land on top of the compute output. */
-    ov_fb_attachments[0] = vk_image_view;
-    memset(&ov_fb_ci, 0, sizeof(ov_fb_ci));
-    ov_fb_ci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    ov_fb_ci.renderPass      = vk_overlay_render_pass;
-    ov_fb_ci.attachmentCount = 1;
-    ov_fb_ci.pAttachments    = ov_fb_attachments;
-    ov_fb_ci.width           = width;
-    ov_fb_ci.height          = height;
-    ov_fb_ci.layers          = 1;
+    /* Framebuffer.  Wraps the slot's vk_image_view (Phase
+     * 5b-08 step 3a: per-slot now) the compute dispatch
+     * writes to, so the overlay's draws land on top of the
+     * compute output.  ov_fb_ci is otherwise identical
+     * across slots; only the attachment changes. */
+    {
+        unsigned ovfi;
+        for (ovfi = 0; ovfi < VK_FRAME_RING_DEPTH; ovfi++) {
+            ov_fb_attachments[0] = vk_image_view[ovfi];
+            memset(&ov_fb_ci, 0, sizeof(ov_fb_ci));
+            ov_fb_ci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            ov_fb_ci.renderPass      = vk_overlay_render_pass;
+            ov_fb_ci.attachmentCount = 1;
+            ov_fb_ci.pAttachments    = ov_fb_attachments;
+            ov_fb_ci.width           = width;
+            ov_fb_ci.height          = height;
+            ov_fb_ci.layers          = 1;
 
-    r = vk_fn.CreateFramebuffer(vk_device, &ov_fb_ci, NULL, &vk_overlay_framebuffer);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: CreateFramebuffer (overlay) failed (%d)\n", (int)r);
-        return false;
+            r = vk_fn.CreateFramebuffer(vk_device, &ov_fb_ci, NULL,
+                                        &vk_overlay_framebuffer[ovfi]);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateFramebuffer (overlay slot %u) failed (%d)\n",
+                           ovfi, (int)r);
+                return false;
+            }
+        }
     }
 
     /* Pipeline layout.  Phase 4i reuses vk_pipeline_layout
@@ -3885,18 +3980,20 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        /* 5. Pool + set allocation. */
+        /* 5. Pool + N sets allocation (Phase 5b-08 step
+         *    3a: ring-buffered because binding 2 = vk_
+         *    image_view is per-slot). */
         memset(&w_pool_sizes, 0, sizeof(w_pool_sizes));
         w_pool_sizes[0].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        w_pool_sizes[0].descriptorCount = 2;
+        w_pool_sizes[0].descriptorCount = 2u * VK_FRAME_RING_DEPTH;
         w_pool_sizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        w_pool_sizes[1].descriptorCount = 1;
+        w_pool_sizes[1].descriptorCount = 1u * VK_FRAME_RING_DEPTH;
         w_pool_sizes[2].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        w_pool_sizes[2].descriptorCount = 1;
+        w_pool_sizes[2].descriptorCount = 1u * VK_FRAME_RING_DEPTH;
 
         memset(&w_pool_ci, 0, sizeof(w_pool_ci));
         w_pool_ci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        w_pool_ci.maxSets       = 1;
+        w_pool_ci.maxSets       = VK_FRAME_RING_DEPTH;
         w_pool_ci.poolSizeCount = 3;
         w_pool_ci.pPoolSizes    = w_pool_sizes;
 
@@ -3913,29 +4010,41 @@ backend_vk_create_resources(void)
             return false;
         }
 
-        memset(&w_set_alloc, 0, sizeof(w_set_alloc));
-        w_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        w_set_alloc.descriptorPool     = vk_warp_pool;
-        w_set_alloc.descriptorSetCount = 1;
-        w_set_alloc.pSetLayouts        = &vk_warp_dsl;
+        {
+            VkDescriptorSetLayout w_layouts[VK_FRAME_RING_DEPTH];
+            unsigned              wsi;
+            for (wsi = 0; wsi < VK_FRAME_RING_DEPTH; wsi++)
+                w_layouts[wsi] = vk_warp_dsl;
 
-        r = vk_fn.AllocateDescriptorSets(vk_device, &w_set_alloc, &vk_warp_set);
-        if (r != VK_SUCCESS) {
-            if (log_cb)
-                log_cb(RETRO_LOG_ERROR,
-                       "rhi-vk: AllocateDescriptorSets (warp) failed (%d)\n",
-                       (int)r);
-            vk_fn.UnmapMemory(vk_device, wt_staging_memory);
-            vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
-            vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
-            return false;
+            memset(&w_set_alloc, 0, sizeof(w_set_alloc));
+            w_set_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            w_set_alloc.descriptorPool     = vk_warp_pool;
+            w_set_alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+            w_set_alloc.pSetLayouts        = w_layouts;
+
+            r = vk_fn.AllocateDescriptorSets(vk_device, &w_set_alloc, vk_warp_set);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: AllocateDescriptorSets (warp) failed (%d)\n",
+                           (int)r);
+                vk_fn.UnmapMemory(vk_device, wt_staging_memory);
+                vk_fn.FreeMemory(vk_device, wt_staging_memory, NULL);
+                vk_fn.DestroyBuffer(vk_device, wt_staging, NULL);
+                return false;
+            }
         }
 
         /* 6. Update set bindings.  vk_texture sampled via
          *    SHADER_READ_ONLY (the regular palette layout
          *    transition leaves it there; ditto vk_palette_
          *    texture).  vk_image storage via GENERAL.  The
-         *    UBO uses the buffer info union member. */
+         *    UBO uses the buffer info union member.
+         *
+         *    Phase 5b-08 step 3a: bindings 0/1/3 are shared
+         *    across slots; binding 2 (vk_image_view) is per
+         *    slot.  Emit 4*N writes from a single
+         *    UpdateDescriptorSets call. */
         memset(&w_img_info, 0, sizeof(w_img_info));
         w_img_info[0].sampler     = vk_sampler;
         w_img_info[0].imageView   = vk_texture_view;
@@ -3943,42 +4052,64 @@ backend_vk_create_resources(void)
         w_img_info[1].sampler     = vk_sampler;
         w_img_info[1].imageView   = vk_palette_texture_view;
         w_img_info[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        w_img_info[2].sampler     = VK_NULL_HANDLE;
-        w_img_info[2].imageView   = vk_image_view;
-        w_img_info[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        /* w_img_info[2] (vk_image_view) populated per-slot
+         * inside the write loop below. */
 
         memset(&w_buf_info, 0, sizeof(w_buf_info));
         w_buf_info.buffer = vk_warp_table_buffer;
         w_buf_info.offset = 0;
         w_buf_info.range  = VK_WHOLE_SIZE;
 
-        memset(&w_writes, 0, sizeof(w_writes));
-        w_writes[0].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w_writes[0].dstSet          = vk_warp_set;
-        w_writes[0].dstBinding      = 0;
-        w_writes[0].descriptorCount = 1;
-        w_writes[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        w_writes[0].pImageInfo      = &w_img_info[0];
-        w_writes[1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w_writes[1].dstSet          = vk_warp_set;
-        w_writes[1].dstBinding      = 1;
-        w_writes[1].descriptorCount = 1;
-        w_writes[1].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        w_writes[1].pImageInfo      = &w_img_info[1];
-        w_writes[2].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w_writes[2].dstSet          = vk_warp_set;
-        w_writes[2].dstBinding      = 2;
-        w_writes[2].descriptorCount = 1;
-        w_writes[2].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        w_writes[2].pImageInfo      = &w_img_info[2];
-        w_writes[3].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        w_writes[3].dstSet          = vk_warp_set;
-        w_writes[3].dstBinding      = 3;
-        w_writes[3].descriptorCount = 1;
-        w_writes[3].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        w_writes[3].pBufferInfo     = &w_buf_info;
+        {
+            VkDescriptorImageInfo w_storage_infos[VK_FRAME_RING_DEPTH];
+            VkWriteDescriptorSet  w_all_writes[4 * VK_FRAME_RING_DEPTH];
+            unsigned              wsi;
+            unsigned              wi = 0;
 
-        vk_fn.UpdateDescriptorSets(vk_device, 4, w_writes, 0, NULL);
+            memset(w_storage_infos, 0, sizeof(w_storage_infos));
+            memset(w_all_writes,    0, sizeof(w_all_writes));
+
+            for (wsi = 0; wsi < VK_FRAME_RING_DEPTH; wsi++) {
+                w_storage_infos[wsi].sampler     = VK_NULL_HANDLE;
+                w_storage_infos[wsi].imageView   = vk_image_view[wsi];
+                w_storage_infos[wsi].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+                /* Binding 0: sampled vk_texture (shared). */
+                w_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                w_all_writes[wi].dstSet          = vk_warp_set[wsi];
+                w_all_writes[wi].dstBinding      = 0;
+                w_all_writes[wi].descriptorCount = 1;
+                w_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                w_all_writes[wi].pImageInfo      = &w_img_info[0];
+                wi++;
+                /* Binding 1: sampled vk_palette_texture (shared). */
+                w_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                w_all_writes[wi].dstSet          = vk_warp_set[wsi];
+                w_all_writes[wi].dstBinding      = 1;
+                w_all_writes[wi].descriptorCount = 1;
+                w_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                w_all_writes[wi].pImageInfo      = &w_img_info[1];
+                wi++;
+                /* Binding 2: storage vk_image_view (per-slot). */
+                w_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                w_all_writes[wi].dstSet          = vk_warp_set[wsi];
+                w_all_writes[wi].dstBinding      = 2;
+                w_all_writes[wi].descriptorCount = 1;
+                w_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                w_all_writes[wi].pImageInfo      = &w_storage_infos[wsi];
+                wi++;
+                /* Binding 3: warp_table UBO (shared, read-only). */
+                w_all_writes[wi].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                w_all_writes[wi].dstSet          = vk_warp_set[wsi];
+                w_all_writes[wi].dstBinding      = 3;
+                w_all_writes[wi].descriptorCount = 1;
+                w_all_writes[wi].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                w_all_writes[wi].pBufferInfo     = &w_buf_info;
+                wi++;
+            }
+
+            vk_fn.UpdateDescriptorSets(vk_device, wi, w_all_writes, 0, NULL);
+        }
 
         /* 7. Pipeline layout. */
         memset(&w_push_range, 0, sizeof(w_push_range));
@@ -6282,7 +6413,11 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_warp_pool, NULL);
         vk_warp_pool = VK_NULL_HANDLE;
-        vk_warp_set  = VK_NULL_HANDLE;
+        {
+            unsigned wsi;
+            for (wsi = 0; wsi < VK_FRAME_RING_DEPTH; wsi++)
+                vk_warp_set[wsi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_warp_dsl != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -6776,7 +6911,11 @@ backend_vk_destroy_resources(void)
         if (vk_fn.DestroyDescriptorPool)
             vk_fn.DestroyDescriptorPool(vk_device, vk_descriptor_pool, NULL);
         vk_descriptor_pool = VK_NULL_HANDLE;
-        vk_descriptor_set  = VK_NULL_HANDLE;
+        {
+            unsigned dsi;
+            for (dsi = 0; dsi < VK_FRAME_RING_DEPTH; dsi++)
+                vk_descriptor_set[dsi] = VK_NULL_HANDLE;
+        }
     }
     if (vk_descriptor_set_layout != VK_NULL_HANDLE) {
         if (vk_fn.DestroyDescriptorSetLayout)
@@ -6897,10 +7036,18 @@ backend_vk_destroy_resources(void)
         vk_overlay_draw_count    = 0;
         vk_overlay_upload_offset = 0;
     }
-    if (vk_overlay_framebuffer != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyFramebuffer)
-            vk_fn.DestroyFramebuffer(vk_device, vk_overlay_framebuffer, NULL);
-        vk_overlay_framebuffer = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 3a: N× overlay framebuffer
+     * teardown.  Each slot's framebuffer wrapped its
+     * slot's vk_image_view; destroy in matching order. */
+    {
+        unsigned ovfi;
+        for (ovfi = 0; ovfi < VK_FRAME_RING_DEPTH; ovfi++) {
+            if (vk_overlay_framebuffer[ovfi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyFramebuffer)
+                    vk_fn.DestroyFramebuffer(vk_device, vk_overlay_framebuffer[ovfi], NULL);
+                vk_overlay_framebuffer[ovfi] = VK_NULL_HANDLE;
+            }
+        }
     }
     if (vk_overlay_render_pass != VK_NULL_HANDLE) {
         if (vk_fn.DestroyRenderPass)
@@ -6936,22 +7083,29 @@ backend_vk_destroy_resources(void)
             vk_fn.DestroyShaderModule(vk_device, vk_cs_module, NULL);
         vk_cs_module = VK_NULL_HANDLE;
     }
-    if (vk_image_view != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyImageView)
-            vk_fn.DestroyImageView(vk_device, vk_image_view, NULL);
-        vk_image_view = VK_NULL_HANDLE;
+    /* Phase 5b-08 step 3a: N× vk_image / _view / _memory
+     * teardown.  Reverse-create order per slot. */
+    {
+        unsigned imsi;
+        for (imsi = 0; imsi < VK_FRAME_RING_DEPTH; imsi++) {
+            if (vk_image_view[imsi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyImageView)
+                    vk_fn.DestroyImageView(vk_device, vk_image_view[imsi], NULL);
+                vk_image_view[imsi] = VK_NULL_HANDLE;
+            }
+            if (vk_image[imsi] != VK_NULL_HANDLE) {
+                if (vk_fn.DestroyImage)
+                    vk_fn.DestroyImage(vk_device, vk_image[imsi], NULL);
+                vk_image[imsi] = VK_NULL_HANDLE;
+            }
+            if (vk_image_memory[imsi] != VK_NULL_HANDLE) {
+                if (vk_fn.FreeMemory)
+                    vk_fn.FreeMemory(vk_device, vk_image_memory[imsi], NULL);
+                vk_image_memory[imsi] = VK_NULL_HANDLE;
+            }
+            memset(&vk_retro_image[imsi], 0, sizeof(vk_retro_image[imsi]));
+        }
     }
-    if (vk_image != VK_NULL_HANDLE) {
-        if (vk_fn.DestroyImage)
-            vk_fn.DestroyImage(vk_device, vk_image, NULL);
-        vk_image = VK_NULL_HANDLE;
-    }
-    if (vk_image_memory != VK_NULL_HANDLE) {
-        if (vk_fn.FreeMemory)
-            vk_fn.FreeMemory(vk_device, vk_image_memory, NULL);
-        vk_image_memory = VK_NULL_HANDLE;
-    }
-    memset(&vk_retro_image, 0, sizeof(vk_retro_image));
     vk_resources_ready = false;
 }
 
@@ -10076,7 +10230,7 @@ backend_vk_record_frame(void)
     image_barrier.newLayout                       = VK_IMAGE_LAYOUT_GENERAL;
     image_barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
     image_barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
-    image_barrier.image                           = vk_image;
+    image_barrier.image                           = vk_image[vk_active_slot];
     image_barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
     image_barrier.subresourceRange.baseMipLevel   = 0;
     image_barrier.subresourceRange.levelCount     = 1;
@@ -10118,7 +10272,7 @@ backend_vk_record_frame(void)
                                     VK_PIPELINE_BIND_POINT_COMPUTE,
                                     vk_warp_pipeline_layout,
                                     0,
-                                    1, &vk_warp_set,
+                                    1, &vk_warp_set[vk_active_slot],
                                     0, NULL);
         vk_fn.CmdPushConstants(vk_cmd_buffer,
                                vk_warp_pipeline_layout,
@@ -10133,7 +10287,7 @@ backend_vk_record_frame(void)
                                     VK_PIPELINE_BIND_POINT_COMPUTE,
                                     vk_pipeline_layout,
                                     0,                /* firstSet */
-                                    1, &vk_descriptor_set,
+                                    1, &vk_descriptor_set[vk_active_slot],
                                     0, NULL);          /* no dynamic offsets */
     }
 
@@ -10165,7 +10319,7 @@ backend_vk_record_frame(void)
     memset(&rpbi, 0, sizeof(rpbi));
     rpbi.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpbi.renderPass               = vk_overlay_render_pass;
-    rpbi.framebuffer              = vk_overlay_framebuffer;
+    rpbi.framebuffer              = vk_overlay_framebuffer[vk_active_slot];
     rpbi.renderArea.extent.width  = width;
     rpbi.renderArea.extent.height = height;
     rpbi.clearValueCount          = 0;
@@ -10409,7 +10563,7 @@ backend_vk_end_frame(void)
      * already ensures the image is fully written. */
     perf_timing_section_begin(PERF_SECTION_SET_IMAGE);
     vk_iface->set_image(vk_iface->handle,
-                        &vk_retro_image,
+                        &vk_retro_image[vk_active_slot],
                         0, NULL,
                         vk_queue_family);
     perf_timing_section_end(PERF_SECTION_SET_IMAGE);
