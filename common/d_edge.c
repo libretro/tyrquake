@@ -342,44 +342,56 @@ void D_DrawSurfaces(void)
          }
 
          D_CalcGradients(pface);
-         /* Phase 5b-07b: route the single-pass-opaque turb
-          * case to GPU compute when the RHI exposes a turb
-          * dispatch entry.  Conditions for the compute path:
+         /* Phase 5b-07b + followup: route turb surfaces to GPU
+          * compute when the RHI exposes a turb dispatch entry.
+          * Two modes covered, discriminated by r_renderpass:
           *
-          *   - Not pass-2 of two-pass mode (r_renderpass!=2):
-          *     pass-2 needs the per-pixel z-test in the SW
-          *     raster's stipple branch, which turb.comp does
-          *     not implement.  Falling through to SW preserves
-          *     correct translucent behaviour.
+          *   r_renderpass != 2 AND alpha == 255 AND blend == 0:
+          *     single-pass opaque (Phase 5b-07b).  Backend
+          *     writes color + per-pixel 1/z; downstream
+          *     atomicMax-Z paths see the actual water Z.
           *
-          *   - r_turb_alpha == 255 AND r_turb_blendmode == 0:
-          *     opaque path with no Bayer stipple.  This is
-          *     vanilla single-pass mode (r_liquidblend = 0,
-          *     all liquid alpha = 1.0) or any liquid whose
-          *     own alpha snapped to opaque above.
+          *   r_renderpass == 2:
+          *     pass-2 of two-pass translucent mode.  Backend
+          *     z-tests against vk_zbuffer (= pass-1 opaque-
+          *     world Z), optionally Bayer-stipples (alpha <
+          *     255 with blendmode == 1), writes color only,
+          *     never updates Z -- exactly mirroring SW pass-
+          *     2's no-z-write semantics.  This case is
+          *     entered only by the opaque-with-z-test branch
+          *     (alpha == 255, blendmode != 1) and the
+          *     stipple branch (alpha < 255, blendmode == 1)
+          *     in D_DrawTurbulent8Span.
           *
-          * On the compute branch we also memset d_pzbuffer at
-          * each span to 0 (same "infinity" sentinel sky.comp
-          * uses for vk_zbuffer), so the SW pass-2 translucent
-          * raster -- if it runs later this frame on OTHER
-          * liquid surfaces with translucent alpha -- doesn't
-          * read stale d_pzbuffer at compute-rendered turb
-          * pixels.  In practice the same liquid type tends
-          * to be either all opaque or all translucent, so
-          * the per-frame mix is rare; this clear is cheap
-          * insurance.
+          *   Pass 1 of two-pass (r_renderpass == 1) is
+          *   filtered out before reaching SURF_DRAWTURB --
+          *   r_main.c excludes liquids from the opaque-world
+          *   pass entirely -- so we don't need to handle it.
+          *
+          * memset d_pzbuffer to 0 per span is kept on both
+          * branches: cheap insurance against any SW pass-2
+          * raster on OTHER liquid surfaces (mixed alpha/blend
+          * within one frame) reading stale Z at compute-
+          * rendered turb pixels.  In pass-1 mode it matches
+          * the sky.comp d_pzbuffer-clear pattern; in pass-2
+          * mode it shadows what SW does for the same surface
+          * (SW pass-2 doesn't update d_pzbuffer either, so
+          * the clear is effectively a no-op for the surfaces
+          * that follow).
           *
           * SW-only mode (no RHI / vtable entry NULL) is
           * unaffected -- the else-branch runs Turbulent8 +
           * D_DrawZSpans exactly as before. */
          if (g_rhi && g_rhi->dispatch_3d_turb_surface
-             && r_renderpass != 2
-             && r_turb_alpha == 255
-             && r_turb_blendmode == 0)
+             && ((r_renderpass != 2
+                  && r_turb_alpha == 255
+                  && r_turb_blendmode == 0)
+                 || r_renderpass == 2))
          {
             rhi_turb_gradient_t grad;
             const espan_t *p;
             int phase;
+            int is_pass2 = (r_renderpass == 2) ? 1 : 0;
 
             grad.sdivzorigin = d_sdivzorigin;
             grad.sdivzstepu  = d_sdivzstepu;
@@ -399,7 +411,9 @@ void D_DrawSurfaces(void)
 
             g_rhi->dispatch_3d_turb_surface(s->spans, &grad,
                                             (const byte *)cacheblock,
-                                            phase);
+                                            phase,
+                                            r_turb_alpha,
+                                            is_pass2);
 
             for (p = s->spans; p; p = p->pnext)
                memset(d_pzbuffer + (size_t)d_zwidth * (size_t)p->v

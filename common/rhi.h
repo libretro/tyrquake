@@ -548,12 +548,30 @@ typedef struct render_backend_s {
     void     (*dispatch_3d_sky_span)(int u, int v, int count);
 
     /* Phase 5b-07b: per-surface turb dispatch.  Called from
-     * d_edge.c's SURF_DRAWTURB branch in the single-pass-
-     * opaque case (r_renderpass != 2 AND r_turb_alpha == 255
-     * AND r_turb_blendmode == 0), after D_CalcGradients has
-     * filled the per-surface gradient globals.
+     * d_edge.c's SURF_DRAWTURB branch in two cases:
      *
-     * Parameters:
+     *   1. Single-pass opaque (r_renderpass != 2 AND
+     *      r_turb_alpha == 255 AND r_turb_blendmode == 0):
+     *      alpha = 255, is_pass2 = 0.  Backend writes color
+     *      + per-pixel 1/z; downstream atomicMax-Z paths
+     *      correctly z-test against turb's Z.
+     *   2. Pass-2 of two-pass mode (r_renderpass == 2):
+     *      alpha = r_turb_alpha (255 for the opaque-with-
+     *      ztest branch, <255 for stipple); is_pass2 = 1.
+     *      Backend z-tests against vk_zbuffer (= the pass-1
+     *      opaque-world Z uploaded from d_pzbuffer at end_-
+     *      frame) and optionally Bayer-stipples; NEVER
+     *      writes Z so the downstream atomicMax-Z paths
+     *      preserve the world-only Z that SW pass-2 also
+     *      preserves.
+     *
+     * Pass-1 (two-pass mode opaque world) and pass-2 (two-
+     * pass mode liquids only) of two-pass mode are distin-
+     * guished from single-pass by r_renderpass.  Pass 1 of
+     * two-pass filters SURF_DRAWTURB out before reaching the
+     * dispatch site so we never see it here.
+     *
+     * Other parameters:
      *   spans_head    The surface's espan_t linked list head
      *                 (defined in d_iface.h, opaque to the RHI
      *                 layer).  Backend casts to espan_t * and
@@ -566,23 +584,25 @@ typedef struct render_backend_s {
      *                 and stable for the level.
      *   turb_phase    sintable offset for this frame: (int)
      *                 (cl.time * TURB_SPEED) & (TURB_CYCLE-1).
-     *
-     * Backend collects per-surface dispatches across the frame
-     * and records one CmdDispatch (turb.comp) per surface in
-     * record_frame.  turb.comp reproduces D_DrawTurbulent8Span's
-     * vanilla opaque path: per-pixel screen->world UV, sintable
-     * warp, palette-indexed texture lookup, output to vk_texture
-     * + Z=0 to vk_zbuffer (same far-Z sentinel as sky).  The
-     * translucent (alpha < 1.0) and pass-2-z-test paths fall
-     * back to the SW raster -- the if-conditions at the call
-     * site only enter this branch when the simple opaque case
-     * applies.
+     *   alpha         Bayer-stipple threshold, 0..255.  255
+     *                 disables stipple (the shader's vanilla
+     *                 opaque path); 0..254 enables stipple
+     *                 with `bayer[cy&3][cx&3] < alpha` as the
+     *                 per-pixel gate.
+     *   is_pass2      0 = single-pass mode (write color +
+     *                 Z, no z-test, no stipple);  1 = pass-2
+     *                 mode (z-test against vk_zbuffer,
+     *                 optional stipple, NO Z write).  Read
+     *                 directly from r_renderpass == 2 at the
+     *                 call site.
      *
      * NULL on the SW backend. */
     void     (*dispatch_3d_turb_surface)(const void *spans_head,
                                          const rhi_turb_gradient_t *grad,
                                          const byte *texture,
-                                         int turb_phase);
+                                         int turb_phase,
+                                         int alpha,
+                                         int is_pass2);
 } render_backend_t;
 
 /* The active backend.  Set by rhi_init(), read by every

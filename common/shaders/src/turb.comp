@@ -55,19 +55,42 @@
  *                                 ivec2(sturb,
  *                                       tturb + u_tex_slot*64))
  *
- *   (4) Write palette_idx into u_output (vk_texture), and
- *       write the per-pixel 1/z into u_zbuffer (vk_zbuffer)
- *       so closer alias / particle / sprite geometry correctly
- *       wins the atomicMax-Z race in their compute paths.
+ * Modes:
  *
- *       Unlike sky.comp, this shader writes the actual per-
- *       pixel 1/z (not the far-Z sentinel 0) because turb
- *       surfaces are at finite distance and we want closer
- *       geometry behind a water surface to lose, exactly as
- *       the SW Turbulent8 path does via D_DrawZSpans in
- *       single-pass mode.  Z fixed-point format matches
- *       D_DrawZSpans' (int)(zi * 0x8000 * 0x10000) and the
- *       atomicMax-Z compare in the other compute paths.
+ *   Pass 1 (single-pass opaque mode, r_renderpass == 0):
+ *     no z-test, no stipple, writes color and per-pixel 1/z.
+ *     This is the 5b-07b case -- all visible turb surfaces
+ *     in a frame with no r_liquidblend / r_wateralpha tweaks.
+ *
+ *   Pass 2 (translucent / two-pass mode, r_renderpass == 2):
+ *     z-test against vk_zbuffer, optional Bayer-4x4 stipple
+ *     (alpha < 255), writes color only -- NEVER updates Z.
+ *     Matches SW D_DrawTurbulent8Span's pass-2 opaque-with-
+ *     z-test branch (alpha == 255) and its stipple branch
+ *     (alpha < 255).
+ *
+ * Mode discriminator is u_mode.y (0 = pass 1, 1 = pass 2).
+ * u_mode.x is the per-surface stipple alpha (0..255; 255 =
+ * no stipple, draw every pixel that passes the z-test).
+ *
+ * Z fixed-point format:
+ *
+ * vk_zbuffer holds the 16-bit-equivalent value `zi * 0x8000`
+ * (= zi << 15) stored as uint32 (Phase 5b-04 widened the
+ * format from R16_UINT to R32_UINT for atomicMax compat;
+ * d_pzbuffer's int16 -> uint32 upload is zero-extension, so
+ * positive zi values preserve their bit pattern).  Every
+ * compute path (alias / particle / sprite / turb) reads and
+ * writes in this same `zi << 15` representation -- see the
+ * `int z = int(iv5) >> 16` in alias.comp's vertex unpack
+ * which converts the SW raster's `zi * 2^31` (16.16 * 2^15)
+ * representation to the vk_zbuffer scale by dropping the
+ * lower 16 bits.
+ *
+ * Z relative to sky.comp: sky writes 0 at sky pixels (far-
+ * Z sentinel); turb's per-pixel 1/z is always > 0 for
+ * finite-distance water surfaces, so turb correctly wins
+ * the atomicMax-Z race against sky at water+sky overlap.
  *
  * Dispatch shape:
  *
@@ -86,7 +109,7 @@
  *   set = 0, binding = 3:  std430 SSBO      TurbSpans
  *   set = 0, binding = 4:  r32ui writeonly  u_zbuffer      (vk_zbuffer)
  *
- * Push constants (96 bytes, fits in the spec's guaranteed
+ * Push constants (112 bytes, fits in the spec's guaranteed
  * 128-byte budget):
  *   bbox  : uvec4 (min_x, min_y, w, h)
  *   range : uvec4 (rows_first, phase, spans_first, tex_slot)
@@ -94,6 +117,7 @@
  *   grad1 : vec4  (tdivzorigin, tdivzstepu, tdivzstepv, _pad)
  *   grad2 : vec4  (ziorigin,    zistepu,    zistepv,    _pad)
  *   adj   : ivec4 (sadjust, tadjust, bbextents, bbextentt)
+ *   mode  : uvec4 (alpha, is_pass2, _pad, _pad)
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2026 The libretro team
@@ -118,7 +142,7 @@ layout(set = 0, binding = 3, std430) readonly buffer TurbSpans {
     uvec2 spans[];
 };
 
-layout(set = 0, binding = 4, r32ui) uniform writeonly uimage2D u_zbuffer;
+layout(set = 0, binding = 4, r32ui) uniform uimage2D u_zbuffer;
 
 layout(push_constant) uniform PushConsts {
     uvec4 u_bbox;      /* min_x, min_y, w, h */
@@ -127,6 +151,7 @@ layout(push_constant) uniform PushConsts {
     vec4  u_grad1;     /* tdivz: origin, stepu, stepv, _pad */
     vec4  u_grad2;     /* zi:    origin, stepu, stepv, _pad */
     ivec4 u_adj;       /* sadjust, tadjust, bbextents, bbextentt */
+    uvec4 u_mode;      /* alpha, is_pass2, _pad, _pad */
 };
 
 /* TURB constants -- matches d_iface.h's TURB_TEX_SIZE = 64
@@ -220,16 +245,64 @@ void main()
                                  ivec2(sturb,
                                        tturb + slot * TURB_TEX_SIZE)).r;
 
-    imageStore(u_output, pos, uvec4(palette_idx, 0u, 0u, 0u));
+    /* Per-pixel 1/z in vk_zbuffer's units (zi * 0x8000 =
+     * zi << 15).  Same scale every other compute path uses
+     * via `int(iv5) >> 16` on the SW raster's `(int)(zi *
+     * 0x8000 * 0x10000)` representation.  An earlier draft
+     * of this shader wrote zi * 2^31 which is 65536x too
+     * large for atomicMax comparison and made all alias /
+     * particle / sprite Z-tests against turb pixels lose
+     * spuriously -- closer-geometry would have disappeared
+     * behind water. */
+    uint izi = uint(int(zi * 32768.0));
 
-    /* Per-pixel 1/z written in the same 16.16-shifted-by-15
-     * fixed-point representation D_DrawZSpans / the atomicMax-
-     * Z compare paths use.  SW does:
-     *   izi = (int)(zi * 0x8000 * 0x10000)
-     *   pdest[i] = (short)(izi >> 16)
-     * which is zi * 0x8000 truncated.  Our vk_zbuffer is
-     * R32_UINT (widened in Phase 5b-04 for atomicMax compat)
-     * so we keep the full 32-bit range. */
-    uint izi = uint(int(zi * 32768.0 * 65536.0));
-    imageStore(u_zbuffer, pos, uvec4(izi, 0u, 0u, 0u));
+    /* Mode dispatch.  is_pass2 == 0 (single-pass opaque):
+     * unconditional write of color + 1/z.  is_pass2 == 1
+     * (two-pass mode, pass 2): z-test against vk_zbuffer,
+     * optional Bayer stipple, write color only on pass,
+     * NEVER write Z. */
+    bool is_pass2 = u_mode.y != 0u;
+
+    if (!is_pass2) {
+        imageStore(u_output,  pos, uvec4(palette_idx, 0u, 0u, 0u));
+        imageStore(u_zbuffer, pos, uvec4(izi, 0u, 0u, 0u));
+        return;
+    }
+
+    /* Pass-2: z-test.  vk_zbuffer at this pixel currently
+     * holds either the opaque-world Z (from the d_pzbuffer
+     * upload at end_frame) or, at sky pixels, sky.comp's
+     * far-Z sentinel 0 -- either way, "what was behind the
+     * water surface".  izi >= existing means water is at-
+     * or-in-front-of that, so it should draw.
+     *
+     * The compare order matters: SW does `(short)(izi >>
+     * 16) >= *pzbuf`, an int16 signed compare.  Our values
+     * are uint32 widened from int16; for the normal positive-
+     * zi case they preserve magnitude, and the uint compare
+     * matches the signed compare exactly. */
+    uint existing_z = imageLoad(u_zbuffer, pos).r;
+    if (izi < existing_z)
+        return;
+
+    /* Pass-2: optional Bayer 4x4 stipple.  alpha == 255 (the
+     * opaque-with-z-test SW branch, blendmode != 1 or alpha
+     * snap to opaque) skips the dither test entirely; alpha
+     * < 255 (the stipple SW branch, blendmode == 1) draws
+     * iff bayer[cy & 3][cx & 3] < alpha.  Matches SW lines:
+     *   bayer4[r_turb_screen_y & 3][cx & 3] < r_turb_alpha
+     * exactly, including the dither pattern values. */
+    uint alpha = u_mode.x;
+    if (alpha < 255u) {
+        const uint bayer4[16] = uint[16](
+              0u, 128u,  32u, 160u,
+            192u,  64u, 224u,  96u,
+             48u, 176u,  16u, 144u,
+            240u, 112u, 208u,  80u );
+        uint bidx = uint((pos.y & 3) * 4 + (pos.x & 3));
+        if (bayer4[bidx] >= alpha)
+            return;
+    }
+
+    imageStore(u_output, pos, uvec4(palette_idx, 0u, 0u, 0u));
 }

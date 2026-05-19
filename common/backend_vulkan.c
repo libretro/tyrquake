@@ -835,6 +835,8 @@ struct vk_turb_surface {
     uint32_t spans_first;
     uint32_t tex_slot;
     int32_t  phase;
+    uint32_t alpha;          /* 0..255; 255 = no stipple */
+    uint32_t is_pass2;       /* 0 = single-pass, 1 = pass-2 */
     rhi_turb_gradient_t grad;
 };
 
@@ -5320,7 +5322,7 @@ backend_vk_create_resources(void)
         memset(&tu_pcr, 0, sizeof(tu_pcr));
         tu_pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
         tu_pcr.offset     = 0;
-        tu_pcr.size       = 96;   /* 4*16 + 3*16 + 16 + 4 + 12 padding, rounded up */
+        tu_pcr.size       = 112;  /* 6 x vec4 + 1 x uvec4 */
         memset(&tu_pl_ci, 0, sizeof(tu_pl_ci));
         tu_pl_ci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         tu_pl_ci.setLayoutCount         = 1;
@@ -8570,28 +8572,45 @@ backend_vk_record_frame(void)
                                      0, NULL);
         }
 
-        /* Phase 5b-07b: turb compute dispatches.  Runs after
-         * sky (so water/lava overwrites sky pixels at sky+
-         * water overlap, fixing the latent pass-2 stipple
-         * artefact from Phase 5b-07a) and before alias /
-         * particle / sprite (so those passes' atomicMax-Z
-         * tests against vk_zbuffer see turb's actual per-
-         * pixel 1/z and closer-geometry correctly wins).
+        /* Phase 5b-07b + followup: turb compute dispatches.
+         * Two dispatch positions in record_frame, picked by
+         * the per-frame is_pass2 flag carried on each surface
+         * entry (uniform across all surfaces in one frame
+         * because r_renderpass is per-frame):
          *
-         * Per surface: bind the pipeline once, then for each
-         * collected surface push constants + CmdDispatch over
-         * its bbox.  Atlas image upload is one CmdCopyBuffer-
-         * ToImage covering [0, vk_turb_tex_count) slots --
-         * the cache resets every frame so all in-use slots
-         * are fresh and need re-upload, but the staging
-         * buffer is permanently mapped so the actual data
-         * write happened in dispatch_3d_turb_surface (CPU
-         * memcpy into the mapped pointer at slot offset). */
+         *   - is_pass2 == 0 (single-pass mode):  dispatched
+         *     HERE (after sky, before particles / sprites /
+         *     alias).  Writes color + per-pixel 1/z; closer-
+         *     geometry atomicMax-Z races downstream see
+         *     turb's Z and correctly win where they're in
+         *     front of water.
+         *
+         *   - is_pass2 == 1 (two-pass mode pass 2):  atlas
+         *     upload still happens HERE so the GENERAL
+         *     layout is ready by the time the after-alias
+         *     dispatch slot fires; the actual CmdDispatch
+         *     loop is deferred to a second `if` block past
+         *     the alias dispatch.  Pass-2 turb writes color
+         *     only (no Z) and z-tests against vk_zbuffer
+         *     (= pass-1 opaque-world Z plus alias / particle
+         *     / sprite atomicMax updates from the preceding
+         *     dispatches).
+         *
+         * Atlas image upload (one CmdCopyBufferToImage cover-
+         * ing [0, vk_turb_tex_count) slots) runs once per
+         * frame regardless of mode -- the cache resets every
+         * frame so all in-use slots are fresh and need re-
+         * upload, but the staging buffer is permanently
+         * mapped so the actual byte-copy already happened on
+         * the CPU side during dispatch_3d_turb_surface. */
         if (vk_turb_surface_count > 0) {
             VkImageMemoryBarrier ta_bar0, ta_bar1;
             VkBufferImageCopy    ta_copy;
             VkMemoryBarrier      tu_mem_bar;
             unsigned             si;
+            int                  turb_is_pass2;
+
+            turb_is_pass2 = (vk_turb_surfaces[0].is_pass2 != 0);
 
             /* Atlas image: UNDEFINED (first frame) or GENERAL
              * (subsequent frames) -> TRANSFER_DST.  Use
@@ -8658,78 +8677,88 @@ backend_vk_record_frame(void)
                                      0, NULL,
                                      1, &ta_bar1);
 
-            /* Bind pipeline + set once; loop pushes per-surface
-             * constants and dispatches.  Push constant layout
-             * matches turb.comp's PushConsts block exactly (96
-             * bytes, std430-ish: 6 x 16-byte vec/uvec/ivec). */
-            vk_fn.CmdBindPipeline(vk_cmd_buffer,
-                                  VK_PIPELINE_BIND_POINT_COMPUTE,
-                                  vk_turb_pipeline);
-            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
-                                        VK_PIPELINE_BIND_POINT_COMPUTE,
-                                        vk_turb_pipeline_layout,
-                                        0,
-                                        1, &vk_turb_set,
-                                        0, NULL);
-            for (si = 0; si < vk_turb_surface_count; si++) {
-                const struct vk_turb_surface *surf = &vk_turb_surfaces[si];
-                struct {
-                    uint32_t bbox[4];
-                    uint32_t range[4];
-                    float    grad0[4];
-                    float    grad1[4];
-                    float    grad2[4];
-                    int32_t  adj[4];
-                } push;
-                push.bbox[0]  = surf->bbox_min_x;
-                push.bbox[1]  = surf->bbox_min_y;
-                push.bbox[2]  = surf->bbox_w;
-                push.bbox[3]  = surf->bbox_h;
-                push.range[0] = surf->rows_first;
-                push.range[1] = (uint32_t)surf->phase;
-                push.range[2] = surf->spans_first;
-                push.range[3] = surf->tex_slot;
-                push.grad0[0] = surf->grad.sdivzorigin;
-                push.grad0[1] = surf->grad.sdivzstepu;
-                push.grad0[2] = surf->grad.sdivzstepv;
-                push.grad0[3] = 0.0f;
-                push.grad1[0] = surf->grad.tdivzorigin;
-                push.grad1[1] = surf->grad.tdivzstepu;
-                push.grad1[2] = surf->grad.tdivzstepv;
-                push.grad1[3] = 0.0f;
-                push.grad2[0] = surf->grad.ziorigin;
-                push.grad2[1] = surf->grad.zistepu;
-                push.grad2[2] = surf->grad.zistepv;
-                push.grad2[3] = 0.0f;
-                push.adj[0]   = surf->grad.sadjust;
-                push.adj[1]   = surf->grad.tadjust;
-                push.adj[2]   = surf->grad.bbextents;
-                push.adj[3]   = surf->grad.bbextentt;
-                vk_fn.CmdPushConstants(vk_cmd_buffer,
-                                       vk_turb_pipeline_layout,
-                                       VK_SHADER_STAGE_COMPUTE_BIT,
-                                       0, sizeof(push), &push);
-                vk_fn.CmdDispatch(vk_cmd_buffer,
-                                  (surf->bbox_w + 7u) / 8u,
-                                  (surf->bbox_h + 7u) / 8u,
-                                  1);
-            }
+            if (!turb_is_pass2) {
+                /* Single-pass mode: dispatch the whole batch
+                 * here, between sky and particles / sprites /
+                 * alias.  Each dispatch writes color + Z. */
+                vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                      VK_PIPELINE_BIND_POINT_COMPUTE,
+                                      vk_turb_pipeline);
+                vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                            VK_PIPELINE_BIND_POINT_COMPUTE,
+                                            vk_turb_pipeline_layout,
+                                            0,
+                                            1, &vk_turb_set,
+                                            0, NULL);
+                for (si = 0; si < vk_turb_surface_count; si++) {
+                    const struct vk_turb_surface *surf = &vk_turb_surfaces[si];
+                    struct {
+                        uint32_t bbox[4];
+                        uint32_t range[4];
+                        float    grad0[4];
+                        float    grad1[4];
+                        float    grad2[4];
+                        int32_t  adj[4];
+                        uint32_t mode[4];
+                    } push;
+                    push.bbox[0]  = surf->bbox_min_x;
+                    push.bbox[1]  = surf->bbox_min_y;
+                    push.bbox[2]  = surf->bbox_w;
+                    push.bbox[3]  = surf->bbox_h;
+                    push.range[0] = surf->rows_first;
+                    push.range[1] = (uint32_t)surf->phase;
+                    push.range[2] = surf->spans_first;
+                    push.range[3] = surf->tex_slot;
+                    push.grad0[0] = surf->grad.sdivzorigin;
+                    push.grad0[1] = surf->grad.sdivzstepu;
+                    push.grad0[2] = surf->grad.sdivzstepv;
+                    push.grad0[3] = 0.0f;
+                    push.grad1[0] = surf->grad.tdivzorigin;
+                    push.grad1[1] = surf->grad.tdivzstepu;
+                    push.grad1[2] = surf->grad.tdivzstepv;
+                    push.grad1[3] = 0.0f;
+                    push.grad2[0] = surf->grad.ziorigin;
+                    push.grad2[1] = surf->grad.zistepu;
+                    push.grad2[2] = surf->grad.zistepv;
+                    push.grad2[3] = 0.0f;
+                    push.adj[0]   = surf->grad.sadjust;
+                    push.adj[1]   = surf->grad.tadjust;
+                    push.adj[2]   = surf->grad.bbextents;
+                    push.adj[3]   = surf->grad.bbextentt;
+                    push.mode[0]  = surf->alpha;
+                    push.mode[1]  = surf->is_pass2;
+                    push.mode[2]  = 0;
+                    push.mode[3]  = 0;
+                    vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                           vk_turb_pipeline_layout,
+                                           VK_SHADER_STAGE_COMPUTE_BIT,
+                                           0, sizeof(push), &push);
+                    vk_fn.CmdDispatch(vk_cmd_buffer,
+                                      (surf->bbox_w + 7u) / 8u,
+                                      (surf->bbox_h + 7u) / 8u,
+                                      1);
+                }
 
-            /* Serialise turb's vk_texture / vk_zbuffer writes
-             * against the downstream alias / particle / sprite
-             * dispatches, same pattern as sky's barrier above. */
-            memset(&tu_mem_bar, 0, sizeof(tu_mem_bar));
-            tu_mem_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-            tu_mem_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-            tu_mem_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
-                                     | VK_ACCESS_SHADER_WRITE_BIT;
-            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                     0,
-                                     1, &tu_mem_bar,
-                                     0, NULL,
-                                     0, NULL);
+                /* Serialise turb's vk_texture / vk_zbuffer
+                 * writes against the downstream alias /
+                 * particle / sprite dispatches, same pattern
+                 * as sky's barrier above. */
+                memset(&tu_mem_bar, 0, sizeof(tu_mem_bar));
+                tu_mem_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+                tu_mem_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+                tu_mem_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                         | VK_ACCESS_SHADER_WRITE_BIT;
+                vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                         0,
+                                         1, &tu_mem_bar,
+                                         0, NULL,
+                                         0, NULL);
+            }
+            /* Pass-2 case: atlas is in GENERAL layout; the
+             * second `if` block past the alias dispatch
+             * does the CmdDispatch loop. */
         }
 
         if (particles_active) {
@@ -8905,6 +8934,131 @@ backend_vk_record_frame(void)
                                              0, NULL);
                 }
             }
+        }
+
+        /* Phase 5b-07b followup: pass-2 turb dispatch slot.
+         * Mirror of the pass-1 dispatch loop above (which
+         * runs between sky and particles when surfaces are
+         * single-pass), positioned here so:
+         *
+         *   - Particles / sprites / alias have already
+         *     atomicMaxed against vk_zbuffer.  Pass-2 turb's
+         *     z-test sees the same Z state SW pass-2 would
+         *     have seen if alias had run inline against
+         *     d_pzbuffer (which it doesn't, but the visual
+         *     intent is "water z-tests against everything
+         *     drawn before the pass-2 stipple").  This
+         *     diverges from strict SW pass-2 semantics
+         *     (which z-test against pass-1 world Z only,
+         *     ignoring alias) but produces a strictly more-
+         *     correct result: a player model in front of
+         *     water no longer gets water-smeared in the
+         *     stipple-pass pixels.  See the commit message
+         *     for the trade-off.
+         *
+         *   - The pass-2 turb writes color only and never
+         *     touches vk_zbuffer, so no atomicMax race with
+         *     the just-finished alias dispatches.
+         *
+         * Atlas image upload already happened in the pre-
+         * alias `if (vk_turb_surface_count > 0)` block, so
+         * the atlas is in GENERAL layout and ready to read
+         * here.  A SHADER_WRITE -> SHADER_READ barrier is
+         * needed to make the alias / particle / sprite
+         * dispatch writes visible to this dispatch's
+         * imageLoad on u_zbuffer (none of those preceding
+         * blocks ended with a barrier scoped to "next read"
+         * -- the barriers inside alias_active sequence one
+         * alias-batch dispatch against the next). */
+        if (vk_turb_surface_count > 0
+            && vk_turb_surfaces[0].is_pass2)
+        {
+            VkMemoryBarrier tu2_pre_bar;
+            VkMemoryBarrier tu2_post_bar;
+            unsigned        si;
+
+            memset(&tu2_pre_bar, 0, sizeof(tu2_pre_bar));
+            tu2_pre_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            tu2_pre_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            tu2_pre_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT
+                                      | VK_ACCESS_SHADER_WRITE_BIT;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     1, &tu2_pre_bar,
+                                     0, NULL,
+                                     0, NULL);
+
+            vk_fn.CmdBindPipeline(vk_cmd_buffer,
+                                  VK_PIPELINE_BIND_POINT_COMPUTE,
+                                  vk_turb_pipeline);
+            vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                        VK_PIPELINE_BIND_POINT_COMPUTE,
+                                        vk_turb_pipeline_layout,
+                                        0,
+                                        1, &vk_turb_set,
+                                        0, NULL);
+            for (si = 0; si < vk_turb_surface_count; si++) {
+                const struct vk_turb_surface *surf = &vk_turb_surfaces[si];
+                struct {
+                    uint32_t bbox[4];
+                    uint32_t range[4];
+                    float    grad0[4];
+                    float    grad1[4];
+                    float    grad2[4];
+                    int32_t  adj[4];
+                    uint32_t mode[4];
+                } push;
+                push.bbox[0]  = surf->bbox_min_x;
+                push.bbox[1]  = surf->bbox_min_y;
+                push.bbox[2]  = surf->bbox_w;
+                push.bbox[3]  = surf->bbox_h;
+                push.range[0] = surf->rows_first;
+                push.range[1] = (uint32_t)surf->phase;
+                push.range[2] = surf->spans_first;
+                push.range[3] = surf->tex_slot;
+                push.grad0[0] = surf->grad.sdivzorigin;
+                push.grad0[1] = surf->grad.sdivzstepu;
+                push.grad0[2] = surf->grad.sdivzstepv;
+                push.grad0[3] = 0.0f;
+                push.grad1[0] = surf->grad.tdivzorigin;
+                push.grad1[1] = surf->grad.tdivzstepu;
+                push.grad1[2] = surf->grad.tdivzstepv;
+                push.grad1[3] = 0.0f;
+                push.grad2[0] = surf->grad.ziorigin;
+                push.grad2[1] = surf->grad.zistepu;
+                push.grad2[2] = surf->grad.zistepv;
+                push.grad2[3] = 0.0f;
+                push.adj[0]   = surf->grad.sadjust;
+                push.adj[1]   = surf->grad.tadjust;
+                push.adj[2]   = surf->grad.bbextents;
+                push.adj[3]   = surf->grad.bbextentt;
+                push.mode[0]  = surf->alpha;
+                push.mode[1]  = surf->is_pass2;
+                push.mode[2]  = 0;
+                push.mode[3]  = 0;
+                vk_fn.CmdPushConstants(vk_cmd_buffer,
+                                       vk_turb_pipeline_layout,
+                                       VK_SHADER_STAGE_COMPUTE_BIT,
+                                       0, sizeof(push), &push);
+                vk_fn.CmdDispatch(vk_cmd_buffer,
+                                  (surf->bbox_w + 7u) / 8u,
+                                  (surf->bbox_h + 7u) / 8u,
+                                  1);
+            }
+
+            memset(&tu2_post_bar, 0, sizeof(tu2_post_bar));
+            tu2_post_bar.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            tu2_post_bar.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            tu2_post_bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                     0,
+                                     1, &tu2_post_bar,
+                                     0, NULL,
+                                     0, NULL);
         }
 
         /* After the compute dispatches, vk_texture is in
@@ -9455,7 +9609,9 @@ static void
 backend_vk_dispatch_3d_turb_surface(const void *spans_head,
                                     const rhi_turb_gradient_t *grad,
                                     const byte *texture,
-                                    int turb_phase)
+                                    int turb_phase,
+                                    int alpha,
+                                    int is_pass2)
 {
 #ifdef RHI_HAVE_VULKAN
     const espan_t *p;
@@ -9589,6 +9745,8 @@ backend_vk_dispatch_3d_turb_surface(const void *spans_head,
     surf->spans_first = spans_first;
     surf->tex_slot    = tex_slot;
     surf->phase       = turb_phase;
+    surf->alpha       = (uint32_t)alpha;
+    surf->is_pass2    = (uint32_t)(is_pass2 != 0);
     surf->grad        = *grad;
 
     vk_turb_rows_used  += bbox_h;
@@ -9598,6 +9756,8 @@ backend_vk_dispatch_3d_turb_surface(const void *spans_head,
     (void)grad;
     (void)texture;
     (void)turb_phase;
+    (void)alpha;
+    (void)is_pass2;
 #endif
 }
 
