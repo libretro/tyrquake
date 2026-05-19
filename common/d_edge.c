@@ -368,16 +368,13 @@ void D_DrawSurfaces(void)
           *   r_main.c excludes liquids from the opaque-world
           *   pass entirely -- so we don't need to handle it.
           *
-          * memset d_pzbuffer to 0 per span is kept on both
-          * branches: cheap insurance against any SW pass-2
-          * raster on OTHER liquid surfaces (mixed alpha/blend
-          * within one frame) reading stale Z at compute-
-          * rendered turb pixels.  In pass-1 mode it matches
-          * the sky.comp d_pzbuffer-clear pattern; in pass-2
-          * mode it shadows what SW does for the same surface
-          * (SW pass-2 doesn't update d_pzbuffer either, so
-          * the clear is effectively a no-op for the surfaces
-          * that follow).
+          * memset d_pzbuffer to 0 per span fires in single-
+          * pass mode only (see the inline comment at the
+          * memset site for the rationale).  Pass-2 mode
+          * MUST preserve d_pzbuffer's pass-1 Z at lava-span
+          * pixels so the GPU pass-2 turb shader's imageLoad-
+          * based z-test can see closer walls and skip drawing
+          * lava through them.
           *
           * SW-only mode (no RHI / vtable entry NULL) is
           * unaffected -- the else-branch runs Turbulent8 +
@@ -431,11 +428,45 @@ void D_DrawSurfaces(void)
                                             gpu_alpha,
                                             is_pass2);
 
-            for (p = s->spans; p; p = p->pnext)
-               memset(d_pzbuffer + (size_t)d_zwidth * (size_t)p->v
-                      + (size_t)p->u,
-                      0,
-                      (size_t)p->count * sizeof(short));
+            /* Single-pass mode only: clear d_pzbuffer at lava-
+             * span pixels to 0 so subsequent SW raster of OTHER
+             * liquid surfaces in the same frame (mixed alpha /
+             * blend in single-pass) doesn't read stale Z at
+             * compute-rendered turb pixels.  Mirrors sky.comp's
+             * pattern.
+             *
+             * NEVER in pass-2 mode (r_renderpass == 2).  In
+             * two-pass translucent rendering, R_MarkSurfaces
+             * extends visibility to every non-solid leaf when
+             * liquid is in the camera's PVS (r_main.c:740) --
+             * the no-cull pass.  As a consequence the lava
+             * surface's edge-rastered spans include pixels
+             * BEHIND closer walls / floors (pass 2's edge list
+             * contains liquids only, so the edge raster has no
+             * opaque occluders to clip against).  Pass 1
+             * already wrote the closer-surface Z into
+             * d_pzbuffer at those very pixels (that's the
+             * design -- the SW comment below in the else-branch
+             * says it explicitly: "Pass 1 already wrote the
+             * opaque world's z-buffer; we want to preserve
+             * those depths").  Pass-2 turb's job, both in SW
+             * (D_DrawTurbulent8Span's ztest path) and on GPU
+             * (turb.comp's pass-2 imageLoad-based z-test), is
+             * to z-TEST against that pass-1 Z and skip drawing
+             * where the wall is closer.  A memset to 0 here
+             * would destroy the wall Z that pass-2 turb needs
+             * to z-test against, and lava would render through
+             * every wall in view.  This is what Lib's screenshot
+             * with r_liquidblend=1 was showing -- a full-screen
+             * lava bleed past the difficulty-room arch in
+             * start.bsp. */
+            if (!is_pass2) {
+               for (p = s->spans; p; p = p->pnext)
+                  memset(d_pzbuffer + (size_t)d_zwidth * (size_t)p->v
+                         + (size_t)p->u,
+                         0,
+                         (size_t)p->count * sizeof(short));
+            }
          }
          else
          {
