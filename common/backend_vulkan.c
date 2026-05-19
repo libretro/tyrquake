@@ -295,6 +295,51 @@ static VkImageView      vk_image_view;
 static VkCommandPool    vk_cmd_pool;
 static VkCommandBuffer  vk_cmd_buffer;
 
+/* Phase 5b-08 step 1: per-frame ring infrastructure.
+ *
+ * The previous design used a single VkCommandBuffer + a
+ * QueueWaitIdle at the end of every frame to keep CPU and
+ * GPU work strictly serialized.  Measurement showed that
+ * serialization costs ~3.7 ms / frame at 1080p in the
+ * test scene (the entire SUBMIT_PRESENT section minus
+ * negligible QueueSubmit / set_image / video_cb time),
+ * which is the bulk of the compute backend's gap vs. the
+ * SW renderer.
+ *
+ * This commit introduces the structural piece needed to
+ * remove that serialization: a ring of N command buffers
+ * + per-slot fences.  Each frame uses the next slot in
+ * the ring; begin_frame waits on that slot's fence (which
+ * signals when the previous use of this slot finishes on
+ * the GPU), and end_frame submits with that slot's fence
+ * as the signal target.
+ *
+ * In THIS commit, QueueWaitIdle is preserved at end_frame
+ * so behavior is identical -- the fences are technically
+ * waited on at acquire but the wait is instant because
+ * QueueWaitIdle already drained the queue.  A follow-up
+ * commit (5b-08 step 3) removes QueueWaitIdle and lets
+ * the GPU run ahead.
+ *
+ * N=2 is the canonical "double-buffered" choice: minimum
+ * memory overhead, minimum latency cost.  If profiling
+ * later shows the CPU stalls often at acquire (i.e. CPU
+ * is faster than GPU on average), N can be bumped to 3.
+ *
+ * vk_cmd_buffer remains as a "current frame" pointer that
+ * record_frame and the one-shot recording paths reference
+ * unchanged; begin_frame sets it to the active slot's CB.
+ * The ring slots own the actual VkCommandBuffer handles. */
+#define VK_FRAME_RING_DEPTH 2
+
+typedef struct vk_frame_ctx_s {
+    VkCommandBuffer cmd_buffer;
+    VkFence         done_fence;
+} vk_frame_ctx_t;
+
+static vk_frame_ctx_t vk_frame_ctx[VK_FRAME_RING_DEPTH];
+static unsigned       vk_active_slot;   /* index into vk_frame_ctx; advances at begin_frame */
+
 /* Phase 4g: compute pipeline + its shader module.  Same
  * lifetime as vk_image -- created in context_reset after
  * the function-pointer table is populated, destroyed in
@@ -1296,6 +1341,19 @@ static struct {
     PFN_vkCmdClearColorImage              CmdClearColorImage;
     PFN_vkQueueSubmit                     QueueSubmit;
     PFN_vkQueueWaitIdle                   QueueWaitIdle;
+    /* Frame-context fence pair (Phase 5b-08 step 1).  Added
+     * for the N=2 ring of command buffers: each ring slot has
+     * its own VkFence so begin_frame can wait on slot N's
+     * previous-pass completion before re-recording into it.
+     * Still QueueWaitIdle-serialized in this commit; the
+     * fence is signaled by submit and waited on at acquire,
+     * but the wait is instant because QueueWaitIdle already
+     * drained everything.  Removed-and-replaced by fence-
+     * only sync in a follow-up commit. */
+    PFN_vkCreateFence                     CreateFence;
+    PFN_vkDestroyFence                    DestroyFence;
+    PFN_vkWaitForFences                   WaitForFences;
+    PFN_vkResetFences                     ResetFences;
 
     /* Shader / pipeline (Phase 4b for the layout, Phase 4g
      * for compute, Phase 4h for the overlay graphics
@@ -4508,18 +4566,58 @@ backend_vk_create_resources(void)
         return false;
     }
 
-    memset(&cmd_alloc, 0, sizeof(cmd_alloc));
-    cmd_alloc.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    cmd_alloc.commandPool        = vk_cmd_pool;
-    cmd_alloc.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    cmd_alloc.commandBufferCount = 1;
+    /* Allocate VK_FRAME_RING_DEPTH command buffers from
+     * the pool, one per frame-ring slot.  Single API call
+     * is sufficient; commandBufferCount=N fills the array
+     * contiguously.  Stash each into its vk_frame_ctx[i]
+     * slot and leave vk_cmd_buffer pointing at slot 0 so
+     * the very first frame (before begin_frame's first
+     * rotation) has a valid handle. */
+    {
+        VkCommandBuffer cbs[VK_FRAME_RING_DEPTH];
+        unsigned        si;
 
-    r = vk_fn.AllocateCommandBuffers(vk_device, &cmd_alloc, &vk_cmd_buffer);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: AllocateCommandBuffers failed (%d)\n", (int)r);
-        return false;
+        memset(&cmd_alloc, 0, sizeof(cmd_alloc));
+        cmd_alloc.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cmd_alloc.commandPool        = vk_cmd_pool;
+        cmd_alloc.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmd_alloc.commandBufferCount = VK_FRAME_RING_DEPTH;
+
+        r = vk_fn.AllocateCommandBuffers(vk_device, &cmd_alloc, cbs);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateCommandBuffers (ring) failed (%d)\n", (int)r);
+            return false;
+        }
+
+        for (si = 0; si < VK_FRAME_RING_DEPTH; si++) {
+            VkFenceCreateInfo fi;
+            memset(&fi, 0, sizeof(fi));
+            fi.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            /* SIGNALED so the first time begin_frame waits
+             * on this slot's fence (before the slot has
+             * ever been submitted into) the wait is
+             * instant rather than deadlocking. */
+            fi.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            r = vk_fn.CreateFence(vk_device, &fi, NULL,
+                                  &vk_frame_ctx[si].done_fence);
+            if (r != VK_SUCCESS) {
+                if (log_cb)
+                    log_cb(RETRO_LOG_ERROR,
+                           "rhi-vk: CreateFence (ring slot %u) failed (%d)\n",
+                           si, (int)r);
+                return false;
+            }
+            vk_frame_ctx[si].cmd_buffer = cbs[si];
+        }
+
+        /* Bootstrap vk_cmd_buffer with slot 0's CB so any
+         * pre-first-frame recording path (if any future
+         * code goes that route) sees a valid handle.
+         * begin_frame will reassign this each frame. */
+        vk_cmd_buffer  = vk_frame_ctx[0].cmd_buffer;
+        vk_active_slot = 0;
     }
 
     /* No per-frame recording here -- backend_vk_record_frame
@@ -6179,6 +6277,25 @@ backend_vk_destroy_resources(void)
     vk_pending_particle_count = 0;
 
     if (vk_cmd_pool != VK_NULL_HANDLE) {
+        /* Ring-slot fences first.  The fences live inside
+         * vk_frame_ctx[] and are independent of the command
+         * pool's lifetime; destroy them explicitly.  The CBs
+         * themselves are freed implicitly by the
+         * DestroyCommandPool call below (it frees every
+         * buffer allocated from the pool). */
+        {
+            unsigned si;
+            for (si = 0; si < VK_FRAME_RING_DEPTH; si++) {
+                if (vk_frame_ctx[si].done_fence != VK_NULL_HANDLE
+                    && vk_fn.DestroyFence)
+                    vk_fn.DestroyFence(vk_device,
+                                       vk_frame_ctx[si].done_fence, NULL);
+                vk_frame_ctx[si].done_fence = VK_NULL_HANDLE;
+                vk_frame_ctx[si].cmd_buffer = VK_NULL_HANDLE;
+            }
+            vk_active_slot = 0;
+        }
+
         /* DestroyCommandPool frees every buffer allocated
          * from it; no separate FreeCommandBuffers call
          * needed.  This also frees the one-shot upload
@@ -6398,6 +6515,10 @@ backend_vk_load_fn(void)
         LOAD_DEV(CmdClearColorImage);
         LOAD_DEV(QueueSubmit);
         LOAD_DEV(QueueWaitIdle);
+        LOAD_DEV(CreateFence);
+        LOAD_DEV(DestroyFence);
+        LOAD_DEV(WaitForFences);
+        LOAD_DEV(ResetFences);
         /* Phase 4b for shader/pipeline-layout, Phase 4g
          * for the compute pipeline, Phase 4h for the
          * overlay graphics pipeline + render pass +
@@ -8184,6 +8305,41 @@ static void
 backend_vk_begin_frame(void)
 {
 #ifdef RHI_HAVE_VULKAN
+    /* Phase 5b-08 step 1: rotate to the next ring slot.
+     * vk_active_slot advances (mod ring depth), and
+     * vk_cmd_buffer is reassigned to that slot's CB so
+     * record_frame + every one-shot recording path
+     * unconditionally targets the active slot's command
+     * buffer.
+     *
+     * Wait+reset on the slot's fence is the per-slot sync:
+     * the fence was signaled when the previous use of
+     * this slot completed on the GPU.  In THIS commit
+     * QueueWaitIdle in end_frame has already drained
+     * everything, so the wait is instant on the second
+     * frame and beyond.  Step 3 removes the QueueWaitIdle
+     * and makes this wait the actual cross-frame sync.
+     *
+     * The fences are created SIGNALED so the very first
+     * begin_frame after create_resources doesn't deadlock
+     * waiting on a never-submitted-into slot.
+     *
+     * Gated on vk_resources_ready -- if the backend's
+     * resources aren't up (e.g. very first begin_frame
+     * before create_resources has run, which the existing
+     * code already supports), skip the rotation entirely.
+     * That same code path will also skip end_frame, so the
+     * ring stays consistent. */
+    if (vk_resources_ready) {
+        vk_active_slot = (vk_active_slot + 1) % VK_FRAME_RING_DEPTH;
+        vk_fn.WaitForFences(vk_device, 1,
+                            &vk_frame_ctx[vk_active_slot].done_fence,
+                            VK_TRUE, UINT64_MAX);
+        vk_fn.ResetFences(vk_device, 1,
+                          &vk_frame_ctx[vk_active_slot].done_fence);
+        vk_cmd_buffer = vk_frame_ctx[vk_active_slot].cmd_buffer;
+    }
+
     /* Phase 3c: nothing to do.  The clear command buffer is
      * pre-recorded once and re-submitted every frame, so
      * no per-frame setup is needed.  Future phases that
@@ -9738,7 +9894,15 @@ backend_vk_end_frame(void)
     si.pCommandBuffers    = &vk_cmd_buffer;
 
     perf_timing_section_begin(PERF_SECTION_QUEUE_SUBMIT);
-    r = vk_fn.QueueSubmit(vk_queue, 1, &si, VK_NULL_HANDLE);
+    /* Phase 5b-08 step 1: submit with signal-fence pointing
+     * at this slot's done_fence.  In this commit the fence
+     * is the per-slot acquire-time wait target (and is
+     * effectively redundant because QueueWaitIdle below
+     * drains the queue regardless).  Step 3 removes the
+     * QueueWaitIdle and the fence becomes the real
+     * synchronization. */
+    r = vk_fn.QueueSubmit(vk_queue, 1, &si,
+                          vk_frame_ctx[vk_active_slot].done_fence);
     perf_timing_section_end(PERF_SECTION_QUEUE_SUBMIT);
     if (r != VK_SUCCESS) {
         if (log_cb)
