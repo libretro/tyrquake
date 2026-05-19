@@ -392,6 +392,22 @@ void D_DrawSurfaces(void)
             const espan_t *p;
             int phase;
             int is_pass2 = (r_renderpass == 2) ? 1 : 0;
+            /* Mirror the SW driver's blend-mode dispatch:
+             * D_DrawTurbulent8Span treats `alpha >= 255 ||
+             * blendmode != 1` as the no-stipple path, so any
+             * `r_liquidblend` value other than 1 (currently 0 =
+             * off and 2+ = reserved future colormap-blend modes
+             * that fall back to opaque) must NOT stipple even
+             * when `r_turb_alpha < 255`.  The shader's stipple
+             * trigger is just `alpha < 255`, so clamp the alpha
+             * we ship to 255 here whenever blendmode isn't 1.
+             * Result: blendmode 1 stipples (SW + GPU agree),
+             * blendmode 0 / 2+ takes the opaque-with-ztest
+             * branch (SW + GPU agree).  Z-test gating in pass-2
+             * is unaffected -- the shader z-tests whenever
+             * is_pass2 is set, independent of alpha. */
+            int gpu_alpha = (r_turb_blendmode == 1)
+                            ? r_turb_alpha : 255;
 
             grad.sdivzorigin = d_sdivzorigin;
             grad.sdivzstepu  = d_sdivzstepu;
@@ -412,7 +428,7 @@ void D_DrawSurfaces(void)
             g_rhi->dispatch_3d_turb_surface(s->spans, &grad,
                                             (const byte *)cacheblock,
                                             phase,
-                                            r_turb_alpha,
+                                            gpu_alpha,
                                             is_pass2);
 
             for (p = s->spans; p; p = p->pnext)
