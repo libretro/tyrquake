@@ -551,6 +551,31 @@ R_ViewChanged(vrect_t *pvrect, int lineadj, float aspect)
     int i;
     float res_scale;
 
+    /* Hor+ vertical-anchor compensation.
+     *
+     * SCR_CalcRefdef widens r_refdef.fov_x for non-4:3 aspect ratios
+     * (see CalcFovHorPlus).  In this renderer the vertical scale is
+     * yscale = (vrect.width / horizontalFieldOfView) * pixelAspect and
+     * the vertical clip planes use verticalFieldOfView =
+     * horizontalFieldOfView / (vrect.width * pixelAspect / height).
+     * Widening fov_x alone (k = tan(fov_x/2) ratio) shrinks xscale by
+     * k -- the intended horizontal expansion -- but also shrinks yscale
+     * by k, zooming the view out vertically too.  That is not Hor+.
+     *
+     * Scaling pixelAspect by the same k cancels the vertical change
+     * exactly: yscale becomes invariant and verticalFieldOfView
+     * (which carries 1/pixelAspect) is likewise pinned, while xscale
+     * keeps its 1/k horizontal widening.  k reduces to the selected
+     * display ratio over the 4:3 baseline, so at 4:3 k == 1 and the
+     * vanilla projection is reproduced bit-for-bit. */
+    {
+	int asp_idx = (int)r_aspect.value;
+	if (asp_idx > 0) {
+	    float k = R_AspectRatioForIndex(asp_idx) / (4.0f / 3.0f);
+	    aspect *= k;
+	}
+    }
+
     r_viewchanged = true;
 
     R_SetVrect(pvrect, &r_refdef.vrect, lineadj);

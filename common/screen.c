@@ -427,6 +427,59 @@ CalcFov(float fov_x, float width, float height)
 
 
 /*
+====================
+CalcFovHorPlus
+
+Hor+ widescreen FOV correction (the prboom-plus model).
+
+scr_fov ("fov") is authored against the vanilla 4:3 display, so it
+defines the *horizontal* FOV only at 4:3.  Naively feeding that fov_x
+straight into a wider framebuffer (or a wider display aspect) and then
+letting the frontend stretch the result just fattens the image -- the
+vertical FOV shrinks relative to vanilla and nothing new becomes
+visible.
+
+Instead we anchor the *vertical* FOV to whatever 4:3 would have shown
+for the user's chosen scr_fov, then re-derive a wider horizontal FOV
+from that vertical anchor and the selected display aspect.  The result:
+vertical framing is identical to vanilla at every aspect, and wider
+ratios reveal more of the world to the left and right rather than
+distorting it.
+
+  aspect = selected display ratio (e.g. 16/9).  At aspect == 4/3 this
+  is a no-op and fov_x == scr_fov, preserving the vanilla projection
+  bit-for-bit.
+
+Returns the corrected horizontal FOV in degrees.
+====================
+*/
+static float
+CalcFovHorPlus(float fov_x_43, float aspect)
+{
+    float fov_y, x, fov_x;
+
+    /* Vertical FOV that the authored fov_x would produce at 4:3.
+     * Using the canonical 4:3 here (not the framebuffer's real
+     * width:height) keeps vertical framing pinned to vanilla even
+     * when the user has picked a non-4:3 render resolution. */
+    fov_y = CalcFov(fov_x_43, 4.0f, 3.0f);
+
+    /* Re-expand horizontally for the requested aspect.  This is the
+     * exact inverse of CalcFov with width/height roles swapped:
+     *   x     = height / tan(fov_y/2)
+     *   fov_x = 2 * atan((height * aspect) / x)
+     * with height factored out it reduces to the form below. */
+    x = 1.0f / tan(fov_y / 360.0f * (float)M_PI);
+    fov_x = atan(aspect / x) * 360.0f / (float)M_PI;
+
+    if (fov_x < 1.0f)   fov_x = 1.0f;
+    if (fov_x > 179.0f) fov_x = 179.0f;
+
+    return fov_x;
+}
+
+
+/*
 =================
 SCR_CalcRefdef
 
@@ -501,9 +554,30 @@ static void SCR_CalcRefdef(void)
 
    R_SetVrect(&vrect, &scr_vrect, sb_lines);
 
-   r_refdef.fov_x = scr_fov.value;
-   r_refdef.fov_y =
-      CalcFov(r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
+   /* Hor+ widescreen: r_aspect selects a display ratio; widen the
+    * horizontal FOV to match it while keeping vertical FOV pinned to
+    * the vanilla 4:3 value.  Index 0 (4:3) leaves fov_x == scr_fov,
+    * so the default path is unchanged. */
+   {
+      int   asp_idx = (int)r_aspect.value;
+      float aspect  = R_AspectRatioForIndex(asp_idx);
+
+      if (asp_idx <= 0) {
+         /* 4:3, vanilla: fov_x authored directly, fov_y follows the
+          * real framebuffer dimensions exactly as before. */
+         r_refdef.fov_x = scr_fov.value;
+         r_refdef.fov_y =
+            CalcFov(r_refdef.fov_x, r_refdef.vrect.width,
+                    r_refdef.vrect.height);
+      } else {
+         /* Widen fov_x for the chosen aspect.  fov_y stays anchored to
+          * the vanilla 4:3 vertical framing for the authored fov so any
+          * consumer of r_refdef.fov_y (and the pixelAspect compensation
+          * in R_ViewChanged) sees an unchanged vertical view. */
+         r_refdef.fov_x = CalcFovHorPlus(scr_fov.value, aspect);
+         r_refdef.fov_y = CalcFov(scr_fov.value, 4.0f, 3.0f);
+      }
+   }
 
    /* guard against going from one mode to another that's less than half the */
    /* vertical resolution */
