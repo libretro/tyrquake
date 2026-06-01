@@ -524,6 +524,44 @@ void retro_get_system_info(struct retro_system_info *info)
    info->valid_extensions = "pak";
 }
 
+/* Aspect-ratio table indexed by the r_aspect cvar (0..R_ASPECT_MAX).
+ * Index 0 is the vanilla 4:3 and must stay first so existing configs
+ * (and a freshly-defaulted "0") keep the historical display. */
+float R_AspectRatioForIndex(int idx)
+{
+   static const float ratios[R_ASPECT_NUM_RATIOS] = {
+      4.0f  / 3.0f,   /* 0: 4:3   (default) */
+      16.0f / 9.0f,   /* 1: 16:9            */
+      16.0f / 10.0f,  /* 2: 16:10           */
+      64.0f / 27.0f,  /* 3: 21:9  (DCI/UW)  */
+      32.0f / 9.0f    /* 4: 32:9            */
+   };
+   if (idx < 0)             idx = 0;
+   if (idx > R_ASPECT_MAX)  idx = R_ASPECT_MAX;
+   return ratios[idx];
+}
+
+/* r_aspect cvar callback: clamp the index and repush the display
+ * geometry to the frontend.  Only the aspect the frontend stretches
+ * the framebuffer to changes -- base/max width/height (the actual
+ * rendered resolution) are left alone, so this is cheap and takes
+ * effect on the next presented frame. */
+void R_AspectRatioChanged(cvar_t *var)
+{
+   struct retro_system_av_info av;
+   int idx = (int)var->value;
+
+   if (idx < 0)             Cvar_SetValue("r_aspect", 0.0f);
+   if (idx > R_ASPECT_MAX)  Cvar_SetValue("r_aspect", (float)R_ASPECT_MAX);
+
+   if (!environ_cb)
+      return;
+
+   memset(&av, 0, sizeof(av));
+   retro_get_system_av_info(&av);
+   environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &av);
+}
+
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
    info->timing.fps            = framerate;
@@ -533,7 +571,11 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->geometry.base_height  = height;
    info->geometry.max_width    = width;
    info->geometry.max_height   = height;
-   info->geometry.aspect_ratio = 4.0 / 3.0;
+   {
+      cvar_t *cv = Cvar_FindVar("r_aspect");
+      int idx = cv ? (int)cv->value : 0;
+      info->geometry.aspect_ratio = R_AspectRatioForIndex(idx);
+   }
 }
 
 void retro_set_environment(retro_environment_t cb)

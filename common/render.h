@@ -185,6 +185,18 @@ void R_DrawParticles(void);
  */
 const model_loader_t *R_ModelLoader(void);
 
+/*
+ * Display aspect-ratio selector backing the r_aspect cvar.
+ * Implemented in libretro.c, which owns environ_cb and the display
+ * geometry.  R_AspectRatioForIndex maps the 0..R_ASPECT_MAX cvar
+ * value to a float aspect; R_AspectRatioChanged is the cvar callback
+ * that clamps r_aspect and repushes the geometry to the frontend.
+ */
+#define R_ASPECT_NUM_RATIOS 5
+#define R_ASPECT_MAX        (R_ASPECT_NUM_RATIOS - 1)
+float R_AspectRatioForIndex(int idx);
+void  R_AspectRatioChanged(cvar_t *var);
+
 /**/
 /* surface cache related */
 /**/

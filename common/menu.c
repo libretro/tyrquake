@@ -1105,7 +1105,7 @@ M_OptionsInput_Key(int k)
 /* ============================================================================= */
 /* VIDEO OPTIONS MENU */
 
-#define	OPTIONSVIDEO_ITEMS 19
+#define	OPTIONSVIDEO_ITEMS 20
 
 static int optionsvideo_cursor;
 
@@ -1284,6 +1284,20 @@ M_OptionsVideo_AdjustSliders(int dir)
           Cvar_SetValue("r_polysubdiv", (float)v);
           break;
        }
+       case 19: {
+          /* Display aspect ratio: cycle 0..R_ASPECT_MAX
+           * (4:3, 16:9, 16:10, 21:9, 32:9).  The r_aspect cvar
+           * callback repushes the frontend display geometry, so
+           * the change is visible on the next presented frame
+           * without touching the rendered resolution. */
+          int v;
+          cvar = Cvar_FindVar("r_aspect");
+          v = (int)cvar->value + dir;
+          if (v < 0) v = R_ASPECT_MAX;
+          if (v > R_ASPECT_MAX) v = 0;
+          Cvar_SetValue("r_aspect", (float)v);
+          break;
+       }
     }
 }
 
@@ -1443,6 +1457,23 @@ M_OptionsVideo_Draw(void)
 	if (sub_v > R_POLYSUBDIV_MAX_PASSES) sub_v = R_POLYSUBDIV_MAX_PASSES;
 	M_Print(16, 176, "   Polygon Subdivision");
 	M_Print(220, 176, subdiv_state_names[sub_v]);
+    }
+
+    /* Display Aspect Ratio: cycling text widget.  Index order matches
+     * R_AspectRatioForIndex in libretro.c; 4:3 is index 0 (vanilla
+     * default).  Changing it repushes display geometry to the
+     * frontend via the r_aspect cvar callback. */
+    {
+	static const char *aspect_state_names[R_ASPECT_NUM_RATIOS] = {
+	    "4:3", "16:9", "16:10", "21:9", "32:9"
+	};
+	int asp_v;
+	cvar = Cvar_FindVar("r_aspect");
+	asp_v = (int)cvar->value;
+	if (asp_v < 0) asp_v = 0;
+	if (asp_v > R_ASPECT_MAX) asp_v = R_ASPECT_MAX;
+	M_Print(16, 184, "         Aspect Ratio");
+	M_Print(220, 184, aspect_state_names[asp_v]);
     }
 
 /* cursor */

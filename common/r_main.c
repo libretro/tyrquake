@@ -160,6 +160,14 @@ cvar_t r_coloredlight = { "r_coloredlight", "0", true };
 cvar_t r_lightdither  = { "r_lightdither",  "0", true };
 cvar_t r_persistgibs  = { "r_persistgibs",  "0", true };
 cvar_t r_shadows      = { "r_shadows",      "0", true };
+/* Display aspect ratio selector.  Index into the table in
+ * R_AspectRatioForIndex (libretro.c): 0 = 4:3 (vanilla), 1 = 16:9,
+ * 2 = 16:10, 3 = 21:9, 4 = 32:9.  Archived.  The frontend display
+ * geometry is repushed via RETRO_ENVIRONMENT_SET_GEOMETRY from the
+ * cvar callback (R_AspectRatioChanged); the rendered framebuffer
+ * resolution is unchanged -- only the aspect the frontend stretches
+ * it to. */
+cvar_t r_aspect       = { "r_aspect",       "0", true };
 cvar_t r_drawentities = { "r_drawentities", "1" };
 cvar_t r_drawviewmodel = { "r_drawviewmodel", "1" };
 cvar_t r_ambient = { "r_ambient", "0" };
@@ -335,6 +343,9 @@ R_Init(void)
     Cvar_RegisterVariable(&r_polysubdiv);
     Cvar_SetCallback(&r_polysubdiv, R_PolySubdivChanged);
     Cvar_SetCallback(&r_phongshading, R_PhongShadingChanged);
+
+    Cvar_RegisterVariable(&r_aspect);
+    Cvar_SetCallback(&r_aspect, R_AspectRatioChanged);
 
     Cvar_SetValue("r_maxedges", (float)NUMSTACKEDGES);
     Cvar_SetValue("r_maxsurfs", (float)NUMSTACKSURFACES);

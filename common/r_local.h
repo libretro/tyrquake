@@ -78,6 +78,7 @@ extern cvar_t r_coloredlight;
 extern cvar_t r_lightdither;
 extern cvar_t r_persistgibs;
 extern cvar_t r_shadows;
+extern cvar_t r_aspect;
 extern cvar_t r_fullbright;
 extern cvar_t r_drawentities;
 extern cvar_t r_ambient;
