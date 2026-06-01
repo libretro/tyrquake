@@ -554,6 +554,17 @@ void R_AspectRatioChanged(cvar_t *var)
    if (idx < 0)             Cvar_SetValue("r_aspect", 0.0f);
    if (idx > R_ASPECT_MAX)  Cvar_SetValue("r_aspect", (float)R_ASPECT_MAX);
 
+   /* Force the renderer to recompute the view.  SCR_CalcRefdef (which
+    * derives fov_x via the Hor+ path) and R_ViewChanged (which applies
+    * the aspect-compensated pixelAspect) only run when
+    * vid.recalc_refdef is set -- otherwise the projection stays frozen
+    * at whatever fov/viewsize last triggered it, and changing the
+    * aspect ratio has no visible effect.  This is the trigger that was
+    * missing: without it both the fov_x widening and the pixelAspect
+    * override are computed but never re-evaluated on an r_aspect
+    * change. */
+   vid.recalc_refdef = true;
+
    if (!environ_cb)
       return;
 
