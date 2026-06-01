@@ -1113,7 +1113,6 @@ bool retro_load_game(const struct retro_game_info *info)
 {
    unsigned i;
    char g_rom_dir[PATH_MAX_LENGTH];
-   char g_pak_path[PATH_MAX_LENGTH];
    char g_save_dir[PATH_MAX_LENGTH];
    char cfg_file[PATH_MAX_LENGTH];
    char *path_lower = NULL;
@@ -1123,7 +1122,6 @@ bool retro_load_game(const struct retro_game_info *info)
    struct retro_keyboard_callback cb = { keyboard_cb };
 
    g_rom_dir[0] = '\0';
-   g_pak_path[0] = '\0';
    g_save_dir[0] = '\0';
    cfg_file[0] = '\0';
 
@@ -1140,8 +1138,6 @@ bool retro_load_game(const struct retro_game_info *info)
    update_variables(true);
 
    extract_directory(g_rom_dir, info->path, sizeof(g_rom_dir));
-
-   strlcpy(g_pak_path, info->path, sizeof(g_pak_path));
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &base_save_dir) && base_save_dir)
    {
@@ -1195,8 +1191,6 @@ bool retro_load_game(const struct retro_game_info *info)
       extract_directory(tmp_dir, g_rom_dir, sizeof(tmp_dir));
       strlcpy(g_rom_dir, tmp_dir, sizeof(g_rom_dir));
    }
-   free(path_lower);
-   path_lower = NULL;
 
    memset(&parms, 0, sizeof(parms));
 
@@ -1207,22 +1201,22 @@ bool retro_load_game(const struct retro_game_info *info)
    parms.memsize = MEMSIZE_MB * 1024 * 1024;
    argv[0] = empty_string;
 
-   if (strstr(g_pak_path, "rogue"))
+   if (strstr(path_lower, "rogue"))
    {
       parms.argc++;
       argv[1] = "-rogue";
    }
-   else if (strstr(g_pak_path, "hipnotic"))
+   else if (strstr(path_lower, "hipnotic"))
    {
       parms.argc++;
       argv[1] = "-hipnotic";
    }
-   else if (strstr(g_pak_path, "quoth"))
+   else if (strstr(path_lower, "quoth"))
    {
       parms.argc++;
       argv[1] = "-quoth";
    }
-   else if (!strstr(g_pak_path, "id1"))
+   else if (!strstr(path_lower, "id1"))
    {
       const char *basename = path_basename(g_rom_dir);
       char tmp_dir[PATH_MAX_LENGTH];
@@ -1236,6 +1230,9 @@ bool retro_load_game(const struct retro_game_info *info)
       extract_directory(tmp_dir, g_rom_dir, sizeof(tmp_dir));
       strlcpy(g_rom_dir, tmp_dir, sizeof(g_rom_dir));
    }
+
+   free(path_lower);
+   path_lower = NULL;
 
    parms.argv = argv;
 
