@@ -1189,43 +1189,6 @@ R_DrawViewModel(void)
 
     r_viewlighting.plightvec = lightvec;
 
-    /* Viewmodel FOV anchor.
-     *
-     * Under Hor+ widescreen (r_aspect > 0) the world is rendered with a
-     * widened horizontal FOV.  The viewmodel is a screen-anchored prop,
-     * not world geometry, so applying that same widening stretches the
-     * weapon toward the screen edges at wide ratios (very visible at
-     * 21:9 / 32:9).  Other ports solve this by giving the viewmodel its
-     * own FOV; here we pin it to the vanilla horizontal FOV (the
-     * authored scr_fov at 4:3) by temporarily swapping in the
-     * un-widened horizontal scale around the alias draw.
-     *
-     * Only the horizontal scale depends on the widened
-     * horizontalFieldOfView; xcenter/aliasxcenter derive from
-     * vrect.width alone and are aspect-invariant, and the vertical
-     * scale is already anchored by the pixelAspect compensation in
-     * R_ViewChanged.  So restoring just xscale / aliasxscale / xscaleinv
-     * to their 4:3 values reproduces the vanilla gun projection while
-     * leaving the world untouched.  At 4:3 this is a no-op. */
-    if ((int)r_aspect.value > 0) {
-	float hfov43 = 2.0f * tanf(scr_fov.value / 360.0f * (float)M_PI);
-	float xscale43 = r_refdef.vrect.width / hfov43;
-	float save_xscale      = xscale;
-	float save_aliasxscale = aliasxscale;
-	float save_xscaleinv   = xscaleinv;
-
-	xscale      = xscale43;
-	aliasxscale = xscale43 * r_aliasuvscale;
-	xscaleinv   = 1.0f / xscale43;
-
-	R_AliasDrawModel(e, &r_viewlighting);
-
-	xscale      = save_xscale;
-	aliasxscale = save_aliasxscale;
-	xscaleinv   = save_xscaleinv;
-	return;
-    }
-
     R_AliasDrawModel(e, &r_viewlighting);
 }
 
