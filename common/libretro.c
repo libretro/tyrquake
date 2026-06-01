@@ -1849,17 +1849,14 @@ IN_Commands(void)
 void
 IN_Move(usercmd_t *cmd)
 {
-   static int cur_mx;
-   static int cur_my;
    int mx, my, lsx, lsy, rsx, rsy;
 
    if (quake_devices[0] == RETRO_DEVICE_KEYBOARD) {
       mx = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_X);
       my = input_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_Y);
 
-      if (mx != cur_mx || my != cur_my)
+      if (mx || my)
       {
-
          mx *= sensitivity.value;
          my *= sensitivity.value;
 
@@ -1873,8 +1870,6 @@ IN_Move(usercmd_t *cmd)
             cl.viewangles[PITCH] = 80;
          if (cl.viewangles[PITCH] < -70)
             cl.viewangles[PITCH] = -70;
-         cur_mx = mx;
-         cur_my = my;
       }
    } else if (quake_devices[0] != RETRO_DEVICE_NONE && quake_devices[0] != RETRO_DEVICE_KEYBOARD) {
       /* Left stick move */
