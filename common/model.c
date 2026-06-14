@@ -617,6 +617,51 @@ static byte *mod_base;
 
 /*
 =================
+Mod_BoundLoaderCount
+
+Validates the (count + reserve_slots) * record_size product that the
+brush-model loaders pass to Hunk_Alloc, SV_Erroring before the
+multiplication wraps in 32-bit signed arithmetic.
+
+The lump-extent checks in Mod_LoadBrushModel bound `l->filelen` against
+the file size (capped at INT_MAX = ~2 GiB by COM_filelength), but the
+per-record output size in some loaders is significantly larger than the
+on-disk record (e.g. bsp29_dface_t = 20 B versus msurface_t = 128 B, a
+6.4x growth).  With a maliciously crafted BSP at 670 MiB the face
+loader's `count * 128` wraps to 0, Hunk_Alloc accepts a zero-byte
+request, and the rasterizer loop walks `count` records past the
+allocation -- d0f7e07 (Hunk_Alloc INT_MAX bound) only catches the
+negative or near-INT_MAX wrap, not the zero-wrap case.
+
+`reserve_slots` covers loaders that allocate extra trailing records
+(Mod_LoadEdges allocates one extra medge_t); `record_size` should be
+the full per-input-record output size including any compile-time
+multiplier (Mod_LoadPlanes passes 2 * sizeof(mplane_t)).
+
+No behaviour change on well-formed BSPs; failures identify the
+offending lump count in the style of the existing audit checks.
+=================
+*/
+static void
+Mod_BoundLoaderCount(int count, int reserve_slots, size_t record_size,
+                     const char *fnname, const char *modname)
+{
+   size_t total_records;
+   if (count < 0 || reserve_slots < 0)
+      SV_Error("%s: bad count %d / reserve %d in %s",
+               fnname, count, reserve_slots, modname);
+   if ((size_t)count > (size_t)INT_MAX - (size_t)reserve_slots)
+      SV_Error("%s: count %d + reserve %d overflows int in %s",
+               fnname, count, reserve_slots, modname);
+   total_records = (size_t)count + (size_t)reserve_slots;
+   if (record_size == 0 || total_records > (size_t)INT_MAX / record_size)
+      SV_Error("%s: %zu records * %zu bytes exceeds INT_MAX in %s",
+               fnname, total_records, record_size, modname);
+}
+
+
+/*
+=================
 Mod_LoadTextures
 =================
 */
@@ -1151,6 +1196,7 @@ Mod_LoadEdges_BSP29(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 1, sizeof(*out), __func__, loadmodel->name);
    out = (medge_t*)Hunk_Alloc((count + 1) * sizeof(*out));
 
    loadmodel->edges = out;
@@ -1183,6 +1229,7 @@ Mod_LoadEdges_BSP2(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 1, sizeof(*out), __func__, loadmodel->name);
    out = (medge_t*)Hunk_Alloc((count + 1) * sizeof(*out));
 
    loadmodel->edges = out;
@@ -1217,6 +1264,7 @@ static void Mod_LoadTexinfo(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (mtexinfo_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->texinfo = out;
@@ -1407,6 +1455,7 @@ Mod_LoadFaces_BSP29(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (msurface_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->surfaces = out;
@@ -1521,6 +1570,7 @@ static void Mod_LoadFaces_BSP2(lump_t *l)
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
 
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (msurface_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->surfaces = out;
@@ -1640,6 +1690,7 @@ Mod_LoadNodes_BSP29(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (mnode_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->nodes = out;
@@ -1718,6 +1769,7 @@ static void Mod_LoadNodes_BSP2(lump_t *l)
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
 
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out   = (mnode_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->nodes    = out;
@@ -1930,6 +1982,7 @@ Mod_LoadClipnodes_BSP29(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (mclipnode_t*)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->clipnodes = out;
@@ -2091,6 +2144,7 @@ Mod_LoadMarksurfaces_BSP29(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (msurface_t**)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->marksurfaces = out;
@@ -2116,6 +2170,7 @@ Mod_LoadMarksurfaces_BSP2(lump_t *l)
    if (l->filelen % sizeof(*in))
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
    count = l->filelen / sizeof(*in);
+   Mod_BoundLoaderCount(count, 0, sizeof(*out), __func__, loadmodel->name);
    out = (msurface_t**)Hunk_Alloc(count * sizeof(*out));
 
    loadmodel->marksurfaces = out;
@@ -2183,6 +2238,10 @@ static void Mod_LoadPlanes(lump_t *l)
       SV_Error("%s: funny lump size in %s", __func__, loadmodel->name);
 
    count = l->filelen / sizeof(*in);
+   /* Mod_LoadPlanes allocates 2 mplane_t per dplane_t (used by the
+    * server-side clipping path).  Pass 2 * sizeof(*out) as the
+    * effective per-record size to the bound check. */
+   Mod_BoundLoaderCount(count, 0, 2 * sizeof(*out), __func__, loadmodel->name);
    out   = (mplane_t*)
       Hunk_Alloc(count * 2 * sizeof(*out));
 
