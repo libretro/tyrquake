@@ -143,31 +143,51 @@ typedef struct {
 } mtexinfo_t;
 
 typedef struct msurface_s {
-    int visframe;	/* should be drawn when node is crossed */
-    int clipflags;	/* flags for clipping against frustum */
-    vec3_t mins;	/* bounding box for frustum culling */
-    vec3_t maxs;
+    /* Cache-line 0 (offsets 0-63): "hot" fields touched during the
+     * per-frame BSP traversal / PVS expansion / frustum culling /
+     * dynamic-light association phase.  Every surface in the camera
+     * PVS gets these fields read or written before the engine
+     * decides whether to actually render the surface, so packing
+     * them into one cache line keeps frustum-culled surfaces from
+     * paying a line-1 load.  Layout below totals exactly 64 bytes
+     * with no waste padding.  Access sites:
+     *   visframe     -- R_MarkSurfaces, R_RecursiveWorldNode
+     *   clipflags    -- R_CullSurfaces, R_RecursiveWorldNode
+     *   flags        -- SURF_DRAWTURB / SURF_PLANEBACK gates throughout
+     *   dlightframe, dlightbits -- R_MarkLights per-frame dlight bitset
+     *   mins, maxs   -- BoxOnPlaneSide frustum test
+     *   plane        -- backface test (plane->normal, plane->dist)
+     *   styles       -- R_BuildLightMap inner gate
+     * styles is in line 0 because R_AnimateLight + R_BuildLightMap
+     * read it for every visible surface; the byte[4] also fits the
+     * 4-byte gap before the next 8-byte-aligned pointer. */
+    int             visframe;     /* should be drawn when node is crossed */
+    int             clipflags;    /* flags for clipping against frustum */
+    int             flags;        /* SURF_DRAWTURB et al */
+    int             dlightframe;
+    vec3_t          mins;         /* bounding box for frustum culling */
+    byte            styles[MAXLIGHTMAPS];
+    vec3_t          maxs;
+    mplane_t       *plane;
+    unsigned        dlightbits[(MAX_DLIGHTS + 31) >> 5]; /* qbism from MH - increase max_dlights */
 
-    mplane_t *plane;
-    int flags;
-
-    int firstedge;	/* look up in model->surfedges[], negative numbers */
-    int numedges;	/* are backwards edges */
-
-    /* surface generation data */
+    /* Cache-line 1 (offsets 64-127): "cold" fields touched only when
+     * the surface is actually being rendered -- after frustum +
+     * backface culling have passed and dispatch reaches the edge
+     * walker / lightmap builder / rasterizer.  Surfaces that fail
+     * culling never read this line.
+     *   firstedge, numedges -- R_RenderFace edge walker
+     *   texturemins, extents -- lightmap + UV setup
+     *   texinfo      -- texture pointer + u/v vecs
+     *   samples      -- per-style lightmap byte data
+     *   cachespots   -- surface cache lookup per mip */
+    int             firstedge;    /* look up in model->surfedges[], negative numbers */
+    int             numedges;     /* are backwards edges */
+    short           texturemins[2];
+    short           extents[2];
+    mtexinfo_t     *texinfo;
+    byte           *samples;      /* [numstyles*surfsize] */
     struct surfcache_s *cachespots[MIPLEVELS];
-
-    short texturemins[2];
-    short extents[2];
-
-    mtexinfo_t *texinfo;
-
-/* lighting info */
-    int dlightframe;
-    unsigned dlightbits[(MAX_DLIGHTS + 31) >> 5]; /* qbism from MH - increase max_dlights */
-
-    byte styles[MAXLIGHTMAPS];
-    byte *samples;		/* [numstyles*surfsize] */
 } msurface_t;
 
 typedef struct mnode_s {
