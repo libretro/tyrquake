@@ -237,7 +237,20 @@ CL_KeepaliveMessage(void)
     static double lastmsg;
     int ret;
     sizebuf_t old;
-    byte olddata[8192];
+    /* Sized to NET_MAXMESSAGE because net_message itself is
+     * SZ_Alloc'd to NET_MAXMESSAGE in NET_Init -- cursize can be
+     * any value in [0, NET_MAXMESSAGE].  The previous 8192 cap
+     * was an under-allocation: when CL_KeepaliveMessage is called
+     * during the model / sound precache loops in CL_Parse-
+     * ServerInfo (the only callers), net_message holds the
+     * serverinfo blob, which routinely exceeds 8 KiB on maps with
+     * many precached models (256 entries * up to MAX_QPATH = 64
+     * chars approaches the 32 KiB net_message capacity).  A
+     * malformed-but-protocol-valid serverinfo whose cursize falls
+     * in the (8192, NET_MAXMESSAGE] range turns the memcpy below
+     * into a stack overflow from a network source, smashing the
+     * saved frame pointer and return address. */
+    byte olddata[NET_MAXMESSAGE];
 
     if (sv.active)
 	return;			/* no need if server is local */
@@ -246,6 +259,16 @@ CL_KeepaliveMessage(void)
 
 /* read messages from server, should just be nops */
     old = net_message;
+    /* Defensive: SZ_GetSpace clamps cursize to net_message.maxsize
+     * (= NET_MAXMESSAGE), so the bound below is in principle
+     * redundant -- but a corrupted sizebuf upstream (a future
+     * change to the SZ_* invariants, or a stomp on net_message
+     * by an unrelated bug) would otherwise corrupt the stack
+     * silently rather than crash here. */
+    if (net_message.cursize < 0
+        || net_message.cursize > (int)sizeof(olddata))
+       Host_Error("%s: net_message.cursize %d out of range [0, %d]",
+                  __func__, net_message.cursize, (int)sizeof(olddata));
     memcpy(olddata, net_message.data, net_message.cursize);
 
     do {
