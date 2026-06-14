@@ -522,10 +522,7 @@ static void R_BuildLightMapRGB (void)
 	unsigned	scale;
 	int			maps;
 	msurface_t	*surf;
-	int sample;
-	int	shifted;
-		shifted = 0;
-		sample = 65536;
+	int			sample = 65536;
 
 	surf = r_drawsurf.surf;
 
@@ -544,59 +541,27 @@ static void R_BuildLightMapRGB (void)
 /* clear to ambient */
 	R_LightMapFill(blocklights, size, r_refdef.ambientlight<<8);
 
-
 /* add all the lightmaps */
 	if (lightmap)
 		for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ;
 			 maps++)
 		{
 			scale = r_drawsurf.lightadj[maps];	/* 8.8 fraction */
-			/* RGB accum: original loop steps i+=3 and updates [i],[i+1],[i+2];
-			 * net result is bl[i] += lightmap[i] * scale for every i in
-			 * [0, size), identical to R_LightMapAccum. */
+			/* RGB accum: original loop stepped i+=3 and updated
+			 * [i],[i+1],[i+2]; net result is bl[i] += lightmap[i] *
+			 * scale for every i in [0, size), identical to
+			 * R_LightMapAccum. */
 			R_LightMapAccum(blocklights, lightmap, size, scale);
 			lightmap += size;	/* skip to next lightmap */
 		}
 
 /* add all the dynamic lights */
-			 if (surf->dlightframe == r_framecount)
-					R_AddDynamicLightsRGB ();
+	if (surf->dlightframe == r_framecount)
+		R_AddDynamicLightsRGB ();
 
-		 			 
-
-	
-/* bound, invert, and shift */
-/*
-	{
-	int t, re;
-	for (i=0 ; i<size ; i++)
-		{
-			
-			t = blocklights[i] / 2;
-			if (t < 1024)
-				t = 1024;
-			if (t > sample)
-				t = sample;
-			t = t >> (8 - VID_CBITS);
-	
-			if (t < (1 << 6))
-				t = (1 << 6);
-			
-	
-			
-			r = t;
-			blocklights[i] = r;
-		
-		}
-	}
-*/
-	/* shifted is always 0 here, so blocklights[i] >> shifted == blocklights[i];
-	 * the loop is then a pure int clamp to [256, sample].  leilei's note in the
-	 * original loop:  "made min 256 to rid visual artifacts and gain speed". */
-	(void)shifted;
+/* clamp blocklights to [256, sample].  leilei's note from the original
+ * scalar loop: "made min 256 to rid visual artifacts and gain speed". */
 	R_LightMapClampRGB(blocklights, size, 256, sample);
-
-	
 }
 
 
