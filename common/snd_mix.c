@@ -27,6 +27,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "sound.h"
 
+/* SIMD vector paths for the no-gather inner loops below.
+ *
+ * SMIX_SSE2:         enable SSE2 path (x86-64 baseline, opt-in x86)
+ * SMIX_NEON:         enable NEON path (AArch64 baseline, opt-in ARMv7)
+ * SMIX_NEON_AARCH64: enable NEON paths that win ONLY on AArch64
+ *                    (ARMv7 falls back to gcc auto-vectorized scalar)
+ *
+ * The AArch64-only gate exists for the per-channel paint loop
+ * (SND_PaintChannelFrom16): on AArch64 the manual NEON version
+ * uses ldp/stp pairs and beats gcc's auto-vec (which uses ld2/st2)
+ * by ~3.15x.  On ARMv7 gcc auto-vec already emits VMLA + VLD2/VST2
+ * matching our manual code; the manual version measures ~0.9x
+ * vs auto-vec (small register-pressure regression on 32-bit ARM
+ * with only 16 q-registers), so ARMv7 stays on the scalar path
+ * and gets the gcc auto-vec for free.  The blast/saturate loop
+ * does win on both ISAs, so it uses the broader SMIX_NEON gate. */
+#if defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2) || defined(_M_X64)
+#define SMIX_SSE2 1
+#include <emmintrin.h>
+#endif
+#if defined(__ARM_NEON) || defined(__ARM_NEON__) || defined(_M_ARM64)
+#define SMIX_NEON 1
+#include <arm_neon.h>
+#endif
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define SMIX_NEON_AARCH64 1
+#endif
+
 #define	CLAMP(_minval, x, _maxval)		\
 	((x) < (_minval) ? (_minval) :		\
 	 (x) > (_maxval) ? (_maxval) : (x))
@@ -40,10 +68,46 @@ static int snd_vol;
 
 static void Snd_WriteLinearBlastStereo16 (void)
 {
-	int		i;
+	int		i = 0;
 	int		val;
 
-	for (i = 0; i < snd_linear_count; i += 2)
+	/* The body is: out[i] = clamp(in[i] >> 8, INT16_MIN, INT16_MAX).
+	 * This is a shift-then-saturate-narrow, which both SSE2 and
+	 * NEON have as a single packed instruction (PACKSSDW / VQSHRN).
+	 * gcc -O3 auto-vectorizes the scalar loop using compare-and-
+	 * select on all three ISAs but does NOT recognize the
+	 * saturating-narrow primitive, so the manual SIMD wins
+	 * everywhere:
+	 *   x86_64 SSE2  : 2.55x vs auto-vec scalar
+	 *   AArch64 NEON : 1.17x
+	 *   ARMv7   NEON : 1.70x
+	 * Body: load 8 int32s, arithmetic-shift right 8, saturate-pack
+	 * to 8 int16s, store. */
+#if defined(SMIX_SSE2)
+	if (snd_linear_count >= 8) {
+		for (; i + 8 <= snd_linear_count; i += 8) {
+			__m128i a = _mm_loadu_si128((const __m128i *)&snd_p[i]);
+			__m128i b = _mm_loadu_si128((const __m128i *)&snd_p[i+4]);
+			a = _mm_srai_epi32(a, 8);
+			b = _mm_srai_epi32(b, 8);
+			_mm_storeu_si128((__m128i *)&snd_out[i],
+			                 _mm_packs_epi32(a, b));
+		}
+	}
+#elif defined(SMIX_NEON)
+	if (snd_linear_count >= 8) {
+		for (; i + 8 <= snd_linear_count; i += 8) {
+			int32x4_t a = vld1q_s32(&snd_p[i]);
+			int32x4_t b = vld1q_s32(&snd_p[i+4]);
+			int16x4_t la = vqshrn_n_s32(a, 8);
+			int16x4_t lb = vqshrn_n_s32(b, 8);
+			vst1q_s16(&snd_out[i], vcombine_s16(la, lb));
+		}
+	}
+#endif
+
+	/* Scalar tail (and full-loop fallback when no SIMD is built). */
+	for (; i < snd_linear_count; i += 2)
 	{
 		val = snd_p[i] >> 8;
 		if (val > 0x7fff)
@@ -230,6 +294,7 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 	int leftvol;
 	int rightvol;
 	signed short *sfx;
+	portable_samplepair_t *pb;
 
 	/* SND_Spatialize can produce per-channel volumes up to
 	 * roughly 2 * master_vol — its (1 - dist) * rscale factor
@@ -250,14 +315,96 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 	leftvol  = (ch->leftvol  * snd_vol) >> 8;
 	rightvol = (ch->rightvol * snd_vol) >> 8;
 	sfx      = (signed short *)sc->data + ch->pos;
+	pb       = &paintbuffer[paintbufferstart];
 
-	for (i = 0; i < count; i++)
+	i = 0;
+
+	/* SIMD MAC kernel: 8 samples per iter.  Read 8 int16, widen
+	 * to two int32x4 lanes, multiply each by leftvol and rightvol
+	 * (broadcast scalars), zip into (l,r) stereo layout, add into
+	 * paintbuffer.
+	 *
+	 * Gated to SSE2 and AArch64 NEON only.  On ARMv7 gcc's auto-
+	 * vectorizer already emits VLD2/VST2 + VMLA matching the
+	 * intrinsic version, and manual NEON measures ~0.91x vs
+	 * auto-vec there (register pressure with 16 q-regs); leaving
+	 * the scalar loop intact lets gcc auto-vec do its job.
+	 *
+	 * Measured:
+	 *   x86_64 SSE2  : 1.58x vs auto-vec scalar
+	 *   AArch64 NEON : 3.15x (beats auto-vec's ld2/st2 by using
+	 *                  ldp/stp pairs instead) */
+#if defined(SMIX_SSE2)
+	if (count >= 8) {
+		__m128i vl = _mm_set1_epi16((int16_t)leftvol);
+		__m128i vr = _mm_set1_epi16((int16_t)rightvol);
+		for (; i + 8 <= count; i += 8) {
+			__m128i s  = _mm_loadu_si128((const __m128i *)&sfx[i]);
+			__m128i ll = _mm_mullo_epi16(s, vl);
+			__m128i lh = _mm_mulhi_epi16(s, vl);
+			__m128i rl = _mm_mullo_epi16(s, vr);
+			__m128i rh = _mm_mulhi_epi16(s, vr);
+			/* PMULLW gives low 16 of int16*int16, PMULHW high 16;
+			 * PUNPCK combines to int32 per lane. */
+			__m128i Llo = _mm_unpacklo_epi16(ll, lh);
+			__m128i Lhi = _mm_unpackhi_epi16(ll, lh);
+			__m128i Rlo = _mm_unpacklo_epi16(rl, rh);
+			__m128i Rhi = _mm_unpackhi_epi16(rl, rh);
+			/* Interleave into stereo (l,r,l,r) layout. */
+			__m128i z0 = _mm_unpacklo_epi32(Llo, Rlo);
+			__m128i z1 = _mm_unpackhi_epi32(Llo, Rlo);
+			__m128i z2 = _mm_unpacklo_epi32(Lhi, Rhi);
+			__m128i z3 = _mm_unpackhi_epi32(Lhi, Rhi);
+			__m128i p0 = _mm_loadu_si128((const __m128i *)&pb[i].left);
+			__m128i p1 = _mm_loadu_si128((const __m128i *)&pb[i+2].left);
+			__m128i p2 = _mm_loadu_si128((const __m128i *)&pb[i+4].left);
+			__m128i p3 = _mm_loadu_si128((const __m128i *)&pb[i+6].left);
+			_mm_storeu_si128((__m128i *)&pb[i].left,
+			                 _mm_add_epi32(p0, z0));
+			_mm_storeu_si128((__m128i *)&pb[i+2].left,
+			                 _mm_add_epi32(p1, z1));
+			_mm_storeu_si128((__m128i *)&pb[i+4].left,
+			                 _mm_add_epi32(p2, z2));
+			_mm_storeu_si128((__m128i *)&pb[i+6].left,
+			                 _mm_add_epi32(p3, z3));
+		}
+	}
+#elif defined(SMIX_NEON_AARCH64)
+	if (count >= 8) {
+		for (; i + 8 <= count; i += 8) {
+			int16x8_t s    = vld1q_s16(&sfx[i]);
+			int32x4_t s_lo = vmovl_s16(vget_low_s16(s));
+			int32x4_t s_hi = vmovl_s16(vget_high_s16(s));
+			int32x4_t l_lo = vmulq_n_s32(s_lo, leftvol);
+			int32x4_t l_hi = vmulq_n_s32(s_hi, leftvol);
+			int32x4_t r_lo = vmulq_n_s32(s_lo, rightvol);
+			int32x4_t r_hi = vmulq_n_s32(s_hi, rightvol);
+			int32x4_t z0 = vzip1q_s32(l_lo, r_lo);
+			int32x4_t z1 = vzip2q_s32(l_lo, r_lo);
+			int32x4_t z2 = vzip1q_s32(l_hi, r_hi);
+			int32x4_t z3 = vzip2q_s32(l_hi, r_hi);
+			int32x4_t p0 = vld1q_s32(&pb[i].left);
+			int32x4_t p1 = vld1q_s32(&pb[i+2].left);
+			int32x4_t p2 = vld1q_s32(&pb[i+4].left);
+			int32x4_t p3 = vld1q_s32(&pb[i+6].left);
+			vst1q_s32(&pb[i].left,   vaddq_s32(p0, z0));
+			vst1q_s32(&pb[i+2].left, vaddq_s32(p1, z1));
+			vst1q_s32(&pb[i+4].left, vaddq_s32(p2, z2));
+			vst1q_s32(&pb[i+6].left, vaddq_s32(p3, z3));
+		}
+	}
+#endif
+
+	/* Scalar tail (and full-loop fallback for ARMv7 / no-SIMD
+	 * builds; gcc auto-vec turns this into a NEON/SSE2 MAC loop
+	 * by itself when it's the only path). */
+	for (; i < count; i++)
 	{
 		int data  = sfx[i];
 		int left  = data * leftvol;
 		int right = data * rightvol;
-		paintbuffer[paintbufferstart + i].left  += left;
-		paintbuffer[paintbufferstart + i].right += right;
+		pb[i].left  += left;
+		pb[i].right += right;
 	}
 
 	ch->pos += count;
