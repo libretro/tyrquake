@@ -225,8 +225,8 @@ D_PolysetDraw
  * rasterizer it dispatches to (D_DrawSubdiv / D_DrawNonSubdiv ->
  * D_PolysetRecursiveTriangle and friends) doesn't call back into
  * D_PolysetDraw. */
-static spanpackage_t d_polyset_spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)]
-    __attribute__((aligned(CACHE_SIZE)));
+CACHE_ALIGN_DECL(static spanpackage_t
+    d_polyset_spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)]);
 
 void
 D_PolysetDraw(void)
