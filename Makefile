@@ -708,6 +708,33 @@ endif
 LDFLAGS += $(LIBS)
 CORE_DIR := .
 
+# Per-file -O3 overrides for two TUs whose hot inner loops auto-vectorize
+# at -O3 but not at the project default -O2.  Bumping these specific files
+# (rather than the whole tree) keeps the build-time and code-size effect
+# narrow and avoids the inlining/peeling changes -O3 would impose on the
+# rest of the codebase.
+#
+# snd_mix.c:
+#   - paintbuffer clamp loop (per-chunk saturation clip on int32 stereo
+#     samples).
+#   - BGM stream mix-in loop (paintbuffer[i].left/right += s_rawsamples[]).
+#   gcc -O3 auto-vec emits 16-byte SSE/NEON vectors on both; -O2 leaves
+#   them scalar.  Combined per-frame saving ~0.8us at 60Hz.
+#
+# r_alias.c:
+#   - R_AliasBlendPoseVerts pose-interpolation lerp inner loop
+#     ((pv1->v * blend0 + pv2->v * blend1) >> 22, per alias vertex).
+#   Bench at typical numverts=400 shows O2 3.15 ns/vert -> O3 2.22 ns/vert
+#   (1.42x).  ~4us/frame at 10 visible alias entities/frame.
+#
+# Skipped on debug builds; appending -O3 would override the -O0 the debug
+# branch sets and defeat -g optimization-off semantics.  No effect on
+# platforms whose CFLAGS already pin -O3 (e.g. libnx) -- last -O wins,
+# and -O3 -O3 == -O3.
+ifneq ($(DEBUG), 1)
+$(CORE_DIR)/common/snd_mix.o: CFLAGS += -O3
+$(CORE_DIR)/common/r_alias.o: CFLAGS += -O3
+endif
 ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)
 $(error Invalid VORBISLIB setting)
