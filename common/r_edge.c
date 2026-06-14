@@ -71,8 +71,6 @@ R_BeginEdgeFrame
 */
 void R_BeginEdgeFrame(void)
 {
-   int v;
-
    edge_p = r_edges;
    edge_max = &r_edges[r_numallocatededges];
 
@@ -92,9 +90,21 @@ void R_BeginEdgeFrame(void)
       r_currentkey = 0;
    }
 
-   /* FIXME: set with memset */
-   for (v = r_refdef.vrect.y; v < r_refdef.vrectbottom; v++) {
-      newedges[v] = removeedges[v] = NULL;
+   /* newedges and removeedges form per-scanline edge lists rebuilt
+    * every frame.  The clear is bounded by vrect.y..vrectbottom-1
+    * (the 3D viewport, not the full MAXHEIGHT array).  NULL is the
+    * appropriate empty-list sentinel for both pointer arrays. */
+   {
+   int       y_lo = r_refdef.vrect.y;
+   int       y_hi = r_refdef.vrectbottom;
+   size_t    span;
+   if (y_lo < 0)         y_lo = 0;
+   if (y_hi > MAXHEIGHT) y_hi = MAXHEIGHT;
+   if (y_hi > y_lo) {
+      span = (size_t)(y_hi - y_lo);
+      memset(&newedges[y_lo],    0, span * sizeof(newedges[0]));
+      memset(&removeedges[y_lo], 0, span * sizeof(removeedges[0]));
+   }
    }
 }
 
