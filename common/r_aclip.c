@@ -231,7 +231,14 @@ void
 R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *pauxverts)
 {
    int i, k, pingpong;
-   mtriangle_t mtri;
+   /* Sutherland-Hodgman against 4 frustum planes (left, right, top,
+    * bottom) on a 3-vertex triangle can produce at most 3 + 4 = 7
+    * output vertices.  Z-clip is handled separately and replaces the
+    * triangle with at most 3 verts (R_AliasClip with z plane is
+    * stricter; pre-clip ALIAS_Z_CLIP filter in R_AliasPreparePoints
+    * already rejected fully z-clipped tris).  So mtri_fan is sized
+    * for the worst-case 5-triangle fan (7 verts - 2). */
+   mtriangle_t mtri_fan[5];
    unsigned clipflags;
 
    /* copy vertexes and fix seam texture coordinates */
@@ -317,16 +324,35 @@ R_AliasClipTriangle(mtriangle_t *ptri, finalvert_t *pfinalverts, auxvert_t *paux
    }
 
    /* draw triangles */
-   mtri.facesfront = ptri->facesfront;
-   r_affinetridesc.ptriangles = &mtri;
    r_affinetridesc.pfinalverts = fv[pingpong];
 
-   /* FIXME: do all at once as trifan? */
-   mtri.vertindex[0] = 0;
-   for (i = 1; i < k - 1; i++) {
-      mtri.vertindex[1] = i;
-      mtri.vertindex[2] = i + 1;
-      D_PolysetDraw();
+   /* Build the fan triangulation as a single batch and dispatch once.
+    * Addresses the in-source FIXME ("do all at once as trifan?") --
+    * the old code issued k-2 separate D_PolysetDraw calls, each
+    * paying the rasterizer's per-call overhead (function prologue,
+    * GPU dispatch probe, drawtype branch) and replicating the
+    * iteration through D_DrawNonSubdiv's per-triangle setup.  Now
+    * each clipped fan is one D_PolysetDraw with numtriangles = k-2.
+    *
+    * All fan triangles share vertindex[0] (Quake's fan layout from
+    * a polygon convex enough to be triangulated this way).  The
+    * iteration order matches the original loop's order
+    * ((0,1,2), (0,2,3), (0,3,4), ...), so D_DrawNonSubdiv consumes
+    * them in identical sequence and produces bit-identical output. */
+   {
+      int ntri = k - 2;
+      if (ntri >= 1) {
+         int t;
+         for (t = 0; t < ntri; t++) {
+            mtri_fan[t].facesfront    = ptri->facesfront;
+            mtri_fan[t].vertindex[0]  = 0;
+            mtri_fan[t].vertindex[1]  = t + 1;
+            mtri_fan[t].vertindex[2]  = t + 2;
+         }
+         r_affinetridesc.ptriangles   = mtri_fan;
+         r_affinetridesc.numtriangles = ntri;
+         D_PolysetDraw();
+      }
    }
    /* Clean up global pointer to stack before returning */
    r_affinetridesc.ptriangles = NULL;
