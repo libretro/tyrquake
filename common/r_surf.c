@@ -253,6 +253,52 @@ static void R_LightMapBound(int *bl, int size)
 #endif
 }
 
+/* RGB lightmap clamp: bl[i] = clamp(bl[i], lo, hi).
+ * Used by R_BuildLightMapRGB's final bound loop (sample/shifted clamp).
+ * shifted is always 0 and sample is always 65536 in the caller, so the
+ * shift drops out and this is a pure integer clamp. */
+static void R_LightMapClampRGB(int *bl, int size, int lo, int hi)
+{
+#if defined(LMAP_SSE2)
+   int i;
+   int batch = size & ~3;
+   __m128i lo_v = _mm_set1_epi32(lo);
+   __m128i hi_v = _mm_set1_epi32(hi);
+   for (i = 0; i < batch; i += 4) {
+      __m128i x     = _mm_loadu_si128((const __m128i *)(bl + i));
+      __m128i below = _mm_cmplt_epi32(x, lo_v);
+      __m128i above;
+      x = _mm_or_si128(_mm_and_si128(below, lo_v), _mm_andnot_si128(below, x));
+      above = _mm_cmpgt_epi32(x, hi_v);
+      x = _mm_or_si128(_mm_and_si128(above, hi_v), _mm_andnot_si128(above, x));
+      _mm_storeu_si128((__m128i *)(bl + i), x);
+   }
+   for (; i < size; i++) {
+      int r = bl[i];
+      bl[i] = (r < lo) ? lo : (r > hi) ? hi : r;
+   }
+#elif defined(LMAP_NEON)
+   int i;
+   int batch = size & ~3;
+   int32x4_t lo_v = vdupq_n_s32(lo);
+   int32x4_t hi_v = vdupq_n_s32(hi);
+   for (i = 0; i < batch; i += 4) {
+      int32x4_t x = vld1q_s32(bl + i);
+      vst1q_s32(bl + i, vminq_s32(vmaxq_s32(x, lo_v), hi_v));
+   }
+   for (; i < size; i++) {
+      int r = bl[i];
+      bl[i] = (r < lo) ? lo : (r > hi) ? hi : r;
+   }
+#else
+   int i;
+   for (i = 0; i < size; i++) {
+      int r = bl[i];
+      bl[i] = (r < lo) ? lo : (r > hi) ? hi : r;
+   }
+#endif
+}
+
 /* Leilei - macros to make colored lighting code look a little more bearable to sanity */
 /* Macros for initiating the RGB light deltas. */
 #define MakeLightDelta() { light[0] =  lightrighta[0];	light[1] =  lightrighta[1];	light[2] =  lightrighta[2];};
@@ -476,7 +522,6 @@ static void R_BuildLightMapRGB (void)
 	unsigned	scale;
 	int			maps;
 	msurface_t	*surf;
-	int r;
 	int sample;
 	int	shifted;
 		shifted = 0;
@@ -497,8 +542,7 @@ static void R_BuildLightMapRGB (void)
 	}
 
 /* clear to ambient */
-	for (i=0 ; i<size ; i++)
-		blocklights[i] = r_refdef.ambientlight<<8;
+	R_LightMapFill(blocklights, size, r_refdef.ambientlight<<8);
 
 
 /* add all the lightmaps */
@@ -506,13 +550,11 @@ static void R_BuildLightMapRGB (void)
 		for (maps = 0 ; maps < MAXLIGHTMAPS && surf->styles[maps] != 255 ;
 			 maps++)
 		{
-			scale = r_drawsurf.lightadj[maps];	/* 8.8 fraction */		
-			for (i=0 ; i<size ; i+=3)
-			{
-				blocklights[i]		+= lightmap[i] * scale;
-				blocklights[i+1]	+= lightmap[i+1] * scale;
-				blocklights[i+2]	+= lightmap[i+2] * scale;
-			}
+			scale = r_drawsurf.lightadj[maps];	/* 8.8 fraction */
+			/* RGB accum: original loop steps i+=3 and updates [i],[i+1],[i+2];
+			 * net result is bl[i] += lightmap[i] * scale for every i in
+			 * [0, size), identical to R_LightMapAccum. */
+			R_LightMapAccum(blocklights, lightmap, size, scale);
 			lightmap += size;	/* skip to next lightmap */
 		}
 
@@ -548,11 +590,11 @@ static void R_BuildLightMapRGB (void)
 		}
 	}
 */
-		for (i=0 ; i<size ; i++)
-	{
-		r = blocklights[i] >> shifted;
-		blocklights[i] = (r < 256) ? 256 : (r > sample) ? sample : r;	/* leilei - made min 256 to rid visual artifacts and gain speed */
-	}
+	/* shifted is always 0 here, so blocklights[i] >> shifted == blocklights[i];
+	 * the loop is then a pure int clamp to [256, sample].  leilei's note in the
+	 * original loop:  "made min 256 to rid visual artifacts and gain speed". */
+	(void)shifted;
+	R_LightMapClampRGB(blocklights, size, 256, sample);
 
 	
 }
