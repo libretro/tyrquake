@@ -208,14 +208,30 @@ static void D_PolysetRecursiveTriangle(int *p1, int *p2, int *p3);
 D_PolysetDraw
 ================
 */
+/* Module-static span scratch.  Previously a 76928-byte stack local in
+ * D_PolysetDraw, large enough that the function prologue ran a stack
+ * probe loop (subq $4096, %rsp + orq $0, (%rsp) + cmp + jne, 18
+ * iterations) on every call before any actual work could begin.
+ *
+ * Sized exactly the same as the previous stack local
+ * (CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)) so the rasterizer
+ * sees an identical scratch buffer.  Aligned to CACHE_SIZE directly so
+ * a_spans can take the array base address without the runtime
+ * (uintptr_t)align trick the stack version needed.
+ *
+ * Safe to make file-static because D_PolysetDraw is called only from
+ * the rendering thread (libretro keeps GS/audio on separate threads
+ * that never touch the SW polyset path) and never recurses -- the
+ * rasterizer it dispatches to (D_DrawSubdiv / D_DrawNonSubdiv ->
+ * D_PolysetRecursiveTriangle and friends) doesn't call back into
+ * D_PolysetDraw. */
+static spanpackage_t d_polyset_spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)]
+    __attribute__((aligned(CACHE_SIZE)));
+
 void
 D_PolysetDraw(void)
 {
-   spanpackage_t spans[CACHE_PAD_ARRAY(DPS_MAXSPANS + 1, spanpackage_t)];
-   /* one extra because of cache line pretouching */
-
-   a_spans = (spanpackage_t *)
-      (((uintptr_t)&spans[0] + CACHE_SIZE - 1) & ~(uintptr_t)(CACHE_SIZE - 1));
+   a_spans = d_polyset_spans;
 
    /* Phase 5b-06: if the active backend exposes a GPU
     * alias dispatch and compute rendering is enabled,
