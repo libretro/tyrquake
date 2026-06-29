@@ -47,6 +47,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
 {
    int outcount;
    int srcsample;
+   int srccount;
    float stepscale;
    int i;
    int sample, samplefrac, fracstep;
@@ -55,6 +56,7 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
       return;
 
    stepscale  = (float)inrate / shm->speed;	/* this is usually 0.5, 1, or 2 */
+   srccount   = sc->length;			/* source sample count (for interp bound) */
    outcount   = sc->length / stepscale;
    sc->length = outcount;
    if (sc->loopstart != -1)
@@ -82,18 +84,41 @@ ResampleSfx(sfx_t *sfx, int inrate, int inwidth, const byte *data)
       return;
    }
 
-   /* general resampling case */
+   /* general resampling case: fixed-point linear interpolation between
+    * adjacent source samples.  samplefrac carries 8 fractional bits
+    * (fracstep = stepscale * 256), so 'samplefrac & 255' is the position
+    * between srcsample and the next -- previously discarded (the old path
+    * truncated to srcsample, i.e. nearest-neighbour).  This is all integer
+    * math, so the cached samples stay bit-identical on every platform/FPU
+    * and the SFX mix remains deterministic for runahead/netplay.  At integer
+    * source positions (frac == 0, e.g. any down-sampling ratio) the result is
+    * identical to the old nearest output; only fractional positions change. */
    samplefrac = 0;
    fracstep   = stepscale * 256;
    for (i = 0; i < outcount; i++)
    {
+      int frac = samplefrac & 255;
+      int s0, s1;
       srcsample = samplefrac >> 8;
       samplefrac += fracstep;
+
       if (inwidth == 2)
-         sample = LittleShort(((const short *)data)[srcsample]);
+      {
+         s0 = LittleShort(((const short *)data)[srcsample]);
+         s1 = (srcsample + 1 < srccount)
+            ? LittleShort(((const short *)data)[srcsample + 1]) : s0;
+      }
       else
-         sample = ((int)((unsigned char)data[srcsample]) - 128) << 8;
-      ((short *)sc->data)[i] = sample;
+      {
+         s0 = ((int)((unsigned char)data[srcsample]) - 128) << 8;
+         s1 = (srcsample + 1 < srccount)
+            ? (((int)((unsigned char)data[srcsample + 1]) - 128) << 8) : s0;
+      }
+
+      /* s0,s1 are in signed 16-bit range, so the blend stays in range too;
+       * (s1 - s0) * frac fits comfortably in int (max ~65535 * 255). */
+      sample = s0 + (((s1 - s0) * frac) >> 8);
+      ((short *)sc->data)[i] = (short)sample;
    }
 }
 
