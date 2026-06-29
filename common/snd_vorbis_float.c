@@ -29,7 +29,18 @@
 #define ov_read_float		fv_ov_read_float
 #define ov_time_seek		fv_ov_time_seek
 #define ov_clear		fv_ov_clear
+/* vorbisfile.h defines several unused static OV_CALLBACKS_* convenience
+ * structs at file scope; suppress the unused-variable noise for the header
+ * only (this TU stays at full -Wall otherwise).  GCC/Clang-only; MSVC, which
+ * does not warn on unused file-scope statics, skips the pragma. */
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
 #include <vorbis/vorbisfile.h>
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 /* I/O callbacks driven by the engine's FS_* helpers (same shape as the Tremor
  * callbacks in snd_vorbis.c).  ov_callbacks is a plain struct type, unaffected
