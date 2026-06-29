@@ -31,6 +31,7 @@
 #include "snd_codec.h"
 #include "snd_codeci.h"
 #include "snd_vorbis.h"
+#include "snd_vorbis_float.h"
 
 #define OV_EXCLUDE_STATIC_CALLBACKS
 #if defined(VORBIS_USE_TREMOR)
@@ -85,6 +86,23 @@ static qboolean S_VORBIS_CodecOpenStream (snd_stream_t *stream)
 	vorbis_info *ovf_info;
 	long numstreams;
 	int res;
+
+	/* Float output negotiated: decode straight to float via the vendored,
+	 * symbol-namespaced libvorbis instead of Tremor.  info.width = 4 routes
+	 * the samples through S_RawSamples' float lane. */
+	if (s_float_output)
+	{
+		int rate = 0, channels = 0;
+		void *vf = FVorbis_Open(&stream->fh, stream->name, &rate, &channels);
+		if (!vf)
+			return false;
+		stream->priv          = vf;
+		stream->info.rate     = rate;
+		stream->info.channels = channels;
+		stream->info.bits     = 32;
+		stream->info.width    = 4;
+		return true;
+	}
 
 	ovFile = (OggVorbis_File *) Z_Malloc(sizeof(OggVorbis_File));
 	stream->priv = ovFile;
@@ -144,6 +162,15 @@ static int S_VORBIS_CodecReadStream (snd_stream_t *stream, int bytes, void *buff
 	int	cnt, res, rem;
 	char *	ptr;
 
+	if (s_float_output)
+	{
+		int floats = FVorbis_ReadFloat(stream->priv, (float *)buffer,
+				bytes / (int)sizeof(float));
+		if (floats < 0)
+			return floats;
+		return floats * (int)sizeof(float);
+	}
+
 	cnt = 0; rem = bytes;
 	ptr = (char *) buffer;
 	while (1)
@@ -182,6 +209,12 @@ static int S_VORBIS_CodecReadStream (snd_stream_t *stream, int bytes, void *buff
 
 static void S_VORBIS_CodecCloseStream (snd_stream_t *stream)
 {
+	if (s_float_output)
+	{
+		FVorbis_Close(stream->priv);
+		S_CodecUtilClose(&stream);
+		return;
+	}
 	ov_clear((OggVorbis_File *)stream->priv);
 	Z_Free(stream->priv);
 	S_CodecUtilClose(&stream);
@@ -193,6 +226,8 @@ static int S_VORBIS_CodecRewindStream (snd_stream_t *stream)
  * is seconds as doubles, whereas for Tremor libvorbisidec
  * it is milliseconds as 64 bit integers.
  */
+	if (s_float_output)
+		return FVorbis_Rewind(stream->priv);
 	return ov_time_seek ((OggVorbis_File *)stream->priv, 0);
 }
 

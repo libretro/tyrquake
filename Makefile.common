@@ -3,6 +3,7 @@ LIBRETRO_COMM_DIR  = $(CORE_DIR)/libretro-common
 endif
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
 TREMOR_DIR     = $(CORE_DIR)/deps/tremor
+LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
 LIBOGG_DIR     = $(CORE_DIR)/deps/libogg
 VULKAN_DIR     = $(CORE_DIR)/deps/vulkan
 
@@ -201,4 +202,46 @@ SOURCES_C += \
 
 SOURCES_C += $(LIBOGG_DIR)/src/bitwise.c \
 				 $(LIBOGG_DIR)/src/framing.c
+
+# Float libvorbis: used only when float audio output is negotiated; decodes
+# straight to float (vs Tremor's int16, which stays the default).  Vendored
+# decode-only -- the encode machinery (psy/envelope/FFT) is replaced by no-op
+# stubs in decode_stubs.c, since every reference to it sits behind an encode-
+# only guard never taken on the decode path.  Symbol-namespaced to fv_* via
+# fvorbis_rename.h (force-included below) so it links beside Tremor without
+# colliding on the shared ov_*/vorbis_* names; the single vendored libogg is
+# shared by both (its symbols are deliberately not renamed).
+#
+# deps/libvorbis/lib is kept OFF the global -I path: its generic header names
+# (block.h, os.h, misc.h, window.h, info.h, ...) would shadow system headers
+# of the same name, the same hazard documented above for deps/tremor.  The
+# per-object CFLAGS add it locally to the vendored TUs only.  snd_vorbis_float.c
+# needs just the public vorbis headers and namespaces the few ov_* entry points
+# it calls in-source, so it only takes -I.../include.
+LIBVORBIS_SOURCES = \
+				 $(LIBVORBIS_DIR)/lib/bitrate.c \
+				 $(LIBVORBIS_DIR)/lib/block.c \
+				 $(LIBVORBIS_DIR)/lib/codebook.c \
+				 $(LIBVORBIS_DIR)/lib/decode_stubs.c \
+				 $(LIBVORBIS_DIR)/lib/floor0.c \
+				 $(LIBVORBIS_DIR)/lib/floor1.c \
+				 $(LIBVORBIS_DIR)/lib/info.c \
+				 $(LIBVORBIS_DIR)/lib/lookup.c \
+				 $(LIBVORBIS_DIR)/lib/lpc.c \
+				 $(LIBVORBIS_DIR)/lib/lsp.c \
+				 $(LIBVORBIS_DIR)/lib/mapping0.c \
+				 $(LIBVORBIS_DIR)/lib/mdct.c \
+				 $(LIBVORBIS_DIR)/lib/registry.c \
+				 $(LIBVORBIS_DIR)/lib/res0.c \
+				 $(LIBVORBIS_DIR)/lib/sharedbook.c \
+				 $(LIBVORBIS_DIR)/lib/synthesis.c \
+				 $(LIBVORBIS_DIR)/lib/vorbisfile.c \
+				 $(LIBVORBIS_DIR)/lib/window.c
+
+SOURCES_C += $(LIBVORBIS_SOURCES) $(CORE_DIR)/common/snd_vorbis_float.c
+
+$(LIBVORBIS_SOURCES:.c=.o): CFLAGS += \
+	-include $(LIBVORBIS_DIR)/lib/fvorbis_rename.h \
+	-I$(LIBVORBIS_DIR)/lib -I$(LIBVORBIS_DIR)/include
+$(CORE_DIR)/common/snd_vorbis_float.o: CFLAGS += -I$(LIBVORBIS_DIR)/include
 endif
