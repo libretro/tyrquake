@@ -244,5 +244,4 @@ $(LIBVORBIS_SOURCES:.c=.o): CFLAGS += \
 	-include $(LIBVORBIS_DIR)/lib/fvorbis_rename.h \
 	-I$(LIBVORBIS_DIR)/lib -I$(LIBVORBIS_DIR)/include \
 	-Wno-maybe-uninitialized
-$(CORE_DIR)/common/snd_vorbis_float.o: CFLAGS += -I$(LIBVORBIS_DIR)/include
 endif

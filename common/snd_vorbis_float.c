@@ -14,6 +14,12 @@
  * names just before the libvorbis header is pulled in -- after the engine
  * headers, so no engine symbol is affected and libvorbis' generic-named
  * internal headers never reach this TU's include path.
+ *
+ * vorbisfile.h is included by a relative path rather than <vorbis/vorbisfile.h>
+ * so this TU needs no -I of its own: it pulls in vorbisfile.h directly, which
+ * includes "codec.h" relatively, which needs only <ogg/ogg.h> (already on the
+ * path for Tremor/libogg).  This keeps the ndk-build (which doesn't apply the
+ * per-file include flags from Makefile.common) able to find the header.
  */
 
 #include "quakedef.h"
@@ -37,7 +43,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #endif
-#include <vorbis/vorbisfile.h>
+#include "../deps/libvorbis/include/vorbis/vorbisfile.h"
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
