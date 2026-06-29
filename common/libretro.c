@@ -153,6 +153,11 @@ static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
  * straight to audio_batch_cb.  No ring, no wrap. */
 static int16_t audio_out_buffer[AUDIO_BUFFER_SIZE];
 
+/* Float output buffer, used only when float output was negotiated.  The engine
+ * writes normalized float [-1,1] here (snd_float_buffer points at it) instead
+ * of audio_out_buffer; audio_step then pushes it via audio_batch_cb_float. */
+static float audio_out_buffer_f[AUDIO_BUFFER_SIZE];
+
 /* Initial cap on stereo frames per audio_batch_cb
  * invocation.  RetroArch typically accepts up to
  * ~4096 per call; if the frontend partial-writes
@@ -362,6 +367,13 @@ retro_video_refresh_t video_cb;
  * retro_set_audio_sample below -- we accept the
  * callback registration but throw it away. */
 static retro_audio_sample_batch_t audio_batch_cb;
+/* Float audio output, negotiated once in retro_load_game via
+ * RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT.  use_float_output stays 0
+ * (and audio_batch_cb_float NULL) on any frontend that doesn't support it,
+ * which keeps the deterministic int16 path.  s_float_output / snd_float_buffer
+ * live in snd_mix.c and are declared in sound.h (included above). */
+static retro_audio_sample_batch_float_t audio_batch_cb_float = NULL;
+static int use_float_output = 0;
 retro_environment_t environ_cb;
 static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
@@ -1422,6 +1434,26 @@ bool retro_load_game(const struct retro_game_info *info)
     * backends, not just the Vulkan one. */
    vid.numpages = 0x40000000;
 
+   /* Negotiate float audio output once, now that the game is loaded and the
+    * audio path is up (Host_Init -> SNDDMA_Init ran above).  If the frontend
+    * supports it we commit to float for this game's lifetime; otherwise the
+    * int16 path is used unchanged.  Contract: negotiate once per loaded game,
+    * never mix formats.  Older frontends return false here, so they keep the
+    * int16 path transparently. */
+   use_float_output     = 0;
+   audio_batch_cb_float = NULL;
+   {
+      struct retro_audio_sample_float_callback fcb;
+      fcb.batch = NULL;
+      if (environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT, &fcb)
+            && fcb.batch)
+      {
+         audio_batch_cb_float = fcb.batch;
+         use_float_output     = 1;
+      }
+   }
+   s_float_output = use_float_output;
+
    return true;
 }
 
@@ -1429,6 +1461,13 @@ bool retro_load_game(const struct retro_game_info *info)
 
 void retro_unload_game(void)
 {
+   /* Tear down float-output negotiation; a fresh retro_load_game re-negotiates
+    * against whatever frontend loads the next game. */
+   audio_batch_cb_float = NULL;
+   use_float_output     = 0;
+   s_float_output       = 0;
+   snd_float_buffer     = NULL;
+
    rhi_shutdown();
 }
 
@@ -1816,6 +1855,35 @@ static void audio_step(void)
     * the unwritten tail will be retried in the next
     * loop iteration. */
    audio_frames_remaining = audio_samplerate / framerate;
+
+   /* Float output path: push the engine's normalized-float buffer through the
+    * negotiated float batch callback.  Identical chunking / partial-write
+    * backpressure to the int16 path below -- only the buffer type and the
+    * callback differ. */
+   if (use_float_output)
+   {
+      float *audio_out_ptr_f = audio_out_buffer_f;
+      do
+      {
+         unsigned audio_frames_to_write =
+               (audio_frames_remaining > audio_batch_frames_max) ?
+                     audio_batch_frames_max : audio_frames_remaining;
+         unsigned audio_frames_written  =
+               audio_batch_cb_float(audio_out_ptr_f, audio_frames_to_write);
+
+         if (audio_frames_written == 0)
+            break;	/* frontend can't accept any more this frame */
+
+         if (audio_frames_written < audio_frames_to_write)
+            audio_batch_frames_max = audio_frames_written;
+
+         audio_frames_remaining -= audio_frames_written;
+         audio_out_ptr_f        += audio_frames_written << 1;
+      }
+      while (audio_frames_remaining > 0);
+      return;
+   }
+
    audio_out_ptr          = audio_out_buffer;
    do
    {
@@ -1852,6 +1920,12 @@ qboolean SNDDMA_Init(dma_t *dma)
     * linear output buffer; audio_step then hands
     * that buffer straight to audio_batch_cb. */
    shm->buffer            = (unsigned char *volatile)audio_out_buffer;
+
+   /* Float output buffer shares the same one-frame linear layout.  Hand the
+    * engine its pointer; s_float_output is (re)asserted from the negotiation
+    * result so a reload picks up the current frontend's capability. */
+   snd_float_buffer       = audio_out_buffer_f;
+   s_float_output         = use_float_output;
 
    return true;
 }

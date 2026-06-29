@@ -204,6 +204,13 @@ extern int snd_blocked;
 #define	MAX_RAW_SAMPLES	8192
 extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
+/* Float audio output state, owned by snd_mix.c and driven by the libretro
+ * layer's RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT negotiation.  When
+ * s_float_output is set the engine transfers the paintbuffer as normalized
+ * float [-1,1] into snd_float_buffer; otherwise the int16 path is used. */
+extern int    s_float_output;
+extern float *snd_float_buffer;
+
 void S_LocalSound(const char *s);
 sfxcache_t *S_LoadSound(sfx_t *s);
 

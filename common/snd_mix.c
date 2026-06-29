@@ -64,6 +64,16 @@ static portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
 static int *snd_p, snd_linear_count;
 short *snd_out;
 
+/* Float output path (see RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT in
+ * the libretro layer).  When s_float_output is set the paintbuffer is
+ * transferred as normalized float [-1,1] into snd_float_buffer instead of the
+ * int16 shm->buffer; both point at libretro-layer buffers.  snd_out_f mirrors
+ * snd_out for the float blast.  These stay 0/NULL on any frontend that does
+ * not negotiate float output, so the deterministic int16 path is unchanged. */
+int    s_float_output   = 0;
+float *snd_float_buffer = NULL;
+static float *snd_out_f;
+
 static int snd_vol;
 
 static void Snd_WriteLinearBlastStereo16 (void)
@@ -142,6 +152,43 @@ static void S_TransferStereo16 (int dst_offset, int count)
 	snd_out          = (short *)shm->buffer + (dst_offset << 1);
 	snd_linear_count = count << 1;
 	Snd_WriteLinearBlastStereo16();
+}
+
+/* Float counterpart of Snd_WriteLinearBlastStereo16.  The paintbuffer
+ * accumulator carries 8 fractional bits (the int16 blast does snd_p[i] >> 8),
+ * so normalizing by 256*32768 keeps that sub-int16 precision instead of
+ * discarding it.  tyrquake's int16 blast hard-saturates (clamp to
+ * 0x8000..0x7fff) rather than soft-clipping, so the float blast hard-clamps to
+ * [-1,1] to keep float and int16 output tonally identical: the float path only
+ * removes the int16 quantization (and the frontend's int16->float widen), it
+ * does not reshape the signal. */
+#define SND_FLOAT_NORM (1.0f / 8388608.0f)	/* 1 / (256 * 32768) */
+
+static void Snd_WriteLinearBlastStereoFloat (void)
+{
+	int   i;
+	float f;
+
+	for (i = 0; i < snd_linear_count; i++)
+	{
+		f = (float)snd_p[i] * SND_FLOAT_NORM;
+		if (f > 1.0f)
+			f = 1.0f;
+		else if (f < -1.0f)
+			f = -1.0f;
+		snd_out_f[i] = f;
+	}
+}
+
+/* Float counterpart of S_TransferStereo16.  Writes into snd_float_buffer (a
+ * libretro-layer float buffer) at the same linear dst_offset the int16 path
+ * uses for shm->buffer.  Only reached when float output was negotiated. */
+static void S_TransferStereoFloat (int dst_offset, int count)
+{
+	snd_p            = (int*)paintbuffer;
+	snd_out_f        = snd_float_buffer + (dst_offset << 1);
+	snd_linear_count = count << 1;
+	Snd_WriteLinearBlastStereoFloat();
 }
 
 /*
@@ -283,7 +330,10 @@ void S_PaintChannels (int samples_to_paint)
 		}
 
 		/* transfer out according to DMA format */
-		S_TransferStereo16(painted, chunk);
+		if (s_float_output && snd_float_buffer)
+			S_TransferStereoFloat(painted, chunk);
+		else
+			S_TransferStereo16(painted, chunk);
 		painted += chunk;
 	}
 }
