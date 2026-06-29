@@ -105,6 +105,7 @@ S_ValidSfx(const sfx_t *sfx)
 int s_rawhead;
 int s_rawavail;
 portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
+float_samplepair_t	s_rawsamples_f[MAX_RAW_SAMPLES];
 
 static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
@@ -471,6 +472,108 @@ void S_ClearBuffer(void)
 
 /*
 ===================
+S_RawSamplesFloat
+
+Float counterpart of S_RawSamples' integer body, used when float output was
+negotiated.  Appends into the float FIFO (s_rawsamples_f) as normalized
+[-1,1] * volume, with the same nearest-neighbour resample and FIFO-append
+logic as the int path.  Source width selects how to read each sample:
+  4 -> IEEE-754 float already in [-1,1] (codecs that decode straight to float)
+  2 -> signed 16-bit  -> * 1/32768
+  1 -> unsigned 8-bit -> (x-128) * 1/128
+===================
+*/
+static void S_RawSamplesFloat (int samples, float scale, int width,
+		int nchannels, byte *data, float volume)
+{
+	int i, src, dst;
+
+	if (width == 4 && nchannels == 2)
+	{
+		const float *in = (const float *)data;
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
+			s_rawsamples_f[dst].left  = in[src * 2]     * volume;
+			s_rawsamples_f[dst].right = in[src * 2 + 1] * volume;
+		}
+	}
+	else if (width == 4 && nchannels == 1)
+	{
+		const float *in = (const float *)data;
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
+			s_rawsamples_f[dst].left  =
+			s_rawsamples_f[dst].right = in[src] * volume;
+		}
+	}
+	else if (width == 2 && nchannels == 2)
+	{
+		const short *in = (const short *)data;
+		float v = volume * (1.0f / 32768.0f);
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
+			s_rawsamples_f[dst].left  = in[src * 2]     * v;
+			s_rawsamples_f[dst].right = in[src * 2 + 1] * v;
+		}
+	}
+	else if (width == 2 && nchannels == 1)
+	{
+		const short *in = (const short *)data;
+		float v = volume * (1.0f / 32768.0f);
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
+			s_rawsamples_f[dst].left  =
+			s_rawsamples_f[dst].right = in[src] * v;
+		}
+	}
+	else if (width == 1 && nchannels == 2)
+	{
+		const byte *in = data;
+		float v = volume * (1.0f / 128.0f);
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
+			s_rawsamples_f[dst].left  = ((int)in[src * 2]     - 128) * v;
+			s_rawsamples_f[dst].right = ((int)in[src * 2 + 1] - 128) * v;
+		}
+	}
+	else if (width == 1 && nchannels == 1)
+	{
+		const byte *in = data;
+		float v = volume * (1.0f / 128.0f);
+		for (i = 0; ; i++)
+		{
+			src = i * scale;
+			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
+			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+			s_rawavail++;
+			s_rawsamples_f[dst].left  =
+			s_rawsamples_f[dst].right = ((int)in[src] - 128) * v;
+		}
+	}
+}
+
+/*
+===================
 S_RawSamples		(from QuakeII)
 
 Streaming music support. Byte swapping
@@ -510,6 +613,16 @@ void S_RawSamples (int samples, int rate, int width, int nchannels, byte *data, 
 		volume = 1.0f;
 
 	scale = (float) rate / shm->speed;
+
+	/* Float output lane: when float output was negotiated, append into the
+	 * float FIFO (normalized [-1,1] * volume) and return.  The integer body
+	 * below is the int16 output path, left byte-for-byte unchanged. */
+	if (s_float_output)
+	{
+		S_RawSamplesFloat(samples, scale, width, nchannels, data, volume);
+		return;
+	}
+
 	intVolume = (int) (256 * volume);
 
 	/* All four format branches below share the same FIFO append

@@ -204,6 +204,14 @@ extern int snd_blocked;
 #define	MAX_RAW_SAMPLES	8192
 extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 
+/* Float counterpart of s_rawsamples, used for the streaming music (BGM) FIFO
+ * when float output was negotiated.  S_RawSamples fills this (normalized
+ * [-1,1] * volume) instead of the int s_rawsamples, and S_PaintChannels sums
+ * it on the float side of the output transfer.  The FIFO indices s_rawhead /
+ * s_rawavail are shared with the int path (only one format is live per game). */
+typedef struct { float left, right; } float_samplepair_t;
+extern	float_samplepair_t	s_rawsamples_f[MAX_RAW_SAMPLES];
+
 /* Float audio output state, owned by snd_mix.c and driven by the libretro
  * layer's RETRO_ENVIRONMENT_GET_AUDIO_SAMPLE_BATCH_FLOAT negotiation.  When
  * s_float_output is set the engine transfers the paintbuffer as normalized

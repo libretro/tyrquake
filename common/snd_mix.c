@@ -311,29 +311,58 @@ void S_PaintChannels (int samples_to_paint)
 			paintbuffer[i].right = CLAMP(-(32768 << 8), paintbuffer[i].right, 32767 << 8);
 		}
 
-		/* paint in the music */
-		if (s_rawavail > 0)
+		if (s_float_output && snd_float_buffer)
 		{
-			/* copy from the streaming sound source */
-			int bgm_count = (s_rawavail < chunk) ? s_rawavail : chunk;
+			/* Float lane: transfer the (clipped) SFX paintbuffer to the float
+			 * output buffer as normalized [-1,1], then sum the float music
+			 * FIFO on top and re-clamp.  This keeps the SFX mix integer and
+			 * deterministic while the music rides the float codec lane. */
+			float *fb = snd_float_buffer + (painted << 1);
 
-			for (i = 0; i < bgm_count; i++)
+			S_TransferStereoFloat(painted, chunk);
+
+			if (s_rawavail > 0)
 			{
-				int s = (s_rawhead + i) & (MAX_RAW_SAMPLES - 1);
-				/* lower music by 6db to match sfx */
-				paintbuffer[i].left  += s_rawsamples[s].left;
-				paintbuffer[i].right += s_rawsamples[s].right;
+				int bgm_count = (s_rawavail < chunk) ? s_rawavail : chunk;
+
+				for (i = 0; i < bgm_count; i++)
+				{
+					int   s = (s_rawhead + i) & (MAX_RAW_SAMPLES - 1);
+					float l = fb[i * 2]     + s_rawsamples_f[s].left;
+					float r = fb[i * 2 + 1] + s_rawsamples_f[s].right;
+					if (l >  1.0f) l =  1.0f; else if (l < -1.0f) l = -1.0f;
+					if (r >  1.0f) r =  1.0f; else if (r < -1.0f) r = -1.0f;
+					fb[i * 2]     = l;
+					fb[i * 2 + 1] = r;
+				}
+
+				s_rawhead   = (s_rawhead + bgm_count) & (MAX_RAW_SAMPLES - 1);
+				s_rawavail -= bgm_count;
+			}
+		}
+		else
+		{
+			/* Int lane (unchanged): add the int music FIFO into the paintbuffer,
+			 * then transfer to the int16 output buffer. */
+			if (s_rawavail > 0)
+			{
+				/* copy from the streaming sound source */
+				int bgm_count = (s_rawavail < chunk) ? s_rawavail : chunk;
+
+				for (i = 0; i < bgm_count; i++)
+				{
+					int s = (s_rawhead + i) & (MAX_RAW_SAMPLES - 1);
+					/* lower music by 6db to match sfx */
+					paintbuffer[i].left  += s_rawsamples[s].left;
+					paintbuffer[i].right += s_rawsamples[s].right;
+				}
+
+				s_rawhead   = (s_rawhead + bgm_count) & (MAX_RAW_SAMPLES - 1);
+				s_rawavail -= bgm_count;
 			}
 
-			s_rawhead   = (s_rawhead + bgm_count) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail -= bgm_count;
-		}
-
-		/* transfer out according to DMA format */
-		if (s_float_output && snd_float_buffer)
-			S_TransferStereoFloat(painted, chunk);
-		else
 			S_TransferStereo16(painted, chunk);
+		}
 		painted += chunk;
 	}
 }
