@@ -175,8 +175,13 @@ ifeq ($(USE_CODEC_VORBIS),1)
 # deterministic and there is no float->int16 quantization pass.  The
 # snd_vorbis.c wrapper takes its VORBIS_USE_TREMOR code path accordingly;
 # the -DVORBIS_USE_TREMOR define is set by the driver makefiles.
+# snd_vorbis.c reaches Tremor through <tremor/ivorbisfile.h> (-I deps) and
+# Tremor's own sources self-include via quotes, so the deps/tremor directory
+# is deliberately NOT on the -I path: putting it there makes its generically
+# named headers (block.h, os.h, misc.h, window.h...) shadow system headers of
+# the same name on case-insensitive filesystems -- e.g. macOS CoreFoundation's
+# <Block.h> would resolve to deps/tremor/block.h and fail to build.
 INCFLAGS  += -I$(CORE_DIR)/deps \
-				 -I$(TREMOR_DIR) \
 				 -I$(LIBOGG_DIR)/include
 
 SOURCES_C += \
