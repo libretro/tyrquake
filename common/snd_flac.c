@@ -156,6 +156,37 @@ flac_write_func (const FLAC__StreamDecoder *decoder,
 		}
 	}
 
+	if (s_float_output)
+	{
+		/* Decode straight to normalized [-1,1] float, scaling by the source
+		 * bit depth so every depth (8/16/24/32) is exact.  FLAC delivers
+		 * right-justified signed samples, so the divisor is 2^(bits-1). */
+		float norm = 1.0f / (float)(1U << (ff->info->bits - 1));
+		float *out = (float *) ff->buffer;
+		unsigned i;
+
+		if (ff->info->channels == 1)
+		{
+			const FLAC__int32 *in = buffer[0];
+			for (i = 0; i < frame->header.blocksize; i++)
+				*out++ = (float)(*in++) * norm;
+		}
+		else
+		{
+			const FLAC__int32 *li = buffer[0];
+			const FLAC__int32 *ri = buffer[1];
+			for (i = 0; i < frame->header.blocksize; i++)
+			{
+				*out++ = (float)(*li++) * norm;
+				*out++ = (float)(*ri++) * norm;
+			}
+		}
+
+		ff->size = frame->header.blocksize * ff->info->width * ff->info->channels;
+		ff->pos = 0;
+		return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
+	}
+
 	if (ff->info->channels == 1)
 	{
 		unsigned i;
@@ -216,7 +247,10 @@ flac_meta_func (const FLAC__StreamDecoder *decoder,
 	{
 		ff->info->rate = metadata->data.stream_info.sample_rate;
 		ff->info->bits = metadata->data.stream_info.bits_per_sample;
-		ff->info->width = ff->info->bits / 8;
+		/* On float output, decode to 32-bit float (width 4) and keep the
+		 * source bit depth in info->bits for the per-sample normalization
+		 * in flac_write_func; otherwise output native int16/int8. */
+		ff->info->width = s_float_output ? 4 : ff->info->bits / 8;
 		ff->info->channels = metadata->data.stream_info.channels;
 		ff->info->blocksize = metadata->data.stream_info.max_blocksize;
 		ff->info->dataofs = 0;	/* got the STREAMINFO metadata */
@@ -295,7 +329,19 @@ static qboolean S_FLAC_CodecOpenStream (snd_stream_t *stream)
 		Con_Printf("%s has no STREAMINFO\n", stream->name);
 		goto _fail;
 	}
-	if (ff->info->bits != 8 && ff->info->bits != 16)
+	if (s_float_output)
+	{
+		/* The float path normalizes any depth, so 24- and 32-bit FLAC
+		 * (truncated/rejected by the int16 path) decode at full precision. */
+		if (ff->info->bits != 8 && ff->info->bits != 16 &&
+		    ff->info->bits != 24 && ff->info->bits != 32)
+		{
+			Con_Printf("%s has unsupported bit depth %d\n",
+					stream->name, ff->info->bits);
+			goto _fail;
+		}
+	}
+	else if (ff->info->bits != 8 && ff->info->bits != 16)
 	{
 		Con_Printf("%s is not 8 or 16 bit\n", stream->name);
 		goto _fail;
