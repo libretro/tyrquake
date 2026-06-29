@@ -476,98 +476,73 @@ S_RawSamplesFloat
 
 Float counterpart of S_RawSamples' integer body, used when float output was
 negotiated.  Appends into the float FIFO (s_rawsamples_f) as normalized
-[-1,1] * volume, with the same nearest-neighbour resample and FIFO-append
-logic as the int path.  Source width selects how to read each sample:
-  4 -> IEEE-754 float already in [-1,1] (codecs that decode straight to float)
-  2 -> signed 16-bit  -> * 1/32768
-  1 -> unsigned 8-bit -> (x-128) * 1/128
+[-1,1] * volume.  Unlike the int path (which truncates to the nearest source
+sample), the float lane linearly interpolates between adjacent source samples,
+since float makes the interpolation exact and music here is not part of the
+deterministic SFX mix.  When the source and output rates match (scale == 1.0)
+the fraction is 0 and each output equals its source sample, so that common
+case is bit-identical to the old nearest path.  Linear interpolation removes
+the zipper/repeat artifacts of fractional and up-sampling rate conversion
+(e.g. 44.1 kHz music into a 48 kHz core); integer down-sampling still aliases
+and would want a decimating FIR, which is deliberately left out of scope here.
+
+Source width selects how each sample is read (and folded into the volume
+scale): 4 -> IEEE-754 float in [-1,1]; 2 -> signed 16-bit * 1/32768;
+1 -> unsigned 8-bit (x-128) * 1/128.
 ===================
 */
+static float S_FetchFloat (const byte *data, int width, int k, float v)
+{
+	if (width == 2)
+		return (float)(((const short *)data)[k]) * v;
+	if (width == 1)
+		return (float)((int)data[k] - 128) * v;
+	return ((const float *)data)[k] * v;	/* width == 4 */
+}
+
 static void S_RawSamplesFloat (int samples, float scale, int width,
 		int nchannels, byte *data, float volume)
 {
-	int i, src, dst;
+	int   i, idx, n, dst;
+	float v, pos, frac;
 
-	if (width == 4 && nchannels == 2)
+	/* fold the per-width normalization into the volume scale */
+	if (width == 2)
+		v = volume * (1.0f / 32768.0f);
+	else if (width == 1)
+		v = volume * (1.0f / 128.0f);
+	else
+		v = volume;			/* width == 4 */
+
+	for (i = 0; ; i++)
 	{
-		const float *in = (const float *)data;
-		for (i = 0; ; i++)
+		pos = i * scale;
+		idx = (int)pos;
+		if (idx >= samples || s_rawavail >= MAX_RAW_SAMPLES)
+			break;
+		frac = pos - (float)idx;
+		/* clamp the upper tap at the buffer end (per-call boundary; the
+		 * last fraction holds rather than interpolating past 'samples') */
+		n = (idx + 1 < samples) ? (idx + 1) : idx;
+
+		dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
+		s_rawavail++;
+
+		if (nchannels == 2)
 		{
-			src = i * scale;
-			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
-			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail++;
-			s_rawsamples_f[dst].left  = in[src * 2]     * volume;
-			s_rawsamples_f[dst].right = in[src * 2 + 1] * volume;
+			float l0 = S_FetchFloat(data, width, idx * 2,     v);
+			float l1 = S_FetchFloat(data, width, n   * 2,     v);
+			float r0 = S_FetchFloat(data, width, idx * 2 + 1, v);
+			float r1 = S_FetchFloat(data, width, n   * 2 + 1, v);
+			s_rawsamples_f[dst].left  = l0 + (l1 - l0) * frac;
+			s_rawsamples_f[dst].right = r0 + (r1 - r0) * frac;
 		}
-	}
-	else if (width == 4 && nchannels == 1)
-	{
-		const float *in = (const float *)data;
-		for (i = 0; ; i++)
+		else
 		{
-			src = i * scale;
-			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
-			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail++;
+			float s0 = S_FetchFloat(data, width, idx, v);
+			float s1 = S_FetchFloat(data, width, n,   v);
 			s_rawsamples_f[dst].left  =
-			s_rawsamples_f[dst].right = in[src] * volume;
-		}
-	}
-	else if (width == 2 && nchannels == 2)
-	{
-		const short *in = (const short *)data;
-		float v = volume * (1.0f / 32768.0f);
-		for (i = 0; ; i++)
-		{
-			src = i * scale;
-			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
-			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail++;
-			s_rawsamples_f[dst].left  = in[src * 2]     * v;
-			s_rawsamples_f[dst].right = in[src * 2 + 1] * v;
-		}
-	}
-	else if (width == 2 && nchannels == 1)
-	{
-		const short *in = (const short *)data;
-		float v = volume * (1.0f / 32768.0f);
-		for (i = 0; ; i++)
-		{
-			src = i * scale;
-			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
-			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail++;
-			s_rawsamples_f[dst].left  =
-			s_rawsamples_f[dst].right = in[src] * v;
-		}
-	}
-	else if (width == 1 && nchannels == 2)
-	{
-		const byte *in = data;
-		float v = volume * (1.0f / 128.0f);
-		for (i = 0; ; i++)
-		{
-			src = i * scale;
-			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
-			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail++;
-			s_rawsamples_f[dst].left  = ((int)in[src * 2]     - 128) * v;
-			s_rawsamples_f[dst].right = ((int)in[src * 2 + 1] - 128) * v;
-		}
-	}
-	else if (width == 1 && nchannels == 1)
-	{
-		const byte *in = data;
-		float v = volume * (1.0f / 128.0f);
-		for (i = 0; ; i++)
-		{
-			src = i * scale;
-			if (src >= samples || s_rawavail >= MAX_RAW_SAMPLES) break;
-			dst = (s_rawhead + s_rawavail) & (MAX_RAW_SAMPLES - 1);
-			s_rawavail++;
-			s_rawsamples_f[dst].left  =
-			s_rawsamples_f[dst].right = ((int)in[src] - 128) * v;
+			s_rawsamples_f[dst].right = s0 + (s1 - s0) * frac;
 		}
 	}
 }
