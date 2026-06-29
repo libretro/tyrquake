@@ -41,21 +41,28 @@
 #include <sys/types.h>
 #endif
 
-#if BYTE_ORDER==LITTLE_ENDIAN
+/* Pick the union layout from a reliable big-endian indicator and default to
+ * little-endian otherwise.  The original two separate #if blocks both fired,
+ * redefining union magic, whenever none of the BSD BYTE_ORDER/LITTLE_ENDIAN/
+ * BIG_ENDIAN macros were in scope -- e.g. Android/bionic, whose <sys/types.h>
+ * does not define them, leaving all three to expand to 0 so 0==0 matched
+ * both branches.  The compiler __BYTE_ORDER__ builtin keeps PPC64/BE correct
+ * even when the BSD macros are absent. */
+#if (defined(BYTE_ORDER) && defined(BIG_ENDIAN) && (BYTE_ORDER == BIG_ENDIAN)) || \
+    (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)) || \
+    defined(__BIG_ENDIAN__) || defined(_BIG_ENDIAN) || defined(__ARMEB__) || defined(__MIPSEB__)
 union magic {
   struct {
-    ogg_int32_t lo;
     ogg_int32_t hi;
+    ogg_int32_t lo;
   } halves;
   ogg_int64_t whole;
 };
-#endif 
-
-#if BYTE_ORDER==BIG_ENDIAN
+#else
 union magic {
   struct {
-    ogg_int32_t hi;
     ogg_int32_t lo;
+    ogg_int32_t hi;
   } halves;
   ogg_int64_t whole;
 };

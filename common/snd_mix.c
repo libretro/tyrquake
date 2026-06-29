@@ -260,8 +260,8 @@ void S_PaintChannels (int samples_to_paint)
 		/* clipping */
 		for (i = 0; i < chunk; i++)
 		{
-			paintbuffer[i].left = CLAMP(-32768  << 8, paintbuffer[i].left, 32767 << 8);
-			paintbuffer[i].right = CLAMP(-32768 << 8, paintbuffer[i].right, 32767 << 8);
+			paintbuffer[i].left = CLAMP(-(32768 << 8), paintbuffer[i].left, 32767 << 8);
+			paintbuffer[i].right = CLAMP(-(32768 << 8), paintbuffer[i].right, 32767 << 8);
 		}
 
 		/* paint in the music */
