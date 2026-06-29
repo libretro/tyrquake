@@ -1578,11 +1578,12 @@ M_OptionsAudio_AdjustSliders(int dir)
 
     switch (optionsaudio_cursor) {
     case 0:			/* music volume */
-#ifdef _WIN32
-	bgmvolume.value += dir * 1.0;
-#else
+	/* 0.1 steps like the sound slider.  The old _WIN32 path used a 1.0
+	 * step (so only off/full) because WinQuake's music volume drove the
+	 * OS CD-audio mixer, which was effectively on/off.  Here music is
+	 * software-mixed (bgmvolume scales the streamed BGM), so it takes a
+	 * fine step on every platform. */
 	bgmvolume.value += dir * 0.1;
-#endif
 	if (bgmvolume.value < 0)
 	    bgmvolume.value = 0;
 	if (bgmvolume.value > 1)
