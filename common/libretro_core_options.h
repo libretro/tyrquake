@@ -165,6 +165,20 @@ struct retro_core_option_definition option_defs_us[] = {
 #endif
    },
    {
+      "tyrquake_sound_samplerate",
+      "Sound Samplerate (Hint)",
+      "Audio output rate. Quake mixes its sound at the chosen output rate, so it can render directly at whichever rate you pick instead of a fixed 44100. Higher rates lower latency, push aliasing above the audible range, avoid the frontend resampler's low-pass smearing, and give the sound-effect and music-stream resamplers finer time resolution. 'Auto' queries the frontend's target rate and snaps to the nearest supported value, falling back to the framerate-appropriate rate when the frontend can't report one. Takes effect on restart.",
+      {
+         { "auto",  "Auto" },
+         { "32000", "32 kHz" },
+         { "44100", "44 kHz" },
+         { "48000", "48 kHz" },
+         { "96000", "96 kHz" },
+         { NULL, NULL },
+      },
+      "auto"
+   },
+   {
       "tyrquake_rumble",
       "Rumble",
       "Enables joypad rumble.",

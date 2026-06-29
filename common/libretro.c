@@ -145,7 +145,17 @@ static bool libretro_supports_bitmasks = false;
  * acceptable audio quality. */
 #define AUDIO_SAMPLERATE_22KHZ 22050
 #define AUDIO_SAMPLERATE_48KHZ 48000
-static uint16_t audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
+/* Widened from uint16_t: the "Sound Samplerate (Hint)" option can select
+ * 96000, which does not fit in 16 bits. */
+static int audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
+
+/* Backported from prboom's "Sound Samplerate (Hint)" option.  Lets the core
+ * render directly at the host's preferred rate.  Guarded so this builds
+ * against an older in-tree libretro.h as well as a newer one that already
+ * defines it (data is unsigned* Hz). */
+#ifndef RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE
+#define RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE (81 | RETRO_ENVIRONMENT_EXPERIMENTAL)
+#endif
 
 /* Linear output buffer.  S_PaintChannels writes
  * exactly samples_per_frame stereo frames into this
@@ -873,6 +883,61 @@ static float sanitise_framerate(float target)
    return supported_framerates[i - 1];
 }
 
+/* The framerate-appropriate sample rate, used as the "auto" fallback when the
+ * frontend can't report a target rate.  Preserves the prior behaviour for the
+ * fps/rate combinations the SFX resampler is sensitive to (see the
+ * AUDIO_SAMPLERATE_* notes above). */
+static int framerate_to_samplerate(float fr)
+{
+   if (fr == 40.0f || fr == 72.0f || fr == 119.0f)
+      return AUDIO_SAMPLERATE_22KHZ;
+   if (fr == 120.0f)
+      return AUDIO_SAMPLERATE_48KHZ;
+   return AUDIO_SAMPLERATE_DEFAULT;
+}
+
+/* Snap a host target rate to the nearest value the option advertises.
+ * Identical thresholds to the prboom backport this came from. */
+static int nearest_supported_rate(unsigned host_rate)
+{
+   if      (host_rate <= (32000u + 44100u) / 2) return 32000;
+   else if (host_rate <= (44100u + 48000u) / 2) return 44100;
+   else if (host_rate <= (48000u + 96000u) / 2) return 48000;
+   return 96000;
+}
+
+/* Resolve the "Sound Samplerate (Hint)" core option to a concrete rate.
+ * "auto" asks the frontend for its target rate via
+ * RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE and snaps to the nearest advertised
+ * value; if the frontend doesn't implement the call, it falls back to the
+ * framerate-appropriate rate (the prior default), so frontends without the
+ * call see no change.  An explicit "32000".."96000" is taken verbatim.
+ * Resolved at startup, before SNDDMA_Init reads audio_samplerate. */
+static void update_audio_samplerate(void)
+{
+   struct retro_variable var;
+   int chosen = framerate_to_samplerate(framerate);
+
+   var.key   = "tyrquake_sound_samplerate";
+   var.value = NULL;
+
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+   {
+      if (!strcmp(var.value, "auto"))
+      {
+         unsigned host_rate = 0;
+         if (environ_cb(RETRO_ENVIRONMENT_GET_TARGET_SAMPLE_RATE, &host_rate)
+               && host_rate > 0)
+            chosen = nearest_supported_rate(host_rate);
+         /* else: keep the framerate-derived fallback above */
+      }
+      else
+         chosen = atoi(var.value);  /* "32000".."96000" */
+   }
+
+   audio_samplerate = chosen;
+}
+
 static void update_variables(bool startup)
 {
    struct retro_variable var;
@@ -916,16 +981,9 @@ static void update_variables(bool startup)
 
       frametime_usec = 1000.0f / framerate;
 
-      /* Certain framerates require specific
-       * sample rates to avoid distorted audio */
-      if ((framerate == 40.0f) ||
-          (framerate == 72.0f) ||
-          (framerate == 119.0f))
-         audio_samplerate = AUDIO_SAMPLERATE_22KHZ;
-      else if (framerate == 120.0f)
-         audio_samplerate = AUDIO_SAMPLERATE_48KHZ;
-      else
-         audio_samplerate = AUDIO_SAMPLERATE_DEFAULT;
+      /* Resolve the sound-samplerate hint now that framerate is known (it is
+       * the "auto" fallback).  Supersedes the old framerate-only derivation. */
+      update_audio_samplerate();
    }
 
    var.key = "tyrquake_resolution";
