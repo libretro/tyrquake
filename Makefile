@@ -20,8 +20,9 @@ USE_CODEC_UMX=0
 
 # which library to use for mp3 decoding: mad or mpg123
 MP3LIB=mad
-# which library to use for ogg decoding: vorbis or tremor
-VORBISLIB=vorbis
+# ogg decoding uses the vendored fixed-point Tremor (libvorbisidec) decoder
+# under deps/tremor for deterministic int16 PCM
+VORBISLIB=tremor
 
 ifeq ($(platform),)
 platform = unix
@@ -735,10 +736,8 @@ ifneq ($(DEBUG), 1)
 $(CORE_DIR)/common/snd_mix.o: CFLAGS += -O3
 $(CORE_DIR)/common/r_alias.o: CFLAGS += -O3
 endif
-ifneq ($(VORBISLIB),vorbis)
 ifneq ($(VORBISLIB),tremor)
-$(error Invalid VORBISLIB setting)
-endif
+$(error Invalid VORBISLIB setting (only 'tremor' is supported; the float libvorbis decoder was removed))
 endif
 ifneq ($(MP3LIB),mpg123)
 ifneq ($(MP3LIB),mad)
@@ -753,13 +752,12 @@ ifeq ($(MP3LIB),mpg123)
 mp3_obj=snd_mpg123.o
 lib_mp3dec=-lmpg123
 endif
-ifeq ($(VORBISLIB),vorbis)
-cpp_vorbisdec=
-lib_vorbisdec=
-endif
 ifeq ($(VORBISLIB),tremor)
+# Vendored fixed-point Tremor (deps/tremor) is compiled directly into the
+# core via Makefile.common; only the -DVORBIS_USE_TREMOR define is needed
+# here and no system Vorbis library is linked.
 cpp_vorbisdec=-DVORBIS_USE_TREMOR
-lib_vorbisdec=-lvorbisidec -logg
+lib_vorbisdec=
 endif
 
 CODECLIBS  :=

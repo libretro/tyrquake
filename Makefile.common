@@ -2,7 +2,7 @@ ifeq ($(LIBRETRO_COMM_DIR),)
 LIBRETRO_COMM_DIR  = $(CORE_DIR)/libretro-common
 endif
 LIBFLAC_DIR    = $(CORE_DIR)/deps/libFLAC
-LIBVORBIS_DIR  = $(CORE_DIR)/deps/libvorbis
+TREMOR_DIR     = $(CORE_DIR)/deps/tremor
 LIBOGG_DIR     = $(CORE_DIR)/deps/libogg
 VULKAN_DIR     = $(CORE_DIR)/deps/vulkan
 
@@ -169,30 +169,30 @@ SOURCES_C += \
 endif
 
 ifeq ($(USE_CODEC_VORBIS),1)
-INCFLAGS  += -I$(LIBVORBIS_DIR)/include \
-				 -I$(LIBVORBIS_DIR)/lib \
+# Vorbis is decoded with the fixed-point Tremor (libvorbisidec) decoder
+# rather than the float libvorbis.  Tremor's integer-only IMDCT yields
+# bit-identical int16 PCM on every platform/FPU, so music decode is
+# deterministic and there is no float->int16 quantization pass.  The
+# snd_vorbis.c wrapper takes its VORBIS_USE_TREMOR code path accordingly;
+# the -DVORBIS_USE_TREMOR define is set by the driver makefiles.
+INCFLAGS  += -I$(CORE_DIR)/deps \
+				 -I$(TREMOR_DIR) \
 				 -I$(LIBOGG_DIR)/include
 
 SOURCES_C += \
-				 $(LIBVORBIS_DIR)/lib/bitrate.c \
-				 $(LIBVORBIS_DIR)/lib/block.c \
-				 $(LIBVORBIS_DIR)/lib/codebook.c \
-				 $(LIBVORBIS_DIR)/lib/envelope.c \
-				 $(LIBVORBIS_DIR)/lib/floor0.c \
-				 $(LIBVORBIS_DIR)/lib/floor1.c \
-				 $(LIBVORBIS_DIR)/lib/info.c \
-				 $(LIBVORBIS_DIR)/lib/lpc.c \
-				 $(LIBVORBIS_DIR)/lib/lsp.c \
-				 $(LIBVORBIS_DIR)/lib/mapping0.c \
-				 $(LIBVORBIS_DIR)/lib/mdct.c \
-				 $(LIBVORBIS_DIR)/lib/psy.c \
-				 $(LIBVORBIS_DIR)/lib/registry.c \
-				 $(LIBVORBIS_DIR)/lib/res0.c \
-				 $(LIBVORBIS_DIR)/lib/smallft.c \
-				 $(LIBVORBIS_DIR)/lib/synthesis.c \
-				 $(LIBVORBIS_DIR)/lib/vorbisfile.c \
-				 $(LIBVORBIS_DIR)/lib/sharedbook.c \
-				 $(LIBVORBIS_DIR)/lib/window.c
+				 $(TREMOR_DIR)/block.c \
+				 $(TREMOR_DIR)/codebook.c \
+				 $(TREMOR_DIR)/floor0.c \
+				 $(TREMOR_DIR)/floor1.c \
+				 $(TREMOR_DIR)/info.c \
+				 $(TREMOR_DIR)/mapping0.c \
+				 $(TREMOR_DIR)/mdct.c \
+				 $(TREMOR_DIR)/registry.c \
+				 $(TREMOR_DIR)/res012.c \
+				 $(TREMOR_DIR)/sharedbook.c \
+				 $(TREMOR_DIR)/synthesis.c \
+				 $(TREMOR_DIR)/vorbisfile.c \
+				 $(TREMOR_DIR)/window.c
 
 SOURCES_C += $(LIBOGG_DIR)/src/bitwise.c \
 				 $(LIBOGG_DIR)/src/framing.c
