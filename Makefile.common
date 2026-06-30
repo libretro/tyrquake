@@ -240,8 +240,20 @@ LIBVORBIS_SOURCES = \
 
 SOURCES_C += $(LIBVORBIS_SOURCES) $(CORE_DIR)/common/snd_vorbis_float.c
 
+# Force-include syntax and the uninitialized-warning suppression differ by
+# toolchain.  MSVC's cl.exe spells force-include "-FI<file>" and rejects both
+# the GCC/clang "-include <file>" form and "-Wno-*" outright (command-line
+# error D8021); the GCC warning it suppresses does not exist there anyway.
+ifneq (,$(findstring msvc,$(platform)))
+LIBVORBIS_FORCE_INCLUDE := -FI$(LIBVORBIS_DIR)/lib/fvorbis_rename.h
+LIBVORBIS_EXTRA_CFLAGS  :=
+else
+LIBVORBIS_FORCE_INCLUDE := -include $(LIBVORBIS_DIR)/lib/fvorbis_rename.h
+LIBVORBIS_EXTRA_CFLAGS  := -Wno-maybe-uninitialized
+endif
+
 $(LIBVORBIS_SOURCES:.c=.o): CFLAGS += \
-	-include $(LIBVORBIS_DIR)/lib/fvorbis_rename.h \
+	$(LIBVORBIS_FORCE_INCLUDE) \
 	-I$(LIBVORBIS_DIR)/lib -I$(LIBVORBIS_DIR)/include \
-	-Wno-maybe-uninitialized
+	$(LIBVORBIS_EXTRA_CFLAGS)
 endif
