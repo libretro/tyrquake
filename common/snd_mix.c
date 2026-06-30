@@ -302,9 +302,14 @@ void S_PaintChannels (int samples_to_paint)
 			}
 		}
 
-		/* clip each sample to 0dB, then reduce by 6dB (to leave some headroom for */
-		/* the lowpass filter and the music). the lowpass will smooth out the */
-		/* clipping */
+		/* Hard-limit the SFX mix to 0 dBFS (int16 full scale).  Note: the
+		 * upstream QuakeII/QuakeSpasm lineage these comments came from
+		 * reduced by a further 6 dB here and relied on a smoothing lowpass
+		 * to mask the clipping -- this mixer does neither, so the clamp is a
+		 * straight hard clip at 0 dBFS.  A single sound peaks just under the
+		 * ceiling (leftvol capped at 255 in SND_PaintChannelFrom16), but
+		 * dense simultaneous effects, and effects plus the music summed
+		 * below, can still clip here, the same as stock Quake. */
 		for (i = 0; i < chunk; i++)
 		{
 			paintbuffer[i].left = CLAMP(-(32768 << 8), paintbuffer[i].left, 32767 << 8);
@@ -352,7 +357,10 @@ void S_PaintChannels (int samples_to_paint)
 				for (i = 0; i < bgm_count; i++)
 				{
 					int s = (s_rawhead + i) & (MAX_RAW_SAMPLES - 1);
-					/* lower music by 6db to match sfx */
+					/* Summed at unity onto the already-clamped SFX; the
+					 * final transfer clamps the total, so a loud SFX bed
+					 * plus loud music clips at 0 dBFS.  (The "6 dB" the
+					 * upstream comment mentioned is not applied here.) */
 					paintbuffer[i].left  += s_rawsamples[s].left;
 					paintbuffer[i].right += s_rawsamples[s].right;
 				}
