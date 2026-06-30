@@ -282,7 +282,7 @@ long _book_maptype1_quantvals(long dim, long entries){
    generated algorithmically (each column of the vector counts through
    the values in the quant vector). in map type 2, all the values came
    in in an explicit list.  Both value lists must be unpacked */
-void _book_unquantize(float *r,const dec_codebook *b,ogg_int32_t n,
+void _book_unquantize(float *r,const dec_codebook *b,int n,
                       ogg_int64_t *sparsemap){
   ogg_int32_t i,j,k;
   if(b->maptype==1 || b->maptype==2){
