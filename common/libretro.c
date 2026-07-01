@@ -134,6 +134,16 @@ static bool libretro_supports_bitmasks = false;
 #define DEFAULT_MEMSIZE_MB 64
 #endif
 
+/* Bounds for frontend-driven hunk sizing via
+ * RETRO_ENVIRONMENT_GET_MEMORY_STATUS: take at most 1/4 of the memory the
+ * frontend reports free, cap it, and never shrink below the per-platform
+ * DEFAULT_MEMSIZE_MB chosen above. The cap keeps the reservation sane on
+ * desktops with gigabytes free while still covering the largest mods; the
+ * floor preserves the current tuned behaviour on constrained targets and
+ * on any frontend that cannot answer the query. */
+#define HUNK_FREE_SHIFT 2      /* free >> 2  == a quarter of reported free RAM */
+#define HUNK_MAX_MB     256u   /* upper bound; ample for the biggest Quake mods */
+
 /* Use 44.1 kHz by default (matches CD
  * audio tracks) */
 #define AUDIO_SAMPLERATE_DEFAULT 44100
@@ -1321,6 +1331,32 @@ bool retro_load_game(const struct retro_game_info *info)
    parms.basedir = g_rom_dir;
    parms.savedir = g_save_dir;
    parms.use_exernal_savedir = use_external_savedir ? 1 : 0;
+
+   /* Size the Quake hunk from the memory the frontend actually has, when it
+    * can tell us. We only ever grow above the default and clamp hard, so a
+    * frontend that does not implement the query (returns false) keeps the
+    * compile-time default computed above. */
+   {
+      struct retro_memory_status memstat;
+      memstat.free = memstat.total = 0;
+      if (environ_cb(RETRO_ENVIRONMENT_GET_MEMORY_STATUS, &memstat) && memstat.free)
+      {
+         unsigned free_mb = (unsigned)(memstat.free / (1024 * 1024));
+         unsigned budget  = free_mb >> HUNK_FREE_SHIFT;
+         if (budget > HUNK_MAX_MB)
+            budget = HUNK_MAX_MB;
+         if (budget > MEMSIZE_MB)
+            MEMSIZE_MB = budget;
+         log_cb(RETRO_LOG_INFO,
+                "Frontend reports %u MB free; sizing Quake hunk to %u MB.\n",
+                free_mb, MEMSIZE_MB);
+      }
+      else
+         log_cb(RETRO_LOG_INFO,
+                "Frontend has no memory-status query; using default %u MB hunk.\n",
+                MEMSIZE_MB);
+   }
+
    parms.memsize = MEMSIZE_MB * 1024 * 1024;
    argv[0] = empty_string;
 
