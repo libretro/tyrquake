@@ -1778,11 +1778,11 @@ void VID_Shutdown(void)
 void VID_Update(vrect_t *rects)
 {
    unsigned x, y;
-   unsigned pitch;
-   uint8_t *ilineptr           = (uint8_t*)vid.buffer;
-   uint16_t *olineptr;
-   uint16_t *pal               = (uint16_t*)&d_8to16table;
-   uint16_t *ptr;
+   size_t pitch;
+   const uint8_t *src          = (const uint8_t*)vid.buffer;
+   const uint16_t *pal         = (const uint16_t*)&d_8to16table;
+   uint16_t *dst               = (uint16_t*)finalimage;
+   struct retro_framebuffer fb;
 
    if (!video_cb || !rects || did_flip)
       return;
@@ -1809,37 +1809,36 @@ void VID_Update(vrect_t *rects)
    if (g_rhi && g_rhi->kind != RHI_BACKEND_SOFTWARE)
       return;
 
-   /* Palette-convert our 8bpp framebuffer into the 16bpp finalimage
-    * buffer and hand that to video_cb. We deliberately do NOT use
-    * RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER: the SW path
-    * still wants vid.buffer to be a stable, persistent buffer across
-    * frames -- the libretro frontend's swapchain buffer is not, so
-    * direct-rendering into it produced visible cross-buffer artifacts
-    * (e.g. a doubled status bar from previous-frame content showing
-    * through unwritten regions).  The vid.numpages-gated partial-
-    * update optimizations the original code relied on (sb_updates,
-    * scr_fullupdate, clearnotify, etc.) are now bypassed at
-    * retro_load_game (Phase 4m sets vid.numpages to 0x40000000),
-    * because they assume page-flip redundancy that libretro's
-    * single-buffered model never provides -- and that assumption
-    * also breaks the moment R_RenderView's 3D viewport extends
-    * into the status-bar area at high scr_viewsize, overwriting
-    * the inventory icons between Sbar_Draw runs.  The right way
-    * to claim the sw_fb speedup is to convert the renderer to
-    * write 16bpp natively; until then, this single post-pass is
-    * correct. */
-   pitch    = width;
-   ptr      = (uint16_t*)finalimage;
-   olineptr = ptr;
-
-   for (y = 0; y < rects->height; ++y)
+   /* The renderer keeps drawing into its own persistent 8bpp
+    * vid.buffer; only the palette pass that turns it into RGB565
+    * writes into the frontend's framebuffer, when it lends one, so the
+    * frame goes out without being copied again. The pass writes the
+    * whole frame from vid.buffer, which holds every region (status bar
+    * included) whatever the rect redrawn this frame: a lent buffer
+    * holds nothing from the frames before it. */
+   pitch = width * sizeof(uint16_t);
+   memset(&fb, 0, sizeof(fb));
+   fb.width        = width;
+   fb.height       = height;
+   fb.access_flags = RETRO_MEMORY_ACCESS_WRITE;
+   if (     environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb)
+         && fb.data && fb.format == RETRO_PIXEL_FORMAT_RGB565
+         && fb.width == width && fb.height == height
+         && fb.pitch >= pitch)
    {
-      for (x = 0; x < rects->width; ++x)
-         *olineptr++ = pal[*ilineptr++];
-      olineptr += pitch - rects->width;
+      dst   = (uint16_t*)fb.data;
+      pitch = fb.pitch;
    }
 
-   video_cb(ptr, width, height, pitch << 1);
+   for (y = 0; y < height; ++y)
+   {
+      const uint8_t *in = src + (size_t)y * vid.rowbytes;
+      uint16_t *out     = (uint16_t*)((uint8_t*)dst + (size_t)y * pitch);
+      for (x = 0; x < width; ++x)
+         out[x] = pal[in[x]];
+   }
+
+   video_cb(dst, width, height, pitch);
    did_flip = true;
 }
 
