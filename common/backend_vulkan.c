@@ -209,6 +209,15 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 
 #include "vulkan/vulkan_core.h"
 #include "libretro_vulkan.h"
+/* The stages an earlier frame - still in flight on the queue - may
+ * read a shared image in (the compute passes, the overlay's fragment
+ * shader, and the frontend's sampling or copy of the output): a
+ * barrier that discards the image's contents waits for them, or this
+ * frame's writes race the reads */
+#define VK_EARLIER_READS_STAGES (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT \
+      | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT \
+      | VK_PIPELINE_STAGE_TRANSFER_BIT)
+
 #include "shaders/generated/spv/textured_palette_cs.h"
 #include "shaders/generated/spv/overlay_quad_vs.h"
 #include "shaders/generated/spv/overlay_quad_fs.h"
@@ -1717,7 +1726,11 @@ backend_vk_free_overlay_slot(struct overlay_slot *slot)
     slot->view            = VK_NULL_HANDLE;
     slot->image           = VK_NULL_HANDLE;
     slot->memory          = VK_NULL_HANDLE;
-    slot->descriptor_set  = VK_NULL_HANDLE;
+    /* descriptor_set stays: the pool cannot free sets one by
+     * one, so the slot keeps the one it was given and the next
+     * upload into it rewrites it (backend_vk_upload_pic_slot).
+     * Dropping it here leaked a set per eviction until the pool
+     * ran dry. */
     slot->width           = 0;
     slot->height          = 0;
     slot->key             = NULL;
@@ -1794,6 +1807,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: CreateImage (slot %u) failed (%d)\n",
                    slot_idx, (int)r);
+        slot->image = VK_NULL_HANDLE;
         return false;
     }
 
@@ -1805,6 +1819,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: no DEVICE_LOCAL memory for slot %u image\n",
                    slot_idx);
+        backend_vk_free_overlay_slot(slot);
         return false;
     }
 
@@ -1819,6 +1834,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: AllocateMemory (slot %u) failed (%d)\n",
                    slot_idx, (int)r);
+        backend_vk_free_overlay_slot(slot);
         return false;
     }
 
@@ -1828,6 +1844,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: BindImageMemory (slot %u) failed (%d)\n",
                    slot_idx, (int)r);
+        backend_vk_free_overlay_slot(slot);
         return false;
     }
 
@@ -1846,6 +1863,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: CreateImageView (slot %u) failed (%d)\n",
                    slot_idx, (int)r);
+        backend_vk_free_overlay_slot(slot);
         return false;
     }
 
@@ -1854,19 +1872,23 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
      * binding 1 -> shared palette, binding 2 -> vk_image
      * placeholder (DSL has the slot; the overlay FS
      * doesn't access it). */
-    memset(&ds_alloc, 0, sizeof(ds_alloc));
-    ds_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ds_alloc.descriptorPool     = vk_descriptor_pool;
-    ds_alloc.descriptorSetCount = 1;
-    ds_alloc.pSetLayouts        = &vk_descriptor_set_layout;
+    if (slot->descriptor_set == VK_NULL_HANDLE) {
+        memset(&ds_alloc, 0, sizeof(ds_alloc));
+        ds_alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        ds_alloc.descriptorPool     = vk_descriptor_pool;
+        ds_alloc.descriptorSetCount = 1;
+        ds_alloc.pSetLayouts        = &vk_descriptor_set_layout;
 
-    r = vk_fn.AllocateDescriptorSets(vk_device, &ds_alloc, &slot->descriptor_set);
-    if (r != VK_SUCCESS) {
-        if (log_cb)
-            log_cb(RETRO_LOG_ERROR,
-                   "rhi-vk: AllocateDescriptorSets (slot %u) failed (%d)\n",
-                   slot_idx, (int)r);
+        r = vk_fn.AllocateDescriptorSets(vk_device, &ds_alloc, &slot->descriptor_set);
+        if (r != VK_SUCCESS) {
+            if (log_cb)
+                log_cb(RETRO_LOG_ERROR,
+                       "rhi-vk: AllocateDescriptorSets (slot %u) failed (%d)\n",
+                       slot_idx, (int)r);
+            slot->descriptor_set = VK_NULL_HANDLE;
+            backend_vk_free_overlay_slot(slot);
         return false;
+        }
     }
 
     memset(&ds_image_infos, 0, sizeof(ds_image_infos));
@@ -7008,6 +7030,9 @@ backend_vk_destroy_resources(void)
             unsigned dsi;
             for (dsi = 0; dsi < VK_FRAME_RING_DEPTH; dsi++)
                 vk_descriptor_set[dsi] = VK_NULL_HANDLE;
+            /* The overlay slots' sets went with the pool */
+            for (dsi = 0; dsi < OVERLAY_SLOT_MAX; dsi++)
+                vk_overlay_slots[dsi].descriptor_set = VK_NULL_HANDLE;
         }
     }
     if (vk_descriptor_set_layout != VK_NULL_HANDLE) {
@@ -9075,8 +9100,10 @@ backend_vk_begin_frame(void)
                             &vk_frame_ctx[vk_active_slot].done_fence,
                             VK_TRUE, UINT64_MAX);
         perf_timing_section_end(PERF_SECTION_BEGIN_FRAME_WAIT);
-        vk_fn.ResetFences(vk_device, 1,
-                          &vk_frame_ctx[vk_active_slot].done_fence);
+        /* Reset only right before the submit that signals it
+         * (end_frame): a frame that never submits leaves the
+         * fence signaled, so the next rotation onto this slot
+         * cannot wait forever on it. */
         vk_cmd_buffer = vk_frame_ctx[vk_active_slot].cmd_buffer;
     }
 
@@ -9374,8 +9401,11 @@ backend_vk_record_frame(void)
     sprites_active   = vk_sprite_count > 0;
     alias_active     = vk_alias_count > 0;
     turb_active      = vk_turb_surface_count > 0;
+    /* Sky spans are drawn only here (d_edge.c skips their SW
+     * draw once queued), so they open the compute path too */
     zbuf_active      = particles_active || sprites_active
-                    || alias_active     || turb_active;
+                    || alias_active     || turb_active
+                    || vk_sky_collected_count > 0;
 
     memset(&begin_info, 0, sizeof(begin_info));
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -9439,7 +9469,7 @@ backend_vk_record_frame(void)
         sky_barriers[1].image = vk_sky_back_image;
 
         vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                 VK_EARLIER_READS_STAGES,
                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
                                  0,
                                  0, NULL,
@@ -9522,7 +9552,7 @@ backend_vk_record_frame(void)
     barriers[2].image = vk_zbuffer;
 
     vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_EARLIER_READS_STAGES,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                              0,
                              0, NULL,
@@ -9642,9 +9672,12 @@ backend_vk_record_frame(void)
         barriers[2].newLayout     = VK_IMAGE_LAYOUT_GENERAL;
         barriers[2].image         = vk_zbuffer;
 
+        /* The palette is also sampled by the overlay's fragment
+         * shader */
         vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                               | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                  0,
                                  0, NULL,
                                  0, NULL,
@@ -10317,7 +10350,8 @@ backend_vk_record_frame(void)
 
         vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
                                  VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                               | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                  0,
                                  0, NULL,
                                  0, NULL,
@@ -10345,7 +10379,7 @@ backend_vk_record_frame(void)
     image_barrier.subresourceRange.layerCount     = 1;
 
     vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_EARLIER_READS_STAGES,
                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              0,
                              0, NULL,
@@ -10585,7 +10619,8 @@ backend_vk_end_frame(void)
     if (vk_pending_particle_count > 0
      || vk_sprite_count > 0
      || vk_alias_count > 0
-     || vk_turb_surface_count > 0) {
+     || vk_turb_surface_count > 0
+     || vk_sky_collected_count > 0) {
         perf_timing_section_begin(PERF_SECTION_UPLOAD_ZBUF);
         backend_vk_upload_zbuffer();
         perf_timing_section_end(PERF_SECTION_UPLOAD_ZBUF);
@@ -10649,12 +10684,17 @@ backend_vk_end_frame(void)
     si.pSignalSemaphores    = &vk_frame_ctx[vk_active_slot].render_done_semaphore;
 
     perf_timing_section_begin(PERF_SECTION_QUEUE_SUBMIT);
+    vk_fn.ResetFences(vk_device, 1, &vk_frame_ctx[vk_active_slot].done_fence);
     r = vk_fn.QueueSubmit(vk_queue, 1, &si,
                           vk_frame_ctx[vk_active_slot].done_fence);
     perf_timing_section_end(PERF_SECTION_QUEUE_SUBMIT);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR, "rhi-vk: QueueSubmit failed (%d)\n", (int)r);
+        /* The fence was reset for this submit: an empty one
+         * signals it, so the slot's next wait returns */
+        vk_fn.QueueSubmit(vk_queue, 0, NULL,
+                          vk_frame_ctx[vk_active_slot].done_fence);
         perf_timing_section_end(PERF_SECTION_SUBMIT_PRESENT);
         return;
     }
