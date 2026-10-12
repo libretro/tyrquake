@@ -163,6 +163,7 @@ static void S_TransferStereo16 (int dst_offset, int count)
  * removes the int16 quantization (and the frontend's int16->float widen), it
  * does not reshape the signal. */
 #define SND_FLOAT_NORM (1.0f / 8388608.0f)	/* 1 / (256 * 32768) */
+#define SND_FLOAT_MAX  (32767.0f / 32768.0f)
 
 static void Snd_WriteLinearBlastStereoFloat (void)
 {
@@ -172,8 +173,11 @@ static void Snd_WriteLinearBlastStereoFloat (void)
 	for (i = 0; i < snd_linear_count; i++)
 	{
 		f = (float)snd_p[i] * SND_FLOAT_NORM;
-		if (f > 1.0f)
-			f = 1.0f;
+		/* int16 full scale, 32767/32768 at the top, as the
+		 * SFX clamp in S_PaintChannels leaves it: the clamp is
+		 * skipped when it is the only one (no music) */
+		if (f > SND_FLOAT_MAX)
+			f = SND_FLOAT_MAX;
 		else if (f < -1.0f)
 			f = -1.0f;
 		snd_out_f[i] = f;
@@ -310,11 +314,16 @@ void S_PaintChannels (int samples_to_paint)
 		 * ceiling (leftvol capped at 255 in SND_PaintChannelFrom16), but
 		 * dense simultaneous effects, and effects plus the music summed
 		 * below, can still clip here, the same as stock Quake. */
-		for (i = 0; i < chunk; i++)
-		{
-			paintbuffer[i].left = CLAMP(-(32768 << 8), paintbuffer[i].left, 32767 << 8);
-			paintbuffer[i].right = CLAMP(-(32768 << 8), paintbuffer[i].right, 32767 << 8);
-		}
+		/* Only ahead of the music: on its own the SFX mix is
+		 * clamped to the same bounds by the transfer (the int16
+		 * blast saturates, the float blast clamps), and another
+		 * pass over the chunk buys nothing */
+		if (s_rawavail > 0)
+			for (i = 0; i < chunk; i++)
+			{
+				paintbuffer[i].left = CLAMP(-(32768 << 8), paintbuffer[i].left, 32767 << 8);
+				paintbuffer[i].right = CLAMP(-(32768 << 8), paintbuffer[i].right, 32767 << 8);
+			}
 
 		if (s_float_output && snd_float_buffer)
 		{

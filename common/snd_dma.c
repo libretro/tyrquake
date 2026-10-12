@@ -468,6 +468,9 @@ void S_ClearBuffer(void)
       return;
 
    memset(shm->buffer, 0, AUDIO_BUFFER_SIZE * 16 / 8);
+   /* The float output, when it is the one pushed */
+   if (snd_float_buffer)
+      memset(snd_float_buffer, 0, AUDIO_BUFFER_SIZE * sizeof(float));
 }
 
 /*
@@ -813,6 +816,11 @@ static void S_Update_(void)
       if (shm && shm->buffer && shm->samples_per_frame > 0)
          memset(shm->buffer, 0,
                 shm->samples_per_frame * sizeof(int16_t) * 2);
+      /* The float output too, which audio_step pushes instead
+       * when float was negotiated: else last frame's repeats */
+      if (shm && snd_float_buffer && shm->samples_per_frame > 0)
+         memset(snd_float_buffer, 0,
+                shm->samples_per_frame * sizeof(float) * 2);
       return;
    }
 
