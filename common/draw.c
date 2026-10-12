@@ -147,53 +147,104 @@ extern void VID_SetPalette2(unsigned char *palette);
 /* Colored Lighting lookup tables */
 byte palmap2[64][64][64];	
 
-/*
-===============
-BestColor
-===============
-*/
-static byte BestColor(int r, int g, int b, int start, int stop)
-{
-	int	i;
-	/* let any color go to 0 as a last resort */
-	int bestdistortion = 256*256*4;
-	int bestcolor      = 0;
-	byte *pal          = host_basepal + start*3;
-	for (i=start ; i<= stop ; i++)
-	{
-		int dr          = r - (int)pal[0];
-		int dg          = g - (int)pal[1];
-		int db          = b - (int)pal[2];
-		int distortion  = dr * dr + dg * dg + db * db;
-
-		pal            += 3;
-
-		if (distortion < bestdistortion)
-		{
-			if (!distortion)
-				return i; /* perfect match */
-
-			bestdistortion = distortion;
-			bestcolor      = i;
-		}
-	}
-
-	return bestcolor;
-}
-
+/* Nearest of palette[0..254] to every 6-bit-per-channel colour, the
+ * lowest index among equals, as a plain search of all of them finds
+ * it. Each cell starts from its neighbour's colour as the best so far,
+ * and the palette, sorted by red, is walked outward from the cell's
+ * red until the red distance alone is past the best: the same table
+ * in well under half of a plain search's time at startup. */
 static void Draw_Generate18BPPTable (void)
 {
-	int		r, g, b;
+	int	pr[255], pg[255], pb[255];
+	int	order[255];	/* palette indices by red, then index */
+	int	first[257];	/* first place in order[] with red >= v */
+	int	r, g, b, i, j;
+	int	last = 0;
 
-	/* Make the 18-bit lookup table here */
-	for (r=0 ; r<256 ; r+=4)
+	for (i = 0; i < 255; i++)
 	{
-		for (g=0 ; g<256 ; g+=4)
+		pr[i] = host_basepal[i * 3 + 0];
+		pg[i] = host_basepal[i * 3 + 1];
+		pb[i] = host_basepal[i * 3 + 2];
+	}
+	/* insertion sort, stable: equal reds keep index order */
+	for (i = 0; i < 255; i++)
+	{
+		int v = i;
+		for (j = i; j > 0 && pr[order[j - 1]] > pr[v]; j--)
+			order[j] = order[j - 1];
+		order[j] = v;
+	}
+	for (i = 0, j = 0; i <= 256; i++)
+	{
+		while (j < 255 && pr[order[j]] < i)
+			j++;
+		first[i] = j;
+	}
+
+	for (r = 0; r < 256; r += 4)
+	{
+		for (g = 0; g < 256; g += 4)
 		{
-			for (b=0 ; b<256 ; b+=4)
+			for (b = 0; b < 256; b += 4)
 			{
-				int beastcolor = BestColor (r, g, b, 0, 254);
-				palmap2[r>>2][g>>2][b>>2] = beastcolor;
+				int dr   = r - pr[last];
+				int dg   = g - pg[last];
+				int db   = b - pb[last];
+				int best = dr * dr + dg * dg + db * db;
+				int pick = last;
+				int up   = first[r];
+				int down = up - 1;
+
+				/* Outward in red from r: past a red distance whose
+				 * square exceeds the best, nothing is nearer (an
+				 * equal one may still be lower-indexed, so equal
+				 * is still looked at) */
+				while (up < 255 || down >= 0)
+				{
+					if (up < 255)
+					{
+						int k = order[up];
+						dr = pr[k] - r;
+						if (dr * dr > best)
+							up = 255;
+						else
+						{
+							int d;
+							dg = g - pg[k];
+							db = b - pb[k];
+							d  = dr * dr + dg * dg + db * db;
+							if (d < best || (d == best && k < pick))
+							{
+								best = d;
+								pick = k;
+							}
+							up++;
+						}
+					}
+					if (down >= 0)
+					{
+						int k = order[down];
+						dr = r - pr[k];
+						if (dr * dr > best)
+							down = -1;
+						else
+						{
+							int d;
+							dg = g - pg[k];
+							db = b - pb[k];
+							d  = dr * dr + dg * dg + db * db;
+							if (d < best || (d == best && k < pick))
+							{
+								best = d;
+								pick = k;
+							}
+							down--;
+						}
+					}
+				}
+				palmap2[r>>2][g>>2][b>>2] = (byte)pick;
+				last = pick;
 			}
 		}
 	}
@@ -583,12 +634,26 @@ void Draw_TransPicTranslate(int x, int y, const qpic_t *pic, byte *translation)
  *   fatal.
  * ============================================================================= */
 
+/* @n copies of @b at @d, for a source pixel scaled up @n times: the
+ * small counts (every UI scale in use) as plain stores, not a memset
+ * call per pixel */
+static INLINE void Draw_Run(byte *d, byte b, int n)
+{
+    switch (n) {
+    case 4: d[3] = b; /* fall through */
+    case 3: d[2] = b; /* fall through */
+    case 2: d[1] = b; /* fall through */
+    case 1: d[0] = b; break;
+    default: memset(d, b, (size_t)n); break;
+    }
+}
+
 void
 Draw_PicScaled(int x, int y, const qpic_t *pic, int scale)
 {
     byte *dest;
     const byte *source;
-    int v, u, sx, sy;
+    int v, u, sy;
     int dw, dh;
 
     /* Defensive: see Draw_Pic. */
@@ -624,15 +689,13 @@ Draw_PicScaled(int x, int y, const qpic_t *pic, int scale)
     source = pic->data;
     dest = vid.buffer + y * vid.rowbytes + x;
 
+    /* Each source row scaled across once, then copied down: the
+     * rows a source row covers are the same bytes */
     for (v = 0; v < pic->height; v++) {
-	for (sy = 0; sy < scale; sy++) {
-	    byte *d = dest + sy * vid.rowbytes;
-	    for (u = 0; u < pic->width; u++) {
-		byte b = source[u];
-		for (sx = 0; sx < scale; sx++)
-		    d[u * scale + sx] = b;
-	    }
-	}
+	for (u = 0; u < pic->width; u++)
+	    Draw_Run(dest + u * scale, source[u], scale);
+	for (sy = 1; sy < scale; sy++)
+	    memcpy(dest + sy * vid.rowbytes, dest, (size_t)dw);
 	dest   += scale * vid.rowbytes;
 	source += pic->width;
     }
@@ -643,7 +706,7 @@ Draw_TransPicScaled(int x, int y, const qpic_t *pic, int scale)
 {
     byte *dest;
     const byte *source;
-    int v, u, sx, sy;
+    int v, u, sy;
     int dw, dh;
 
     /* Defensive: see Draw_Pic. */
@@ -681,10 +744,8 @@ Draw_TransPicScaled(int x, int y, const qpic_t *pic, int scale)
 	    byte *d = dest + sy * vid.rowbytes;
 	    for (u = 0; u < pic->width; u++) {
 		byte b = source[u];
-		if (b != TRANSPARENT_COLOR) {
-		    for (sx = 0; sx < scale; sx++)
-			d[u * scale + sx] = b;
-		}
+		if (b != TRANSPARENT_COLOR)
+		    Draw_Run(d + u * scale, b, scale);
 	    }
 	}
 	dest   += scale * vid.rowbytes;
@@ -698,7 +759,7 @@ Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
 {
     byte *dest;
     const byte *source;
-    int v, u, sx, sy;
+    int v, u, sy;
     int dw, dh;
 
     /* Defensive: see Draw_Pic. */
@@ -739,11 +800,8 @@ Draw_TransPicTranslateScaled(int x, int y, const qpic_t *pic,
 	    byte *d = dest + sy * vid.rowbytes;
 	    for (u = 0; u < pic->width; u++) {
 		byte b = source[u];
-		if (b != TRANSPARENT_COLOR) {
-		    byte t = translation[b];
-		    for (sx = 0; sx < scale; sx++)
-			d[u * scale + sx] = t;
-		}
+		if (b != TRANSPARENT_COLOR)
+		    Draw_Run(d + u * scale, translation[b], scale);
 	    }
 	}
 	dest   += scale * vid.rowbytes;
@@ -758,7 +816,7 @@ Draw_CharacterScaled(int x, int y, int num, int scale)
     byte *source;
     int drawline;
     int row, col;
-    int u, sx, sy;
+    int u, sy;
 
     if (scale < 1)
 	scale = 1;
@@ -795,10 +853,8 @@ Draw_CharacterScaled(int x, int y, int num, int scale)
 	    byte *d = dest + sy * vid.conrowbytes;
 	    for (u = 0; u < 8; u++) {
 		byte b = source[u];
-		if (b) {
-		    for (sx = 0; sx < scale; sx++)
-			d[u * scale + sx] = b;
-		}
+		if (b)
+		    Draw_Run(d + u * scale, b, scale);
 	    }
 	}
 	source += 128;
@@ -909,12 +965,18 @@ Draw_ConsoleBackground(int lines)
 
     /* draw the pic */
     {
+	int lastv = -1;
+
 	dest = vid.conbuffer;
 
 	for (y = 0; y < lines; y++, dest += vid.conrowbytes) {
 	    v = (vid.conheight - lines + y) * conback->height / vid.conheight;
 	    src = conback->data + v * conback->width;
-	    if (vid.conwidth == conback->width)
+	    /* A row the pic was scaled up into: the same bytes as the
+	     * one above it */
+	    if (v == lastv)
+		memcpy(dest, dest - vid.conrowbytes, vid.conwidth);
+	    else if (vid.conwidth == conback->width)
 		memcpy(dest, src, vid.conwidth);
 	    else {
 		f = 0;
@@ -930,6 +992,7 @@ Draw_ConsoleBackground(int lines)
 		    f += fstep;
 		}
 	    }
+	    lastv = v;
 	}
     }
 }
@@ -1127,6 +1190,9 @@ Call before beginning any disc IO.
 */
 void Draw_BeginDisc(void)
 {
+    /* Disc IO can start before Draw_Init has found the pic */
+    if (!draw_disc)
+	return;
     D_BeginDirectRect(vid.width - 24, 0, draw_disc->data, 24, 24);
 }
 
