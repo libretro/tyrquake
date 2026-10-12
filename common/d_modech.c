@@ -47,6 +47,18 @@ D_Patch(void)
 D_ViewChanged
 ================
 */
+void D_SetZBuffer(short *zbuf)
+{
+   int i;
+   int rows = vid.height;
+
+   if (rows > MAXHEIGHT)
+      rows = MAXHEIGHT;
+   d_pzbuffer = zbuf;
+   for (i = 0; i < rows; i++)
+      zspantable[i] = d_pzbuffer + i * vid.width;
+}
+
 void D_ViewChanged(void)
 {
    int rowbytes = vid.rowbytes;

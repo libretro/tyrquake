@@ -1,0 +1,58 @@
+/*
+ * Widens the SW renderer's 16-bit Z buffer into the R32_UINT
+ * vk_zbuffer the GPU 3D passes test and atomically update.
+ *
+ * The SW renderer draws its Z straight into a host-visible
+ * buffer (the frame ring slot's vk_particles_zstaging), so the
+ * host never copies or widens it: this pass reads it a word -
+ * two pixels, low half first (little-endian shorts) - per
+ * invocation and stores each as a zero-extended uint. izi is
+ * never negative, so zero extension keeps the value. Two
+ * pixels to an invocation, as the buffer holds them: half the
+ * invocations of one per pixel, which software Vulkan
+ * (lavapipe) runs measurably faster.
+ *
+ *   set 0, binding 0: readonly buffer    u_z16 (width*height shorts)
+ *   set 0, binding 1: writeonly uimage2D u_z32 (r32ui, width x height)
+ *   push constants:   width, height
+ *
+ * Dispatch: ceil(width * height / 2 / 64) x 1 x 1.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (C) 2026 The libretro team
+ */
+
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0, std430) readonly buffer Z16 {
+    uint words[];
+} u_z16;
+
+layout(set = 0, binding = 1, r32ui) uniform writeonly uimage2D u_z32;
+
+layout(push_constant) uniform PC {
+    uint width;
+    uint height;
+} pc;
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x * 2u; /* the word's first pixel */
+    uint x, y, w;
+
+    if (i >= pc.width * pc.height)
+        return;
+
+    y = i / pc.width;
+    x = i - y * pc.width;
+    w = u_z16.words[gl_GlobalInvocationID.x];
+    imageStore(u_z32, ivec2(x, y), uvec4(w & 0xffffu, 0u, 0u, 0u));
+    /* The second pixel: next in the row, or the next row's first
+     * when the width is odd */
+    if (x + 1u < pc.width)
+        imageStore(u_z32, ivec2(x + 1u, y), uvec4(w >> 16, 0u, 0u, 0u));
+    else if (y + 1u < pc.height)
+        imageStore(u_z32, ivec2(0, y + 1u), uvec4(w >> 16, 0u, 0u, 0u));
+}

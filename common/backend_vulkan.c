@@ -227,6 +227,7 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
 #include "shaders/generated/spv/alias_cs.h"
 #include "shaders/generated/spv/sky_cs.h"
 #include "shaders/generated/spv/turb_cs.h"
+#include "shaders/generated/spv/zwiden_cs.h"
 #include "surf_atlas.h"   /* RHI-agnostic brush-atlas allocator;
                            * Phase 5b-07.  The Vulkan backend owns
                            * the VkImage + staging buffer that the
@@ -255,7 +256,13 @@ extern void R_RenderView(void);   /* r_main.c -- backend_vk_draw_view
                            * dispatch's push constants snapshot each
                            * frame. */
 #include "client.h"       /* cl -- cl.time drives the warp phase. */
+#include "host.h"         /* host_colormap -- the colormap that never changes */
 #include <string.h>
+
+/* The SW renderer's own frame and Z buffers (libretro.c), which the
+ * staging slots stand in for while the backend is up */
+extern byte  *vid_buffer;
+extern short *zbuffer;
 
 extern retro_environment_t    environ_cb;
 extern retro_log_printf_t     log_cb;
@@ -379,6 +386,14 @@ typedef struct vk_frame_ctx_s {
      * completion.  Created in create_resources alongside
      * the slot's fence; destroyed in destroy_resources. */
     VkSemaphore     render_done_semaphore;
+    /* Overlay pic uploads made during the frame, recorded here
+     * and submitted ahead of cmd_buffer in end_frame's submit:
+     * nothing waits for them on the host. upload_staging is
+     * their source, host-visible and mapped for good. */
+    VkCommandBuffer upload_cb;
+    VkBuffer        upload_staging;
+    VkDeviceMemory  upload_staging_memory;
+    void           *upload_staging_ptr;
 } vk_frame_ctx_t;
 
 static vk_frame_ctx_t vk_frame_ctx[VK_FRAME_RING_DEPTH];
@@ -491,6 +506,13 @@ static struct overlay_slot  vk_overlay_slots[OVERLAY_SLOT_MAX];
 static struct overlay_draw  vk_overlay_draws[OVERLAY_DRAW_MAX];
 static unsigned             vk_overlay_draw_count;
 static size_t               vk_overlay_upload_offset;
+/* Size of each slot's upload_staging */
+static VkDeviceSize         vk_upload_staging_size;
+/* The active slot's upload_cb is recording */
+static qboolean             vk_upload_open;
+/* Between begin_frame and end_frame: uploads ride the frame's
+ * submit rather than one of their own */
+static qboolean             vk_in_frame;
 
 /* Phase 5b-06 follow-up: monotonic counter advanced at every
  * backend_vk_begin_frame.  Used as the LRU stamp on slot hits /
@@ -679,6 +701,14 @@ struct vk_particles_pc {
 static VkImage                vk_zbuffer;
 static VkDeviceMemory         vk_zbuffer_memory;
 static VkImageView            vk_zbuffer_view;
+/* The pass that widens the slot's 16-bit Z staging into vk_zbuffer
+ * (zwiden.comp): one set per ring slot, for its staging */
+static VkShaderModule         vk_zwiden_module;
+static VkDescriptorSetLayout  vk_zwiden_dsl;
+static VkDescriptorPool       vk_zwiden_pool;
+static VkDescriptorSet        vk_zwiden_set[VK_FRAME_RING_DEPTH];
+static VkPipelineLayout       vk_zwiden_layout;
+static VkPipeline             vk_zwiden_pipeline;
 /* Phase 5b-08 step 2b: particles SSBO is ring-buffered.
  * dispatch_3d_particles memcpys GpuParticle records into
  * vk_particles_ptr[active_slot] each frame, and the
@@ -1326,11 +1356,9 @@ static struct vk_sprite_pc    vk_sprite_calls[VK_SPRITE_MAX_PER_FRAME];
  *   vk_alias_triangle_cursor : monotonic write offset
  *                              into the triangle pool
  *                              (in triangles).
- *   vk_alias_skin_count      : number of skin slots used
- *                              this frame.
- *   vk_alias_skin_cache      : per-frame skin pointer ->
- *                              slot offset cache.
- *   vk_alias_cmap_count      : same for colormap.
+ *   vk_alias_skin_cache      : per ring slot, skin pointer
+ *                              -> pool offset, kept across
+ *                              frames.
  *   vk_alias_cmap_cache      : same for colormap.
  *
  * Caps are sized for typical scenes:
@@ -1409,6 +1437,7 @@ struct vk_alias_slot_cache_entry {
     uint32_t    offset;
     uint32_t    width;
     uint32_t    height;
+    uint64_t    used;   /* vk_overlay_frame_counter when last drawn */
 };
 
 /* Phase 5b-08 step 2c: alias SSBOs are ring-buffered.
@@ -1441,11 +1470,14 @@ static VkDescriptorSet        vk_alias_set[VK_FRAME_RING_DEPTH];
 static uint32_t               vk_alias_count;
 static uint32_t               vk_alias_vertex_cursor;
 static uint32_t               vk_alias_triangle_cursor;
-static uint32_t               vk_alias_skin_count;
-static uint32_t               vk_alias_cmap_count;
 static struct vk_alias_pc     vk_alias_calls[VK_ALIAS_MAX_PER_FRAME];
-static struct vk_alias_slot_cache_entry vk_alias_skin_cache[VK_ALIAS_SKIN_SLOTS];
-static struct vk_alias_slot_cache_entry vk_alias_cmap_cache[VK_ALIAS_CMAP_SLOTS];
+/* What each ring slot's skin and colormap pools hold, kept across
+ * frames: a skin is copied into a slot's pool once, not every frame
+ * it is drawn. An entry goes when its cache block is freed
+ * (backend_vk_notify_cache_invalidate) or when its place is taken
+ * by a skin drawn more recently. */
+static struct vk_alias_slot_cache_entry vk_alias_skin_cache[VK_FRAME_RING_DEPTH][VK_ALIAS_SKIN_SLOTS];
+static struct vk_alias_slot_cache_entry vk_alias_cmap_cache[VK_FRAME_RING_DEPTH][VK_ALIAS_CMAP_SLOTS];
 
 /* The retro_vulkan_image we hand to set_image.  Built once
  * after the image view is created (the contained
@@ -1638,6 +1670,86 @@ backend_vk_find_memory_type(uint32_t type_bits,
     return 0xFFFFFFFFu;
 }
 
+/* Host memory the CPU writes and reads, as the SW renderer does the
+ * frame and Z buffers it draws straight into: cached where the device
+ * has a coherent cached type (system memory on a discrete card, all
+ * of it on an integrated one), plain coherent otherwise. Write-
+ * combined memory reads back an order of magnitude slower. */
+static uint32_t
+backend_vk_find_host_memory_type(uint32_t type_bits)
+{
+    uint32_t t = backend_vk_find_memory_type(type_bits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+          | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+    if (t != 0xFFFFFFFFu)
+        return t;
+    return backend_vk_find_memory_type(type_bits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+          | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+}
+
+/* A host-visible buffer mapped for good, zeroed */
+static qboolean
+backend_vk_create_host_buffer(VkDeviceSize size, VkBufferUsageFlags usage,
+      VkBuffer *buf, VkDeviceMemory *mem, void **ptr, const char *what)
+{
+    VkBufferCreateInfo   ci;
+    VkMemoryRequirements req;
+    VkMemoryAllocateInfo ai;
+    uint32_t             type;
+    VkResult             r;
+
+    memset(&ci, 0, sizeof(ci));
+    ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    ci.size        = size;
+    ci.usage       = usage;
+    ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if ((r = vk_fn.CreateBuffer(vk_device, &ci, NULL, buf)) != VK_SUCCESS)
+        goto fail;
+    memset(&req, 0, sizeof(req));
+    vk_fn.GetBufferMemoryRequirements(vk_device, *buf, &req);
+    if ((type = backend_vk_find_host_memory_type(req.memoryTypeBits))
+            == 0xFFFFFFFFu) {
+        r = VK_ERROR_FEATURE_NOT_PRESENT;
+        goto fail;
+    }
+    memset(&ai, 0, sizeof(ai));
+    ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ai.allocationSize  = req.size;
+    ai.memoryTypeIndex = type;
+    if ((r = vk_fn.AllocateMemory(vk_device, &ai, NULL, mem)) != VK_SUCCESS)
+        goto fail;
+    if ((r = vk_fn.BindBufferMemory(vk_device, *buf, *mem, 0)) != VK_SUCCESS)
+        goto fail;
+    *ptr = NULL;
+    if (     (r = vk_fn.MapMemory(vk_device, *mem, 0, VK_WHOLE_SIZE, 0, ptr))
+                != VK_SUCCESS
+          || !*ptr)
+        goto fail;
+    memset(*ptr, 0, (size_t)size);
+    return true;
+fail:
+    if (log_cb)
+        log_cb(RETRO_LOG_ERROR, "rhi-vk: %s buffer (%llu bytes) failed (%d)\n",
+               what, (unsigned long long)size, (int)r);
+    return false;
+}
+
+static void
+backend_vk_destroy_host_buffer(VkBuffer *buf, VkDeviceMemory *mem, void **ptr)
+{
+    if (*mem != VK_NULL_HANDLE && *ptr)
+        vk_fn.UnmapMemory(vk_device, *mem);
+    if (*buf != VK_NULL_HANDLE)
+        vk_fn.DestroyBuffer(vk_device, *buf, NULL);
+    if (*mem != VK_NULL_HANDLE)
+        vk_fn.FreeMemory(vk_device, *mem, NULL);
+    *buf = VK_NULL_HANDLE;
+    *mem = VK_NULL_HANDLE;
+    *ptr = NULL;
+}
+
 /*
  * Phase 4j: batched one-shot overlay-pic uploads.
  *
@@ -1667,17 +1779,38 @@ backend_vk_find_memory_type(uint32_t type_bits,
  * call upload_pic_slot, and the helpers do the same
  * thing in either case.
  */
+/* A pic's bytes into upload staging, through @translation (a 256-entry
+ * remap, the player colours) when there is one: written once, in
+ * place */
+static void
+backend_vk_stage_pic(uint8_t *dst, const uint8_t *data, size_t bytes,
+                     const byte *translation)
+{
+    size_t i;
+    if (!translation) {
+        memcpy(dst, data, bytes);
+        return;
+    }
+    for (i = 0; i < bytes; i++)
+        dst[i] = translation[data[i]];
+}
+
 static qboolean
 backend_vk_begin_uploads(void)
 {
     VkCommandBufferBeginInfo bi;
     VkResult                 r;
 
+    /* Every upload of the frame goes into the one command
+     * buffer, opened by the first */
+    if (vk_upload_open)
+        return true;
+
     memset(&bi, 0, sizeof(bi));
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    r = vk_fn.BeginCommandBuffer(vk_cmd_buffer, &bi);
+    r = vk_fn.BeginCommandBuffer(vk_frame_ctx[vk_active_slot].upload_cb, &bi);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
@@ -1686,6 +1819,7 @@ backend_vk_begin_uploads(void)
         return false;
     }
     vk_overlay_upload_offset = 0;
+    vk_upload_open           = true;
     return true;
 }
 
@@ -1740,7 +1874,7 @@ backend_vk_free_overlay_slot(struct overlay_slot *slot)
 static qboolean
 backend_vk_upload_pic_slot(unsigned slot_idx,
                            unsigned w, unsigned h,
-                           const uint8_t *data)
+                           const uint8_t *data, const byte *translation)
 {
     struct overlay_slot         *slot;
     VkImageCreateInfo            image_ci;
@@ -1773,14 +1907,14 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     }
 
     bytes = (size_t)w * (size_t)h;
-    if (vk_overlay_upload_offset + bytes > vk_staging_size) {
+    if (vk_overlay_upload_offset + bytes > vk_upload_staging_size) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: upload_pic_slot: staging overflow "
                    "(offset %llu + %llu > %llu)\n",
                    (unsigned long long)vk_overlay_upload_offset,
                    (unsigned long long)bytes,
-                   (unsigned long long)vk_staging_size);
+                   (unsigned long long)vk_upload_staging_size);
         return false;
     }
 
@@ -1934,7 +2068,8 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
      * the open command buffer.  Uses the active ring
      * slot's staging since the one-shot upload happens
      * inside the active frame's CB recording. */
-    memcpy((uint8_t *)vk_staging_ptr[vk_active_slot] + vk_overlay_upload_offset, data, bytes);
+    backend_vk_stage_pic((uint8_t *)vk_frame_ctx[vk_active_slot].upload_staging_ptr
+                         + vk_overlay_upload_offset, data, bytes, translation);
 
     memset(&barrier, 0, sizeof(barrier));
     barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1949,7 +2084,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     barrier.subresourceRange.levelCount     = 1;
     barrier.subresourceRange.layerCount     = 1;
 
-    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+    vk_fn.CmdPipelineBarrier(vk_frame_ctx[vk_active_slot].upload_cb,
                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                              0,
@@ -1964,8 +2099,8 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     region.imageExtent.height              = h;
     region.imageExtent.depth               = 1;
 
-    vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                               vk_staging_buffer[vk_active_slot],
+    vk_fn.CmdCopyBufferToImage(vk_frame_ctx[vk_active_slot].upload_cb,
+                               vk_frame_ctx[vk_active_slot].upload_staging,
                                slot->image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &region);
@@ -1975,7 +2110,7 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
     barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+    vk_fn.CmdPipelineBarrier(vk_frame_ctx[vk_active_slot].upload_cb,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                              0,
@@ -2016,7 +2151,8 @@ backend_vk_upload_pic_slot(unsigned slot_idx,
  * end_uploads pair, same as the upload helper.
  */
 static qboolean
-backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
+backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data,
+                            const byte *translation)
 {
     struct overlay_slot  *slot;
     VkImageMemoryBarrier  barrier;
@@ -2040,14 +2176,14 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
     }
 
     bytes = (size_t)slot->width * (size_t)slot->height;
-    if (vk_overlay_upload_offset + bytes > vk_staging_size) {
+    if (vk_overlay_upload_offset + bytes > vk_upload_staging_size) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
                    "rhi-vk: refresh_pic_slot: staging overflow "
                    "(offset %llu + %llu > %llu)\n",
                    (unsigned long long)vk_overlay_upload_offset,
                    (unsigned long long)bytes,
-                   (unsigned long long)vk_staging_size);
+                   (unsigned long long)vk_upload_staging_size);
         return false;
     }
 
@@ -2065,7 +2201,7 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.layerCount = 1;
 
-    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+    vk_fn.CmdPipelineBarrier(vk_frame_ctx[vk_active_slot].upload_cb,
                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                              0,
@@ -2075,7 +2211,8 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
     /* Staging copy + image copy.  Uses the active ring
      * slot's staging since the one-shot upload happens
      * inside the active frame's CB recording. */
-    memcpy((uint8_t *)vk_staging_ptr[vk_active_slot] + vk_overlay_upload_offset, data, bytes);
+    backend_vk_stage_pic((uint8_t *)vk_frame_ctx[vk_active_slot].upload_staging_ptr
+                         + vk_overlay_upload_offset, data, bytes, translation);
 
     memset(&region, 0, sizeof(region));
     region.bufferOffset                = vk_overlay_upload_offset;
@@ -2085,8 +2222,8 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
     region.imageExtent.height          = slot->height;
     region.imageExtent.depth           = 1;
 
-    vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                               vk_staging_buffer[vk_active_slot],
+    vk_fn.CmdCopyBufferToImage(vk_frame_ctx[vk_active_slot].upload_cb,
+                               vk_frame_ctx[vk_active_slot].upload_staging,
                                slot->image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                1, &region);
@@ -2097,7 +2234,7 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
     barrier.oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-    vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+    vk_fn.CmdPipelineBarrier(vk_frame_ctx[vk_active_slot].upload_cb,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                              0,
@@ -2111,10 +2248,17 @@ backend_vk_refresh_pic_slot(unsigned slot_idx, const uint8_t *data)
 static qboolean
 backend_vk_end_uploads(void)
 {
-    VkSubmitInfo submit;
-    VkResult     r;
+    VkSubmitInfo    submit;
+    VkCommandBuffer cb = vk_frame_ctx[vk_active_slot].upload_cb;
+    VkResult        r;
 
-    r = vk_fn.EndCommandBuffer(vk_cmd_buffer);
+    /* In a frame the uploads go out with it (end_frame), ahead of
+     * the frame's own commands, and nothing waits for them here */
+    if (vk_in_frame)
+        return true;
+
+    vk_upload_open = false;
+    r = vk_fn.EndCommandBuffer(cb);
     if (r != VK_SUCCESS) {
         if (log_cb)
             log_cb(RETRO_LOG_ERROR,
@@ -2126,7 +2270,7 @@ backend_vk_end_uploads(void)
     memset(&submit, 0, sizeof(submit));
     submit.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit.commandBufferCount = 1;
-    submit.pCommandBuffers    = &vk_cmd_buffer;
+    submit.pCommandBuffers    = &cb;
 
     r = vk_fn.QueueSubmit(vk_queue, 1, &submit, vk_upload_fence);
     if (r != VK_SUCCESS) {
@@ -2137,22 +2281,159 @@ backend_vk_end_uploads(void)
         return false;
     }
 
-    /* Phase 5b-08 step 3b: wait on the dedicated upload
-     * fence rather than QueueWaitIdle.  The upload's CB
-     * shares the active ring slot's command-buffer handle,
-     * so record_frame's later BeginCommandBuffer on the
-     * same handle requires the upload's pending state to
-     * have cleared.  Fence-based wait scopes that drain to
-     * the upload only, leaving any other in-flight frame
-     * submits (now allowed once end_frame's QueueWaitIdle
-     * is gone) alone.
-     *
-     * Reset for the next end_uploads call; the fence was
-     * created UNSIGNALED so this brings it back to the
-     * starting state. */
+    /* Outside a frame (no frame submit to ride): the staging
+     * and the command buffer are reused by the next upload, so
+     * this one has to be done first */
     vk_fn.WaitForFences(vk_device, 1, &vk_upload_fence, VK_TRUE, UINT64_MAX);
     vk_fn.ResetFences(vk_device, 1, &vk_upload_fence);
     return true;
+}
+
+
+/* The zwiden pass's pipeline and sets, once the Z staging slots and
+ * vk_zbuffer's view exist */
+static qboolean
+backend_vk_create_zwiden(void)
+{
+    VkShaderModuleCreateInfo        sm;
+    VkDescriptorSetLayoutBinding    b[2];
+    VkDescriptorSetLayoutCreateInfo dsl;
+    VkDescriptorPoolSize            ps[2];
+    VkDescriptorPoolCreateInfo      pool;
+    VkDescriptorSetLayout           layouts[VK_FRAME_RING_DEPTH];
+    VkDescriptorSetAllocateInfo     alloc;
+    VkPushConstantRange             pcr;
+    VkPipelineLayoutCreateInfo      pl;
+    VkComputePipelineCreateInfo     cp;
+    VkDescriptorBufferInfo          bi[VK_FRAME_RING_DEPTH];
+    VkDescriptorImageInfo           ii;
+    VkWriteDescriptorSet            w[2 * VK_FRAME_RING_DEPTH];
+    unsigned                        i;
+    VkResult                        r;
+
+    memset(&sm, 0, sizeof(sm));
+    sm.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    sm.codeSize = spv_zwiden_cs_size;
+    sm.pCode    = spv_zwiden_cs;
+    if ((r = vk_fn.CreateShaderModule(vk_device, &sm, NULL,
+                &vk_zwiden_module)) != VK_SUCCESS)
+        goto fail;
+
+    memset(b, 0, sizeof(b));
+    b[0].binding         = 0;
+    b[0].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    b[0].descriptorCount = 1;
+    b[0].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+    b[1].binding         = 1;
+    b[1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    b[1].descriptorCount = 1;
+    b[1].stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT;
+    memset(&dsl, 0, sizeof(dsl));
+    dsl.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    dsl.bindingCount = 2;
+    dsl.pBindings    = b;
+    if ((r = vk_fn.CreateDescriptorSetLayout(vk_device, &dsl, NULL,
+                &vk_zwiden_dsl)) != VK_SUCCESS)
+        goto fail;
+
+    ps[0].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    ps[0].descriptorCount = VK_FRAME_RING_DEPTH;
+    ps[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    ps[1].descriptorCount = VK_FRAME_RING_DEPTH;
+    memset(&pool, 0, sizeof(pool));
+    pool.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool.maxSets       = VK_FRAME_RING_DEPTH;
+    pool.poolSizeCount = 2;
+    pool.pPoolSizes    = ps;
+    if ((r = vk_fn.CreateDescriptorPool(vk_device, &pool, NULL,
+                &vk_zwiden_pool)) != VK_SUCCESS)
+        goto fail;
+
+    for (i = 0; i < VK_FRAME_RING_DEPTH; i++)
+        layouts[i] = vk_zwiden_dsl;
+    memset(&alloc, 0, sizeof(alloc));
+    alloc.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    alloc.descriptorPool     = vk_zwiden_pool;
+    alloc.descriptorSetCount = VK_FRAME_RING_DEPTH;
+    alloc.pSetLayouts        = layouts;
+    if ((r = vk_fn.AllocateDescriptorSets(vk_device, &alloc,
+                vk_zwiden_set)) != VK_SUCCESS)
+        goto fail;
+
+    memset(&ii, 0, sizeof(ii));
+    ii.imageView   = vk_zbuffer_view;
+    ii.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+    memset(w, 0, sizeof(w));
+    for (i = 0; i < VK_FRAME_RING_DEPTH; i++) {
+        bi[i].buffer = vk_particles_zstaging[i];
+        bi[i].offset = 0;
+        bi[i].range  = VK_WHOLE_SIZE;
+        w[2 * i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w[2 * i].dstSet          = vk_zwiden_set[i];
+        w[2 * i].dstBinding      = 0;
+        w[2 * i].descriptorCount = 1;
+        w[2 * i].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        w[2 * i].pBufferInfo     = &bi[i];
+        w[2 * i + 1].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w[2 * i + 1].dstSet          = vk_zwiden_set[i];
+        w[2 * i + 1].dstBinding      = 1;
+        w[2 * i + 1].descriptorCount = 1;
+        w[2 * i + 1].descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        w[2 * i + 1].pImageInfo      = &ii;
+    }
+    vk_fn.UpdateDescriptorSets(vk_device, 2 * VK_FRAME_RING_DEPTH, w, 0, NULL);
+
+    memset(&pcr, 0, sizeof(pcr));
+    pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pcr.size       = 2 * sizeof(uint32_t);
+    memset(&pl, 0, sizeof(pl));
+    pl.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pl.setLayoutCount         = 1;
+    pl.pSetLayouts            = &vk_zwiden_dsl;
+    pl.pushConstantRangeCount = 1;
+    pl.pPushConstantRanges    = &pcr;
+    if ((r = vk_fn.CreatePipelineLayout(vk_device, &pl, NULL,
+                &vk_zwiden_layout)) != VK_SUCCESS)
+        goto fail;
+
+    memset(&cp, 0, sizeof(cp));
+    cp.sType        = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    cp.stage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    cp.stage.stage  = VK_SHADER_STAGE_COMPUTE_BIT;
+    cp.stage.module = vk_zwiden_module;
+    cp.stage.pName  = "main";
+    cp.layout       = vk_zwiden_layout;
+    if ((r = vk_fn.CreateComputePipelines(vk_device, VK_NULL_HANDLE, 1, &cp,
+                NULL, &vk_zwiden_pipeline)) != VK_SUCCESS)
+        goto fail;
+    return true;
+fail:
+    if (log_cb)
+        log_cb(RETRO_LOG_ERROR, "rhi-vk: zwiden pipeline failed (%d)\n", (int)r);
+    return false;
+}
+
+static void
+backend_vk_destroy_zwiden(void)
+{
+    unsigned i;
+    if (vk_zwiden_pipeline != VK_NULL_HANDLE)
+        vk_fn.DestroyPipeline(vk_device, vk_zwiden_pipeline, NULL);
+    if (vk_zwiden_layout != VK_NULL_HANDLE)
+        vk_fn.DestroyPipelineLayout(vk_device, vk_zwiden_layout, NULL);
+    if (vk_zwiden_pool != VK_NULL_HANDLE)
+        vk_fn.DestroyDescriptorPool(vk_device, vk_zwiden_pool, NULL);
+    if (vk_zwiden_dsl != VK_NULL_HANDLE)
+        vk_fn.DestroyDescriptorSetLayout(vk_device, vk_zwiden_dsl, NULL);
+    if (vk_zwiden_module != VK_NULL_HANDLE)
+        vk_fn.DestroyShaderModule(vk_device, vk_zwiden_module, NULL);
+    vk_zwiden_pipeline = VK_NULL_HANDLE;
+    vk_zwiden_layout   = VK_NULL_HANDLE;
+    vk_zwiden_pool     = VK_NULL_HANDLE;
+    vk_zwiden_dsl      = VK_NULL_HANDLE;
+    vk_zwiden_module   = VK_NULL_HANDLE;
+    for (i = 0; i < VK_FRAME_RING_DEPTH; i++)
+        vk_zwiden_set[i] = VK_NULL_HANDLE;
 }
 
 /*
@@ -2629,9 +2910,10 @@ backend_vk_create_resources(void)
             memset(&mem_req, 0, sizeof(mem_req));
             vk_fn.GetBufferMemoryRequirements(vk_device, vk_staging_buffer[si], &mem_req);
 
-            mem_type = backend_vk_find_memory_type(mem_req.memoryTypeBits,
-                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                                                 | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            /* The SW renderer draws the frame straight into it
+             * (backend_vk_begin_frame) and reads it back as it
+             * blends */
+            mem_type = backend_vk_find_host_memory_type(mem_req.memoryTypeBits);
             if (mem_type == 0xFFFFFFFFu) {
                 if (log_cb)
                     log_cb(RETRO_LOG_ERROR,
@@ -2678,6 +2960,21 @@ backend_vk_create_resources(void)
              * per-frame upload writes into it. */
             memset(vk_staging_ptr[si], 0, (size_t)vk_staging_size);
         }
+    }
+
+    /* Overlay pic uploads: room for a frame's worth (a full-screen
+     * fade mask, a console background and the HUD) per slot */
+    vk_upload_staging_size = (VkDeviceSize)width * (VkDeviceSize)height * 2u
+                           + 256u * 1024u;
+    {
+        unsigned si;
+        for (si = 0; si < VK_FRAME_RING_DEPTH; si++)
+            if (!backend_vk_create_host_buffer(vk_upload_staging_size,
+                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     &vk_frame_ctx[si].upload_staging,
+                     &vk_frame_ctx[si].upload_staging_memory,
+                     &vk_frame_ctx[si].upload_staging_ptr, "upload staging"))
+                return false;
     }
 
     /* ---------------------------------------------------------
@@ -3497,8 +3794,12 @@ backend_vk_create_resources(void)
             for (zsi = 0; zsi < VK_FRAME_RING_DEPTH; zsi++) {
                 memset(&zs_ci, 0, sizeof(zs_ci));
                 zs_ci.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-                zs_ci.size        = (VkDeviceSize)width * (VkDeviceSize)height * 4u;
-                zs_ci.usage       = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                /* The SW renderer's 16-bit Z, drawn straight into
+                 * it (backend_vk_begin_frame); the zwiden pass
+                 * reads it as words into the R32 vk_zbuffer */
+                zs_ci.size        = ((VkDeviceSize)width * (VkDeviceSize)height
+                                     * 2u + 3u) & ~(VkDeviceSize)3u;
+                zs_ci.usage       = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
                 zs_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
                 r = vk_fn.CreateBuffer(vk_device, &zs_ci, NULL, &vk_particles_zstaging[zsi]);
@@ -3512,10 +3813,8 @@ backend_vk_create_resources(void)
 
                 vk_fn.GetBufferMemoryRequirements(vk_device,
                                                   vk_particles_zstaging[zsi], &zs_mem_req);
-                zs_mem_type = backend_vk_find_memory_type(
-                    zs_mem_req.memoryTypeBits,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                  | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                zs_mem_type = backend_vk_find_host_memory_type(
+                    zs_mem_req.memoryTypeBits);
                 if (zs_mem_type == UINT32_MAX) {
                     if (log_cb)
                         log_cb(RETRO_LOG_ERROR,
@@ -5019,14 +5318,15 @@ backend_vk_create_resources(void)
      * the very first frame (before begin_frame's first
      * rotation) has a valid handle. */
     {
-        VkCommandBuffer cbs[VK_FRAME_RING_DEPTH];
+        /* Each slot's frame command buffer, then its upload one */
+        VkCommandBuffer cbs[2 * VK_FRAME_RING_DEPTH];
         unsigned        si;
 
         memset(&cmd_alloc, 0, sizeof(cmd_alloc));
         cmd_alloc.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         cmd_alloc.commandPool        = vk_cmd_pool;
         cmd_alloc.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        cmd_alloc.commandBufferCount = VK_FRAME_RING_DEPTH;
+        cmd_alloc.commandBufferCount = 2 * VK_FRAME_RING_DEPTH;
 
         r = vk_fn.AllocateCommandBuffers(vk_device, &cmd_alloc, cbs);
         if (r != VK_SUCCESS) {
@@ -5073,6 +5373,7 @@ backend_vk_create_resources(void)
                 return false;
             }
             vk_frame_ctx[si].cmd_buffer = cbs[si];
+            vk_frame_ctx[si].upload_cb  = cbs[VK_FRAME_RING_DEPTH + si];
         }
 
         /* Bootstrap vk_cmd_buffer with slot 0's CB so any
@@ -6300,6 +6601,9 @@ backend_vk_create_resources(void)
         }
     }
 
+    if (!backend_vk_create_zwiden())
+        return false;
+
     vk_resources_ready = true;
     if (log_cb)
         log_cb(RETRO_LOG_INFO,
@@ -6326,6 +6630,15 @@ backend_vk_destroy_resources(void)
      * queue), which is what we want at teardown. */
     if (vk_fn.DeviceWaitIdle && vk_device != VK_NULL_HANDLE)
         vk_fn.DeviceWaitIdle(vk_device);
+
+    backend_vk_destroy_zwiden();
+
+    /* The SW renderer goes back to its own buffers before the
+     * staging it drew into goes */
+    if (vid_buffer)
+        vid.buffer = vid.conbuffer = vid_buffer;
+    if (zbuffer)
+        D_SetZBuffer(zbuffer);
 
     /* Phase 5b-06 alias pipeline / resources teardown.
      * Reverse-create order.  Alias was created after
@@ -6420,8 +6733,8 @@ backend_vk_destroy_resources(void)
     vk_alias_count           = 0;
     vk_alias_vertex_cursor   = 0;
     vk_alias_triangle_cursor = 0;
-    vk_alias_skin_count      = 0;
-    vk_alias_cmap_count      = 0;
+    memset(vk_alias_skin_cache, 0, sizeof(vk_alias_skin_cache));
+    memset(vk_alias_cmap_cache, 0, sizeof(vk_alias_cmap_cache));
 
     /* Phase 5b-05 sprite pipeline / resources teardown.
      * Reverse-create order. */
@@ -6999,8 +7312,11 @@ backend_vk_destroy_resources(void)
                                            vk_frame_ctx[si].render_done_semaphore, NULL);
                 vk_frame_ctx[si].render_done_semaphore = VK_NULL_HANDLE;
                 vk_frame_ctx[si].cmd_buffer = VK_NULL_HANDLE;
+                vk_frame_ctx[si].upload_cb  = VK_NULL_HANDLE;
             }
             vk_active_slot = 0;
+            vk_upload_open = false;
+            vk_in_frame    = false;
         }
 
         /* Phase 5b-08 step 3b: upload fence teardown. */
@@ -7064,6 +7380,14 @@ backend_vk_destroy_resources(void)
         }
     }
     vk_staging_size = 0;
+    {
+        unsigned si;
+        for (si = 0; si < VK_FRAME_RING_DEPTH; si++)
+            backend_vk_destroy_host_buffer(&vk_frame_ctx[si].upload_staging,
+                                           &vk_frame_ctx[si].upload_staging_memory,
+                                           &vk_frame_ctx[si].upload_staging_ptr);
+        vk_upload_staging_size = 0;
+    }
     if (vk_texture_view != VK_NULL_HANDLE) {
         if (vk_fn.DestroyImageView)
             vk_fn.DestroyImageView(vk_device, vk_texture_view, NULL);
@@ -7560,7 +7884,7 @@ backend_vk_queue_2d_pic(int x, int y, const qpic_t *pic)
             return;
         if (!backend_vk_upload_pic_slot(slot_idx,
                                         (unsigned)pw, (unsigned)ph,
-                                        pic->data)) {
+                                        pic->data, NULL)) {
             /* upload_pic_slot may have partially
              * populated the slot; clear the key so
              * the next lookup treats it as empty
@@ -7695,7 +8019,7 @@ backend_vk_queue_2d_pic_scaled(int x, int y,
             return;
         if (!backend_vk_upload_pic_slot(slot_idx,
                                         (unsigned)pw, (unsigned)ph,
-                                        pic->data)) {
+                                        pic->data, NULL)) {
             vk_overlay_slots[slot_idx].key = NULL;
             return;
         }
@@ -7760,10 +8084,10 @@ backend_vk_queue_2d_pic_scaled(int x, int y,
  * DESCRIPTOR_SET_BIT.
  *
  * Translation is done in CPU: walk pic->data, apply
- * translation[b] per byte, into a stack scratch buffer
- * sized to MAX_TRANSLATE_BYTES (large enough for any
- * plausible single qpic_t; menuplyr.lmp is ~64x80 =
- * 5120 bytes, the cap is much higher).  Byte 255 stays
+ * translation[b] per byte, straight into the upload
+ * staging (backend_vk_stage_pic), and only when the pic
+ * or the colours changed.  MAX_TRANSLATE_BYTES caps the
+ * pic (menuplyr.lmp is ~64x80 = 5120 bytes).  Byte 255 stays
  * 255 (M_BuildTranslationTable initialises the table
  * with identityTable, then only overwrites TOP_RANGE
  * and BOTTOM_RANGE -- both far from 255), so the
@@ -7788,8 +8112,11 @@ backend_vk_queue_2d_pic_translate_scaled(int x, int y,
     unsigned             si;
     struct overlay_draw *draw;
     int                  pw, ph, dw, dh;
-    int                  i, n;
-    uint8_t              translated[MAX_TRANSLATE_BYTES];
+    int                  n;
+    /* What the slot holds: refreshed only when the pic or the
+     * translation changes, not every frame the menu is open */
+    static const qpic_t *held_pic;
+    static byte          held_translation[256];
 
     if (!vk_resources_ready || !pic || !translation)
         return;
@@ -7819,8 +8146,6 @@ backend_vk_queue_2d_pic_translate_scaled(int x, int y,
     dh = ph * scale;
 
     /* Translate */
-    for (i = 0; i < n; i++)
-        translated[i] = translation[pic->data[i]];
 
     /* Slot lookup by sentinel key. */
     slot_idx = OVERLAY_SLOT_MAX;
@@ -7848,7 +8173,7 @@ backend_vk_queue_2d_pic_translate_scaled(int x, int y,
             return;
         if (!backend_vk_upload_pic_slot(slot_idx,
                                         (unsigned)pw, (unsigned)ph,
-                                        translated)) {
+                                        pic->data, translation)) {
             vk_overlay_slots[slot_idx].key = NULL;
             return;
         }
@@ -7857,17 +8182,25 @@ backend_vk_queue_2d_pic_translate_scaled(int x, int y,
             return;
         }
         vk_overlay_slots[slot_idx].key = key;
-    } else {
-        /* Subsequent call: refresh pixels in place.
-         * Slot dimensions are guaranteed to match pic
-         * dimensions because menuplyr.lmp is the only
-         * caller and never changes size between calls. */
+        held_pic = pic;
+        memcpy(held_translation, translation, sizeof(held_translation));
+    } else if (     held_pic != pic
+                 || memcmp(held_translation, translation,
+                           sizeof(held_translation))) {
+        /* Refreshed in place when the colours change; the slot
+         * was made for this pic's size (menuplyr.lmp, the only
+         * caller) */
+        if (     (unsigned)pw != vk_overlay_slots[slot_idx].width
+              || (unsigned)ph != vk_overlay_slots[slot_idx].height)
+            return;
         if (!backend_vk_begin_uploads())
             return;
-        if (!backend_vk_refresh_pic_slot(slot_idx, translated))
+        if (!backend_vk_refresh_pic_slot(slot_idx, pic->data, translation))
             return;
         if (!backend_vk_end_uploads())
             return;
+        held_pic = pic;
+        memcpy(held_translation, translation, sizeof(held_translation));
     }
 
     /* LRU stamp: both cache hits and fresh uploads converge
@@ -7959,7 +8292,7 @@ backend_vk_queue_2d_fill(int x, int y, int w, int h, int c)
 
         if (!backend_vk_begin_uploads())
             return;
-        if (!backend_vk_upload_pic_slot(slot_idx, 1, 1, &cb)) {
+        if (!backend_vk_upload_pic_slot(slot_idx, 1, 1, &cb, NULL)) {
             vk_overlay_slots[slot_idx].key = NULL;
             return;
         }
@@ -8075,7 +8408,7 @@ backend_vk_queue_2d_fade_screen(void)
             free(mask);
             return;
         }
-        if (!backend_vk_upload_pic_slot(slot_idx, width, height, mask)) {
+        if (!backend_vk_upload_pic_slot(slot_idx, width, height, mask, NULL)) {
             free(mask);
             vk_overlay_slots[slot_idx].key = NULL;
             return;
@@ -8221,7 +8554,7 @@ backend_vk_queue_2d_char(int x, int y, int num, int scale)
         ok = backend_vk_begin_uploads();
         if (ok)
             ok = backend_vk_upload_pic_slot(slot_idx,
-                                            128u, 128u, remapped);
+                                            128u, 128u, remapped, NULL);
         if (ok)
             ok = backend_vk_end_uploads();
         free(remapped);
@@ -8357,7 +8690,7 @@ backend_vk_queue_2d_console_background(int lines, const qpic_t *pic)
             return;
         if (!backend_vk_upload_pic_slot(slot_idx,
                                         (unsigned)pw, (unsigned)ph,
-                                        pic->data)) {
+                                        pic->data, NULL)) {
             vk_overlay_slots[slot_idx].key = NULL;
             return;
         }
@@ -8851,57 +9184,67 @@ backend_vk_dispatch_3d_sprite_impl(const rhi_sprite_vert_t *verts,
  * Vulkan build (which compiles this file to provide
  * only the SW-mode-equivalent stubs). */
 #ifdef RHI_HAVE_VULKAN
+/* The place of @ptr in a pool of @n entries of @slot_bytes: where it
+ * already is, or the free or least recently drawn one (never one
+ * drawn this frame), into which @bytes are copied. @keep: an entry
+ * from an earlier frame still holds what it did. UINT32_MAX when the
+ * pool is full of this frame's. */
+static uint32_t
+backend_vk_alias_pool_slot(struct vk_alias_slot_cache_entry *c, uint32_t n,
+                           void *pool, uint32_t slot_bytes,
+                           const void *ptr, size_t bytes, qboolean keep,
+                           int w, int h)
+{
+    uint64_t now  = vk_overlay_frame_counter;
+    int      pick = -1;
+    uint32_t i;
+
+    for (i = 0; i < n; i++) {
+        if (c[i].ptr == ptr) {
+            if (c[i].used != now && !keep)
+                memcpy((byte *)pool + c[i].offset, ptr, bytes);
+            c[i].used = now;
+            return c[i].offset;
+        }
+        if (!c[i].ptr) {
+            if (pick < 0 || c[pick].ptr)
+                pick = (int)i;
+        } else if (     c[i].used != now
+                   && (pick < 0 || (c[pick].ptr && c[i].used < c[pick].used)))
+            pick = (int)i;
+    }
+    if (pick < 0 || bytes > slot_bytes)
+        return UINT32_MAX;
+    c[pick].ptr    = ptr;
+    c[pick].offset = (uint32_t)pick * slot_bytes;
+    c[pick].width  = (uint32_t)w;
+    c[pick].height = (uint32_t)h;
+    c[pick].used   = now;
+    memcpy((byte *)pool + c[pick].offset, ptr, bytes);
+    return c[pick].offset;
+}
+
+/* Skins are model data in the cache, unchanged while their block
+ * lives */
 static uint32_t
 backend_vk_alias_skin_slot(const void *skin_ptr, int skin_w, int skin_h,
                            size_t skin_bytes)
 {
-    uint32_t i, slot;
-
-    /* Cache lookup -- linear probe.  16-slot cache;
-     * lookup cost negligible vs the dispatch overhead. */
-    for (i = 0; i < vk_alias_skin_count; i++) {
-        if (vk_alias_skin_cache[i].ptr == skin_ptr)
-            return vk_alias_skin_cache[i].offset;
-    }
-
-    /* Miss: allocate new slot. */
-    if (vk_alias_skin_count >= VK_ALIAS_SKIN_SLOTS)
-        return UINT32_MAX;
-    if (skin_bytes > VK_ALIAS_SKIN_SLOT_BYTES)
-        return UINT32_MAX;
-
-    slot = vk_alias_skin_count * VK_ALIAS_SKIN_SLOT_BYTES;
-    memcpy((byte *)vk_alias_skin_ptr[vk_active_slot] + slot, skin_ptr, skin_bytes);
-
-    vk_alias_skin_cache[vk_alias_skin_count].ptr    = skin_ptr;
-    vk_alias_skin_cache[vk_alias_skin_count].offset = slot;
-    vk_alias_skin_cache[vk_alias_skin_count].width  = (uint32_t)skin_w;
-    vk_alias_skin_cache[vk_alias_skin_count].height = (uint32_t)skin_h;
-    vk_alias_skin_count++;
-    return slot;
+    return backend_vk_alias_pool_slot(vk_alias_skin_cache[vk_active_slot],
+            VK_ALIAS_SKIN_SLOTS, vk_alias_skin_ptr[vk_active_slot],
+            VK_ALIAS_SKIN_SLOT_BYTES, skin_ptr, skin_bytes, true,
+            skin_w, skin_h);
 }
 
+/* host_colormap never changes; a player's translated colormap does
+ * (CL_NewTranslation), so it is copied again each frame */
 static uint32_t
 backend_vk_alias_cmap_slot(const void *cmap_ptr)
 {
-    uint32_t i, slot;
-
-    for (i = 0; i < vk_alias_cmap_count; i++) {
-        if (vk_alias_cmap_cache[i].ptr == cmap_ptr)
-            return vk_alias_cmap_cache[i].offset;
-    }
-
-    if (vk_alias_cmap_count >= VK_ALIAS_CMAP_SLOTS)
-        return UINT32_MAX;
-
-    slot = vk_alias_cmap_count * VK_ALIAS_CMAP_SLOT_BYTES;
-    memcpy((byte *)vk_alias_colormap_ptr[vk_active_slot] + slot, cmap_ptr,
-           VK_ALIAS_CMAP_SLOT_BYTES);
-
-    vk_alias_cmap_cache[vk_alias_cmap_count].ptr    = cmap_ptr;
-    vk_alias_cmap_cache[vk_alias_cmap_count].offset = slot;
-    vk_alias_cmap_count++;
-    return slot;
+    return backend_vk_alias_pool_slot(vk_alias_cmap_cache[vk_active_slot],
+            VK_ALIAS_CMAP_SLOTS, vk_alias_colormap_ptr[vk_active_slot],
+            VK_ALIAS_CMAP_SLOT_BYTES, cmap_ptr, VK_ALIAS_CMAP_SLOT_BYTES,
+            cmap_ptr == (const void *)host_colormap, 0, 0);
 }
 #endif /* RHI_HAVE_VULKAN */
 
@@ -9105,6 +9448,28 @@ backend_vk_begin_frame(void)
          * fence signaled, so the next rotation onto this slot
          * cannot wait forever on it. */
         vk_cmd_buffer = vk_frame_ctx[vk_active_slot].cmd_buffer;
+
+        /* The slot's uploads went out with its last frame, done
+         * now; one left open (a frame that never reached
+         * end_frame) is closed and dropped */
+        if (vk_upload_open)
+            vk_fn.EndCommandBuffer(vk_frame_ctx[vk_active_slot].upload_cb);
+        vk_upload_open           = false;
+        vk_overlay_upload_offset = 0;
+        vk_in_frame              = true;
+
+        /* The SW renderer draws this frame straight into the
+         * slot's staging: the frame and the Z buffer the GPU
+         * copies and widens from, with no copy of either on the
+         * host. Every pixel of both is drawn again each frame,
+         * so what the slot held two frames ago is never seen. */
+        if (     vk_staging_ptr[vk_active_slot]
+              && vid.rowbytes == width
+              && vk_staging_size >= (VkDeviceSize)width * height
+                                  + VK_PALETTE_BYTES)
+            vid.buffer = vid.conbuffer = (pixel_t *)vk_staging_ptr[vk_active_slot];
+        if (vk_particles_zstaging_ptr[vk_active_slot])
+            D_SetZBuffer((short *)vk_particles_zstaging_ptr[vk_active_slot]);
     }
 
     /* Phase 3c: nothing to do.  The clear command buffer is
@@ -9248,60 +9613,37 @@ backend_vk_upload_vid_buffer(void)
         return;
 
     idx_dst = (uint8_t *)vk_staging_ptr[vk_active_slot];
-    for (y = 0; y < height; y++) {
-        const uint8_t *srow = (const uint8_t *)vid.buffer
-                            + (size_t)y * (size_t)vid.rowbytes;
-        memcpy(idx_dst + (size_t)y * (size_t)width, srow, (size_t)width);
-    }
+    /* Drawn in place (backend_vk_begin_frame); copied only when
+     * the renderer drew elsewhere (a frame begun before the
+     * backend was up) */
+    if ((const uint8_t *)vid.buffer != idx_dst)
+        for (y = 0; y < height; y++) {
+            const uint8_t *srow = (const uint8_t *)vid.buffer
+                                + (size_t)y * (size_t)vid.rowbytes;
+            memcpy(idx_dst + (size_t)y * (size_t)width, srow, (size_t)width);
+        }
 
     pal_dst = idx_dst + (size_t)width * (size_t)height;
     memcpy(pal_dst, d_8to24table_shifted, VK_PALETTE_BYTES);
 }
 
 /*
- * Phase 5b-02: stage d_pzbuffer into the host-visible
- * vk_particles_zstaging buffer so the per-frame command
- * recording can CopyBufferToImage it into vk_zbuffer.
- *
- * Called from backend_vk_end_frame only when
- * vk_pending_particle_count > 0 (i.e. there's a particle
- * dispatch waiting that needs the Z values to test
- * against).  At end_frame time, R_RenderView has finished
- * and d_pzbuffer holds the world / alias / brush Z
- * values the CPU SW raster wrote -- exactly what the GPU
- * particles need.
- *
- * Phase 5b-04 widened the GPU format to R32_UINT (to make
- * imageAtomicMax legal -- see particles.comp's prologue),
- * so the upload widens each signed-short d_pzbuffer
- * entry into a uint32 here on the host before the GPU
- * CopyBuffer.  Values stored in d_pzbuffer are always
- * non-negative izi (zi << 15) under normal Quake
- * camera positions, so the sign extension is irrelevant;
- * `(uint32_t)(uint16_t)d_pzbuffer[i]` preserves the bit
- * pattern.
- *
- * The widen loop runs over width * height pixels each
- * frame that has particles -- 2M ops at 1080p, ~2 ms on
- * a modern CPU.  Cost is acceptable for the race-free
- * Z-test it enables.
+ * The SW renderer's 16-bit Z for the GPU passes that test against it
+ * (particles, sprites, alias, turb, sky). It is drawn straight into
+ * the slot's vk_particles_zstaging, and record_frame's zwiden pass
+ * widens it into the R32_UINT vk_zbuffer (R32 for imageAtomicMax;
+ * izi is never negative, so the word is the value). Called from
+ * end_frame on frames with any of those passes.
  */
 static void
 backend_vk_upload_zbuffer(void)
 {
-    uint32_t       *dst;
-    const int16_t  *src;
-    size_t          i;
-    size_t          count;
-
-    if (!vk_particles_zstaging_ptr[vk_active_slot] || !d_pzbuffer)
-        return;
-
-    dst   = (uint32_t *)vk_particles_zstaging_ptr[vk_active_slot];
-    src   = (const int16_t *)d_pzbuffer;
-    count = (size_t)width * (size_t)height;
-    for (i = 0; i < count; i++)
-        dst[i] = (uint32_t)(uint16_t)src[i];
+    /* Drawn in place (backend_vk_begin_frame); copied only when
+     * the renderer drew elsewhere */
+    if (     vk_particles_zstaging_ptr[vk_active_slot] && d_pzbuffer
+          && d_pzbuffer != (short *)vk_particles_zstaging_ptr[vk_active_slot])
+        memcpy(vk_particles_zstaging_ptr[vk_active_slot], d_pzbuffer,
+               (size_t)width * (size_t)height * sizeof(short));
 }
 
 /*
@@ -9369,7 +9711,6 @@ backend_vk_record_frame(void)
     VkImageMemoryBarrier      barriers[3];
     VkImageMemoryBarrier      image_barrier;
     VkBufferImageCopy         regions[2];
-    VkBufferImageCopy         zb_region;
     VkRenderPassBeginInfo     rpbi;
     VkDeviceSize              vb_offset;
     uint32_t                  group_count_x;
@@ -9557,7 +9898,7 @@ backend_vk_record_frame(void)
                              0,
                              0, NULL,
                              0, NULL,
-                             zbuf_active ? 3 : 2, barriers);
+                             2, barriers);
 
     /* Index texture: bytes [0, width*height) of staging at
      * the start of vk_texture.  Palette texture: bytes
@@ -9610,24 +9951,38 @@ backend_vk_record_frame(void)
      * the gate to zbuf_active so sprites trigger the
      * upload too (the d_pzbuffer staging is shared
      * between the two subsystems). */
+    /* The SW renderer's Z, drawn into the slot's 16-bit staging,
+     * widened into vk_zbuffer on the GPU (zwiden.comp) for the
+     * passes that test against it. The discard waits for an
+     * earlier frame's passes still reading vk_zbuffer. */
     if (zbuf_active) {
-        memset(&zb_region, 0, sizeof(zb_region));
-        zb_region.bufferOffset                    = 0;
-        zb_region.bufferRowLength                 = 0;
-        zb_region.bufferImageHeight               = 0;
-        zb_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-        zb_region.imageSubresource.mipLevel       = 0;
-        zb_region.imageSubresource.baseArrayLayer = 0;
-        zb_region.imageSubresource.layerCount     = 1;
-        zb_region.imageExtent.width               = width;
-        zb_region.imageExtent.height              = height;
-        zb_region.imageExtent.depth               = 1;
-
-        vk_fn.CmdCopyBufferToImage(vk_cmd_buffer,
-                                   vk_particles_zstaging[vk_active_slot],
-                                   vk_zbuffer,
-                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                   1, &zb_region);
+        uint32_t zpc[2];
+        barriers[2].srcAccessMask = 0;
+        barriers[2].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barriers[2].oldLayout     = VK_IMAGE_LAYOUT_UNDEFINED;
+        barriers[2].newLayout     = VK_IMAGE_LAYOUT_GENERAL;
+        vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
+                                 VK_EARLIER_READS_STAGES,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                 0,
+                                 0, NULL,
+                                 0, NULL,
+                                 1, &barriers[2]);
+        zpc[0] = width;
+        zpc[1] = height;
+        vk_fn.CmdBindPipeline(vk_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                              vk_zwiden_pipeline);
+        vk_fn.CmdBindDescriptorSets(vk_cmd_buffer,
+                                    VK_PIPELINE_BIND_POINT_COMPUTE,
+                                    vk_zwiden_layout, 0, 1,
+                                    &vk_zwiden_set[vk_active_slot], 0, NULL);
+        vk_fn.CmdPushConstants(vk_cmd_buffer, vk_zwiden_layout,
+                               VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                               sizeof(zpc), zpc);
+        /* Two pixels (a word) to an invocation, 64 to a group */
+        vk_fn.CmdDispatch(vk_cmd_buffer,
+                          (((uint32_t)width * height + 1u) / 2u + 63u) / 64u,
+                          1, 1);
     }
 
     if (zbuf_active) {
@@ -9665,17 +10020,20 @@ backend_vk_record_frame(void)
         barriers[1].newLayout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         barriers[1].image         = vk_palette_texture;
 
-        barriers[2].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        /* vk_zbuffer: written by zwiden, read and written by
+         * the passes below */
+        barriers[2].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
         barriers[2].dstAccessMask = VK_ACCESS_SHADER_READ_BIT
                                   | VK_ACCESS_SHADER_WRITE_BIT;
-        barriers[2].oldLayout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barriers[2].oldLayout     = VK_IMAGE_LAYOUT_GENERAL;
         barriers[2].newLayout     = VK_IMAGE_LAYOUT_GENERAL;
         barriers[2].image         = vk_zbuffer;
 
         /* The palette is also sampled by the overlay's fragment
          * shader */
         vk_fn.CmdPipelineBarrier(vk_cmd_buffer,
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT
+                               | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
                                | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                  0,
@@ -10547,8 +10905,6 @@ backend_vk_record_frame(void)
     vk_alias_count           = 0;
     vk_alias_vertex_cursor   = 0;
     vk_alias_triangle_cursor = 0;
-    vk_alias_skin_count      = 0;
-    vk_alias_cmap_count      = 0;
 
     /* Phase 5b-07a step 2: reset the sky span collector.
      * Next frame's d_edge.c::D_DrawSurfaces will repopulate
@@ -10579,11 +10935,24 @@ static void
 backend_vk_end_frame(void)
 {
 #ifdef RHI_HAVE_VULKAN
-    VkSubmitInfo si;
-    VkResult     r;
+    VkSubmitInfo    si;
+    VkCommandBuffer cbs[2];
+    uint32_t        ncb = 0;
+    VkResult        r;
 
+    /* Uploads made from here on are no part of a frame */
+    vk_in_frame = false;
     if (!vk_iface || !vk_resources_ready)
         return;
+
+    /* The frame's overlay uploads go out ahead of it, in the
+     * same submit (or alone, below, when there is no frame) */
+    if (vk_upload_open) {
+        vk_upload_open = false;
+        if (vk_fn.EndCommandBuffer(vk_frame_ctx[vk_active_slot].upload_cb)
+                == VK_SUCCESS)
+            cbs[ncb++] = vk_frame_ctx[vk_active_slot].upload_cb;
+    }
 
     /* Refresh the staging buffer with the latest vid.buffer
      * contents before recording the copy command.  The host
@@ -10655,23 +11024,38 @@ backend_vk_end_frame(void)
     if (vk_pending_particle_count > 0
      || vk_sprite_count > 0
      || vk_alias_count > 0
-     || vk_turb_surface_count > 0)
+     || vk_turb_surface_count > 0
+     || vk_sky_collected_count > 0)
         perf_timing_counter_add(PERF_COUNTER_ZBUF_UPLOAD_BYTES,
-                                (uint64_t)(width * height * 4));
+                                (uint64_t)(width * height * 2));
 
     perf_timing_section_begin(PERF_SECTION_RECORD_FRAME);
     if (!backend_vk_record_frame()) {
         perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
+        /* The slots they filled are in use; their images must
+         * be uploaded all the same */
+        if (ncb) {
+            memset(&si, 0, sizeof(si));
+            si.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            si.commandBufferCount = ncb;
+            si.pCommandBuffers    = cbs;
+            vk_fn.ResetFences(vk_device, 1, &vk_frame_ctx[vk_active_slot].done_fence);
+            if (vk_fn.QueueSubmit(vk_queue, 1, &si,
+                        vk_frame_ctx[vk_active_slot].done_fence) != VK_SUCCESS)
+                vk_fn.QueueSubmit(vk_queue, 0, NULL,
+                                  vk_frame_ctx[vk_active_slot].done_fence);
+        }
         return;
     }
+    cbs[ncb++] = vk_cmd_buffer;
     perf_timing_section_end(PERF_SECTION_RECORD_FRAME);
 
     /* Submit the just-recorded command buffer. */
     perf_timing_section_begin(PERF_SECTION_SUBMIT_PRESENT);
     memset(&si, 0, sizeof(si));
     si.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.commandBufferCount   = 1;
-    si.pCommandBuffers      = &vk_cmd_buffer;
+    si.commandBufferCount   = ncb;
+    si.pCommandBuffers      = cbs;
     /* Phase 5b-08 step 3b: signal the active slot's
      * render-done semaphore so set_image's handoff to the
      * frontend defers the actual image read until GPU
@@ -10777,6 +11161,17 @@ backend_vk_notify_cache_invalidate(const void *data, int size)
         const byte          *key  = (const byte *)slot->key;
         if (key && key >= base && key < end)
             slot->key = NULL;
+    }
+    /* Skins held in the alias pools: the block they came from is
+     * going, and its address may hold another model's next */
+    {
+        unsigned ri, ei;
+        for (ri = 0; ri < VK_FRAME_RING_DEPTH; ri++)
+            for (ei = 0; ei < VK_ALIAS_SKIN_SLOTS; ei++) {
+                const byte *p = (const byte *)vk_alias_skin_cache[ri][ei].ptr;
+                if (p && p >= base && p < end)
+                    vk_alias_skin_cache[ri][ei].ptr = NULL;
+            }
     }
 #else
     (void)data;

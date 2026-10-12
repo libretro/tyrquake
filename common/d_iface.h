@@ -137,6 +137,8 @@ void D_DrawSurfaces(void);
 void D_EndParticles(void);
 void D_Init(void);
 void D_ViewChanged(void);
+/* The Z buffer the span drawers use, and the row table into it */
+void D_SetZBuffer(short *zbuf);
 void D_SetupFrame(void);
 void D_StartParticles(void);
 void D_TurnZOn(void);
